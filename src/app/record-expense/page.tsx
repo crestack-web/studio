@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function RecordExpensePage() {
     return (
@@ -16,8 +17,24 @@ export default function RecordExpensePage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-2">
+                            <Label htmlFor="category">Category</Label>
+                            <Select>
+                                <SelectTrigger id="category" className="h-12 text-base">
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="rent">Rent</SelectItem>
+                                    <SelectItem value="utilities">Utilities</SelectItem>
+                                    <SelectItem value="supplies">Supplies</SelectItem>
+                                    <SelectItem value="salaries">Salaries</SelectItem>
+                                    <SelectItem value="marketing">Marketing</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="title">Expense Title</Label>
-                            <Input id="title" placeholder="e.g., Rent, electricity bill" className="h-12 text-base" />
+                            <Input id="title" placeholder="e.g., Office rent for May" className="h-12 text-base" />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amount">Amount</Label>
