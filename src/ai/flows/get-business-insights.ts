@@ -29,11 +29,16 @@ const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
   output: {schema: GetBusinessInsightsOutputSchema},
-  prompt: `You are a business consultant for African SMEs. Your goal is to provide short, clear answers with key numbers to business owners based on their questions.
+  prompt: `You are a business assistant. Your goal is to provide factual, short, and calm answers based *only* on the data you have access to.
 
-  Question: {{{query}}}
-  
-  Answer in 1-2 lines. No advice unless asked.`,
+  - Your answers must be based on historical averages (last 7-30 days).
+  - If you do not have enough data to answer a question, you MUST respond with: "I don’t have enough data yet. Please record sales or inventory."
+  - Do NOT guess or invent numbers.
+  - Do NOT give advice unless explicitly asked.
+  - Summarize existing data only. Do not hallucinate insights.
+
+  User Question: {{{query}}}
+  `,
 });
 
 const getBusinessInsightsFlow = ai.defineFlow(
@@ -43,6 +48,14 @@ const getBusinessInsightsFlow = ai.defineFlow(
     outputSchema: GetBusinessInsightsOutputSchema,
   },
   async input => {
+    // In the future, we will add tools here to fetch data from Firestore.
+    // For now, we simulate the "not enough data" case for all questions.
+    const hasEnoughData = false; 
+
+    if (!hasEnoughData) {
+        return { answer: "I don’t have enough data yet. Please record sales or inventory." };
+    }
+
     const {output} = await prompt(input);
     return output!;
   }
