@@ -10,6 +10,7 @@ import { useState, useEffect, useRef } from 'react';
 import Autoplay from "embla-carousel-autoplay";
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { DashboardMockup } from '@/components/app/dashboard-mockup';
+import { MarketMockup } from '@/components/app/market-mockup';
 import {
   Accordion,
   AccordionContent,
@@ -144,11 +145,9 @@ export default function LandingPage() {
                     </Button>
                 </Link>
               </div>
-              <Card className="shadow-lg">
-                <CardContent className="p-4">
-                  <Image src="https://picsum.photos/seed/market-mockup/600/500" alt="Busmo Market Mockup" width={600} height={500} className="rounded-lg" data-ai-hint="marketplace mobile" />
-                </CardContent>
-              </Card>
+              <div className="relative mx-auto w-full max-w-[340px] h-[600px] flex items-center justify-center">
+                <MarketMockup />
+              </div>
           </div>
         </section>
 
