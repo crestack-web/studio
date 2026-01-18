@@ -11,10 +11,15 @@ export default function WelcomePage() {
           <CardTitle className="text-2xl font-headline">Welcome to BizAssistant</CardTitle>
           <CardDescription>Your AI partner for managing your small business in Africa.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Link href="/login" className="w-full">
+        <CardContent className="space-y-4">
+          <Link href="/signup" className="w-full">
             <Button className="w-full h-14 text-lg">
-              Get Started
+              Create Account
+            </Button>
+          </Link>
+          <Link href="/login" className="w-full">
+            <Button variant="outline" className="w-full h-14 text-lg">
+              Log In
             </Button>
           </Link>
         </CardContent>

@@ -31,9 +31,9 @@ export default function CurrencyPage() {
               </Label>
             </div>
           </RadioGroup>
-          <Link href="/role" className="w-full">
+          <Link href="/owner/home" className="w-full">
             <Button className="w-full h-14 text-lg">
-              Continue
+              Finish Setup
             </Button>
           </Link>
         </CardContent>
