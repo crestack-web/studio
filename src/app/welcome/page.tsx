@@ -202,34 +202,34 @@ export default function LandingPage() {
                 <Card className="shadow-lg">
                     <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-accent"/>
-                        <span>Today's Performance</span>
-                    </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    <p className="text-primary font-medium">Looking strong. You are 25% ahead of your daily sales average.</p>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-lg">
-                    <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-accent"/>
-                        <span>Weekly Trend</span>
+                        <span>Weekly Profit Forecast</span>
                     </CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <p className="text-success font-medium">Sales are trending up 12% vs. last week. Keep it up!</p>
+                    <p className="text-success font-medium">Based on current trends, you're on track to make ₦42,000 in profit next week.</p>
                     </CardContent>
                 </Card>
                 <Card className="shadow-lg">
                     <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                        <BarChart className="w-5 h-5 text-accent"/>
-                        <span>Profit Direction</span>
+                        <Activity className="w-5 h-5 text-accent"/>
+                        <span>Busiest Day Prediction</span>
                     </CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <p className="text-success font-medium">Your profit margin is increasing as cost of goods remains stable.</p>
+                    <p className="text-primary font-medium">Expect your busiest day to be Saturday. Plan for extra stock to meet demand.</p>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-lg">
+                    <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Package className="w-5 h-5 text-accent"/>
+                        <span>Inventory Outlook</span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <p className="text-warning font-medium">You are likely to run out of Bottled Water in 3 days. Consider reordering now.</p>
                     </CardContent>
                 </Card>
               </div>
