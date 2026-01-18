@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { TrendingUp, Building, Package } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // In a real app, this would come from user data.
 const userPlan = 'multi-branch'; // or 'shop', 'supermarket'
@@ -20,10 +22,10 @@ const summaryData = {
 };
 
 const salesByProductData = [
-  { product: 'Bottled Water', sales: 27000 },
-  { product: 'Biscuits', sales: 22500 },
-  { product: 'Soft Drink', sales: 18000 },
-  { product: 'Bread', sales: 9500 },
+  { product: 'Bottled Water', sales: 27000, quantity: 180 },
+  { product: 'Biscuits', sales: 22500, quantity: 90 },
+  { product: 'Soft Drink', sales: 18000, quantity: 90 },
+  { product: 'Bread', sales: 9500, quantity: 95 },
 ];
 
 const productChartConfig = {
@@ -54,6 +56,7 @@ const paymentMethods = [
 ];
 
 export default function SummaryPage() {
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const formatCurrency = (value: number) => `${summaryData.currency}${value.toLocaleString()}`;
 
   return (
@@ -69,7 +72,7 @@ export default function SummaryPage() {
                         Sales by Product
                     </CardTitle>
                     <CardDescription>
-                        Performance of your top-selling products for the selected period.
+                        Performance of your top-selling products for the selected period. Click a bar for details.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
@@ -86,7 +89,7 @@ export default function SummaryPage() {
                                         labelClassName="font-bold"
                                     />} 
                                 />
-                                <Bar dataKey="sales" fill="var(--color-sales)" radius={5} />
+                                <Bar dataKey="sales" fill="var(--color-sales)" radius={5} onClick={(data) => setSelectedProduct(data)} className="cursor-pointer" />
                             </BarChart>
                         </ResponsiveContainer>
                     </ChartContainer>
@@ -134,7 +137,10 @@ export default function SummaryPage() {
                     {salesByProductData.sort((a, b) => b.sales - a.sales).map((item, index) => (
                         <div key={item.product}>
                             <div className="flex justify-between items-center py-2">
-                                <p className="font-medium">{item.product}</p>
+                                <div>
+                                    <p className="font-medium">{item.product}</p>
+                                    <p className="text-sm text-muted-foreground">{item.quantity} units sold</p>
+                                </div>
                                 <p className="font-semibold text-lg">{formatCurrency(item.sales)}</p>
                             </div>
                             {index < salesByProductData.length - 1 && <Separator />}
@@ -210,6 +216,27 @@ export default function SummaryPage() {
 
         </div>
       </div>
+      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{selectedProduct?.product}</DialogTitle>
+                <DialogDescription>
+                    Details for this product for the selected period.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 py-4 text-sm">
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total Sales</span>
+                    <span className="font-semibold">{formatCurrency(selectedProduct?.sales || 0)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Quantity Sold</span>
+                    <span className="font-semibold">{selectedProduct?.quantity} units</span>
+                </div>
+            </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
