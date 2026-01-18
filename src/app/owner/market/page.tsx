@@ -40,40 +40,43 @@ const SettingsContent = () => {
     const [isStoreActive, setIsStoreActive] = useState(true);
     const [storeDescription, setStoreDescription] = useState('Your one-stop shop for daily needs and groceries.');
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Marketplace Settings</CardTitle>
-                <CardDescription>Manage your public store on Busmo Market.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <Label htmlFor="store-status" className="text-base font-medium">
-                            Your store is {isStoreActive ? 'online' : 'offline'}
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                            {isStoreActive 
-                                ? 'Customers can find and purchase your products.' 
-                                : 'Your store and products are hidden from the marketplace.'}
-                        </p>
+        <div className="space-y-6 max-w-2xl">
+            <Card>
+                <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="store-status" className="text-base font-medium">
+                                Your store is {isStoreActive ? 'online' : 'offline'}
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                                {isStoreActive
+                                    ? 'Customers can find and purchase your products.'
+                                    : 'Your store and products are hidden from the marketplace.'}
+                            </p>
+                        </div>
+                        <Switch
+                            id="store-status"
+                            checked={isStoreActive}
+                            onCheckedChange={setIsStoreActive}
+                        />
                     </div>
-                    <Switch
-                        id="store-status"
-                        checked={isStoreActive}
-                        onCheckedChange={setIsStoreActive}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="store-description">Store Description</Label>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Store Description</CardTitle>
+                    <CardDescription>This will be shown on your public store page.</CardDescription>
+                </CardHeader>
+                <CardContent>
                     <Textarea
                         id="store-description"
                         placeholder="Describe your business for customers on the marketplace."
                         value={storeDescription}
                         onChange={(e) => setStoreDescription(e.target.value)}
                     />
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+        </div>
     );
 };
 
@@ -85,11 +88,7 @@ const ProductsContent = () => {
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Product Listings</CardTitle>
-                <CardDescription>Choose which products to show on your public store.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -138,11 +137,7 @@ const ProductsContent = () => {
 const OrdersContent = () => {
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Orders</CardTitle>
-                <CardDescription>Manage incoming orders from Busmo Market.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -177,11 +172,7 @@ const OrdersContent = () => {
 const CustomersContent = () => {
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Customers</CardTitle>
-                <CardDescription>View customers who have purchased from your store.</CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -216,29 +207,23 @@ const CustomersContent = () => {
 
 const PaymentsContent = () => {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" />Payments</CardTitle>
-                <CardDescription>Configure how you receive payments from Busmo Market sales.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center py-12 text-muted-foreground">
-                <p>Payment settings are coming soon.</p>
-            </CardContent>
-        </Card>
+        <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border">
+            <CreditCard className="w-12 h-12 mx-auto mb-4 text-primary" />
+            <h3 className="text-lg font-semibold">Payment Settings</h3>
+            <p>Configure how you receive payments from Busmo Market sales.</p>
+            <p className="text-sm mt-2">(Coming Soon)</p>
+        </div>
     );
 };
 
 const DeliveryContent = () => {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Truck className="w-5 h-5 text-primary" />Delivery</CardTitle>
-                <CardDescription>Set up your delivery options and prices for customers.</CardDescription>
-            </CardHeader>
-             <CardContent className="text-center py-12 text-muted-foreground">
-                <p>Delivery options are coming soon.</p>
-            </CardContent>
-        </Card>
+        <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border">
+            <Truck className="w-12 h-12 mx-auto mb-4 text-primary" />
+            <h3 className="text-lg font-semibold">Delivery Options</h3>
+            <p>Set up your delivery options and prices for customers.</p>
+            <p className="text-sm mt-2">(Coming Soon)</p>
+        </div>
     );
 };
 
@@ -247,13 +232,16 @@ export default function ManageMarketPage() {
     const router = useRouter();
 
     const menuItems = [
-        { id: 'settings', label: 'Settings', icon: Settings },
-        { id: 'products', label: 'Products', icon: Package },
-        { id: 'orders', label: 'Orders', icon: ShoppingCart },
-        { id: 'customers', label: 'Customers', icon: Users },
-        { id: 'payments', label: 'Payments', icon: CreditCard },
-        { id: 'delivery', label: 'Delivery', icon: Truck },
+        { id: 'settings', label: 'Settings', icon: Settings, description: 'Manage your public store on Busmo Market.' },
+        { id: 'products', label: 'Products', icon: Package, description: 'Choose which products to show on your public store.' },
+        { id: 'orders', label: 'Orders', icon: ShoppingCart, description: `Manage incoming orders. You have ${mockOrders.filter(o => o.status === 'Pending').length} pending orders.` },
+        { id: 'customers', label: 'Customers', icon: Users, description: 'View customers who have purchased from your store.' },
+        { id: 'payments', label: 'Payments', icon: CreditCard, description: 'Configure how you receive payments.' },
+        { id: 'delivery', label: 'Delivery', icon: Truck, description: 'Set up your delivery options and prices.' },
     ];
+    
+    const activeMenuItem = menuItems.find((item) => item.id === activeSection);
+
 
     const renderContent = () => {
         switch (activeSection) {
@@ -303,26 +291,29 @@ export default function ManageMarketPage() {
                 </Sidebar>
 
                 <SidebarInset>
-                    <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-card">
-                        <SidebarTrigger className="md:hidden"/>
-                        <h1 className="text-xl font-headline font-semibold flex-1 md:text-2xl">
-                            {menuItems.find((item) => item.id === activeSection)?.label}
-                        </h1>
-                        <div className="flex items-center gap-2">
-                            <SidebarTrigger className="hidden md:flex" />
+                    <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <SidebarTrigger className="md:hidden"/>
+                            <div>
+                                <h1 className="text-xl font-headline font-semibold md:text-2xl">
+                                    {activeMenuItem?.label}
+                                </h1>
+                                {activeMenuItem?.description && <p className="text-sm text-muted-foreground">{activeMenuItem.description}</p>}
+                            </div>
+                        </div>
+                        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                             <Link href="/market/store/my-store-id" passHref>
                                 <Button variant="outline">
                                     <ExternalLink className="mr-2 h-4 w-4" />
                                     View Public Store
                                 </Button>
                             </Link>
+                            <SidebarTrigger className="hidden md:flex" />
                         </div>
                     </header>
-                    <div className="flex-1 p-4 sm:p-6">
-                        <div className="w-full">
-                            {renderContent()}
-                        </div>
-                    </div>
+                    <main className="flex-1 p-4 sm:p-6">
+                        {renderContent()}
+                    </main>
                 </SidebarInset>
             </div>
         </SidebarProvider>
