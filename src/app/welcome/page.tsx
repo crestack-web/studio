@@ -34,7 +34,7 @@ export default function LandingPage() {
               <Button variant="ghost">Log In</Button>
             </Link>
             <Link href="/signup" passHref>
-              <Button>Get Started Free</Button>
+              <Button>Join the Waitlist</Button>
             </Link>
           </nav>
         </div>
@@ -57,12 +57,12 @@ export default function LandingPage() {
               <span className="text-accent">Do you know if you're making money?</span>
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              Stop guessing with notebooks and calculators. Busmo is your simple AI business assistant on your phone.
+              Stop guessing with notebooks and calculators. Busmo turns your daily activity into understanding—and understanding into growth.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" className="h-14 text-lg px-8">
-                  Start Tracking for Free
+                  Join the Waitlist
                 </Button>
               </Link>
             </div>
@@ -88,7 +88,7 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <div className="text-center">
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
-                Everything you need. Nothing you don’t.
+                What You Can Do With Busmo
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
                 Busmo is built for the reality of your business. Simple, fast, and offline-first.
@@ -96,24 +96,24 @@ export default function LandingPage() {
             </div>
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col items-start p-6 border rounded-lg bg-card/50">
-                <ShoppingCart className="h-10 w-10 text-accent mb-4" />
-                <h3 className="text-xl font-semibold font-headline">Record Sales Fast</h3>
+                <Package className="h-10 w-10 text-accent mb-4" />
+                <h3 className="text-xl font-semibold font-headline">Manage Products & Inventory</h3>
                 <p className="mt-2 text-muted-foreground">
-                  Quickly record each sale, whether it's with cash, POS, or transfer. Works even when you're offline.
+                  Add products with quantity & cost, track stock movement automatically, and know when to restock before it’s too late.
                 </p>
               </div>
               <div className="flex flex-col items-start p-6 border rounded-lg bg-card/50">
-                <Package className="h-10 w-10 text-accent mb-4" />
-                <h3 className="text-xl font-semibold font-headline">Track Inventory</h3>
+                <ShoppingCart className="h-10 w-10 text-accent mb-4" />
+                <h3 className="text-xl font-semibold font-headline">Record Sales (The Right Way)</h3>
                 <p className="mt-2 text-muted-foreground">
-                  Know exactly what you have in stock. Get alerts when items are running low so you never miss a sale.
+                  See what product was sold, track quantity and profit, and understand which products actually make you money.
                 </p>
               </div>
               <div className="flex flex-col items-start p-6 border rounded-lg bg-card/50">
                 <BarChart className="h-10 w-10 text-accent mb-4" />
-                <h3 className="text-xl font-semibold font-headline">Monitor Expenses</h3>
+                <h3 className="text-xl font-semibold font-headline">Track Expenses</h3>
                 <p className="mt-2 text-muted-foreground">
-                  Keep track of where your money is going, from rent to supplies, to see your true profit.
+                  Record inventory costs and log daily business expenses to see how they affect your profit in real time.
                 </p>
               </div>
             </div>
@@ -189,23 +189,25 @@ export default function LandingPage() {
               </div>
               <div className="md:order-first">
                  <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
-                    See what's coming.
+                    Forecast Your Business.
+                    <br/>
+                    <span className="text-muted-foreground">Stop reacting. Start planning.</span>
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                    Busmo analyzes your sales trends to forecast future cash flow. Plan ahead with confidence, knowing what to expect next week and next month.
+                    Busmo analyzes your sales trends so you can plan ahead with confidence. Your key forecasts appear right in your dashboard — no scrolling, no hunting, just insight.
                 </p>
                 <ul className="mt-6 space-y-3 text-muted-foreground">
                     <li className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-accent"/>
-                        <span>Predict your busiest days.</span>
+                        <span>Sales trends</span>
                     </li>
                      <li className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-accent"/>
-                        <span>Anticipate cash shortages.</span>
+                        <span>Profit predictions</span>
                     </li>
                      <li className="flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-accent"/>
-                        <span>Make smarter inventory decisions.</span>
+                        <span>Inventory outlook</span>
                     </li>
                 </ul>
               </div>
@@ -216,15 +218,15 @@ export default function LandingPage() {
         <section className="py-24 sm:py-32 bg-primary text-primary-foreground">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
-              Take control of your business today.
+              The Future of Your Business Starts With Clarity.
             </h2>
             <p className="mt-4 max-w-xl mx-auto text-lg text-primary-foreground/80">
-              Join thousands of smart business owners in Africa who are building their future with Busmo.
+              You don’t need more sales. You need better visibility. Join smart business owners in Africa who are building their future with Busmo.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" variant="secondary" className="h-14 text-lg px-8">
-                  Get Started for Free
+                  Join the Waitlist
                 </Button>
               </Link>
             </div>
@@ -234,12 +236,12 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-card border-t">
-        <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 py-8 px-4">
-          <Logo className="h-7" />
+        <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
+          <Logo className="h-7 mx-auto md:mx-0" />
           <p className="text-sm text-muted-foreground">
-            &copy; {currentYear} Busmo. All rights reserved.
+            &copy; {currentYear} Busmo. Business. Money. Clear.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
             <Link href="#" className="text-sm hover:underline">Privacy</Link>
              <Link href="#" className="text-sm hover:underline">Terms</Link>
           </div>
