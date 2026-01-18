@@ -27,7 +27,7 @@ const mockProducts = [
 
 const mockOrders = [
     { id: '#BM1001', customer: 'Chioma Okoro', date: '2024-07-25', total: '12,000', status: 'Pending' },
-    { id: '#BM1002', customer: 'David Adeleke', date: '2024-07-24', total: 'Shipped', status: 'Shipped' },
+    { id: '#BM1002', customer: 'David Adeleke', date: '2024-07-24', total: '3,500', status: 'Shipped' },
     { id: '#BM1003', customer: 'Amina Bello', date: '2024-07-24', total: '5,000', status: 'Delivered' },
 ];
 
@@ -45,7 +45,7 @@ const SettingsContent = () => {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Store Status</CardTitle>
+                    <CardTitle>Store Status</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -69,7 +69,7 @@ const SettingsContent = () => {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Store Description</CardTitle>
+                    <CardTitle>Store Description</CardTitle>
                     <CardDescription>This is shown to customers on your public store page.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -219,7 +219,7 @@ const PaymentsContent = () => {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Payment Methods</CardTitle>
+                    <CardTitle>Payment Methods</CardTitle>
                     <CardDescription>Choose how you want to accept payments for online orders.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -246,7 +246,7 @@ const PaymentsContent = () => {
             {allowBankTransfer && (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg">Bank Transfer Details</CardTitle>
+                        <CardTitle>Bank Transfer Details</CardTitle>
                         <CardDescription>This information will be shown to customers who choose to pay via bank transfer.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -289,7 +289,7 @@ const DeliveryContent = () => {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Order Fulfillment</CardTitle>
+                    <CardTitle>Order Fulfillment</CardTitle>
                     <CardDescription>Set up how customers can receive their orders.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -317,7 +317,7 @@ const DeliveryContent = () => {
             {allowDelivery && (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg">Delivery Settings</CardTitle>
+                        <CardTitle>Delivery Settings</CardTitle>
                         <CardDescription>Configure your delivery fee and schedule.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -372,7 +372,7 @@ export default function ManageMarketPage() {
             case 'products':
                 return <ProductsContent />;
             case 'orders':
-return <OrdersContent />;
+                return <OrdersContent />;
             case 'customers':
                 return <CustomersContent />;
             case 'payments':
