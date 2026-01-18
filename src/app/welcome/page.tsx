@@ -6,17 +6,48 @@ import { Logo } from '@/components/app/logo';
 import { Activity, BarChart, CheckCircle, HelpCircle, Landmark, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Autoplay from "embla-carousel-autoplay";
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+
+const testimonialsData = [
+  {
+    id: 'testimonial-food-vendor',
+    quote: "For the first time, I can see my daily profit in seconds. No more counting cash and guessing. Busmo is my new business partner.",
+    name: "Femi",
+    business: "Femi's Suya Spot",
+  },
+  {
+    id: 'testimonial-retail-shop',
+    quote: "I used to run out of my best-selling fabrics. Now, Busmo tells me when to restock. My customers are happier, and my sales are up.",
+    name: "Aisha",
+    business: "Aisha's Textiles",
+  },
+  {
+    id: 'testimonial-supermarket-owner',
+    quote: "Managing expenses was a headache. With Busmo, I can see exactly where my money is going. It’s simple, powerful, and built for people like me.",
+    name: "John",
+    business: "Everyday Needs Grocers",
+  },
+];
 
 
 // The new landing page component
 export default function LandingPage() {
   const [dashboardImage, setDashboardImage] = useState<string>('');
+  const [testimonials, setTestimonials] = useState<any[]>([]);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const dashboard = PlaceHolderImages.find(img => img.id === 'landing-dashboard-preview');
     if (dashboard) setDashboardImage(dashboard.imageUrl);
+
+    const loadedTestimonials = testimonialsData.map(t => {
+        const img = PlaceHolderImages.find(img => img.id === t.id);
+        return {...t, imageUrl: img?.imageUrl, imageHint: img?.imageHint };
+    });
+    setTestimonials(loadedTestimonials);
+    
     setCurrentYear(new Date().getFullYear());
   }, []);
 
@@ -64,10 +95,7 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-        </section>
-        
-        {/* App Preview Image Section */}
-        <section className="container mx-auto px-4 sm:px-6 lg:px-8">
+           <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-16">
             <div className="relative mx-auto border-foreground/20 bg-background/20 dark:border-foreground/10 border-[8px] rounded-t-xl w-full max-w-4xl h-[400px] md:h-[600px] shadow-2xl">
                  {dashboardImage && <Image
                     src={dashboardImage}
@@ -77,8 +105,8 @@ export default function LandingPage() {
                     data-ai-hint="app dashboard"
                 />}
             </div>
+        </div>
         </section>
-
 
         {/* Features Section */}
         <section className="py-24 sm:py-32">
@@ -117,8 +145,65 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Testimonials Section */}
+        <section className="bg-card/30 py-24 sm:py-32">
+          <div className="container mx-auto px-4">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
+                Built for the Heart of African Commerce
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                From street-side stalls to growing supermarkets, Busmo provides clarity and control.
+              </p>
+            </div>
+            <div className="mt-16">
+              <Carousel
+                plugins={[
+                  Autoplay({
+                    delay: 4000,
+                    stopOnInteraction: true,
+                  }),
+                ]}
+                opts={{
+                  align: "start",
+                  loop: true,
+                }}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-4">
+                  {testimonials.map((testimonial) => (
+                    <CarouselItem key={testimonial.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                      <div className="h-full p-px">
+                        <Card className="flex flex-col h-full shadow-lg">
+                          <CardContent className="flex-1 flex flex-col p-6">
+                            <p className="flex-1 text-muted-foreground italic">"{testimonial.quote}"</p>
+                            <div className="mt-6 flex items-center gap-4">
+                              {testimonial.imageUrl && <Image
+                                src={testimonial.imageUrl}
+                                alt={`Photo of ${testimonial.name}`}
+                                width={48}
+                                height={48}
+                                className="rounded-full object-cover"
+                                data-ai-hint={testimonial.imageHint}
+                              />}
+                              <div>
+                                <p className="font-semibold">{testimonial.name}</p>
+                                <p className="text-sm text-muted-foreground">{testimonial.business}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </div>
+          </div>
+        </section>
+
         {/* AI Section */}
-        <section className="py-24 sm:py-32 bg-card/30">
+        <section className="py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
@@ -172,7 +257,7 @@ export default function LandingPage() {
         </section>
         
         {/* Forecasting Section */}
-        <section className="py-24 sm:py-32">
+        <section className="bg-card/30 py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
               <div>
                  <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
@@ -237,7 +322,7 @@ export default function LandingPage() {
         </section>
 
         {/* Funding Section */}
-        <section className="py-24 sm:py-32 bg-card/30">
+        <section className="py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
