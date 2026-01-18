@@ -8,6 +8,7 @@ import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSi
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -52,7 +53,15 @@ export default function OwnerHomePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
         <Logo className="h-8" />
-        <div className="text-sm font-medium">Owner</div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <div className="font-semibold">Mama's Kitchen</div>
+            <div className="text-xs text-muted-foreground">Owner</div>
+          </div>
+          <Avatar className="border">
+            <AvatarFallback>MK</AvatarFallback>
+          </Avatar>
+        </div>
       </header>
       <main className="flex-1 p-4 sm:p-6">
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
