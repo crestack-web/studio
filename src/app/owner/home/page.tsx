@@ -72,12 +72,12 @@ export default function OwnerHomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b sticky top-0 z-10 bg-primary text-primary-foreground">
+      <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
            <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative h-9 w-9 hover:bg-primary/90">
+              <Button variant="ghost" size="icon" className="relative h-9 w-9">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
@@ -124,11 +124,11 @@ export default function OwnerHomePage() {
             </PopoverContent>
           </Popover>
           <ThemeToggle />
-          <Separator orientation="vertical" className="h-8 bg-primary-foreground/20" />
+          <Separator orientation="vertical" className="h-8 bg-border" />
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="font-semibold">Mama's Kitchen</div>
-              <div className="text-xs text-primary-foreground/70">Owner</div>
+              <div className="text-xs text-muted-foreground">Owner</div>
             </div>
             <Avatar>
               <AvatarFallback>MK</AvatarFallback>
