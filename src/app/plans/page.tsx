@@ -66,7 +66,7 @@ export default function PlansPage() {
               </Label>
             </div>
           </RadioGroup>
-          <Link href="/role" className="w-full">
+          <Link href="/owner/home" className="w-full">
             <Button className="w-full h-14 text-lg">
               Start Free Trial
             </Button>
