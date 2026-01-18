@@ -151,7 +151,13 @@ export default function OwnerHomePage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                    {presetQuestions.map((q) => (
-                       <Button key={q} variant="outline" className="w-full justify-start h-12" onClick={() => handleQuestionClick(q)} disabled={isLoading && selectedQuestion === q}>
+                       <Button 
+                        key={q} 
+                        variant="outline" 
+                        className={cn("w-full justify-start h-12", selectedQuestion === q && "bg-accent text-accent-foreground hover:bg-accent/90")} 
+                        onClick={() => handleQuestionClick(q)} 
+                        disabled={isLoading && selectedQuestion === q}
+                       >
                            {q}
                        </Button>
                    ))}
