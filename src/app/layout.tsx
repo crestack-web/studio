@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/app/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'BizAssistant',
-  description: 'AI-powered SME management for African businesses',
+  title: 'Busmo',
+  description: 'Your AI partner for managing your business money.',
 };
 
 export default function RootLayout({

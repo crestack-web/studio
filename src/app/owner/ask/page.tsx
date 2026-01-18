@@ -71,7 +71,7 @@ export default function AskPage() {
   };
 
   return (
-    <MainLayout title="Ask BizAssistant" backHref="/owner/home">
+    <MainLayout title="Ask Busmo" backHref="/owner/home">
       <div className="flex flex-col h-full w-full max-w-2xl">
         <div className="flex-1 overflow-y-auto p-1 md:p-4 space-y-6">
           {messages.map((message) => (

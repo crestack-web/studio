@@ -8,7 +8,7 @@ export default function WelcomePage() {
     <OnboardingLayout>
       <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Welcome to BizAssistant</CardTitle>
+          <CardTitle className="text-2xl font-headline">Welcome to Busmo</CardTitle>
           <CardDescription>Your AI partner for managing your small business in Africa.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
