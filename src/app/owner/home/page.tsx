@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -84,6 +84,41 @@ export default function OwnerHomePage() {
                 </Card>
             </div>
         )}
+        
+        <div className="w-full max-w-md mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <Activity className="w-6 h-6 text-primary" />
+                        Today's Health
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="text-center text-sm text-muted-foreground">
+                        <p>Not enough data yet. Record sales and expenses to see your daily summary.</p>
+                    </div>
+                    <Link href="/owner/summary" passHref>
+                        <Button variant="secondary" className="w-full">
+                            View Example Summary
+                        </Button>
+                    </Link>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <TrendingUp className="w-6 h-6 text-primary" />
+                        Business Forecast
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center text-sm text-muted-foreground">
+                        <p>Record data for 7+ days to unlock forecasts.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
 
         <div className="w-full max-w-md mx-auto grid grid-cols-1 gap-4">
             <Link href="/record-sale">
