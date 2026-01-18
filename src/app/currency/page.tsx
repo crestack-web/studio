@@ -11,23 +11,37 @@ export default function CurrencyPage() {
     <OnboardingLayout>
       <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Select Your Currency</CardTitle>
-          <CardDescription>This will be used for all financial records.</CardDescription>
+          <CardTitle className="text-2xl font-headline">Select Your Country</CardTitle>
+          <CardDescription>This determines your currency and financial settings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <RadioGroup defaultValue="NGN" className="grid grid-cols-2 gap-6">
+          <RadioGroup defaultValue="NG" className="grid grid-cols-2 gap-4">
             <div>
-              <RadioGroupItem value="NGN" id="ngn" className="peer sr-only" />
-              <Label htmlFor="ngn" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-3xl font-bold cursor-pointer">
-                ₦
-                <span className="font-normal text-sm mt-2 text-muted-foreground">NGN</span>
+              <RadioGroupItem value="NG" id="ng" className="peer sr-only" />
+              <Label htmlFor="ng" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
+                Nigeria
+                <span className="font-normal text-sm mt-2 text-muted-foreground">₦ (NGN)</span>
               </Label>
             </div>
             <div>
-              <RadioGroupItem value="CFA" id="cfa" className="peer sr-only" />
-              <Label htmlFor="cfa" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
-                CFA
-                <span className="font-normal text-sm mt-2 text-muted-foreground">XOF</span>
+              <RadioGroupItem value="GH" id="gh" className="peer sr-only" />
+              <Label htmlFor="gh" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
+                Ghana
+                <span className="font-normal text-sm mt-2 text-muted-foreground">GH₵ (GHS)</span>
+              </Label>
+            </div>
+             <div>
+              <RadioGroupItem value="NE" id="ne" className="peer sr-only" />
+              <Label htmlFor="ne" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
+                Niger
+                <span className="font-normal text-sm mt-2 text-muted-foreground">CFA (XOF)</span>
+              </Label>
+            </div>
+             <div>
+              <RadioGroupItem value="CM" id="cm" className="peer sr-only" />
+              <Label htmlFor="cm" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
+                Cameroon
+                <span className="font-normal text-sm mt-2 text-muted-foreground">CFA (XAF)</span>
               </Label>
             </div>
           </RadioGroup>
