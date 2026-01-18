@@ -25,7 +25,7 @@ export default function SummaryPage() {
             <CardTitle className="text-base font-medium text-muted-foreground">Net Profit</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-5xl font-bold font-headline">
+            <p className="text-5xl font-bold font-headline text-success">
               {summaryData.currency}{summaryData.netProfit.toLocaleString()}
             </p>
              <p className="text-sm text-muted-foreground mt-1">
