@@ -27,7 +27,7 @@ const mockProducts = [
 
 const mockOrders = [
     { id: '#BM1001', customer: 'Chioma Okoro', date: '2024-07-25', total: '12,000', status: 'Pending' },
-    { id: '#BM1002', customer: 'David Adeleke', date: '2024-07-24', total: '3,500', status: 'Shipped' },
+    { id: '#BM1002', customer: 'David Adeleke', date: '2024-07-24', total: 'Shipped', status: 'Shipped' },
     { id: '#BM1003', customer: 'Amina Bello', date: '2024-07-24', total: '5,000', status: 'Delivered' },
 ];
 
@@ -372,7 +372,7 @@ export default function ManageMarketPage() {
             case 'products':
                 return <ProductsContent />;
             case 'orders':
-                return <OrdersContent />;
+return <OrdersContent />;
             case 'customers':
                 return <CustomersContent />;
             case 'payments':
@@ -394,7 +394,7 @@ export default function ManageMarketPage() {
                                 <ArrowLeft className="h-5 w-5" />
                                 <span className="group-data-[collapsible=icon]:hidden">Back to Home</span>
                             </Button>
-                            <SidebarTrigger className="hidden md:flex" />
+                            <SidebarTrigger />
                         </div>
                     </SidebarHeader>
 
@@ -435,9 +435,9 @@ export default function ManageMarketPage() {
                             </Link>
                         </div>
                     </header>
-                    <main className="flex-1 p-4 sm:p-6">
+                    <div className="flex-1 p-4 sm:p-6">
                         {renderContent()}
-                    </main>
+                    </div>
                 </SidebarInset>
             </div>
         </SidebarProvider>
