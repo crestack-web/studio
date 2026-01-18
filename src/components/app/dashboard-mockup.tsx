@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Activity,
   AlertTriangle,
@@ -9,8 +11,60 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Logo } from './logo';
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+
+const animationSteps = [
+  {
+    question: "Did I make profit today?",
+    answer: "Yes, your net profit today is ₦13,000.",
+    type: 'profit',
+  },
+  {
+    question: "How many sales today?",
+    answer: "You've made 18 sales today for a total of ₦45,000.",
+    type: 'sales',
+  },
+    {
+    question: "What product is running low?",
+    answer: "Bottled Water is running low. You have 5 units left.",
+    type: 'stock',
+  },
+];
+
+const presetQuestions = [
+    "Did I make profit today?",
+    "How many sales today?",
+    "Which product sells the most?",
+    "What product is running low?",
+];
 
 export function DashboardMockup() {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [showContent, setShowContent] = useState(false);
+
+  const currentStep = animationSteps[stepIndex];
+
+  useEffect(() => {
+    const cycle = () => {
+      setShowContent(false);
+      setTimeout(() => {
+        setStepIndex((prevIndex) => (prevIndex + 1) % animationSteps.length);
+        setShowContent(true);
+      }, 500);
+    };
+
+    const intervalId = setInterval(cycle, 4000); 
+
+    const initialTimeout = setTimeout(() => setShowContent(true), 500);
+
+    return () => {
+        clearInterval(intervalId);
+        clearTimeout(initialTimeout);
+    };
+  }, []);
+
+
   return (
     <div className="w-full h-full bg-background rounded-xl overflow-hidden shadow-2xl border-8 border-foreground/10">
       <div className="flex flex-col h-full">
@@ -38,11 +92,25 @@ export function DashboardMockup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="h-auto py-1.5 justify-start text-xs">Did I make profit today?</Button>
-                  <Button variant="outline" size="sm" className="h-auto py-1.5 justify-start text-xs">How many sales today?</Button>
-                  <Button variant="outline" size="sm" className="h-auto py-1.5 justify-start text-xs">Which product sells most?</Button>
-                  <Button variant="outline" size="sm" className="h-auto py-1.5 justify-start text-xs">What product is running low?</Button>
+                  {presetQuestions.map((q) => (
+                    <Button key={q} variant="outline" size="sm" className={cn("h-auto py-1.5 justify-start text-xs transition-colors duration-300", currentStep.question === q && "bg-accent/80 text-accent-foreground")}>
+                      {q}
+                    </Button>
+                  ))}
                 </CardContent>
+              </Card>
+
+              <Card className="bg-muted/50 min-h-[50px] flex items-center">
+                 <CardContent className="p-3 w-full">
+                    <p className={cn(
+                        "text-sm font-medium text-foreground transition-opacity duration-500",
+                        showContent ? 'opacity-100' : 'opacity-0',
+                        currentStep.type === 'profit' && 'text-success',
+                        currentStep.type === 'stock' && 'text-warning'
+                    )}>
+                        {showContent ? currentStep.answer : animationSteps[(stepIndex + animationSteps.length -1) % animationSteps.length].answer}
+                    </p>
+                 </CardContent>
               </Card>
 
               <Card>
@@ -78,8 +146,13 @@ export function DashboardMockup() {
                     Stock Alert
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground">
-                  No low-stock alerts yet.
+                <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground relative h-8">
+                     <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type === 'stock' ? 'opacity-100 text-warning font-medium' : 'opacity-0')}>
+                        {currentStep.type === 'stock' ? 'Bottled Water: 5 left' : ''}
+                    </p>
+                     <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type === 'stock' ? 'opacity-0' : 'opacity-100')}>
+                        No low-stock alerts yet.
+                    </p>
                 </CardContent>
               </Card>
               <Card>
