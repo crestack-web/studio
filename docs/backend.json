@@ -16,7 +16,7 @@
         },
         "type": {
           "type": "string",
-          "description": "Type of business (e.g., shop, supermarket, food, service)."
+          "description": "Type of business (e.g., shop, supermarket, food, service, company)."
         },
         "currency": {
           "type": "string",
@@ -130,14 +130,44 @@
         },
         "price": {
           "type": "number",
-          "description": "Price of the product."
+          "description": "Selling price of the product."
+        },
+        "cost": {
+          "type": "number",
+          "description": "Cost price or production cost of the product."
+        },
+        "ingredients": {
+          "type": "array",
+          "description": "List of ingredients and their costs, used for margin calculation (primarily for Company plan).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the ingredient."
+              },
+              "cost": {
+                "type": "number",
+                "description": "Cost of this ingredient for one unit of the product."
+              }
+            },
+            "required": [
+              "name",
+              "cost"
+            ]
+          }
+        },
+        "isManufactured": {
+          "type": "boolean",
+          "description": "Flag to indicate if this is a manufactured product with ingredients."
         }
       },
       "required": [
         "id",
         "businessId",
         "name",
-        "price"
+        "price",
+        "cost"
       ]
     }
   },
