@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,8 +34,8 @@ export default function OwnerHomePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [date, setDate] = useState<DateRange | undefined>({
-        from: new Date(),
-        to: addDays(new Date(), 7),
+        from: addDays(new Date(), -30),
+        to: new Date(),
     });
 
     const handleQuestionClick = async (question: string) => {
@@ -73,7 +73,7 @@ export default function OwnerHomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b bg-card">
+      <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-card">
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
            <Popover>
@@ -182,14 +182,52 @@ export default function OwnerHomePage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <Activity className="w-6 h-6 text-primary" />
-                        Today's Health
+                    <CardTitle className="flex items-center justify-between font-headline text-lg">
+                        <div className='flex items-center gap-2'>
+                          <Activity className="w-6 h-6 text-primary" />
+                          <span>Business Health</span>
+                        </div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[240px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "LLL dd, y")} -{" "}
+                                                {format(date.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(date.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={1}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="text-center text-sm text-muted-foreground">
-                        <p>Not enough data yet. Record sales and expenses to see your daily summary.</p>
+                    <div className="text-center text-sm text-muted-foreground pt-4">
+                        <p>Not enough data for this period. Record sales and expenses to see your summary.</p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Link href="/owner/summary" passHref>
@@ -208,48 +246,10 @@ export default function OwnerHomePage() {
                                 <DialogHeader>
                                     <DialogTitle>Download Business Statement</DialogTitle>
                                     <DialogDescription>
-                                        Select the date range for your statement, or download a sample if you're new.
+                                        This will download a PDF statement for the selected date range.
                                     </DialogDescription>
                                 </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                id="date"
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !date && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {date?.from ? (
-                                                    date.to ? (
-                                                        <>
-                                                            {format(date.from, "LLL dd, y")} -{" "}
-                                                            {format(date.to, "LLL dd, y")}
-                                                        </>
-                                                    ) : (
-                                                        format(date.from, "LLL dd, y")
-                                                    )
-                                                ) : (
-                                                    <span>Pick a date range</span>
-                                                )}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="center">
-                                            <Calendar
-                                                initialFocus
-                                                mode="range"
-                                                defaultMonth={date?.from}
-                                                selected={date}
-                                                onSelect={setDate}
-                                                numberOfMonths={1}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <DialogFooter>
+                                <DialogFooter className="pt-4">
                                     <Button onClick={handleDownload}>
                                         <Download className="mr-2 h-4 w-4" />
                                         Download PDF
@@ -314,6 +314,23 @@ export default function OwnerHomePage() {
                     <div className="text-center text-sm text-muted-foreground">
                         <p>Record data for 7+ days to unlock sales trends and future insights.</p>
                     </div>
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader>
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <Link2 className="w-6 h-6 text-primary" />
+                        Connect Channels
+                    </CardTitle>
+                    <CardDescription>
+                        Sync sales from other platforms for a complete overview.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button variant="secondary" className="w-full" disabled>
+                        Connect (Coming Soon)
+                    </Button>
                 </CardContent>
             </Card>
 
