@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2 } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Factory } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -296,6 +296,12 @@ export default function OwnerHomePage() {
                     <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
                         <Users className="w-6 h-6" />
                         Manage Staff
+                    </Button>
+                </Link>
+                 <Link href="/owner/start-production">
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                        <Factory className="w-6 h-6" />
+                        Start Production
                     </Button>
                 </Link>
             </div>
