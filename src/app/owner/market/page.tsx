@@ -318,11 +318,11 @@ export default function ManageMarketPage() {
                             </Link>
                         </div>
                     </header>
-                    <main className="flex-1 p-4 sm:p-6 bg-muted/20">
+                    <div className="flex-1 p-4 sm:p-6">
                         <div className="w-full">
                             {renderContent()}
                         </div>
-                    </main>
+                    </div>
                 </SidebarInset>
             </div>
         </SidebarProvider>
