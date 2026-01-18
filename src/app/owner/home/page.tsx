@@ -17,6 +17,7 @@ import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -122,6 +123,7 @@ export default function OwnerHomePage() {
               </div>
             </PopoverContent>
           </Popover>
+          <ThemeToggle />
           <Separator orientation="vertical" className="h-8" />
           <div className="flex items-center gap-3">
             <div className="text-right">
