@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Label } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { TrendingUp, Building, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+
 
 // In a real app, this would come from user data.
 const userPlan = 'multi-branch'; // or 'shop', 'supermarket'
@@ -31,7 +33,22 @@ const salesByProductData = [
 const productChartConfig = {
   sales: {
     label: "Sales",
+  },
+  "Bottled Water": {
+    label: "Bottled Water",
     color: "hsl(var(--chart-1))",
+  },
+  "Biscuits": {
+    label: "Biscuits",
+    color: "hsl(var(--chart-2))",
+  },
+  "Soft Drink": {
+    label: "Soft Drink",
+    color: "hsl(var(--chart-3))",
+  },
+  "Bread": {
+    label: "Bread",
+    color: "hsl(var(--chart-4))",
   },
 } satisfies ChartConfig;
 
@@ -59,6 +76,10 @@ export default function SummaryPage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const formatCurrency = (value: number) => `${summaryData.currency}${value.toLocaleString()}`;
 
+  const totalSales = useMemo(() => {
+    return salesByProductData.reduce((acc, curr) => acc + curr.sales, 0);
+  }, []);
+
   return (
     <MainLayout title="Business Summary" backHref="/owner/home">
       <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -72,26 +93,69 @@ export default function SummaryPage() {
                         Sales by Product
                     </CardTitle>
                     <CardDescription>
-                        Performance of your top-selling products for the selected period. Click a bar for details.
+                        A breakdown of sales by product for the selected period. Click a slice for details.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="pl-2">
-                     <ChartContainer config={productChartConfig} className="w-full h-[350px]">
-                        <ResponsiveContainer>
-                            <BarChart data={salesByProductData} layout="vertical" margin={{ left: 20 }}>
-                                <CartesianGrid horizontal={false} />
-                                <YAxis dataKey="product" type="category" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={100} />
-                                <XAxis dataKey="sales" type="number" hide />
-                                <RechartsTooltip 
-                                    cursor={{ fill: 'hsl(var(--muted))' }}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => formatCurrency(value as number)}
-                                        labelClassName="font-bold"
-                                    />} 
+                <CardContent>
+                     <ChartContainer
+                        config={productChartConfig}
+                        className="mx-auto aspect-square h-full max-h-[350px]"
+                    >
+                        <PieChart>
+                            <RechartsTooltip
+                                cursor={{ fill: 'hsl(var(--muted))' }}
+                                content={<ChartTooltipContent
+                                    formatter={(value) => formatCurrency(value as number)}
+                                    nameKey="product"
+                                />}
+                            />
+                            <Pie
+                                data={salesByProductData}
+                                dataKey="sales"
+                                nameKey="product"
+                                innerRadius="60%"
+                                strokeWidth={3}
+                                onClick={(data) => setSelectedProduct(data.payload)}
+                                className="cursor-pointer"
+                            >
+                                {salesByProductData.map((entry) => (
+                                     <Cell key={entry.product} fill={productChartConfig[entry.product as keyof typeof productChartConfig]?.color} />
+                                ))}
+                                <Label
+                                    content={({ viewBox }) => {
+                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                        return (
+                                            <text
+                                            x={viewBox.cx}
+                                            y={viewBox.cy}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            >
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={viewBox.cy}
+                                                className="fill-foreground text-3xl font-bold font-headline"
+                                            >
+                                                {formatCurrency(totalSales)}
+                                            </tspan>
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={(viewBox.cy || 0) + 24}
+                                                className="fill-muted-foreground text-sm"
+                                            >
+                                                Total Sales
+                                            </tspan>
+                                            </text>
+                                        )
+                                        }
+                                    }}
                                 />
-                                <Bar dataKey="sales" fill="var(--color-sales)" radius={5} onClick={(data) => setSelectedProduct(data)} className="cursor-pointer" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                            </Pie>
+                            <ChartLegend
+                                content={<ChartLegendContent nameKey="product" className="flex-wrap" />}
+                                className="-translate-y-4"
+                            />
+                        </PieChart>
                     </ChartContainer>
                 </CardContent>
             </Card>
