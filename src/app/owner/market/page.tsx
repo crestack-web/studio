@@ -389,10 +389,13 @@ export default function ManageMarketPage() {
             <div className="flex min-h-screen bg-background text-foreground">
                 <Sidebar>
                     <SidebarHeader>
-                        <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => router.push('/owner/home')}>
-                            <ArrowLeft className="h-5 w-5" />
-                            <span className="group-data-[collapsible=icon]:hidden">Back to Home</span>
-                        </Button>
+                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+                            <Button variant="ghost" className="justify-start gap-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2" onClick={() => router.push('/owner/home')}>
+                                <ArrowLeft className="h-5 w-5" />
+                                <span className="group-data-[collapsible=icon]:hidden">Back to Home</span>
+                            </Button>
+                            <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
+                        </div>
                     </SidebarHeader>
 
                     <SidebarMenu className="flex-1 px-2">
@@ -430,7 +433,6 @@ export default function ManageMarketPage() {
                                     View Public Store
                                 </Button>
                             </Link>
-                            <SidebarTrigger className="hidden md:flex" />
                         </div>
                     </header>
                     <main className="flex-1 p-4 sm:p-6">
