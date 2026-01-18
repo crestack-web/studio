@@ -29,6 +29,48 @@
         "storeDescription": {
           "type": "string",
           "description": "A short description for the business's public store page."
+        },
+        "paymentSettings": {
+          "type": "object",
+          "description": "Configuration for payment methods for Busmo Market.",
+          "properties": {
+            "allowPayOnDelivery": {
+              "type": "boolean"
+            },
+            "allowBankTransfer": {
+              "type": "boolean"
+            },
+            "bankName": {
+              "type": "string"
+            },
+            "accountNumber": {
+              "type": "string"
+            },
+            "paymentInstructions": {
+              "type": "string"
+            }
+          }
+        },
+        "deliverySettings": {
+          "type": "object",
+          "description": "Configuration for delivery and pickup for Busmo Market.",
+          "properties": {
+            "allowDelivery": {
+              "type": "boolean"
+            },
+            "allowPickup": {
+              "type": "boolean"
+            },
+            "deliveryFee": {
+              "type": "number"
+            },
+            "deliveryDays": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       },
       "required": [
@@ -112,7 +154,10 @@
         "source": {
           "type": "string",
           "description": "The origin of the sale.",
-          "enum": ["in-store", "market"]
+          "enum": [
+            "in-store",
+            "market"
+          ]
         },
         "timestamp": {
           "type": "string",
@@ -148,8 +193,8 @@
           "description": "Name of the product."
         },
         "description": {
-            "type": "string",
-            "description": "A short description of the product for the marketplace."
+          "type": "string",
+          "description": "A short description of the product for the marketplace."
         },
         "price": {
           "type": "number",
@@ -189,19 +234,19 @@
           "description": "Flag to indicate if this is a manufactured product with ingredients."
         },
         "isListedOnMarket": {
-            "type": "boolean",
-            "description": "Flag to indicate if this product is listed on Busmo Market."
+          "type": "boolean",
+          "description": "Flag to indicate if this product is listed on Busmo Market."
         },
         "category": {
-            "type": "string",
-            "description": "The category of the product for Busmo Market (e.g., Fashion, Food, Electronics)."
+          "type": "string",
+          "description": "The category of the product for Busmo Market (e.g., Fashion, Food, Electronics)."
         },
         "images": {
-            "type": "array",
-            "description": "List of image URLs for the product.",
-            "items": {
-                "type": "string"
-            }
+          "type": "array",
+          "description": "List of image URLs for the product.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [

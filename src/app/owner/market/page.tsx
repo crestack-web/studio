@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const mockProducts = [
@@ -42,6 +44,9 @@ const SettingsContent = () => {
     return (
         <div className="space-y-6">
             <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Store Status</CardTitle>
+                </CardHeader>
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
@@ -65,6 +70,7 @@ const SettingsContent = () => {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">Store Description</CardTitle>
+                    <CardDescription>This is shown to customers on your public store page.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Textarea
@@ -75,6 +81,7 @@ const SettingsContent = () => {
                     />
                 </CardContent>
             </Card>
+            <Button>Save Settings</Button>
         </div>
     );
 };
@@ -205,28 +212,140 @@ const CustomersContent = () => {
 };
 
 const PaymentsContent = () => {
+    const [allowBankTransfer, setAllowBankTransfer] = useState(true);
+    const [allowPayOnDelivery, setAllowPayOnDelivery] = useState(true);
+
     return (
-        <Card>
-            <CardContent className="text-center py-12 text-muted-foreground">
-                <CreditCard className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <h3 className="text-lg font-semibold">Payment Settings</h3>
-                <p>Configure how you receive payments from Busmo Market sales.</p>
-                <p className="text-sm mt-2">(Coming Soon)</p>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Payment Methods</CardTitle>
+                    <CardDescription>Choose how you want to accept payments for online orders.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="bank-transfer" className="text-base">Accept Bank Transfer</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Customers will see your bank details at checkout.
+                            </p>
+                        </div>
+                        <Switch id="bank-transfer" checked={allowBankTransfer} onCheckedChange={setAllowBankTransfer} />
+                    </div>
+                     <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="pay-on-delivery" className="text-base">Accept Pay on Delivery</Label>
+                             <p className="text-sm text-muted-foreground">
+                                Customers can pay with cash or POS upon delivery.
+                            </p>
+                        </div>
+                        <Switch id="pay-on-delivery" checked={allowPayOnDelivery} onCheckedChange={setAllowPayOnDelivery} />
+                    </div>
+                </CardContent>
+            </Card>
+            {allowBankTransfer && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Bank Transfer Details</CardTitle>
+                        <CardDescription>This information will be shown to customers who choose to pay via bank transfer.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="bank-name">Bank Name</Label>
+                                <Input id="bank-name" placeholder="e.g., Guaranty Trust Bank" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="account-number">Account Number</Label>
+                                <Input id="account-number" placeholder="0123456789" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="payment-instructions">Payment Instructions (Optional)</Label>
+                            <Textarea id="payment-instructions" placeholder="e.g., Please send proof of payment to our WhatsApp." />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+             <Button>Save Payment Settings</Button>
+        </div>
     );
 };
 
 const DeliveryContent = () => {
+    const [allowDelivery, setAllowDelivery] = useState(true);
+    const [allowPickup, setAllowPickup] = useState(false);
+    const [selectedDays, setSelectedDays] = useState<string[]>(['Monday', 'Wednesday', 'Friday']);
+
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    const handleDayChange = (day: string) => {
+        setSelectedDays(prev => 
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        );
+    };
+
     return (
-        <Card>
-            <CardContent className="text-center py-12 text-muted-foreground">
-                <Truck className="w-12 h-12 mx-auto mb-4 text-primary" />
-                <h3 className="text-lg font-semibold">Delivery Options</h3>
-                <p>Set up your delivery options and prices for customers.</p>
-                <p className="text-sm mt-2">(Coming Soon)</p>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Order Fulfillment</CardTitle>
+                    <CardDescription>Set up how customers can receive their orders.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="allow-delivery" className="text-base">Offer Delivery</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Deliver orders directly to your customers.
+                            </p>
+                        </div>
+                        <Switch id="allow-delivery" checked={allowDelivery} onCheckedChange={setAllowDelivery} />
+                    </div>
+                     <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="allow-pickup" className="text-base">Offer In-Store Pickup</Label>
+                             <p className="text-sm text-muted-foreground">
+                                Customers can come to your location to pick up their order.
+                            </p>
+                        </div>
+                        <Switch id="allow-pickup" checked={allowPickup} onCheckedChange={setAllowPickup} />
+                    </div>
+                </CardContent>
+            </Card>
+            
+            {allowDelivery && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Delivery Settings</CardTitle>
+                        <CardDescription>Configure your delivery fee and schedule.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="delivery-fee">Flat Delivery Fee (₦)</Label>
+                            <Input id="delivery-fee" type="number" placeholder="1500" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Delivery Days</Label>
+                            <p className="text-sm text-muted-foreground">Select the days of the week you are available for delivery.</p>
+                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                                {daysOfWeek.map(day => (
+                                    <div key={day} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`day-${day}`} 
+                                            checked={selectedDays.includes(day)}
+                                            onCheckedChange={() => handleDayChange(day)}
+                                        />
+                                        <Label htmlFor={`day-${day}`} className="font-normal">{day}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+            <Button>Save Delivery Settings</Button>
+        </div>
     );
 };
 
