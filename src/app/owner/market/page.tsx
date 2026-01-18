@@ -394,7 +394,7 @@ export default function ManageMarketPage() {
                                 <ArrowLeft className="h-5 w-5" />
                                 <span className="group-data-[collapsible=icon]:hidden">Back to Home</span>
                             </Button>
-                            <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
+                            <SidebarTrigger className="hidden md:flex" />
                         </div>
                     </SidebarHeader>
 
