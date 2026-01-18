@@ -93,7 +93,7 @@ export default function LandingPage() {
             </div>
           </div>
            <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-            <div className="relative mx-auto w-full max-w-4xl h-[450px] md:h-[550px]">
+            <div className="relative mx-auto w-full max-w-5xl h-[450px] md:h-[650px]">
                  <DashboardMockup />
             </div>
         </div>

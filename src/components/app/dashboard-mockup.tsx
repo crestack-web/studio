@@ -4,7 +4,10 @@ import {
   Activity,
   AlertTriangle,
   BotMessageSquare,
+  FilePlus,
   Landmark,
+  PackagePlus,
+  Plus,
   TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -124,6 +127,21 @@ export function DashboardMockup() {
                   <p className="py-2">Record sales and expenses to see your summary.</p>
                 </CardContent>
               </Card>
+
+               <div className="grid grid-cols-3 gap-2">
+                <Button variant="default" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
+                  <Plus className="w-4 h-4" />
+                  <span>Record Sale</span>
+                </Button>
+                <Button variant="secondary" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
+                  <PackagePlus className="w-4 h-4" />
+                  <span>Add Inventory</span>
+                </Button>
+                <Button variant="secondary" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
+                  <FilePlus className="w-4 h-4" />
+                  <span>Record Expense</span>
+                </Button>
+              </div>
             </div>
 
             {/* Right Sidebar */}
