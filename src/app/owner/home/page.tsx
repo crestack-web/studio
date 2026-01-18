@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -26,6 +28,39 @@ const presetQuestions = [
     "Which product sells the most?",
     "What product is running low?",
 ];
+
+// Define interfaces for our Firestore data
+interface AppUser {
+    id: string;
+    phoneNumber: string;
+    businessId: string;
+    role: string;
+}
+
+interface Business {
+    id: string;
+    name: string;
+    type: string;
+    currency: string;
+}
+
+interface Sale {
+    id: string;
+    amount: number;
+    paymentType: string;
+    source: string;
+    timestamp: Timestamp;
+    productId?: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    price: number;
+    cost: number;
+    quantity: number;
+}
+
 
 export default function OwnerHomePage() {
     const router = useRouter();
@@ -38,36 +73,64 @@ export default function OwnerHomePage() {
         to: new Date(),
     });
 
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, 'users', authUser.uid);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businesses', businessId);
+    }, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+
+    const salesQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        const thirtyDaysAgo = addDays(new Date(), -30);
+        return query(
+            collection(firestore, 'sales'),
+            where('businessId', '==', businessId),
+            where('timestamp', '>=', thirtyDaysAgo)
+        );
+    }, [firestore, businessId]);
+    const { data: salesData } = useCollection<Sale>(salesQuery);
+
+    const productsQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+    }, [firestore, businessId]);
+    const { data: productsData } = useCollection<Product>(productsQuery);
+
+
     const handleQuestionClick = async (question: string) => {
         setIsLoading(true);
         setSelectedQuestion(question);
         setAnswer(null);
         try {
-            if (question === "Did I make profit today?") {
-                 setAnswer("I don’t have enough data yet. Please record sales or inventory.");
-                 setIsLoading(false);
-                 return;
-            }
-             if (question === "What product is running low?") {
-                 setAnswer("I don’t have enough data yet. Please add products and record sales to get stock alerts.");
-                 setIsLoading(false);
-                 return;
-            }
-            const response = await getBusinessInsights({ query: question });
+            const response = await getBusinessInsights({ 
+                query: question,
+                sales: salesData?.map(s => ({
+                    ...s,
+                    timestamp: s.timestamp?.toDate ? s.timestamp.toDate().toISOString() : new Date().toISOString(),
+                })) || [],
+                products: productsData || [],
+                currency: businessData?.currency || '₦',
+            });
             setAnswer(response.answer);
         } catch (error) {
             console.error("Error getting business insights:", error);
             setAnswer("Sorry, I couldn't process that request. Please try again.");
         } finally {
-            if (question !== "Did I make profit today?" && question !== "What product is running low?") {
-                setIsLoading(false);
-            }
+            setIsLoading(false);
         }
     };
     
     const handleDownload = () => {
-        // Since real data isn't available yet, this button will show a sample statement.
-        // In a real app, this would generate a PDF. For now, we navigate to the summary page.
         router.push('/owner/summary');
     }
 
@@ -128,11 +191,11 @@ export default function OwnerHomePage() {
           <Separator orientation="vertical" className="h-8 bg-border" />
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="font-semibold">Mama's Kitchen</div>
-              <div className="text-xs text-muted-foreground">Owner</div>
+              <div className="font-semibold">{businessData?.name || 'Your Business'}</div>
+              <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
             </div>
             <Avatar>
-              <AvatarFallback>MK</AvatarFallback>
+              <AvatarFallback>{businessData?.name ? businessData.name.split(' ').map(n => n[0]).join('').substring(0,2) : 'B'}</AvatarFallback>
             </Avatar>
           </div>
         </div>
