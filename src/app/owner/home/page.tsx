@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users } from 'lucide-react';
@@ -27,6 +28,7 @@ const presetQuestions = [
 ];
 
 export default function OwnerHomePage() {
+    const router = useRouter();
     const { toast } = useToast();
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -64,15 +66,14 @@ export default function OwnerHomePage() {
     };
     
     const handleDownload = () => {
-        toast({
-            title: "Feature in progress",
-            description: "Business statement downloads are coming soon!",
-        });
+        // Since real data isn't available yet, this button will show a sample statement.
+        // In a real app, this would generate a PDF. For now, we navigate to the summary page.
+        router.push('/owner/summary');
     }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
+      <header className="flex items-center justify-between p-4 border-b">
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
            <Popover>
@@ -193,7 +194,7 @@ export default function OwnerHomePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Link href="/owner/summary" passHref>
                             <Button variant="secondary" className="w-full">
-                                View Example Summary
+                                View Sample Statement
                             </Button>
                         </Link>
                          <Dialog>
@@ -207,7 +208,7 @@ export default function OwnerHomePage() {
                                 <DialogHeader>
                                     <DialogTitle>Download Business Statement</DialogTitle>
                                     <DialogDescription>
-                                        Select the date range for your statement.
+                                        Select the date range for your statement, or download a sample if you're new.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
