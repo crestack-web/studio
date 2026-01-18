@@ -40,7 +40,7 @@ const SettingsContent = () => {
     const [isStoreActive, setIsStoreActive] = useState(true);
     const [storeDescription, setStoreDescription] = useState('Your one-stop shop for daily needs and groceries.');
     return (
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6">
             <Card>
                 <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -65,7 +65,6 @@ const SettingsContent = () => {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg">Store Description</CardTitle>
-                    <CardDescription>This will be shown on your public store page.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Textarea
@@ -207,23 +206,27 @@ const CustomersContent = () => {
 
 const PaymentsContent = () => {
     return (
-        <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border">
-            <CreditCard className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">Payment Settings</h3>
-            <p>Configure how you receive payments from Busmo Market sales.</p>
-            <p className="text-sm mt-2">(Coming Soon)</p>
-        </div>
+        <Card>
+            <CardContent className="text-center py-12 text-muted-foreground">
+                <CreditCard className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-lg font-semibold">Payment Settings</h3>
+                <p>Configure how you receive payments from Busmo Market sales.</p>
+                <p className="text-sm mt-2">(Coming Soon)</p>
+            </CardContent>
+        </Card>
     );
 };
 
 const DeliveryContent = () => {
     return (
-        <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border">
-            <Truck className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h3 className="text-lg font-semibold">Delivery Options</h3>
-            <p>Set up your delivery options and prices for customers.</p>
-            <p className="text-sm mt-2">(Coming Soon)</p>
-        </div>
+        <Card>
+            <CardContent className="text-center py-12 text-muted-foreground">
+                <Truck className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-lg font-semibold">Delivery Options</h3>
+                <p>Set up your delivery options and prices for customers.</p>
+                <p className="text-sm mt-2">(Coming Soon)</p>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -311,7 +314,7 @@ export default function ManageMarketPage() {
                             <SidebarTrigger className="hidden md:flex" />
                         </div>
                     </header>
-                    <main className="flex-1 p-4 sm:p-6">
+                    <main className="flex-1 bg-muted/20 p-4 sm:p-6">
                         {renderContent()}
                     </main>
                 </SidebarInset>
