@@ -51,13 +51,16 @@ export default function ManageStaffPage() {
         setOpen(false);
     };
     
-    const isEnterprise = false;
+    // In a real app, this would come from user data.
+    // Plans can be 'shop', 'supermarket', or 'multi-branch'
+    const userPlan = 'multi-branch';
+    const canManageStaff = userPlan === 'supermarket' || userPlan === 'multi-branch';
 
     return (
         <MainLayout title="Manage Staff" backHref="/owner/home">
             <div className="w-full max-w-4xl space-y-6">
                 
-                {!isEnterprise && (
+                {!canManageStaff && (
                      <Alert>
                         <Network className="h-4 w-4" />
                         <AlertTitle>Upgrade to Manage Staff</AlertTitle>
@@ -73,7 +76,7 @@ export default function ManageStaffPage() {
                     </Alert>
                 )}
                 
-                <Card className={!isEnterprise ? 'opacity-50 pointer-events-none' : ''}>
+                <Card className={!canManageStaff ? 'opacity-50 pointer-events-none' : ''}>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Staff Members</CardTitle>
@@ -81,7 +84,7 @@ export default function ManageStaffPage() {
                         </div>
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
-                                <Button disabled={!isEnterprise}>
+                                <Button disabled={!canManageStaff}>
                                     <UserPlus className="mr-2 h-4 w-4" />
                                     Invite Staff
                                 </Button>
@@ -168,7 +171,7 @@ export default function ManageStaffPage() {
                                 ))}
                             </TableBody>
                         </Table>
-                         {(mockStaff.length === 0 || !isEnterprise) && (
+                         {(mockStaff.length === 0 || !canManageStaff) && (
                             <div className="text-center text-muted-foreground py-12">
                                 <p>You haven't invited any staff members yet.</p>
                             </div>
