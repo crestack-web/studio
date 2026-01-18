@@ -4,11 +4,18 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { DateRange } from 'react-day-picker';
+import { addDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -18,9 +25,14 @@ const presetQuestions = [
 ];
 
 export default function OwnerHomePage() {
+    const { toast } = useToast();
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: new Date(),
+        to: addDays(new Date(), 7),
+    });
 
     const handleQuestionClick = async (question: string) => {
         setIsLoading(true);
@@ -48,6 +60,13 @@ export default function OwnerHomePage() {
             }
         }
     };
+    
+    const handleDownload = () => {
+        toast({
+            title: "Feature in progress",
+            description: "Business statement downloads are coming soon!",
+        });
+    }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -111,11 +130,73 @@ export default function OwnerHomePage() {
                     <div className="text-center text-sm text-muted-foreground">
                         <p>Not enough data yet. Record sales and expenses to see your daily summary.</p>
                     </div>
-                    <Link href="/owner/summary" passHref>
-                        <Button variant="secondary" className="w-full">
-                            View Example Summary
-                        </Button>
-                    </Link>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Link href="/owner/summary" passHref>
+                            <Button variant="secondary" className="w-full">
+                                View Example Summary
+                            </Button>
+                        </Link>
+                         <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download Statement
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>Download Business Statement</DialogTitle>
+                                    <DialogDescription>
+                                        Select the date range for your statement.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                id="date"
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !date && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {date?.from ? (
+                                                    date.to ? (
+                                                        <>
+                                                            {format(date.from, "LLL dd, y")} -{" "}
+                                                            {format(date.to, "LLL dd, y")}
+                                                        </>
+                                                    ) : (
+                                                        format(date.from, "LLL dd, y")
+                                                    )
+                                                ) : (
+                                                    <span>Pick a date range</span>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="center">
+                                            <Calendar
+                                                initialFocus
+                                                mode="range"
+                                                defaultMonth={date?.from}
+                                                selected={date}
+                                                onSelect={setDate}
+                                                numberOfMonths={1}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                <DialogFooter>
+                                    <Button onClick={handleDownload}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download PDF
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </CardContent>
             </Card>
 
