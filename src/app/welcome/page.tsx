@@ -184,7 +184,7 @@ export default function LandingPage() {
                     width={600}
                     height={600}
                     className="rounded-xl shadow-2xl"
-                    data-ai-hint="business chart"
+                    data-ai-hint="analytics chart"
                 />}
               </div>
               <div className="md:order-first">

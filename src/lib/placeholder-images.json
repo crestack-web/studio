@@ -8,9 +8,9 @@
     },
     {
       "id": "landing-forecast-chart",
-      "description": "A chart showing business sales forecasting.",
-      "imageUrl": "https://images.unsplash.com/photo-1579225663317-c0251b4369bc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxidXNpbmVzcyUyMGNoYXJ0fGVufDB8fHx8MTc2ODY4ODg5MHww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "business chart"
+      "description": "A preview of the Busmo app's sales forecasting interface, showing charts and projections.",
+      "imageUrl": "https://images.unsplash.com/photo-1611772545422-3901b31da553?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhbmFseXRpY3MlMjBjaGFydHxlbnwwfHx8fDE3MDkyMzkzMDJ8MA&ixlib=rb-4.0.3&q=80&w=1080",
+      "imageHint": "analytics chart"
     }
   ]
 }
