@@ -15,7 +15,7 @@ export default function CurrencyPage() {
           <CardDescription>This will be used for all financial records.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <RadioGroup defaultValue="NGN" className="grid grid-cols-2 gap-4">
+          <RadioGroup defaultValue="NGN" className="grid grid-cols-2 gap-6">
             <div>
               <RadioGroupItem value="NGN" id="ngn" className="peer sr-only" />
               <Label htmlFor="ngn" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-3xl font-bold cursor-pointer">
@@ -31,9 +31,9 @@ export default function CurrencyPage() {
               </Label>
             </div>
           </RadioGroup>
-          <Link href="/owner/home" className="w-full">
+          <Link href="/role" className="w-full">
             <Button className="w-full h-14 text-lg">
-              Finish Setup
+              Continue
             </Button>
           </Link>
         </CardContent>
