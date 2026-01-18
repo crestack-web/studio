@@ -433,7 +433,7 @@ export default function ManageMarketPage() {
                             <SidebarTrigger className="hidden md:flex" />
                         </div>
                     </header>
-                    <main className="flex-1 bg-muted/20 p-4 sm:p-6">
+                    <main className="flex-1 p-4 sm:p-6">
                         {renderContent()}
                     </main>
                 </SidebarInset>
