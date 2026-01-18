@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/app/theme-provider';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'Busmo',
@@ -17,15 +18,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body className="font-body antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <FirebaseClientProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );
