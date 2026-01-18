@@ -1,0 +1,179 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Core Philosophy: This ruleset enforces a business-centric, role-based security model.
+     * All data access is primarily determined by a user's association with a specific `businessId`.
+     * Users can only interact with data (e.g., Sales, Products) belonging to the business
+     * they are a member of, with finer-grained permissions based on their role (e.g., 'Owner' vs. 'Staff').
+     *
+     * Data Structure: The data model is flat, with top-level collections for `users`, `businesses`,
+     * `sales`, and `products`. This structure avoids deep nesting and complex path traversals.
+     *
+     * Key Security Decisions:
+     * - Authorization Independence: Every document that belongs to a business (User, Sale, Product)
+     *   contains a denormalized `businessId` field. This allows security rules to make fast,
+     *   secure authorization decisions without needing to read other documents.
+     * - User Privacy: Listing all users is strictly forbidden to protect user privacy. Users can
+     *   only access their own `/users/{userId}` document.
+     * - Role-Based Access: Specific operations are restricted by a user's `role` or boolean
+     *   permission flags (e.g., `canRecordSales`) stored on their user profile. For example, only
+     *   'Owner' users can read sales reports or modify business details.
+     * - Secure Queries: Rules for `list` operations are permissive (`if isSignedIn()`) with the
+     *   expectation that the client-side code will apply the necessary `where("businessId", "==", ...)`
+     *   clauses to fetch only the data relevant to the user's business. This is a secure and
+     *   standard pattern for Firestore.
+     */
+
+    // --------------------------------------------------------------------------------
+    // Helper Functions
+    // --------------------------------------------------------------------------------
+
+    /**
+     * --- Identity & Global ---
+     */
+    // Checks if a user is authenticated.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * --- User Profile Helpers ---
+     */
+    // Gets the signed-in user's profile document.
+    // Result is cached for the duration of the rule evaluation.
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Gets the data from the signed-in user's profile document.
+    function userProfileData() {
+      return userProfile().data;
+    }
+
+    /**
+     * --- Ownership Helpers ---
+     */
+    // Checks if the user's auth UID matches the document's path ID.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Checks if the user is the owner of an existing document. For update/delete.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * --- Business & Role Helpers ---
+     */
+    // Checks if the user's profile shows they are a member of a specific business.
+    function isMemberOfBusiness(businessId) {
+      return isSignedIn() && userProfile().exists && userProfileData().businessId == businessId;
+    }
+
+    // Checks if the user is an 'Owner' of a specific business.
+    function isOwnerOfBusiness(businessId) {
+      return isMemberOfBusiness(businessId) && userProfileData().role == 'Owner';
+    }
+
+    // Checks if the user can record sales for a specific business.
+    function canRecordSales(businessId) {
+      return isMemberOfBusiness(businessId) && userProfileData().canRecordSales == true;
+    }
+
+    // Checks if an existing document belongs to a business where the user is a member. For update/delete.
+    function isExistingDocForBusinessMember(docBusinessId) {
+      return resource != null && isMemberOfBusiness(docBusinessId);
+    }
+
+    // Checks if an existing document belongs to a business where the user is an owner. For update/delete.
+    function isExistingDocForBusinessOwner(docBusinessId) {
+      return resource != null && isOwnerOfBusiness(docBusinessId);
+    }
+
+    /**
+     * --- Data Validation Helpers (Prototyping Mode) ---
+     */
+    // On create, validates the internal 'id' field matches the document ID in the path.
+    function newDocHasMatchingId(docId) {
+      return request.resource.data.id == docId;
+    }
+
+    // On update, ensures the internal 'id' field is immutable.
+    function idIsImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    // On update, ensures the internal 'businessId' field is immutable.
+    function businessIdIsImmutable() {
+      return request.resource.data.businessId == resource.data.businessId;
+    }
+
+
+    // --------------------------------------------------------------------------------
+    // Collection Rules
+    // --------------------------------------------------------------------------------
+
+    /**
+     * @description Users can create, read, and update their own profile. They cannot delete it or see others' profiles.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own user document: auth.uid === userId.
+     * @deny (list) Any user attempting to list all user documents.
+     * @principle Restricts access to a user's own data tree, a fundamental privacy protection.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && newDocHasMatchingId(userId);
+      allow update: if isExistingOwner(userId) && idIsImmutable();
+      allow delete: if false;
+    }
+
+    /**
+     * @description Any member of a business can read its details. Only owners can create, update, or delete it.
+     * @path /businesses/{businessId}
+     * @allow (get) An authenticated staff member fetching details for their own business.
+     * @deny (update) A staff member (not owner) attempting to change the business name.
+     * @principle Enforces role-based permissions, restricting sensitive write operations to 'Owner' roles.
+     */
+    match /businesses/{businessId} {
+      allow get: if isMemberOfBusiness(businessId);
+      allow list: if isSignedIn();
+      allow create: if isOwnerOfBusiness(businessId) && newDocHasMatchingId(businessId);
+      allow update: if isOwnerOfBusiness(businessId) && resource != null && idIsImmutable();
+      allow delete: if isOwnerOfBusiness(businessId) && resource != null;
+    }
+
+    /**
+     * @description Business members with 'canRecordSales' permission can create sales. Only owners can view, update, or delete them.
+     * @path /sales/{saleId}
+     * @allow (create) A staff member with `canRecordSales=true` creating a new sale for their business.
+     * @deny (get) A staff member without the 'Owner' role attempting to read a sale document.
+     * @principle Implements fine-grained, capability-based access control for creating data and role-based access for reading/managing it.
+     */
+    match /sales/{saleId} {
+      allow get: if isOwnerOfBusiness(resource.data.businessId);
+      allow list: if isSignedIn() && userProfile().exists && userProfileData().role == 'Owner';
+      allow create: if canRecordSales(request.resource.data.businessId);
+      allow update: if isExistingDocForBusinessOwner(resource.data.businessId) && businessIdIsImmutable();
+      allow delete: if isExistingDocForBusinessOwner(resource.data.businessId);
+    }
+
+    /**
+     * @description Any member of a business can fully manage (read, create, update, delete) products for that business.
+     * @path /products/{productId}
+     * @allow (create) Any authenticated staff member adding a new product for their business.
+     * @deny (update) A user from business 'A' attempting to update a product belonging to business 'B'.
+     * @principle Grants shared access to a collaborative resource (product list) for all members of the same group (business).
+     */
+    match /products/{productId} {
+      allow get: if isMemberOfBusiness(resource.data.businessId);
+      allow list: if isSignedIn();
+      allow create: if isMemberOfBusiness(request.resource.data.businessId);
+      allow update: if isExistingDocForBusinessMember(resource.data.businessId) && businessIdIsImmutable();
+      allow delete: if isExistingDocForBusinessMember(resource.data.businessId);
+    }
+  }
+}

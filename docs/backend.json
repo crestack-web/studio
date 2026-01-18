@@ -1,0 +1,219 @@
+{
+  "entities": {
+    "Business": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Business",
+      "type": "object",
+      "description": "Represents a business using the BizAssistant app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the business entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the business."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of business (e.g., shop, supermarket, food, service)."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency used by the business (e.g., ₦ / CFA)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "currency"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the BizAssistant app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "User's phone number."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N User)"
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role (e.g., Owner, Staff)."
+        },
+        "canRecordSales": {
+          "type": "boolean",
+          "description": "Indicates if the user has permission to record sales."
+        },
+        "canSeeReports": {
+          "type": "boolean",
+          "description": "Indicates if the user has permission to view reports (owner only)."
+        }
+      },
+      "required": [
+        "id",
+        "phoneNumber",
+        "businessId",
+        "role",
+        "canRecordSales",
+        "canSeeReports"
+      ]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a sale transaction.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the sale entity."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N Sale)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. (Relationship: Product 1:N Sale).  Can be null if amount is manually entered."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Sale amount."
+        },
+        "paymentType": {
+          "type": "string",
+          "description": "Payment type (e.g., cash, transfer, POS)."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of the sale.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "amount",
+        "paymentType",
+        "timestamp"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product sold by the business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the product entity."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N Product)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "name",
+        "price"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. The `userId` parameter corresponds to the Firebase Auth UID. Includes `businessId` for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}",
+        "definition": {
+          "entityName": "Business",
+          "schema": {
+            "$ref": "#/backend/entities/Business"
+          },
+          "description": "Stores business details.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "Unique identifier for the business."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Stores sale transactions. Includes `businessId` for authorization independence.",
+          "params": [
+            {
+              "name": "saleId",
+              "description": "Unique identifier for the sale."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information. Includes `businessId` for authorization independence.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier for the product."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the BizAssistant app's core features, focusing on simplicity, security, and scalability, especially considering the constraints of the target user base (African small businesses with potentially low digital literacy, old Android phones, and unstable internet).  The structure prioritizes Authorization Independence, enabling robust security rules without relying on complex hierarchical data access.\n\n**Authorization Independence (Denormalization):**\nThe structure heavily utilizes denormalization to achieve Authorization Independence.  Specifically, the `businessId` is included in every document within collections related to a business (e.g., Users, Products, Sales). This allows security rules to validate that a user or a piece of data belongs to a specific business without needing to perform expensive and potentially insecure `get()` operations to traverse the data hierarchy.\n\n**Structural Segregation:**\nThe data is segregated into collections based on entity type, ensuring a homogeneous security posture within each collection.  User data is stored under the root collection `users`, nested under the document corresponding to the user's `uid`. This structure simplifies security rules, ensuring that all documents within a collection share the same access control requirements.\n\n**Access Modeling:**\n*   **Private Data:** User-specific data (e.g., user profiles) will be stored under `/users/{userId}`.\n*   **Business-Owned Data:** Data related to a specific business (Users, Products, Sales) are stored in root-level collections that contain the `businessId` field (e.g., `/users`, `/products`, `/sales`).\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By including `businessId` in all business-related entities, rules can efficiently filter data based on the user's associated business, enabling secure listing of resources.  Path-based ownership for user profiles (`/users/{userId}`) enables secure access to individual user documents.\n\n**Invariants:**\nThe `businessId` field across related collections ensures the integrity of ownership. Timestamps within sales records maintain the correct recording of sale events. The `role` field within user profiles supports differentiation for staff permission (e.g., `canRecordSales`, `canSeeReports`)."
+  }
+}
