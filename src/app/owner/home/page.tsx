@@ -332,17 +332,19 @@ export default function OwnerHomePage() {
              <Card>
                 <CardHeader>
                      <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <Link2 className="w-6 h-6 text-primary" />
-                        Connect Channels
+                        <Store className="w-6 h-6 text-primary" />
+                        Sell Online
                     </CardTitle>
                     <CardDescription>
-                        Sync sales from other platforms for a complete overview.
+                        Set up your free online store on Busmo Market and reach more customers.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Button variant="secondary" className="w-full" disabled>
-                        Connect (Coming Soon)
-                    </Button>
+                    <Link href="/owner/market" className='w-full'>
+                        <Button variant="secondary" className="w-full">
+                            Set Up Your Store
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
 
@@ -394,5 +396,3 @@ export default function OwnerHomePage() {
     </div>
   );
 }
-
-    
