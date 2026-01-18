@@ -9,6 +9,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef } from 'react';
 import Autoplay from "embla-carousel-autoplay";
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { DashboardMockup } from '@/components/app/dashboard-mockup';
 
 const testimonialsData = [
   {
@@ -92,8 +93,8 @@ export default function LandingPage() {
             </div>
           </div>
            <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-            <div className="relative mx-auto border-foreground/20 bg-background/20 dark:border-foreground/10 border-[8px] rounded-t-xl w-full max-w-4xl h-[400px] md:h-[600px] shadow-2xl flex items-center justify-center text-muted-foreground">
-                 add dashboard mockup here
+            <div className="relative mx-auto w-full max-w-4xl h-[450px] md:h-[550px]">
+                 <DashboardMockup />
             </div>
         </div>
         </section>
