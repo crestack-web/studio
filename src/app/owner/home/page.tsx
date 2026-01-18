@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,7 @@ import { DateRange } from 'react-day-picker';
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -72,14 +73,65 @@ export default function OwnerHomePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <header className="flex items-center justify-between p-4 border-b bg-background sticky top-0 z-10">
         <Logo className="h-8" />
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="font-semibold">Mama's Kitchen</div>
-            <div className="text-xs text-muted-foreground">Owner</div>
+        <div className="flex items-center gap-2">
+           <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                <Bell className="h-5 w-5" />
+                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                <span className="sr-only">Notifications</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="grid gap-4">
+                <div className="space-y-1">
+                  <h4 className="font-medium leading-none">Notifications</h4>
+                  <p className="text-sm text-muted-foreground">
+                    You have 3 unread notifications.
+                  </p>
+                </div>
+                <Separator />
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+                      <div className='space-y-1'>
+                        <p className="text-sm font-medium">New Sale</p>
+                        <p className='text-sm text-muted-foreground'>Bottled Water (x2)</p>
+                      </div>
+                      <div className="text-sm text-muted-foreground text-right">₦300</div>
+                  </div>
+                  <Separator />
+                   <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+                      <div className='space-y-1'>
+                        <p className="text-sm font-medium">New Sale</p>
+                        <p className='text-sm text-muted-foreground'>Biscuits (x1)</p>
+                      </div>
+                      <div className="text-sm text-muted-foreground text-right">₦250</div>
+                  </div>
+                  <Separator />
+                   <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+                      <div className='space-y-1'>
+                        <p className="text-sm font-medium text-destructive">Low Stock Alert</p>
+                        <p className='text-sm text-muted-foreground'>Biscuits are running low</p>
+                      </div>
+                      <div className="text-sm text-muted-foreground text-right">5 left</div>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Separator orientation="vertical" className="h-8" />
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="font-semibold">Mama's Kitchen</div>
+              <div className="text-xs text-muted-foreground">Owner</div>
+            </div>
+            <Avatar className="border">
+              <AvatarFallback>MK</AvatarFallback>
+            </Avatar>
           </div>
-          <Avatar className="border">
-            <AvatarFallback>MK</AvatarFallback>
-          </Avatar>
         </div>
       </header>
       <main className="flex-1 p-4 sm:p-6">
