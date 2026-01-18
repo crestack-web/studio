@@ -73,7 +73,7 @@ export default function OwnerHomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b">
+      <header className="flex items-center justify-between p-4 border-b bg-card">
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
            <Popover>

@@ -25,7 +25,7 @@ export default function MainLayout({ children, title, backHref }: MainLayoutProp
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-background">
+      <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-card">
         <Button variant="ghost" size="icon" className="h-10 w-10 mr-2" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
           <span className="sr-only">Back</span>
