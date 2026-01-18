@@ -3,13 +3,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, CheckCircle, HelpCircle, Landmark, Package, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Package, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef } from 'react';
 import Autoplay from "embla-carousel-autoplay";
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { DashboardMockup } from '@/components/app/dashboard-mockup';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+
 
 const testimonialsData = [
   {
@@ -365,6 +372,136 @@ export default function LandingPage() {
               </Card>
             </div>
           </div>
+        </section>
+
+        {/* Why Busmo Section */}
+        <section className="py-24 sm:py-32">
+            <div className="container mx-auto px-4">
+                <div className="text-center max-w-3xl mx-auto">
+                    <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">A Different Kind of Business Tool</h2>
+                    <p className="mt-4 text-lg text-muted-foreground">
+                        Busmo isn't accounting software. It's a decision-making tool built for the reality of your business.
+                    </p>
+                </div>
+
+                <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    <Card className="bg-card/30">
+                        <CardHeader>
+                            <CardTitle className="text-center font-headline text-destructive">The Old Way: Accounting Tools</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-start gap-3">
+                                <XCircle className="w-6 h-6 text-destructive mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Complex & Overwhelming</h4>
+                                    <p className="text-sm text-muted-foreground">Endless fields, confusing charts, and features you'll never use.</p>
+                                </div>
+                            </div>
+                             <div className="flex items-start gap-3">
+                                <XCircle className="w-6 h-6 text-destructive mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Built for Accountants</h4>
+                                    <p className="text-sm text-muted-foreground">They speak in jargon like "debits" and "credits," not "profit" and "loss."</p>
+                                </div>
+                            </div>
+                             <div className="flex items-start gap-3">
+                                <XCircle className="w-6 h-6 text-destructive mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Focused on Reports</h4>
+                                    <p className="text-sm text-muted-foreground">They give you long reports to dig through instead of immediate answers.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-accent shadow-accent/20 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-center font-headline text-accent">The Busmo Way: Clarity Tool</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-start gap-3">
+                                <CheckCircle className="w-6 h-6 text-accent mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Simple & Focused</h4>
+                                    <p className="text-sm text-muted-foreground">Record a sale in seconds. See your profit instantly. That's it.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CheckCircle className="w-6 h-6 text-accent mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Built for Owners</h4>
+                                    <p className="text-sm text-muted-foreground">We speak your language. Ask "Did I make money?" and get a straight answer.</p>
+                                </div>
+                            </div>
+                             <div className="flex items-start gap-3">
+                                <CheckCircle className="w-6 h-6 text-accent mt-1 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Focused on Answers</h4>
+                                    <p className="text-sm text-muted-foreground">Your most important insights are always one tap—or one question—away.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+                 <div className="mt-20 text-center">
+                    <h3 className="text-2xl font-bold tracking-tight font-headline">Who is Busmo for?</h3>
+                     <p className="mt-2 text-muted-foreground max-w-xl mx-auto">If you sell products and want to know your numbers without the headache, Busmo is for you.</p>
+                    <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-4xl mx-auto">
+                        <div className="flex flex-col items-center gap-3">
+                            <Store className="w-10 h-10 text-primary"/>
+                            <p className="font-semibold">Retail Shops</p>
+                        </div>
+                         <div className="flex flex-col items-center gap-3">
+                            <UtensilsCrossed className="w-10 h-10 text-primary"/>
+                            <p className="font-semibold">Food & Drink Stalls</p>
+                        </div>
+                         <div className="flex flex-col items-center gap-3">
+                            <ShoppingCart className="w-10 h-10 text-primary"/>
+                            <p className="font-semibold">Grocers & Supermarkets</p>
+                        </div>
+                         <div className="flex flex-col items-center gap-3">
+                            <Building className="w-10 h-10 text-primary"/>
+                            <p className="font-semibold">Small Manufacturers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="bg-card/30 py-24 sm:py-32">
+            <div className="container mx-auto px-4 max-w-3xl">
+                <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
+                        Frequently Asked Questions
+                    </h2>
+                </div>
+                <Accordion type="single" collapsible className="w-full mt-12">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="text-lg font-semibold">Is Busmo another accounting app?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        No. Busmo is designed for business clarity, not complex accounting. We focus on the key metrics you need to make decisions—daily profit, cash flow, and inventory—without the confusing jargon or features built for accountants.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                        <AccordionTrigger className="text-lg font-semibold">Can I use Busmo if I work offline?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        Yes. Busmo is designed to be offline-first. You can record sales, track expenses, and manage inventory even without an internet connection. Your data will sync automatically and securely once you're back online.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-3">
+                        <AccordionTrigger className="text-lg font-semibold">Is my business data safe?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        Absolutely. We use industry-standard encryption and security protocols to protect your data. Your business information is yours alone, and we are committed to keeping it safe, secure, and private.
+                        </AccordionContent>
+                    </AccordionItem>
+                     <AccordionItem value="item-4">
+                        <AccordionTrigger className="text-lg font-semibold">What if I sell services, not products?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        While Busmo is optimized for product-based businesses with inventory, you can absolutely use it to track all your income (sales) and expenses to understand your profitability. The inventory-specific features can simply be ignored.
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </div>
         </section>
 
         {/* Final CTA Section */}
