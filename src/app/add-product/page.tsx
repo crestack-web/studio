@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Upload, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Image from 'next/image';
 
 interface Ingredient {
     name: string;
@@ -22,6 +23,14 @@ export default function AddProductPage() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
+    const [images, setImages] = useState<File[]>([]);
+    const [productName, setProductName] = useState('');
+    const [sellingPrice, setSellingPrice] = useState('');
+    const [initialQuantity, setInitialQuantity] = useState('');
+    const [costPrice, setCostPrice] = useState('');
+    const [productDescription, setProductDescription] = useState('');
+    const [productCategory, setProductCategory] = useState('');
+
 
     const totalIngredientCost = useMemo(() => {
         return ingredients.reduce((total, ing) => total + (parseFloat(ing.cost) || 0), 0);
@@ -39,6 +48,26 @@ export default function AddProductPage() {
         setIngredients(ingredients.filter((_, i) => i !== index));
     };
 
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            const newImages = Array.from(event.target.files);
+            setImages(prev => [...prev, ...newImages].slice(0, 4));
+        }
+    };
+
+    const handleRemoveImage = (index: number) => {
+        setImages(images.filter((_, i) => i !== index));
+    };
+
+    const canAddProduct = useMemo(() => {
+        const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured || costPrice);
+        if (isListedOnMarket) {
+            return hasBaseInfo && images.length > 0 && productDescription && productCategory;
+        }
+        return hasBaseInfo;
+    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, isListedOnMarket, images, productDescription, productCategory]);
+
+
     return (
         <MainLayout title="Add New Product" backHref="/add-inventory">
             <div className="w-full max-w-md space-y-6">
@@ -50,7 +79,7 @@ export default function AddProductPage() {
                     <CardContent className="space-y-6">
                         <div className="space-y-2">
                             <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" />
+                            <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" value={productName} onChange={e => setProductName(e.target.value)} />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -61,18 +90,19 @@ export default function AddProductPage() {
                                     type="number" 
                                     placeholder="0.00" 
                                     className="h-12 text-base" 
-                                    value={isManufactured ? totalIngredientCost.toFixed(2) : undefined}
+                                    value={isManufactured ? totalIngredientCost.toFixed(2) : costPrice}
+                                    onChange={e => !isManufactured && setCostPrice(e.target.value)}
                                     readOnly={isManufactured}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="selling-price">Selling Price</Label>
-                                <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" />
+                                <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} />
                             </div>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="quantity">Initial Quantity</Label>
-                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" />
+                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)}/>
                         </div>
                          <div className="flex items-center space-x-2">
                             <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
@@ -138,12 +168,44 @@ export default function AddProductPage() {
                         {isListedOnMarket && (
                             <>
                                 <div className="space-y-2">
+                                    <Label htmlFor="product-images">Product Images</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {images.map((file, index) => (
+                                            <div key={index} className="relative aspect-square">
+                                                <Image
+                                                    src={URL.createObjectURL(file)}
+                                                    alt={`Product image ${index + 1}`}
+                                                    layout="fill"
+                                                    objectFit="cover"
+                                                    className="rounded-md"
+                                                />
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                                    onClick={() => handleRemoveImage(index)}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        {images.length < 4 && (
+                                            <Label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full aspect-square border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
+                                                <Upload className="h-8 w-8 text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground mt-1 text-center">Upload Image</span>
+                                            </Label>
+                                        )}
+                                    </div>
+                                    <Input id="image-upload" type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
+                                     <p className="text-xs text-muted-foreground">You must upload at least one image to list on the market.</p>
+                                </div>
+                                <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>
-                                    <Textarea id="product-description" placeholder="Describe your product for customers..." />
+                                    <Textarea id="product-description" placeholder="Describe your product for customers..." value={productDescription} onChange={e => setProductDescription(e.target.value)} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-category">Product Category</Label>
-                                    <Select>
+                                    <Select onValueChange={setProductCategory} value={productCategory}>
                                         <SelectTrigger id="product-category">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -163,10 +225,8 @@ export default function AddProductPage() {
                 </Card>
 
 
-                <Button className="w-full h-14 text-lg">Add Product</Button>
+                <Button className="w-full h-14 text-lg" disabled={!canAddProduct}>Add Product</Button>
             </div>
         </MainLayout>
     );
 }
-
-    
