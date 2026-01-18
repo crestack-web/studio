@@ -72,12 +72,12 @@ export default function OwnerHomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b border-background/20 bg-foreground text-background sticky top-0 z-10">
+      <header className="flex items-center justify-between p-4 border-b sticky top-0 z-10 bg-background">
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
            <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative h-9 w-9 text-background hover:bg-white/10 hover:text-background">
+              <Button variant="ghost" size="icon" className="relative h-9 w-9">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
@@ -124,14 +124,14 @@ export default function OwnerHomePage() {
             </PopoverContent>
           </Popover>
           <ThemeToggle />
-          <Separator orientation="vertical" className="h-8 bg-background/20" />
+          <Separator orientation="vertical" className="h-8" />
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="font-semibold">Mama's Kitchen</div>
-              <div className="text-xs text-background/70">Owner</div>
+              <div className="text-xs text-muted-foreground">Owner</div>
             </div>
-            <Avatar className="border border-background/50">
-              <AvatarFallback className="bg-background/20 text-foreground">MK</AvatarFallback>
+            <Avatar>
+              <AvatarFallback>MK</AvatarFallback>
             </Avatar>
           </div>
         </div>
