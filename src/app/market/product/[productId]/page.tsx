@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ const mockProduct = {
 };
 
 export default function ProductDetailPage({ params }: { params: { productId: string } }) {
+    const [quantity, setQuantity] = useState(1);
+    
     return (
         <MainLayout title="Product Details" backHref="/market">
            <div className="w-full max-w-4xl">
@@ -78,12 +81,21 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                         <div className="flex items-center gap-4">
                             <div className="w-24">
                                 <Label htmlFor="quantity" className="sr-only">Quantity</Label>
-                                <Input id="quantity" type="number" defaultValue="1" min="1" className="h-14 text-lg text-center"/>
+                                <Input 
+                                    id="quantity" 
+                                    type="number" 
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                    min="1" 
+                                    className="h-14 text-lg text-center"
+                                />
                             </div>
-                            <Button className="w-full h-14 text-lg flex-1">
-                                <ShoppingCart className="mr-2 h-6 w-6"/>
-                                Add to Cart
-                            </Button>
+                            <Link href={`/market/checkout?productId=${mockProduct.id}&quantity=${quantity}`} className="w-full flex-1">
+                                <Button className="w-full h-14 text-lg flex-1">
+                                    <ShoppingCart className="mr-2 h-6 w-6"/>
+                                    Proceed to Checkout
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -91,5 +103,3 @@ export default function ProductDetailPage({ params }: { params: { productId: str
         </MainLayout>
     );
 }
-
-    
