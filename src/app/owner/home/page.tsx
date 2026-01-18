@@ -337,10 +337,10 @@ export default function OwnerHomePage() {
                 </CardContent>
             </Card>
 
-            <Card className="bg-card/50 border-dashed">
+            <Card>
                 <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
-                        <Landmark className="w-6 h-6" />
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <Landmark className="w-6 h-6 text-primary" />
                         Access Capital
                     </CardTitle>
                     <CardDescription>
@@ -351,9 +351,11 @@ export default function OwnerHomePage() {
                      <div className="text-center text-sm text-muted-foreground">
                         <p>Keep recording sales and expenses to become eligible for loans.</p>
                     </div>
-                    <Button variant="secondary" className="w-full" disabled>
-                        Check Eligibility
-                    </Button>
+                    <Link href="/owner/access-capital" className='w-full'>
+                        <Button variant="secondary" className="w-full">
+                            Check Eligibility
+                        </Button>
+                    </Link>
                 </CardContent>
             </Card>
 
