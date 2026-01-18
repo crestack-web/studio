@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -145,7 +145,7 @@ export default function OwnerHomePage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <BotMessageSquare className="w-6 h-6 text-primary" />
+                        <BotMessageSquare className="w-6 h-6 text-accent" />
                         Ask about your business
                     </CardTitle>
                 </CardHeader>
@@ -289,6 +289,12 @@ export default function OwnerHomePage() {
                     <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
                         <CircleDollarSign className="w-6 h-6" />
                         Take Money
+                    </Button>
+                </Link>
+                 <Link href="/owner/staff">
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                        <Users className="w-6 h-6" />
+                        Manage Staff
                     </Button>
                 </Link>
             </div>
