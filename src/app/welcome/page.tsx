@@ -34,14 +34,10 @@ const testimonialsData = [
 
 // The new landing page component
 export default function LandingPage() {
-  const [dashboardImage, setDashboardImage] = useState<string>('');
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
-    const dashboard = PlaceHolderImages.find(img => img.id === 'landing-dashboard-preview');
-    if (dashboard) setDashboardImage(dashboard.imageUrl);
-
     const loadedTestimonials = testimonialsData.map(t => {
         const img = PlaceHolderImages.find(img => img.id === t.id);
         return {...t, imageUrl: img?.imageUrl, imageHint: img?.imageHint };
@@ -96,14 +92,8 @@ export default function LandingPage() {
             </div>
           </div>
            <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-            <div className="relative mx-auto border-foreground/20 bg-background/20 dark:border-foreground/10 border-[8px] rounded-t-xl w-full max-w-4xl h-[400px] md:h-[600px] shadow-2xl">
-                 {dashboardImage && <Image
-                    src={dashboardImage}
-                    alt="Busmo dashboard preview"
-                    fill
-                    className="rounded-t-lg object-cover object-top"
-                    data-ai-hint="app dashboard"
-                />}
+            <div className="relative mx-auto border-foreground/20 bg-background/20 dark:border-foreground/10 border-[8px] rounded-t-xl w-full max-w-4xl h-[400px] md:h-[600px] shadow-2xl flex items-center justify-center text-muted-foreground">
+                 add dashboard mockup here
             </div>
         </div>
         </section>
