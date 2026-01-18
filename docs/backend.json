@@ -67,6 +67,10 @@
         "canSeeReports": {
           "type": "boolean",
           "description": "Indicates if the user has permission to view reports (owner only)."
+        },
+        "canManageMarket": {
+          "type": "boolean",
+          "description": "Indicates if the user has permission to manage marketplace listings."
         }
       },
       "required": [
@@ -75,7 +79,8 @@
         "businessId",
         "role",
         "canRecordSales",
-        "canSeeReports"
+        "canSeeReports",
+        "canManageMarket"
       ]
     },
     "Sale": {
@@ -104,6 +109,11 @@
           "type": "string",
           "description": "Payment type (e.g., cash, transfer, POS)."
         },
+        "source": {
+          "type": "string",
+          "description": "The origin of the sale.",
+          "enum": ["in-store", "market"]
+        },
         "timestamp": {
           "type": "string",
           "description": "Timestamp of the sale.",
@@ -115,7 +125,8 @@
         "businessId",
         "amount",
         "paymentType",
-        "timestamp"
+        "timestamp",
+        "source"
       ]
     },
     "Product": {
@@ -147,6 +158,10 @@
         "cost": {
           "type": "number",
           "description": "Cost price or production cost of the product."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Current stock level of the product."
         },
         "ingredients": {
           "type": "array",
@@ -194,7 +209,8 @@
         "businessId",
         "name",
         "price",
-        "cost"
+        "cost",
+        "quantity"
       ]
     }
   },
@@ -274,4 +290,3 @@
     "reasoning": "The Firestore structure is designed to support the BizAssistant app's core features, focusing on simplicity, security, and scalability, especially considering the constraints of the target user base (African small businesses with potentially low digital literacy, old Android phones, and unstable internet).  The structure prioritizes Authorization Independence, enabling robust security rules without relying on complex hierarchical data access.\n\n**Authorization Independence (Denormalization):**\nThe structure heavily utilizes denormalization to achieve Authorization Independence.  Specifically, the `businessId` is included in every document within collections related to a business (e.g., Users, Products, Sales). This allows security rules to validate that a user or a piece of data belongs to a specific business without needing to perform expensive and potentially insecure `get()` operations to traverse the data hierarchy.\n\n**Structural Segregation:**\nThe data is segregated into collections based on entity type, ensuring a homogeneous security posture within each collection.  User data is stored under the root collection `users`, nested under the document corresponding to the user's `uid`. This structure simplifies security rules, ensuring that all documents within a collection share the same access control requirements.\n\n**Access Modeling:**\n*   **Private Data:** User-specific data (e.g., user profiles) will be stored under `/users/{userId}`.\n*   **Business-Owned Data:** Data related to a specific business (Users, Products, Sales) are stored in root-level collections that contain the `businessId` field (e.g., `/users`, `/products`, `/sales`).\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By including `businessId` in all business-related entities, rules can efficiently filter data based on the user's associated business, enabling secure listing of resources.  Path-based ownership for user profiles (`/users/{userId}`) enables secure access to individual user documents.\n\n**Invariants:**\nThe `businessId` field across related collections ensures the integrity of ownership. Timestamps within sales records maintain the correct recording of sale events. The `role` field within user profiles supports differentiation for staff permission (e.g., `canRecordSales`, `canSeeReports`)."
   }
 }
-    

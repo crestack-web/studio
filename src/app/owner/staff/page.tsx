@@ -26,6 +26,7 @@ const permissions = [
     { id: 'record_sales', label: 'Record Sales' },
     { id: 'record_expenses', label: 'Record Expenses' },
     { id: 'add_inventory', label: 'Add Inventory' },
+    { id: 'manage_market', label: 'Manage Market Listings' },
     { id: 'view_reports', label: 'View Reports' },
 ];
 
