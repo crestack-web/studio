@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, CheckCircle, HelpCircle, Package, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Activity, BarChart, CheckCircle, HelpCircle, Landmark, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect } from 'react';
@@ -233,6 +233,58 @@ export default function LandingPage() {
                     </CardContent>
                 </Card>
               </div>
+          </div>
+        </section>
+
+        {/* Funding Section */}
+        <section className="py-24 sm:py-32 bg-card/30">
+          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
+                Turn Your Data Into Capital.
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Good data is your most valuable asset. Busmo helps you build a trusted financial story that opens doors to funding opportunities, without the endless paperwork.
+              </p>
+              <ul className="mt-6 space-y-3 text-muted-foreground">
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-accent"/>
+                  <span>Build a verifiable business history.</span>
+                </li>
+                  <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-accent"/>
+                  <span>Unlock loan offers from lenders.</span>
+                </li>
+                  <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-accent"/>
+                  <span>Access capital based on performance, not paperwork.</span>
+                </li>
+              </ul>
+            </div>
+            <div className="space-y-4">
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-accent"/>
+                    <span>Sample Loan Offer</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-primary font-medium">Based on 3 months of consistent data, a business like yours could be eligible for up to <span className="font-bold text-xl">₦250,000</span>.</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-accent"/>
+                    <span>Your Financial Health Score</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-success font-medium">Your score is <span className="font-bold">Strong</span>. Keep recording transactions to improve your eligibility for larger loans.</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </section>
 
