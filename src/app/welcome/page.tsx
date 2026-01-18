@@ -62,6 +62,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
           <nav className="flex items-center gap-4">
+             <Link href="/market" passHref>
+              <Button variant="ghost">Market</Button>
+            </Link>
             <Link href="/pricing" passHref>
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -107,6 +110,46 @@ export default function LandingPage() {
                  <DashboardMockup />
             </div>
         </div>
+        </section>
+        
+        {/* Marketplace Section */}
+        <section className="bg-card/30 py-24 sm:py-32">
+          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+              <div>
+                 <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
+                    Sell Online with Busmo Market.
+                    <br/>
+                    <span className="text-muted-foreground">Your sales feed your insights.</span>
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                    Extend your reach. List your products on Busmo Market and turn every sale into an instant business insight. All sales sync automatically to your dashboard.
+                </p>
+                <ul className="mt-6 space-y-3 text-muted-foreground">
+                    <li className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-accent"/>
+                        <span>List products in seconds, right from your dashboard.</span>
+                    </li>
+                     <li className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-accent"/>
+                        <span>Reach new customers searching for products like yours.</span>
+                    </li>
+                     <li className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-accent"/>
+                        <span>Every sale automatically updates inventory, sales & profit.</span>
+                    </li>
+                </ul>
+                 <Link href="/market" passHref>
+                    <Button size="lg" className="mt-8 h-12 text-base">
+                        Explore the Market
+                    </Button>
+                </Link>
+              </div>
+              <Card className="shadow-lg">
+                <CardContent className="p-4">
+                  <Image src="https://picsum.photos/seed/market-mockup/600/500" alt="Busmo Market Mockup" width={600} height={500} className="rounded-lg" data-ai-hint="marketplace mobile" />
+                </CardContent>
+              </Card>
+          </div>
         </section>
 
         {/* Features Section */}
@@ -540,3 +583,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    

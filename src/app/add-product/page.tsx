@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Trash2, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Ingredient {
     name: string;
@@ -16,6 +18,7 @@ interface Ingredient {
 
 export default function AddProductPage() {
     const [isManufactured, setIsManufactured] = useState(false);
+    const [isListedOnMarket, setIsListedOnMarket] = useState(false);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
@@ -49,11 +52,7 @@ export default function AddProductPage() {
                             <Label htmlFor="product-name">Product Name</Label>
                             <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" />
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
-                            <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
-                        </div>
-
+                        
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="cost-price">Production/Cost Price</Label>
@@ -74,6 +73,10 @@ export default function AddProductPage() {
                          <div className="space-y-2">
                             <Label htmlFor="quantity">Initial Quantity</Label>
                             <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" />
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
+                            <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
                         </div>
                     </CardContent>
                 </Card>
@@ -121,8 +124,49 @@ export default function AddProductPage() {
                     </Card>
                 )}
 
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Busmo Market</CardTitle>
+                        <CardDescription>List this product on the public marketplace.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex items-center space-x-2">
+                            <Switch id="market-listing" checked={isListedOnMarket} onCheckedChange={setIsListedOnMarket} />
+                            <Label htmlFor="market-listing">List this product on Busmo Market</Label>
+                        </div>
+
+                        {isListedOnMarket && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="product-description">Product Description</Label>
+                                    <Textarea id="product-description" placeholder="Describe your product for customers..." />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="product-category">Product Category</Label>
+                                    <Select>
+                                        <SelectTrigger id="product-category">
+                                            <SelectValue placeholder="Select a category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="food">Food &amp; Groceries</SelectItem>
+                                            <SelectItem value="fashion">Fashion &amp; Apparel</SelectItem>
+                                            <SelectItem value="electronics">Electronics</SelectItem>
+                                            <SelectItem value="health">Health &amp; Beauty</SelectItem>
+                                            <SelectItem value="home">Home &amp; Garden</SelectItem>
+                                            <SelectItem value="other">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+
                 <Button className="w-full h-14 text-lg">Add Product</Button>
             </div>
         </MainLayout>
     );
 }
+
+    
