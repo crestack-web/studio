@@ -129,7 +129,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Sale",
       "type": "object",
-      "description": "Represents a sale transaction.",
+      "description": "Represents a sale transaction. Can also represent an order from the marketplace.",
       "properties": {
         "id": {
           "type": "string",
@@ -141,7 +141,34 @@
         },
         "productId": {
           "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N Sale).  Can be null if amount is manually entered."
+          "description": "Reference to Product. (Relationship: Product 1:N Sale). Can be null if amount is manually entered. For market sales with multiple items, see 'items' property."
+        },
+        "items": {
+          "type": "array",
+          "description": "List of products in the sale/order. Used for market sales.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              },
+              "price": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "productId",
+              "name",
+              "quantity",
+              "price"
+            ]
+          }
         },
         "amount": {
           "type": "number",
@@ -149,7 +176,7 @@
         },
         "paymentType": {
           "type": "string",
-          "description": "Payment type (e.g., cash, transfer, POS)."
+          "description": "Payment type (e.g., cash, transfer, POS, pay-on-delivery, bank-transfer)."
         },
         "source": {
           "type": "string",
@@ -163,6 +190,39 @@
           "type": "string",
           "description": "Timestamp of the sale.",
           "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the order (for market sales).",
+          "enum": [
+            "pending",
+            "shipped",
+            "delivered",
+            "cancelled"
+          ]
+        },
+        "fulfillmentMethod": {
+          "type": "string",
+          "description": "How the order will be fulfilled (for market sales).",
+          "enum": [
+            "delivery",
+            "pickup"
+          ]
+        },
+        "customerDetails": {
+          "type": "object",
+          "description": "Details of the customer for market sales.",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": [

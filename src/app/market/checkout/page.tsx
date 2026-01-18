@@ -1,6 +1,6 @@
 'use client';
 
-import React, { सuspense, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,6 +11,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import MainLayout from '@/components/app/main-layout';
 import { Banknote, Package, Truck, Landmark } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 // Mock product and store data, now including payment/delivery settings
 const mockProduct = { 
@@ -46,10 +48,16 @@ const CheckoutContent = () => {
 
     const [fulfillmentMethod, setFulfillmentMethod] = useState(mockStore.deliverySettings.allowDelivery ? 'delivery' : 'pickup');
     const [paymentMethod, setPaymentMethod] = useState(mockStore.paymentSettings.allowPayOnDelivery ? 'delivery' : 'transfer');
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [customerAddress, setCustomerAddress] = useState('');
 
     const subtotal = mockProduct.price * quantity;
     const deliveryFee = fulfillmentMethod === 'delivery' ? mockStore.deliverySettings.deliveryFee : 0;
     const total = subtotal + deliveryFee;
+    
+    const canPlaceOrder = customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
+
 
     if (!productId) {
         return (
@@ -62,6 +70,8 @@ const CheckoutContent = () => {
         );
     }
     
+    const confirmationLink = `/market/order-confirmation?productId=${productId}&quantity=${quantity}&fulfillment=${fulfillmentMethod}&payment=${paymentMethod}&name=${encodeURIComponent(customerName)}&phone=${encodeURIComponent(customerPhone)}&address=${encodeURIComponent(customerAddress)}`;
+
     return (
          <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Order Summary */}
@@ -108,12 +118,29 @@ const CheckoutContent = () => {
 
             {/* Fulfillment and Payment */}
             <div className="space-y-8">
+                 {/* Customer Details */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Your Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input id="name" placeholder="Enter your full name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Phone Number</Label>
+                            <Input id="phone" type="tel" placeholder="Enter your phone number" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} required />
+                        </div>
+                    </CardContent>
+                </Card>
+                
                 {/* Fulfillment */}
                 <Card>
                     <CardHeader>
                         <CardTitle>How would you like to get your order?</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <RadioGroup value={fulfillmentMethod} onValueChange={setFulfillmentMethod} className="space-y-4">
                             {mockStore.deliverySettings.allowDelivery && (
                                 <Label htmlFor="delivery" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
@@ -140,6 +167,12 @@ const CheckoutContent = () => {
                                 </Label>
                             )}
                         </RadioGroup>
+                        {fulfillmentMethod === 'delivery' && (
+                            <div className="space-y-2 pt-4 border-t mt-4">
+                                <Label htmlFor="address">Delivery Address</Label>
+                                <Textarea id="address" placeholder="Enter your full street address, city, and state" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} required />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -178,8 +211,8 @@ const CheckoutContent = () => {
                     </CardContent>
                 </Card>
 
-                 <Link href={`/market/order-confirmation?productId=${productId}&quantity=${quantity}&fulfillment=${fulfillmentMethod}&payment=${paymentMethod}`}>
-                    <Button className="w-full h-14 text-lg">
+                 <Link href={confirmationLink}>
+                    <Button className="w-full h-14 text-lg" disabled={!canPlaceOrder}>
                         Place Order (₦{total.toLocaleString()})
                     </Button>
                 </Link>

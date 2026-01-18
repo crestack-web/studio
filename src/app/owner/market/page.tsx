@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Settings, Package, ShoppingCart, Users, CreditCard, Truck, ExternalLink, ArrowLeft } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, CreditCard, Truck, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, MapPin } from 'lucide-react';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,22 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
 
 
 const mockProducts = [
@@ -25,10 +41,34 @@ const mockProducts = [
     { id: '4', name: 'Bread', price: 500, stock: 20, isListed: true, image: 'https://picsum.photos/seed/product-bread/100/100' },
 ];
 
-const mockOrders = [
-    { id: '#BM1001', customer: 'Chioma Okoro', date: '2024-07-25', total: '12,000', status: 'Pending' },
-    { id: '#BM1002', customer: 'David Adeleke', date: '2024-07-24', total: '3,500', status: 'Shipped' },
-    { id: '#BM1003', customer: 'Amina Bello', date: '2024-07-24', total: '5,000', status: 'Delivered' },
+const initialOrders = [
+    { 
+        id: '#BM1001', 
+        customer: { name: 'Chioma Okoro', phone: '08012345678', address: '123 Allen Avenue, Ikeja, Lagos' }, 
+        date: '2024-07-25', 
+        total: '12,000', 
+        status: 'Pending',
+        fulfillment: 'delivery',
+        items: [{ name: 'Handmade Leather Bag', quantity: 1, price: 12000 }]
+    },
+    { 
+        id: '#BM1002', 
+        customer: { name: 'David Adeleke', phone: '09087654321', address: '456 Victoria Island, Lagos' }, 
+        date: '2024-07-24', 
+        total: '3,500', 
+        status: 'Shipped',
+        fulfillment: 'delivery',
+        items: [{ name: 'Ankara Print Scarf', quantity: 1, price: 3500 }]
+    },
+    { 
+        id: '#BM1003', 
+        customer: { name: 'Amina Bello', phone: '07098765432', address: '' }, 
+        date: '2024-07-24', 
+        total: '5,000', 
+        status: 'Delivered',
+        fulfillment: 'pickup',
+        items: [{ name: 'Beaded Necklace', quantity: 1, price: 5000 }]
+    },
 ];
 
 const mockCustomers = [
@@ -141,37 +181,125 @@ const ProductsContent = () => {
 };
 
 const OrdersContent = () => {
+    const [orders, setOrders] = useState(initialOrders);
+    const [selectedOrder, setSelectedOrder] = useState<(typeof initialOrders)[0] | null>(null);
+
+    const handleStatusChange = (orderId: string, newStatus: string) => {
+        setOrders(orders.map(o => (o.id === orderId ? { ...o, status: newStatus } : o)));
+    };
+    
+    type Order = typeof initialOrders[number];
+
+    const getStatusVariant = (status: Order['status']) => {
+        switch (status) {
+            case 'Delivered':
+                return 'default';
+            case 'Pending':
+                return 'destructive';
+            case 'Shipped':
+                return 'secondary';
+            default:
+                return 'outline';
+        }
+    };
+
+
     return (
-        <Card>
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Order</TableHead>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {mockOrders.map(order => (
-                            <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.id}</TableCell>
-                                <TableCell>{order.customer}</TableCell>
-                                <TableCell>{order.date}</TableCell>
-                                <TableCell>
-                                    <Badge variant={order.status === 'Delivered' ? 'default' : order.status === 'Pending' ? 'destructive' : 'secondary'}>
-                                        {order.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">₦{order.total}</TableCell>
+        <>
+            <Card>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Order</TableHead>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Fulfillment</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {orders.map(order => (
+                                <TableRow key={order.id} className="cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                                    <TableCell className="font-medium">{order.id}</TableCell>
+                                    <TableCell>{order.customer.name}</TableCell>
+                                    <TableCell>{order.date}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={getStatusVariant(order.status as any)}>
+                                            {order.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="capitalize">{order.fulfillment}</TableCell>
+                                    <TableCell className="text-right">₦{order.total}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleStatusChange(order.id, 'Shipped')}}>Mark as Shipped</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleStatusChange(order.id, 'Delivered')}}>Mark as Delivered</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); handleStatusChange(order.id, 'Cancelled')}}>
+                                                    Cancel Order
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Order {selectedOrder?.id}</DialogTitle>
+                        <DialogDescription>
+                            Details for the order placed by {selectedOrder?.customer.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedOrder && (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <h4 className="font-semibold flex items-center gap-2"><User className="w-4 h-4 text-muted-foreground" /> Customer Details</h4>
+                                <div className="text-sm text-muted-foreground space-y-1 pl-6">
+                                    <p>{selectedOrder.customer.name}</p>
+                                    <p>{selectedOrder.customer.phone}</p>
+                                    {selectedOrder.fulfillment === 'delivery' && selectedOrder.customer.address && (
+                                        <p className="flex items-start"><MapPin className="w-4 h-4 mr-2 mt-1 shrink-0" /> {selectedOrder.customer.address}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <Separator />
+                            <div className="space-y-2">
+                                <h4 className="font-semibold flex items-center gap-2"><Package className="w-4 h-4 text-muted-foreground" /> Order Items</h4>
+                                 <div className="pl-6">
+                                    {selectedOrder.items.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center text-sm">
+                                            <p>{item.name} <span className="text-muted-foreground">x {item.quantity}</span></p>
+                                            <p>₦{(item.price * item.quantity).toLocaleString()}</p>
+                                        </div>
+                                    ))}
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-between items-center font-bold">
+                                        <p>Total</p>
+                                        <p>₦{selectedOrder.total}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 
@@ -350,13 +478,13 @@ const DeliveryContent = () => {
 };
 
 export default function ManageMarketPage() {
-    const [activeSection, setActiveSection] = useState('settings');
+    const [activeSection, setActiveSection] = useState('orders');
     const router = useRouter();
 
     const menuItems = [
         { id: 'settings', label: 'Settings', icon: Settings, description: 'Manage your public store on Busmo Market.' },
         { id: 'products', label: 'Products', icon: Package, description: 'Choose which products to show on your public store.' },
-        { id: 'orders', label: 'Orders', icon: ShoppingCart, description: `Manage incoming orders. You have ${mockOrders.filter(o => o.status === 'Pending').length} pending orders.` },
+        { id: 'orders', label: 'Orders', icon: ShoppingCart, description: `Manage incoming orders. You have ${initialOrders.filter(o => o.status === 'Pending').length} pending orders.` },
         { id: 'customers', label: 'Customers', icon: Users, description: 'View customers who have purchased from your store.' },
         { id: 'payments', label: 'Payments', icon: CreditCard, description: 'Configure how you receive payments.' },
         { id: 'delivery', label: 'Delivery', icon: Truck, description: 'Set up your delivery options and prices.' },
@@ -394,6 +522,7 @@ export default function ManageMarketPage() {
                                 <ArrowLeft className="h-5 w-5" />
                                 <span className="group-data-[collapsible=icon]:hidden">Back to Home</span>
                             </Button>
+                            <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
                         </div>
                     </SidebarHeader>
 
@@ -418,7 +547,6 @@ export default function ManageMarketPage() {
                     <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
                             <SidebarTrigger className="md:hidden"/>
-                            <SidebarTrigger className="hidden md:flex" />
                             <div>
                                 <h1 className="text-xl font-headline font-semibold md:text-2xl">
                                     {activeMenuItem?.label}
@@ -435,9 +563,9 @@ export default function ManageMarketPage() {
                             </Link>
                         </div>
                     </header>
-                    <div className="flex-1 p-4 sm:p-6">
+                    <main className="flex-1 p-4 sm:p-6">
                         {renderContent()}
-                    </div>
+                    </main>
                 </SidebarInset>
             </div>
         </SidebarProvider>
