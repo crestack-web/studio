@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { BarChart, CheckCircle, HelpCircle, Package, ShoppingCart } from 'lucide-react';
+import { Activity, BarChart, CheckCircle, HelpCircle, Package, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect } from 'react';
@@ -12,14 +12,11 @@ import { useState, useEffect } from 'react';
 // The new landing page component
 export default function LandingPage() {
   const [dashboardImage, setDashboardImage] = useState<string>('');
-  const [forecastImage, setForecastImage] = useState<string>('');
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const dashboard = PlaceHolderImages.find(img => img.id === 'landing-dashboard-preview');
-    const forecast = PlaceHolderImages.find(img => img.id === 'landing-forecast-chart');
     if (dashboard) setDashboardImage(dashboard.imageUrl);
-    if (forecast) setForecastImage(forecast.imageUrl);
     setCurrentYear(new Date().getFullYear());
   }, []);
 
@@ -177,17 +174,7 @@ export default function LandingPage() {
         {/* Forecasting Section */}
         <section className="py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-              <div className="relative w-full max-w-md mx-auto">
-                 {forecastImage && <Image
-                    src={forecastImage}
-                    alt="Busmo forecasting chart"
-                    width={600}
-                    height={600}
-                    className="rounded-xl shadow-2xl"
-                    data-ai-hint="analytics chart"
-                />}
-              </div>
-              <div className="md:order-first">
+              <div>
                  <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
                     Forecast Your Business.
                     <br/>
@@ -210,6 +197,41 @@ export default function LandingPage() {
                         <span>Inventory outlook</span>
                     </li>
                 </ul>
+              </div>
+              <div className="space-y-4">
+                <Card className="shadow-lg">
+                    <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-accent"/>
+                        <span>Today's Performance</span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <p className="text-primary font-medium">Looking strong. You are 25% ahead of your daily sales average.</p>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-lg">
+                    <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-accent"/>
+                        <span>Weekly Trend</span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <p className="text-success font-medium">Sales are trending up 12% vs. last week. Keep it up!</p>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-lg">
+                    <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <BarChart className="w-5 h-5 text-accent"/>
+                        <span>Profit Direction</span>
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <p className="text-success font-medium">Your profit margin is increasing as cost of goods remains stable.</p>
+                    </CardContent>
+                </Card>
               </div>
           </div>
         </section>
