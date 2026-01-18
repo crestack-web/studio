@@ -21,7 +21,7 @@ export default function AddProductPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="cost-price">Cost Price</Label>
+                                <Label htmlFor="cost-price">Production/Cost Price</Label>
                                 <Input id="cost-price" type="number" placeholder="0.00" className="h-12 text-base" />
                             </div>
                             <div className="space-y-2">

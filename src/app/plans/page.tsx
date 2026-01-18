@@ -5,7 +5,7 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ShoppingCart, Store, Network } from 'lucide-react';
+import { ShoppingCart, Store, Network, Building } from 'lucide-react';
 
 export default function PlansPage() {
   return (
@@ -62,6 +62,22 @@ export default function PlansPage() {
                 <div className="text-right">
                     <p className="text-lg font-bold">₦30,000</p>
                     <p className="text-sm text-muted-foreground">/month</p>
+                </div>
+              </Label>
+            </div>
+             <div>
+              <RadioGroupItem value="company" id="company" className="peer sr-only" />
+              <Label htmlFor="company" className="flex items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <Building className="w-8 h-8 text-primary" />
+                  <div className="text-left">
+                    <p className="font-semibold">Company</p>
+                    <p className="text-sm text-muted-foreground">For production & enterprise</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                    <p className="text-lg font-bold">Custom</p>
+                    <p className="text-sm text-muted-foreground">Contact Us</p>
                 </div>
               </Label>
             </div>

@@ -55,6 +55,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
           <nav className="flex items-center gap-4">
+            <Link href="/pricing" passHref>
+              <Button variant="ghost">Pricing</Button>
+            </Link>
             <Link href="/login" passHref>
               <Button variant="ghost">Log In</Button>
             </Link>

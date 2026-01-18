@@ -31,6 +31,7 @@ export default function BusinessInfoPage() {
                 <SelectItem value="supermarket">Supermarket</SelectItem>
                 <SelectItem value="food">Food / Restaurant</SelectItem>
                 <SelectItem value="service">Service</SelectItem>
+                <SelectItem value="company">Company</SelectItem>
               </SelectContent>
             </Select>
           </div>
