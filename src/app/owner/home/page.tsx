@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -70,12 +70,16 @@ export default function OwnerHomePage() {
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: addDays(new Date(), -30),
-        to: new Date(),
-    });
+    const [date, setDate] = useState<DateRange | undefined>();
     const isMobile = useIsMobile();
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+
+    useEffect(() => {
+        setDate({
+            from: addDays(new Date(), -30),
+            to: new Date(),
+        });
+    }, []);
 
     const firestore = useFirestore();
     const { user: authUser } = useUser();
@@ -94,14 +98,14 @@ export default function OwnerHomePage() {
     const { data: businessData } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        const thirtyDaysAgo = addDays(new Date(), -30);
+        if (!firestore || !businessId || !date?.from) return null;
         return query(
             collection(firestore, 'sales'),
             where('businessId', '==', businessId),
-            where('timestamp', '>=', thirtyDaysAgo)
+            where('timestamp', '>=', date.from),
+            where('timestamp', '<=', date.to)
         );
-    }, [firestore, businessId]);
+    }, [firestore, businessId, date]);
     const { data: salesData } = useCollection<Sale>(salesQuery);
 
     const productsQuery = useMemoFirebase(() => {
