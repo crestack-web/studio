@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { addDays, format } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -75,6 +75,7 @@ export default function OwnerHomePage() {
         to: new Date(),
     });
     const isMobile = useIsMobile();
+    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
     const firestore = useFirestore();
     const { user: authUser } = useUser();
@@ -157,15 +158,27 @@ export default function OwnerHomePage() {
         </>
     );
 
-    const datePickerCalendar = (
-         <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={setDate}
-            numberOfMonths={1}
-        />
+    const datePickerContent = (
+      <div className="flex flex-col sm:flex-row">
+          <div className="flex flex-col gap-1 p-2 sm:border-r sm:pr-2 w-full sm:w-[160px]">
+              <h3 className="font-medium text-sm text-muted-foreground px-2 pb-1 hidden sm:block">Presets</h3>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: new Date(), to: new Date() }); setIsDatePopoverOpen(false); }}>Today</Button>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -6), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 7 Days</Button>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -29), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 30 Days</Button>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfMonth(new Date()), to: new Date() }); setIsDatePopoverOpen(false); }}>This Month</Button>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }); setIsDatePopoverOpen(false); }}>Last Month</Button>
+          </div>
+          <Separator orientation="vertical" className="h-auto hidden sm:block" />
+          <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={date?.from}
+              selected={date}
+              onSelect={setDate}
+              numberOfMonths={1}
+              className="p-2"
+          />
+      </div>
     );
 
 
@@ -286,7 +299,7 @@ export default function OwnerHomePage() {
                           <span>Business Health</span>
                         </div>
                         {isMobile ? (
-                            <Dialog>
+                            <Dialog open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                                 <DialogTrigger asChild>
                                     <Button
                                         id="date"
@@ -300,11 +313,11 @@ export default function OwnerHomePage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="w-auto p-0">
-                                    {datePickerCalendar}
+                                    {datePickerContent}
                                 </DialogContent>
                             </Dialog>
                         ) : (
-                            <Popover>
+                            <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         id="date"
@@ -318,7 +331,7 @@ export default function OwnerHomePage() {
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="end">
-                                    {datePickerCalendar}
+                                    {datePickerContent}
                                 </PopoverContent>
                             </Popover>
                         )}
