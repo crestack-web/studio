@@ -6,6 +6,7 @@ import { BarChart, Percent, TrendingUp, ShieldCheck, Package, Banknote } from 'l
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfitSharingOffer {
     type: 'Profit Sharing';
@@ -139,6 +140,7 @@ const DataPoint = ({ icon: Icon, label, value }: { icon: React.ElementType, labe
 
 export default function BusinessProfilePage({ params }: { params: { businessId: string } }) {
     const business = mockBusinesses.find(b => b.id === params.businessId);
+    const { toast } = useToast();
 
     if (!business) {
         return (
@@ -153,6 +155,13 @@ export default function BusinessProfilePage({ params }: { params: { businessId: 
             </InvestorLayout>
         );
     }
+
+    const handleExpressInterest = () => {
+        toast({
+            title: "Interest Expressed!",
+            description: `Your interest in ${business?.name} has been noted. The business owner will be notified.`,
+        });
+    };
 
     return (
         <InvestorLayout>
@@ -249,7 +258,7 @@ export default function BusinessProfilePage({ params }: { params: { businessId: 
                                     </div>
                                 </CardContent>
                                 <div className="p-4 pt-0">
-                                    <Button className="w-full h-12 text-lg">Express Interest</Button>
+                                    <Button className="w-full h-12 text-lg" onClick={handleExpressInterest}>Express Interest</Button>
                                 </div>
                             </Card>
                         </div>
