@@ -109,14 +109,14 @@ service cloud.firestore {
       return request.resource.data.id == docId;
     }
 
-    // On update, ensures the internal 'id' field is immutable.
+    // On update, ensures the internal 'id' field is immutable if it is present in the request.
     function idIsImmutable() {
-      return request.resource.data.id == resource.data.id;
+      return !('id' in request.resource.data) || request.resource.data.id == resource.data.id;
     }
 
-    // On update, ensures the internal 'businessId' field is immutable.
+    // On update, ensures the internal 'businessId' field is immutable if it is present in the request.
     function businessIdIsImmutable() {
-      return request.resource.data.businessId == resource.data.businessId;
+      return !('businessId' in request.resource.data) || request.resource.data.businessId == resource.data.businessId;
     }
 
 
@@ -219,5 +219,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
