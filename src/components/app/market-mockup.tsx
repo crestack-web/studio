@@ -11,12 +11,12 @@ import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
 
-const mockProduct = { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://images.unsplash.com/photo-1473188588951-666fce8e7c68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYmFnfGVufDB8fHx8MTc2ODgyNTM3OXww&ixlib=rb-4.1.0&q=80&w=1080', hint: 'leather bag' };
+const mockProduct = { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://images.unsplash.com/photo-1473188588951-666fce8e7c68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYmFnfGVufDB8fHx8MTc2ODgyNTM3OXww&ixlib=rb-4.1.0&q=80&w=1080', hint: 'leather bag', business: "Aisha's Crafts" };
 
 const otherProducts = [
-    { id: '5', name: 'Organic Honey (500ml)', price: 4000, image: 'https://images.unsplash.com/photo-1645549826194-1956802d83c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvcmdhbmljJTIwaG9uZXl8ZW58MHx8fHwxNzY4ODI1MzgwfDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'organic honey' },
-    { id: '9', name: 'Rechargeable Fan', price: 25000, image: 'https://images.unsplash.com/photo-1718815416565-c65944a5ec14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWNoYXJnZWFibGUlMjBmYW58ZW58MHx8fHwxNzY4ODI1Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'rechargeable fan' },
-    { id: '2', name: 'Ankara Print Scarf', price: 3500, image: 'https://images.unsplash.com/photo-1701252498509-85c18de28d2b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhbmthcmElMjBzY2FyZnxlbnwwfHx8fDE3Njg4MjUzODB8MA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'ankara scarf' },
+    { id: '5', name: 'Organic Honey (500ml)', price: 4000, image: 'https://images.unsplash.com/photo-1645549826194-1956802d83c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvcmdhbmljJTIwaG9uZXl8ZW58MHx8fHwxNzY4ODI1MzgwfDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'organic honey', business: "Femi's Farm" },
+    { id: '9', name: 'Rechargeable Fan', price: 25000, image: 'https://images.unsplash.com/photo-1718815416565-c65944a5ec14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWNoYXJnZWFibGUlMjBmYW58ZW58MHx8fHwxNzY4ODI1Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'rechargeable fan', business: "City Electronics" },
+    { id: '2', name: 'Ankara Print Scarf', price: 3500, image: 'https://images.unsplash.com/photo-1701252498509-85c18de28d2b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhbmthcmElMjBzY2FyZnxlbnwwfHx8fDE3Njg4MjUzODB8MA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'ankara scarf', business: "Tunde's Textiles" },
 ];
 
 type View = 'list' | 'product_detail' | 'checkout' | 'confirmation';
@@ -67,7 +67,7 @@ export function MarketMockup() {
             });
         };
         
-        const moveCursorTo = (elementKey: string, duration = 1200) => {
+        const moveCursorTo = (elementKey: string, duration = 1500) => {
              return new Promise(resolve => {
                  const element = elementsRef.current[elementKey];
                  if (!element || !container) return resolve(false);
@@ -122,12 +122,14 @@ export function MarketMockup() {
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('product_detail');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 2000)));
 
             // 3. Move to checkout button and click
             await moveCursorTo('checkoutBtn');
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('checkout');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 2000)));
 
             // 4. Move to place order button and click
             await moveCursorTo('placeOrderBtn');
@@ -197,6 +199,7 @@ export function MarketMockup() {
                         </div>
                     </Card>
                     <h1 className="text-base font-bold">{mockProduct.name}</h1>
+                    <p className="text-xs text-muted-foreground -mt-2">by {mockProduct.business}</p>
                     <p className="text-lg font-bold text-primary">₦{mockProduct.price.toLocaleString()}</p>
                      <Button ref={el => elementsRef.current['checkoutBtn'] = el} className="w-full h-9 text-sm">
                         <ShoppingCart className="mr-2 h-4 w-4" />
