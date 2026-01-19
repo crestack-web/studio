@@ -22,7 +22,7 @@ export default function BusinessInfoPage() {
     const { toast } = useToast();
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const firestore = useFirestore();
     const { user: authUser, isUserLoading } = useUser();
@@ -31,9 +31,10 @@ export default function BusinessInfoPage() {
         if (!firestore || !authUser) return null;
         return doc(firestore, 'users', authUser.uid);
     }, [firestore, authUser]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
     const businessId = userProfile?.businessId;
+    const isLoading = isUserLoading || isProfileLoading;
 
     useEffect(() => {
         if (!isUserLoading && !authUser) {
@@ -60,7 +61,7 @@ export default function BusinessInfoPage() {
             return;
         }
 
-        setIsLoading(true);
+        setIsSubmitting(true);
         const businessRef = doc(firestore, 'businesses', businessId);
         try {
             await updateDoc(businessRef, {
@@ -75,9 +76,11 @@ export default function BusinessInfoPage() {
                 description: error.message || 'Could not save business details.',
             });
         } finally {
-            setIsLoading(false);
+            setIsSubmitting(false);
         }
     };
+
+    const isButtonDisabled = isLoading || isSubmitting || !businessName || !businessType || !businessId;
 
 
   return (
@@ -96,12 +99,12 @@ export default function BusinessInfoPage() {
                 className="h-12 text-base" 
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                disabled={isLoading}
+                disabled={isLoading || isSubmitting}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="business-type">Business Type</Label>
-            <Select onValueChange={setBusinessType} value={businessType} disabled={isLoading}>
+            <Select onValueChange={setBusinessType} value={businessType} disabled={isLoading || isSubmitting}>
               <SelectTrigger id="business-type" className="h-12 text-base">
                 <SelectValue placeholder="Select a type" />
               </SelectTrigger>
@@ -114,9 +117,9 @@ export default function BusinessInfoPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isLoading || !businessName || !businessType}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue
+          <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
+            {(isLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? 'Loading...' : isSubmitting ? 'Saving...' : 'Continue'}
           </Button>
         </CardContent>
       </Card>
