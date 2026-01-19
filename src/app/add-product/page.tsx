@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -129,8 +129,8 @@ export default function AddProductPage() {
 
         try {
             const productsCollection = collection(firestore, 'products');
-            const docRef = await addDoc(productsCollection, {});
-            await addDoc(productsCollection, { ...newProduct, id: docRef.id });
+            const newDocRef = doc(productsCollection);
+            await setDoc(newDocRef, { ...newProduct, id: newDocRef.id });
 
             toast({
                 title: 'Product Added!',
@@ -319,3 +319,5 @@ export default function AddProductPage() {
         </MainLayout>
     );
 }
+
+    

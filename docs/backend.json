@@ -10,6 +10,10 @@
           "type": "string",
           "description": "Unique identifier for the business entity."
         },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the business owner."
+        },
         "name": {
           "type": "string",
           "description": "Name of the business."
@@ -80,6 +84,7 @@
       },
       "required": [
         "id",
+        "ownerId",
         "name",
         "type",
         "currency",

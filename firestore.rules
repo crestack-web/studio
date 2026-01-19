@@ -149,7 +149,7 @@ service cloud.firestore {
     match /businesses/{businessId} {
       allow get: if isMemberOfBusiness(businessId);
       allow list: if isSignedIn();
-      allow create: if isOwnerOfBusiness(businessId) && newDocHasMatchingId(businessId);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && newDocHasMatchingId(businessId);
       allow update: if isOwnerOfBusiness(businessId) && resource != null && idIsImmutable();
       allow delete: if isOwnerOfBusiness(businessId) && resource != null;
     }

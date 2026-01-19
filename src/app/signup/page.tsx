@@ -58,6 +58,7 @@ export default function SignUpPage() {
       const businessRef = doc(collection(firestore, 'businesses'));
       batch.set(businessRef, {
         id: businessRef.id,
+        ownerId: user.uid,
         name: `${name}'s Business`, // Placeholder name
         type: '',
         currency: '',
@@ -138,3 +139,5 @@ export default function SignUpPage() {
     </OnboardingLayout>
   );
 }
+
+    
