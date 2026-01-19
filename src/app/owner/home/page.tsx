@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { addDays, format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { addDays, format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -30,10 +30,9 @@ const presetQuestions = [
     "What product is running low?",
 ];
 
-// Define interfaces for our Firestore data
 interface AppUser {
     id: string;
-    phoneNumber: string;
+    displayName: string;
     businessId: string;
     role: string;
 }
@@ -70,19 +69,17 @@ export default function OwnerHomePage() {
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-    const [date, setDate] = useState<DateRange | undefined>();
+    
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: addDays(new Date(), -30),
+        to: new Date(),
+    });
+
     const isMobile = useIsMobile();
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
-    useEffect(() => {
-        setDate({
-            from: addDays(new Date(), -30),
-            to: new Date(),
-        });
-    }, []);
-
     const firestore = useFirestore();
-    const { user: authUser } = useUser();
+    const { user: authUser, isUserLoading } = useUser();
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -113,20 +110,71 @@ export default function OwnerHomePage() {
         return query(collection(firestore, 'products'), where('businessId', '==', businessId));
     }, [firestore, businessId]);
     const { data: productsData } = useCollection<Product>(productsQuery);
+    
+    useEffect(() => {
+        if (!isUserLoading && !authUser) {
+            router.push('/login');
+        }
+    }, [isUserLoading, authUser, router]);
 
+
+    const businessInsights = useMemo(() => {
+        if (!salesData || !productsData || !businessData) {
+            return {
+                totalSales: 0, totalProfit: 0, bestSellingProduct: undefined,
+                lowStockProducts: [], salesTodayCount: 0, salesTodayTotal: 0, profitToday: 0,
+            };
+        }
+
+        const todayInterval = { start: startOfDay(new Date()), end: endOfDay(new Date()) };
+        const salesByProduct: { [key: string]: { id: string, name: string, quantity: number, sales: number } } = {};
+        
+        let totalSales = 0;
+        let totalProfit = 0;
+        let salesTodayCount = 0;
+        let salesTodayTotal = 0;
+        let profitToday = 0;
+
+        for (const sale of salesData) {
+            totalSales += sale.amount;
+            const product = productsData.find(p => p.id === sale.productId);
+            if (product) {
+                const profit = sale.amount - (product.cost * (sale.amount / product.price));
+                totalProfit += profit;
+
+                if (!salesByProduct[product.id]) {
+                    salesByProduct[product.id] = { id: product.id, name: product.name, quantity: 0, sales: 0 };
+                }
+                salesByProduct[product.id].quantity += (sale.amount / product.price);
+                salesByProduct[product.id].sales += sale.amount;
+
+                if (isWithinInterval(sale.timestamp.toDate(), todayInterval)) {
+                    profitToday += profit;
+                }
+            }
+
+            if (isWithinInterval(sale.timestamp.toDate(), todayInterval)) {
+                salesTodayCount++;
+                salesTodayTotal += sale.amount;
+            }
+        }
+        
+        const bestSellingProduct = Object.values(salesByProduct).sort((a,b) => b.sales - a.sales)[0];
+        const lowStockProducts = productsData.filter(p => p.quantity <= 10);
+        
+        return { totalSales, totalProfit, bestSellingProduct, lowStockProducts, salesTodayCount, salesTodayTotal, profitToday };
+
+    }, [salesData, productsData, businessData]);
 
     const handleQuestionClick = async (question: string) => {
+        if (!businessData || !businessInsights) return;
         setIsLoading(true);
         setSelectedQuestion(question);
         setAnswer(null);
         try {
             const response = await getBusinessInsights({ 
                 query: question,
-                sales: salesData?.map(s => ({
-                    ...s,
-                    timestamp: s.timestamp?.toDate ? s.timestamp.toDate().toISOString() : new Date().toISOString(),
-                })) || [],
-                products: productsData || [],
+                insights: businessInsights,
                 currency: businessData?.currency || '₦',
             });
             setAnswer(response.answer);
@@ -166,11 +214,9 @@ export default function OwnerHomePage() {
       <div className="flex flex-col sm:flex-row">
           <div className="flex flex-col gap-1 p-2 sm:border-r sm:pr-2 w-full sm:w-[160px]">
               <h3 className="font-medium text-sm text-muted-foreground px-2 pb-1 hidden sm:block">Presets</h3>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: new Date(), to: new Date() }); setIsDatePopoverOpen(false); }}>Today</Button>
+              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfDay(new Date()), to: endOfDay(new Date()) }); setIsDatePopoverOpen(false); }}>Today</Button>
               <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -6), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 7 Days</Button>
               <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -29), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 30 Days</Button>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfMonth(new Date()), to: new Date() }); setIsDatePopoverOpen(false); }}>This Month</Button>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }); setIsDatePopoverOpen(false); }}>Last Month</Button>
           </div>
           <Separator orientation="vertical" className="h-auto hidden sm:block" />
           <Calendar
@@ -178,7 +224,16 @@ export default function OwnerHomePage() {
               mode="range"
               defaultMonth={date?.from}
               selected={date}
-              onSelect={setDate}
+              onSelect={(range) => {
+                if (range) {
+                    setDate({ from: range.from ? startOfDay(range.from) : undefined, to: range.to ? endOfDay(range.to) : undefined });
+                } else {
+                    setDate(undefined);
+                }
+                if(range?.from && range.to) {
+                  setIsDatePopoverOpen(false);
+                }
+              }}
               numberOfMonths={1}
               className="p-2"
           />
@@ -195,47 +250,12 @@ export default function OwnerHomePage() {
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative h-9 w-9">
                 <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
-                </span>
                 <span className="sr-only">Notifications</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
-              <div className="grid gap-4">
-                <div className="space-y-1">
-                  <h4 className="font-medium leading-none">Notifications</h4>
-                  <p className="text-sm text-muted-foreground">
-                    You have 3 unread notifications.
-                  </p>
-                </div>
-                <Separator />
-                <div className="grid gap-3">
-                  <div className="grid grid-cols-[1fr_auto] items-start gap-3">
-                      <div className='space-y-1'>
-                        <p className="text-sm font-medium">New Sale</p>
-                        <p className='text-sm text-muted-foreground'>Bottled Water (x2)</p>
-                      </div>
-                      <div className="text-sm text-muted-foreground text-right">₦300</div>
-                  </div>
-                  <Separator />
-                   <div className="grid grid-cols-[1fr_auto] items-start gap-3">
-                      <div className='space-y-1'>
-                        <p className="text-sm font-medium">New Sale</p>
-                        <p className='text-sm text-muted-foreground'>Biscuits (x1)</p>
-                      </div>
-                      <div className="text-sm text-muted-foreground text-right">₦250</div>
-                  </div>
-                  <Separator />
-                   <div className="grid grid-cols-[1fr_auto] items-start gap-3">
-                      <div className='space-y-1'>
-                        <p className="text-sm font-medium text-warning">Low Stock Alert</p>
-                        <p className='text-sm text-muted-foreground'>Biscuits are running low</p>
-                      </div>
-                      <div className="text-sm text-muted-foreground text-right">5 left</div>
-                  </div>
-                </div>
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No new notifications.
               </div>
             </PopoverContent>
           </Popover>
@@ -243,7 +263,7 @@ export default function OwnerHomePage() {
           <Separator orientation="vertical" className="h-8 bg-border" />
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="font-semibold">{businessData?.name || 'Your Business'}</div>
+              <div className="font-semibold">{businessData?.name || <Skeleton className="h-5 w-24" />}</div>
               <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
             </div>
             <Avatar>
@@ -255,7 +275,6 @@ export default function OwnerHomePage() {
       <main className="flex-1 p-4 sm:p-6">
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Center Column */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             
             <Card>
@@ -327,7 +346,7 @@ export default function OwnerHomePage() {
                                         id="date"
                                         variant={"outline"}
                                         className={cn(
-                                            "w-[240px] justify-start text-left font-normal",
+                                            "w-[260px] justify-start text-left font-normal",
                                             !date && "text-muted-foreground"
                                         )}
                                     >
@@ -408,8 +427,8 @@ export default function OwnerHomePage() {
                         Take Money
                     </Button>
                 </Link>
-                 <Link href={canManageStaff ? "/owner/staff" : "#"} passHref>
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" disabled={!canManageStaff} title={!canManageStaff ? "Upgrade plan to manage staff" : ""}>
+                 <Link href={canManageStaff ? "/owner/staff" : "/owner/pricing"} passHref>
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" title={!canManageStaff ? "Upgrade plan to manage staff" : ""}>
                         <Users className="w-6 h-6" />
                         Manage Staff
                     </Button>
@@ -460,9 +479,9 @@ export default function OwnerHomePage() {
                 </CardContent>
             </Card>
 
-            <Card className="bg-card/50 border-dashed">
+            <Card>
                 <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
                         <AlertTriangle className="w-6 h-6 text-warning" />
                         Stock Alert
                     </CardTitle>
@@ -471,10 +490,21 @@ export default function OwnerHomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="text-center text-sm text-muted-foreground">
-                        <p>No low-stock alerts yet. We'll notify you here when inventory is running low.</p>
-                    </div>
-                    <Button variant="secondary" className="w-full" disabled>
+                     {businessInsights.lowStockProducts.length > 0 ? (
+                        <div className="space-y-2">
+                          {businessInsights.lowStockProducts.slice(0, 3).map(p => (
+                            <div key={p.id} className="text-sm flex justify-between">
+                              <span>{p.name}</span>
+                              <span className="font-medium">{p.quantity} left</span>
+                            </div>
+                          ))}
+                        </div>
+                     ) : (
+                         <div className="text-center text-sm text-muted-foreground">
+                            <p>No low-stock alerts yet.</p>
+                        </div>
+                     )}
+                    <Button variant="secondary" className="w-full" disabled={businessInsights.lowStockProducts.length === 0}>
                         View Low Stock Items
                     </Button>
                 </CardContent>
@@ -501,7 +531,6 @@ export default function OwnerHomePage() {
                     </Link>
                 </CardContent>
             </Card>
-
           </div>
         </div>
       </main>

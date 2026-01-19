@@ -6,13 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Upload, X } from 'lucide-react';
+import { Trash2, Plus, Upload, X, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, addDoc, collection } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface Ingredient {
     name: string;
@@ -28,6 +30,10 @@ interface Business {
 }
 
 export default function AddProductPage() {
+    const { toast } = useToast();
+    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
+
     const [isManufactured, setIsManufactured] = useState(false);
     const [isListedOnMarket, setIsListedOnMarket] = useState(false);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -91,14 +97,57 @@ export default function AddProductPage() {
     const handleRemoveImage = (index: number) => {
         setImages(images.filter((_, i) => i !== index));
     };
+    
+    const finalCostPrice = isManufactured ? totalIngredientCost : parseFloat(costPrice) || 0;
 
     const canAddProduct = useMemo(() => {
-        const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured || costPrice);
+        const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured ? totalIngredientCost > 0 : costPrice);
         if (isListedOnMarket) {
             return hasBaseInfo && images.length > 0 && productDescription && productCategory;
         }
         return hasBaseInfo;
-    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, isListedOnMarket, images, productDescription, productCategory]);
+    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
+
+    const handleAddProduct = async () => {
+        if (!canAddProduct || !firestore || !businessId) return;
+
+        setIsLoading(true);
+
+        const newProduct = {
+            businessId,
+            name: productName,
+            description: productDescription || '',
+            price: parseFloat(sellingPrice),
+            cost: finalCostPrice,
+            quantity: parseInt(initialQuantity, 10),
+            ingredients: isManufactured ? ingredients.map(i => ({...i, cost: parseFloat(i.cost)})) : [],
+            isManufactured,
+            isListedOnMarket,
+            category: productCategory || '',
+            images: [], // TODO: Image upload logic
+        };
+
+        try {
+            const productsCollection = collection(firestore, 'products');
+            const docRef = await addDoc(productsCollection, {});
+            await addDoc(productsCollection, { ...newProduct, id: docRef.id });
+
+            toast({
+                title: 'Product Added!',
+                description: `${productName} has been added to your inventory.`,
+            });
+            router.back();
+        } catch (error: any) {
+            console.error("Error adding product:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error adding product',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
 
     return (
@@ -112,7 +161,7 @@ export default function AddProductPage() {
                     <CardContent className="space-y-6">
                         <div className="space-y-2">
                             <Label htmlFor="product-name">Product Name</Label>
-                            <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" value={productName} onChange={e => setProductName(e.target.value)} />
+                            <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" value={productName} onChange={e => setProductName(e.target.value)} disabled={isLoading} />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -126,20 +175,21 @@ export default function AddProductPage() {
                                     value={isManufactured ? totalIngredientCost.toFixed(2) : costPrice}
                                     onChange={e => !isManufactured && setCostPrice(e.target.value)}
                                     readOnly={isManufactured}
+                                    disabled={isLoading}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="selling-price">Selling Price</Label>
-                                <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} />
+                                <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} disabled={isLoading} />
                             </div>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="quantity">Initial Quantity</Label>
-                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)}/>
+                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)} disabled={isLoading}/>
                         </div>
                          {canManufacture && (
                             <div className="flex items-center space-x-2">
-                                <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
+                                <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} disabled={isLoading}/>
                                 <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
                             </div>
                          )}
@@ -159,7 +209,7 @@ export default function AddProductPage() {
                                         <div key={index} className="flex items-center gap-2 p-2 rounded-md border">
                                             <span className="flex-1 font-medium">{ing.name}</span>
                                             <span className="text-muted-foreground">₦{parseFloat(ing.cost).toLocaleString()}</span>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveIngredient(index)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveIngredient(index)} disabled={isLoading}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
                                         </div>
@@ -174,13 +224,13 @@ export default function AddProductPage() {
                                 <div className="flex items-end gap-2">
                                     <div className="flex-1 space-y-1">
                                         <Label htmlFor="ing-name" className="text-xs text-muted-foreground">Name</Label>
-                                        <Input id="ing-name" placeholder="e.g., Flour" value={newIngredientName} onChange={e => setNewIngredientName(e.target.value)} />
+                                        <Input id="ing-name" placeholder="e.g., Flour" value={newIngredientName} onChange={e => setNewIngredientName(e.target.value)} disabled={isLoading}/>
                                     </div>
                                     <div className="w-28 space-y-1">
                                         <Label htmlFor="ing-cost" className="text-xs text-muted-foreground">Cost</Label>
-                                        <Input id="ing-cost" type="number" placeholder="100" value={newIngredientCost} onChange={e => setNewIngredientCost(e.target.value)} />
+                                        <Input id="ing-cost" type="number" placeholder="100" value={newIngredientCost} onChange={e => setNewIngredientCost(e.target.value)} disabled={isLoading}/>
                                     </div>
-                                    <Button size="icon" onClick={handleAddIngredient} disabled={!newIngredientName || !newIngredientCost}>
+                                    <Button size="icon" onClick={handleAddIngredient} disabled={!newIngredientName || !newIngredientCost || isLoading}>
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -196,7 +246,7 @@ export default function AddProductPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="flex items-center space-x-2">
-                            <Switch id="market-listing" checked={isListedOnMarket} onCheckedChange={setIsListedOnMarket} />
+                            <Switch id="market-listing" checked={isListedOnMarket} onCheckedChange={setIsListedOnMarket} disabled={isLoading} />
                             <Label htmlFor="market-listing">List this product on Busmo Market</Label>
                         </div>
 
@@ -219,6 +269,7 @@ export default function AddProductPage() {
                                                     size="icon"
                                                     className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
                                                     onClick={() => handleRemoveImage(index)}
+                                                    disabled={isLoading}
                                                 >
                                                     <X className="h-4 w-4" />
                                                 </Button>
@@ -231,16 +282,16 @@ export default function AddProductPage() {
                                             </Label>
                                         )}
                                     </div>
-                                    <Input id="image-upload" type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
+                                    <Input id="image-upload" type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} disabled={isLoading}/>
                                      <p className="text-xs text-muted-foreground">You must upload at least one image to list on the market.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>
-                                    <Textarea id="product-description" placeholder="Describe your product for customers..." value={productDescription} onChange={e => setProductDescription(e.target.value)} />
+                                    <Textarea id="product-description" placeholder="Describe your product for customers..." value={productDescription} onChange={e => setProductDescription(e.target.value)} disabled={isLoading} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-category">Product Category</Label>
-                                    <Select onValueChange={setProductCategory} value={productCategory}>
+                                    <Select onValueChange={setProductCategory} value={productCategory} disabled={isLoading}>
                                         <SelectTrigger id="product-category">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -260,10 +311,11 @@ export default function AddProductPage() {
                 </Card>
 
 
-                <Button className="w-full h-14 text-lg" disabled={!canAddProduct}>Add Product</Button>
+                <Button className="w-full h-14 text-lg" disabled={!canAddProduct || isLoading} onClick={handleAddProduct}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add Product
+                </Button>
             </div>
         </MainLayout>
     );
 }
-
-    

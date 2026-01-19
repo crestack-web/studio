@@ -1,5 +1,6 @@
 'use client';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const plans = [
     {
@@ -76,8 +80,65 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
 }
 
 export default function PlansPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [selectedPlan, setSelectedPlan] = useState('supermarket'); // Default to popular plan
+  const [selectedPlan, setSelectedPlan] = useState('supermarket');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const firestore = useFirestore();
+  const { user: authUser, isUserLoading } = useUser();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  const businessId = (userProfile as any)?.businessId;
+
+  useEffect(() => {
+    if (!isUserLoading && !authUser) {
+      router.push('/signup');
+    }
+  }, [authUser, isUserLoading, router]);
+
+  const handleContinue = async () => {
+    if (!selectedPlan) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please select a plan.',
+      });
+      return;
+    }
+
+    if (!firestore || !businessId) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not find your business. Please go back and try again.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const businessRef = doc(firestore, 'businesses', businessId);
+    try {
+      await updateDoc(businessRef, {
+        plan: selectedPlan,
+      });
+      router.push('/owner/home');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error updating plan',
+        description: error.message || 'Could not save your plan selection.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <OnboardingLayout>
@@ -102,7 +163,7 @@ export default function PlansPage() {
             <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4">
                  {plans.map((plan) => (
                     <div key={plan.id}>
-                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" />
+                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isLoading} />
                         <PlanCard 
                             plan={plan}
                             billingCycle={billingCycle}
@@ -112,11 +173,10 @@ export default function PlansPage() {
                 ))}
             </RadioGroup>
             
-          <Link href="/owner/home" className="w-full">
-            <Button className="w-full h-14 text-lg">
+            <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Start Free Trial
             </Button>
-          </Link>
         </CardContent>
       </Card>
     </OnboardingLayout>

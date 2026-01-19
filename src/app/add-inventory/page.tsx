@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -6,8 +7,79 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where, updateDoc, increment } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+
+
+interface AppUser {
+    businessId?: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    quantity: number;
+}
 
 export default function AddInventoryPage() {
+    const { toast } = useToast();
+    const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
+    const [quantityAdded, setQuantityAdded] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, 'users', authUser.uid);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const productsQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+    }, [firestore, businessId]);
+    const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+    const handleUpdateInventory = async () => {
+        if (!firestore || !selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Invalid Input',
+                description: 'Please select a product and enter a valid quantity.',
+            });
+            return;
+        }
+
+        setIsLoading(true);
+        const productRef = doc(firestore, 'products', selectedProductId);
+        const selectedProduct = productsData?.find(p => p.id === selectedProductId);
+
+        try {
+            await updateDoc(productRef, {
+                quantity: increment(parseInt(quantityAdded)),
+            });
+            toast({
+                title: 'Inventory Updated',
+                description: `Added ${quantityAdded} to ${selectedProduct?.name}. New stock is ${ (selectedProduct?.quantity || 0) + parseInt(quantityAdded) }.`,
+            });
+            setSelectedProductId(undefined);
+            setQuantityAdded('');
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error updating inventory',
+                description: error.message || 'An unexpected error occurred.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <MainLayout title="Add Inventory" backHref="/owner/home">
             <div className="w-full max-w-md space-y-6">
@@ -19,13 +91,20 @@ export default function AddInventoryPage() {
                     <CardContent className="space-y-6">
                          <div className="space-y-2">
                             <Label htmlFor="product">Product</Label>
-                            <Select>
+                            <Select 
+                                value={selectedProductId} 
+                                onValueChange={setSelectedProductId} 
+                                disabled={isLoadingProducts || isLoading}
+                            >
                                 <SelectTrigger id="product" className="h-12 text-base">
-                                    <SelectValue placeholder="Select a product" />
+                                    <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="product1">Product 1</SelectItem>
-                                    <SelectItem value="product2">Product 2</SelectItem>
+                                    {productsData?.map((product) => (
+                                         <SelectItem key={product.id} value={product.id}>
+                                            {product.name} (Stock: {product.quantity})
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                             <div className="text-right">
@@ -38,11 +117,22 @@ export default function AddInventoryPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="quantity">Quantity Added</Label>
-                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" />
+                            <Input 
+                                id="quantity" 
+                                type="number" 
+                                placeholder="0" 
+                                className="h-12 text-base" 
+                                value={quantityAdded}
+                                onChange={(e) => setQuantityAdded(e.target.value)}
+                                disabled={isLoading}
+                            />
                         </div>
                     </CardContent>
                 </Card>
-                <Button className="w-full h-14 text-lg">Update Inventory</Button>
+                <Button className="w-full h-14 text-lg" onClick={handleUpdateInventory} disabled={isLoading || !selectedProductId || !quantityAdded}>
+                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Update Inventory
+                </Button>
             </div>
         </MainLayout>
     );

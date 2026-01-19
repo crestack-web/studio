@@ -2,6 +2,7 @@
 
 /**
  * @fileOverview An AI agent that provides business insights based on user questions.
+ * This agent ONLY explains pre-calculated data. It does not perform any calculations itself.
  *
  * - getBusinessInsights - A function that handles the business insights process.
  * - GetBusinessInsightsInput - The input type for the getBusinessInsights function.
@@ -11,28 +12,26 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const SaleSchema = z.object({
-  id: z.string(),
-  amount: z.number(),
-  paymentType: z.string(),
-  source: z.string(),
-  timestamp: z.string().describe("The ISO 8601 timestamp of when the sale occurred."),
-  productId: z.string().optional(),
-});
-
-const ProductSchema = z.object({
+const ProductInsightSchema = z.object({
   id: z.string(),
   name: z.string(),
-  price: z.number(),
-  cost: z.number(),
-  quantity: z.number().describe("Current stock level."),
+  quantity: z.number(),
+  sales: z.number().optional(),
 });
 
+const BusinessInsightsDataSchema = z.object({
+    totalSales: z.number().describe("The total sales revenue for the period."),
+    totalProfit: z.number().describe("The total net profit for the period (Sales - Cost of Goods)."),
+    bestSellingProduct: ProductInsightSchema.optional().describe("The product that has generated the most sales revenue."),
+    lowStockProducts: z.array(ProductInsightSchema).describe("A list of products with a stock quantity of 10 or less."),
+    salesTodayCount: z.number().describe("The number of individual sales made today."),
+    salesTodayTotal: z.number().describe("The total revenue from sales made today."),
+    profitToday: z.number().describe("The net profit from sales made today."),
+});
 
 const GetBusinessInsightsInputSchema = z.object({
   query: z.string().describe('The question asked by the business owner.'),
-  sales: z.array(SaleSchema).describe('List of sales transactions for the business for a recent period.'),
-  products: z.array(ProductSchema).describe('List of all products the business sells.'),
+  insights: BusinessInsightsDataSchema.describe("Pre-calculated insights about the business performance."),
   currency: z.string().describe('The currency symbol (e.g., ₦, $) for formatting monetary values.'),
 });
 export type GetBusinessInsightsInput = z.infer<typeof GetBusinessInsightsInputSchema>;
@@ -50,30 +49,32 @@ const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
   output: {schema: GetBusinessInsightsOutputSchema},
-  prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo. Your goal is to provide factual, short, and calm answers based *only* on the data provided. You must also be able to provide simple forecasts based on the data.
-
-  - Your answers must be based on the provided sales and product data.
-  - All monetary values should be formatted with the currency symbol provided.
-  - If you do not have enough data to answer a question, you MUST respond with: "I don’t have enough data yet. Please record more sales or add your products."
-  - Do NOT guess or invent numbers.
-  - Do NOT give advice unless explicitly asked.
-  - When forecasting, clearly state that it's a projection based on past data (e.g., "Based on your sales from the last week, you are on track to...").
-  - Keep answers concise and to the point.
-  - A product's profit is its price minus its cost. Total profit is the sum of profits from all sales.
-  - "Running low" means the stock quantity is 10 or less.
+  prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo. 
+  
+  Your goal is to provide factual, short, and calm answers by explaining the pre-calculated data provided in the 'Data' section.
+  
+  CRITICAL RULES:
+  1.  You MUST NOT perform any calculations, forecasts, or generate numbers yourself. Your answers must be based *only* on the data provided below.
+  2.  All monetary values in your answer must be formatted with the currency symbol provided.
+  3.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
+  4.  Do NOT guess or invent numbers.
+  5.  Do NOT give advice unless explicitly asked.
+  6.  Keep answers concise and to the point.
 
   Data:
-  Currency: {{{currency}}}
-
-  Products:
-  {{#each products}}
-  - ID: {{id}}, Name: {{name}}, Price: {{price}}, Cost: {{cost}}, Stock: {{quantity}}
-  {{/each}}
-
-  Sales:
-  {{#each sales}}
-  - ID: {{id}}, Amount: {{amount}}, Timestamp: {{timestamp}}, Product ID: {{productId}}
-  {{/each}}
+  - Currency: {{{currency}}}
+  - Total Sales Revenue: {{{insights.totalSales}}}
+  - Total Profit: {{{insights.totalProfit}}}
+  - Number of Sales Today: {{{insights.salesTodayCount}}}
+  - Total Revenue Today: {{{insights.salesTodayTotal}}}
+  - Profit Today: {{{insights.profitToday}}}
+  - Best Selling Product: {{#if insights.bestSellingProduct}}{{insights.bestSellingProduct.name}} (Sold {{insights.bestSellingProduct.quantity}} units){{else}}None{{/if}}
+  - Products Running Low (10 or less in stock):
+    {{#each insights.lowStockProducts}}
+    - {{name}} ({{quantity}} left)
+    {{else}}
+    - None
+    {{/each}}
 
   ---
 
@@ -88,8 +89,8 @@ const getBusinessInsightsFlow = ai.defineFlow(
     outputSchema: GetBusinessInsightsOutputSchema,
   },
   async input => {
-    // If there's no data, return the standard message.
-    if (!input.sales || input.sales.length === 0) {
+    // If there's no data at all, return the standard message.
+    if (input.insights.totalSales === 0 && input.insights.salesTodayCount === 0) {
         return { answer: "I don’t have enough data yet. Please record more sales to get insights." };
     }
 
