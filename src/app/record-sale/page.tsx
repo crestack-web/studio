@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,25 +10,60 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where, Timestamp, writeBatch } from 'firebase/firestore';
 
-// Mock data until we connect to Firebase
-const products = [
-    { id: 'prod1', name: 'Bottled Water', price: 150, stock: 50 },
-    { id: 'prod2', name: 'Biscuits', price: 250, stock: 30 },
-    { id: 'prod3', name: 'Soft Drink', price: 200, stock: 40 },
-];
+interface AppUser {
+    businessId?: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+}
+
+interface Business {
+    currency: string;
+}
+
 
 export default function RecordSalePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
-  
-  const selectedProduct = products.find(p => p.id === selectedProductId);
-  const totalAmount = selectedProduct ? selectedProduct.price * quantity : 0;
+  const [paymentType, setPaymentType] = useState('cash');
 
-  const handleConfirmSale = () => {
-    if (!selectedProduct || quantity <= 0) {
+  const firestore = useFirestore();
+  const { user: authUser } = useUser();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+  const businessId = userProfile?.businessId;
+
+  const businessRef = useMemoFirebase(() => {
+    if (!firestore || !businessId) return null;
+    return doc(firestore, 'businesses', businessId);
+  }, [firestore, businessId]);
+  const { data: businessData } = useDoc<Business>(businessRef);
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!firestore || !businessId) return null;
+    return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+  }, [firestore, businessId]);
+  const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+  const selectedProduct = productsData?.find(p => p.id === selectedProductId);
+  const totalAmount = selectedProduct ? selectedProduct.price * quantity : 0;
+  const currencySymbol = businessData?.currency || '₦';
+
+  const handleConfirmSale = async () => {
+    if (!firestore || !businessId || !selectedProduct || quantity <= 0) {
         toast({
             variant: 'destructive',
             title: 'Invalid Sale',
@@ -36,11 +71,53 @@ export default function RecordSalePage() {
         });
         return;
     }
-    toast({
-      title: "Sale Recorded",
-      description: `Sold ${quantity} of ${selectedProduct.name} for ₦${totalAmount.toLocaleString()}.`,
-    });
-    router.back();
+    
+    if (quantity > selectedProduct.quantity) {
+         toast({
+            variant: 'destructive',
+            title: 'Not enough stock',
+            description: `You only have ${selectedProduct.quantity} units of ${selectedProduct.name} left.`,
+        });
+        return;
+    }
+
+    // 1. Prepare the new Sale document
+    const salesCollection = collection(firestore, 'sales');
+    const newSale = {
+        businessId,
+        productId: selectedProduct.id,
+        amount: totalAmount,
+        paymentType,
+        source: 'in-store',
+        timestamp: Timestamp.now(),
+    };
+
+    // 2. Prepare the product stock update
+    const productRef = doc(firestore, 'products', selectedProduct.id);
+    const newStock = selectedProduct.quantity - quantity;
+    
+    // 3. Use a batch to ensure atomicity
+    const batch = writeBatch(firestore);
+    
+    const newSaleRef = doc(salesCollection); // Create a new doc ref for the sale
+    batch.set(newSaleRef, { ...newSale, id: newSaleRef.id });
+    batch.update(productRef, { quantity: newStock });
+
+    try {
+        await batch.commit();
+        toast({
+          title: "Sale Recorded",
+          description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
+        });
+        router.back();
+    } catch (error: any) {
+        console.error("Error recording sale:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error Recording Sale',
+            description: error.message || 'An unexpected error occurred.',
+        });
+    }
   }
 
   return (
@@ -54,14 +131,14 @@ export default function RecordSalePage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="product">Product</Label>
-              <Select onValueChange={setSelectedProductId} value={selectedProductId}>
+              <Select onValueChange={setSelectedProductId} value={selectedProductId} disabled={isLoadingProducts}>
                 <SelectTrigger id="product" className="h-12 text-base">
-                  <SelectValue placeholder="Select a product" />
+                  <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {`${product.name} (Stock: ${product.stock})`}
+                  {productsData?.map(product => (
+                    <SelectItem key={product.id} value={product.id} disabled={product.quantity <= 0}>
+                      {`${product.name} (Stock: ${product.quantity})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -79,20 +156,21 @@ export default function RecordSalePage() {
                         value={quantity}
                         onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
+                        max={selectedProduct?.quantity}
                         disabled={!selectedProduct}
                     />
                 </div>
                 <div className="text-right">
                     <Label>Total Amount</Label>
                     <div className="font-bold text-3xl h-12 flex items-center justify-end">
-                        ₦{totalAmount.toLocaleString()}
+                        {currencySymbol}{totalAmount.toLocaleString()}
                     </div>
                 </div>
             </div>
             
             <div className="space-y-3">
               <Label>Payment Type</Label>
-              <RadioGroup defaultValue="cash" className="grid grid-cols-3 gap-2">
+              <RadioGroup defaultValue="cash" onValueChange={setPaymentType} className="grid grid-cols-3 gap-2">
                 <div>
                   <RadioGroupItem value="cash" id="cash" className="peer sr-only" />
                   <Label htmlFor="cash" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
@@ -116,7 +194,7 @@ export default function RecordSalePage() {
           </CardContent>
         </Card>
         
-        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct}>
+        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > (selectedProduct?.quantity || 0)}>
           <Check className="mr-2 h-6 w-6" />
           Confirm Sale
         </Button>
