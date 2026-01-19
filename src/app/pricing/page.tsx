@@ -224,7 +224,7 @@ export default function PricingPage() {
         <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
           <Logo className="h-7 mx-auto md:mx-0" />
           <p className="text-sm text-muted-foreground">
-            &copy; {currentYear} Busmo. Business. Money. Clear.
+            &copy; {currentYear} Busmo. business money
           </p>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
             <Link href="#" className="text-sm hover:underline">Privacy</Link>
