@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ProfitSharingOffer {
     type: 'Profit Sharing';
@@ -154,6 +155,7 @@ const BusinessProfileContent = ({ params }: { params: { businessId: string } }) 
     const business = mockBusinesses.find(b => b.id === params.businessId);
     const { toast } = useToast();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAcknowledged, setIsAcknowledged] = useState(false);
 
     if (!business) {
         return (
@@ -173,6 +175,7 @@ const BusinessProfileContent = ({ params }: { params: { businessId: string } }) 
             description: `Your intent to invest in ${business.name} has been sent. You can track its status in your investor dashboard.`,
         });
         setIsDialogOpen(false);
+        setIsAcknowledged(false);
     };
 
     const offer = business.investmentOffer;
@@ -278,12 +281,12 @@ const BusinessProfileContent = ({ params }: { params: { businessId: string } }) 
                                     <DialogHeader>
                                         <DialogTitle>Confirm Investment Intent</DialogTitle>
                                         <DialogDescription>
-                                            You are about to submit an investment intent for {business.name}. The business owner will review your offer.
+                                            Review the offer details and acknowledge the risks before submitting your intent.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="py-4 space-y-4">
-                                        <h4 className="font-semibold">Offer Summary</h4>
                                         <div className="space-y-2 rounded-md border p-4 text-sm">
+                                            <h4 className="font-semibold mb-2">Offer Summary</h4>
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Investment Amount</span>
                                                 <span className="font-semibold">{offer.ask}</span>
@@ -305,17 +308,30 @@ const BusinessProfileContent = ({ params }: { params: { businessId: string } }) 
                                                 </div>
                                             )}
                                         </div>
-                                        <Alert>
-                                            <Landmark className="h-4 w-4" />
-                                            <AlertTitle>Next Steps</AlertTitle>
-                                            <AlertDescription>
-                                                If the business owner accepts, you will be notified to proceed with funding. Busmo does not handle funds directly.
+                                         <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+                                            <ShieldCheck className="h-4 w-4 !text-destructive" />
+                                            <AlertTitle className="text-destructive font-semibold">Important: Understand Your Investment</AlertTitle>
+                                            <AlertDescription className="text-xs">
+                                                <ul className="list-disc list-inside space-y-1 mt-2">
+                                                    <li>Busmo provides data signals but does not guarantee returns. All investments carry risk.</li>
+                                                    <li>Busmo is a system of record, not a fund custodian. You are responsible for transferring funds directly.</li>
+                                                    <li>Payouts for profit-sharing are calculated based on the business's real, Busmo-verified profits.</li>
+                                                </ul>
                                             </AlertDescription>
                                         </Alert>
+                                        <div className="flex items-center space-x-2 pt-2">
+                                            <Checkbox id="terms" checked={isAcknowledged} onCheckedChange={(checked) => setIsAcknowledged(checked as boolean)} />
+                                            <label
+                                                htmlFor="terms"
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                I have read and understand the terms and risks.
+                                            </label>
+                                        </div>
                                     </div>
                                     <DialogFooter>
                                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                                        <Button onClick={handleInvestment}>Submit Investment Intent</Button>
+                                        <Button onClick={handleInvestment} disabled={!isAcknowledged}>Submit Investment Intent</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
@@ -337,3 +353,5 @@ export default function BusinessProfilePage({ params }: { params: { businessId: 
         </InvestorLayout>
     );
 }
+
+    
