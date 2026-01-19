@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { CheckCircle2, ShieldCheck, TrendingUp, Handshake, Building2, LockKeyhole } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, TrendingUp, Handshake, Building2, LockKeyhole, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -190,7 +190,7 @@ export default function AccessCapitalPage() {
 
                  <div>
                     <h2 className="text-2xl font-bold font-headline text-center mb-6">Your Capital Options</h2>
-                    <div className="grid md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <Card className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3 font-headline">
@@ -211,6 +211,26 @@ export default function AccessCapitalPage() {
                             </CardFooter>
                         </Card>
                         
+                        <Card className="flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 font-headline">
+                                    <Banknote className="w-7 h-7 text-accent" />
+                                    <span>Working Capital Loans</span>
+                                </CardTitle>
+                                <CardDescription>Short-term loans from our partners to manage cash flow or purchase inventory.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 space-y-4">
+                                <div className="border rounded-lg p-4 bg-background">
+                                    <p className="text-sm text-muted-foreground font-medium">Sample Offer</p>
+                                    <p className="text-3xl font-bold font-headline text-primary">₦250,000</p>
+                                    <p className="text-muted-foreground">with a <span className="font-semibold text-foreground">5% fee</span>, repaid over <span className="font-semibold text-foreground">3 months</span>.</p>
+                                </div>
+                            </CardContent>
+                            <CardFooter>
+                                <Button className="w-full" disabled>Explore Loan Offers (Coming Soon)</Button>
+                            </CardFooter>
+                        </Card>
+
                         <Card className={cn("flex flex-col", !canAccessEquity && "bg-muted/50 border-dashed")}>
                              <CardHeader>
                                 <CardTitle className="flex items-center gap-3 font-headline">
