@@ -2,27 +2,32 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ShoppingCart, MousePointer2 } from 'lucide-react';
+import { Search, ShoppingCart, MousePointer2, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 import { Logo } from './logo';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '../ui/button';
+import { Label } from '../ui/label';
+import { Separator } from '../ui/separator';
 
+const mockProduct = { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://images.unsplash.com/photo-1473188588951-666fce8e7c68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYmFnfGVufDB8fHx8MTc2ODgyNTM3OXww&ixlib=rb-4.1.0&q=80&w=1080', hint: 'leather bag' };
 
-const mockProducts = [
-    { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://images.unsplash.com/photo-1473188588951-666fce8e7c68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYmFnfGVufDB8fHx8MTc2ODgyNTM3OXww&ixlib=rb-4.1.0&q=80&w=1080', hint: 'leather bag' },
+const otherProducts = [
     { id: '5', name: 'Organic Honey (500ml)', price: 4000, image: 'https://images.unsplash.com/photo-1645549826194-1956802d83c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvcmdhbmljJTIwaG9uZXl8ZW58MHx8fHwxNzY4ODI1MzgwfDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'organic honey' },
     { id: '9', name: 'Rechargeable Fan', price: 25000, image: 'https://images.unsplash.com/photo-1718815416565-c65944a5ec14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWNoYXJnZWFibGUlMjBmYW58ZW58MHx8fHwxNzY4ODI1Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'rechargeable fan' },
     { id: '2', name: 'Ankara Print Scarf', price: 3500, image: 'https://images.unsplash.com/photo-1701252498509-85c18de28d2b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhbmthcmElMjBzY2FyZnxlbnwwfHx8fDE3Njg4MjUzODB8MA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'ankara scarf' },
 ];
 
+type View = 'list' | 'product_detail' | 'checkout' | 'confirmation';
+
 
 export function MarketMockup() {
+    const [view, setView] = useState<View>('list');
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const [searchValue, setSearchValue] = useState('');
     const [cursorPosition, setCursorPosition] = useState({ top: -100, left: -100 });
-    const [cursorVisible, setCursorVisible] = useState(false);
     const [isClicking, setIsClicking] = useState(false);
-    const [isCardClicked, setIsCardClicked] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
@@ -36,8 +41,17 @@ export function MarketMockup() {
             timeouts.forEach(clearTimeout);
             timeouts = [];
         };
+        
+        const animateStep = async (step: Function) => {
+            return new Promise(resolve => {
+                timeouts.push(setTimeout(() => {
+                    step();
+                    resolve(true);
+                }, 0));
+            });
+        }
 
-        const typeSearch = (text: string) => {
+        const typeSearch = (text: string, duration = 150) => {
             return new Promise(resolve => {
                 let i = 0;
                 const interval = setInterval(() => {
@@ -48,18 +62,17 @@ export function MarketMockup() {
                         clearInterval(interval);
                         resolve(true);
                     }
-                }, 150);
+                }, duration);
                 timeouts.push(interval as unknown as NodeJS.Timeout);
             });
         };
         
-        const moveCursorTo = (elementKey: string, duration = 1000) => {
+        const moveCursorTo = (elementKey: string, duration = 1200) => {
              return new Promise(resolve => {
                  const element = elementsRef.current[elementKey];
                  if (!element || !container) return resolve(false);
                  const containerRect = container.getBoundingClientRect();
                  const elemRect = element.getBoundingClientRect();
-                 setCursorVisible(true);
                  setCursorPosition({
                      top: elemRect.top - containerRect.top + elemRect.height / 2,
                      left: elemRect.left - containerRect.left + elemRect.width / 2,
@@ -78,33 +91,52 @@ export function MarketMockup() {
             });
         }
 
+        const changeView = (newView: View) => {
+             return new Promise(resolve => {
+                setIsTransitioning(true);
+                timeouts.push(setTimeout(() => {
+                    setView(newView);
+                    setIsTransitioning(false);
+                    resolve(true);
+                }, 600));
+            });
+        }
+
         const animationSequence = async () => {
-            setSearchValue('');
-            setIsCardClicked(false);
-            setCursorVisible(false);
-
-            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
-
-            // 1. Move to search bar
-            await moveCursorTo('search', 1500);
-
-            // 2. Click search bar and type
-            await click();
-            await typeSearch('leather bag');
+            await animateStep(() => {
+                setView('list');
+                setSearchValue('');
+                setCursorPosition({ top: -100, left: -100 });
+            });
 
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 2000)));
 
-            // 3. Move to product
-            await moveCursorTo('productCard', 1500);
-
-            // 4. Click product
+            // 1. Move to search bar and type
+            await moveCursorTo('search');
             await click();
-            setIsCardClicked(true);
-
-            // 5. Hide cursor and reset
+            await typeSearch('leather bag');
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 1500)));
-            setCursorVisible(false);
-            timeouts.push(setTimeout(animationSequence, 4000));
+
+            // 2. Move to product card and click
+            await moveCursorTo('productCard');
+            await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
+            await changeView('product_detail');
+
+            // 3. Move to checkout button and click
+            await moveCursorTo('checkoutBtn');
+            await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
+            await changeView('checkout');
+
+            // 4. Move to place order button and click
+            await moveCursorTo('placeOrderBtn');
+            await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
+            await changeView('confirmation');
+            
+            // 5. Reset
+            timeouts.push(setTimeout(animationSequence, 5000));
         };
 
         timeouts.push(setTimeout(animationSequence, 3000));
@@ -118,7 +150,7 @@ export function MarketMockup() {
         style={{
           top: cursorPosition.top,
           left: cursorPosition.left,
-          opacity: cursorVisible ? 1 : 0,
+          opacity: isTransitioning ? 0 : 1,
           transform: `scale(${isClicking ? 0.9 : 1}) rotate(-15deg)`,
         }}
         className="absolute text-foreground transition-all duration-500 ease-in-out z-50 pointer-events-none h-5 w-5 -translate-x-1 -translate-y-1"
@@ -131,31 +163,85 @@ export function MarketMockup() {
         </div>
         <ShoppingCart className="h-5 w-5 text-muted-foreground" />
       </header>
-      <main className="p-3 overflow-y-auto bg-muted/20 h-full">
-        <h2 className="text-sm font-bold mb-3 font-headline">Top Products</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {mockProducts.map((product, i) => (
-            <div key={product.id} ref={el => { if (i === 0) elementsRef.current['productCard'] = el}}>
-                <Card className={cn(
-                    "overflow-hidden group cursor-pointer h-full flex flex-col bg-card transition-all duration-200",
-                    isCardClicked && i === 0 && "ring-2 ring-primary"
-                )}>
-                    <div className="aspect-square overflow-hidden relative">
-                        <Image 
-                            src={product.image}
-                            alt={product.name}
-                            fill
-                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                            data-ai-hint={product.hint}
-                        />
+      <main className="p-3 overflow-y-auto bg-muted/20 h-full relative">
+        <div className={cn("absolute inset-3 space-y-2 transition-all duration-300", !isTransitioning ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none')}>
+            
+            {/* List View */}
+            {view === 'list' && (
+                <>
+                    <h2 className="text-sm font-bold font-headline">Top Products</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                        {[mockProduct, ...otherProducts].map((product, i) => (
+                            <div key={product.id} ref={el => { if (i === 0) elementsRef.current['productCard'] = el}}>
+                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col bg-card">
+                                    <div className="aspect-square overflow-hidden relative">
+                                        <Image src={product.image} alt={product.name} fill className="object-cover" data-ai-hint={product.hint} />
+                                    </div>
+                                    <CardContent className="p-2 flex-1 flex flex-col">
+                                        <h3 className="font-semibold text-xs flex-1 leading-tight">{product.name}</h3>
+                                        <p className="font-bold text-sm mt-1">₦{product.price.toLocaleString()}</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ))}
                     </div>
-                    <CardContent className="p-2 flex-1 flex flex-col">
-                        <h3 className="font-semibold text-xs flex-1 leading-tight">{product.name}</h3>
-                        <p className="font-bold text-sm mt-1">₦{product.price.toLocaleString()}</p>
-                    </CardContent>
-                </Card>
-            </div>
-          ))}
+                </>
+            )}
+
+            {/* Product Detail View */}
+            {view === 'product_detail' && (
+                <div className="space-y-3">
+                    <Card className="overflow-hidden">
+                         <div className="aspect-video relative">
+                            <Image src={mockProduct.image} alt={mockProduct.name} fill className="object-cover" data-ai-hint={mockProduct.hint} />
+                        </div>
+                    </Card>
+                    <h1 className="text-base font-bold">{mockProduct.name}</h1>
+                    <p className="text-lg font-bold text-primary">₦{mockProduct.price.toLocaleString()}</p>
+                     <Button ref={el => elementsRef.current['checkoutBtn'] = el} className="w-full h-9 text-sm">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Proceed to Checkout
+                    </Button>
+                </div>
+            )}
+            
+            {/* Checkout View */}
+            {view === 'checkout' && (
+                <div className="space-y-3">
+                    <h1 className="text-base font-bold">Checkout</h1>
+                    <Card>
+                        <CardContent className="p-2 space-y-2">
+                             <div className="flex justify-between items-center text-xs">
+                                <span>{mockProduct.name} (x1)</span>
+                                <span className="font-semibold">₦{mockProduct.price.toLocaleString()}</span>
+                            </div>
+                            <Separator />
+                             <div className="flex justify-between items-center text-sm font-bold">
+                                <span>Total</span>
+                                <span>₦{mockProduct.price.toLocaleString()}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                     <div className="space-y-1">
+                        <Label className="text-xs">Full Name</Label>
+                        <Input className="h-7 text-xs" value="Tunde Oladipo" readOnly />
+                    </div>
+                     <div className="space-y-1">
+                        <Label className="text-xs">Delivery Address</Label>
+                        <Input className="h-7 text-xs" value="123 Allen Avenue, Ikeja" readOnly />
+                    </div>
+                    <Button ref={el => elementsRef.current['placeOrderBtn'] = el} className="w-full h-9 text-sm">Place Order</Button>
+                </div>
+            )}
+
+            {/* Confirmation View */}
+            {view === 'confirmation' && (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                    <CheckCircle2 className="w-12 h-12 text-success mb-2" />
+                    <h1 className="text-lg font-bold">Order Placed!</h1>
+                    <p className="text-xs text-muted-foreground">Your order for the {mockProduct.name} is confirmed.</p>
+                </div>
+            )}
         </div>
       </main>
     </div>
