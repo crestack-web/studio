@@ -89,6 +89,9 @@ export default function PricingPage() {
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
           <nav className="hidden md:flex items-center gap-4">
+             <Link href="/invest" passHref>
+              <Button variant="ghost">For Investors</Button>
+            </Link>
             <Link href="/pricing" passHref>
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -96,7 +99,7 @@ export default function PricingPage() {
               <Button variant="ghost">Log In</Button>
             </Link>
             <Link href="/signup" passHref>
-              <Button>Join the Waitlist</Button>
+              <Button>Sign Up</Button>
             </Link>
           </nav>
            <div className="md:hidden">
@@ -110,9 +113,10 @@ export default function PricingPage() {
               <SheetContent side="right" className="w-full max-w-xs">
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
+                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Investors</Button></Link>
                       <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Pricing</Button></Link>
                       <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Join the Waitlist</Button></Link>
+                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
                   </nav>
               </SheetContent>
             </Sheet>

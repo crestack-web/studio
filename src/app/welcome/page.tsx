@@ -67,6 +67,9 @@ export default function LandingPage() {
              <Link href="/market" passHref>
               <Button variant="ghost">Market</Button>
             </Link>
+             <Link href="/invest" passHref>
+              <Button variant="ghost">For Investors</Button>
+            </Link>
             <Link href="/pricing" passHref>
               <Button variant="ghost">Pricing</Button>
             </Link>
@@ -74,7 +77,7 @@ export default function LandingPage() {
               <Button variant="ghost">Log In</Button>
             </Link>
             <Link href="/signup" passHref>
-              <Button>Join the Waitlist</Button>
+              <Button>Sign Up</Button>
             </Link>
           </nav>
           <div className="md:hidden">
@@ -89,9 +92,10 @@ export default function LandingPage() {
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
                       <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Market</Button></Link>
+                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Investors</Button></Link>
                       <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Pricing</Button></Link>
                       <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Join the Waitlist</Button></Link>
+                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
                   </nav>
               </SheetContent>
             </Sheet>
@@ -121,7 +125,7 @@ export default function LandingPage() {
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" className="h-14 text-lg px-8">
-                  Join the Waitlist
+                  Start Your Free Trial
                 </Button>
               </Link>
             </div>
@@ -578,7 +582,7 @@ export default function LandingPage() {
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" variant="secondary" className="h-14 text-lg px-8">
-                  Join the Waitlist
+                  Start Your Free Trial
                 </Button>
               </Link>
             </div>
