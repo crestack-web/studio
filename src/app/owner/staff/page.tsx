@@ -16,6 +16,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 const mockStaff = [
     { id: '1', name: 'Binta Diallo', email: 'binta@example.com', role: 'Staff' },
@@ -30,10 +32,38 @@ const permissions = [
     { id: 'view_reports', label: 'View Reports' },
 ];
 
+interface AppUser {
+    businessId?: string;
+}
+
+interface Business {
+    plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+}
+
 export default function ManageStaffPage() {
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [email, setEmail] = useState('');
+
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, 'users', authUser.uid);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businesses', businessId);
+    }, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+
+    const userPlan = businessData?.plan || 'shop';
+    const canManageStaff = userPlan === 'supermarket' || userPlan === 'multi-branch' || userPlan === 'company';
+
 
     const handleSendInvite = () => {
         if (!email) {
@@ -51,11 +81,6 @@ export default function ManageStaffPage() {
         setEmail('');
         setOpen(false);
     };
-    
-    // In a real app, this would come from user data.
-    // Plans can be 'shop', 'supermarket', or 'multi-branch'
-    const userPlan = 'multi-branch';
-    const canManageStaff = userPlan === 'supermarket' || userPlan === 'multi-branch';
 
     return (
         <MainLayout title="Manage Staff" backHref="/owner/home">
@@ -183,3 +208,5 @@ export default function ManageStaffPage() {
         </MainLayout>
     );
 }
+
+    

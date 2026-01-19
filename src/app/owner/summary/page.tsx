@@ -9,10 +9,19 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig, Ch
 import { TrendingUp, Building, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 
 // In a real app, this would come from user data.
-const userPlan = 'multi-branch'; // or 'shop', 'supermarket'
+interface AppUser {
+    businessId?: string;
+}
+
+interface Business {
+    plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+}
+
 
 const summaryData = {
     totalSales: 77000, // Combined
@@ -75,6 +84,24 @@ const paymentMethods = [
 export default function SummaryPage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const formatCurrency = (value: number) => `${summaryData.currency}${value.toLocaleString()}`;
+  
+  const firestore = useFirestore();
+  const { user: authUser } = useUser();
+
+  const userProfileRef = useMemoFirebase(() => {
+      if (!firestore || !authUser) return null;
+      return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+  const businessId = userProfile?.businessId;
+
+  const businessRef = useMemoFirebase(() => {
+      if (!firestore || !businessId) return null;
+      return doc(firestore, 'businesses', businessId);
+  }, [firestore, businessId]);
+  const { data: businessData } = useDoc<Business>(businessRef);
+
+  const userPlan = businessData?.plan;
 
   const totalSales = useMemo(() => {
     return salesByProductData.reduce((acc, curr) => acc + curr.sales, 0);
@@ -304,3 +331,5 @@ export default function SummaryPage() {
     </MainLayout>
   );
 }
+
+    

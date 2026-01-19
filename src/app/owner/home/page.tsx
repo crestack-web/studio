@@ -42,6 +42,7 @@ interface Business {
     name: string;
     type: string;
     currency: string;
+    plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
 
 interface Sale {
@@ -133,6 +134,8 @@ export default function OwnerHomePage() {
     const handleDownload = () => {
         router.push('/owner/summary');
     }
+
+    const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -355,8 +358,8 @@ export default function OwnerHomePage() {
                         Take Money
                     </Button>
                 </Link>
-                 <Link href="/owner/staff">
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                 <Link href={canManageStaff ? "/owner/staff" : "#"} passHref>
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" disabled={!canManageStaff} title={!canManageStaff ? "Upgrade plan to manage staff" : ""}>
                         <Users className="w-6 h-6" />
                         Manage Staff
                     </Button>
@@ -372,19 +375,21 @@ export default function OwnerHomePage() {
           
           {/* Right Column */}
           <div className="flex flex-col gap-6">
-            <Card className="bg-card/50 border-dashed">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
-                        <TrendingUp className="w-6 h-6" />
-                        Business Forecast
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-center text-sm text-muted-foreground">
-                        <p>Record data for 7+ days to unlock sales trends and future insights.</p>
-                    </div>
-                </CardContent>
-            </Card>
+            {businessData?.plan !== 'shop' && (
+                <Card className="bg-card/50 border-dashed">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
+                            <TrendingUp className="w-6 h-6" />
+                            Business Forecast
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-center text-sm text-muted-foreground">
+                            <p>Record data for 7+ days to unlock sales trends and future insights.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
              <Card>
                 <CardHeader>
@@ -453,3 +458,5 @@ export default function OwnerHomePage() {
     </div>
   );
 }
+
+    

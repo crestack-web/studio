@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,10 +11,20 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 interface Ingredient {
     name: string;
     cost: string;
+}
+
+interface AppUser {
+    businessId?: string;
+}
+
+interface Business {
+    plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
 
 export default function AddProductPage() {
@@ -31,6 +41,29 @@ export default function AddProductPage() {
     const [productDescription, setProductDescription] = useState('');
     const [productCategory, setProductCategory] = useState('');
 
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, 'users', authUser.uid);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businesses', businessId);
+    }, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+
+    const canManufacture = businessData?.plan === 'company';
+
+    useEffect(() => {
+        if (!canManufacture) {
+            setIsManufactured(false);
+        }
+    }, [canManufacture]);
 
     const totalIngredientCost = useMemo(() => {
         return ingredients.reduce((total, ing) => total + (parseFloat(ing.cost) || 0), 0);
@@ -104,14 +137,16 @@ export default function AddProductPage() {
                             <Label htmlFor="quantity">Initial Quantity</Label>
                             <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)}/>
                         </div>
-                         <div className="flex items-center space-x-2">
-                            <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
-                            <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
-                        </div>
+                         {canManufacture && (
+                            <div className="flex items-center space-x-2">
+                                <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} />
+                                <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
+                            </div>
+                         )}
                     </CardContent>
                 </Card>
 
-                {isManufactured && (
+                {isManufactured && canManufacture && (
                      <Card>
                         <CardHeader>
                             <CardTitle>Ingredients</CardTitle>
@@ -230,3 +265,5 @@ export default function AddProductPage() {
         </MainLayout>
     );
 }
+
+    
