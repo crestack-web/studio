@@ -92,6 +92,14 @@ service cloud.firestore {
     function isExistingDocForBusinessOwner(docBusinessId) {
       return resource != null && isOwnerOfBusiness(docBusinessId);
     }
+    
+    /**
+     * --- Investment Helpers ---
+     */
+    // Checks if the signed-in user is the investor for a specific investment document.
+    function isInvestorOfDoc(investmentId) {
+      return isSignedIn() && get(/databases/$(database)/documents/investments/$(investmentId)).data.investorId == request.auth.uid;
+    }
 
     /**
      * --- Data Validation Helpers (Prototyping Mode) ---
@@ -179,21 +187,31 @@ service cloud.firestore {
     /**
      * @description Manages the lifecycle of an investment between an investor and a business.
      * @path /investments/{investmentId}
-     * @allow (create) An authenticated user can create an investment intent for a business.
-     * @allow (get) The investor or the business owner can view the investment details.
-     * @allow (update) The business owner can update the status (accept, reject, confirm funding).
-     * @deny (delete) Investments are kept as a historical record and cannot be deleted.
      */
     match /investments/{investmentId} {
       allow create: if isSignedIn()
                     && request.resource.data.investorId == request.auth.uid
-                    && request.resource.data.status == 'pending-acceptance';
+                    && (request.resource.data.status == 'pending-acceptance' || request.resource.data.status == 'intent-draft');
 
       allow get: if isSignedIn()
-                 && (resource.data.investorId == request.auth.uid || isOwnerOfBusiness(resource.data.businessId));
+                 && (isInvestorOfDoc(investmentId) || isOwnerOfBusiness(resource.data.businessId));
 
-      allow update: if isOwnerOfBusiness(resource.data.businessId)
-                    && (request.resource.data.status == 'pending-funding' || request.resource.data.status == 'rejected' || request.resource.data.status == 'active');
+      allow update: if isSignedIn() && (
+                      // Owner can accept or reject an offer.
+                      (isOwnerOfBusiness(resource.data.businessId) &&
+                        resource.data.status == 'pending-acceptance' &&
+                        (request.resource.data.status == 'pending-funding' || request.resource.data.status == 'rejected')) ||
+
+                      // Investor can cancel their own offer before it's accepted.
+                      (isInvestorOfDoc(investmentId) &&
+                        resource.data.status == 'pending-acceptance' &&
+                        request.resource.data.status == 'cancelled') ||
+
+                      // Once accepted, Investor can confirm they have sent the funds.
+                      (isInvestorOfDoc(investmentId) &&
+                        resource.data.status == 'pending-funding' &&
+                        request.resource.data.status == 'active')
+                    );
       
       allow list: if isSignedIn();
 
@@ -201,4 +219,5 @@ service cloud.firestore {
     }
   }
 }
+
     

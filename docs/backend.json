@@ -90,23 +90,31 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the BizAssistant app.",
+      "description": "Represents a user of the BizAssistant app. Can be a business owner, staff, or an investor.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user entity."
+          "description": "Unique identifier for the user entity (matches Firebase Auth UID)."
+        },
+        "displayName": {
+            "type": "string",
+            "description": "User's full name."
+        },
+        "email": {
+            "type": "string",
+            "description": "User's email address (used for login by investors)."
         },
         "phoneNumber": {
           "type": "string",
-          "description": "User's phone number."
+          "description": "User's phone number (used for login by business owners/staff)."
         },
         "businessId": {
           "type": "string",
-          "description": "Reference to Business. (Relationship: Business 1:N User)"
+          "description": "Reference to Business. Required for Owner/Staff roles. (Relationship: Business 1:N User)"
         },
         "role": {
           "type": "string",
-          "description": "User's role (e.g., Owner, Staff)."
+          "description": "User's role (e.g., Owner, Staff, Investor)."
         },
         "canRecordSales": {
           "type": "boolean",
@@ -123,12 +131,7 @@
       },
       "required": [
         "id",
-        "phoneNumber",
-        "businessId",
-        "role",
-        "canRecordSales",
-        "canSeeReports",
-        "canManageMarket"
+        "role"
       ]
     },
     "Sale": {
