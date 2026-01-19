@@ -150,7 +150,7 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isMemberOfBusiness(businessId));
       allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && newDocHasMatchingId(businessId);
-      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid && idIsImmutable() && businessIdIsImmutable();
+      allow update: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isOwnerOfBusiness(businessId)) && idIsImmutable() && businessIdIsImmutable();
       allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
     }
 
@@ -223,7 +223,8 @@ service cloud.firestore {
      * @path /transactions/{transactionId}
      */
     match /transactions/{transactionId} {
-      allow get, list, update, delete: if isOwnerOfBusiness(resource.data.businessId);
+      allow list: if isSignedIn();
+      allow get, update, delete: if isOwnerOfBusiness(resource.data.businessId);
       allow create: if isOwnerOfBusiness(request.resource.data.businessId);
     }
   }
