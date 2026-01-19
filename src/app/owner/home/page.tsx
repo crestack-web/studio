@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -73,6 +74,7 @@ export default function OwnerHomePage() {
         from: addDays(new Date(), -30),
         to: new Date(),
     });
+    const isMobile = useIsMobile();
 
     const firestore = useFirestore();
     const { user: authUser } = useUser();
@@ -136,6 +138,36 @@ export default function OwnerHomePage() {
     }
 
     const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
+    
+    const datePickerButtonContent = (
+         <>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+                date.to ? (
+                    <>
+                        {format(date.from, "LLL dd, y")} -{" "}
+                        {format(date.to, "LLL dd, y")}
+                    </>
+                ) : (
+                    format(date.from, "LLL dd, y")
+                )
+            ) : (
+                <span>Pick a date range</span>
+            )}
+        </>
+    );
+
+    const datePickerCalendar = (
+         <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={setDate}
+            numberOfMonths={1}
+        />
+    );
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -248,47 +280,48 @@ export default function OwnerHomePage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center justify-between font-headline text-lg">
+                    <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between font-headline text-lg gap-2">
                         <div className='flex items-center gap-2'>
                           <Activity className="w-6 h-6 text-primary" />
                           <span>Business Health</span>
                         </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    id="date"
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[240px] justify-start text-left font-normal",
-                                        !date && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date?.from ? (
-                                        date.to ? (
-                                            <>
-                                                {format(date.from, "LLL dd, y")} -{" "}
-                                                {format(date.to, "LLL dd, y")}
-                                            </>
-                                        ) : (
-                                            format(date.from, "LLL dd, y")
-                                        )
-                                    ) : (
-                                        <span>Pick a date range</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={date?.from}
-                                    selected={date}
-                                    onSelect={setDate}
-                                    numberOfMonths={1}
-                                />
-                            </PopoverContent>
-                        </Popover>
+                        {isMobile ? (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !date && "text-muted-foreground"
+                                        )}
+                                    >
+                                        {datePickerButtonContent}
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-auto p-0">
+                                    {datePickerCalendar}
+                                </DialogContent>
+                            </Dialog>
+                        ) : (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-[240px] justify-start text-left font-normal",
+                                            !date && "text-muted-foreground"
+                                        )}
+                                    >
+                                        {datePickerButtonContent}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    {datePickerCalendar}
+                                </PopoverContent>
+                            </Popover>
+                        )}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
