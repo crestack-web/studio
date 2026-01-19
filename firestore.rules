@@ -150,8 +150,8 @@ service cloud.firestore {
       allow get: if isMemberOfBusiness(businessId);
       allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && newDocHasMatchingId(businessId);
-      allow update: if isOwnerOfBusiness(businessId) && resource != null && idIsImmutable();
-      allow delete: if isOwnerOfBusiness(businessId) && resource != null;
+      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid && idIsImmutable();
+      allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
     }
 
     /**
