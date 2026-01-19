@@ -1,18 +1,68 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/app/main-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ShoppingCart, Store, Network, AlertCircle, Building, Check, X } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { AlertCircle, Check, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
+
+const plans = [
+    {
+        name: 'Shop',
+        description: 'For small retailers',
+        monthlyPrice: 1500,
+        yearlyPrice: 15000,
+        features: [
+            'Record Sales, Expenses & Inventory',
+            'Basic AI Insights',
+            '1 Staff Member',
+            'Sell on Busmo Market',
+        ],
+        notIncluded: [
+            'Advanced Forecasting',
+            'Multiple Branches',
+            'Production Tracking',
+        ]
+    },
+    {
+        name: 'Supermarket',
+        description: 'For larger stores & growing businesses',
+        monthlyPrice: 10000,
+        yearlyPrice: 100000,
+        isPopular: true,
+        features: [
+            'Everything in Shop',
+            'Up to 5 Staff Members',
+            'Advanced Forecasting',
+        ],
+        notIncluded: [
+            'Multiple Branches',
+            'Production Tracking',
+        ]
+    },
+    {
+        name: 'Multiple Branches',
+        description: 'For chains & franchises',
+        monthlyPrice: 30000,
+        yearlyPrice: 300000,
+        features: [
+            'Everything in Supermarket',
+            'Unlimited Staff Members',
+            'Manage Multiple Branches',
+        ],
+        notIncluded: [
+            'Production Tracking',
+        ]
+    }
+];
 
 export default function PricingPage() {
   return (
     <MainLayout title="Choose Your Plan" backHref="/owner/home">
-        <div className="w-full max-w-lg space-y-6">
-            <Alert variant="destructive">
+        <div className="w-full max-w-6xl space-y-8">
+            <Alert variant="destructive" className="max-w-xl mx-auto">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Your Free Trial Has Ended</AlertTitle>
                 <AlertDescription>
@@ -20,122 +70,116 @@ export default function PricingPage() {
                 </AlertDescription>
             </Alert>
 
-            <Card className="w-full">
-                <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-headline">Upgrade Your Plan</CardTitle>
-                <CardDescription>All plans are billed monthly. You can cancel anytime.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                <RadioGroup defaultValue="shop" className="grid grid-cols-1 gap-4">
-                    <div>
-                        <RadioGroupItem value="shop" id="shop" className="peer sr-only" />
-                        <Label htmlFor="shop" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <ShoppingCart className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Shop</p>
-                                        <p className="text-sm text-muted-foreground">For small retailers</p>
+             <div className="text-center space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Upgrade Your Plan</h1>
+                <p className="text-muted-foreground max-w-2xl mx-auto">
+                    All plans are billed monthly or yearly. You can cancel anytime.
+                </p>
+            </div>
+
+             <Tabs defaultValue="monthly" className="w-full">
+                <div className="flex justify-center">
+                    <TabsList className="grid grid-cols-2 p-1 h-auto">
+                        <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
+                        <TabsTrigger value="yearly" className="px-8 py-2 relative">
+                            Yearly
+                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">SAVE 17%</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+                <TabsContent value="monthly" className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {plans.map((plan) => (
+                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
+                                {plan.isPopular && (
+                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
+                                        Most Popular
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦1,500</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Record Sales, Expenses & Inventory</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Basic AI Insights</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>1 Staff Member</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Advanced Forecasting</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
-                    </div>
-                    <div>
-                        <RadioGroupItem value="supermarket" id="supermarket" className="peer sr-only" />
-                        <Label htmlFor="supermarket" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                           <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Store className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Supermarket</p>
-                                        <p className="text-sm text-muted-foreground">For larger stores</p>
+                                )}
+                                <CardHeader className="pt-8">
+                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
+                                        <span className="text-muted-foreground">/ month</span>
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦10,000</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Shop</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Up to 5 Staff Members</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Advanced Forecasting</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
+                                     <ul className="mt-6 space-y-3">
+                                        {plan.features.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <Check className="w-5 h-5 text-accent"/>
+                                                <span className="text-muted-foreground">{feature}</span>
+                                            </li>
+                                        ))}
+                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                                <span className="text-muted-foreground/50">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Link href="#" className="w-full">
+                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
+                                    </Link>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-                    <div>
-                        <RadioGroupItem value="multi-branch" id="multi-branch" className="peer sr-only" />
-                        <Label htmlFor="multi-branch" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Network className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Multiple Branches</p>
-                                        <p className="text-sm text-muted-foreground">For chains & franchises</p>
+                </TabsContent>
+                <TabsContent value="yearly" className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {plans.map((plan) => (
+                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
+                                 {plan.isPopular && (
+                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
+                                        Most Popular
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦30,000</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Supermarket</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Unlimited Staff Members</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
+                                )}
+                                <CardHeader className="pt-8">
+                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-bold">₦{plan.yearlyPrice.toLocaleString()}</span>
+                                        <span className="text-muted-foreground">/ year</span>
+                                    </div>
+                                    <p className="text-sm text-accent font-medium mt-1">
+                                        Save ₦{(plan.monthlyPrice * 12 - plan.yearlyPrice).toLocaleString()}!
+                                    </p>
+                                     <ul className="mt-6 space-y-3">
+                                        {plan.features.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <Check className="w-5 h-5 text-accent"/>
+                                                <span className="text-muted-foreground">{feature}</span>
+                                            </li>
+                                        ))}
+                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                                <span className="text-muted-foreground/50">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Link href="#" className="w-full">
+                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
+                                    </Link>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-                    <div>
-                      <RadioGroupItem value="company" id="company" className="peer sr-only" />
-                      <Label htmlFor="company" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-4">
-                                <Building className="w-8 h-8 text-primary" />
-                                <div className="text-left">
-                                    <p className="font-semibold">Company</p>
-                                    <p className="text-sm text-muted-foreground">For production & enterprise</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold">Custom</p>
-                                <p className="text-sm text-muted-foreground">Contact Us</p>
-                            </div>
-                        </div>
-                        <Separator className="my-4" />
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Multi-Branch</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Production Tracking</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Custom Integrations</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Dedicated Support</span></li>
-                        </ul>
-                      </Label>
-                    </div>
-                </RadioGroup>
-                <Button className="w-full h-14 text-lg">
-                    Proceed to Payment
-                </Button>
-                </CardContent>
-            </Card>
+                </TabsContent>
+            </Tabs>
+             <div className="text-center pt-8">
+                 <h3 className="text-lg font-semibold">Need more?</h3>
+                 <p className="text-muted-foreground">For manufacturing, custom integrations, and dedicated support, contact our sales team.</p>
+                 <Button variant="link" className="mt-2">Contact Sales</Button>
+            </div>
         </div>
     </MainLayout>
   );

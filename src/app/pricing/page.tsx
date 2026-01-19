@@ -1,13 +1,63 @@
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ShoppingCart, Store, Network, Building, Check, X } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Check, X } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from '@/lib/utils';
+
+const plans = [
+    {
+        name: 'Shop',
+        description: 'For small retailers',
+        monthlyPrice: 1500,
+        yearlyPrice: 15000,
+        features: [
+            'Record Sales, Expenses & Inventory',
+            'Basic AI Insights',
+            '1 Staff Member',
+            'Sell on Busmo Market',
+        ],
+        notIncluded: [
+            'Advanced Forecasting',
+            'Multiple Branches',
+            'Production Tracking',
+        ]
+    },
+    {
+        name: 'Supermarket',
+        description: 'For larger stores & growing businesses',
+        monthlyPrice: 10000,
+        yearlyPrice: 100000,
+        isPopular: true,
+        features: [
+            'Everything in Shop',
+            'Up to 5 Staff Members',
+            'Advanced Forecasting',
+        ],
+        notIncluded: [
+            'Multiple Branches',
+            'Production Tracking',
+        ]
+    },
+    {
+        name: 'Multiple Branches',
+        description: 'For chains & franchises',
+        monthlyPrice: 30000,
+        yearlyPrice: 300000,
+        features: [
+            'Everything in Supermarket',
+            'Unlimited Staff Members',
+            'Manage Multiple Branches',
+        ],
+        notIncluded: [
+            'Production Tracking',
+        ]
+    }
+];
 
 export default function PricingPage() {
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
@@ -36,125 +86,137 @@ export default function PricingPage() {
         </div>
       </header>
         
-        <main className="flex-1 flex flex-col items-center justify-center p-4">
-            <Card className="w-full max-w-lg">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
-                    <CardDescription>All plans start with a free trial. No credit card needed.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                <RadioGroup defaultValue="shop" className="grid grid-cols-1 gap-4">
-                    <div>
-                        <RadioGroupItem value="shop" id="shop" className="peer sr-only" />
-                        <Label htmlFor="shop" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <ShoppingCart className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Shop</p>
-                                        <p className="text-sm text-muted-foreground">For small retailers</p>
+        <main className="flex-1 flex flex-col items-center p-4 py-12 sm:py-24">
+            <div className="text-center space-y-4">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline">Find the perfect plan for your business</h1>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                    All plans start with a 30-day free trial. No credit card required. Cancel anytime.
+                </p>
+            </div>
+
+            <Tabs defaultValue="monthly" className="w-full max-w-6xl mx-auto mt-12">
+                <div className="flex justify-center">
+                    <TabsList className="grid grid-cols-2 p-1 h-auto">
+                        <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
+                        <TabsTrigger value="yearly" className="px-8 py-2 relative">
+                            Yearly
+                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">SAVE 17%</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+                <TabsContent value="monthly" className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {plans.map((plan) => (
+                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
+                                {plan.isPopular && (
+                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
+                                        Most Popular
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦1,500</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Record Sales, Expenses & Inventory</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Basic AI Insights</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>1 Staff Member</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Advanced Forecasting</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
-                    </div>
-                    <div>
-                        <RadioGroupItem value="supermarket" id="supermarket" className="peer sr-only" />
-                        <Label htmlFor="supermarket" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                           <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Store className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Supermarket</p>
-                                        <p className="text-sm text-muted-foreground">For larger stores</p>
+                                )}
+                                <CardHeader className="pt-8">
+                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
+                                        <span className="text-muted-foreground">/ month</span>
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦10,000</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Shop</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Up to 5 Staff Members</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Advanced Forecasting</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
+                                     <ul className="mt-6 space-y-3">
+                                        {plan.features.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <Check className="w-5 h-5 text-accent"/>
+                                                <span className="text-muted-foreground">{feature}</span>
+                                            </li>
+                                        ))}
+                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                                <span className="text-muted-foreground/50">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Link href="/signup" className="w-full">
+                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Start Trial</Button>
+                                    </Link>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-                    <div>
-                        <RadioGroupItem value="multi-branch" id="multi-branch" className="peer sr-only" />
-                        <Label htmlFor="multi-branch" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Network className="w-8 h-8 text-primary" />
-                                    <div className="text-left">
-                                        <p className="font-semibold">Multiple Branches</p>
-                                        <p className="text-sm text-muted-foreground">For chains & franchises</p>
+                </TabsContent>
+                <TabsContent value="yearly" className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {plans.map((plan) => (
+                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
+                                 {plan.isPopular && (
+                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
+                                        Most Popular
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-lg font-bold">₦30,000</p>
-                                    <p className="text-sm text-muted-foreground">/month</p>
-                                </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Supermarket</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Unlimited Staff Members</span></li>
-                                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Multiple Branches</span></li>
-                                <li className="flex items-center gap-2 text-muted-foreground/60"><X className="h-4 w-4" /><span>Production Tracking</span></li>
-                            </ul>
-                        </Label>
+                                )}
+                                <CardHeader className="pt-8">
+                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-bold">₦{plan.yearlyPrice.toLocaleString()}</span>
+                                        <span className="text-muted-foreground">/ year</span>
+                                    </div>
+                                    <p className="text-sm text-accent font-medium mt-1">
+                                        Save ₦{(plan.monthlyPrice * 12 - plan.yearlyPrice).toLocaleString()}!
+                                    </p>
+                                     <ul className="mt-6 space-y-3">
+                                        {plan.features.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <Check className="w-5 h-5 text-accent"/>
+                                                <span className="text-muted-foreground">{feature}</span>
+                                            </li>
+                                        ))}
+                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                                <span className="text-muted-foreground/50">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Link href="/signup" className="w-full">
+                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Start Trial</Button>
+                                    </Link>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-                     <div>
-                      <RadioGroupItem value="company" id="company" className="peer sr-only" />
-                      <Label htmlFor="company" className="block rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-4">
-                                <Building className="w-8 h-8 text-primary" />
-                                <div className="text-left">
-                                    <p className="font-semibold">Company</p>
-                                    <p className="text-sm text-muted-foreground">For production & enterprise</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold">Custom</p>
-                                <p className="text-sm text-muted-foreground">Contact Us</p>
-                            </div>
-                        </div>
-                        <Separator className="my-4" />
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Everything in Multi-Branch</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Production Tracking</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Custom Integrations</span></li>
-                           <li className="flex items-center gap-2"><Check className="h-4 w-4 text-accent" /><span>Dedicated Support</span></li>
+                </TabsContent>
+            </Tabs>
+
+            <Separator className="my-24" />
+
+            <div className="w-full max-w-5xl mx-auto space-y-12">
+                 <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">For Larger Businesses</h2>
+                    <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+                        Need more? We offer custom plans for manufacturing, enterprise, and businesses with unique needs.
+                    </p>
+                </div>
+                 <Card className="flex flex-col md:flex-row items-center gap-8 p-8">
+                    <div className="flex-1">
+                        <h3 className="text-2xl font-bold font-headline">Company Plan</h3>
+                        <p className="text-muted-foreground mt-2">A plan tailored to your specific needs. Get everything in our standard plans, plus:</p>
+                        <ul className="mt-6 space-y-3">
+                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Production Tracking (cost of goods)</span></li>
+                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Custom Integrations</span></li>
+                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Dedicated Support & Onboarding</span></li>
                         </ul>
-                      </Label>
                     </div>
-                </RadioGroup>
-                <Link href="/signup" className="w-full">
-                    <Button className="w-full h-14 text-lg">
-                    Start Free Trial
-                    </Button>
-                </Link>
-                </CardContent>
-            </Card>
+                    <div>
+                         <Button size="lg" className="h-12 text-lg">Contact Sales</Button>
+                    </div>
+                 </Card>
+            </div>
         </main>
       
       {/* Footer */}
