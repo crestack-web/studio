@@ -147,10 +147,10 @@ service cloud.firestore {
      * @principle Enforces role-based permissions, restricting sensitive write operations to 'Owner' roles.
      */
     match /businesses/{businessId} {
-      allow get: if isMemberOfBusiness(businessId);
+      allow get: if resource.data.ownerId == request.auth.uid || isMemberOfBusiness(businessId);
       allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && newDocHasMatchingId(businessId);
-      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid && idIsImmutable();
+      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
       allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
     }
 
