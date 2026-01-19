@@ -437,16 +437,16 @@ export default function OwnerHomePage() {
                         Access Capital
                     </CardTitle>
                     <CardDescription>
-                        Unlock loan offers based on your business performance.
+                        Your business data can unlock investment. See your options.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="text-center text-sm text-muted-foreground">
-                        <p>Keep recording sales and expenses to become eligible for loans.</p>
+                        <p>Your performance data helps build a trusted financial story for investors.</p>
                     </div>
                     <Link href="/owner/access-capital" className='w-full'>
                         <Button variant="secondary" className="w-full">
-                            Check Eligibility
+                            Explore Capital Options
                         </Button>
                     </Link>
                 </CardContent>
@@ -458,5 +458,3 @@ export default function OwnerHomePage() {
     </div>
   );
 }
-
-    

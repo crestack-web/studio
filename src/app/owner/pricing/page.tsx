@@ -17,13 +17,14 @@ const plans = [
         features: [
             'Record Sales, Expenses & Inventory',
             'Basic AI Insights',
-            '1 Staff Member',
             'Sell on Busmo Market',
         ],
         notIncluded: [
+            'Manage Staff',
             'Advanced Forecasting',
             'Multiple Branches',
             'Production Tracking',
+            'Access to Equity Investment',
         ]
     },
     {
@@ -40,6 +41,7 @@ const plans = [
         notIncluded: [
             'Multiple Branches',
             'Production Tracking',
+            'Access to Equity Investment',
         ]
     },
     {
@@ -54,14 +56,27 @@ const plans = [
         ],
         notIncluded: [
             'Production Tracking',
+            'Access to Equity Investment',
         ]
+    },
+    {
+        name: 'Company',
+        description: 'For manufacturers & corporations',
+        monthlyPrice: 50000,
+        yearlyPrice: 500000,
+        features: [
+            'Everything in Multiple Branches',
+            'Production Tracking (Cost of Goods)',
+            'Access to Equity Investment',
+        ],
+        notIncluded: []
     }
 ];
 
 export default function PricingPage() {
   return (
     <MainLayout title="Choose Your Plan" backHref="/owner/home">
-        <div className="w-full max-w-6xl space-y-8">
+        <div className="w-full max-w-7xl space-y-8">
             <Alert variant="destructive" className="max-w-xl mx-auto">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Your Free Trial Has Ended</AlertTitle>
@@ -88,7 +103,7 @@ export default function PricingPage() {
                     </TabsList>
                 </div>
                 <TabsContent value="monthly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                 {plan.isPopular && (
@@ -105,16 +120,16 @@ export default function PricingPage() {
                                         <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
                                         <span className="text-muted-foreground">/ month</span>
                                     </div>
-                                     <ul className="mt-6 space-y-3">
+                                     <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <Check className="w-5 h-5 text-accent"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
                                         {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
                                             </li>
                                         ))}
@@ -130,7 +145,7 @@ export default function PricingPage() {
                     </div>
                 </TabsContent>
                 <TabsContent value="yearly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                  {plan.isPopular && (
@@ -148,18 +163,18 @@ export default function PricingPage() {
                                         <span className="text-muted-foreground">/ year</span>
                                     </div>
                                     <p className="text-sm text-accent font-medium mt-1">
-                                        Save ₦{(plan.monthlyPrice * 12 - plan.yearlyPrice).toLocaleString()}!
+                                        Save ~17%!
                                     </p>
-                                     <ul className="mt-6 space-y-3">
+                                     <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <Check className="w-5 h-5 text-accent"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
                                         {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
                                             </li>
                                         ))}
@@ -176,8 +191,8 @@ export default function PricingPage() {
                 </TabsContent>
             </Tabs>
              <div className="text-center pt-8">
-                 <h3 className="text-lg font-semibold">Need more?</h3>
-                 <p className="text-muted-foreground">For manufacturing, custom integrations, and dedicated support, contact our sales team.</p>
+                 <h3 className="text-lg font-semibold">Custom Needs?</h3>
+                 <p className="text-muted-foreground">For custom integrations and dedicated support, contact our sales team.</p>
                  <Button variant="link" className="mt-2">Contact Sales</Button>
             </div>
         </div>

@@ -19,13 +19,14 @@ const plans = [
         features: [
             'Record Sales, Expenses & Inventory',
             'Basic AI Insights',
-            '1 Staff Member',
             'Sell on Busmo Market',
         ],
         notIncluded: [
+            'Manage Staff',
             'Advanced Forecasting',
             'Multiple Branches',
             'Production Tracking',
+            'Access to Equity Investment',
         ]
     },
     {
@@ -42,6 +43,7 @@ const plans = [
         notIncluded: [
             'Multiple Branches',
             'Production Tracking',
+            'Access to Equity Investment',
         ]
     },
     {
@@ -56,7 +58,20 @@ const plans = [
         ],
         notIncluded: [
             'Production Tracking',
+            'Access to Equity Investment',
         ]
+    },
+    {
+        name: 'Company',
+        description: 'For manufacturers & corporations',
+        monthlyPrice: 50000,
+        yearlyPrice: 500000,
+        features: [
+            'Everything in Multiple Branches',
+            'Production Tracking (Cost of Goods)',
+            'Access to Equity Investment',
+        ],
+        notIncluded: []
     }
 ];
 
@@ -113,7 +128,7 @@ export default function PricingPage() {
                 </p>
             </div>
 
-            <Tabs defaultValue="monthly" className="w-full max-w-6xl mx-auto mt-12">
+            <Tabs defaultValue="monthly" className="w-full max-w-7xl mx-auto mt-12">
                 <div className="flex justify-center">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
                         <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
@@ -124,7 +139,7 @@ export default function PricingPage() {
                     </TabsList>
                 </div>
                 <TabsContent value="monthly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                 {plan.isPopular && (
@@ -141,16 +156,16 @@ export default function PricingPage() {
                                         <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
                                         <span className="text-muted-foreground">/ month</span>
                                     </div>
-                                     <ul className="mt-6 space-y-3">
+                                     <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <Check className="w-5 h-5 text-accent"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
                                         {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
                                             </li>
                                         ))}
@@ -166,7 +181,7 @@ export default function PricingPage() {
                     </div>
                 </TabsContent>
                 <TabsContent value="yearly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                  {plan.isPopular && (
@@ -184,18 +199,18 @@ export default function PricingPage() {
                                         <span className="text-muted-foreground">/ year</span>
                                     </div>
                                     <p className="text-sm text-accent font-medium mt-1">
-                                        Save ₦{(plan.monthlyPrice * 12 - plan.yearlyPrice).toLocaleString()}!
+                                        Save ~17%!
                                     </p>
-                                     <ul className="mt-6 space-y-3">
+                                     <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <Check className="w-5 h-5 text-accent"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
                                         {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-center gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50"/>
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
                                             </li>
                                         ))}
@@ -218,17 +233,17 @@ export default function PricingPage() {
                  <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">For Larger Businesses</h2>
                     <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Need more? We offer custom plans for manufacturing, enterprise, and businesses with unique needs.
+                        Need more? We offer custom plans for enterprise needs.
                     </p>
                 </div>
                  <Card className="flex flex-col md:flex-row items-center gap-8 p-8">
                     <div className="flex-1">
-                        <h3 className="text-2xl font-bold font-headline">Company Plan</h3>
+                        <h3 className="text-2xl font-bold font-headline">Enterprise Plan</h3>
                         <p className="text-muted-foreground mt-2">A plan tailored to your specific needs. Get everything in our standard plans, plus:</p>
                         <ul className="mt-6 space-y-3">
-                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Production Tracking (cost of goods)</span></li>
                            <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Custom Integrations</span></li>
                            <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Dedicated Support & Onboarding</span></li>
+                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Volume Discounts</span></li>
                         </ul>
                     </div>
                     <div>

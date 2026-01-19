@@ -21,13 +21,12 @@ const plans = [
         features: [
             'Record Sales, Expenses & Inventory',
             'Basic AI Insights',
-            '1 Staff Member',
             'Sell on Busmo Market',
         ],
         notIncluded: [
+            'Manage Staff',
             'Advanced Forecasting',
             'Multiple Branches',
-            'Production Tracking',
         ]
     },
     {
@@ -61,6 +60,19 @@ const plans = [
         notIncluded: [
             'Production Tracking',
         ]
+    },
+    {
+        id: 'company',
+        name: 'Company',
+        description: 'For manufacturers & corporations',
+        monthlyPrice: 50000,
+        yearlyPrice: 500000,
+        features: [
+            'Everything in Multiple Branches',
+            'Production Tracking (Cost of Goods)',
+            'Access to Equity Investment',
+        ],
+        notIncluded: []
     }
 ];
 
@@ -71,7 +83,7 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], b
         <Label 
             htmlFor={plan.id + '-' + billingCycle} 
             className={cn(
-                "block rounded-lg border-2 p-4 cursor-pointer transition-all",
+                "block rounded-lg border-2 p-4 cursor-pointer transition-all h-full",
                 isSelected ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground/50",
                 plan.isPopular && isSelected && "border-primary",
                 plan.isPopular && !isSelected && "border-gray-300"
@@ -94,7 +106,7 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], b
             </div>
             {billingCycle === 'yearly' && (
                  <p className="text-xs text-accent font-medium mt-1 text-right">
-                    Save ₦{(plan.monthlyPrice * 12 - plan.yearlyPrice).toLocaleString()}!
+                    Save ~17%!
                 </p>
             )}
 
@@ -102,14 +114,14 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], b
 
             <ul className="space-y-2 text-sm">
                 {plan.features.map(feature => (
-                    <li key={feature} className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-accent"/>
+                    <li key={feature} className="flex items-start gap-2">
+                        <Check className="w-4 h-4 text-accent mt-1 shrink-0"/>
                         <span className="text-muted-foreground">{feature}</span>
                     </li>
                 ))}
                 {plan.notIncluded && plan.notIncluded.map(feature => (
-                    <li key={feature} className="flex items-center gap-2">
-                        <X className="w-4 h-4 text-muted-foreground/50"/>
+                    <li key={feature} className="flex items-start gap-2">
+                        <X className="w-4 h-4 text-muted-foreground/50 mt-1 shrink-0"/>
                         <span className="text-muted-foreground/50">{feature}</span>
                     </li>
                 ))}
@@ -142,7 +154,7 @@ export default function PlansPage() {
                 </Tabs>
             </div>
 
-            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                  {plans.map((plan) => (
                     <div key={plan.id}>
                         <RadioGroupItem value={plan.id} id={plan.id + '-' + billingCycle} className="peer sr-only" />
@@ -168,8 +180,8 @@ export default function PlansPage() {
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center text-center md:text-left justify-between gap-4">
             <div >
-                <h3 className="font-semibold">Company Plan</h3>
-                <p className="text-sm text-muted-foreground">For manufacturing, custom integrations, and dedicated support.</p>
+                <h3 className="font-semibold">Custom Enterprise Plan</h3>
+                <p className="text-sm text-muted-foreground">For unique requirements, custom integrations, and dedicated support.</p>
             </div>
              <Button variant="outline">Contact Sales</Button>
         </CardContent>
