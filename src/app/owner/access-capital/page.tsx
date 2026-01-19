@@ -9,6 +9,9 @@ import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 // Interfaces for Firestore data
 interface AppUser {
@@ -19,7 +22,19 @@ interface Business {
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
 
+const mockOffers = [
+    {
+        id: 'offer1',
+        investorName: 'Tunde Oladipo',
+        investorInitials: 'TO',
+        amount: 500000,
+        type: 'Profit Sharing',
+        terms: '15% profit share over 18 months',
+    }
+];
+
 export default function AccessCapitalPage() {
+    const { toast } = useToast();
     const firestore = useFirestore();
     const { user: authUser } = useUser();
 
@@ -36,8 +51,16 @@ export default function AccessCapitalPage() {
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
     
-    // Eligibility for equity is based on the company plan
     const canAccessEquity = businessData?.plan === 'company';
+
+    const handleOfferResponse = (response: 'accepted' | 'rejected', investorName: string) => {
+        toast({
+            title: `Offer ${response}`,
+            description: `You have ${response} the investment offer from ${investorName}.`,
+        })
+        // In a real app, we would update the offer status in Firestore here.
+    }
+
 
     return (
         <MainLayout title="Access Capital" backHref="/owner/home">
@@ -49,7 +72,6 @@ export default function AccessCapitalPage() {
                     </p>
                 </div>
 
-                {/* How It Works Section */}
                 <div className="grid md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
@@ -86,12 +108,59 @@ export default function AccessCapitalPage() {
                     </Card>
                 </div>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <Handshake className="w-6 h-6 text-primary" />
+                            <span>Incoming Investment Offers</span>
+                        </CardTitle>
+                        <CardDescription>Review, accept, or reject investment intents from potential investors.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Investor</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Terms</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mockOffers.map(offer => (
+                                    <TableRow key={offer.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar>
+                                                    <AvatarFallback>{offer.investorInitials}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{offer.investorName}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>₦{offer.amount.toLocaleString()}</TableCell>
+                                        <TableCell>{offer.terms}</TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button size="sm" onClick={() => handleOfferResponse('accepted', offer.investorName)}>Accept</Button>
+                                            <Button size="sm" variant="destructive" onClick={() => handleOfferResponse('rejected', offer.investorName)}>Reject</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {mockOffers.length === 0 && (
+                                     <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            You have no incoming investment offers.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
-                {/* Capital Options Section */}
+
                  <div>
                     <h2 className="text-2xl font-bold font-headline text-center mb-6">Your Capital Options</h2>
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* Profit Sharing Card */}
                         <Card className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3 font-headline">
@@ -112,7 +181,6 @@ export default function AccessCapitalPage() {
                             </CardFooter>
                         </Card>
                         
-                        {/* Equity Investment Card */}
                         <Card className={cn("flex flex-col", !canAccessEquity && "bg-muted/50 border-dashed")}>
                              <CardHeader>
                                 <CardTitle className="flex items-center gap-3 font-headline">

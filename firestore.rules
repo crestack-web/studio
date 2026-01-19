@@ -175,5 +175,29 @@ service cloud.firestore {
       allow update: if isExistingDocForBusinessMember(resource.data.businessId) && businessIdIsImmutable();
       allow delete: if isExistingDocForBusinessMember(resource.data.businessId);
     }
+
+    /**
+     * @description Manages the lifecycle of an investment between an investor and a business.
+     * @path /investments/{investmentId}
+     * @allow (create) An authenticated user can create an investment intent for a business.
+     * @allow (get) The investor or the business owner can view the investment details.
+     * @allow (update) The business owner can update the status (accept, reject, confirm funding).
+     * @deny (delete) Investments are kept as a historical record and cannot be deleted.
+     */
+    match /investments/{investmentId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.investorId == request.auth.uid
+                    && request.resource.data.status == 'pending-acceptance';
+
+      allow get: if isSignedIn()
+                 && (resource.data.investorId == request.auth.uid || isOwnerOfBusiness(resource.data.businessId));
+
+      allow update: if isOwnerOfBusiness(resource.data.businessId)
+                    && (request.resource.data.status == 'pending-funding' || request.resource.data.status == 'rejected' || request.resource.data.status == 'active');
+      
+      allow list: if isSignedIn();
+
+      allow delete: if false;
+    }
   }
 }
