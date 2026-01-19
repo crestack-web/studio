@@ -23,8 +23,8 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                     <nav className="hidden md:flex items-center gap-4">
                         <Link href="/invest" passHref><Button variant="ghost">Explore</Button></Link>
                         <Link href="/pricing" passHref><Button variant="ghost">For Businesses</Button></Link>
-                        <Link href="/login" passHref><Button variant="ghost">Log In</Button></Link>
-                        <Link href="/signup" passHref><Button>Sign Up</Button></Link>
+                        <Link href="/investor/login" passHref><Button variant="ghost">Log In</Button></Link>
+                        <Link href="/investor/signup" passHref><Button>Sign Up</Button></Link>
                     </nav>
                     <div className="md:hidden">
                         <Sheet>
@@ -39,8 +39,8 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                                 <nav className="flex flex-col items-start gap-4">
                                     <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Explore</Button></Link>
                                     <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Businesses</Button></Link>
-                                    <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                                    <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
+                                    <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
+                                    <Link href="/investor/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
                                 </nav>
                             </SheetContent>
                         </Sheet>
