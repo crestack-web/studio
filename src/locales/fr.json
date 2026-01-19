@@ -9,10 +9,106 @@
     "explore": "Explorer",
     "for_businesses": "Pour les entreprises"
   },
+  "footer": {
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
+  },
+  "main_layout": {
+    "back": "Retour"
+  },
   "welcome": {
-    "title": "Vous vendez tous les jours. <br /> <span class='text-accent'>Savez-vous si vous gagnez de l'argent?</span>",
-    "subtitle": "Arrêtez de deviner avec des cahiers et des calculatrices. Busmo transforme votre activité quotidienne en compréhension et la compréhension en croissance.",
-    "cta": "Commencez votre essai gratuit"
+    "title": "Vous vendez tous les jours. <br /> <span class='text-accent'>Savez-vous si vous gagnez de l'argent ?</span>",
+    "subtitle": "Arrêtez de deviner avec des cahiers et des calculatrices. Busmo transforme votre activité quotidienne en compréhension, et la compréhension en croissance.",
+    "cta": "Commencez votre essai gratuit",
+    "market_title": "Vendez en ligne avec Busmo Market.<br/><span class='text-muted-foreground'>Vos ventes alimentent vos analyses.</span>",
+    "market_subtitle": "Élargissez votre portée. Listez vos produits sur Busmo Market et transformez chaque vente en une analyse commerciale instantanée. Toutes les ventes se synchronisent automatiquement avec votre tableau de bord.",
+    "market_features": [
+      "Listez des produits en quelques secondes, directement depuis votre tableau de bord.",
+      "Atteignez de nouveaux clients qui recherchent des produits comme les vôtres.",
+      "Chaque vente met automatiquement à jour l'inventaire, les ventes et les bénéfices."
+    ],
+    "market_cta": "Explorer le Marché",
+    "features_title": "Ce que vous pouvez faire avec Busmo",
+    "features_subtitle": "Busmo est conçu pour la réalité de votre entreprise. Simple, rapide et fonctionnant hors ligne.",
+    "feature_1_title": "Gérer les produits et l'inventaire",
+    "feature_1_desc": "Ajoutez des produits avec la quantité et le coût, suivez automatiquement le mouvement des stocks et sachez quand réapprovisionner avant qu'il ne soit trop tard.",
+    "feature_2_title": "Enregistrer les ventes (de la bonne manière)",
+    "feature_2_desc": "Voyez quel produit a été vendu, suivez la quantité et le profit, et comprenez quels produits vous rapportent réellement de l'argent.",
+    "feature_3_title": "Suivre les dépenses",
+    "feature_3_desc": "Enregistrez les coûts d'inventaire et les dépenses commerciales quotidiennes pour voir comment ils affectent votre profit en temps réel.",
+    "testimonials_title": "Conçu pour le cœur du commerce africain",
+    "testimonials_subtitle": "Des étals de rue aux supermarchés en pleine croissance, Busmo offre clarté et contrôle.",
+    "testimonial_1_quote": "Pour la première fois, je peux voir mon bénéfice quotidien en quelques secondes. Fini de compter l'argent et de deviner. Busmo est mon nouveau partenaire commercial.",
+    "testimonial_1_name": "Femi",
+    "testimonial_1_biz": "Femi's Suya Spot",
+    "testimonial_2_quote": "J'étais souvent à court de mes tissus les plus vendus. Maintenant, Busmo me dit quand me réapprovisionner. Mes clients sont plus heureux et mes ventes ont augmenté.",
+    "testimonial_2_name": "Aisha",
+    "testimonial_2_biz": "Textiles d'Aisha",
+    "testimonial_3_quote": "La gestion des dépenses était un casse-tête. Avec Busmo, je peux voir exactement où va mon argent. C'est simple, puissant et conçu pour des gens comme moi.",
+    "testimonial_3_name": "John",
+    "testimonial_3_biz": "Épicerie Everyday Needs",
+    "ai_title": "Demandez simplement. Busmo sait.",
+    "ai_subtitle": "Vos données d'entreprise sont maintenant une conversation. Obtenez des réponses instantanées et claires à vos questions les plus importantes. Plus besoin de fouiller dans les archives.",
+    "ai_cta": "Posez votre première question",
+    "ai_q1": "Combien de ventes ai-je faites aujourd'hui ?",
+    "ai_a1": "Vous avez fait 18 ventes aujourd'hui, pour un total de 45 000 ₦.",
+    "ai_q2": "Ai-je fait des bénéfices cette semaine ?",
+    "ai_a2": "Oui. Votre bénéfice net pour la semaine est de 28 500 ₦.",
+    "ai_q3": "Quel produit est presque épuisé ?",
+    "ai_a3": "L'eau en bouteille est presque épuisée. Il vous en reste 5 unités.",
+    "forecast_title": "Prévoyez l'avenir de votre entreprise.<br/><span class='text-muted-foreground'>Arrêtez de réagir. Commencez à planifier.</span>",
+    "forecast_subtitle": "Busmo analyse vos tendances de vente pour que vous puissiez planifier à l'avance avec confiance. Vos prévisions clés apparaissent directement dans votre tableau de bord - pas de défilement, pas de recherche, juste des informations.",
+    "forecast_features": ["Tendances des ventes", "Prévisions de bénéfices", "Perspectives d'inventaire"],
+    "forecast_1_title": "Prévision de bénéfice hebdomadaire",
+    "forecast_1_desc": "Sur la base des tendances actuelles, vous êtes en bonne voie pour réaliser 42 000 ₦ de bénéfices la semaine prochaine.",
+    "forecast_2_title": "Prédiction du jour le plus chargé",
+    "forecast_2_desc": "Attendez-vous à ce que votre journée la plus chargée soit le samedi. Prévoyez des stocks supplémentaires pour répondre à la demande.",
+    "forecast_3_title": "Perspectives d'inventaire",
+    "forecast_3_desc": "Vous risquez d'être à court d'eau en bouteille dans 3 jours. Envisagez de passer une nouvelle commande maintenant.",
+    "funding_title": "Transformez vos données en capital.",
+    "funding_subtitle": "De bonnes données sont votre atout le plus précieux. Busmo vous aide à construire une histoire financière de confiance qui ouvre les portes à des opportunités de financement, sans la paperasse sans fin.",
+    "funding_features": ["Construisez un historique commercial vérifiable.", "Débloquez des offres de prêt auprès des prêteurs.", "Accédez au capital en fonction des performances, pas de la paperasse."],
+    "funding_1_title": "Exemple d'offre de prêt",
+    "funding_1_desc": "Sur la base de 3 mois de données cohérentes, une entreprise comme la vôtre pourrait être éligible pour un maximum de <span class='font-bold text-xl'>250 000 ₦</span>.",
+    "funding_2_title": "Votre score de santé financière",
+    "funding_2_desc": "Votre score est <span class='font-bold'>Fort</span>. Continuez à enregistrer des transactions pour améliorer votre éligibilité à des prêts plus importants.",
+    "investor_title": "Un marché pour le capital.<br/><span class='text-muted-foreground'>Investissez dans le moteur de croissance de l'Afrique.</span>",
+    "investor_subtitle": "Découvrez et financez la prochaine génération de petites entreprises, soutenues par des données fiables et en temps réel de Busmo. Nous transformons l'activité commerciale en signaux d'investissement vérifiables.",
+    "investor_features": ["Explorez des opportunités vérifiées par les données.", "Réduisez les risques avec des signaux commerciaux transparents.", "Investissez dans des accords de partage des bénéfices ou d'actions."],
+    "investor_cta": "Explorer les investissements",
+    "why_title": "Un outil commercial différent",
+    "why_subtitle": "Busmo n'est pas un logiciel de comptabilité. C'est un outil d'aide à la décision conçu pour la réalité de votre entreprise.",
+    "why_old_way": "L'ancienne méthode : les outils de comptabilité",
+    "why_old_1_title": "Complexe et écrasant",
+    "why_old_1_desc": "Des champs sans fin, des graphiques déroutants et des fonctionnalités que vous n'utiliserez jamais.",
+    "why_old_2_title": "Conçu pour les comptables",
+    "why_old_2_desc": "Ils parlent en jargon comme 'débits' et 'crédits', pas 'profit' et 'perte'.",
+    "why_old_3_title": "Axé sur les rapports",
+    "why_old_3_desc": "Ils vous donnent de longs rapports à éplucher au lieu de réponses immédiates.",
+    "why_busmo_way": "La méthode Busmo : Outil de clarté",
+    "why_busmo_1_title": "Simple et ciblé",
+    "why_busmo_1_desc": "Enregistrez une vente en quelques secondes. Voyez votre profit instantanément. C'est tout.",
+    "why_busmo_2_title": "Conçu pour les propriétaires",
+    "why_busmo_2_desc": "Nous parlons votre langue. Demandez 'Ai-je gagné de l'argent ?' et obtenez une réponse directe.",
+    "why_busmo_3_title": "Axé sur les réponses",
+    "why_busmo_3_desc": "Vos informations les plus importantes sont toujours à portée de main ou de question.",
+    "who_title": "À qui s'adresse Busmo ?",
+    "who_subtitle": "Si vous vendez des produits et que vous voulez connaître vos chiffres sans prise de tête, Busmo est fait pour vous.",
+    "who_1": "Boutiques de détail",
+    "who_2": "Stands de nourriture et de boissons",
+    "who_3": "Épiceries et supermarchés",
+    "who_4": "Petits fabricants",
+    "faq_title": "Questions fréquemment posées",
+    "faq_1_q": "Busmo est-il une autre application de comptabilité ?",
+    "faq_1_a": "Non. Busmo est conçu pour la clarté des affaires, pas pour une comptabilité complexe. Nous nous concentrons sur les indicateurs clés dont vous avez besoin pour prendre des décisions - bénéfice quotidien, flux de trésorerie et inventaire - sans le jargon déroutant ni les fonctionnalités conçues pour les comptables.",
+    "faq_2_q": "Puis-je utiliser Busmo si je travaille hors ligne ?",
+    "faq_2_a": "Oui. Busmo est conçu pour être utilisé principalement hors ligne. Vous pouvez enregistrer des ventes, suivre des dépenses et gérer votre inventaire même sans connexion Internet. Vos données se synchroniseront automatiquement et en toute sécurité une fois que vous serez de nouveau en ligne.",
+    "faq_3_q": "Mes données d'entreprise sont-elles en sécurité ?",
+    "faq_3_a": "Absolument. Nous utilisons des protocoles de cryptage et de sécurité conformes aux normes de l'industrie pour protéger vos données. Les informations de votre entreprise vous appartiennent et nous nous engageons à les garder en sécurité et privées.",
+    "faq_4_q": "Et si je vends des services, pas des produits ?",
+    "faq_4_a": "Bien que Busmo soit optimisé pour les entreprises basées sur les produits avec inventaire, vous pouvez absolument l'utiliser pour suivre tous vos revenus (ventes) et dépenses afin de comprendre votre rentabilité. Les fonctionnalités spécifiques à l'inventaire peuvent simplement être ignorées.",
+    "final_cta_title": "L'avenir de votre entreprise commence par la clarté.",
+    "final_cta_subtitle": "Vous n'avez pas besoin de plus de ventes. Vous avez besoin d'une meilleure visibilité. Rejoignez les propriétaires d'entreprise intelligents en Afrique qui construisent leur avenir avec Busmo."
   },
   "pricing": {
     "title": "Trouvez le plan parfait pour votre entreprise",
@@ -20,60 +116,56 @@
     "monthly": "Mensuel",
     "yearly": "Annuel",
     "save_prefix": "ÉCONOMISEZ",
-    "save_suffix": "",
+    "save_suffix": " 17%",
     "shop_name": "Boutique",
     "shop_desc": "Pour les petits détaillants",
     "shop_features": [
-        "Enregistrer les ventes, les dépenses et l'inventaire",
-        "Aperçus IA de base",
-        "Vendre sur le marché Busmo"
+      "Enregistrer les ventes, les dépenses et l'inventaire",
+      "Aperçus IA de base",
+      "Vendre sur le marché Busmo"
     ],
     "shop_not_included": [
-        "Gérer le personnel",
-        "Prévisions avancées",
-        "Plusieurs succursales",
-        "Suivi de production",
-        "Accès à l'investissement en capital"
+      "Gérer le personnel",
+      "Prévisions avancées",
+      "Plusieurs succursales",
+      "Suivi de production",
+      "Accès à l'investissement en capital"
     ],
     "supermarket_name": "Supermarché",
     "supermarket_desc": "Pour les grands magasins et les entreprises en croissance",
     "supermarket_features": [
-        "Tout dans la boutique",
-        "Jusqu'à 5 membres du personnel",
-        "Prévisions avancées"
+      "Tout dans la boutique",
+      "Jusqu'à 5 membres du personnel",
+      "Prévisions avancées"
     ],
     "supermarket_not_included": [
-        "Plusieurs succursales",
-        "Suivi de production",
-        "Accès à l'investissement en capital"
+      "Plusieurs succursales",
+      "Suivi de production",
+      "Accès à l'investissement en capital"
     ],
     "multibranch_name": "Plusieurs succursales",
     "multibranch_desc": "Pour les chaînes et franchises",
     "multibranch_features": [
-        "Tout dans Supermarché",
-        "Membres du personnel illimités",
-        "Gérer plusieurs succursales"
+      "Tout dans Supermarché",
+      "Membres du personnel illimités",
+      "Gérer plusieurs succursales"
     ],
     "multibranch_not_included": [
-        "Suivi de production",
-        "Accès à l'investissement en capital"
+      "Suivi de production",
+      "Accès à l'investissement en capital"
     ],
     "company_name": "Compagnie",
     "company_desc": "Pour les fabricants et les entreprises",
     "company_features": [
-        "Tout dans Plusieurs succursales",
-        "Suivi de production (coût des marchandises)",
-        "Accès à l'investissement en capital"
+      "Tout dans Plusieurs succursales",
+      "Suivi de production (coût des marchandises)",
+      "Accès à l'investissement en capital"
     ],
     "company_not_included": [],
     "start_trial": "Commencer l'essai",
     "most_popular": "Le plus populaire",
-    "custom_needs": "Besoins personnalisés?",
-    "custom_desc": "Pour des intégrations personnalisées et un support dédié, contactez notre équipe commerciale.",
+    "custom_needs": "Besoins personnalisés ?",
+    "custom_desc": "Pour des intégrations personnalisées et un support dédié, contactez notre équipe de vente.",
     "contact_sales": "Contacter les ventes"
-  },
-  "investor_layout": {
-    "footer_privacy": "Confidentialité",
-    "footer_terms": "Conditions"
   }
 }

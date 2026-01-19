@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from '@/context/language-provider';
 
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,7 @@ type MainLayoutProps = {
 
 export default function MainLayout({ children, title, backHref }: MainLayoutProps) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleBack = () => {
     if (backHref) {
@@ -28,7 +30,7 @@ export default function MainLayout({ children, title, backHref }: MainLayoutProp
       <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-card">
         <Button variant="ghost" size="icon" className="h-10 w-10 mr-2" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
-          <span className="sr-only">Back</span>
+          <span className="sr-only">{t('main_layout.back')}</span>
         </Button>
         <h1 className="text-xl font-headline font-semibold flex-1 text-center truncate pr-12">{title}</h1>
       </header>

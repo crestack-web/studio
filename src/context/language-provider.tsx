@@ -3,11 +3,8 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
 import en from '@/locales/en.json';
 import fr from '@/locales/fr.json';
-import ha from '@/locales/ha.json';
-import ig from '@/locales/ig.json';
-import yo from '@/locales/yo.json';
 
-const translations: Record<string, any> = { en, fr, ha, ig, yo };
+const translations: Record<string, any> = { en, fr };
 
 interface LanguageContextType {
   language: string;

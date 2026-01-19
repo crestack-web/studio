@@ -13,9 +13,6 @@ import { Languages } from 'lucide-react';
 const languages = [
     { code: 'en', name: 'English' },
     { code: 'fr', name: 'Français' },
-    { code: 'ha', name: 'Hausa' },
-    { code: 'ig', name: 'Igbo' },
-    { code: 'yo', name: 'Yorùbá' },
 ];
 
 export function LanguageSwitcher() {

@@ -9,10 +9,106 @@
     "explore": "Explore",
     "for_businesses": "For Businesses"
   },
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "main_layout": {
+    "back": "Back"
+  },
   "welcome": {
     "title": "You sell every day. <br /> <span class='text-accent'>Do you know if you're making money?</span>",
     "subtitle": "Stop guessing with notebooks and calculators. Busmo turns your daily activity into understanding—and understanding into growth.",
-    "cta": "Start Your Free Trial"
+    "cta": "Start Your Free Trial",
+    "market_title": "Sell Online with Busmo Market.<br/><span class='text-muted-foreground'>Your sales feed your insights.</span>",
+    "market_subtitle": "Extend your reach. List your products on Busmo Market and turn every sale into an instant business insight. All sales sync automatically to your dashboard.",
+    "market_features": [
+      "List products in seconds, right from your dashboard.",
+      "Reach new customers searching for products like yours.",
+      "Every sale automatically updates inventory, sales & profit."
+    ],
+    "market_cta": "Explore the Market",
+    "features_title": "What You Can Do With Busmo",
+    "features_subtitle": "Busmo is built for the reality of your business. Simple, fast, and offline-first.",
+    "feature_1_title": "Manage Products & Inventory",
+    "feature_1_desc": "Add products with quantity & cost, track stock movement automatically, and know when to restock before it’s too late.",
+    "feature_2_title": "Record Sales (The Right Way)",
+    "feature_2_desc": "See what product was sold, track quantity and profit, and understand which products actually make you money.",
+    "feature_3_title": "Track Expenses",
+    "feature_3_desc": "Record inventory costs and log daily business expenses to see how they affect your profit in real time.",
+    "testimonials_title": "Built for the Heart of African Commerce",
+    "testimonials_subtitle": "From street-side stalls to growing supermarkets, Busmo provides clarity and control.",
+    "testimonial_1_quote": "For the first time, I can see my daily profit in seconds. No more counting cash and guessing. Busmo is my new business partner.",
+    "testimonial_1_name": "Femi",
+    "testimonial_1_biz": "Femi's Suya Spot",
+    "testimonial_2_quote": "I used to run out of my best-selling fabrics. Now, Busmo tells me when to restock. My customers are happier, and my sales are up.",
+    "testimonial_2_name": "Aisha",
+    "testimonial_2_biz": "Aisha's Textiles",
+    "testimonial_3_quote": "Managing expenses was a headache. With Busmo, I can see exactly where my money is going. It’s simple, powerful, and built for people like me.",
+    "testimonial_3_name": "John",
+    "testimonial_3_biz": "Everyday Needs Grocers",
+    "ai_title": "Just ask. Busmo knows.",
+    "ai_subtitle": "Your business data is now a conversation. Get instant, clear answers to your most important questions. No more digging through records.",
+    "ai_cta": "Ask Your First Question",
+    "ai_q1": "How many sales did I make today?",
+    "ai_a1": "You've made 18 sales today, for a total of ₦45,000.",
+    "ai_q2": "Did I make a profit this week?",
+    "ai_a2": "Yes. Your net profit for the week is ₦28,500.",
+    "ai_q3": "What product is running low?",
+    "ai_a3": "Bottled Water is running low. You have 5 units left.",
+    "forecast_title": "Forecast Your Business.<br/><span class='text-muted-foreground'>Stop reacting. Start planning.</span>",
+    "forecast_subtitle": "Busmo analyzes your sales trends so you can plan ahead with confidence. Your key forecasts appear right in your dashboard — no scrolling, no hunting, just insight.",
+    "forecast_features": ["Sales trends", "Profit predictions", "Inventory outlook"],
+    "forecast_1_title": "Weekly Profit Forecast",
+    "forecast_1_desc": "Based on current trends, you're on track to make ₦42,000 in profit next week.",
+    "forecast_2_title": "Busiest Day Prediction",
+    "forecast_2_desc": "Expect your busiest day to be Saturday. Plan for extra stock to meet demand.",
+    "forecast_3_title": "Inventory Outlook",
+    "forecast_3_desc": "You are likely to run out of Bottled Water in 3 days. Consider reordering now.",
+    "funding_title": "Turn Your Data Into Capital.",
+    "funding_subtitle": "Good data is your most valuable asset. Busmo helps you build a trusted financial story that opens doors to funding opportunities, without the endless paperwork.",
+    "funding_features": ["Build a verifiable business history.", "Unlock loan offers from lenders.", "Access capital based on performance, not paperwork."],
+    "funding_1_title": "Sample Loan Offer",
+    "funding_1_desc": "Based on 3 months of consistent data, a business like yours could be eligible for up to <span class='font-bold text-xl'>₦250,000</span>.",
+    "funding_2_title": "Your Financial Health Score",
+    "funding_2_desc": "Your score is <span class='font-bold'>Strong</span>. Keep recording transactions to improve your eligibility for larger loans.",
+    "investor_title": "A Marketplace for Capital.<br/><span class='text-muted-foreground'>Invest in Africa's Growth Engine.</span>",
+    "investor_subtitle": "Discover and fund the next generation of small businesses, backed by real-time, trusted data from Busmo. We turn business activity into verifiable investment signals.",
+    "investor_features": ["Explore data-verified opportunities.", "Reduce risk with transparent business signals.", "Invest in profit-sharing or equity-based deals."],
+    "investor_cta": "Explore Investments",
+    "why_title": "A Different Kind of Business Tool",
+    "why_subtitle": "Busmo isn't accounting software. It's a decision-making tool built for the reality of your business.",
+    "why_old_way": "The Old Way: Accounting Tools",
+    "why_old_1_title": "Complex & Overwhelming",
+    "why_old_1_desc": "Endless fields, confusing charts, and features you'll never use.",
+    "why_old_2_title": "Built for Accountants",
+    "why_old_2_desc": "They speak in jargon like \"debits\" and \"credits,\" not \"profit\" and \"loss.\"",
+    "why_old_3_title": "Focused on Reports",
+    "why_old_3_desc": "They give you long reports to dig through instead of immediate answers.",
+    "why_busmo_way": "The Busmo Way: Clarity Tool",
+    "why_busmo_1_title": "Simple & Focused",
+    "why_busmo_1_desc": "Record a sale in seconds. See your profit instantly. That's it.",
+    "why_busmo_2_title": "Built for Owners",
+    "why_busmo_2_desc": "We speak your language. Ask \"Did I make money?\" and get a straight answer.",
+    "why_busmo_3_title": "Focused on Answers",
+    "why_busmo_3_desc": "Your most important insights are always one tap—or one question—away.",
+    "who_title": "Who is Busmo for?",
+    "who_subtitle": "If you sell products and want to know your numbers without the headache, Busmo is for you.",
+    "who_1": "Retail Shops",
+    "who_2": "Food & Drink Stalls",
+    "who_3": "Grocers & Supermarkets",
+    "who_4": "Small Manufacturers",
+    "faq_title": "Frequently Asked Questions",
+    "faq_1_q": "Is Busmo another accounting app?",
+    "faq_1_a": "No. Busmo is designed for business clarity, not complex accounting. We focus on the key metrics you need to make decisions—daily profit, cash flow, and inventory—without the confusing jargon or features built for accountants.",
+    "faq_2_q": "Can I use Busmo if I work offline?",
+    "faq_2_a": "Yes. Busmo is designed to be offline-first. You can record sales, track expenses, and manage inventory even without an internet connection. Your data will sync automatically and securely once you're back online.",
+    "faq_3_q": "Is my business data safe?",
+    "faq_3_a": "Absolutely. We use industry-standard encryption and security protocols to protect your data. Your business information is yours alone, and we are committed to keeping it safe, secure, and private.",
+    "faq_4_q": "What if I sell services, not products?",
+    "faq_4_a": "While Busmo is optimized for product-based businesses with inventory, you can absolutely use it to track all your income (sales) and expenses to understand your profitability. The inventory-specific features can simply be ignored.",
+    "final_cta_title": "The Future of Your Business Starts With Clarity.",
+    "final_cta_subtitle": "You don’t need more sales. You need better visibility. Join smart business owners in Africa who are building their future with Busmo."
   },
   "pricing": {
     "title": "Find the perfect plan for your business",
@@ -20,50 +116,50 @@
     "monthly": "Monthly",
     "yearly": "Yearly",
     "save_prefix": "SAVE",
-    "save_suffix": "",
+    "save_suffix": " 17%",
     "shop_name": "Shop",
     "shop_desc": "For small retailers",
     "shop_features": [
-        "Record Sales, Expenses & Inventory",
-        "Basic AI Insights",
-        "Sell on Busmo Market"
+      "Record Sales, Expenses & Inventory",
+      "Basic AI Insights",
+      "Sell on Busmo Market"
     ],
     "shop_not_included": [
-        "Manage Staff",
-        "Advanced Forecasting",
-        "Multiple Branches",
-        "Production Tracking",
-        "Access to Equity Investment"
+      "Manage Staff",
+      "Advanced Forecasting",
+      "Multiple Branches",
+      "Production Tracking",
+      "Access to Equity Investment"
     ],
     "supermarket_name": "Supermarket",
     "supermarket_desc": "For larger stores & growing businesses",
     "supermarket_features": [
-        "Everything in Shop",
-        "Up to 5 Staff Members",
-        "Advanced Forecasting"
+      "Everything in Shop",
+      "Up to 5 Staff Members",
+      "Advanced Forecasting"
     ],
     "supermarket_not_included": [
-        "Multiple Branches",
-        "Production Tracking",
-        "Access to Equity Investment"
+      "Multiple Branches",
+      "Production Tracking",
+      "Access to Equity Investment"
     ],
     "multibranch_name": "Multiple Branches",
     "multibranch_desc": "For chains & franchises",
     "multibranch_features": [
-        "Everything in Supermarket",
-        "Unlimited Staff Members",
-        "Manage Multiple Branches"
+      "Everything in Supermarket",
+      "Unlimited Staff Members",
+      "Manage Multiple Branches"
     ],
     "multibranch_not_included": [
-        "Production Tracking",
-        "Access to Equity Investment"
+      "Production Tracking",
+      "Access to Equity Investment"
     ],
     "company_name": "Company",
     "company_desc": "For manufacturers & corporations",
     "company_features": [
-        "Everything in Multiple Branches",
-        "Production Tracking (Cost of Goods)",
-        "Access to Equity Investment"
+      "Everything in Multiple Branches",
+      "Production Tracking (Cost of Goods)",
+      "Access to Equity Investment"
     ],
     "company_not_included": [],
     "start_trial": "Start Trial",
@@ -71,9 +167,5 @@
     "custom_needs": "Custom Needs?",
     "custom_desc": "For custom integrations and dedicated support, contact our sales team.",
     "contact_sales": "Contact Sales"
-  },
-  "investor_layout": {
-    "footer_privacy": "Privacy",
-    "footer_terms": "Terms"
   }
 }
