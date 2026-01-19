@@ -82,7 +82,7 @@ export function InvestorMockup() {
             });
         }
         
-        const moveCursorTo = (elementKey: string, duration = 700) => {
+        const moveCursorTo = (elementKey: string, duration = 1000) => {
             return new Promise(resolve => {
                  const element = elementsRef.current[elementKey];
                  if (!element || !container) return resolve(false);
@@ -96,7 +96,7 @@ export function InvestorMockup() {
             });
         }
 
-        const click = (duration = 200) => {
+        const click = (duration = 400) => {
              return new Promise(resolve => {
                 setIsClicking(true);
                 timeouts.push(setTimeout(() => {
@@ -114,7 +114,7 @@ export function InvestorMockup() {
                     if (newPersona) setPersona(newPersona);
                     setIsTransitioning(false);
                     resolve(true);
-                }, 400));
+                }, 600));
             });
         }
         
@@ -125,11 +125,13 @@ export function InvestorMockup() {
             
             // 2. Click to view profile
             await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_profile');
 
             // 3. Commit to invest
             await moveCursorTo('commitBtn');
             await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_commit_dialog');
 
             // 4. Submit intent
@@ -137,6 +139,7 @@ export function InvestorMockup() {
             await click();
             
             // 5. Switch to owner view
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('owner_dashboard', 'owner');
             
             // 6. Owner accepts
@@ -144,11 +147,13 @@ export function InvestorMockup() {
             await click();
 
             // 7. Switch to investor dashboard (pending)
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_dashboard_pending', 'investor');
             
             // 8. Investor funds
             await moveCursorTo('fundBtn');
             await click();
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_fund_dialog');
             
             // 9. Investor confirms funding
@@ -156,13 +161,14 @@ export function InvestorMockup() {
             await click();
 
             // 10. Show active investment
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_dashboard_active');
 
             // 11. Reset
-            timeouts.push(setTimeout(animationSequence, 3000));
+            timeouts.push(setTimeout(animationSequence, 5000));
         };
 
-        timeouts.push(setTimeout(animationSequence, 2000));
+        timeouts.push(setTimeout(animationSequence, 3000));
         return clearTimeouts;
 
     }, []);
