@@ -27,9 +27,14 @@
           "description": "Currency used by the business (e.g., ₦ / CFA)."
         },
         "plan": {
-            "type": "string",
-            "description": "The subscription plan for the business.",
-            "enum": ["shop", "supermarket", "multi-branch", "company"]
+          "type": "string",
+          "description": "The subscription plan for the business.",
+          "enum": [
+            "shop",
+            "supermarket",
+            "multi-branch",
+            "company"
+          ]
         },
         "isListedOnMarket": {
           "type": "boolean",
@@ -80,6 +85,25 @@
               }
             }
           }
+        },
+        "investmentOffer_type": {
+          "type": "string",
+          "enum": ["profit-sharing", "equity"]
+        },
+        "investmentOffer_ask": {
+          "type": "number"
+        },
+        "investmentOffer_profitShare": {
+          "type": "number"
+        },
+        "investmentOffer_duration": {
+          "type": "number"
+        },
+        "investmentOffer_equity": {
+          "type": "number"
+        },
+        "investmentOffer_valuation": {
+          "type": "number"
         }
       },
       "required": [
@@ -102,12 +126,12 @@
           "description": "Unique identifier for the user entity (matches Firebase Auth UID)."
         },
         "displayName": {
-            "type": "string",
-            "description": "User's full name."
+          "type": "string",
+          "description": "User's full name."
         },
         "email": {
-            "type": "string",
-            "description": "User's email address (used for login by investors)."
+          "type": "string",
+          "description": "User's email address (used for login by investors)."
         },
         "phoneNumber": {
           "type": "string",
@@ -350,14 +374,17 @@
           "type": "string"
         },
         "businessName": {
-            "type": "string"
+          "type": "string"
         },
         "investorName": {
-            "type": "string"
+          "type": "string"
         },
         "type": {
           "type": "string",
-          "enum": ["profit-sharing", "equity"]
+          "enum": [
+            "profit-sharing",
+            "equity"
+          ]
         },
         "amount": {
           "type": "number",
@@ -411,6 +438,49 @@
         "terms",
         "status",
         "createdAt"
+      ]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "description": "Represents a financial transaction that is not a direct sale, such as an expense, deposit, or withdrawal.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "businessId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "expense",
+            "deposit",
+            "withdrawal"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category for expenses (e.g., rent, utilities)."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "type",
+        "amount",
+        "timestamp"
       ]
     }
   },
@@ -501,10 +571,18 @@
             }
           ]
         }
+      },
+      {
+        "path": "/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores non-sale financial transactions like expenses, deposits, and withdrawals. Includes `businessId` for authorization independence."
+        }
       }
     ],
     "reasoning": "The Firestore structure is designed to support the BizAssistant app's core features, focusing on simplicity, security, and scalability, especially considering the constraints of the target user base (African small businesses with potentially low digital literacy, old Android phones, and unstable internet).  The structure prioritizes Authorization Independence, enabling robust security rules without relying on complex hierarchical data access.\n\n**Authorization Independence (Denormalization):**\nThe structure heavily utilizes denormalization to achieve Authorization Independence.  Specifically, the `businessId` is included in every document within collections related to a business (e.g., Users, Products, Sales). This allows security rules to validate that a user or a piece of data belongs to a specific business without needing to perform expensive and potentially insecure `get()` operations to traverse the data hierarchy.\n\n**Structural Segregation:**\nThe data is segregated into collections based on entity type, ensuring a homogeneous security posture within each collection.  User data is stored under the root collection `users`, nested under the document corresponding to the user's `uid`. This structure simplifies security rules, ensuring that all documents within a collection share the same access control requirements.\n\n**Access Modeling:**\n*   **Private Data:** User-specific data (e.g., user profiles) will be stored under `/users/{userId}`.\n*   **Business-Owned Data:** Data related to a specific business (Users, Products, Sales) are stored in root-level collections that contain the `businessId` field (e.g., `/users`, `/products`, `/sales`).\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By including `businessId` in all business-related entities, rules can efficiently filter data based on the user's associated business, enabling secure listing of resources.  Path-based ownership for user profiles (`/users/{userId}`) enables secure access to individual user documents.\n\n**Invariants:**\nThe `businessId` field across related collections ensures the integrity of ownership. Timestamps within sales records maintain the correct recording of sale events. The `role` field within user profiles supports differentiation for staff permission (e.g., `canRecordSales`, `canSeeReports`)."
   }
 }
-
-    

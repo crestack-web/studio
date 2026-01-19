@@ -217,5 +217,14 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+
+    /**
+     * @description Manages non-sale financial transactions like expenses, deposits, and withdrawals.
+     * @path /transactions/{transactionId}
+     */
+    match /transactions/{transactionId} {
+      allow get, list, update, delete: if isOwnerOfBusiness(resource.data.businessId);
+      allow create: if isOwnerOfBusiness(request.resource.data.businessId);
+    }
   }
 }
