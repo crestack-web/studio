@@ -33,7 +33,7 @@ service cloud.firestore {
     /**
      * --- Identity & Global ---
      */
-    // Checks if a user is authenticated.
+    // Checks if a user is authenticated. Does NOT check for email verification.
     function isSignedIn() {
       return request.auth != null;
     }
@@ -96,9 +96,9 @@ service cloud.firestore {
     /**
      * --- Investment Helpers ---
      */
-    // Checks if the signed-in user is the investor for a specific investment document.
-    function isInvestorOfDoc(investmentId) {
-      return isSignedIn() && get(/databases/$(database)/documents/investments/$(investmentId)).data.investorId == request.auth.uid;
+    // Checks if the signed-in user is the investor for the investment document being read/updated.
+    function isInvestorOfDoc() {
+      return isSignedIn() && resource.data.investorId == request.auth.uid;
     }
 
     /**
@@ -150,7 +150,7 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isMemberOfBusiness(businessId));
       allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid && newDocHasMatchingId(businessId);
-      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid && idIsImmutable();
+      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid && idIsImmutable() && businessIdIsImmutable();
       allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
     }
 
@@ -194,7 +194,7 @@ service cloud.firestore {
                     && (request.resource.data.status == 'pending-acceptance' || request.resource.data.status == 'intent-draft');
 
       allow get: if isSignedIn()
-                 && (isInvestorOfDoc(investmentId) || isOwnerOfBusiness(resource.data.businessId));
+                 && (isInvestorOfDoc() || isOwnerOfBusiness(resource.data.businessId));
 
       allow update: if isSignedIn() && (
                       // Owner can accept or reject an offer.
@@ -203,12 +203,12 @@ service cloud.firestore {
                         (request.resource.data.status == 'pending-funding' || request.resource.data.status == 'rejected')) ||
 
                       // Investor can cancel their own offer before it's accepted.
-                      (isInvestorOfDoc(investmentId) &&
+                      (isInvestorOfDoc() &&
                         resource.data.status == 'pending-acceptance' &&
                         request.resource.data.status == 'cancelled') ||
 
                       // Once accepted, Investor can confirm they have sent the funds.
-                      (isInvestorOfDoc(investmentId) &&
+                      (isInvestorOfDoc() &&
                         resource.data.status == 'pending-funding' &&
                         request.resource.data.status == 'active')
                     );
