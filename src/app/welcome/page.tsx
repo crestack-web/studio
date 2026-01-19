@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Package, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, Package, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef } from 'react';
@@ -16,7 +16,8 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 
 const testimonialsData = [
@@ -62,7 +63,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
-          <nav className="flex items-center gap-4">
+          <nav className="hidden md:flex items-center gap-4">
              <Link href="/market" passHref>
               <Button variant="ghost">Market</Button>
             </Link>
@@ -76,6 +77,25 @@ export default function LandingPage() {
               <Button>Join the Waitlist</Button>
             </Link>
           </nav>
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-xs">
+                  <Logo className="h-8 mb-8" />
+                  <nav className="flex flex-col items-start gap-4">
+                      <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Market</Button></Link>
+                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Pricing</Button></Link>
+                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
+                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Join the Waitlist</Button></Link>
+                  </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </header>
 
