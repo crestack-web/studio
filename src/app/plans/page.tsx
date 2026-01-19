@@ -5,9 +5,7 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Check, X } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -18,33 +16,14 @@ const plans = [
         description: 'For small retailers',
         monthlyPrice: 1500,
         yearlyPrice: 15000,
-        features: [
-            'Record Sales, Expenses & Inventory',
-            'Basic AI Insights',
-            'Sell on Busmo Market',
-        ],
-        notIncluded: [
-            'Manage Staff',
-            'Advanced Forecasting',
-            'Multiple Branches',
-        ]
     },
     {
         id: 'supermarket',
         name: 'Supermarket',
-        description: 'For larger stores & growing businesses',
+        description: 'For larger stores',
         monthlyPrice: 10000,
         yearlyPrice: 100000,
         isPopular: true,
-        features: [
-            'Everything in Shop',
-            'Up to 5 Staff Members',
-            'Advanced Forecasting',
-        ],
-        notIncluded: [
-            'Multiple Branches',
-            'Production Tracking',
-        ]
     },
     {
         id: 'multi-branch',
@@ -52,80 +31,46 @@ const plans = [
         description: 'For chains & franchises',
         monthlyPrice: 30000,
         yearlyPrice: 300000,
-        features: [
-            'Everything in Supermarket',
-            'Unlimited Staff Members',
-            'Manage Multiple Branches',
-        ],
-        notIncluded: [
-            'Production Tracking',
-        ]
     },
     {
         id: 'company',
         name: 'Company',
-        description: 'For manufacturers & corporations',
+        description: 'For manufacturers',
         monthlyPrice: 50000,
         yearlyPrice: 500000,
-        features: [
-            'Everything in Multiple Branches',
-            'Production Tracking (Cost of Goods)',
-            'Access to Equity Investment',
-        ],
-        notIncluded: []
     }
 ];
 
-const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], billingCycle: 'monthly' | 'yearly', isSelected: boolean }) => {
+const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0], billingCycle: 'monthly' | 'yearly', isSelected: boolean }) => {
     const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
     
     return (
         <Label 
-            htmlFor={plan.id + '-' + billingCycle} 
+            htmlFor={`${plan.id}-${billingCycle}`}
             className={cn(
-                "block rounded-lg border-2 p-4 cursor-pointer transition-all h-full",
+                "block rounded-lg border-2 p-4 cursor-pointer transition-all h-full flex flex-col justify-between",
                 isSelected ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground/50",
-                plan.isPopular && isSelected && "border-primary",
-                plan.isPopular && !isSelected && "border-gray-300"
+                plan.isPopular && "relative"
             )}
         >
             {plan.isPopular && (
-                <div className="bg-primary text-primary-foreground text-center text-xs font-semibold py-1 mb-4 rounded-md -mx-4 -mt-4 rounded-b-none">
-                    Most Popular
+                <div className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-xs font-semibold py-0.5 px-2 rounded-full">
+                    Popular
                 </div>
             )}
-            <div className="flex items-start justify-between">
-                <div>
-                    <h3 className="font-bold">{plan.name}</h3>
-                    <p className="text-sm text-muted-foreground">{plan.description}</p>
-                </div>
-                 <div className="text-right">
-                    <p className="text-lg font-bold">₦{price.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">/ {billingCycle === 'monthly' ? 'month' : 'year'}</p>
-                </div>
+            <div>
+                <h3 className="font-bold text-lg">{plan.name}</h3>
+                <p className="text-sm text-muted-foreground">{plan.description}</p>
             </div>
-            {billingCycle === 'yearly' && (
-                 <p className="text-xs text-accent font-medium mt-1 text-right">
-                    Save ~17%!
-                </p>
-            )}
-
-            <Separator className="my-4"/>
-
-            <ul className="space-y-2 text-sm">
-                {plan.features.map(feature => (
-                    <li key={feature} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-accent mt-1 shrink-0"/>
-                        <span className="text-muted-foreground">{feature}</span>
-                    </li>
-                ))}
-                {plan.notIncluded && plan.notIncluded.map(feature => (
-                    <li key={feature} className="flex items-start gap-2">
-                        <X className="w-4 h-4 text-muted-foreground/50 mt-1 shrink-0"/>
-                        <span className="text-muted-foreground/50">{feature}</span>
-                    </li>
-                ))}
-            </ul>
+            <div className="mt-4 text-right">
+                <p className="text-2xl font-bold">₦{price.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">/ {billingCycle === 'monthly' ? 'month' : 'year'}</p>
+                 {billingCycle === 'yearly' && (
+                    <p className="text-xs text-accent font-medium mt-1">
+                        Save ~17%!
+                    </p>
+                )}
+            </div>
         </Label>
     )
 }
@@ -143,7 +88,7 @@ export default function PlansPage() {
         </CardHeader>
         <CardContent className="space-y-6">
             <div className="flex justify-center">
-                 <Tabs defaultValue="monthly" onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
+                 <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
                         <TabsTrigger value="monthly" className="px-6 py-1.5">Monthly</TabsTrigger>
                         <TabsTrigger value="yearly" className="px-6 py-1.5 relative">
@@ -154,10 +99,10 @@ export default function PlansPage() {
                 </Tabs>
             </div>
 
-            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4">
                  {plans.map((plan) => (
                     <div key={plan.id}>
-                        <RadioGroupItem value={plan.id} id={plan.id + '-' + billingCycle} className="peer sr-only" />
+                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" />
                         <PlanCard 
                             plan={plan}
                             billingCycle={billingCycle}
@@ -172,18 +117,6 @@ export default function PlansPage() {
               Start Free Trial
             </Button>
           </Link>
-        </CardContent>
-      </Card>
-      <Card className="w-full max-w-4xl mt-6">
-        <CardHeader>
-            <CardTitle className="text-center">Need more power?</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row items-center text-center md:text-left justify-between gap-4">
-            <div >
-                <h3 className="font-semibold">Custom Enterprise Plan</h3>
-                <p className="text-sm text-muted-foreground">For unique requirements, custom integrations, and dedicated support.</p>
-            </div>
-             <Button variant="outline">Contact Sales</Button>
         </CardContent>
       </Card>
     </OnboardingLayout>
