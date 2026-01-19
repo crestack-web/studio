@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "home": "Home",
+    "market": "Market",
+    "investors": "For Investors",
+    "pricing": "Pricing",
+    "login": "Log In",
+    "signup": "Sign Up",
+    "explore": "Explore",
+    "for_businesses": "For Businesses"
+  },
+  "welcome": {
+    "title": "You sell every day. <br /> <span class='text-accent'>Do you know if you're making money?</span>",
+    "subtitle": "Stop guessing with notebooks and calculators. Busmo turns your daily activity into understanding—and understanding into growth.",
+    "cta": "Start Your Free Trial"
+  },
+  "pricing": {
+    "title": "Find the perfect plan for your business",
+    "subtitle": "All plans start with a 30-day free trial. No credit card required. Cancel anytime.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "save_prefix": "SAVE",
+    "save_suffix": "",
+    "shop_name": "Shop",
+    "shop_desc": "For small retailers",
+    "shop_features": [
+        "Record Sales, Expenses & Inventory",
+        "Basic AI Insights",
+        "Sell on Busmo Market"
+    ],
+    "shop_not_included": [
+        "Manage Staff",
+        "Advanced Forecasting",
+        "Multiple Branches",
+        "Production Tracking",
+        "Access to Equity Investment"
+    ],
+    "supermarket_name": "Supermarket",
+    "supermarket_desc": "For larger stores & growing businesses",
+    "supermarket_features": [
+        "Everything in Shop",
+        "Up to 5 Staff Members",
+        "Advanced Forecasting"
+    ],
+    "supermarket_not_included": [
+        "Multiple Branches",
+        "Production Tracking",
+        "Access to Equity Investment"
+    ],
+    "multibranch_name": "Multiple Branches",
+    "multibranch_desc": "For chains & franchises",
+    "multibranch_features": [
+        "Everything in Supermarket",
+        "Unlimited Staff Members",
+        "Manage Multiple Branches"
+    ],
+    "multibranch_not_included": [
+        "Production Tracking",
+        "Access to Equity Investment"
+    ],
+    "company_name": "Company",
+    "company_desc": "For manufacturers & corporations",
+    "company_features": [
+        "Everything in Multiple Branches",
+        "Production Tracking (Cost of Goods)",
+        "Access to Equity Investment"
+    ],
+    "company_not_included": [],
+    "start_trial": "Start Trial",
+    "most_popular": "Most Popular",
+    "custom_needs": "Custom Needs?",
+    "custom_desc": "For custom integrations and dedicated support, contact our sales team.",
+    "contact_sales": "Contact Sales"
+  },
+  "investor_layout": {
+    "footer_privacy": "Privacy",
+    "footer_terms": "Terms"
+  }
+}

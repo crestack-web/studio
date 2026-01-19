@@ -9,10 +9,14 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useLanguage } from '@/context/language-provider';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 const plans = [
     {
         name: 'Shop',
+        id: 'shop',
         description: 'For small retailers',
         monthlyPrice: 1500,
         yearlyPrice: 15000,
@@ -31,6 +35,7 @@ const plans = [
     },
     {
         name: 'Supermarket',
+        id: 'supermarket',
         description: 'For larger stores & growing businesses',
         monthlyPrice: 10000,
         yearlyPrice: 100000,
@@ -48,6 +53,7 @@ const plans = [
     },
     {
         name: 'Multiple Branches',
+        id: 'multibranch',
         description: 'For chains & franchises',
         monthlyPrice: 30000,
         yearlyPrice: 300000,
@@ -63,6 +69,7 @@ const plans = [
     },
     {
         name: 'Company',
+        id: 'company',
         description: 'For manufacturers & corporations',
         monthlyPrice: 50000,
         yearlyPrice: 500000,
@@ -77,6 +84,7 @@ const plans = [
 
 export default function PricingPage() {
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+    const { t } = useLanguage();
 
     useEffect(() => {
         setCurrentYear(new Date().getFullYear());
@@ -88,24 +96,29 @@ export default function PricingPage() {
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
-          <nav className="hidden md:flex items-center gap-4">
+          <nav className="hidden md:flex items-center gap-2">
              <Link href="/welcome" passHref>
-              <Button variant="ghost">Home</Button>
+              <Button variant="ghost">{t('nav.home')}</Button>
             </Link>
              <Link href="/invest" passHref>
-              <Button variant="ghost">For Investors</Button>
+              <Button variant="ghost">{t('nav.investors')}</Button>
             </Link>
             <Link href="/pricing" passHref>
-              <Button variant="ghost">Pricing</Button>
+              <Button variant="ghost">{t('nav.pricing')}</Button>
             </Link>
+            <ThemeToggle />
+            <LanguageSwitcher />
+            <Separator orientation="vertical" className="h-8" />
             <Link href="/login" passHref>
-              <Button variant="ghost">Log In</Button>
+              <Button variant="ghost">{t('nav.login')}</Button>
             </Link>
             <Link href="/signup" passHref>
-              <Button>Sign Up</Button>
+              <Button>{t('nav.signup')}</Button>
             </Link>
           </nav>
-           <div className="md:hidden">
+           <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
+            <LanguageSwitcher />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -116,11 +129,11 @@ export default function PricingPage() {
               <SheetContent side="right" className="w-full max-w-xs">
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
-                      <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Home</Button></Link>
-                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Investors</Button></Link>
-                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Pricing</Button></Link>
-                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
+                      <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
+                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
+                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
+                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
                   </nav>
               </SheetContent>
             </Sheet>
@@ -130,19 +143,19 @@ export default function PricingPage() {
         
         <main className="flex-1 flex flex-col items-center p-4 py-12 sm:py-24">
             <div className="text-center space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline">Find the perfect plan for your business</h1>
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline">{t('pricing.title')}</h1>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                    All plans start with a 30-day free trial. No credit card required. Cancel anytime.
+                    {t('pricing.subtitle')}
                 </p>
             </div>
 
             <Tabs defaultValue="monthly" className="w-full max-w-7xl mx-auto mt-12">
                 <div className="flex justify-center">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
-                        <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
+                        <TabsTrigger value="monthly" className="px-8 py-2">{t('pricing.monthly')}</TabsTrigger>
                         <TabsTrigger value="yearly" className="px-8 py-2 relative">
-                            Yearly
-                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">SAVE 17%</span>
+                            {t('pricing.yearly')}
+                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">{t('pricing.save_prefix')} 17% {t('pricing.save_suffix')}</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -152,26 +165,26 @@ export default function PricingPage() {
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                 {plan.isPopular && (
                                     <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        Most Popular
+                                        {t('pricing.most_popular')}
                                     </div>
                                 )}
                                 <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
+                                    <CardTitle className="font-headline">{t(`pricing.${plan.id}_name`)}</CardTitle>
+                                    <CardDescription>{t(`pricing.${plan.id}_desc`)}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
-                                        <span className="text-muted-foreground">/ month</span>
+                                        <span className="text-muted-foreground">/ {t('pricing.monthly').toLowerCase()}</span>
                                     </div>
                                      <ul className="mt-6 space-y-3 text-sm">
-                                        {plan.features.map(feature => (
+                                        {(t(`pricing.${plan.id}_features`, { returnObjects: true }) as unknown as string[]).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
-                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                        {(t(`pricing.${plan.id}_not_included`, { returnObjects: true }) as unknown as string[]).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
@@ -181,7 +194,7 @@ export default function PricingPage() {
                                 </CardContent>
                                 <CardFooter>
                                     <Link href="/signup" className="w-full">
-                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Start Trial</Button>
+                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>{t('pricing.start_trial')}</Button>
                                     </Link>
                                 </CardFooter>
                             </Card>
@@ -194,29 +207,29 @@ export default function PricingPage() {
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                  {plan.isPopular && (
                                     <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        Most Popular
+                                        {t('pricing.most_popular')}
                                     </div>
                                 )}
                                 <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
+                                    <CardTitle className="font-headline">{t(`pricing.${plan.id}_name`)}</CardTitle>
+                                    <CardDescription>{t(`pricing.${plan.id}_desc`)}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-4xl font-bold">₦{plan.yearlyPrice.toLocaleString()}</span>
-                                        <span className="text-muted-foreground">/ year</span>
+                                        <span className="text-muted-foreground">/ {t('pricing.yearly').toLowerCase()}</span>
                                     </div>
                                     <p className="text-sm text-accent font-medium mt-1">
-                                        Save ~17%!
+                                        {t('pricing.save_prefix')} ~17%!
                                     </p>
                                      <ul className="mt-6 space-y-3 text-sm">
-                                        {plan.features.map(feature => (
+                                        {(t(`pricing.${plan.id}_features`, { returnObjects: true }) as unknown as string[]).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
-                                        {plan.notIncluded && plan.notIncluded.map(feature => (
+                                        {(t(`pricing.${plan.id}_not_included`, { returnObjects: true }) as unknown as string[]).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
@@ -226,7 +239,7 @@ export default function PricingPage() {
                                 </CardContent>
                                 <CardFooter>
                                     <Link href="/signup" className="w-full">
-                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Start Trial</Button>
+                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>{t('pricing.start_trial')}</Button>
                                     </Link>
                                 </CardFooter>
                             </Card>
@@ -234,30 +247,10 @@ export default function PricingPage() {
                     </div>
                 </TabsContent>
             </Tabs>
-
-            <Separator className="my-24" />
-
-            <div className="w-full max-w-5xl mx-auto space-y-12">
-                 <div className="text-center">
-                    <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">For Larger Businesses</h2>
-                    <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Need more? We offer custom plans for enterprise needs.
-                    </p>
-                </div>
-                 <Card className="flex flex-col md:flex-row items-center gap-8 p-8">
-                    <div className="flex-1">
-                        <h3 className="text-2xl font-bold font-headline">Enterprise Plan</h3>
-                        <p className="text-muted-foreground mt-2">A plan tailored to your specific needs. Get everything in our standard plans, plus:</p>
-                        <ul className="mt-6 space-y-3">
-                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Custom Integrations</span></li>
-                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Dedicated Support & Onboarding</span></li>
-                           <li className="flex items-center gap-2"><Check className="w-5 h-5 text-accent"/><span>Volume Discounts</span></li>
-                        </ul>
-                    </div>
-                    <div>
-                         <Button size="lg" className="h-12 text-lg">Contact Sales</Button>
-                    </div>
-                 </Card>
+             <div className="text-center pt-8">
+                 <h3 className="text-lg font-semibold">{t('pricing.custom_needs')}</h3>
+                 <p className="text-muted-foreground">{t('pricing.custom_desc')}</p>
+                 <Button variant="link" className="mt-2">{t('pricing.contact_sales')}</Button>
             </div>
         </main>
       
@@ -269,8 +262,8 @@ export default function PricingPage() {
             &copy; {currentYear} Busmo. business money
           </p>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-            <Link href="#" className="text-sm hover:underline">Privacy</Link>
-             <Link href="#" className="text-sm hover:underline">Terms</Link>
+            <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_privacy')}</Link>
+             <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_terms')}</Link>
           </div>
         </div>
       </footer>

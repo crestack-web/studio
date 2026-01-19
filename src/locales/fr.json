@@ -1,0 +1,79 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "market": "Marché",
+    "investors": "Pour les investisseurs",
+    "pricing": "Tarifs",
+    "login": "Connexion",
+    "signup": "S'inscrire",
+    "explore": "Explorer",
+    "for_businesses": "Pour les entreprises"
+  },
+  "welcome": {
+    "title": "Vous vendez tous les jours. <br /> <span class='text-accent'>Savez-vous si vous gagnez de l'argent?</span>",
+    "subtitle": "Arrêtez de deviner avec des cahiers et des calculatrices. Busmo transforme votre activité quotidienne en compréhension et la compréhension en croissance.",
+    "cta": "Commencez votre essai gratuit"
+  },
+  "pricing": {
+    "title": "Trouvez le plan parfait pour votre entreprise",
+    "subtitle": "Tous les plans commencent par un essai gratuit de 30 jours. Aucune carte de crédit requise. Annulez à tout moment.",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "save_prefix": "ÉCONOMISEZ",
+    "save_suffix": "",
+    "shop_name": "Boutique",
+    "shop_desc": "Pour les petits détaillants",
+    "shop_features": [
+        "Enregistrer les ventes, les dépenses et l'inventaire",
+        "Aperçus IA de base",
+        "Vendre sur le marché Busmo"
+    ],
+    "shop_not_included": [
+        "Gérer le personnel",
+        "Prévisions avancées",
+        "Plusieurs succursales",
+        "Suivi de production",
+        "Accès à l'investissement en capital"
+    ],
+    "supermarket_name": "Supermarché",
+    "supermarket_desc": "Pour les grands magasins et les entreprises en croissance",
+    "supermarket_features": [
+        "Tout dans la boutique",
+        "Jusqu'à 5 membres du personnel",
+        "Prévisions avancées"
+    ],
+    "supermarket_not_included": [
+        "Plusieurs succursales",
+        "Suivi de production",
+        "Accès à l'investissement en capital"
+    ],
+    "multibranch_name": "Plusieurs succursales",
+    "multibranch_desc": "Pour les chaînes et franchises",
+    "multibranch_features": [
+        "Tout dans Supermarché",
+        "Membres du personnel illimités",
+        "Gérer plusieurs succursales"
+    ],
+    "multibranch_not_included": [
+        "Suivi de production",
+        "Accès à l'investissement en capital"
+    ],
+    "company_name": "Compagnie",
+    "company_desc": "Pour les fabricants et les entreprises",
+    "company_features": [
+        "Tout dans Plusieurs succursales",
+        "Suivi de production (coût des marchandises)",
+        "Accès à l'investissement en capital"
+    ],
+    "company_not_included": [],
+    "start_trial": "Commencer l'essai",
+    "most_popular": "Le plus populaire",
+    "custom_needs": "Besoins personnalisés?",
+    "custom_desc": "Pour des intégrations personnalisées et un support dédié, contactez notre équipe commerciale.",
+    "contact_sales": "Contacter les ventes"
+  },
+  "investor_layout": {
+    "footer_privacy": "Confidentialité",
+    "footer_terms": "Conditions"
+  }
+}

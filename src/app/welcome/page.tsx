@@ -19,6 +19,10 @@ import {
 } from "@/components/ui/accordion";
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { InvestorMockup } from '@/components/app/investor-mockup';
+import { useLanguage } from '@/context/language-provider';
+import { ThemeToggle } from '@/components/app/theme-toggle';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
+import { Separator } from '@/components/ui/separator';
 
 
 const testimonialsData = [
@@ -47,6 +51,7 @@ const testimonialsData = [
 export default function LandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+  const { t } = useLanguage();
 
   useEffect(() => {
     const loadedTestimonials = testimonialsData.map(t => {
@@ -64,27 +69,20 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo className="h-8" />
-          <nav className="hidden md:flex items-center gap-4">
-             <Link href="/welcome" passHref>
-              <Button variant="ghost">Home</Button>
-            </Link>
-             <Link href="/market" passHref>
-              <Button variant="ghost">Market</Button>
-            </Link>
-             <Link href="/invest" passHref>
-              <Button variant="ghost">For Investors</Button>
-            </Link>
-            <Link href="/pricing" passHref>
-              <Button variant="ghost">Pricing</Button>
-            </Link>
-            <Link href="/login" passHref>
-              <Button variant="ghost">Log In</Button>
-            </Link>
-            <Link href="/signup" passHref>
-              <Button>Sign Up</Button>
-            </Link>
+          <nav className="hidden md:flex items-center gap-2">
+            <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
+            <Link href="/market" passHref><Button variant="ghost">{t('nav.market')}</Button></Link>
+            <Link href="/invest" passHref><Button variant="ghost">{t('nav.investors')}</Button></Link>
+            <Link href="/pricing" passHref><Button variant="ghost">{t('nav.pricing')}</Button></Link>
+            <ThemeToggle />
+            <LanguageSwitcher />
+            <Separator orientation="vertical" className="h-8" />
+            <Link href="/login" passHref><Button variant="ghost">{t('nav.login')}</Button></Link>
+            <Link href="/signup" passHref><Button>{t('nav.signup')}</Button></Link>
           </nav>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
+            <LanguageSwitcher />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -95,12 +93,12 @@ export default function LandingPage() {
               <SheetContent side="right" className="w-full max-w-xs">
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
-                      <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Home</Button></Link>
-                      <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Market</Button></Link>
-                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Investors</Button></Link>
-                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Pricing</Button></Link>
-                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
+                      <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                      <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
+                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
+                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
+                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
+                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
                   </nav>
               </SheetContent>
             </Sheet>
@@ -120,17 +118,16 @@ export default function LandingPage() {
             <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600"></div>
           </div>
           <div className="container mx-auto px-4 text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl font-headline">
-              You sell every day. <br />
-              <span className="text-accent">Do you know if you're making money?</span>
-            </h1>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl font-headline"
+                dangerouslySetInnerHTML={{ __html: t('welcome.title') }}
+            />
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              Stop guessing with notebooks and calculators. Busmo turns your daily activity into understanding—and understanding into growth.
+              {t('welcome.subtitle')}
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" className="h-14 text-lg px-8">
-                  Start Your Free Trial
+                  {t('welcome.cta')}
                 </Button>
               </Link>
             </div>
@@ -625,7 +622,7 @@ export default function LandingPage() {
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link href="/signup" passHref>
                 <Button size="lg" variant="secondary" className="h-14 text-lg px-8">
-                  Start Your Free Trial
+                  {t('welcome.cta')}
                 </Button>
               </Link>
             </div>
@@ -641,8 +638,8 @@ export default function LandingPage() {
             &copy; {currentYear} Busmo. business money
           </p>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-            <Link href="#" className="text-sm hover:underline">Privacy</Link>
-             <Link href="#" className="text-sm hover:underline">Terms</Link>
+            <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_privacy')}</Link>
+             <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_terms')}</Link>
           </div>
         </div>
       </footer>

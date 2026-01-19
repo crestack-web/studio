@@ -6,9 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { LanguageSwitcher } from './language-switcher';
+import { ThemeToggle } from './theme-toggle';
+import { Separator } from '../ui/separator';
+import { useLanguage } from '@/context/language-provider';
 
 export default function InvestorLayout({ children }: { children: React.ReactNode }) {
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+    const { t } = useLanguage();
 
     useEffect(() => {
         setCurrentYear(new Date().getFullYear());
@@ -20,14 +25,19 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
             <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm border-b">
                 <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <Link href="/welcome"><Logo className="h-8" /></Link>
-                    <nav className="hidden md:flex items-center gap-4">
-                        <Link href="/welcome" passHref><Button variant="ghost">Home</Button></Link>
-                        <Link href="/invest" passHref><Button variant="ghost">Explore</Button></Link>
-                        <Link href="/pricing" passHref><Button variant="ghost">For Businesses</Button></Link>
-                        <Link href="/investor/login" passHref><Button variant="ghost">Log In</Button></Link>
-                        <Link href="/investor/signup" passHref><Button>Sign Up</Button></Link>
+                    <nav className="hidden md:flex items-center gap-2">
+                        <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
+                        <Link href="/invest" passHref><Button variant="ghost">{t('nav.explore')}</Button></Link>
+                        <Link href="/pricing" passHref><Button variant="ghost">{t('nav.for_businesses')}</Button></Link>
+                        <ThemeToggle />
+                        <LanguageSwitcher />
+                        <Separator orientation='vertical' className='h-8' />
+                        <Link href="/investor/login" passHref><Button variant="ghost">{t('nav.login')}</Button></Link>
+                        <Link href="/investor/signup" passHref><Button>{t('nav.signup')}</Button></Link>
                     </nav>
-                    <div className="md:hidden">
+                    <div className="md:hidden flex items-center gap-2">
+                        <ThemeToggle />
+                        <LanguageSwitcher />
                         <Sheet>
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -38,11 +48,11 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                             <SheetContent side="right" className="w-full max-w-xs">
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col items-start gap-4">
-                                    <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Home</Button></Link>
-                                    <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Explore</Button></Link>
-                                    <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Businesses</Button></Link>
-                                    <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
-                                    <Link href="/investor/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">Sign Up</Button></Link>
+                                    <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                                    <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.explore')}</Button></Link>
+                                    <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.for_businesses')}</Button></Link>
+                                    <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
+                                    <Link href="/investor/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
                                 </nav>
                             </SheetContent>
                         </Sheet>
@@ -63,8 +73,8 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                         &copy; {currentYear} Busmo. business money
                     </p>
                     <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-                        <Link href="#" className="text-sm hover:underline">Privacy</Link>
-                        <Link href="#" className="text-sm hover:underline">Terms</Link>
+                        <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_privacy')}</Link>
+                        <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_terms')}</Link>
                     </div>
                 </div>
             </footer>
