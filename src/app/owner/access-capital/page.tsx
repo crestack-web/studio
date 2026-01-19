@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,6 +12,10 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 // Interfaces for Firestore data
 interface AppUser {
@@ -22,7 +26,16 @@ interface Business {
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
 
-const mockOffers = [
+type Offer = {
+    id: string;
+    investorName: string;
+    investorInitials: string;
+    amount: number;
+    type: string;
+    terms: string;
+};
+
+const mockOffers: Offer[] = [
     {
         id: 'offer1',
         investorName: 'Tunde Oladipo',
@@ -37,6 +50,10 @@ export default function AccessCapitalPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user: authUser } = useUser();
+    
+    const [offerToAccept, setOfferToAccept] = useState<Offer | null>(null);
+    const [offerToReject, setOfferToReject] = useState<Offer | null>(null);
+    const [rejectionReason, setRejectionReason] = useState('');
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -53,13 +70,26 @@ export default function AccessCapitalPage() {
     
     const canAccessEquity = businessData?.plan === 'company';
 
-    const handleOfferResponse = (response: 'accepted' | 'rejected', investorName: string) => {
+    const handleAccept = () => {
+        if (!offerToAccept) return;
         toast({
-            title: `Offer ${response}`,
-            description: `You have ${response} the investment offer from ${investorName}.`,
-        })
-        // In a real app, we would update the offer status in Firestore here.
-    }
+            title: `Offer Accepted!`,
+            description: `You have accepted the investment offer from ${offerToAccept.investorName}.`,
+        });
+        // In a real app, update Firestore status to 'pending-funding'
+        setOfferToAccept(null);
+    };
+
+    const handleReject = () => {
+        if (!offerToReject) return;
+        toast({
+            title: `Offer Rejected`,
+            description: `You have rejected the investment offer from ${offerToReject.investorName}.`,
+        });
+        // In a real app, update Firestore status to 'rejected' with the reason
+        setOfferToReject(null);
+        setRejectionReason('');
+    };
 
 
     return (
@@ -140,8 +170,8 @@ export default function AccessCapitalPage() {
                                         <TableCell>₦{offer.amount.toLocaleString()}</TableCell>
                                         <TableCell>{offer.terms}</TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button size="sm" onClick={() => handleOfferResponse('accepted', offer.investorName)}>Accept</Button>
-                                            <Button size="sm" variant="destructive" onClick={() => handleOfferResponse('rejected', offer.investorName)}>Reject</Button>
+                                            <Button size="sm" onClick={() => setOfferToAccept(offer)}>Accept</Button>
+                                            <Button size="sm" variant="outline" onClick={() => setOfferToReject(offer)}>Reject</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -219,6 +249,58 @@ export default function AccessCapitalPage() {
                     </Link>
                 </div>
             </div>
+
+            {/* Dialogs */}
+             <Dialog open={!!offerToAccept} onOpenChange={(isOpen) => !isOpen && setOfferToAccept(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Accept Investment Offer?</DialogTitle>
+                         <DialogDescription>
+                            Review the next steps before confirming your acceptance.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Alert variant="default" className="bg-primary/5 border-primary/20">
+                        <ShieldCheck className="h-4 w-4 !text-primary" />
+                        <AlertTitle className="text-primary font-semibold">What Happens Next?</AlertTitle>
+                        <AlertDescription>
+                            <ol className="list-decimal list-inside space-y-1 mt-2">
+                                <li>The investor will be notified of your acceptance.</li>
+                                <li>They will be instructed to fund the investment.</li>
+                                <li>Once funded, the investment will become 'Active' in your dashboard and performance tracking will begin.</li>
+                            </ol>
+                        </AlertDescription>
+                    </Alert>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOfferToAccept(null)}>Cancel</Button>
+                        <Button onClick={handleAccept}>Confirm Acceptance</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!offerToReject} onOpenChange={(isOpen) => !isOpen && setOfferToReject(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Reject Investment Offer?</DialogTitle>
+                        <DialogDescription>
+                            This will permanently reject the offer from {offerToReject?.investorName}. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-2">
+                        <Label htmlFor="rejection-reason">Reason for Rejection (Optional)</Label>
+                        <Textarea 
+                            id="rejection-reason"
+                            placeholder="e.g., The terms are not favorable, we are pursuing other funding options."
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                        />
+                         <p className="text-xs text-muted-foreground">Providing a reason helps us improve future capital matches.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOfferToReject(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleReject}>Reject Offer</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }
