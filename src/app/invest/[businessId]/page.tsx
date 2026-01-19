@@ -1,35 +1,131 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import InvestorLayout from '@/components/app/investor-layout';
-import { BarChart, Percent, TrendingUp, ShieldCheck, Calendar, Zap, Package, Banknote } from 'lucide-react';
+import { BarChart, Percent, TrendingUp, ShieldCheck, Package, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
-const mockBusinessProfile = {
-  id: 'biz1',
-  name: 'Aisha\'s Crafts',
-  description: 'Beautifully handcrafted leather goods and accessories, made with love in Lagos.',
-  industry: 'Fashion & Apparel',
-  location: 'Lagos, Nigeria',
-  data: {
-    revenueRange: '₦1.2M - ₦1.8M (Annual)',
-    revenueTrend: 'up', // 'up', 'down', 'stable'
-    grossMargin: '45% - 55%',
-    cashFlow: 'Stable & Consistent',
-    inventoryHealth: 'Excellent',
-    readinessScore: 85,
-    forecast: 'Projected to grow 20% in the next quarter based on sales velocity.',
-  },
-  investmentOffer: {
-    type: 'Profit Sharing',
-    ask: '₦500,000 Investment',
-    offer: '15% Profit Share',
-    duration: '18 Month Term',
-  },
-};
+interface ProfitSharingOffer {
+    type: 'Profit Sharing';
+    ask: string;
+    offer: string;
+    duration: string;
+}
+
+interface EquityOffer {
+    type: 'Equity';
+    ask: string;
+    offer: string;
+    valuation: string;
+}
+
+type InvestmentOffer = ProfitSharingOffer | EquityOffer;
+
+interface BusinessProfile {
+    id: string;
+    name: string;
+    description: string;
+    industry: string;
+    location: string;
+    data: {
+        revenueRange: string;
+        grossMargin: string;
+        cashFlow: string;
+        inventoryHealth: string;
+        readinessScore: number;
+        forecast: string;
+    };
+    investmentOffer: InvestmentOffer;
+}
+
+const mockBusinesses: BusinessProfile[] = [
+    {
+      id: 'biz1',
+      name: 'Aisha\'s Crafts',
+      description: 'Beautifully handcrafted leather goods and accessories, made with love in Lagos.',
+      industry: 'Fashion & Apparel',
+      location: 'Lagos, Nigeria',
+      data: {
+        revenueRange: '₦1.2M - ₦1.8M (Annual)',
+        grossMargin: '45% - 55%',
+        cashFlow: 'Stable & Consistent',
+        inventoryHealth: 'Excellent',
+        readinessScore: 85,
+        forecast: 'Projected to grow 20% in the next quarter based on sales velocity.',
+      },
+      investmentOffer: {
+        type: 'Profit Sharing',
+        ask: '₦500,000 Investment',
+        offer: '15% Profit Share',
+        duration: '18 Month Term',
+      },
+    },
+    {
+      id: 'biz2',
+      name: 'Femi\'s Farm',
+      description: 'Fresh, organic produce delivered directly from our farm. Supporting sustainable agriculture in Ibadan.',
+      industry: 'Agriculture',
+      location: 'Ibadan, Nigeria',
+      data: {
+        revenueRange: '₦800K - ₦1.5M (Annual)',
+        grossMargin: '60% - 70%',
+        cashFlow: 'Seasonal but Reliable',
+        inventoryHealth: 'Good',
+        readinessScore: 78,
+        forecast: 'Expecting a 30% increase in yield next harvest season.',
+      },
+      investmentOffer: {
+        type: 'Profit Sharing',
+        ask: '₦300,000 Investment',
+        offer: '20% Profit Share',
+        duration: '12 Month Term',
+      },
+    },
+    {
+      id: 'biz3',
+      name: 'City Electronics Inc.',
+      description: 'A leading distributor of consumer electronics, with a strong retail presence in Abuja and plans for nationwide expansion.',
+      industry: 'Electronics & Retail',
+      location: 'Abuja, Nigeria',
+      data: {
+        revenueRange: '₦25M - ₦40M (Annual)',
+        grossMargin: '15% - 20%',
+        cashFlow: 'Very Strong',
+        inventoryHealth: 'Good',
+        readinessScore: 92,
+        forecast: 'Projecting 40% growth year-over-year with expansion capital.',
+      },
+      investmentOffer: {
+        type: 'Equity',
+        ask: '₦10,000,000 Investment',
+        offer: 'For 12% Equity',
+        valuation: '₦83M Valuation',
+      },
+    },
+    {
+      id: 'biz4',
+      name: 'Mama\'s Kitchen',
+      description: 'Authentic Nigerian cuisine, serving the Kano community for over 10 years. Known for our delicious jollof rice and suya.',
+      industry: 'Food & Beverage',
+      location: 'Kano, Nigeria',
+      data: {
+        revenueRange: '₦3M - ₦5M (Annual)',
+        grossMargin: '35% - 45%',
+        cashFlow: 'Very Consistent',
+        inventoryHealth: 'Excellent',
+        readinessScore: 88,
+        forecast: 'Forecasting steady 15% annual growth.',
+      },
+      investmentOffer: {
+        type: 'Profit Sharing',
+        ask: '₦750,000 Investment',
+        offer: '10% Profit Share',
+        duration: '24 Month Term',
+      },
+    }
+];
 
 const DataPoint = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string }) => (
     <div className="flex items-start gap-4">
@@ -42,8 +138,21 @@ const DataPoint = ({ icon: Icon, label, value }: { icon: React.ElementType, labe
 );
 
 export default function BusinessProfilePage({ params }: { params: { businessId: string } }) {
-    // In a real app, you would fetch the business profile using params.businessId
-    const business = mockBusinessProfile;
+    const business = mockBusinesses.find(b => b.id === params.businessId);
+
+    if (!business) {
+        return (
+            <InvestorLayout>
+                <div className="container mx-auto px-4 py-12 sm:py-16 text-center">
+                    <h1 className="text-4xl font-bold font-headline">Business Not Found</h1>
+                    <p className="text-lg text-muted-foreground mt-2">The requested business profile could not be located.</p>
+                    <Link href="/invest">
+                        <Button className="mt-6">Back to Opportunities</Button>
+                    </Link>
+                </div>
+            </InvestorLayout>
+        );
+    }
 
     return (
         <InvestorLayout>
@@ -132,7 +241,11 @@ export default function BusinessProfilePage({ params }: { params: { businessId: 
                                     <div className="text-center">
                                         <p className="text-sm text-muted-foreground">Offering</p>
                                         <p className="font-semibold text-lg">{business.investmentOffer.offer}</p>
-                                        <p className="text-xs text-muted-foreground">over a {business.investmentOffer.duration}</p>
+                                        {business.investmentOffer.type === 'Profit Sharing' ? (
+                                            <p className="text-xs text-muted-foreground">over a {business.investmentOffer.duration}</p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">at a {business.investmentOffer.valuation}</p>
+                                        )}
                                     </div>
                                 </CardContent>
                                 <div className="p-4 pt-0">
