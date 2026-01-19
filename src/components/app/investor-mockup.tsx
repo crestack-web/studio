@@ -82,7 +82,7 @@ export function InvestorMockup() {
             });
         }
         
-        const moveCursorTo = (elementKey: string, duration = 1000) => {
+        const moveCursorTo = (elementKey: string, duration = 1200) => {
             return new Promise(resolve => {
                  const element = elementsRef.current[elementKey];
                  if (!element || !container) return resolve(false);
@@ -122,42 +122,53 @@ export function InvestorMockup() {
             // 1. Start on investor list
             await animateStep(() => setView('investor_list'));
             await moveCursorTo('opportunityCard');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             
             // 2. Click to view profile
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_profile');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
 
             // 3. Commit to invest
             await moveCursorTo('commitBtn');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_commit_dialog');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
 
             // 4. Submit intent
             await moveCursorTo('submitIntentBtn');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             await click();
             
             // 5. Switch to owner view
-            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1200)));
             await changeView('owner_dashboard', 'owner');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
             
             // 6. Owner accepts
             await moveCursorTo('acceptBtn');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             await click();
 
             // 7. Switch to investor dashboard (pending)
-            await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1200)));
             await changeView('investor_dashboard_pending', 'investor');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
             
             // 8. Investor funds
             await moveCursorTo('fundBtn');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('investor_fund_dialog');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
             
             // 9. Investor confirms funding
             await moveCursorTo('confirmFundBtn');
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 800)));
             await click();
 
             // 10. Show active investment
@@ -168,7 +179,7 @@ export function InvestorMockup() {
             timeouts.push(setTimeout(animationSequence, 5000));
         };
 
-        timeouts.push(setTimeout(animationSequence, 3000));
+        timeouts.push(setTimeout(animationSequence, 2000));
         return clearTimeouts;
 
     }, []);
