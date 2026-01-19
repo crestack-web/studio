@@ -4,41 +4,64 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart, Percent, TrendingUp, Handshake, ChevronRight, MousePointer2 } from 'lucide-react';
+import { ChevronRight, MousePointer2, Handshake, User, ShieldCheck, Briefcase, DollarSign, ArrowUpRight } from 'lucide-react';
 import { Logo } from './logo';
+import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Badge } from '../ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
-const mockOpportunities = [
-  { id: 'biz1', name: 'Aisha\'s Crafts', industry: 'Fashion', location: 'Lagos, NG' },
-  { id: 'biz2', name: 'Femi\'s Farm', industry: 'Agriculture', location: 'Ibadan, NG' },
-];
+type View =
+  | 'investor_list'
+  | 'investor_profile'
+  | 'investor_commit_dialog'
+  | 'owner_dashboard'
+  | 'investor_dashboard_pending'
+  | 'investor_fund_dialog'
+  | 'investor_dashboard_active';
 
-const mockProfile = {
-  id: 'biz1',
-  name: 'Aisha\'s Crafts',
-  industry: 'Fashion & Apparel',
-  data: {
-    readinessScore: 85,
-    revenueRange: '₦1.2M - ₦1.8M',
-    grossMargin: '45% - 55%',
-  },
-  investmentOffer: {
-    ask: '₦500,000',
-    offer: '15% Profit Share',
-  },
-};
+type Persona = 'investor' | 'owner';
+
+const InvestorHeader = () => (
+    <>
+        <span className="text-xs font-medium">For Investors</span>
+        <Button size="xs" variant="ghost">Log In</Button>
+    </>
+);
+
+const OwnerHeader = () => (
+    <>
+        <div className="text-right">
+            <div className="font-semibold text-sm">Aisha's Crafts</div>
+            <div className="text-xs text-muted-foreground">Owner</div>
+        </div>
+        <Avatar className="h-7 w-7">
+            <AvatarFallback>AC</AvatarFallback>
+        </Avatar>
+    </>
+);
+
+const InvestorDashboardHeader = () => (
+    <>
+        <div className="text-right">
+            <div className="font-semibold text-sm">Tunde Oladipo</div>
+            <div className="text-xs text-muted-foreground">Investor</div>
+        </div>
+        <Avatar className="h-7 w-7">
+            <AvatarFallback>TO</AvatarFallback>
+        </Avatar>
+    </>
+);
 
 
 export function InvestorMockup() {
-    const [view, setView] = useState<'list' | 'profile'>('list');
+    const [view, setView] = useState<View>('investor_list');
+    const [persona, setPersona] = useState<Persona>('investor');
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [cursorPosition, setCursorPosition] = useState({ top: -100, left: -100 });
     const [isClicking, setIsClicking] = useState(false);
-    const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const opportunityCardRef = useRef<HTMLDivElement>(null);
-    const scoreRef = useRef<HTMLDivElement>(null);
-    const revenueRef = useRef<HTMLDivElement>(null);
+    const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
 
     useEffect(() => {
         const container = containerRef.current;
@@ -50,80 +73,105 @@ export function InvestorMockup() {
             timeouts = [];
         }
 
-        const animate = () => {
-            const opportunityCard = opportunityCardRef.current;
-            const scoreEl = scoreRef.current;
-            const revenueEl = revenueRef.current;
+        const animateStep = async (step: Function) => {
+            return new Promise(resolve => {
+                timeouts.push(setTimeout(() => {
+                    step();
+                    resolve(true);
+                }, 0));
+            });
+        }
+        
+        const moveCursorTo = (elementKey: string, duration = 700) => {
+            return new Promise(resolve => {
+                 const element = elementsRef.current[elementKey];
+                 if (!element || !container) return resolve(false);
+                 const containerRect = container.getBoundingClientRect();
+                 const elemRect = element.getBoundingClientRect();
+                 setCursorPosition({
+                     top: elemRect.top - containerRect.top + elemRect.height / 2,
+                     left: elemRect.left - containerRect.left + elemRect.width / 2,
+                 });
+                 timeouts.push(setTimeout(resolve, duration));
+            });
+        }
 
-            if (view === 'list' && !opportunityCard) {
-                timeouts.push(setTimeout(animate, 100));
-                return;
-            }
-            
-            if (view === 'profile' && (!scoreEl || !revenueEl)) {
-                // This can happen during the brief period the profile view is rendering
-                timeouts.push(setTimeout(animate, 100));
-                return;
-            }
-            
-            const containerRect = container.getBoundingClientRect();
-            
-            // Step 1: Move cursor to opportunity card
-            const cardRect = opportunityCard!.getBoundingClientRect();
-            let targetTop = cardRect.top - containerRect.top + cardRect.height / 2;
-            let targetLeft = cardRect.left - containerRect.left + cardRect.width / 2;
-
-            setCursorPosition({ top: targetTop, left: targetLeft });
-
-            timeouts.push(setTimeout(() => {
-                // Step 2: Simulate click and transition to profile
+        const click = (duration = 200) => {
+             return new Promise(resolve => {
                 setIsClicking(true);
                 timeouts.push(setTimeout(() => {
-                    setIsTransitioning(true);
-                    setView('profile');
                     setIsClicking(false);
-                    timeouts.push(setTimeout(() => setIsTransitioning(false), 500));
+                    resolve(true);
+                }, duration));
+            });
+        }
 
-                    // Step 3: Hover over metrics on profile view
-                    timeouts.push(setTimeout(() => {
-                         if (!scoreRef.current || !revenueRef.current) return;
-                        const scoreRect = scoreRef.current.getBoundingClientRect();
-                        const revenueRect = revenueRef.current.getBoundingClientRect();
-                        
-                        // Move to score
-                        setCursorPosition({
-                            top: scoreRect.top - containerRect.top + scoreRect.height / 2,
-                            left: scoreRect.left - containerRect.left + scoreRect.width / 2,
-                        });
-                        setHighlightedMetric('score');
+        const changeView = (newView: View, newPersona: Persona | null = null) => {
+             return new Promise(resolve => {
+                setIsTransitioning(true);
+                timeouts.push(setTimeout(() => {
+                    setView(newView);
+                    if (newPersona) setPersona(newPersona);
+                    setIsTransitioning(false);
+                    resolve(true);
+                }, 400));
+            });
+        }
+        
+        const animationSequence = async () => {
+            // 1. Start on investor list
+            await animateStep(() => setView('investor_list'));
+            await moveCursorTo('opportunityCard');
+            
+            // 2. Click to view profile
+            await click();
+            await changeView('investor_profile');
 
-                        // Move to revenue
-                        timeouts.push(setTimeout(() => {
-                            setCursorPosition({
-                                top: revenueRect.top - containerRect.top + revenueRect.height / 2,
-                                left: revenueRect.left - containerRect.left + revenueRect.width / 2,
-                            });
-                             setHighlightedMetric('revenue');
+            // 3. Commit to invest
+            await moveCursorTo('commitBtn');
+            await click();
+            await changeView('investor_commit_dialog');
 
-                            // Step 4: Reset
-                            timeouts.push(setTimeout(() => {
-                                setIsTransitioning(true);
-                                setView('list');
-                                setHighlightedMetric(null);
-                                timeouts.push(setTimeout(() => {
-                                    setIsTransitioning(false);
-                                    timeouts.push(setTimeout(animate, 1000));
-                                }, 500));
-                            }, 3000));
-                        }, 2500));
-                    }, 1000));
-                }, 200));
-            }, 1500));
+            // 4. Submit intent
+            await moveCursorTo('submitIntentBtn');
+            await click();
+            
+            // 5. Switch to owner view
+            await changeView('owner_dashboard', 'owner');
+            
+            // 6. Owner accepts
+            await moveCursorTo('acceptBtn');
+            await click();
+
+            // 7. Switch to investor dashboard (pending)
+            await changeView('investor_dashboard_pending', 'investor');
+            
+            // 8. Investor funds
+            await moveCursorTo('fundBtn');
+            await click();
+            await changeView('investor_fund_dialog');
+            
+            // 9. Investor confirms funding
+            await moveCursorTo('confirmFundBtn');
+            await click();
+
+            // 10. Show active investment
+            await changeView('investor_dashboard_active');
+
+            // 11. Reset
+            timeouts.push(setTimeout(animationSequence, 3000));
         };
 
-        timeouts.push(setTimeout(animate, 2000));
+        timeouts.push(setTimeout(animationSequence, 2000));
         return clearTimeouts;
-    }, [view]);
+
+    }, []);
+
+    const renderHeader = () => {
+        if (view === 'owner_dashboard') return <OwnerHeader />;
+        if (view.startsWith('investor_dashboard')) return <InvestorDashboardHeader />;
+        return <InvestorHeader />;
+    };
 
     return (
         <div ref={containerRef} className="relative w-full h-full bg-background rounded-xl overflow-hidden shadow-2xl border-8 border-foreground/10">
@@ -140,76 +188,153 @@ export function InvestorMockup() {
             <header className="p-3 bg-card/80 border-b flex items-center justify-between">
                 <Logo className="h-6 text-xl" />
                 <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium">For Investors</span>
-                    <Button size="xs" variant="ghost">Log In</Button>
+                   {renderHeader()}
                 </div>
             </header>
 
             {/* Content */}
             <main className="p-4 overflow-hidden bg-muted/20 h-full relative">
-                {/* List View */}
-                 <div className={cn("absolute inset-4 space-y-4 transition-opacity duration-300", view === 'list' && !isTransitioning ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-                    <h2 className="text-lg font-bold font-headline">Profit-Sharing Opportunities</h2>
-                    {mockOpportunities.map((biz, index) => (
-                        <div ref={index === 0 ? opportunityCardRef : null} key={biz.id}>
-                            <Card className="hover:border-primary transition-colors">
-                                <CardHeader className="p-3">
-                                    <CardTitle className="text-base">{biz.name}</CardTitle>
-                                    <CardDescription className="text-xs">{biz.industry} &bull; {biz.location}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="p-3 pt-0 flex items-center justify-end text-xs font-semibold text-primary">
-                                    View Details <ChevronRight className="w-3 h-3 ml-1" />
-                                </CardContent>
+                <div className={cn("absolute inset-4 space-y-4 transition-all duration-300", !isTransitioning ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none')}>
+                    
+                    {/* Investor List */}
+                    {view === 'investor_list' && (
+                        <div>
+                            <h2 className="text-base font-bold font-headline mb-3">Profit-Sharing Opportunities</h2>
+                            <div ref={el => elementsRef.current['opportunityCard'] = el}>
+                                <Card className="hover:border-primary transition-colors">
+                                    <CardHeader className="p-3">
+                                        <CardTitle className="text-sm">Aisha's Crafts</CardTitle>
+                                        <CardDescription className="text-xs">Fashion &bull; Lagos, NG</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-3 pt-0 flex items-center justify-end text-xs font-semibold text-primary">
+                                        View Details <ChevronRight className="w-3 h-3 ml-1" />
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Investor Profile */}
+                    {view === 'investor_profile' && (
+                        <div>
+                             <h1 className="text-base font-bold font-headline">Aisha's Crafts</h1>
+                             <p className="text-xs text-muted-foreground -mt-1 mb-3">Lagos, Nigeria</p>
+                             <div className="grid grid-cols-2 gap-2">
+                                <Card className="text-center"><CardHeader className="p-2 pb-0"><CardTitle className="text-xl">85</CardTitle></CardHeader><CardContent className="p-2 pt-0"><p className="text-xs text-muted-foreground">Readiness</p></CardContent></Card>
+                                <Card className="text-center bg-primary/5 border-primary/20"><CardHeader className="p-2 pb-0"><CardTitle className="text-lg">₦500k</CardTitle></CardHeader><CardContent className="p-2 pt-0"><p className="text-xs text-muted-foreground">Ask</p></CardContent></Card>
+                             </div>
+                             <p className="text-xs text-muted-foreground text-center my-2">Offering 15% Profit Share over 18 Months</p>
+                             <Button ref={el => elementsRef.current['commitBtn'] = el} className="w-full h-9">Commit to Invest</Button>
+                        </div>
+                    )}
+
+                     {/* Investor Commit Dialog */}
+                    {view === 'investor_commit_dialog' && (
+                        <Card className="flex flex-col h-full">
+                            <CardHeader>
+                                <CardTitle className="text-base">Confirm Investment Intent</CardTitle>
+                                <CardDescription className="text-xs">Review the offer before submitting.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 space-y-3">
+                                 <div className="text-xs space-y-1 rounded-md border p-2">
+                                     <h4 className="font-semibold mb-1 text-center">Offer Summary</h4>
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold">₦500,000</span></div>
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Offer</span><span className="font-semibold">15% Profit Share</span></div>
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-semibold">18 Months</span></div>
+                                </div>
+                                <div className="text-xs text-destructive/80 p-2 bg-destructive/5 rounded-md flex items-start gap-2">
+                                    <ShieldCheck className="w-5 h-5 mt-0.5 shrink-0"/>
+                                    <span>Busmo provides data signals but does not guarantee returns. All investments carry risk.</span>
+                                </div>
+                            </CardContent>
+                            <div className="p-4 pt-0">
+                                <Button ref={el => elementsRef.current['submitIntentBtn'] = el} className="w-full h-9">Submit Investment Intent</Button>
+                            </div>
+                        </Card>
+                    )}
+
+                    {/* Owner Dashboard */}
+                    {view === 'owner_dashboard' && (
+                        <div>
+                            <CardHeader className="p-0 mb-2">
+                                <CardTitle className="text-base flex items-center gap-2"><Handshake className="w-4 h-4 text-primary" /> Incoming Investment Offers</CardTitle>
+                            </CardHeader>
+                            <Card>
+                               <Table>
+                                 <TableHeader>
+                                    <TableRow><TableHead className="h-8 text-xs">Investor</TableHead><TableHead className="h-8 text-xs">Terms</TableHead><TableHead className="h-8 text-xs text-right">Actions</TableHead></TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell className="p-2 text-xs font-medium">Tunde Oladipo</TableCell>
+                                        <TableCell className="p-2 text-xs">₦500k for 15%</TableCell>
+                                        <TableCell className="p-2 text-right">
+                                            <Button ref={el => elementsRef.current['acceptBtn'] = el} size="xs" className="h-6">Accept</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                               </Table>
                             </Card>
                         </div>
-                    ))}
-                </div>
+                    )}
 
-                {/* Profile View */}
-                <div className={cn("absolute inset-4 space-y-4 transition-opacity duration-300", view === 'profile' && !isTransitioning ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-                    <h1 className="text-lg font-bold font-headline">{mockProfile.name}</h1>
-                    <p className="text-sm text-muted-foreground -mt-3">{mockProfile.industry}</p>
+                    {/* Investor Dashboard Pending */}
+                    {(view === 'investor_dashboard_pending' || view === 'investor_dashboard_active') && (
+                        <div>
+                             <div className="grid grid-cols-3 gap-2 mb-3">
+                                <Card><CardHeader className="p-2"><CardTitle className="text-xs flex items-center gap-1"><DollarSign className="w-3 h-3"/>Total Invested</CardTitle></CardHeader><CardContent className="p-2 pt-0"><p className="font-bold text-base">₦0</p></CardContent></Card>
+                                <Card><CardHeader className="p-2"><CardTitle className="text-xs flex items-center gap-1"><ArrowUpRight className="w-3 h-3"/>Returns</CardTitle></CardHeader><CardContent className="p-2 pt-0"><p className="font-bold text-base">₦0</p></CardContent></Card>
+                                <Card><CardHeader className="p-2"><CardTitle className="text-xs flex items-center gap-1"><Briefcase className="w-3 h-3"/>Active</CardTitle></CardHeader><CardContent className="p-2 pt-0"><p className="font-bold text-base">0</p></CardContent></Card>
+                            </div>
+                            <CardHeader className="p-0 mb-2"><CardTitle className="text-base">My Portfolio</CardTitle></CardHeader>
+                             <Card>
+                               <Table>
+                                 <TableHeader>
+                                    <TableRow><TableHead className="h-8 text-xs">Business</TableHead><TableHead className="h-8 text-xs">Status</TableHead><TableHead className="h-8 text-xs text-right">Action</TableHead></TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell className="p-2 text-xs font-medium">Aisha's Crafts</TableCell>
+                                        <TableCell className="p-2 text-xs">
+                                             {view === 'investor_dashboard_active' ? (
+                                                <Badge variant="default" className="text-xs">Active</Badge>
+                                             ) : (
+                                                <Badge variant="destructive" className="text-xs">Pending Funding</Badge>
+                                             )}
+                                        </TableCell>
+                                        <TableCell className="p-2 text-right">
+                                            {view === 'investor_dashboard_pending' && (
+                                                <Button ref={el => elementsRef.current['fundBtn'] = el} size="xs" className="h-6">Fund Investment</Button>
+                                            )}
+                                             {view === 'investor_dashboard_active' && (
+                                                <Button size="xs" variant="outline" className="h-6">View</Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                               </Table>
+                            </Card>
+                        </div>
+                    )}
                     
-                    <div className="grid grid-cols-2 gap-3">
-                         <Card ref={scoreRef} className={cn("text-center transition-all duration-300", highlightedMetric === 'score' ? 'border-primary ring-2 ring-primary' : '')}>
-                            <CardHeader className="p-2 pb-0">
-                                <CardTitle className="text-2xl font-bold">{mockProfile.data.readinessScore}</CardTitle>
+                    {/* Investor Fund Dialog */}
+                    {view === 'investor_fund_dialog' && (
+                        <Card className="flex flex-col h-full">
+                            <CardHeader>
+                                <CardTitle className="text-base">Confirm Funding</CardTitle>
+                                <CardDescription className="text-xs">You are marking the investment in Aisha's Crafts as funded.</CardDescription>
                             </CardHeader>
-                            <CardContent className="p-2 pt-0">
-                                <p className="text-xs text-muted-foreground">Readiness Score</p>
-                            </CardContent>
-                        </Card>
-                         <Card className="text-center">
-                            <CardHeader className="p-2 pb-0">
-                                <CardTitle className="text-xl font-bold">{mockProfile.investmentOffer.ask}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-2 pt-0">
-                                <p className="text-xs text-muted-foreground">Seeking Investment</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card>
-                         <CardHeader className="p-3">
-                            <CardTitle className="text-sm">Data-Backed Signals</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0 space-y-3">
-                             <div ref={revenueRef} className={cn("flex items-center gap-3 transition-colors duration-300 p-2 -m-2 rounded-md", highlightedMetric === 'revenue' ? 'bg-primary/10' : '')}>
-                                <BarChart className="w-5 h-5 text-primary" />
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Annual Revenue</p>
-                                    <p className="font-semibold text-sm">{mockProfile.data.revenueRange}</p>
+                            <CardContent className="flex-1">
+                                <div className="text-xs text-muted-foreground p-2 bg-muted rounded-md space-y-1">
+                                    <p className="font-semibold flex items-center gap-1 text-foreground"><ShieldCheck className="w-3 h-3 text-primary"/> Important</p>
+                                    <p>By clicking "Confirm", you are confirming that you have sent the funds to the business owner directly.</p>
                                 </div>
+                            </CardContent>
+                             <div className="p-4 pt-0">
+                                <Button ref={el => elementsRef.current['confirmFundBtn'] = el} className="w-full h-9">Confirm, I've Sent the Funds</Button>
                             </div>
-                             <div className="flex items-center gap-3">
-                                <Percent className="w-5 h-5 text-primary" />
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Gross Margin</p>
-                                    <p className="font-semibold text-sm">{mockProfile.data.grossMargin}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                        </Card>
+                    )}
                 </div>
             </main>
         </div>
