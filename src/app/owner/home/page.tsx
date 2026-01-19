@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,7 +92,7 @@ export default function OwnerHomePage() {
         if (!firestore || !businessId) return null;
         return doc(firestore, 'businesses', businessId);
     }, [firestore, businessId]);
-    const { data: businessData } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
         if (!firestore || !businessId || !date?.from) return null;
@@ -116,6 +116,29 @@ export default function OwnerHomePage() {
             router.push('/login');
         }
     }, [isUserLoading, authUser, router]);
+
+    // This effect handles redirecting to the correct onboarding step
+    useEffect(() => {
+        if (isBusinessLoading || !businessData || !userProfile) {
+            return; // Wait for data to load
+        }
+
+        // Only run this logic if the user is authenticated
+        if (authUser) {
+            const { name, type, currency, plan } = businessData;
+            
+            // If plan is already set, onboarding is complete, do nothing.
+            if (plan) return;
+
+            if (!name || !type || name === `${userProfile?.displayName}'s Business`) {
+                router.replace('/business-info');
+            } else if (!currency) {
+                router.replace('/currency');
+            } else if (!plan) {
+                router.replace('/plans');
+            }
+        }
+    }, [businessData, isBusinessLoading, authUser, userProfile, router]);
 
 
     const businessInsights = useMemo(() => {
@@ -239,6 +262,17 @@ export default function OwnerHomePage() {
           />
       </div>
     );
+
+    // Loading state: Show a spinner until we know if onboarding is complete or not.
+    if (isUserLoading || isBusinessLoading || (authUser && !businessData?.plan)) {
+        return (
+            <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+                <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+            </div>
+        );
+    }
 
 
   return (

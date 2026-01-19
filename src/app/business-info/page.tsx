@@ -68,7 +68,7 @@ export default function BusinessInfoPage() {
                 name: businessName,
                 type: businessType,
             });
-            router.push('/currency');
+            router.replace('/currency');
         } catch (error: any) {
              toast({
                 variant: 'destructive',

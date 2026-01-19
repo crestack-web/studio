@@ -72,7 +72,7 @@ export default function CurrencyPage() {
       await updateDoc(businessRef, {
         currency: currencyMap[selectedCountry],
       });
-      router.push('/plans');
+      router.replace('/plans');
     } catch (error: any) {
       toast({
         variant: 'destructive',
