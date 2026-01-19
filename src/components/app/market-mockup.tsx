@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils';
 
 
 const mockProducts = [
-    { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://picsum.photos/seed/market-fashion-1/400/300', hint: 'leather bag' },
-    { id: '5', name: 'Organic Honey (500ml)', price: 4000, image: 'https://picsum.photos/seed/market-food-1/400/300', hint: 'organic honey' },
-    { id: '9', name: 'Rechargeable Fan', price: 25000, image: 'https://picsum.photos/seed/market-electronics-1/400/300', hint: 'rechargeable fan' },
-    { id: '2', name: 'Ankara Print Scarf', price: 3500, image: 'https://picsum.photos/seed/market-fashion-2/400/300', hint: 'ankara scarf' },
+    { id: '1', name: 'Handmade Leather Bag', price: 12000, image: 'https://images.unsplash.com/photo-1473188588951-666fce8e7c68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsZWF0aGVyJTIwYmFnfGVufDB8fHx8MTc2ODgyNTM3OXww&ixlib=rb-4.1.0&q=80&w=1080', hint: 'leather bag' },
+    { id: '5', name: 'Organic Honey (500ml)', price: 4000, image: 'https://images.unsplash.com/photo-1645549826194-1956802d83c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvcmdhbmljJTIwaG9uZXl8ZW58MHx8fHwxNzY4ODI1MzgwfDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'organic honey' },
+    { id: '9', name: 'Rechargeable Fan', price: 25000, image: 'https://images.unsplash.com/photo-1718815416565-c65944a5ec14?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWNoYXJnZWFibGUlMjBmYW58ZW58MHx8fHwxNzY4ODI1Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'rechargeable fan' },
+    { id: '2', name: 'Ankara Print Scarf', price: 3500, image: 'https://images.unsplash.com/photo-1701252498509-85c18de28d2b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhbmthcmElMjBzY2FyZnxlbnwwfHx8fDE3Njg4MjUzODB8MA&ixlib=rb-4.1.0&q=80&w=1080', hint: 'ankara scarf' },
 ];
 
 
@@ -86,23 +86,23 @@ export function MarketMockup() {
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
 
             // 1. Move to search bar
-            await moveCursorTo('search');
+            await moveCursorTo('search', 1500);
 
             // 2. Click search bar and type
             await click();
             await typeSearch('leather bag');
 
-            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1500)));
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 2000)));
 
             // 3. Move to product
-            await moveCursorTo('productCard');
+            await moveCursorTo('productCard', 1500);
 
             // 4. Click product
             await click();
             setIsCardClicked(true);
 
             // 5. Hide cursor and reset
-            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1000)));
+            await new Promise(resolve => timeouts.push(setTimeout(resolve, 1500)));
             setCursorVisible(false);
             timeouts.push(setTimeout(animationSequence, 4000));
         };
