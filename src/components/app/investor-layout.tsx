@@ -21,6 +21,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                 <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <Link href="/welcome"><Logo className="h-8" /></Link>
                     <nav className="hidden md:flex items-center gap-4">
+                        <Link href="/welcome" passHref><Button variant="ghost">Home</Button></Link>
                         <Link href="/invest" passHref><Button variant="ghost">Explore</Button></Link>
                         <Link href="/pricing" passHref><Button variant="ghost">For Businesses</Button></Link>
                         <Link href="/investor/login" passHref><Button variant="ghost">Log In</Button></Link>
@@ -37,6 +38,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                             <SheetContent side="right" className="w-full max-w-xs">
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col items-start gap-4">
+                                    <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Home</Button></Link>
                                     <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Explore</Button></Link>
                                     <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">For Businesses</Button></Link>
                                     <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Log In</Button></Link>
