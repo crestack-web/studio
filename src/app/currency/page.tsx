@@ -11,18 +11,12 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
+import { currencyMap } from '@/lib/currency';
 
 
 interface AppUser {
     businessId?: string;
 }
-
-const currencyMap: { [key: string]: string } = {
-    NG: '₦',
-    GH: 'GH₵',
-    NE: 'CFA',
-    CM: 'CFA',
-};
 
 export default function CurrencyPage() {
   const router = useRouter();
@@ -108,28 +102,28 @@ export default function CurrencyPage() {
               <RadioGroupItem value="NG" id="ng" className="peer sr-only" disabled={isUserLoading || isSubmitting} />
               <Label htmlFor="ng" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
                 Nigeria
-                <span className="font-normal text-sm mt-2 text-muted-foreground">₦ (NGN)</span>
+                <span className="font-normal text-sm mt-2 text-muted-foreground">{currencyMap['NG'].symbol} (NGN)</span>
               </Label>
             </div>
             <div>
               <RadioGroupItem value="GH" id="gh" className="peer sr-only" disabled={isUserLoading || isSubmitting} />
               <Label htmlFor="gh" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
                 Ghana
-                <span className="font-normal text-sm mt-2 text-muted-foreground">GH₵ (GHS)</span>
+                <span className="font-normal text-sm mt-2 text-muted-foreground">{currencyMap['GH'].symbol} (GHS)</span>
               </Label>
             </div>
              <div>
               <RadioGroupItem value="NE" id="ne" className="peer sr-only" disabled={isUserLoading || isSubmitting} />
               <Label htmlFor="ne" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
                 Niger
-                <span className="font-normal text-sm mt-2 text-muted-foreground">CFA (XOF)</span>
+                <span className="font-normal text-sm mt-2 text-muted-foreground">{currencyMap['NE'].symbol} (XOF)</span>
               </Label>
             </div>
              <div>
               <RadioGroupItem value="CM" id="cm" className="peer sr-only" disabled={isUserLoading || isSubmitting} />
               <Label htmlFor="cm" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary h-28 text-xl font-bold cursor-pointer">
                 Cameroon
-                <span className="font-normal text-sm mt-2 text-muted-foreground">CFA (XAF)</span>
+                <span className="font-normal text-sm mt-2 text-muted-foreground">{currencyMap['CM'].symbol} (XAF)</span>
               </Label>
             </div>
           </RadioGroup>

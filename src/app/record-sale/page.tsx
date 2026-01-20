@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { formatCurrency } from '@/lib/currency';
 
 interface AppUser {
     businessId?: string;
@@ -61,7 +62,6 @@ export default function RecordSalePage() {
 
   const selectedProduct = productsData?.find(p => p.id === selectedProductId);
   const totalAmount = selectedProduct ? selectedProduct.price * quantity : 0;
-  const currencySymbol = businessData?.currency || '₦';
 
   const handleConfirmSale = async () => {
     if (!firestore || !businessId || !selectedProduct || quantity <= 0) {
@@ -107,7 +107,7 @@ export default function RecordSalePage() {
 
         toast({
           title: "Sale Recorded",
-          description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
+          description: `Sold ${quantity} of ${selectedProduct.name} for ${formatCurrency(totalAmount, businessData?.currency)}.`,
         });
         router.back();
     } catch (error) {
@@ -165,7 +165,7 @@ export default function RecordSalePage() {
                 <div className="text-right">
                     <Label>Total Amount</Label>
                     <div className="font-bold text-3xl h-12 flex items-center justify-end">
-                        {currencySymbol}{totalAmount.toLocaleString()}
+                        {formatCurrency(totalAmount, businessData?.currency)}
                     </div>
                 </div>
             </div>

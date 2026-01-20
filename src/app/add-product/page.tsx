@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { formatCurrency } from '@/lib/currency';
 
 interface Ingredient {
     name: string;
@@ -28,6 +29,7 @@ interface AppUser {
 
 interface Business {
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+    currency?: string;
 }
 
 export default function AddProductPage() {
@@ -219,7 +221,7 @@ export default function AddProductPage() {
                                     {ingredients.map((ing, index) => (
                                         <div key={index} className="flex items-center gap-2 p-2 rounded-md border">
                                             <span className="flex-1 font-medium">{ing.name}</span>
-                                            <span className="text-muted-foreground">₦{parseFloat(ing.cost).toLocaleString()}</span>
+                                            <span className="text-muted-foreground">{formatCurrency(parseFloat(ing.cost), businessData?.currency)}</span>
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveIngredient(index)} disabled={isLoading}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>

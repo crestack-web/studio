@@ -55,7 +55,7 @@ const prompt = ai.definePrompt({
   
   CRITICAL RULES:
   1.  You MUST NOT perform any calculations, forecasts, or generate numbers yourself. Your answers must be based *only* on the data provided below.
-  2.  All monetary values in your answer must be formatted with the currency symbol provided.
+  2.  When formatting monetary values with the provided currency symbol, if the symbol is "CFA", place it after the number (e.g., 600CFA). For all other symbols, place them before the number (e.g., ₦600, $100).
   3.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
   4.  Do NOT guess or invent numbers.
   5.  Do NOT give advice unless explicitly asked.

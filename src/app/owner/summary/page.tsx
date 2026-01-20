@@ -12,6 +12,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, query, collection, where, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 
 interface AppUser {
     businessId?: string;
@@ -87,8 +88,7 @@ export default function SummaryPage() {
   }, [firestore, businessId]);
   const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(allProductsQuery);
 
-  const currency = businessData?.currency || '₦';
-  const formatCurrency = (value: number) => `${currency}${value.toLocaleString()}`;
+  const formatCurrency = (value: number) => formatCurrencyUtil(value, businessData?.currency);
   const userPlan = businessData?.plan;
   
   const { summaryData, salesByProductData, paymentMethods, productChartConfig } = useMemo(() => {

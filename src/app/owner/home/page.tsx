@@ -22,6 +22,7 @@ import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import { getCurrencySymbol } from '@/lib/currency';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -194,7 +195,7 @@ export default function OwnerHomePage() {
             const response = await getBusinessInsights({ 
                 query: question,
                 insights: businessInsights,
-                currency: businessData?.currency || '₦',
+                currency: getCurrencySymbol(businessData?.currency),
             });
             setAnswer(response.answer);
         } catch (error) {
