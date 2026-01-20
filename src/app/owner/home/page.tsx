@@ -19,8 +19,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import { useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const presetQuestions = [
@@ -50,7 +49,7 @@ interface Sale {
     amount: number;
     paymentType: string;
     source: string;
-    timestamp: Timestamp;
+    timestamp: { toDate: () => Date };
     productId?: string;
 }
 
@@ -78,37 +77,31 @@ export default function OwnerHomePage() {
     const isMobile = useIsMobile();
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
-    const firestore = useFirestore();
     const { user: authUser, isUserLoading } = useUser();
 
     const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
-    }, [firestore, authUser]);
+        if (!authUser) return null;
+        return { path: `users/${authUser.uid}` };
+    }, [authUser]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        return doc(firestore, 'businesses', businessId);
-    }, [firestore, businessId]);
+        if (!businessId) return null;
+        return { path: `businesses/${businessId}` };
+    }, [businessId]);
     const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId || !date?.from) return null;
-        return query(
-            collection(firestore, 'sales'),
-            where('businessId', '==', businessId),
-            where('timestamp', '>=', date.from),
-            where('timestamp', '<=', date.to)
-        );
-    }, [firestore, businessId, date]);
+        if (!businessId || !date?.from) return null;
+        return { path: 'sales' };
+    }, [businessId, date]);
     const { data: salesData } = useCollection<Sale>(salesQuery);
 
     const productsQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        return query(collection(firestore, 'products'), where('businessId', '==', businessId));
-    }, [firestore, businessId]);
+        if (!businessId) return null;
+        return { path: 'products' };
+    }, [businessId]);
     const { data: productsData } = useCollection<Product>(productsQuery);
     
     useEffect(() => {
@@ -524,7 +517,7 @@ export default function OwnerHomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     {businessInsights.lowStockProducts.length > 0 ? (
+                     {productsData && businessInsights.lowStockProducts.length > 0 ? (
                         <div className="space-y-2">
                           {businessInsights.lowStockProducts.slice(0, 3).map(p => (
                             <div key={p.id} className="text-sm flex justify-between">
@@ -538,7 +531,7 @@ export default function OwnerHomePage() {
                             <p>No low-stock alerts yet.</p>
                         </div>
                      )}
-                    <Button variant="secondary" className="w-full" disabled={businessInsights.lowStockProducts.length === 0}>
+                    <Button variant="secondary" className="w-full" disabled={!productsData || businessInsights.lowStockProducts.length === 0}>
                         View Low Stock Items
                     </Button>
                 </CardContent>
