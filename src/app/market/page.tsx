@@ -8,36 +8,81 @@ import { Input } from '@/components/ui/input';
 import { Search, ShoppingCart, Menu } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatCurrency } from '@/lib/currency';
 
-const categories = [
-    {
-        name: 'Fashion & Apparel',
-        products: [
-            { id: '1', name: 'Handmade Leather Bag', price: 12000, business: 'Aisha\'s Crafts', image: 'https://picsum.photos/seed/market-fashion-1/400/300', hint: 'leather bag' },
-            { id: '2', name: 'Ankara Print Scarf', price: 3500, business: 'Tunde\'s Textiles', image: 'https://picsum.photos/seed/market-fashion-2/400/300', hint: 'ankara scarf' },
-            { id: '3', name: 'Beaded Necklace', price: 5000, business: 'Jewels by Ada', image: 'https://picsum.photos/seed/market-fashion-3/400/300', hint: 'beaded necklace' },
-            { id: '4', name: 'Men\'s Kaftan', price: 18000, business: 'Classic Gents', image: 'https://picsum.photos/seed/market-fashion-4/400/300', hint: 'mens kaftan' },
-        ]
-    },
-    {
-        name: 'Food & Groceries',
-        products: [
-            { id: '5', name: 'Organic Honey (500ml)', price: 4000, business: 'Femi\'s Farm', image: 'https://picsum.photos/seed/market-food-1/400/300', hint: 'organic honey' },
-            { id: '6', name: 'Spicy Suya Kilishi', price: 2500, business: 'Mama\'s Kitchen', image: 'https://picsum.photos/seed/market-food-2/400/300', hint: 'spicy kilishi' },
-            { id: '7', name: 'Freshly Ground Egusi', price: 1500, business: 'Everyday Needs', image: 'https://picsum.photos/seed/market-food-3/400/300', hint: 'ground egusi' },
-            { id: '8', name: 'Aged Garri Ijebu', price: 2000, business: 'Market Direct', image: 'https://picsum.photos/seed/market-food-4/400/300', hint: 'garri ijebu' },
-        ]
-    },
-    {
-        name: 'Electronics',
-        products: [
-            { id: '9', name: 'Rechargeable Fan', price: 25000, business: 'City Electronics', image: 'https://picsum.photos/seed/market-electronics-1/400/300', hint: 'rechargeable fan' },
-            { id: '10', name: 'Solar Power Bank', price: 15000, business: 'Gadget Hub', image: 'https://picsum.photos/seed/market-electronics-2/400/300', hint: 'solar powerbank' },
-        ]
-    }
-];
+interface MarketProduct {
+    id: string; // Document ID, which is the same as productId
+    productName: string;
+    businessName: string;
+    price: number;
+    category: string;
+    description?: string;
+    availableQuantity?: number;
+    image?: string;
+    hint?: string;
+}
 
 export default function MarketPage() {
+    const firestore = useFirestore();
+
+    const marketProductsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketProducts'));
+    }, [firestore]);
+
+    const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(marketProductsQuery);
+
+    const categories = useMemo(() => {
+        if (!productsData) return [];
+
+        const grouped: { [key: string]: MarketProduct[] } = {};
+
+        productsData.forEach(product => {
+            const categoryName = product.category || 'other';
+            if (!grouped[categoryName]) {
+                grouped[categoryName] = [];
+            }
+            grouped[categoryName].push(product);
+        });
+
+        const categoryMap: { [key: string]: string } = {
+            'food': 'Food & Groceries',
+            'fashion': 'Fashion & Apparel',
+            'electronics': 'Electronics',
+            'health': 'Health & Beauty',
+            'home': 'Home & Garden',
+            'other': 'Other'
+        };
+
+        return Object.keys(grouped).map(categoryKey => ({
+            name: categoryMap[categoryKey] || categoryMap['other'],
+            products: grouped[categoryKey]
+        })).sort((a, b) => a.name.localeCompare(b.name));
+
+    }, [productsData]);
+
+    const renderSkeletons = () => (
+        <section>
+             <Skeleton className="h-8 w-1/3 mb-6" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                    <Card key={i} className="overflow-hidden group h-full flex flex-col">
+                        <Skeleton className="aspect-video w-full" />
+                        <CardContent className="p-4 flex-1 flex flex-col">
+                            <Skeleton className="h-6 w-3/4 mb-2" />
+                            <Skeleton className="h-4 w-1/2 mb-4" />
+                            <Skeleton className="h-8 w-1/3" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </section>
+    );
+
     return (
         <div className="flex flex-col min-h-screen bg-background">
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
@@ -73,8 +118,8 @@ export default function MarketPage() {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent>
-                                <SheetHeader className="sr-only">
-                                    <SheetTitle>Menu</SheetTitle>
+                                <SheetHeader>
+                                    <SheetTitle className="sr-only">Menu</SheetTitle>
                                 </SheetHeader>
                                 <Logo className="h-8 mb-8" />
                                 <div className="relative mb-8">
@@ -107,34 +152,46 @@ export default function MarketPage() {
                     </div>
                     
                     <div className="space-y-12">
-                        {categories.map(category => (
-                            <section key={category.name}>
-                                <h2 className="text-2xl font-bold font-headline mb-6">{category.name}</h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                    {category.products.map(product => (
-                                         <Link href={`/market/product/${product.id}`} key={product.id}>
-                                            <Card className="overflow-hidden group cursor-pointer h-full flex flex-col">
-                                                <div className="aspect-video overflow-hidden">
-                                                    <Image 
-                                                        src={product.image}
-                                                        alt={product.name}
-                                                        width={400}
-                                                        height={300}
-                                                        className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                                                        data-ai-hint={product.hint}
-                                                    />
-                                                </div>
-                                                <CardContent className="p-4 flex-1 flex flex-col">
-                                                    <h3 className="font-semibold text-lg flex-1">{product.name}</h3>
-                                                    <p className="text-sm text-muted-foreground mt-1">by {product.business}</p>
-                                                    <p className="font-bold text-xl mt-4">₦{product.price.toLocaleString()}</p>
-                                                </CardContent>
-                                            </Card>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                        {isLoadingProducts ? (
+                            <>
+                                {renderSkeletons()}
+                                {renderSkeletons()}
+                            </>
+                        ) : categories.length > 0 ? (
+                            categories.map(category => (
+                                <section key={category.name}>
+                                    <h2 className="text-2xl font-bold font-headline mb-6">{category.name}</h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                        {category.products.map(product => (
+                                             <Link href={`/market/product/${product.id}`} key={product.id}>
+                                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col">
+                                                    <div className="aspect-video overflow-hidden">
+                                                        <Image 
+                                                            src={product.image || `https://picsum.photos/seed/${product.id}/400/300`}
+                                                            alt={product.productName}
+                                                            width={400}
+                                                            height={300}
+                                                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                                                            data-ai-hint={product.hint || product.productName.split(' ').slice(0,2).join(' ')}
+                                                        />
+                                                    </div>
+                                                    <CardContent className="p-4 flex-1 flex flex-col">
+                                                        <h3 className="font-semibold text-lg flex-1">{product.productName}</h3>
+                                                        <p className="text-sm text-muted-foreground mt-1">by {product.businessName}</p>
+                                                        <p className="font-bold text-xl mt-4">{formatCurrency(product.price)}</p>
+                                                    </CardContent>
+                                                </Card>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </section>
+                            ))
+                        ) : (
+                             <div className="text-center py-20 border rounded-lg bg-card">
+                                <h2 className="text-xl font-semibold">The Market is Empty</h2>
+                                <p className="text-muted-foreground mt-2">No products have been listed for sale yet. Check back soon!</p>
+                            </div>
+                        )}
                     </div>
                  </div>
             </main>
