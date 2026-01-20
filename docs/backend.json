@@ -202,7 +202,11 @@
           "type": "string",
           "description": "The ID of the business selling the product."
         },
-        "name": {
+        "businessName": {
+          "type": "string",
+          "description": "The name of the business selling the product (denormalized)."
+        },
+        "productName": {
           "type": "string",
           "description": "The name of the product."
         },
@@ -214,6 +218,10 @@
           "type": "string",
           "description": "The product category."
         },
+        "availableQuantity": {
+            "type": "number",
+            "description": "The current available stock of the product."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -223,9 +231,11 @@
       "required": [
         "productId",
         "businessId",
-        "name",
+        "businessName",
+        "productName",
         "price",
         "category",
+        "availableQuantity",
         "createdAt"
       ]
     },

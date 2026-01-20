@@ -60,9 +60,39 @@ service cloud.firestore {
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
       allow get, list: if true;
-      // Allow business owners to manage their own products on the market.
-      allow create: if isBusinessOwner(request.resource.data.businessId);
-      allow update, delete: if isBusinessOwner(resource.data.businessId);
+
+      // --- Helper Functions for Market Products ---
+      function isSourceProductPublished(businessId, productId) {
+        let productPath = /databases/$(database)/documents/businesses/$(businessId)/products/$(productId);
+        return exists(productPath) && get(productPath).data.isPublishedToMarket == true;
+      }
+
+      function isMarketDataConsistent(incomingData, productId) {
+        let productPath = /databases/$(database)/documents/businesses/$(incomingData.businessId)/products/$(productId);
+        let product = get(productPath).data;
+        let businessPath = /databases/$(database)/documents/businesses/$(incomingData.businessId);
+        let business = get(businessPath).data;
+        
+        return incomingData.productId == productId &&
+               incomingData.businessName == business.businessName &&
+               incomingData.productName == product.name &&
+               incomingData.price == product.price &&
+               incomingData.category == product.category &&
+               incomingData.availableQuantity == product.quantity;
+      }
+      
+      // Allow creation only by the business owner, and only if the source product is published and data is consistent.
+      allow create: if isBusinessOwner(request.resource.data.businessId) &&
+                       isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
+                       isMarketDataConsistent(request.resource.data, request.resource.data.productId);
+
+      // Allow updates only from the business owner, ensuring data remains consistent.
+      allow update: if isBusinessOwner(resource.data.businessId) &&
+                       isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
+                       isMarketDataConsistent(request.resource.data, request.resource.data.productId);
+      
+      // Allow deletion only by the business owner.
+      allow delete: if isBusinessOwner(resource.data.businessId);
     }
   }
 }

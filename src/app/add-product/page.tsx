@@ -28,6 +28,7 @@ interface AppUser {
 }
 
 interface Business {
+    businessName: string;
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
     currency?: string;
 }
@@ -112,7 +113,7 @@ export default function AddProductPage() {
     }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
-        if (!canAddProduct || !firestore || !businessId) return;
+        if (!canAddProduct || !firestore || !businessId || !businessData) return;
 
         setIsLoading(true);
 
@@ -135,11 +136,13 @@ export default function AddProductPage() {
             if (isListedOnMarket) {
                 const marketProductData = {
                     productId: newProductRef.id,
-                    businessId,
-                    name: productData.name,
+                    businessId: businessId,
+                    businessName: businessData.businessName,
+                    productName: productData.name,
                     price: productData.price,
                     category: productData.category,
-                    createdAt: new Date(), // Using client-side date for simplicity
+                    availableQuantity: productData.quantity,
+                    createdAt: new Date(), // Using client-side date for simplicity, serverTimestamp can be tricky with security rules
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
