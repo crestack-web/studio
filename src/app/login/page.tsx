@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,18 +20,29 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const handleLogin = async () => {
     setIsLoading(true);
-    // MOCK BEHAVIOR
-    setTimeout(() => {
+    try {
+        if (!auth) {
+            throw new Error("Firebase auth not available");
+        }
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to your dashboard...",
+      });
+      router.push('/owner/home');
+    } catch (error: any) {
         toast({
-            title: "Login Successful (Mock)",
-            description: "Redirecting to your dashboard...",
+            variant: "destructive",
+            title: "Login Failed",
+            description: error.message,
         });
-        router.push('/owner/home');
+    } finally {
         setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (

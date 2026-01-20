@@ -228,6 +228,71 @@
         "category",
         "createdAt"
       ]
+    },
+    "Expense": {
+      "title": "Expense",
+      "type": "object",
+      "description": "Represents a single business expense.",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business that incurred the expense."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the expense."
+        },
+        "title": {
+          "type": "string",
+          "description": "A short title for the expense."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the expense."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the expense was recorded."
+        }
+      },
+      "required": [
+        "businessId",
+        "category",
+        "title",
+        "amount",
+        "createdAt"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a cash deposit or withdrawal.",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["deposit", "withdrawal"],
+          "description": "The type of transaction."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The transaction amount."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional note for the transaction."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the transaction was recorded."
+        }
+      },
+      "required": [ "businessId", "type", "amount", "createdAt" ]
     }
   },
   "auth": {
@@ -295,6 +360,26 @@
             "$ref": "#/backend/entities/MarketProduct"
           },
           "description": "Publicly readable collection of products listed on the marketplace."
+        }
+      },
+      {
+        "path": "businesses/{businessId}/expenses/{expenseId}",
+        "definition": {
+          "entityName": "Expense",
+          "schema": {
+            "$ref": "#/backend/entities/Expense"
+          },
+          "description": "Subcollection for expenses belonging to a business."
+        }
+      },
+      {
+        "path": "businesses/{businessId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Subcollection for cash deposits and withdrawals."
         }
       }
     ]

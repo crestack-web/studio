@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,13 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-
-interface AppUser {
-    businessId?: string;
-}
+import { collection, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -23,6 +21,7 @@ export default function BusinessInfoPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { user: authUser, isUserLoading } = useUser();
+    const firestore = useFirestore();
 
     useEffect(() => {
         if (!isUserLoading && !authUser) {
@@ -40,12 +39,43 @@ export default function BusinessInfoPage() {
             return;
         }
 
-        setIsSubmitting(true);
-        // MOCK BEHAVIOR
-        setTimeout(() => {
-            router.replace('/currency');
+        if (!authUser || !firestore) {
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Error',
+                description: 'User not found. Please log in again.',
+            });
             setIsSubmitting(false);
-        }, 500);
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const businessesColRef = collection(firestore, 'businesses');
+            const newBusinessDoc = await addDocumentNonBlocking(businessesColRef, {
+                ownerId: authUser.uid,
+                businessName,
+                businessType,
+                createdAt: serverTimestamp(),
+                onboardingCompleted: false,
+            });
+
+            const userDocRef = doc(firestore, 'users', authUser.uid);
+            await updateDoc(userDocRef, {
+                businessId: newBusinessDoc.id
+            });
+
+            router.replace('/currency');
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Creating Business',
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType;

@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,9 +7,15 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+
+
+interface AppUser {
+    businessId?: string;
+}
 
 const currencyMap: { [key: string]: string } = {
     NG: '₦',
@@ -24,6 +31,16 @@ export default function CurrencyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user: authUser, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+  const businessId = userProfile?.businessId;
+
 
   useEffect(() => {
     if (!isUserLoading && !authUser) {
@@ -41,12 +58,33 @@ export default function CurrencyPage() {
       return;
     }
 
+    if (!businessId || !firestore) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Business information not found. Please go back and try again.',
+        });
+        return;
+    }
+
     setIsSubmitting(true);
-    // MOCK BEHAVIOR
-    setTimeout(() => {
+    
+    try {
+        const businessDocRef = doc(firestore, 'businesses', businessId);
+        await updateDoc(businessDocRef, {
+            currency: selectedCountry,
+        });
+
         router.replace('/plans');
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error Saving Currency',
+            description: error.message,
+        });
+    } finally {
         setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   const isButtonDisabled = isUserLoading || isSubmitting;

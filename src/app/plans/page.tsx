@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,9 +9,14 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+
+interface AppUser {
+    businessId?: string;
+}
 
 const plans = [
     {
@@ -86,6 +92,16 @@ export default function PlansPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user: authUser, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+  const businessId = userProfile?.businessId;
+
 
   useEffect(() => {
     if (!isUserLoading && !authUser) {
@@ -102,12 +118,32 @@ export default function PlansPage() {
       });
       return;
     }
+    if (!businessId || !firestore) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Business information not found. Please go back and try again.',
+        });
+        return;
+    }
     setIsSubmitting(true);
-    // MOCK BEHAVIOR
-    setTimeout(() => {
-      router.push('/owner/home');
-      setIsSubmitting(false);
-    }, 500);
+    
+    try {
+        const businessDocRef = doc(firestore, 'businesses', businessId);
+        await updateDoc(businessDocRef, {
+            plan: selectedPlan,
+            onboardingCompleted: true,
+        });
+        router.push('/owner/home');
+    } catch (error: any) {
+         toast({
+            variant: 'destructive',
+            title: 'Error Saving Plan',
+            description: error.message,
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const isButtonDisabled = isUserLoading || isSubmitting;

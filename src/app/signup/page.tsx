@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth, useFirestore } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -19,6 +23,8 @@ export default function SignUpPage() {
   
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -32,15 +38,36 @@ export default function SignUpPage() {
         return;
     }
 
-    // MOCK BEHAVIOR
-    setTimeout(() => {
+    try {
+        if (!auth || !firestore) {
+            throw new Error("Firebase services not available.");
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Create user profile in Firestore
+        const userProfile = {
+            id: user.uid,
+            displayName: name,
+            email: user.email,
+        };
+        await setDoc(doc(firestore, 'users', user.uid), userProfile);
+        
         toast({
-            title: "Account Created (Mock)",
+            title: "Account Created",
             description: "Let's set up your business.",
         });
         router.push('/business-info');
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: error.message,
+        });
+    } finally {
         setIsLoading(false);
-    }, 500);
+    }
   };
 
 

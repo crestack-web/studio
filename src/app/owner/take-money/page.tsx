@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import MainLayout from '@/components/app/main-layout';
@@ -9,6 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
+
+
+interface AppUser {
+    businessId?: string;
+}
 
 export default function TakeMoneyPage() {
     const { toast } = useToast();
@@ -16,6 +24,16 @@ export default function TakeMoneyPage() {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, 'users', authUser.uid);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
     
     const handleConfirmWithdrawal = async () => {
         if (!amount) {
@@ -26,18 +44,35 @@ export default function TakeMoneyPage() {
             });
             return;
         }
+        
+        if (!businessId || !firestore) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not find your business. Please try again.',
+            });
+            return;
+        }
 
         setIsLoading(true);
 
-        // MOCK BEHAVIOR
-        setTimeout(() => {
-            toast({
-                title: 'Withdrawal Confirmed (Mock)',
-                description: `Successfully recorded a withdrawal of ${amount}.`,
-            });
-            router.back();
-            setIsLoading(false);
-        }, 500);
+        const transactionData = {
+            businessId,
+            type: 'withdrawal',
+            amount: parseFloat(amount),
+            description: description,
+            createdAt: serverTimestamp(),
+        };
+
+        const transactionsColRef = collection(firestore, `businesses/${businessId}/transactions`);
+        
+        addDocumentNonBlocking(transactionsColRef, transactionData);
+
+        toast({
+            title: 'Withdrawal Confirmed',
+            description: `Successfully recorded a withdrawal of ${amount}.`,
+        });
+        router.back();
     };
 
     return (

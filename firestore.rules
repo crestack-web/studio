@@ -47,6 +47,16 @@ service cloud.firestore {
       allow read, write: if isBusinessOwner(businessId);
     }
 
+    // Rules for the 'expenses' subcollection
+    match /businesses/{businessId}/expenses/{expenseId} {
+      allow read, write: if isBusinessOwner(businessId);
+    }
+
+    // Rules for the 'transactions' subcollection
+    match /businesses/{businessId}/transactions/{transactionId} {
+      allow read, write: if isBusinessOwner(businessId);
+    }
+
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
       allow get, list: if true;
