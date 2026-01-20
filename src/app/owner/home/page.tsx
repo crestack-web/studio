@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -684,6 +684,14 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </main>
+      <Button
+        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
+        size="icon"
+        aria-label="Chat with support"
+      >
+        <MessageSquare className="h-8 w-8" />
+        <span className="sr-only">Chat with support</span>
+      </Button>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, Package, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef } from 'react';
@@ -606,6 +606,14 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <Button
+        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
+        size="icon"
+        aria-label="Chat with support"
+      >
+        <MessageSquare className="h-8 w-8" />
+        <span className="sr-only">Chat with support</span>
+      </Button>
     </div>
   );
 }
