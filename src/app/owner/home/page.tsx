@@ -19,8 +19,9 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import { useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -38,8 +39,8 @@ interface AppUser {
 
 interface Business {
     id: string;
-    name: string;
-    type: string;
+    businessName: string;
+    businessType: string;
     currency: string;
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
@@ -49,7 +50,7 @@ interface Sale {
     amount: number;
     paymentType: string;
     source: string;
-    timestamp: { toDate: () => Date };
+    timestamp: Timestamp;
     productId?: string;
 }
 
@@ -78,30 +79,32 @@ export default function OwnerHomePage() {
     const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
     const { user: authUser, isUserLoading } = useUser();
+    const firestore = useFirestore();
 
     const userProfileRef = useMemoFirebase(() => {
-        if (!authUser) return null;
-        return { path: `users/${authUser.uid}` };
-    }, [authUser]);
+        if (!authUser || !firestore) return null;
+        return doc(firestore, `users/${authUser.uid}`);
+    }, [authUser, firestore]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => {
-        if (!businessId) return null;
-        return { path: `businesses/${businessId}` };
-    }, [businessId]);
+        if (!businessId || !firestore) return null;
+        return doc(firestore, `businesses/${businessId}`);
+    }, [businessId, firestore]);
     const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
-        if (!businessId || !date?.from) return null;
-        return { path: 'sales' };
-    }, [businessId, date]);
+        if (!businessId || !date?.from || !firestore) return null;
+        const salesCollection = collection(firestore, `businesses/${businessId}/sales`);
+        return query(salesCollection, where('timestamp', '>=', date.from), where('timestamp', '<=', date.to || new Date()));
+    }, [businessId, date, firestore]);
     const { data: salesData } = useCollection<Sale>(salesQuery);
 
     const productsQuery = useMemoFirebase(() => {
-        if (!businessId) return null;
-        return { path: 'products' };
-    }, [businessId]);
+        if (!businessId || !firestore) return null;
+        return query(collection(firestore, `businesses/${businessId}/products`));
+    }, [businessId, firestore]);
     const { data: productsData } = useCollection<Product>(productsQuery);
     
     useEffect(() => {
@@ -118,12 +121,12 @@ export default function OwnerHomePage() {
 
         // Only run this logic if the user is authenticated
         if (authUser) {
-            const { name, type, currency, plan } = businessData;
+            const { businessName, businessType, currency, plan } = businessData;
             
             // If plan is already set, onboarding is complete, do nothing.
             if (plan) return;
 
-            if (!name || !type || name === `${userProfile?.displayName}'s Business`) {
+            if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
                 router.replace('/business-info');
             } else if (!currency) {
                 router.replace('/currency');
@@ -290,11 +293,11 @@ export default function OwnerHomePage() {
           <Separator orientation="vertical" className="h-8 bg-border" />
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="font-semibold">{businessData?.name || <Skeleton className="h-5 w-24" />}</div>
+              <div className="font-semibold">{businessData?.businessName || <Skeleton className="h-5 w-24" />}</div>
               <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
             </div>
             <Avatar>
-              <AvatarFallback>{businessData?.name ? businessData.name.split(' ').map(n => n[0]).join('').substring(0,2) : 'B'}</AvatarFallback>
+              <AvatarFallback>{businessData?.businessName ? businessData.businessName.split(' ').map(n => n[0]).join('').substring(0,2) : 'B'}</AvatarFallback>
             </Avatar>
           </div>
         </div>

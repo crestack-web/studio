@@ -19,41 +19,36 @@ service cloud.firestore {
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Any authenticated user can create their own user profile
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      // Users can only read, update, or delete their own profile
       allow get, update, delete: if isOwner(userId);
-      // Listing all users is not allowed
       allow list: if false;
     }
 
     // Rules for the 'businesses' collection
     match /businesses/{businessId} {
-      // Users can only read their own business document
       allow get: if isOwner(resource.data.ownerId);
-      // Users can only create a business for themselves
       allow create: if isOwner(request.resource.data.ownerId);
-      // Users can only update their own business document
       allow update, delete: if isOwner(resource.data.ownerId);
-      // Listing all businesses is not allowed for privacy
       allow list: if false;
     }
 
     // Rules for the 'inventory' subcollection
     match /businesses/{businessId}/inventory/{inventoryId} {
-      // Only the business owner can read, create, update, or delete inventory
       allow read, write: if isBusinessOwner(businessId);
     }
 
     // Rules for the 'products' subcollection
     match /businesses/{businessId}/products/{productId} {
-       // Only the business owner can read, create, update, or delete products
+      allow read, write: if isBusinessOwner(businessId);
+    }
+
+    // Rules for the 'sales' subcollection
+    match /businesses/{businessId}/sales/{saleId} {
       allow read, write: if isBusinessOwner(businessId);
     }
 
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
-      // Anyone can read products from the marketplace
       allow get, list: if true;
       // No client-side writes are allowed to the marketplace
       allow create, update, delete: if false;

@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { collection, doc, query, updateDoc } from 'firebase/firestore';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 interface AppUser {
@@ -33,19 +35,19 @@ export default function AddInventoryPage() {
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
-        return { path: `users/${authUser.uid}` } as any;
+        return doc(firestore, `users/${authUser.uid}`);
     }, [firestore, authUser]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return { path: 'products' } as any;
+        return query(collection(firestore, `businesses/${businessId}/products`));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
     const handleUpdateInventory = async () => {
-        if (!selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0) {
+        if (!selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0 || !firestore || !businessId) {
             toast({
                 variant: 'destructive',
                 title: 'Invalid Input',
@@ -57,16 +59,26 @@ export default function AddInventoryPage() {
         setIsLoading(true);
         const selectedProduct = productsData?.find(p => p.id === selectedProductId);
 
-        // MOCK BEHAVIOR
-        setTimeout(() => {
+        if (selectedProduct) {
+            const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProductId);
+            const newQuantity = (selectedProduct.quantity || 0) + parseInt(quantityAdded);
+            
+            updateDocumentNonBlocking(productRef, { quantity: newQuantity });
+            
             toast({
-                title: 'Inventory Updated (Mock)',
+                title: 'Inventory Updated',
                 description: `Added ${quantityAdded} to ${selectedProduct?.name}.`,
             });
             setSelectedProductId(undefined);
             setQuantityAdded('');
-            setIsLoading(false);
-        }, 500);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Product not found',
+                description: 'Could not update inventory for the selected product.',
+            });
+        }
+        setIsLoading(false);
     };
 
     return (

@@ -14,6 +14,8 @@ import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 
 interface Ingredient {
     name: string;
@@ -51,14 +53,14 @@ export default function AddProductPage() {
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
-        return { path: `users/${authUser.uid}` } as any;
+        return doc(firestore, `users/${authUser.uid}`);
     }, [firestore, authUser]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return { path: `businesses/${businessId}` } as any;
+        return doc(firestore, `businesses/${businessId}`);
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
 
@@ -108,19 +110,54 @@ export default function AddProductPage() {
     }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
-        if (!canAddProduct) return;
+        if (!canAddProduct || !firestore || !businessId) return;
 
         setIsLoading(true);
 
-        // MOCK BEHAVIOR
-        setTimeout(() => {
+        const productData = {
+            name: productName,
+            price: parseFloat(sellingPrice),
+            cost: finalCostPrice,
+            quantity: parseInt(initialQuantity),
+            isPublishedToMarket,
+            description: productDescription,
+            category: productCategory,
+            createdAt: serverTimestamp(),
+        };
+
+        const productsCollectionRef = collection(firestore, `businesses/${businessId}/products`);
+        
+        try {
+            const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
+            
+            if (isListedOnMarket) {
+                const marketProductData = {
+                    productId: newProductRef.id,
+                    businessId,
+                    name: productData.name,
+                    price: productData.price,
+                    category: productData.category,
+                    createdAt: new Date(), // Using client-side date for simplicity
+                };
+                const marketProductsCollectionRef = collection(firestore, 'marketProducts');
+                setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
+            }
+
             toast({
-                title: 'Product Added! (Mock)',
+                title: 'Product Added!',
                 description: `${productName} has been added to your inventory.`,
             });
             router.back();
+        } catch (error) {
+            console.error("Error adding product: ", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error adding product',
+                description: 'There was an issue saving your product. Please try again.',
+            });
+        } finally {
             setIsLoading(false);
-        }, 500);
+        }
     };
 
 
@@ -293,5 +330,3 @@ export default function AddProductPage() {
         </MainLayout>
     );
 }
-
-    

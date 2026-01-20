@@ -106,17 +106,25 @@
           "type": "number",
           "description": "The selling price of the product."
         },
+        "cost": {
+          "type": "number",
+          "description": "The cost price of the product."
+        },
         "quantity": {
           "type": "number",
           "description": "The current stock quantity of the product."
         },
-        "inventoryId": {
-          "type": "string",
-          "description": "Reference to the Inventory item this product is based on."
-        },
         "isPublishedToMarket": {
           "type": "boolean",
           "description": "Indicates if the product is visible on the public marketplace."
+        },
+        "description": {
+          "type": "string",
+          "description": "Public-facing product description for the marketplace."
+        },
+        "category": {
+          "type": "string",
+          "description": "Public-facing product category for the marketplace."
         },
         "createdAt": {
           "type": "string",
@@ -128,9 +136,57 @@
         "name",
         "price",
         "quantity",
-        "inventoryId",
         "isPublishedToMarket",
         "createdAt"
+      ]
+    },
+    "Sale": {
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a single sales transaction.",
+      "properties": {
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business that made the sale."
+        },
+        "productId": {
+          "type": "string",
+          "description": "The ID of the product sold."
+        },
+        "productName": {
+          "type": "string",
+          "description": "The name of the product sold (denormalized)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total amount of the sale."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the product sold."
+        },
+        "paymentType": {
+          "type": "string",
+          "description": "The payment method used (e.g., cash, pos, transfer)."
+        },
+        "source": {
+          "type": "string",
+          "description": "The source of the sale (e.g., pos, market)."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the sale occurred."
+        }
+      },
+      "required": [
+        "businessId",
+        "productId",
+        "amount",
+        "quantity",
+        "paymentType",
+        "source",
+        "timestamp"
       ]
     },
     "MarketProduct": {
@@ -219,6 +275,16 @@
             "$ref": "#/backend/entities/Product"
           },
           "description": "Subcollection for products belonging to a business."
+        }
+      },
+      {
+        "path": "businesses/{businessId}/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Subcollection for sales transactions belonging to a business."
         }
       },
       {

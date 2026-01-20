@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 interface AppUser {
     businessId?: string;
@@ -34,26 +35,27 @@ export default function RecordSalePage() {
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [paymentType, setPaymentType] = useState('cash');
+  const [isLoading, setIsLoading] = useState(false);
 
   const firestore = useFirestore();
   const { user: authUser } = useUser();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
-    return { path: `users/${authUser.uid}` } as any;
+    return doc(firestore, `users/${authUser.uid}`);
   }, [firestore, authUser]);
   const { data: userProfile } = useDoc<AppUser>(userProfileRef);
   const businessId = userProfile?.businessId;
 
   const businessRef = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return { path: `businesses/${businessId}` } as any;
+    return doc(firestore, `businesses/${businessId}`);
   }, [firestore, businessId]);
   const { data: businessData } = useDoc<Business>(businessRef);
 
   const productsQuery = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return { path: 'products' } as any;
+    return query(collection(firestore, `businesses/${businessId}/products`));
   }, [firestore, businessId]);
   const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
@@ -62,7 +64,7 @@ export default function RecordSalePage() {
   const currencySymbol = businessData?.currency || '₦';
 
   const handleConfirmSale = async () => {
-    if (!selectedProduct || quantity <= 0) {
+    if (!firestore || !businessId || !selectedProduct || quantity <= 0) {
         toast({
             variant: 'destructive',
             title: 'Invalid Sale',
@@ -80,12 +82,44 @@ export default function RecordSalePage() {
         return;
     }
 
-    // MOCK BEHAVIOR
-    toast({
-      title: "Sale Recorded (Mock)",
-      description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
-    });
-    router.back();
+    setIsLoading(true);
+
+    const saleData = {
+        businessId,
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        amount: totalAmount,
+        quantity,
+        paymentType,
+        source: 'pos', // Point of Sale
+        timestamp: serverTimestamp(),
+    };
+
+    const newQuantity = selectedProduct.quantity - quantity;
+    const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProduct.id);
+    const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
+    
+    try {
+        const batch = writeBatch(firestore);
+        batch.set(doc(salesCollectionRef), saleData);
+        batch.update(productRef, { quantity: newQuantity });
+        await batch.commit();
+
+        toast({
+          title: "Sale Recorded",
+          description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
+        });
+        router.back();
+    } catch (error) {
+        console.error("Error recording sale:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not record sale. Please try again.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -99,7 +133,7 @@ export default function RecordSalePage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="product">Product</Label>
-              <Select onValueChange={setSelectedProductId} value={selectedProductId} disabled={isLoadingProducts}>
+              <Select onValueChange={setSelectedProductId} value={selectedProductId} disabled={isLoadingProducts || isLoading}>
                 <SelectTrigger id="product" className="h-12 text-base">
                   <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
                 </SelectTrigger>
@@ -125,7 +159,7 @@ export default function RecordSalePage() {
                         onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
                         max={selectedProduct?.quantity}
-                        disabled={!selectedProduct}
+                        disabled={!selectedProduct || isLoading}
                     />
                 </div>
                 <div className="text-right">
@@ -140,19 +174,19 @@ export default function RecordSalePage() {
               <Label>Payment Type</Label>
               <RadioGroup defaultValue="cash" onValueChange={setPaymentType} className="grid grid-cols-3 gap-2">
                 <div>
-                  <RadioGroupItem value="cash" id="cash" className="peer sr-only" />
+                  <RadioGroupItem value="cash" id="cash" className="peer sr-only" disabled={isLoading} />
                   <Label htmlFor="cash" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
                     Cash
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="transfer" id="transfer" className="peer sr-only" />
+                  <RadioGroupItem value="transfer" id="transfer" className="peer sr-only" disabled={isLoading} />
                   <Label htmlFor="transfer" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
                     Transfer
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="pos" id="pos" className="peer sr-only" />
+                  <RadioGroupItem value="pos" id="pos" className="peer sr-only" disabled={isLoading} />
                   <Label htmlFor="pos" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
                     POS
                   </Label>
@@ -162,9 +196,9 @@ export default function RecordSalePage() {
           </CardContent>
         </Card>
         
-        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > (selectedProduct?.quantity || 0)}>
-          <Check className="mr-2 h-6 w-6" />
-          Confirm Sale
+        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > (selectedProduct?.quantity || 0) || isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Check className="mr-2 h-6 w-6" />}
+          {isLoading ? 'Recording...' : 'Confirm Sale'}
         </Button>
       </div>
     </MainLayout>
