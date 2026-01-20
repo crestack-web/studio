@@ -70,6 +70,7 @@ export default function OwnerHomePage() {
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+    const [aiCache, setAiCache] = useState<Record<string, string>>({});
     
     const [date, setDate] = useState<DateRange | undefined>({
         from: addDays(new Date(), -30),
@@ -188,6 +189,14 @@ export default function OwnerHomePage() {
 
     const handleQuestionClick = async (question: string) => {
         if (!businessData || !businessInsights) return;
+        
+        const cacheKey = JSON.stringify({ question, insights: businessInsights });
+        if (aiCache[cacheKey]) {
+            setAnswer(aiCache[cacheKey]);
+            setSelectedQuestion(question);
+            return;
+        }
+
         setIsLoading(true);
         setSelectedQuestion(question);
         setAnswer(null);
@@ -198,13 +207,10 @@ export default function OwnerHomePage() {
                 currency: getCurrencySymbol(businessData?.currency),
             });
             setAnswer(response.answer);
+            setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
         } catch (error) {
             console.error("Error getting business insights:", error);
-            if ((error as any).message && (error as any).message.includes('429 Too Many Requests')) {
-                setAnswer("I'm experiencing high demand right now. Please try again in a minute.");
-            } else {
-                setAnswer("Sorry, I couldn't process that request. Please try again.");
-            }
+            setAnswer("Sorry, I couldn't process that request. Please try again.");
         } finally {
             setIsLoading(false);
         }
