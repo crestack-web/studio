@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +25,8 @@ import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { signOut } from 'firebase/auth';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -684,14 +686,53 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </main>
-      <Button
-        className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
-        size="icon"
-        aria-label="Chat with support"
-      >
-        <MessageSquare className="h-8 w-8" />
-        <span className="sr-only">Chat with support</span>
-      </Button>
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button
+            className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
+            size="icon"
+            aria-label="Chat with support"
+          >
+            <MessageSquare className="h-8 w-8" />
+            <span className="sr-only">Chat with support</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Support Chat</SheetTitle>
+            <SheetDescription>
+              We're here to help. Ask us anything!
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
+            {/* Mock chat messages */}
+            <div className="flex items-start gap-3">
+              <Avatar className="w-8 h-8 border">
+                <AvatarFallback>S</AvatarFallback>
+              </Avatar>
+              <div className="rounded-xl p-3 text-sm bg-card border rounded-bl-none">
+                Hi there! How can I help you today?
+              </div>
+            </div>
+            <div className="flex items-start gap-3 justify-end">
+              <div className="rounded-xl p-3 text-sm bg-primary text-primary-foreground rounded-br-none">
+                I have a question about my invoice.
+              </div>
+            </div>
+          </div>
+          <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
+            <div className="flex w-full items-center gap-2">
+              <Input
+                placeholder="Type your message..."
+                className="h-12 flex-1 text-base"
+              />
+              <Button type="submit" size="icon" className="h-12 w-12 shrink-0">
+                <Send className="h-6 w-6" />
+              </Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
