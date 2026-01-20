@@ -224,7 +224,7 @@ export function DashboardMockup() {
               <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type === 'stock' ? 'opacity-100 text-warning font-medium' : 'opacity-0')}>
                 {currentStep.type === 'stock' ? 'Bottled Water: 5 left' : ''}
             </p>
-              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type === 'stock' ? 'opacity-0' : 'opacity-100')}>
+              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type !== 'stock' ? 'opacity-100' : 'opacity-0')}>
                 No low-stock alerts yet.
             </p>
         </CardContent>
