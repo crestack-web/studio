@@ -11,9 +11,9 @@ interface FirebaseClientProviderProps {
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   return (
     <FirebaseProvider
-      firebaseApp={{} as any}
-      auth={{} as any}
-      firestore={{} as any}
+      firebaseApp={null as any}
+      auth={null as any}
+      firestore={null as any}
     >
       {children}
     </FirebaseProvider>
