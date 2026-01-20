@@ -10,7 +10,7 @@ import { TrendingUp, Building, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, query, collection, where, Timestamp } from 'firebase/firestore';
+import { doc, query, collection, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 
@@ -78,13 +78,13 @@ export default function SummaryPage() {
   // For summary, let's fetch all sales data without date constraints
   const allSalesQuery = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return query(collection(firestore, 'sales'), where('businessId', '==', businessId));
+    return query(collection(firestore, 'businesses', businessId, 'sales'));
   }, [firestore, businessId]);
   const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(allSalesQuery);
 
   const allProductsQuery = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+    return query(collection(firestore, 'businesses', businessId, 'products'));
   }, [firestore, businessId]);
   const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(allProductsQuery);
 
