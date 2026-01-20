@@ -22,7 +22,7 @@ import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
-import { getCurrencySymbol } from '@/lib/currency';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -100,7 +100,7 @@ export default function OwnerHomePage() {
         const salesCollection = collection(firestore, `businesses/${businessId}/sales`);
         return query(salesCollection, where('timestamp', '>=', date.from), where('timestamp', '<=', date.to || new Date()));
     }, [businessId, date, firestore]);
-    const { data: salesData } = useCollection<Sale>(salesQuery);
+    const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
 
     const productsQuery = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
@@ -391,39 +391,105 @@ export default function OwnerHomePage() {
                         )}
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="text-center text-sm text-muted-foreground pt-4">
-                        <p>Not enough data for this period. Record sales and expenses to see your summary.</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Link href="/owner/summary" passHref>
-                            <Button variant="secondary" className="w-full">
-                                View Sample Statement
-                            </Button>
-                        </Link>
-                         <Dialog>
-                            <DialogTrigger asChild>
-                                <Button variant="secondary" className="w-full">
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Download Statement
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle>Download Business Statement</DialogTitle>
-                                    <DialogDescription>
-                                        This will download a PDF statement for the selected date range.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter className="pt-4">
-                                    <Button onClick={handleDownload}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download PDF
+                 <CardContent className="space-y-4">
+                    {isLoadingSales ? (
+                        <div className="space-y-4 pt-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
+                            </div>
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : salesData && salesData.length > 0 ? (
+                        <>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Total Revenue</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Net Profit</p>
+                                    <p className={cn("text-2xl font-bold", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>
+                                        {formatCurrency(businessInsights.totalProfit, businessData?.currency)}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Sales today</p>
+                                    <p className="text-2xl font-bold">{businessInsights.salesTodayCount}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Revenue today</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                                <Link href="/owner/summary" passHref>
+                                    <Button variant="secondary" className="w-full">
+                                        View Full Statement
                                     </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
+                                </Link>
+                                 <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download Statement
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Download Business Statement</DialogTitle>
+                                            <DialogDescription>
+                                                This will download a PDF statement for the selected date range.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter className="pt-4">
+                                            <Button onClick={handleDownload}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download PDF
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="text-center text-sm text-muted-foreground pt-4">
+                                <p>Record sales and expenses to see your summary for this period.</p>
+                            </div>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Link href="/owner/summary" passHref>
+                                    <Button variant="secondary" className="w-full">
+                                        View Statement
+                                    </Button>
+                                </Link>
+                                 <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download Statement
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Download Business Statement</DialogTitle>
+                                            <DialogDescription>
+                                                This will download a PDF statement for the selected date range. This statement will be empty as there is no data.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter className="pt-4">
+                                            <Button onClick={handleDownload}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download PDF
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
