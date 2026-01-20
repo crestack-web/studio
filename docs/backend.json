@@ -50,6 +50,10 @@
             "type": "string",
             "description": "The selected subscription plan for the business."
         },
+        "marketDescription": {
+            "type": "string",
+            "description": "Public-facing business description for the marketplace."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -213,6 +217,10 @@
         "price": {
           "type": "number",
           "description": "The price of the product."
+        },
+        "description": {
+            "type": "string",
+            "description": "Public-facing product description."
         },
         "category": {
           "type": "string",

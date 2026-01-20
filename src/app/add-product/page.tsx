@@ -140,6 +140,7 @@ export default function AddProductPage() {
                     businessName: businessData.businessName,
                     productName: productData.name,
                     price: productData.price,
+                    description: productData.description,
                     category: productData.category,
                     availableQuantity: productData.quantity,
                     createdAt: new Date(), // Using client-side date for simplicity, serverTimestamp can be tricky with security rules
@@ -276,9 +277,8 @@ export default function AddProductPage() {
                                                 <Image
                                                     src={URL.createObjectURL(file)}
                                                     alt={`Product image ${index + 1}`}
-                                                    layout="fill"
-                                                    objectFit="cover"
-                                                    className="rounded-md"
+                                                    fill
+                                                    className="rounded-md object-cover"
                                                 />
                                                 <Button
                                                     variant="destructive"
