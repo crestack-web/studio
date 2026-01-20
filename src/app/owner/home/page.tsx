@@ -55,6 +55,7 @@ interface Sale {
     source: string;
     timestamp: Timestamp;
     productId?: string;
+    quantity: number;
 }
 
 interface Product {
@@ -163,13 +164,13 @@ export default function OwnerHomePage() {
             totalSales += sale.amount;
             const product = productsData.find(p => p.id === sale.productId);
             if (product) {
-                const profit = sale.amount - (product.cost * (sale.amount / product.price));
+                const profit = sale.amount - (product.cost * sale.quantity);
                 totalProfit += profit;
 
                 if (!salesByProduct[product.id]) {
                     salesByProduct[product.id] = { id: product.id, name: product.name, quantity: 0, sales: 0 };
                 }
-                salesByProduct[product.id].quantity += (sale.amount / product.price);
+                salesByProduct[product.id].quantity += sale.quantity;
                 salesByProduct[product.id].sales += sale.amount;
 
                 if (isWithinInterval(sale.timestamp.toDate(), todayInterval)) {
@@ -240,7 +241,9 @@ export default function OwnerHomePage() {
     }
     
     const handleSignOut = async () => {
-      await signOut(auth);
+      if(auth) {
+        await signOut(auth);
+      }
       router.push('/login');
     };
 
@@ -455,11 +458,11 @@ export default function OwnerHomePage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">Total Revenue</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p>
+                                    <p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">Net Profit</p>
-                                    <p className={cn("text-2xl font-bold", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>
+                                    <p className={cn("text-xl font-bold sm:text-2xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>
                                         {formatCurrency(businessInsights.totalProfit, businessData?.currency)}
                                     </p>
                                 </div>
@@ -467,11 +470,11 @@ export default function OwnerHomePage() {
                             <div className="grid grid-cols-2 gap-4 pt-2">
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">Sales today</p>
-                                    <p className="text-2xl font-bold">{businessInsights.salesTodayCount}</p>
+                                    <p className="text-xl font-bold sm:text-2xl">{businessInsights.salesTodayCount}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">Revenue today</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
+                                    <p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
