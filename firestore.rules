@@ -60,8 +60,9 @@ service cloud.firestore {
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
       allow get, list: if true;
-      // No client-side writes are allowed to the marketplace
-      allow create, update, delete: if false;
+      // Allow business owners to manage their own products on the market.
+      allow create: if isBusinessOwner(request.resource.data.businessId);
+      allow update, delete: if isBusinessOwner(resource.data.businessId);
     }
   }
 }
