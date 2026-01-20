@@ -134,7 +134,7 @@ export default function PlansPage() {
             plan: selectedPlan,
             onboardingCompleted: true,
         });
-        router.push('/owner/home');
+        router.replace('/owner/home?onboarding=complete');
     } catch (error: any) {
          toast({
             variant: 'destructive',

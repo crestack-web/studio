@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -74,6 +74,7 @@ interface Product {
 
 export default function OwnerHomePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +104,16 @@ export default function OwnerHomePage() {
     const [chatInput, setChatInput] = useState('');
     const [ticketSubject, setTicketSubject] = useState('');
     const [ticketMessage, setTicketMessage] = useState('');
+    const [showWelcome, setShowWelcome] = useState(false);
+
+    useEffect(() => {
+        if (searchParams.get('onboarding') === 'complete') {
+            setShowWelcome(true);
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('onboarding');
+            window.history.replaceState({}, '', currentUrl.toString());
+        }
+    }, [searchParams]);
 
     const supportAgents = [
         { name: 'Amina', avatarUrl: 'https://picsum.photos/seed/amina/40/40', imageHint: 'woman smiling' },
@@ -706,6 +717,19 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </main>
+      <Dialog open={showWelcome} onOpenChange={setShowWelcome}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Welcome aboard, {userProfile?.displayName || 'friend'}!</DialogTitle>
+                  <DialogDescription>
+                      You're all set up. The journey to business clarity starts now. Record your first sale to see the magic happen.
+                  </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                  <Button onClick={() => setShowWelcome(false)}>Let's Go!</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
       <Sheet onOpenChange={(isOpen) => { if (!isOpen) setChatView('initial') }}>
         <SheetTrigger asChild>
           <Button
