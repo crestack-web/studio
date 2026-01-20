@@ -6,7 +6,7 @@ import { Logo } from '@/components/app/logo';
 import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import Autoplay from "embla-carousel-autoplay";
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { DashboardMockup } from '@/components/app/dashboard-mockup';
@@ -28,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 
 const testimonialsData = [
@@ -70,6 +72,9 @@ export default function LandingPage() {
   const [chatInput, setChatInput] = useState('');
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketMessage, setTicketMessage] = useState('');
+
+  const { user } = useUser();
+  const firestore = useFirestore();
   
   const supportAgents = [
     { name: 'Amina', avatarUrl: 'https://picsum.photos/seed/amina/40/40', imageHint: 'woman smiling' },
@@ -85,6 +90,29 @@ export default function LandingPage() {
     
     setCurrentYear(new Date().getFullYear());
   }, []);
+
+  const handleCreateTicket = (e: FormEvent) => {
+    e.preventDefault();
+    if (!firestore) {
+        toast({ title: "Error", description: "Could not connect to our services. Please try again later.", variant: "destructive" });
+        return;
+    }
+    const ticketsCollectionRef = collection(firestore, 'supportTickets');
+    addDocumentNonBlocking(ticketsCollectionRef, {
+        subject: ticketSubject,
+        message: ticketMessage,
+        status: 'open',
+        createdAt: serverTimestamp(),
+        userId: user?.uid || null,
+        userName: user?.displayName || 'Guest',
+        userEmail: user?.email || 'Not provided'
+    });
+
+    toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });
+    setTicketSubject('');
+    setTicketMessage('');
+    setChatView('initial');
+  };
 
   const faqItems = [
     { value: 'item-1', question: t('welcome.faq_1_q'), answer: t('welcome.faq_1_a') },
@@ -745,13 +773,7 @@ export default function LandingPage() {
                     <SheetDescription>We'll get back to you via email.</SheetDescription>
                     </div>
                 </SheetHeader>
-                <form onSubmit={(e) => {
-                e.preventDefault();
-                toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });
-                setTicketSubject('');
-                setTicketMessage('');
-                setChatView('initial');
-                }} className="flex-1 py-4 flex flex-col gap-4">
+                <form onSubmit={handleCreateTicket} className="flex-1 py-4 flex flex-col gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="ticket-subject">Subject</Label>
                         <Input id="ticket-subject" value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="e.g., Issue with my latest report" required />

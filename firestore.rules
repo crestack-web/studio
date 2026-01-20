@@ -12,6 +12,10 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
 
     function isBusinessOwner(businessId) {
       return isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
@@ -20,8 +24,8 @@ service cloud.firestore {
     // Rules for the 'users' collection
     match /users/{userId} {
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow get, update, delete: if isOwner(userId);
-      allow list: if false;
+      allow get, update, delete: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
     }
 
     // Rules for the 'businesses' collection
@@ -78,6 +82,7 @@ service cloud.firestore {
                incomingData.productName == product.name &&
                incomingData.price == product.price &&
                incomingData.category == product.category &&
+               incomingData.description == product.description &&
                incomingData.availableQuantity == product.quantity;
       }
       
@@ -93,6 +98,18 @@ service cloud.firestore {
       
       // Allow deletion only by the business owner.
       allow delete: if isBusinessOwner(resource.data.businessId);
+    }
+    
+    // Rules for the 'blogs' collection
+    match /blogs/{blogId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Rules for the 'supportTickets' collection
+    match /supportTickets/{ticketId} {
+      allow create: if isSignedIn();
+      allow read, list, update, delete: if isAdmin();
     }
   }
 }

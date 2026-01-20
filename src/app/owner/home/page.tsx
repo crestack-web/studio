@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,9 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth } from '@/firebase';
+import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, doc, query, where, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { signOut } from 'firebase/auth';
@@ -278,6 +278,28 @@ export default function OwnerHomePage() {
         await signOut(auth);
       }
       router.push('/login');
+    };
+
+    const handleCreateTicket = (e: FormEvent) => {
+        e.preventDefault();
+        if (!firestore) {
+            toast({ title: "Error", description: "Could not connect to our services. Please try again later.", variant: "destructive" });
+            return;
+        }
+        const ticketsCollectionRef = collection(firestore, 'supportTickets');
+        addDocumentNonBlocking(ticketsCollectionRef, {
+            subject: ticketSubject,
+            message: ticketMessage,
+            status: 'open',
+            createdAt: serverTimestamp(),
+            userId: authUser?.uid || null,
+            userName: userProfile?.displayName || 'N/A',
+            userEmail: authUser?.email || 'N/A'
+        });
+        toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });
+        setTicketSubject('');
+        setTicketMessage('');
+        setChatView('initial');
     };
 
     const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
@@ -846,13 +868,7 @@ export default function OwnerHomePage() {
                     <SheetDescription>We'll get back to you via email.</SheetDescription>
                     </div>
                 </SheetHeader>
-                <form onSubmit={(e) => {
-                e.preventDefault();
-                toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });
-                setTicketSubject('');
-                setTicketMessage('');
-                setChatView('initial');
-                }} className="flex-1 py-4 flex flex-col gap-4">
+                <form onSubmit={handleCreateTicket} className="flex-1 py-4 flex flex-col gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="ticket-subject">Subject</Label>
                         <Input id="ticket-subject" value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="e.g., Issue with my latest report" required />

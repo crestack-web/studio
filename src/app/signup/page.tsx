@@ -50,6 +50,7 @@ export default function SignUpPage() {
             id: user.uid,
             displayName: name,
             email: user.email,
+            role: 'Owner',
         };
         await setDoc(doc(firestore, 'users', user.uid), userProfile);
         

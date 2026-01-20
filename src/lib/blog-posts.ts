@@ -1,47 +1,112 @@
-export interface BlogPost {
-  slug: string;
-  title: string;
-  description: string;
-  author: string;
-  date: string;
-  imageUrl: string;
-  imageHint: string;
-  content: string;
+'use client';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import OnboardingLayout from '@/components/app/onboarding-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { useAuth, useFirestore } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
+export default function SignUpPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const router = useRouter();
+  const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
+
+  const handleSignUp = async () => {
+    setIsLoading(true);
+    if (password.length < 6) {
+        toast({
+            variant: "destructive",
+            title: "Password is too short",
+            description: "Password must be at least 6 characters.",
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+        if (!auth || !firestore) {
+            throw new Error("Firebase services not available.");
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Create user profile in Firestore
+        const userProfile = {
+            id: user.uid,
+            displayName: name,
+            email: user.email,
+            role: 'Owner',
+        };
+        await setDoc(doc(firestore, 'users', user.uid), userProfile);
+        
+        toast({
+            title: "Account Created",
+            description: "Let's set up your business.",
+        });
+        router.push('/business-info');
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+
+  return (
+    <OnboardingLayout>
+      <Card className="w-full">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-headline">Create your Account</CardTitle>
+          <CardDescription>Get started with Busmo as a business owner.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+           <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input id="name" placeholder="e.g., Tunde Oladipo" className="h-12 text-base" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading}/>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input id="email" type="email" placeholder="you@example.com" className="h-12 text-base" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading}/>
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number (for calls)</Label>
+            <Input id="phone" type="tel" placeholder="+234 800 000 0000" className="h-12 text-base" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={isLoading}/>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" placeholder="Must be at least 6 characters" className="h-12 text-base" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+          </div>
+          <Button className="w-full h-14 text-lg" onClick={handleSignUp} disabled={isLoading || !name || !email || !password || !phoneNumber}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Continue
+          </Button>
+           <p className="text-sm text-center text-muted-foreground pt-2">
+              Already have an account?{' '}
+              <Link href="/login" className="underline font-medium text-primary">
+                  Log In
+              </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </OnboardingLayout>
+  );
 }
-
-export const blogPosts: BlogPost[] = [
-  {
-    slug: '5-ways-to-increase-sales',
-    title: '5 Simple Ways to Increase Sales in Your Small Business',
-    description: 'Discover practical and easy-to-implement strategies to boost your revenue and grow your customer base.',
-    author: 'Tunde Oladipo',
-    date: 'August 15, 2024',
-    imageUrl: 'https://picsum.photos/seed/blog-sales/800/400',
-    imageHint: 'market stall',
-    content: '1. Understand Your Customers: Talk to them and get feedback.\n\n2. Improve Your Customer Service: A happy customer is a repeat customer.\n\n3. Use Social Media: Show off your products online where people are looking.\n\n4. Offer Promotions: A small discount can lead to a big sale.\n\n5. Ask for Reviews: Good reviews build trust with new customers.'
-  },
-  {
-    slug: 'managing-inventory-effectively',
-    title: "A Beginner's Guide to Managing Inventory Effectively",
-    description: 'Learn the basics of inventory management to reduce waste, save money, and ensure you never run out of your best-selling products.',
-    author: 'Aisha Bello',
-    date: 'August 10, 2024',
-    imageUrl: 'https://picsum.photos/seed/blog-inventory/800/400',
-    imageHint: 'warehouse shelves',
-    content: "Keeping track of your stock is key. Use a system like First-In, First-Out (FIFO) to sell older stock first. Regularly count your inventory to know what you have. Use tools like Busmo to see what's selling fast and what's not."
-  },
-  {
-    slug: 'understanding-your-business-numbers',
-    title: 'Why Understanding Your Business Numbers is Crucial for Growth',
-    description: "Profit, revenue, cost of goods sold... These aren't just numbers. They tell the story of your business. Learn how to read them.",
-    author: 'Busmo Team',
-    date: 'August 1, 2024',
-    imageUrl: 'https://picsum.photos/seed/blog-numbers/800/400',
-    imageHint: 'calculator notebook',
-    content: "Your total sales is your REVENUE. The money you spent to get your products is your COST OF GOODS SOLD. Revenue minus cost of goods gives you your PROFIT. Knowing your profit is the most important number in your business."
-  }
-];
-
-export const getPostBySlug = (slug: string) => {
-  return blogPosts.find(post => post.slug === slug);
-};
