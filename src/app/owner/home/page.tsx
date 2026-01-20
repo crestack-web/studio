@@ -200,7 +200,11 @@ export default function OwnerHomePage() {
             setAnswer(response.answer);
         } catch (error) {
             console.error("Error getting business insights:", error);
-            setAnswer("Sorry, I couldn't process that request. Please try again.");
+            if ((error as any).message && (error as any).message.includes('429 Too Many Requests')) {
+                setAnswer("I'm experiencing high demand right now. Please try again in a minute.");
+            } else {
+                setAnswer("Sorry, I couldn't process that request. Please try again.");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -324,6 +328,7 @@ export default function OwnerHomePage() {
                         onClick={() => handleQuestionClick(q)} 
                         disabled={isLoading && selectedQuestion === q}
                        >
+                           {isLoading && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                            {q}
                        </Button>
                    ))}
@@ -367,6 +372,9 @@ export default function OwnerHomePage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="w-auto p-0">
+                                    <DialogHeader className="p-4 border-b">
+                                        <DialogTitle>Select a date range</DialogTitle>
+                                    </DialogHeader>
                                     {datePickerContent}
                                 </DialogContent>
                             </Dialog>
