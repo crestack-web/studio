@@ -1,150 +1,62 @@
-/**
- * This ruleset enforces a strict user-ownership model for the Busmo application.
- *
- * Core Philosophy:
- * The security model is centered around the 'business' entity. A user who creates a
- * business is its sole owner and has exclusive control over all related data,
- * including its inventory and products. Data intended for public consumption is
- * structurally segregated into a separate top-level collection to ensure private
- * business data is never accidentally exposed.
- *
- * Data Structure:
- * - /businesses/{businessId}: The root collection for all private business data.
- *   Each document contains an 'ownerId' field linking it to a Firebase Auth user.
- * - /businesses/{businessId}/inventory/{inventoryId}: A subcollection for inventory items.
- * - /businesses/{businessId}/products/{productId}: A subcollection for products.
- * - /marketProducts/{marketProductId}: A top-level collection for products that have
- *   been explicitly published to the public marketplace.
- *
- * Key Security Decisions:
- * - User Privacy: Listing all businesses in the root /businesses collection is
- *   explicitly disallowed to protect user and business privacy.
- * - Derived Ownership: Access to subcollections (inventory, products) is determined
- *   by checking the 'ownerId' on the parent business document. This ensures a
- *   single source of truth for ownership within a business's data tree.
- * - Public Data Segregation: The '/marketProducts' collection is public-readable
- *   but completely locked down from client-side writes. This enforces the critical
- *   pattern that only a trusted backend process (e.g., a Cloud Function) can
- *   publish, update, or remove items from the public marketplace, preventing any
- *   unauthorized modifications.
- * - Prototyping Flexibility: These rules focus strictly on authorization (who can
- *   access what) and relational integrity (e.g., ownerId cannot be changed). They
- *   do not enforce specific data shapes or types, allowing for rapid front-end
- *   development and iteration.
- */
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ------------------------------------------------------------------------
-    // Helper Functions
-    // ------------------------------------------------------------------------
-
-    /**
-     * Checks if the user is authenticated.
-     */
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the currently authenticated user's UID matches the provided userId.
-     * This is the primary function for validating direct ownership.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks if the user is the owner of the parent business document.
-     * This function performs a 'get' operation, which is necessary because the
-     * subcollection documents (inventory, products) do not have a denormalized
-     * 'ownerId' field. This securely derives permission from the parent.
-     */
     function isBusinessOwner(businessId) {
       return isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
-    /**
-     * Validates that the ownerId field on a newly created Business document
-     * matches the UID of the user creating it.
-     */
-    function isCreatingOwnBusiness() {
-      return isOwner(request.resource.data.ownerId);
-    }
-
-    /**
-     * Validates that the ownerId field of a Business document is not being
-     * changed during an update operation. Ownership is immutable.
-     */
-    function ownerIdIsImmutable() {
-      return request.resource.data.ownerId == resource.data.ownerId;
-    }
-
-
-    // ------------------------------------------------------------------------
-    // Collection Rules
-    // ------------------------------------------------------------------------
-
-    /**
-     * @description Controls access to a business document. Only the owner can manage their business.
-     * @path /businesses/{businessId}
-     * @allow (create) An authenticated user creating a business for themselves. `request.auth.uid == request.resource.data.ownerId`.
-     * @deny (list) Any user attempting to list all businesses in the collection.
-     * @deny (get) A user trying to read another user's business document.
-     * @principle Enforces document ownership and prevents enumeration of private user data.
-     */
-    match /businesses/{businessId} {
-      allow get: if isOwner(resource.data.ownerId);
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Any authenticated user can create their own user profile
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
+      // Users can only read, update, or delete their own profile
+      allow get, update, delete: if isOwner(userId);
+      // Listing all users is not allowed
       allow list: if false;
-      allow create: if isCreatingOwnBusiness();
-      allow update: if isOwner(resource.data.ownerId) && ownerIdIsImmutable() && resource != null;
-      allow delete: if isOwner(resource.data.ownerId) && resource != null;
     }
 
-    /**
-     * @description Secures inventory items, restricting all access to the business owner.
-     * @path /businesses/{businessId}/inventory/{inventoryId}
-     * @allow (get, list, create, update, delete) The owner of the parent business document.
-     * @deny (get) A user trying to read inventory from a business they do not own.
-     * @principle Enforces derived ownership by checking the parent document, securing the entire data tree.
-     */
+    // Rules for the 'businesses' collection
+    match /businesses/{businessId} {
+      // Users can only read their own business document
+      allow get: if isOwner(resource.data.ownerId);
+      // Users can only create a business for themselves
+      allow create: if isOwner(request.resource.data.ownerId);
+      // Users can only update their own business document
+      allow update, delete: if isOwner(resource.data.ownerId);
+      // Listing all businesses is not allowed for privacy
+      allow list: if false;
+    }
+
+    // Rules for the 'inventory' subcollection
     match /businesses/{businessId}/inventory/{inventoryId} {
-      allow get: if isBusinessOwner(businessId);
-      allow list: if isBusinessOwner(businessId);
-      allow create: if isBusinessOwner(businessId);
-      allow update: if isBusinessOwner(businessId) && resource != null;
-      allow delete: if isBusinessOwner(businessId) && resource != null;
+      // Only the business owner can read, create, update, or delete inventory
+      allow read, write: if isBusinessOwner(businessId);
     }
 
-    /**
-     * @description Secures products, restricting all access to the business owner.
-     * @path /businesses/{businessId}/products/{productId}
-     * @allow (get, list, create, update, delete) The owner of the parent business document.
-     * @deny (create) A user trying to create a product under a business they do not own.
-     * @principle Enforces derived ownership by checking the parent document, securing the entire data tree.
-     */
+    // Rules for the 'products' subcollection
     match /businesses/{businessId}/products/{productId} {
-      allow get: if isBusinessOwner(businessId);
-      allow list: if isBusinessOwner(businessId);
-      allow create: if isBusinessOwner(businessId);
-      allow update: if isBusinessOwner(businessId) && resource != null;
-      allow delete: if isBusinessOwner(businessId) && resource != null;
+       // Only the business owner can read, create, update, or delete products
+      allow read, write: if isBusinessOwner(businessId);
     }
 
-    /**
-     * @description Manages publicly visible products. Anyone can read, but no one can write from the client.
-     * @path /marketProducts/{marketProductId}
-     * @allow (get, list) Any user, including unauthenticated visitors, can view market products.
-     * @deny (create, update, delete) All client-side write operations are forbidden to protect data integrity.
-     * @principle Enforces a "read-only public data" model. Writes must be handled by a trusted backend service.
-     */
+    // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      // Anyone can read products from the marketplace
+      allow get, list: if true;
+      // No client-side writes are allowed to the marketplace
+      allow create, update, delete: if false;
     }
   }
 }
