@@ -119,7 +119,7 @@ export default function AddProductPage() {
             price: parseFloat(sellingPrice),
             cost: finalCostPrice,
             quantity: parseInt(initialQuantity),
-            isPublishedToMarket,
+            isPublishedToMarket: isListedOnMarket,
             description: productDescription,
             category: productCategory,
             createdAt: serverTimestamp(),
