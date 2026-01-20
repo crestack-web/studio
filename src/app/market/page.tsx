@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search, ShoppingCart, Menu } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 const categories = [
     {
@@ -73,6 +73,9 @@ export default function MarketPage() {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent>
+                                <SheetHeader className="sr-only">
+                                    <SheetTitle>Menu</SheetTitle>
+                                </SheetHeader>
                                 <Logo className="h-8 mb-8" />
                                 <div className="relative mb-8">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
