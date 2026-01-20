@@ -36,90 +36,22 @@
             "company"
           ]
         },
-        "isListedOnMarket": {
-          "type": "boolean",
-          "description": "Flag to indicate if the business is listed on Busmo Market."
-        },
-        "storeDescription": {
-          "type": "string",
-          "description": "A short description for the business's public store page."
-        },
-        "paymentSettings": {
-          "type": "object",
-          "description": "Configuration for payment methods for Busmo Market.",
-          "properties": {
-            "allowPayOnDelivery": {
-              "type": "boolean"
-            },
-            "allowBankTransfer": {
-              "type": "boolean"
-            },
-            "bankName": {
-              "type": "string"
-            },
-            "accountNumber": {
-              "type": "string"
-            },
-            "paymentInstructions": {
-              "type": "string"
-            }
-          }
-        },
-        "deliverySettings": {
-          "type": "object",
-          "description": "Configuration for delivery and pickup for Busmo Market.",
-          "properties": {
-            "allowDelivery": {
-              "type": "boolean"
-            },
-            "allowPickup": {
-              "type": "boolean"
-            },
-            "deliveryFee": {
-              "type": "number"
-            },
-            "deliveryDays": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "investmentOffer_type": {
-          "type": "string",
-          "enum": ["profit-sharing", "equity"]
-        },
-        "investmentOffer_ask": {
-          "type": "number"
-        },
-        "investmentOffer_profitShare": {
-          "type": "number"
-        },
-        "investmentOffer_duration": {
-          "type": "number"
-        },
-        "investmentOffer_equity": {
-          "type": "number"
-        },
-        "investmentOffer_valuation": {
-          "type": "number"
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
         }
       },
       "required": [
         "id",
         "ownerId",
-        "name",
-        "type",
-        "currency",
-        "plan"
+        "name"
       ]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the BizAssistant app. Can be a business owner, staff, or an investor.",
+      "description": "Represents a user of the BizAssistant app. Can be a business owner or staff.",
       "properties": {
         "id": {
           "type": "string",
@@ -131,356 +63,20 @@
         },
         "email": {
           "type": "string",
-          "description": "User's email address (used for login by investors)."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "User's phone number (used for login by business owners/staff)."
+          "description": "User's email address."
         },
         "businessId": {
           "type": "string",
-          "description": "Reference to Business. Required for Owner/Staff roles. (Relationship: Business 1:N User)"
+          "description": "Reference to Business. Required for Owner/Staff roles."
         },
         "role": {
           "type": "string",
-          "description": "User's role (e.g., Owner, Staff, Investor)."
-        },
-        "canRecordSales": {
-          "type": "boolean",
-          "description": "Indicates if the user has permission to record sales."
-        },
-        "canSeeReports": {
-          "type": "boolean",
-          "description": "Indicates if the user has permission to view reports (owner only)."
-        },
-        "canManageMarket": {
-          "type": "boolean",
-          "description": "Indicates if the user has permission to manage marketplace listings."
+          "description": "User's role (e.g., Owner, Staff)."
         }
       },
       "required": [
         "id",
         "role"
-      ]
-    },
-    "Sale": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Sale",
-      "type": "object",
-      "description": "Represents a sale transaction. Can also represent an order from the marketplace.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the sale entity."
-        },
-        "businessId": {
-          "type": "string",
-          "description": "Reference to Business. (Relationship: Business 1:N Sale)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N Sale). Can be null if amount is manually entered. For market sales with multiple items, see 'items' property."
-        },
-        "items": {
-          "type": "array",
-          "description": "List of products in the sale/order. Used for market sales.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "productId": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "quantity": {
-                "type": "number"
-              },
-              "price": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "productId",
-              "name",
-              "quantity",
-              "price"
-            ]
-          }
-        },
-        "amount": {
-          "type": "number",
-          "description": "Sale amount."
-        },
-        "paymentType": {
-          "type": "string",
-          "description": "Payment type (e.g., cash, transfer, POS, pay-on-delivery, bank-transfer)."
-        },
-        "source": {
-          "type": "string",
-          "description": "The origin of the sale.",
-          "enum": [
-            "in-store",
-            "market"
-          ]
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp of the sale.",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string",
-          "description": "Status of the order (for market sales).",
-          "enum": [
-            "pending",
-            "shipped",
-            "delivered",
-            "cancelled"
-          ]
-        },
-        "fulfillmentMethod": {
-          "type": "string",
-          "description": "How the order will be fulfilled (for market sales).",
-          "enum": [
-            "delivery",
-            "pickup"
-          ]
-        },
-        "customerDetails": {
-          "type": "object",
-          "description": "Details of the customer for market sales.",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "phone": {
-              "type": "string"
-            },
-            "address": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "required": [
-        "id",
-        "businessId",
-        "amount",
-        "paymentType",
-        "timestamp",
-        "source"
-      ]
-    },
-    "Product": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Product",
-      "type": "object",
-      "description": "Represents a product sold by the business.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the product entity."
-        },
-        "businessId": {
-          "type": "string",
-          "description": "Reference to Business. (Relationship: Business 1:N Product)"
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the product."
-        },
-        "description": {
-          "type": "string",
-          "description": "A short description of the product for the marketplace."
-        },
-        "price": {
-          "type": "number",
-          "description": "Selling price of the product."
-        },
-        "cost": {
-          "type": "number",
-          "description": "Cost price or production cost of the product."
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Current stock level of the product."
-        },
-        "ingredients": {
-          "type": "array",
-          "description": "List of ingredients and their costs, used for margin calculation (primarily for Company plan).",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "Name of the ingredient."
-              },
-              "cost": {
-                "type": "number",
-                "description": "Cost of this ingredient for one unit of the product."
-              }
-            },
-            "required": [
-              "name",
-              "cost"
-            ]
-          }
-        },
-        "isManufactured": {
-          "type": "boolean",
-          "description": "Flag to indicate if this is a manufactured product with ingredients."
-        },
-        "isListedOnMarket": {
-          "type": "boolean",
-          "description": "Flag to indicate if this product is listed on Busmo Market."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the product for Busmo Market (e.g., Fashion, Food, Electronics)."
-        },
-        "images": {
-          "type": "array",
-          "description": "List of image URLs for the product.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "businessId",
-        "name",
-        "price",
-        "cost",
-        "quantity"
-      ]
-    },
-    "Investment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Investment",
-      "description": "Represents an investment intent and its lifecycle between an investor and a business.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the investment."
-        },
-        "investorId": {
-          "type": "string",
-          "description": "The UID of the investing user."
-        },
-        "businessId": {
-          "type": "string"
-        },
-        "businessName": {
-          "type": "string"
-        },
-        "investorName": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "profit-sharing",
-            "equity"
-          ]
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount being invested."
-        },
-        "terms": {
-          "type": "object",
-          "properties": {
-            "profitShare": {
-              "type": "number",
-              "description": "Percentage of profit share."
-            },
-            "duration": {
-              "type": "number",
-              "description": "Duration of profit share in months."
-            },
-            "equity": {
-              "type": "number",
-              "description": "Percentage of equity offered."
-            },
-            "valuation": {
-              "type": "number",
-              "description": "Business valuation at time of investment."
-            }
-          }
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the investment lifecycle.",
-          "enum": [
-            "intent-draft",
-            "pending-acceptance",
-            "pending-funding",
-            "active",
-            "completed",
-            "rejected",
-            "cancelled"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "investorId",
-        "businessId",
-        "type",
-        "amount",
-        "terms",
-        "status",
-        "createdAt"
-      ]
-    },
-    "Transaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Transaction",
-      "description": "Represents a financial transaction that is not a direct sale, such as an expense, deposit, or withdrawal.",
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "businessId": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "expense",
-            "deposit",
-            "withdrawal"
-          ]
-        },
-        "amount": {
-          "type": "number"
-        },
-        "description": {
-          "type": "string"
-        },
-        "category": {
-          "type": "string",
-          "description": "Category for expenses (e.g., rent, utilities)."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "businessId",
-        "type",
-        "amount",
-        "timestamp"
       ]
     }
   },
@@ -497,15 +93,9 @@
         "definition": {
           "entityName": "User",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/entities/User"
           },
-          "description": "Stores user profiles. The `userId` parameter corresponds to the Firebase Auth UID. Includes `businessId` for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the user."
-            }
-          ]
+          "description": "Stores user profiles. The `userId` parameter corresponds to the Firebase Auth UID."
         }
       },
       {
@@ -513,76 +103,11 @@
         "definition": {
           "entityName": "Business",
           "schema": {
-            "$ref": "#/backend/entities/Business"
+            "$ref": "#/entities/Business"
           },
-          "description": "Stores business details.",
-          "params": [
-            {
-              "name": "businessId",
-              "description": "Unique identifier for the business."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Stores sale transactions. Includes `businessId` for authorization independence.",
-          "params": [
-            {
-              "name": "saleId",
-              "description": "Unique identifier for the sale."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores product information. Includes `businessId` for authorization independence.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/investments/{investmentId}",
-        "definition": {
-          "entityName": "Investment",
-          "schema": {
-            "$ref": "#/backend/entities/Investment"
-          },
-          "description": "Stores all investment intents, agreements, and their lifecycle statuses.",
-          "params": [
-            {
-              "name": "investmentId",
-              "description": "Unique identifier for the investment."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/transactions/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
-          },
-          "description": "Stores non-sale financial transactions like expenses, deposits, and withdrawals. Includes `businessId` for authorization independence."
+          "description": "Stores business details. Contains `ownerId` for authorization."
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to support the BizAssistant app's core features, focusing on simplicity, security, and scalability, especially considering the constraints of the target user base (African small businesses with potentially low digital literacy, old Android phones, and unstable internet).  The structure prioritizes Authorization Independence, enabling robust security rules without relying on complex hierarchical data access.\n\n**Authorization Independence (Denormalization):**\nThe structure heavily utilizes denormalization to achieve Authorization Independence.  Specifically, the `businessId` is included in every document within collections related to a business (e.g., Users, Products, Sales). This allows security rules to validate that a user or a piece of data belongs to a specific business without needing to perform expensive and potentially insecure `get()` operations to traverse the data hierarchy.\n\n**Structural Segregation:**\nThe data is segregated into collections based on entity type, ensuring a homogeneous security posture within each collection.  User data is stored under the root collection `users`, nested under the document corresponding to the user's `uid`. This structure simplifies security rules, ensuring that all documents within a collection share the same access control requirements.\n\n**Access Modeling:**\n*   **Private Data:** User-specific data (e.g., user profiles) will be stored under `/users/{userId}`.\n*   **Business-Owned Data:** Data related to a specific business (Users, Products, Sales) are stored in root-level collections that contain the `businessId` field (e.g., `/users`, `/products`, `/sales`).\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By including `businessId` in all business-related entities, rules can efficiently filter data based on the user's associated business, enabling secure listing of resources.  Path-based ownership for user profiles (`/users/{userId}`) enables secure access to individual user documents.\n\n**Invariants:**\nThe `businessId` field across related collections ensures the integrity of ownership. Timestamps within sales records maintain the correct recording of sale events. The `role` field within user profiles supports differentiation for staff permission (e.g., `canRecordSales`, `canSeeReports`)."
+    ]
   }
 }
