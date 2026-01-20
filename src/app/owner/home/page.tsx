@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2 } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,10 +19,12 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
+import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { signOut } from 'firebase/auth';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -82,6 +84,7 @@ export default function OwnerHomePage() {
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
+    const auth = useAuth();
 
     const userProfileRef = useMemoFirebase(() => {
         if (!authUser || !firestore) return null;
@@ -206,8 +209,12 @@ export default function OwnerHomePage() {
                 insights: businessInsights,
                 currency: getCurrencySymbol(businessData?.currency),
             });
-            setAnswer(response.answer);
-            setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
+            if (response.answer) {
+              setAnswer(response.answer);
+              setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
+            } else {
+              setAnswer("Sorry, I couldn't process that request. Please try again.");
+            }
         } catch (error: any) {
             console.error("Error getting business insights:", error);
             if (error.message && error.message.includes('429 Too Many Requests')) {
@@ -231,6 +238,11 @@ export default function OwnerHomePage() {
     const handleDownload = () => {
         router.push(statementUrl);
     }
+    
+    const handleSignOut = async () => {
+      await signOut(auth);
+      router.push('/login');
+    };
 
     const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
     
@@ -314,15 +326,27 @@ export default function OwnerHomePage() {
           </Popover>
           <ThemeToggle />
           <Separator orientation="vertical" className="h-8 bg-border" />
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="font-semibold">{businessData?.businessName || <Skeleton className="h-5 w-24" />}</div>
-              <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
-            </div>
-            <Avatar>
-              <AvatarFallback>{businessData?.businessName ? businessData.businessName.split(' ').map(n => n[0]).join('').substring(0,2) : 'B'}</AvatarFallback>
-            </Avatar>
-          </div>
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-3 cursor-pointer">
+                <div className="text-right">
+                  <div className="font-semibold">{businessData?.businessName || <Skeleton className="h-5 w-24" />}</div>
+                  <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
+                </div>
+                <Avatar>
+                  <AvatarFallback>{businessData?.businessName ? businessData.businessName.split(' ').map(n => n[0]).join('').substring(0,2) : 'B'}</AvatarFallback>
+                </Avatar>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       <main className="flex-1 p-4 sm:p-6">
