@@ -6,8 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -21,10 +19,6 @@ const categoryPlaceholders: { [key: string]: string } = {
     other: "e.g., Miscellaneous business expense",
 };
 
-interface AppUser {
-    businessId?: string;
-}
-
 export default function RecordExpensePage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -35,18 +29,9 @@ export default function RecordExpensePage() {
 
     const titlePlaceholder = category ? (categoryPlaceholders[category] || "e.g., Describe the expense") : "Select a category to see examples";
 
-    const firestore = useFirestore();
-    const { user: authUser } = useUser();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
-    }, [firestore, authUser]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-    const businessId = userProfile?.businessId;
 
     const handleSaveExpense = async () => {
-        if (!firestore || !businessId || !category || !title || !amount) {
+        if (!category || !title || !amount) {
             toast({
                 variant: 'destructive',
                 title: 'Missing Fields',
@@ -57,35 +42,15 @@ export default function RecordExpensePage() {
 
         setIsLoading(true);
 
-        const newTransaction = {
-            businessId,
-            type: 'expense',
-            amount: parseFloat(amount),
-            description: title,
-            category,
-            timestamp: Timestamp.now(),
-        };
-
-        try {
-            const transactionsCollection = collection(firestore, 'transactions');
-            const docRef = await addDoc(transactionsCollection, {});
-            await addDoc(transactionsCollection, { ...newTransaction, id: docRef.id });
-            
+        // MOCK BEHAVIOR
+        setTimeout(() => {
             toast({
-                title: 'Expense Saved',
+                title: 'Expense Saved (Mock)',
                 description: `Successfully recorded expense: ${title}.`,
             });
             router.back();
-        } catch (error: any) {
-            console.error("Error saving expense:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error Saving Expense',
-                description: error.message || 'An unexpected error occurred.',
-            });
-        } finally {
             setIsLoading(false);
-        }
+        }, 500);
     };
 
 

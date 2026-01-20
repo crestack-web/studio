@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -52,14 +51,14 @@ export default function AddProductPage() {
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
+        return { path: `users/${authUser.uid}` } as any;
     }, [firestore, authUser]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return doc(firestore, 'businesses', businessId);
+        return { path: `businesses/${businessId}` } as any;
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
 
@@ -109,44 +108,19 @@ export default function AddProductPage() {
     }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
-        if (!canAddProduct || !firestore || !businessId) return;
+        if (!canAddProduct) return;
 
         setIsLoading(true);
 
-        const newProduct = {
-            businessId,
-            name: productName,
-            description: productDescription || '',
-            price: parseFloat(sellingPrice),
-            cost: finalCostPrice,
-            quantity: parseInt(initialQuantity, 10),
-            ingredients: isManufactured ? ingredients.map(i => ({...i, cost: parseFloat(i.cost)})) : [],
-            isManufactured,
-            isListedOnMarket,
-            category: productCategory || '',
-            images: [], // TODO: Image upload logic
-        };
-
-        try {
-            const productsCollection = collection(firestore, 'products');
-            const newDocRef = doc(productsCollection);
-            await setDoc(newDocRef, { ...newProduct, id: newDocRef.id });
-
+        // MOCK BEHAVIOR
+        setTimeout(() => {
             toast({
-                title: 'Product Added!',
+                title: 'Product Added! (Mock)',
                 description: `${productName} has been added to your inventory.`,
             });
             router.back();
-        } catch (error: any) {
-            console.error("Error adding product:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error adding product',
-                description: error.message || 'An unexpected error occurred.',
-            });
-        } finally {
             setIsLoading(false);
-        }
+        }, 500);
     };
 
 

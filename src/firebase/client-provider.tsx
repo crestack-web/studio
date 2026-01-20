@@ -7,7 +7,7 @@ interface FirebaseClientProviderProps {
   children: ReactNode;
 }
 
-// Gutted component to remove all Firebase initialization.
+// This component is now a simple pass-through to the (mocked) FirebaseProvider.
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   return (
     <FirebaseProvider

@@ -1,19 +1,18 @@
 'use client';
-import {
-  Auth,
-} from 'firebase/auth';
+
+// This file is gutted as Firebase backend is removed.
 
 /** Initiate anonymous sign-in (non-blocking). */
-export function initiateAnonymousSignIn(authInstance: Auth): void {
+export function initiateAnonymousSignIn(): void {
   // Do nothing. Backend is removed.
 }
 
 /** Initiate email/password sign-up (non-blocking). */
-export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
+export function initiateEmailSignUp(email: string, password: string): void {
   // Do nothing. Backend is removed.
 }
 
 /** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
+export function initiateEmailSignIn(email: string, password: string): void {
   // Do nothing. Backend is removed.
 }

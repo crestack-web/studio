@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, updateDoc, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -34,19 +33,19 @@ export default function AddInventoryPage() {
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
+        return { path: `users/${authUser.uid}` } as any;
     }, [firestore, authUser]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+        return { path: 'products' } as any;
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
     const handleUpdateInventory = async () => {
-        if (!firestore || !selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0) {
+        if (!selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0) {
             toast({
                 variant: 'destructive',
                 title: 'Invalid Input',
@@ -56,28 +55,18 @@ export default function AddInventoryPage() {
         }
 
         setIsLoading(true);
-        const productRef = doc(firestore, 'products', selectedProductId);
         const selectedProduct = productsData?.find(p => p.id === selectedProductId);
 
-        try {
-            await updateDoc(productRef, {
-                quantity: increment(parseInt(quantityAdded)),
-            });
+        // MOCK BEHAVIOR
+        setTimeout(() => {
             toast({
-                title: 'Inventory Updated',
-                description: `Added ${quantityAdded} to ${selectedProduct?.name}. New stock is ${ (selectedProduct?.quantity || 0) + parseInt(quantityAdded) }.`,
+                title: 'Inventory Updated (Mock)',
+                description: `Added ${quantityAdded} to ${selectedProduct?.name}.`,
             });
             setSelectedProductId(undefined);
             setQuantityAdded('');
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error updating inventory',
-                description: error.message || 'An unexpected error occurred.',
-            });
-        } finally {
             setIsLoading(false);
-        }
+        }, 500);
     };
 
     return (

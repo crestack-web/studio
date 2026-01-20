@@ -11,7 +11,6 @@ import { Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, Timestamp, writeBatch } from 'firebase/firestore';
 
 interface AppUser {
     businessId?: string;
@@ -41,20 +40,20 @@ export default function RecordSalePage() {
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
+    return { path: `users/${authUser.uid}` } as any;
   }, [firestore, authUser]);
   const { data: userProfile } = useDoc<AppUser>(userProfileRef);
   const businessId = userProfile?.businessId;
 
   const businessRef = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return doc(firestore, 'businesses', businessId);
+    return { path: `businesses/${businessId}` } as any;
   }, [firestore, businessId]);
   const { data: businessData } = useDoc<Business>(businessRef);
 
   const productsQuery = useMemoFirebase(() => {
     if (!firestore || !businessId) return null;
-    return query(collection(firestore, 'products'), where('businessId', '==', businessId));
+    return { path: 'products' } as any;
   }, [firestore, businessId]);
   const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
@@ -63,7 +62,7 @@ export default function RecordSalePage() {
   const currencySymbol = businessData?.currency || '₦';
 
   const handleConfirmSale = async () => {
-    if (!firestore || !businessId || !selectedProduct || quantity <= 0) {
+    if (!selectedProduct || quantity <= 0) {
         toast({
             variant: 'destructive',
             title: 'Invalid Sale',
@@ -81,43 +80,12 @@ export default function RecordSalePage() {
         return;
     }
 
-    // 1. Prepare the new Sale document
-    const salesCollection = collection(firestore, 'sales');
-    const newSale = {
-        businessId,
-        productId: selectedProduct.id,
-        amount: totalAmount,
-        paymentType,
-        source: 'in-store',
-        timestamp: Timestamp.now(),
-    };
-
-    // 2. Prepare the product stock update
-    const productRef = doc(firestore, 'products', selectedProduct.id);
-    const newStock = selectedProduct.quantity - quantity;
-    
-    // 3. Use a batch to ensure atomicity
-    const batch = writeBatch(firestore);
-    
-    const newSaleRef = doc(salesCollection); // Create a new doc ref for the sale
-    batch.set(newSaleRef, { ...newSale, id: newSaleRef.id });
-    batch.update(productRef, { quantity: newStock });
-
-    try {
-        await batch.commit();
-        toast({
-          title: "Sale Recorded",
-          description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
-        });
-        router.back();
-    } catch (error: any) {
-        console.error("Error recording sale:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error Recording Sale',
-            description: error.message || 'An unexpected error occurred.',
-        });
-    }
+    // MOCK BEHAVIOR
+    toast({
+      title: "Sale Recorded (Mock)",
+      description: `Sold ${quantity} of ${selectedProduct.name} for ${currencySymbol}${totalAmount.toLocaleString()}.`,
+    });
+    router.back();
   }
 
   return (

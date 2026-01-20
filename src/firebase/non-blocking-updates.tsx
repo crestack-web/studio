@@ -1,16 +1,12 @@
 'use client';
     
-import {
-  CollectionReference,
-  DocumentReference,
-  SetOptions,
-} from 'firebase/firestore';
+// This file is gutted as Firebase backend is removed.
 
 /**
  * Initiates a setDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
+export function setDocumentNonBlocking(docRef: any, data: any, options: any) {
   // Do nothing. Backend is removed.
 }
 
@@ -20,9 +16,9 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
-export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
+export function addDocumentNonBlocking(colRef: any, data: any) {
   // Do nothing, but return a resolved promise to avoid breaking chains
-  return Promise.resolve({ id: 'mock-id' } as DocumentReference);
+  return Promise.resolve({ id: 'mock-id' });
 }
 
 
@@ -30,7 +26,7 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
  * Initiates an updateDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
+export function updateDocumentNonBlocking(docRef: any, data: any) {
   // Do nothing. Backend is removed.
 }
 
@@ -39,6 +35,6 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) 
  * Initiates a deleteDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function deleteDocumentNonBlocking(docRef: DocumentReference) {
+export function deleteDocumentNonBlocking(docRef: any) {
   // Do nothing. Backend is removed.
 }

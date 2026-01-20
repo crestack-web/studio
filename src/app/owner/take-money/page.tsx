@@ -6,15 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-
-interface AppUser {
-    businessId?: string;
-}
 
 export default function TakeMoneyPage() {
     const { toast } = useToast();
@@ -22,19 +16,9 @@ export default function TakeMoneyPage() {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    const firestore = useFirestore();
-    const { user: authUser } = useUser();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
-    }, [firestore, authUser]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-    const businessId = userProfile?.businessId;
     
     const handleConfirmWithdrawal = async () => {
-        if (!firestore || !businessId || !amount) {
+        if (!amount) {
             toast({
                 variant: 'destructive',
                 title: 'Missing Amount',
@@ -45,34 +29,15 @@ export default function TakeMoneyPage() {
 
         setIsLoading(true);
 
-        const newTransaction = {
-            businessId,
-            type: 'withdrawal',
-            amount: parseFloat(amount),
-            description: description || "Owner's drawings",
-            timestamp: Timestamp.now(),
-        };
-
-        try {
-            const transactionsCollection = collection(firestore, 'transactions');
-            const docRef = await addDoc(transactionsCollection, {});
-            await addDoc(transactionsCollection, { ...newTransaction, id: docRef.id });
-
+        // MOCK BEHAVIOR
+        setTimeout(() => {
             toast({
-                title: 'Withdrawal Confirmed',
+                title: 'Withdrawal Confirmed (Mock)',
                 description: `Successfully recorded a withdrawal of ${amount}.`,
             });
             router.back();
-        } catch (error: any) {
-            console.error("Error saving withdrawal:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error Saving Withdrawal',
-                description: error.message || 'An unexpected error occurred.',
-            });
-        } finally {
             setIsLoading(false);
-        }
+        }, 500);
     };
 
     return (

@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState } from 'react';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -17,32 +15,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleLogin = async () => {
     setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to your dashboard...",
-      });
-      // A proper implementation would check the user's role and redirect accordingly.
-      // For now, assume owner logs in here.
-      router.push('/owner/home');
-
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message || "Please check your credentials and try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // MOCK BEHAVIOR
+    setTimeout(() => {
+        toast({
+            title: "Login Successful (Mock)",
+            description: "Redirecting to your dashboard...",
+        });
+        router.push('/owner/home');
+        setIsLoading(false);
+    }, 500);
   };
 
   return (

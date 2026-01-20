@@ -6,9 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, writeBatch, collection } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -20,8 +17,6 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const auth = useAuth();
-  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -37,66 +32,15 @@ export default function SignUpPage() {
         return;
     }
 
-    if (!firestore) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Database service is not available. Please try again later.',
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Use a batch to create user and business docs atomically
-      const batch = writeBatch(firestore);
-
-      // 1. Create a new business document
-      const businessRef = doc(collection(firestore, 'businesses'));
-      batch.set(businessRef, {
-        id: businessRef.id,
-        ownerId: user.uid,
-        name: `${name}'s Business`, // Placeholder name
-        type: '',
-        currency: '',
-        plan: '',
-      });
-
-      // 2. Create the user profile and link it to the business
-      const userRef = doc(firestore, 'users', user.uid);
-      batch.set(userRef, {
-        id: user.uid,
-        displayName: name,
-        email: user.email,
-        phoneNumber: phoneNumber,
-        role: 'Owner',
-        businessId: businessRef.id,
-        canRecordSales: true,
-        canSeeReports: true,
-        canManageMarket: true,
-      });
-
-      // 3. Commit the batch
-      await batch.commit();
-      
-      toast({
-        title: "Account Created",
-        description: "Let's set up your business.",
-      });
-      router.push('/business-info');
-
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Sign Up Failed",
-        description: error.message || "An unexpected error occurred.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // MOCK BEHAVIOR
+    setTimeout(() => {
+        toast({
+            title: "Account Created (Mock)",
+            description: "Let's set up your business.",
+        });
+        router.push('/business-info');
+        setIsLoading(false);
+    }, 500);
   };
 
 
@@ -139,5 +83,3 @@ export default function SignUpPage() {
     </OnboardingLayout>
   );
 }
-
-    

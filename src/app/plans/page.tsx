@@ -8,8 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -86,17 +85,7 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState('supermarket');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const firestore = useFirestore();
   const { user: authUser, isUserLoading } = useUser();
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
-
-  const businessId = (userProfile as any)?.businessId;
-  const isLoading = isUserLoading || isProfileLoading;
 
   useEffect(() => {
     if (!isUserLoading && !authUser) {
@@ -113,35 +102,15 @@ export default function PlansPage() {
       });
       return;
     }
-
-    if (!firestore || !businessId) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not find your business. Please go back and try again.',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
-    const businessRef = doc(firestore, 'businesses', businessId);
-    try {
-      await updateDoc(businessRef, {
-        plan: selectedPlan,
-      });
+    // MOCK BEHAVIOR
+    setTimeout(() => {
       router.push('/owner/home');
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error updating plan',
-        description: error.message || 'Could not save your plan selection.',
-      });
-    } finally {
       setIsSubmitting(false);
-    }
+    }, 500);
   };
 
-  const isButtonDisabled = isLoading || isSubmitting || !businessId;
+  const isButtonDisabled = isUserLoading || isSubmitting;
 
   return (
     <OnboardingLayout>
@@ -154,8 +123,8 @@ export default function PlansPage() {
             <div className="flex justify-center">
                  <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
-                        <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isLoading || isSubmitting}>Monthly</TabsTrigger>
-                        <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isLoading || isSubmitting}>
+                        <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isUserLoading || isSubmitting}>Monthly</TabsTrigger>
+                        <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isUserLoading || isSubmitting}>
                             Yearly
                             <span className="absolute -top-2 -right-2.5 bg-accent text-accent-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">SAVE 17%</span>
                         </TabsTrigger>
@@ -163,10 +132,10 @@ export default function PlansPage() {
                 </Tabs>
             </div>
 
-            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isLoading || isSubmitting}>
+            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isUserLoading || isSubmitting}>
                  {plans.map((plan) => (
                     <div key={plan.id}>
-                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isLoading || isSubmitting} />
+                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isUserLoading || isSubmitting} />
                         <PlanCard 
                             plan={plan}
                             billingCycle={billingCycle}
@@ -177,8 +146,8 @@ export default function PlansPage() {
             </RadioGroup>
             
             <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
-              {(isLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? 'Loading...' : isSubmitting ? 'Saving...' : 'Start Free Trial'}
+              {(isUserLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUserLoading ? 'Loading...' : isSubmitting ? 'Saving...' : 'Start Free Trial'}
             </Button>
         </CardContent>
       </Card>
