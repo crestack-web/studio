@@ -1,1 +1,266 @@
-{}
+{
+  "entities": {
+    "Business": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Business",
+      "type": "object",
+      "description": "Represents a business in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Business entity."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the User who owns the business. (Relationship: User 1:N Business)"
+        },
+        "businessName": {
+          "type": "string",
+          "description": "The name of the business."
+        },
+        "businessType": {
+          "type": "string",
+          "description": "The type of business (e.g., shop, supermarket, food, service)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the business was created.",
+          "format": "date-time"
+        },
+        "onboardingCompleted": {
+          "type": "boolean",
+          "description": "Indicates whether the onboarding process for the business is completed."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "businessName",
+        "businessType",
+        "createdAt",
+        "onboardingCompleted"
+      ]
+    },
+    "Inventory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Inventory",
+      "type": "object",
+      "description": "Represents an inventory item within a business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Inventory entity."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to the Business this inventory belongs to. (Relationship: Business 1:N Inventory)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the inventory item."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the inventory item."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measure for the inventory item."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the inventory item was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "name",
+        "category",
+        "unit",
+        "createdAt"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product within a business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to the Business this product belongs to. (Relationship: Business 1:N Product)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the product in stock."
+        },
+        "inventoryId": {
+          "type": "string",
+          "description": "Reference to the Inventory this product is associated with. (Relationship: Inventory 1:N Product)"
+        },
+        "isPublishedToMarket": {
+          "type": "boolean",
+          "description": "Indicates whether the product is published to the marketplace."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the product was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "businessId",
+        "name",
+        "price",
+        "quantity",
+        "inventoryId",
+        "isPublishedToMarket",
+        "createdAt"
+      ]
+    },
+    "MarketProduct": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketProduct",
+      "type": "object",
+      "description": "Represents a product available in the marketplace.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MarketProduct entity."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product entity. (Relationship: Product 1:1 MarketProduct)"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to the Business that owns this product. (Relationship: Business 1:N MarketProduct)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the product."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the product was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "businessId",
+        "name",
+        "price",
+        "category",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "businesses/{businessId}",
+        "definition": {
+          "entityName": "Business",
+          "schema": {
+            "$ref": "#/backend/entities/Business"
+          },
+          "description": "Stores business information. Only the owner can read and write data. Contains 'ownerId' to determine ownership.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier for the business."
+            }
+          ]
+        }
+      },
+      {
+        "path": "businesses/{businessId}/inventory/{inventoryId}",
+        "definition": {
+          "entityName": "Inventory",
+          "schema": {
+            "$ref": "#/backend/entities/Inventory"
+          },
+          "description": "Stores inventory information for a specific business. Includes denormalized 'ownerId' from the parent 'business' document for authorization independence.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier for the business."
+            },
+            {
+              "name": "inventoryId",
+              "description": "The unique identifier for the inventory item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "businesses/{businessId}/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information for a specific business. Includes denormalized 'ownerId' from the parent 'business' document for authorization independence.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier for the business."
+            },
+            {
+              "name": "productId",
+              "description": "The unique identifier for the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "marketProducts/{marketProductId}",
+        "definition": {
+          "entityName": "MarketProduct",
+          "schema": {
+            "$ref": "#/backend/entities/MarketProduct"
+          },
+          "description": "Stores product information that is published to the marketplace. Public read access, write access restricted to the system.",
+          "params": [
+            {
+              "name": "marketProductId",
+              "description": "The unique identifier for the market product."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the Busmo SME operating system, focusing on simplicity, security, and scalability. Authorization Independence is achieved by denormalizing the 'ownerId' in the 'businesses' collection to the 'inventory' and 'products' subcollections. This eliminates the need for `get()` calls in security rules, ensuring atomic operations and easier debugging. The `marketProducts` collection is segregated to allow public read access while restricting write access to the system only, supporting the required QAPs. The use of path-based ownership for user-owned data (businesses, inventory, products) ensures clear authorization and efficient security rules. The absence of custom claims (DBAC) and the use of explicit state modeling (e.g., 'isPublishedToMarket') contribute to a robust and maintainable system. The structure adheres to structural segregation by placing data with different access needs in separate collections (`businesses` with owner-only access and `marketProducts` with public read access)."
+  }
+}

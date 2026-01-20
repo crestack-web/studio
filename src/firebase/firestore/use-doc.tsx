@@ -1,6 +1,15 @@
 'use client';
     
-// NOTE: This is a MOCKED implementation for UI/UX testing without a backend.
+import { useState, useEffect } from 'react';
+import {
+  DocumentReference,
+  onSnapshot,
+  DocumentData,
+  FirestoreError,
+  DocumentSnapshot,
+} from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -12,38 +21,73 @@ type WithId<T> = T & { id: string };
 export interface UseDocResult<T> {
   data: WithId<T> | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
-  error: Error | null; // Error object, or null.
+  error: FirestoreError | Error | null; // Error object, or null.
 }
 
 /**
  * React hook to subscribe to a single Firestore document in real-time.
- * This is a MOCKED implementation that returns a static object for UI testing.
+ * Handles nullable references.
+ * 
+ * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
+ * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
+ * references
+ *
+ *
+ * @template T Optional type for document data. Defaults to any.
+ * @param {DocumentReference<DocumentData> | null | undefined} docRef -
+ * The Firestore DocumentReference. Waits if null/undefined.
+ * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
 export function useDoc<T = any>(
-  memoizedDocRef: { path: string } | null | undefined,
+  memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
 ): UseDocResult<T> {
-  
-  let mockData: WithId<any> | null = null;
-  
-  if (memoizedDocRef?.path) {
-    const docId = memoizedDocRef.path.split('/').pop() || 'mock-id';
+  type StateDataType = WithId<T> | null;
 
-    if (memoizedDocRef.path.startsWith('users')) {
-         mockData = {
-            id: docId,
-            displayName: 'Mock Owner',
-            businessId: 'mock-business-id',
-            role: 'Owner',
-        };
-    } else if (memoizedDocRef.path.startsWith('businesses')) {
-        mockData = {
-            id: docId,
-            name: "Tunde's Mock Shop",
-            currency: '₦',
-            plan: 'supermarket', // Set a plan to bypass onboarding checks
-        };
+  const [data, setData] = useState<StateDataType>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<FirestoreError | Error | null>(null);
+
+  useEffect(() => {
+    if (!memoizedDocRef) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
+      return;
     }
-  }
 
-  return { data: mockData as WithId<T> | null, isLoading: false, error: null };
+    setIsLoading(true);
+    setError(null);
+    // Optional: setData(null); // Clear previous data instantly
+
+    const unsubscribe = onSnapshot(
+      memoizedDocRef,
+      (snapshot: DocumentSnapshot<DocumentData>) => {
+        if (snapshot.exists()) {
+          setData({ ...(snapshot.data() as T), id: snapshot.id });
+        } else {
+          // Document does not exist
+          setData(null);
+        }
+        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setIsLoading(false);
+      },
+      (error: FirestoreError) => {
+        const contextualError = new FirestorePermissionError({
+          operation: 'get',
+          path: memoizedDocRef.path,
+        })
+
+        setError(contextualError)
+        setData(null)
+        setIsLoading(false)
+
+        // trigger global error propagation
+        errorEmitter.emit('permission-error', contextualError);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+
+  return { data, isLoading, error };
 }
