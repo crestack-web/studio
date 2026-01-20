@@ -208,16 +208,28 @@ export default function OwnerHomePage() {
             });
             setAnswer(response.answer);
             setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error getting business insights:", error);
-            setAnswer("Sorry, I couldn't process that request. Please try again.");
+            if (error.message && error.message.includes('429 Too Many Requests')) {
+                setAnswer("I'm experiencing high demand right now. Please try again in a minute.");
+            } else {
+                setAnswer("Sorry, I couldn't process that request. Please try again.");
+            }
         } finally {
             setIsLoading(false);
         }
     };
     
+    const statementUrl = useMemo(() => {
+        const from = date?.from?.toISOString();
+        const to = date?.to?.toISOString();
+        if (!from) return '/owner/summary';
+        // If 'to' is missing, use 'from' for both to represent a single day.
+        return `/owner/summary?from=${from}&to=${to || from}`;
+    }, [date]);
+
     const handleDownload = () => {
-        router.push('/owner/summary');
+        router.push(statementUrl);
     }
 
     const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
@@ -439,7 +451,7 @@ export default function OwnerHomePage() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                                <Link href="/owner/summary" passHref>
+                                <Link href={statementUrl} passHref>
                                     <Button variant="secondary" className="w-full">
                                         View Full Statement
                                     </Button>
@@ -455,13 +467,13 @@ export default function OwnerHomePage() {
                                         <DialogHeader>
                                             <DialogTitle>Download Business Statement</DialogTitle>
                                             <DialogDescription>
-                                                This will download a PDF statement for the selected date range.
+                                                This will generate a printable statement for the selected date range.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <DialogFooter className="pt-4">
                                             <Button onClick={handleDownload}>
                                                 <Download className="mr-2 h-4 w-4" />
-                                                Download PDF
+                                                Generate PDF
                                             </Button>
                                         </DialogFooter>
                                     </DialogContent>
@@ -474,7 +486,7 @@ export default function OwnerHomePage() {
                                 <p>Record sales and expenses to see your summary for this period.</p>
                             </div>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Link href="/owner/summary" passHref>
+                                <Link href={statementUrl} passHref>
                                     <Button variant="secondary" className="w-full">
                                         View Statement
                                     </Button>
@@ -490,13 +502,13 @@ export default function OwnerHomePage() {
                                         <DialogHeader>
                                             <DialogTitle>Download Business Statement</DialogTitle>
                                             <DialogDescription>
-                                                This will download a PDF statement for the selected date range. This statement will be empty as there is no data.
+                                                This will generate a printable statement for the selected date range. This statement will be empty as there is no data.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <DialogFooter className="pt-4">
                                             <Button onClick={handleDownload}>
                                                 <Download className="mr-2 h-4 w-4" />
-                                                Download PDF
+                                                Generate PDF
                                             </Button>
                                         </DialogFooter>
                                     </DialogContent>
