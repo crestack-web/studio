@@ -5,8 +5,9 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ShoppingCart } from 'lucide-react';
+import { Search, ShoppingCart, Menu } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const categories = [
     {
@@ -42,13 +43,17 @@ export default function MarketPage() {
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
                 <div className="container mx-auto flex h-20 items-center justify-between px-4">
                     <Link href="/welcome"><Logo className="h-8" /></Link>
-                    <div className="flex-1 max-w-xl mx-8">
-                         <div className="relative">
+                    
+                    {/* Desktop Search */}
+                    <div className="hidden md:flex flex-1 max-w-xl mx-8">
+                         <div className="relative w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input placeholder="Search for products..." className="pl-10 h-12 text-base" />
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    {/* Desktop Nav */}
+                    <div className="hidden md:flex items-center gap-4">
                         <Link href="/login" passHref>
                             <Button variant="ghost">For Businesses</Button>
                         </Link>
@@ -56,6 +61,34 @@ export default function MarketPage() {
                             <ShoppingCart className="mr-2 h-5 w-5" />
                             Cart (0)
                         </Button>
+                    </div>
+
+                    {/* Mobile Nav */}
+                    <div className="md:hidden">
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <Menu className="h-6 w-6" />
+                                    <span className="sr-only">Open menu</span>
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent>
+                                <Logo className="h-8 mb-8" />
+                                <div className="relative mb-8">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input placeholder="Search for products..." className="pl-10 h-12 text-base" />
+                                </div>
+                                <nav className="flex flex-col gap-4">
+                                    <Link href="/login" passHref>
+                                        <Button variant="ghost" className="w-full justify-start text-lg">For Businesses</Button>
+                                    </Link>
+                                    <Button className="w-full justify-start text-lg">
+                                        <ShoppingCart className="mr-2 h-5 w-5" />
+                                        Cart (0)
+                                    </Button>
+                                </nav>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
             </header>
@@ -105,5 +138,3 @@ export default function MarketPage() {
         </div>
     );
 }
-
-    
