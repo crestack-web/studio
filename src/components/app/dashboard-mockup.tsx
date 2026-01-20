@@ -139,9 +139,9 @@ export function DashboardMockup() {
         </div>
       </header>
       <main className="flex-1 p-4 overflow-y-auto bg-muted/20">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main Column */}
-          <div className="col-span-2 flex flex-col gap-4">
+          <div className="lg:col-span-2 flex flex-col gap-4">
             <Card>
               <CardHeader className="p-4">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -209,7 +209,7 @@ export function DashboardMockup() {
           </div>
 
           {/* Right Sidebar */}
-          <div className="col-span-1 flex flex-col gap-4">
+          <div className="lg:col-span-1 flex flex-col gap-4">
             <Card>
               <CardHeader className="p-3">
                 <CardTitle className="flex items-center gap-2 text-sm">
