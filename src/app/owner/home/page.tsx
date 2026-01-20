@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { signOut } from 'firebase/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const presetQuestions = [
     "Did I make profit today?",
@@ -88,6 +91,23 @@ export default function OwnerHomePage() {
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
     const auth = useAuth();
+    
+    const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
+    const [chatMessages, setChatMessages] = useState([
+        {
+        id: '1',
+        sender: 'support',
+        text: 'Hi there! How can I help you today?',
+        }
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [ticketSubject, setTicketSubject] = useState('');
+    const [ticketMessage, setTicketMessage] = useState('');
+
+    const supportAgents = [
+        { name: 'Amina', avatarUrl: 'https://picsum.photos/seed/amina/40/40', imageHint: 'woman smiling' },
+        { name: 'Tunde', avatarUrl: 'https://picsum.photos/seed/tunde/40/40', imageHint: 'man smiling' }
+    ];
 
     const userProfileRef = useMemoFirebase(() => {
         if (!authUser || !firestore) return null;
@@ -686,7 +706,7 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </main>
-      <Sheet>
+      <Sheet onOpenChange={(isOpen) => { if (!isOpen) setChatView('initial') }}>
         <SheetTrigger asChild>
           <Button
             className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
@@ -698,39 +718,131 @@ export default function OwnerHomePage() {
           </Button>
         </SheetTrigger>
         <SheetContent className="flex flex-col">
-          <SheetHeader>
-            <SheetTitle>Support Chat</SheetTitle>
-            <SheetDescription>
-              We're here to help. Ask us anything!
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
-            {/* Mock chat messages */}
-            <div className="flex items-start gap-3">
-              <Avatar className="w-8 h-8 border">
-                <AvatarFallback>S</AvatarFallback>
-              </Avatar>
-              <div className="rounded-xl p-3 text-sm bg-card border rounded-bl-none">
-                Hi there! How can I help you today?
-              </div>
-            </div>
-            <div className="flex items-start gap-3 justify-end">
-              <div className="rounded-xl p-3 text-sm bg-primary text-primary-foreground rounded-br-none">
-                I have a question about my invoice.
-              </div>
-            </div>
-          </div>
-          <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
-            <div className="flex w-full items-center gap-2">
-              <Input
-                placeholder="Type your message..."
-                className="h-12 flex-1 text-base"
-              />
-              <Button type="submit" size="icon" className="h-12 w-12 shrink-0">
-                <Send className="h-6 w-6" />
-              </Button>
-            </div>
-          </SheetFooter>
+            {chatView === 'initial' && (
+            <>
+                <SheetHeader>
+                <SheetTitle>Customer Support</SheetTitle>
+                <SheetDescription>
+                    Our team is online and ready to help.
+                </SheetDescription>
+                </SheetHeader>
+                <div className="py-4 space-y-4">
+                    <h3 className="font-semibold text-sm text-muted-foreground">Available Agents</h3>
+                    <div className="space-y-3">
+                    {supportAgents.map(agent => (
+                        <div key={agent.name} className="flex items-center gap-3">
+                            <div className="relative">
+                            <Avatar className="h-10 w-10">
+                                <Image src={agent.avatarUrl} alt={agent.name} width={40} height={40} data-ai-hint={agent.imageHint} />
+                            </Avatar>
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                            </div>
+                            <div>
+                            <p className="font-semibold">{agent.name}</p>
+                            <p className="text-xs text-muted-foreground">Support Agent</p>
+                            </div>
+                        </div>
+                    ))}
+                    </div>
+                </div>
+                <div className="flex-1" />
+                <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
+                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base">Start Live Chat</Button>
+                <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
+                </SheetFooter>
+            </>
+            )}
+            {chatView === 'chat' && (
+            <>
+                <SheetHeader className="flex-row items-center gap-3 pb-2 border-b">
+                    <Button variant="ghost" size="icon" className="-ml-2" onClick={() => setChatView('initial')}>
+                    <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                        <Avatar className="h-10 w-10">
+                            <Image src={supportAgents[0].avatarUrl} alt={supportAgents[0].name} width={40} height={40} data-ai-hint={supportAgents[0].imageHint} />
+                        </Avatar>
+                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                        </div>
+                        <div>
+                        <SheetTitle>{supportAgents[0].name}</SheetTitle>
+                        <SheetDescription>Support Agent</SheetDescription>
+                        </div>
+                    </div>
+                </SheetHeader>
+                <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
+                {chatMessages.map(msg => (
+                    <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                    {msg.sender === 'support' && (
+                        <Avatar className="w-8 h-8 border">
+                        <Image src={supportAgents[0].avatarUrl} alt={supportAgents[0].name} width={32} height={32} />
+                        </Avatar>
+                    )}
+                    <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
+                        {msg.text}
+                    </div>
+                    </div>
+                ))}
+                </div>
+                <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
+                <form
+                    onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!chatInput.trim()) return;
+                    setChatMessages([...chatMessages, { id: Date.now().toString(), sender: 'user', text: chatInput }]);
+                    setChatInput('');
+                    setTimeout(() => {
+                        setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'support', text: "Thanks for your message. I'm looking into that now."}])
+                    }, 1500)
+                    }}
+                    className="flex w-full items-center gap-2"
+                >
+                    <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type your message..."
+                    className="h-12 flex-1 text-base"
+                    />
+                    <Button type="submit" size="icon" className="h-12 w-12 shrink-0">
+                    <Send className="h-6 w-6" />
+                    </Button>
+                </form>
+                </SheetFooter>
+            </>
+            )}
+            {chatView === 'ticket' && (
+            <>
+                <SheetHeader className="flex-row items-center gap-3 pb-2 border-b">
+                    <Button variant="ghost" size="icon" className="-ml-2" onClick={() => setChatView('initial')}>
+                    <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                    <SheetTitle>Create a Support Ticket</SheetTitle>
+                    <SheetDescription>We'll get back to you via email.</SheetDescription>
+                    </div>
+                </SheetHeader>
+                <form onSubmit={(e) => {
+                e.preventDefault();
+                toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });
+                setTicketSubject('');
+                setTicketMessage('');
+                setChatView('initial');
+                }} className="flex-1 py-4 flex flex-col gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="ticket-subject">Subject</Label>
+                        <Input id="ticket-subject" value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="e.g., Issue with my latest report" required />
+                    </div>
+                    <div className="space-y-2 flex-1 flex flex-col">
+                        <Label htmlFor="ticket-message">Message</Label>
+                        <Textarea id="ticket-message" value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Please describe your issue in detail..." className="flex-1" required />
+                    </div>
+                    <SheetFooter className="pt-4">
+                    <Button type="submit" className="w-full h-12 text-base">Submit Ticket</Button>
+                    </SheetFooter>
+                </form>
+            </>
+            )}
         </SheetContent>
       </Sheet>
     </div>
