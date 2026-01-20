@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getPostBySlug, blogPosts } from '@/lib/blog-posts';
 import InvestorLayout from '@/components/app/investor-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
