@@ -1,6 +1,6 @@
 'use client';
 
-import React, { सuspense } from 'react';
+import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -118,9 +118,9 @@ const OrderConfirmationContent = () => {
 export default function OrderConfirmationPage() {
     return (
         <MainLayout title="Order Confirmation" backHref="/market">
-            <React.Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<div>Loading...</div>}>
                 <OrderConfirmationContent />
-            </React.Suspense>
+            </Suspense>
         </MainLayout>
     );
 }
