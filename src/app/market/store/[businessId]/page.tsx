@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import MainLayout from '@/components/app/main-layout';
@@ -28,19 +29,21 @@ interface MarketProduct {
 }
 
 
-const StorePageContent = ({ params }: { params: { businessId: string } }) => {
+const StorePageContent = () => {
+    const params = useParams();
+    const businessId = params.businessId as string;
     const firestore = useFirestore();
 
     const businessRef = useMemoFirebase(() => {
-        if (!firestore || !params.businessId) return null;
-        return doc(firestore, 'businesses', params.businessId);
-    }, [firestore, params.businessId]);
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businesses', businessId);
+    }, [firestore, businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
     const productsQuery = useMemoFirebase(() => {
-        if (!firestore || !params.businessId) return null;
-        return query(collection(firestore, 'marketProducts'), where('businessId', '==', params.businessId));
-    }, [firestore, params.businessId]);
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, 'marketProducts'), where('businessId', '==', businessId));
+    }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
 
     if (isLoadingBusiness) {
@@ -88,7 +91,7 @@ const StorePageContent = ({ params }: { params: { businessId: string } }) => {
             <Card className="overflow-hidden mb-8">
                 <div className="h-48 md:h-64 w-full relative">
                     <Image 
-                        src={`https://picsum.photos/seed/${params.businessId}/1200/300`}
+                        src={`https://picsum.photos/seed/${businessId}/1200/300`}
                         alt={`${businessData.businessName} banner`}
                         fill
                         className="object-cover"
@@ -160,6 +163,6 @@ const StorePageContent = ({ params }: { params: { businessId: string } }) => {
 }
 
 
-export default function StorePage({ params }: { params: { businessId: string } }) {
-    return <StorePageContent params={params} />;
+export default function StorePage() {
+    return <StorePageContent />;
 }

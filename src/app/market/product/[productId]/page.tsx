@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,14 +32,16 @@ interface Business {
     currency: string;
 }
 
-const ProductDetailContent = ({ params }: { params: { productId: string } }) => {
+const ProductDetailContent = () => {
+    const params = useParams();
+    const productId = params.productId as string;
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
 
     const productRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return doc(firestore, 'marketProducts', params.productId);
-    }, [firestore, params.productId]);
+        if (!firestore || !productId) return null;
+        return doc(firestore, 'marketProducts', productId);
+    }, [firestore, productId]);
     const { data: productData, isLoading: isLoadingProduct } = useDoc<MarketProduct>(productRef);
 
     const businessRef = useMemoFirebase(() => {
@@ -163,6 +166,6 @@ const ProductDetailContent = ({ params }: { params: { productId: string } }) => 
 }
 
 
-export default function ProductDetailPage({ params }: { params: { productId: string } }) {
-    return <ProductDetailContent params={params} />
+export default function ProductDetailPage() {
+    return <ProductDetailContent />
 }
