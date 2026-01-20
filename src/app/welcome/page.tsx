@@ -80,6 +80,7 @@ export default function LandingPage() {
             <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
             <Link href="/market" passHref><Button variant="ghost">{t('nav.market')}</Button></Link>
             <Link href="/invest" passHref><Button variant="ghost">{t('nav.investors')}</Button></Link>
+            <Link href="/blog" passHref><Button variant="ghost">Blog</Button></Link>
             <Link href="/pricing" passHref><Button variant="ghost">{t('nav.pricing')}</Button></Link>
             <ThemeToggle />
             <LanguageSwitcher />
@@ -103,6 +104,7 @@ export default function LandingPage() {
                       <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                       <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                       <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
+                      <Link href="/blog" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Blog</Button></Link>
                       <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
                       <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
                       <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>

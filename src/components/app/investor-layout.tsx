@@ -28,6 +28,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                     <nav className="hidden md:flex items-center gap-2">
                         <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
                         <Link href="/invest" passHref><Button variant="ghost">{t('nav.explore')}</Button></Link>
+                        <Link href="/blog" passHref><Button variant="ghost">Blog</Button></Link>
                         <Link href="/pricing" passHref><Button variant="ghost">{t('nav.for_businesses')}</Button></Link>
                         <ThemeToggle />
                         <LanguageSwitcher />
@@ -50,6 +51,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                                 <nav className="flex flex-col items-start gap-4">
                                     <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                                     <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.explore')}</Button></Link>
+                                    <Link href="/blog" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Blog</Button></Link>
                                     <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.for_businesses')}</Button></Link>
                                     <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
                                     <Link href="/investor/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
