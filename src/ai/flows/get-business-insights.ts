@@ -94,7 +94,16 @@ const getBusinessInsightsFlow = ai.defineFlow(
         return { answer: "I don’t have enough data yet. Please record more sales to get insights." };
     }
 
-    const {output} = await prompt(input);
-    return output!;
+    try {
+        const {output} = await prompt(input);
+        return output!;
+    } catch (error: any) {
+        if (error.message && error.message.includes('429 Too Many Requests')) {
+            return { answer: "I'm experiencing high demand right now. Please try again in a minute." };
+        }
+        // For other errors, you might want to re-throw or handle them differently.
+        console.error("An unexpected error occurred in getBusinessInsightsFlow:", error);
+        return { answer: "Sorry, an unexpected error occurred. Please try again later." };
+    }
   }
 );
