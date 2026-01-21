@@ -9,79 +9,75 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isBusinessOwner(businessId) {
+    function isOwner(businessId) {
       // Safely check if the current user owns the specified business.
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/businesses/$(businessId)) &&
-             get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      // This is safe for GET requests, but not for LIST.
+      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
+      return isSignedIn() && businessDoc.data.ownerId == request.auth.uid;
     }
-    
+
     function isAdmin() {
-        // Safely check if the current user is an admin.
-        return isSignedIn() &&
-               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      // Safely check if the current user has an 'Admin' role.
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
-      allow list: if isAdmin();
+      allow get, list: if isAdmin();
+      allow get: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if (isSignedIn() && request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || isAdmin();
+      // Prevent users from changing their own role or businessId after assignment.
+      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.businessId == resource.data.businessId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /businesses/{businessId} {
-      // A user can get a business doc if their user profile points to it. Admins can get any.
       allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
-      
-      // Use `resource.data` to refer to the existing document to avoid recursion.
-      allow update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      
-      // Create is fine, it checks the incoming document's data.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-
-      // List rule for admins is fine.
+      // Use `resource.data` to refer to the existing document to avoid recursion.
+      allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow list: if isAdmin();
     }
-    
+
     match /businessProfiles/{businessId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
+      allow get: if true; // Publicly readable
+      allow create, update, delete: if isOwner(businessId) || isAdmin();
+    }
+    
+    match /marketProducts/{productId} {
+      allow get: if resource.data.status == 'active';
+      allow list: if true; // Allow listing to filter on client
+      allow create, update, delete: if isOwner(request.resource.data.businessId) || isAdmin();
     }
 
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
-    }
-
-    match /orders/{orderId} {
-        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
-        allow list: if (request.query.sellerBusinessId != null && isBusinessOwner(request.query.sellerBusinessId)) || isAdmin();
-        allow update: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
-        allow delete: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
-    }
-
-    match /marketProducts/{marketProductId} {
-      allow read: if true;
-      allow create, update: if isBusinessOwner(request.resource.data.businessId) || isAdmin();
-      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
+      allow read, write: if isOwner(businessId) || isAdmin();
     }
     
+    match /orders/{orderId} {
+      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+      allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(resource.data.sellerBusinessId) || isAdmin();
+      // Secure list queries by enforcing a filter on sellerBusinessId
+      allow list: if (request.query.sellerBusinessId != null && isOwner(request.query.sellerBusinessId)) || isAdmin();
+      allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin(); // Seller or admin can update status
+      allow delete: if isAdmin();
+    }
+
     match /blogs/{blogId} {
-      allow read: if true;
+      allow get: if resource.data.isPublished == true;
+      allow list: if true;
       allow create, update, delete: if isAdmin();
     }
-    
+
     match /supportTickets/{ticketId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get, update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow list, delete: if isAdmin();
     }
   }
 }

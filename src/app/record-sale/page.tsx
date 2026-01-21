@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Check, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 
 interface AppUser {
@@ -95,19 +95,16 @@ export default function RecordSalePage() {
         timestamp: serverTimestamp(),
     };
 
-    const newQuantity = selectedProduct.quantity - quantity;
-    const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProduct.id);
     const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
     
     try {
-        const batch = writeBatch(firestore);
-        batch.set(doc(salesCollectionRef), saleData);
-        batch.update(productRef, { quantity: newQuantity });
-        await batch.commit();
+        // As per instructions, client-side inventory updates are removed.
+        // A backend function should now handle decrementing product quantity.
+        addDocumentNonBlocking(salesCollectionRef, saleData);
 
         toast({
           title: "Sale Recorded",
-          description: `Sold ${quantity} of ${selectedProduct.name} for ${formatCurrency(totalAmount, businessData?.currency)}.`,
+          description: `Sold ${quantity} of ${selectedProduct.name}. Inventory will be updated shortly.`,
         });
         router.back();
     } catch (error) {

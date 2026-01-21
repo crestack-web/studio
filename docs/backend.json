@@ -20,15 +20,15 @@
         },
         "businessId": {
           "type": "string",
-          "description": "The ID of the business owned by the user."
+          "description": "The ID of the business associated with the user."
         },
         "role": {
           "type": "string",
           "description": "The user's role in the system.",
-          "enum": ["Owner", "Investor", "Admin"]
+          "enum": ["Owner", "Investor", "Admin", "Staff"]
         }
       },
-      "required": ["id", "displayName", "email"]
+      "required": ["id", "displayName", "email", "role"]
     },
     "Business": {
       "title": "Business",
@@ -102,8 +102,7 @@
         "ownerId",
         "businessName",
         "businessType",
-        "createdAt",
-        "onboardingCompleted"
+        "createdAt"
       ]
     },
     "BusinessProfile": {
@@ -146,31 +145,6 @@
         }
       },
       "required": ["businessName", "businessType"]
-    },
-    "Inventory": {
-      "title": "Inventory",
-      "type": "object",
-      "description": "Represents a raw material or inventory item.",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "The name of the inventory item."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the inventory item."
-        },
-        "unit": {
-          "type": "string",
-          "description": "The unit of measure for the inventory item."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the inventory item was created."
-        }
-      },
-      "required": ["name", "category", "unit", "createdAt"]
     },
     "Product": {
       "title": "Product",
@@ -329,6 +303,11 @@
             "type": "number",
             "description": "The current available stock of the product."
         },
+        "status": {
+          "type": "string",
+          "enum": ["active", "draft"],
+          "description": "The visibility status of the product on the marketplace."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -343,6 +322,7 @@
         "price",
         "category",
         "availableQuantity",
+        "status",
         "createdAt"
       ]
     },
@@ -377,7 +357,7 @@
         "subtotal": { "type": "number" },
         "deliveryFee": { "type": "number" },
         "total": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "confirmed", "fulfilled", "cancelled"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "fulfilled", "cancelled"] },
         "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
         "payment": { "type": "string", "enum": ["transfer", "delivery"] },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -613,5 +593,3 @@
     ]
   }
 }
-
-    

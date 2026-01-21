@@ -2,7 +2,7 @@
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { LayoutDashboard, Newspaper, Mail } from 'lucide-react';
@@ -32,15 +32,34 @@ export default function AdminLayout({
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   
-  const isLoading = isUserLoading || isProfileLoading;
-  const isAuthorized = !isLoading && user && userProfile?.role === 'Admin';
-
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
+  
   useEffect(() => {
-    if (!isLoading && !isAuthorized) {
+    if (isUserLoading || isProfileLoading) {
+      return; // Still loading, do nothing
+    }
+
+    if (user && userProfile?.role === 'Admin') {
+      setIsAuthorized(true);
+    } else {
+      setIsAuthorized(false);
       router.replace('/admin/login');
     }
-  }, [isLoading, isAuthorized, router]);
+    setAuthCheckCompleted(true);
+    
+  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
+  // Show a loader until the initial authentication check is complete.
+  if (!authCheckCompleted) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // If authorized, render the admin layout.
   if (isAuthorized) {
     const menuItems = [
       { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -84,7 +103,7 @@ export default function AdminLayout({
     );
   }
 
-  // Show a loader while verifying authentication, authorizing, or redirecting.
+  // If not authorized, show a loader while redirecting.
   return (
     <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

@@ -14,8 +14,8 @@ import MainLayout from '@/components/app/main-layout';
 import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser, addDocumentNonBlocking } from '@/firebase';
+import { doc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -103,31 +103,29 @@ const CheckoutContent = () => {
         setIsPlacingOrder(true);
         
         try {
-            const batch = writeBatch(firestore);
             const ordersColRef = collection(firestore, 'orders');
-            const newOrderRef = doc(ordersColRef);
 
             const orderData = {
                 buyerId: user.uid,
                 sellerBusinessId: productData.businessId,
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
                 items: [{ productId, productName: productData.productName, quantity, price: productData.price }],
-                subtotal, deliveryFee, total,
+                subtotal, 
+                deliveryFee, 
+                total,
                 status: 'pending',
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
                 createdAt: serverTimestamp()
             };
-            batch.set(newOrderRef, orderData);
-
-            await batch.commit();
+            
+            const newOrderRef = await addDocumentNonBlocking(ordersColRef, orderData);
 
             router.push(`/market/order-confirmation?orderId=${newOrderRef.id}`);
             
         } catch (error) {
             console.error("Error placing order: ", error);
             toast({ variant: 'destructive', title: 'Error placing order', description: 'There was an issue placing your order. Please try again.' });
-        } finally {
             setIsPlacingOrder(false);
         }
     };
@@ -191,5 +189,3 @@ export default function CheckoutPage() {
         </MainLayout>
     );
 }
-
-    
