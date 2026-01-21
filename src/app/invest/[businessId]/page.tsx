@@ -151,8 +151,8 @@ const DataPoint = ({ icon: Icon, label, value }: { icon: React.ElementType, labe
 );
 
 
-const BusinessProfileContent = ({ params }: { params: { businessId: string } }) => {
-    const business = mockBusinesses.find(b => b.id === params.businessId);
+const BusinessProfileContent = ({ businessId }: { businessId: string }) => {
+    const business = mockBusinesses.find(b => b.id === businessId);
     const { toast } = useToast();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isAcknowledged, setIsAcknowledged] = useState(false);
@@ -348,10 +348,8 @@ export default function BusinessProfilePage({ params }: { params: { businessId: 
     return (
         <InvestorLayout>
             <div className="container mx-auto px-4 py-12 sm:py-16">
-                 <BusinessProfileContent params={params} />
+                 <BusinessProfileContent businessId={params.businessId} />
             </div>
         </InvestorLayout>
     );
 }
-
-    
