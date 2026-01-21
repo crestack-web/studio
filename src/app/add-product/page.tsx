@@ -1,12 +1,12 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, FileUp } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
+import { cn } from '@/lib/utils';
 
 interface Ingredient {
     name: string;
@@ -80,6 +81,27 @@ export default function AddProductPage() {
     const totalIngredientCost = useMemo(() => {
         return ingredients.reduce((total, ing) => total + (parseFloat(ing.cost) || 0), 0);
     }, [ingredients]);
+    
+    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Limit file size to 500KB to avoid exceeding Firestore document limits
+        if (file.size > 500 * 1024) {
+            toast({
+                variant: 'destructive',
+                title: 'Image too large',
+                description: 'Please upload an image smaller than 500KB.',
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImageUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleAddIngredient = () => {
         if (newIngredientName.trim() && newIngredientCost.trim()) {
@@ -265,30 +287,51 @@ export default function AddProductPage() {
                         {isListedOnMarket && (
                             <>
                                 <div className="space-y-2">
-                                    <Label htmlFor="image-url">Product Image URL</Label>
+                                    <Label>Product Image</Label>
                                     <Input
-                                        id="image-url"
-                                        placeholder="https://example.com/image.png"
-                                        value={imageUrl}
-                                        onChange={(e) => setImageUrl(e.target.value)}
+                                        id="image-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
                                         disabled={isLoading}
-                                        className="h-12 text-base"
                                     />
+                                    <Label
+                                        htmlFor="image-upload"
+                                        className={cn(
+                                            "flex h-32 w-full cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary",
+                                            isLoading && "cursor-not-allowed opacity-50"
+                                        )}
+                                    >
+                                        {imageUrl ? (
+                                            <div className="relative w-full h-full">
+                                                <Image
+                                                    src={imageUrl}
+                                                    alt="Product image preview"
+                                                    fill
+                                                    className="object-contain p-2"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <FileUp className="h-8 w-8" />
+                                                <span>Click to upload image</span>
+                                            </div>
+                                        )}
+                                    </Label>
                                     {imageUrl && (
-                                        <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md border">
-                                            <Image 
-                                                src={imageUrl} 
-                                                alt="Product image preview" 
-                                                fill 
-                                                className="object-cover" 
-                                                onError={() => {
-                                                    toast({ variant: 'destructive', title: 'Invalid Image URL', description: 'Could not load the image from the provided URL.' });
-                                                    setImageUrl('');
-                                                }}
-                                            />
-                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => setImageUrl('')}
+                                            disabled={isLoading}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Remove Image
+                                        </Button>
                                     )}
-                                    <p className="text-xs text-muted-foreground">You must provide an image URL to list on the market.</p>
+                                    <p className="text-xs text-muted-foreground">You must provide an image to list on the market. Max file size: 500KB.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>

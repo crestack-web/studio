@@ -206,7 +206,7 @@
         },
         "image": {
             "type": "string",
-            "description": "URL of the primary product image."
+            "description": "URL or data URI of the primary product image."
         },
         "hint": {
             "type": "string",
@@ -310,7 +310,7 @@
         },
         "image": {
             "type": "string",
-            "description": "URL for the product's primary image."
+            "description": "URL or data URI for the product's primary image."
         },
         "hint": {
             "type": "string",
@@ -603,5 +603,3 @@
     ]
   }
 }
-
-    
