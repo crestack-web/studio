@@ -87,8 +87,8 @@
       "id": "cat-fashion",
       "name": "Fashion",
       "description": "Stylish clothing on a rack.",
-      "imageUrl": "https://picsum.photos/seed/cat-fashion/300/300",
-      "imageHint": "clothing rack"
+      "imageUrl": "https://images.unsplash.com/photo-1622519407650-3DF9893f7d85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzaGlydCUyMHBhbnRzfGVufDB8fHx8MTc3MDI5NjYyNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "shirt pants"
     },
     {
       "id": "cat-electronics",
