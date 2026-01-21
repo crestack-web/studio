@@ -17,6 +17,24 @@
       "description": "Owner of a small supermarket standing proudly in front of stocked shelves.",
       "imageUrl": "https://images.unsplash.com/photo-1683840567064-e430df9f5ed6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8c21hbGwlMjBzdXBlcm1hcmtldHxlbnwwfHx8fDE3Njg3Mzk0MjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "small supermarket"
+    },
+    {
+      "id": "sale-banner-1",
+      "description": "Abstract background for a clearance sale.",
+      "imageUrl": "https://images.unsplash.com/photo-1599423300734-3253a6523964?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzY5MDk4MTMyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract background"
+    },
+    {
+      "id": "sale-banner-2",
+      "description": "Colorful products arranged for a new arrivals banner.",
+      "imageUrl": "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG90aGluZyUyMHN0b3JlfGVufDB8fHx8MTc2OTA5ODE4NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clothing store"
+    },
+    {
+      "id": "sale-banner-3",
+      "description": "Boxes stacked in a warehouse for a wholesale deals banner.",
+      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "warehouse boxes"
     }
   ],
   "productImages": [
