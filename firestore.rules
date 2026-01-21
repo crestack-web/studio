@@ -58,7 +58,9 @@ service cloud.firestore {
     // Rules for the 'businessProfiles' collection (Public-facing data)
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      allow write: if isBusinessOwner(businessId) || isAdmin();
+      // Allow writes only from authenticated users associated with the business.
+      // This is simpler and less prone to recursive errors than isBusinessOwner.
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
     // Rules for all subcollections under a business.

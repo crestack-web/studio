@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, MapPin, Loader2, FileUp } from 'lucide-react';
@@ -28,10 +27,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Types
 interface AppUser { businessId?: string }
-interface Product { id: string; name: string; price: number; quantity: number; isPublishedToMarket: boolean; image: string; description: string; category: string; }
+interface Product { id: string; name: string; price: number; quantity: number; isPublishedToMarket: boolean; image: string; description: string; category: string; hint?: string; }
 interface MarketOrder { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: string; fulfillment: string; items: { productName: string; quantity: number; price: number }[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
-interface Business { businessName: string; marketDescription?: string; marketSettings?: MarketSettings; }
+interface Business { businessName: string; currency: string; plan: string; marketDescription?: string; marketSettings?: MarketSettings; }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
 
 const SettingsContent = () => {
@@ -457,5 +456,3 @@ export default function ManageMarketPage() {
         </SidebarProvider>
     );
 }
-
-    
