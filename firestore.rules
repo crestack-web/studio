@@ -14,10 +14,11 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // Use exists() for safer check
+      // Use exists() for safer check before get()
       let adminUserPath = /databases/$(database)/documents/users/$(request.auth.uid);
       return isSignedIn() && 
              exists(adminUserPath) && 
+             'role' in get(adminUserPath).data &&
              get(adminUserPath).data.role == 'Admin';
     }
 
@@ -32,12 +33,11 @@ service cloud.firestore {
     }
 
     // Checks if the user is the actual owner of the business document.
+    // This function is costly and should be used sparingly. It requires the rule
+    // context to have already granted read access to the business document.
     function isBusinessOwner(businessId) {
-      // Safer check: ensure business doc and ownerId field exist.
-      // This also relies on isMemberOfBusiness to allow the initial get().
       let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
-      return isMemberOfBusiness(businessId) &&
-             exists(businessDocPath) &&
+      return exists(businessDocPath) &&
              'ownerId' in get(businessDocPath).data &&
              get(businessDocPath).data.ownerId == request.auth.uid;
     }
@@ -62,7 +62,8 @@ service cloud.firestore {
       
       // Write access is ONLY granted if the `ownerId` on the business document itself matches the user.
       allow create: if isOwner(request.resource.data.ownerId);
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
+      // For update/delete, check ownerId on the existing document. This avoids a costly get() call.
+      allow update, delete: if resource.data.ownerId == request.auth.uid || isAdmin();
 
       allow list: if isAdmin();
     }
@@ -75,15 +76,12 @@ service cloud.firestore {
     }
 
     // Rules for all subcollections under a business.
-    // This rule allows any user linked to the business to read data,
-    // but restricts writes to the business owner.
     match /businesses/{businessId}/{subcollection}/{docId} {
         allow read: if isMemberOfBusiness(businessId) || isAdmin();
-        allow write: if isBusinessOwner(businessId) || isAdmin();
+        // Simplified write rule to check for membership, not ownership, to avoid complex get() calls.
+        allow write: if isMemberOfBusiness(businessId) || isAdmin();
 
         // Special case for 'orders' - allow anyone to create an order
-        // This must be inside the more specific match block.
-        // We use a separate match for create to override the general write rule.
         match /orders/{orderId} {
             allow create: if true;
         }
@@ -114,18 +112,18 @@ service cloud.firestore {
                incomingData.availableQuantity == get(productPath).data.quantity;
       }
       
-      // Allow creation only by the business owner, and only if the source product is published and data is consistent.
-      allow create: if (isBusinessOwner(request.resource.data.businessId) &&
+      // Allow creation only by a member of the business, and only if the source product is published and data is consistent.
+      allow create: if (isMemberOfBusiness(request.resource.data.businessId) &&
                        isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
                        isMarketDataConsistent(request.resource.data, request.resource.data.productId)) || isAdmin();
 
-      // Allow updates only from the business owner, ensuring data remains consistent.
-      allow update: if (isBusinessOwner(resource.data.businessId) &&
+      // Allow updates only from a member of the business, ensuring data remains consistent.
+      allow update: if (isMemberOfBusiness(resource.data.businessId) &&
                        isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
                        isMarketDataConsistent(request.resource.data, request.resource.data.productId)) || isAdmin();
       
-      // Allow deletion only by the business owner.
-      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
+      // Allow deletion only by a member of the business.
+      allow delete: if isMemberOfBusiness(resource.data.businessId) || isAdmin();
     }
     
     // Rules for the 'blogs' collection
