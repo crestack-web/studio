@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search, ShoppingCart, Menu, Star, Zap, ShieldCheck, Truck, PackageCheck, UtensilsCrossed, Shirt, Laptop, Armchair, Sparkles, Tag } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import { useMemo } from 'react';
@@ -147,6 +147,7 @@ export default function MarketPage() {
                             <SheetContent>
                                 <SheetHeader>
                                     <SheetTitle className="sr-only">Menu</SheetTitle>
+                                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
                                 </SheetHeader>
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col gap-4">
@@ -187,7 +188,7 @@ export default function MarketPage() {
 
                     {/* 2. Quick Categories */}
                     <section>
-                        <div className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 scrollbar-hide">
+                        <div className="flex justify-center overflow-x-auto gap-4 pb-4 -mx-4 px-4 scrollbar-hide">
                             {categories.map(category => (
                                 <Link href="#" key={category.name} className="shrink-0">
                                     <Card className="w-28 text-center p-4 hover:bg-accent hover:text-accent-foreground transition-colors group">
