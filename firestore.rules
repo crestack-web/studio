@@ -41,8 +41,8 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if (isOwner(userId) && 
-                      (!('businessId' in request.resource.data) || request.resource.data.businessId == resource.data.businessId)) 
+      // An owner can update their profile, but cannot change an existing businessId. Admins can update anything.
+      allow update: if (isOwner(userId) && (resource.data.businessId == null || request.resource.data.businessId == resource.data.businessId)) 
                       || isAdmin();
       allow delete: if isOwner(userId) || isAdmin();
     }
@@ -64,30 +64,30 @@ service cloud.firestore {
 
     // Rules for business-owned subcollections.
     match /businesses/{businessId}/inventory/{inventoryId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/products/{productId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/sales/{saleId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/expenses/{expenseId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/transactions/{transactionId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
     // Marketplace orders
     match /businesses/{businessId}/orders/{orderId} {
-      allow list: if isMemberOfBusiness(businessId) || isAdmin();
       allow get: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isMemberOfBusiness(businessId) || isAdmin();
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
       allow update, delete: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
@@ -109,7 +109,8 @@ service cloud.firestore {
     }
     
     match /supportTickets/{ticketId} {
-      allow get, list: if isAdmin();
+      allow list: if isAdmin();
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
