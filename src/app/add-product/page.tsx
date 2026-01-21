@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, X, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,8 +17,6 @@ import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
-import { ProductPlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
-import { cn } from '@/lib/utils';
 
 interface Ingredient {
     name: string;
@@ -46,7 +44,7 @@ export default function AddProductPage() {
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
     
-    const [selectedImage, setSelectedImage] = useState<ImagePlaceholder | null>(null);
+    const [imageUrl, setImageUrl] = useState('');
 
     const [productName, setProductName] = useState('');
     const [sellingPrice, setSellingPrice] = useState('');
@@ -94,24 +92,16 @@ export default function AddProductPage() {
     const handleRemoveIngredient = (index: number) => {
         setIngredients(ingredients.filter((_, i) => i !== index));
     };
-
-    const handleSelectImage = (image: ImagePlaceholder) => {
-        if (selectedImage?.id === image.id) {
-            setSelectedImage(null);
-        } else {
-            setSelectedImage(image);
-        }
-    };
     
     const finalCostPrice = isManufactured ? totalIngredientCost : parseFloat(costPrice) || 0;
 
     const canAddProduct = useMemo(() => {
         const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured ? totalIngredientCost > 0 : costPrice);
         if (isListedOnMarket) {
-            return hasBaseInfo && selectedImage && productDescription && productCategory;
+            return hasBaseInfo && imageUrl && productDescription && productCategory;
         }
         return hasBaseInfo;
-    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, selectedImage, productDescription, productCategory]);
+    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, imageUrl, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
         if (!canAddProduct || !firestore || !businessId || !businessData) return;
@@ -127,8 +117,8 @@ export default function AddProductPage() {
             description: productDescription,
             category: productCategory,
             createdAt: serverTimestamp(),
-            image: selectedImage?.imageUrl || null,
-            hint: selectedImage?.imageHint || productCategory || productName.split(' ').slice(0, 2).join(' '),
+            image: imageUrl || null,
+            hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
         };
 
         const productsCollectionRef = collection(firestore, `businesses/${businessId}/products`);
@@ -136,7 +126,7 @@ export default function AddProductPage() {
         try {
             const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
             
-            if (isListedOnMarket && selectedImage) {
+            if (isListedOnMarket && imageUrl) {
                 const marketProductData = {
                     productId: newProductRef.id,
                     businessId: businessId,
@@ -146,9 +136,9 @@ export default function AddProductPage() {
                     description: productData.description,
                     category: productData.category,
                     availableQuantity: productData.quantity,
-                    createdAt: new Date(), // Using client-side date for simplicity, serverTimestamp can be tricky with security rules
-                    image: selectedImage.imageUrl,
-                    hint: selectedImage.imageHint,
+                    createdAt: new Date(),
+                    image: imageUrl,
+                    hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
@@ -275,27 +265,30 @@ export default function AddProductPage() {
                         {isListedOnMarket && (
                             <>
                                 <div className="space-y-2">
-                                    <Label>Select an Image</Label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {ProductPlaceHolderImages.map((pImage) => (
-                                            <div
-                                                key={pImage.id}
-                                                className={cn(
-                                                    "relative aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all",
-                                                    selectedImage?.id === pImage.id ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground"
-                                                )}
-                                                onClick={() => handleSelectImage(pImage)}
-                                            >
-                                                <Image src={pImage.imageUrl} alt={pImage.description} fill className="object-cover" data-ai-hint={pImage.imageHint} />
-                                                {selectedImage?.id === pImage.id && (
-                                                    <div className="absolute inset-0 bg-primary/70 flex items-center justify-center">
-                                                        <X className="w-8 h-8 text-primary-foreground" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">You must select one image to list on the market.</p>
+                                    <Label htmlFor="image-url">Product Image URL</Label>
+                                    <Input
+                                        id="image-url"
+                                        placeholder="https://example.com/image.png"
+                                        value={imageUrl}
+                                        onChange={(e) => setImageUrl(e.target.value)}
+                                        disabled={isLoading}
+                                        className="h-12 text-base"
+                                    />
+                                    {imageUrl && (
+                                        <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md border">
+                                            <Image 
+                                                src={imageUrl} 
+                                                alt="Product image preview" 
+                                                fill 
+                                                className="object-cover" 
+                                                onError={() => {
+                                                    toast({ variant: 'destructive', title: 'Invalid Image URL', description: 'Could not load the image from the provided URL.' });
+                                                    setImageUrl('');
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">You must provide an image URL to list on the market.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>
