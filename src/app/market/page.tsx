@@ -10,7 +10,7 @@ import { Logo } from '@/components/app/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
@@ -103,8 +103,50 @@ export default function MarketPage() {
     // Mock data for UI
     const flashDeals = useMemo(() => productsData?.slice(0, 6) || [], [productsData]);
 
+    const [timeLeft, setTimeLeft] = useState({
+        hours: '00',
+        minutes: '00',
+        seconds: '00',
+    });
+
+    useEffect(() => {
+        const calculateTimeLeft = () => {
+            const now = new Date();
+            // Set flash sale to end at midnight of the next day
+            const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+            const difference = endOfDay.getTime() - now.getTime();
+
+            let timeLeftData: { hours?: number; minutes?: number; seconds?: number } = {};
+
+            if (difference > 0) {
+                timeLeftData = {
+                    hours: Math.floor((difference / (1000 * 60 * 60))),
+                    minutes: Math.floor((difference / 1000 / 60) % 60),
+                    seconds: Math.floor((difference / 1000) % 60)
+                };
+            }
+
+            return timeLeftData;
+        };
+        
+        const timer = setInterval(() => {
+            const times = calculateTimeLeft();
+            const format = (num: number) => String(num).padStart(2, '0');
+            
+            if (times.hours !== undefined && times.minutes !== undefined && times.seconds !== undefined) {
+                setTimeLeft({
+                    hours: format(times.hours),
+                    minutes: format(times.minutes),
+                    seconds: format(times.seconds),
+                });
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
     const renderProductSkeletons = (count: number = 12) => (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {[...Array(count)].map((_, i) => (
                 <Card key={i} className="overflow-hidden h-full flex flex-col">
                     <Skeleton className="aspect-square w-full" />
@@ -202,12 +244,22 @@ export default function MarketPage() {
                     
                     {/* 3. Deals & Promotions */}
                     <section>
-                         <div className="flex justify-between items-baseline mb-6">
-                            <h2 className="text-2xl font-bold font-headline flex items-center gap-2"><Zap className="text-destructive" /> Flash Sales</h2>
+                         <div className="flex flex-wrap justify-between items-baseline gap-y-2 mb-6">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-2xl font-bold font-headline flex items-center gap-2"><Zap className="text-destructive" /> Flash Sales</h2>
+                                <div className="flex items-center gap-1.5 text-sm">
+                                    <span className="text-muted-foreground hidden sm:inline">Ending in:</span>
+                                    <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.hours}</span>
+                                    <span className="font-semibold text-destructive">:</span>
+                                    <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.minutes}</span>
+                                    <span className="font-semibold text-destructive">:</span>
+                                    <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.seconds}</span>
+                                </div>
+                            </div>
                             <Button variant="link" asChild><Link href="#">See All</Link></Button>
                         </div>
                         {isLoadingProducts ? renderProductSkeletons(6) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {flashDeals.map(product => (
                                     <ProductCard key={product.id} product={product} />
                                 ))}
@@ -219,7 +271,7 @@ export default function MarketPage() {
                     <section>
                          <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
                          {isLoadingProducts ? renderProductSkeletons(12) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {productsData?.map(product => (
                                     <ProductCard key={product.id} product={product} />
                                 ))}
