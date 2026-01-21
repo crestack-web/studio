@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -33,7 +33,11 @@ const CheckoutContent = () => {
     
     const productId = searchParams.get('productId');
     const quantity = parseInt(searchParams.get('quantity') || '1', 10);
-    const fullRedirectUrl = `/market/checkout?productId=${productId}&quantity=${quantity}`;
+    
+    const fullRedirectUrl = useMemo(
+        () => `/market/checkout?productId=${productId}&quantity=${quantity}`,
+        [productId, quantity]
+    );
 
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     
@@ -106,7 +110,7 @@ const CheckoutContent = () => {
             const orderData = {
                 id: newOrderRef.id,
                 businessId: productData.businessId,
-                userId: user.uid,
+                userId: user.uid, // CRITICAL: Save the authenticated user's ID
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
                 items: [{ productId, productName: productData.productName, quantity, price: productData.price }],
                 subtotal, deliveryFee, total,
@@ -188,5 +192,3 @@ export default function CheckoutPage() {
         </MainLayout>
     );
 }
-
-    

@@ -9,29 +9,28 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Gets the current user's profile document data. Returns null if not found.
-    function getUserProfile() {
-      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (isSignedIn() && exists(userDocPath)) {
-        return get(userDocPath).data;
-      }
-      return null;
-    }
-
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Checks if the user has the 'Admin' role in their profile.
-    function isAdmin() {
-      let userProfile = getUserProfile();
-      return userProfile != null && 'role' in userProfile && userProfile.role == 'Admin';
+    function getRole() {
+        // Safely get user role, returns null if not found or no role.
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        if (userDoc != null && 'role' in userDoc.data) {
+            return userDoc.data.role;
+        }
+        return null;
     }
 
-    // Checks if a user is associated with a business via their user profile.
-    function isMemberOfBusiness(businessId) {
-        let userProfile = getUserProfile();
-        return userProfile != null && 'businessId' in userProfile && userProfile.businessId == businessId;
+    function isAdmin() {
+        return isSignedIn() && getRole() == 'Admin';
+    }
+    
+    function isBusinessOwner(businessId) {
+      // Check that the user making the request is the owner of the business document.
+      // This is a robust way to check ownership without relying on a user's profile doc.
+      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
+      return businessDoc != null && businessDoc.data.ownerId == request.auth.uid;
     }
 
 
@@ -40,67 +39,52 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      // An owner can update their profile, but cannot change an existing businessId. Admins can update anything.
-      allow update: if (isOwner(userId) && (resource.data.businessId == null || request.resource.data.businessId == resource.data.businessId)) 
-                      || isAdmin();
+      allow create: if isOwner(userId);
+      // Owners can update their profile, but NOT change their businessId once set.
+      // Admins can update anything. This prevents users from hijacking other businesses.
+      allow update: if (isOwner(userId) && (resource.data.businessId == null || request.resource.data.businessId == resource.data.businessId)) || isAdmin();
       allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /businesses/{businessId} {
-      allow get: if isMemberOfBusiness(businessId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(request.resource.data.ownerId);
-      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
+      // The owner of the business document can read/write it. Admins too.
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
     
     match /businessProfiles/{businessId} {
-      // This collection is public for the marketplace UI.
+      // This collection is for public marketplace data.
       allow get, list: if true;
       
-      // Only the business owner/staff or an admin can write to the public profile.
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
+      // Only the business owner or an admin can write to the public profile.
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
-    // Rules for business-owned subcollections.
-    match /businesses/{businessId}/inventory/{inventoryId} {
-      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/products/{productId} {
-      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/sales/{saleId} {
-      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/expenses/{expenseId} {
-      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/transactions/{transactionId} {
-      allow get, list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isMemberOfBusiness(businessId) || isAdmin();
+    // Generic rules for most business-owned subcollections.
+    // Only the business owner or an admin should be able to access these.
+    match /businesses/{businessId}/{subcollection}/{docId} 
+        where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
-    // Marketplace orders
+    // Special, more permissive rule for the 'orders' subcollection.
     match /businesses/{businessId}/orders/{orderId} {
-      allow get: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow list: if isMemberOfBusiness(businessId) || isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Allow authenticated users to create orders for themselves.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Allow the customer who created the order OR the business owner OR an admin to read/update/delete it.
+      allow get, update, delete: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Business owner or admin can list all orders.
+      allow list: if isBusinessOwner(businessId) || isAdmin();
     }
 
     match /marketProducts/{marketProductId} {
-      // Publicly readable for the market
+      // Publicly readable for the market.
       allow get, list: if true;
       
-      // Allow creation/update if the user is a member of the business they are listing for.
-      allow create, update: if isAdmin() || isMemberOfBusiness(request.resource.data.businessId);
+      // Allow creation/update if the user is the owner of the business they are listing for.
+      allow create, update: if isBusinessOwner(request.resource.data.businessId) || isAdmin();
       
-      // Allow deletion if the user is a member of the business the product belongs to.
-      allow delete: if isAdmin() || isMemberOfBusiness(resource.data.businessId);
+      // Allow deletion if the user owns the business the product belongs to.
+      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
     }
     
     match /blogs/{blogId} {
