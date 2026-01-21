@@ -81,11 +81,17 @@ service cloud.firestore {
       allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
-    // Marketplace orders can be created by any authenticated user, but only managed by the business owner or the user who created it.
+    // Marketplace orders
     match /businesses/{businessId}/orders/{orderId} {
+      // Anyone signed in can create an order for themselves.
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
-      allow read, update, delete: if isMemberOfBusiness(businessId) || (isSignedIn() && request.auth.uid == resource.data.userId);
-      allow list: if isMemberOfBusiness(businessId);
+      
+      // A business member or admin can list all orders for that business.
+      allow list: if isMemberOfBusiness(businessId) || isAdmin();
+      
+      // A business member, admin, or the user who created the order can get/update/delete it.
+      // This uses `get` and not `read` to avoid errors on list operations.
+      allow get, update, delete: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /marketProducts/{marketProductId} {
@@ -111,5 +117,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
