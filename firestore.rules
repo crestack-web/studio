@@ -68,8 +68,8 @@ service cloud.firestore {
       allow get: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       // Only the business owner or admin can list all orders.
       allow list: if isBusinessOwner(businessId) || isAdmin();
-      // Update/Delete has same permissions as get.
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Business owner can update/delete order. Customer can too (e.g. cancel). Admin cannot.
+      allow update, delete: if isBusinessOwner(businessId) || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /marketProducts/{marketProductId} {

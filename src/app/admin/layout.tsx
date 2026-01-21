@@ -2,7 +2,7 @@
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { doc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { LayoutDashboard, Newspaper, Mail } from 'lucide-react';
@@ -32,33 +32,15 @@ export default function AdminLayout({
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const isLoading = isUserLoading || isProfileLoading;
+  const isAuthorized = !isLoading && user && userProfile?.role === 'Admin';
 
   useEffect(() => {
-    if (isUserLoading || isProfileLoading) {
-      // Data is not yet settled, do nothing.
-      return;
-    }
-
-    if (!user || userProfile?.role !== 'Admin') {
-      // If loading is finished and user is not an admin, redirect.
+    if (!isLoading && !isAuthorized) {
       router.replace('/admin/login');
-    } else {
-      // If loading is finished and user IS an admin, mark as authorized.
-      setIsAuthorized(true);
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+  }, [isLoading, isAuthorized, router]);
 
-  // Show loader only while data is loading.
-  if (isUserLoading || isProfileLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  // If authorized, show the content. Otherwise, show a loader while redirecting.
   if (isAuthorized) {
     const menuItems = [
       { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -102,7 +84,7 @@ export default function AdminLayout({
     );
   }
 
-  // Render a loader while the redirect from useEffect is happening.
+  // Show a loader while verifying authentication, authorizing, or redirecting.
   return (
     <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
