@@ -14,11 +14,12 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // Use exists() for safer check before get()
-      let adminUserPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      // Ensure the user document exists and has a 'role' property before checking its value.
       return isSignedIn() && 
-             exists(adminUserPath) && 
-             get(adminUserPath).data.role == 'Admin';
+             exists(userDocPath) && 
+             'role' in get(userDocPath).data &&
+             get(userDocPath).data.role == 'Admin';
     }
 
     // Checks if a user is associated with a business via their user profile.
@@ -67,36 +68,18 @@ service cloud.firestore {
     // Rules for all subcollections under a business.
     match /businesses/{businessId}/{subcollection}/{docId} {
         allow read: if isMemberOfBusiness(businessId) || isAdmin();
-        // Default write rule for all subcollections
-        allow write: if isMemberOfBusiness(businessId) || isAdmin();
-
-        // Special case for 'orders' - overrides the parent `write` rule for `create` only.
-        // update and delete will still be governed by the parent `allow write` rule.
-        match /orders/{orderId} {
-            allow create: if true;
-        }
+        // Allow any authenticated user to create documents (e.g., orders),
+        // but only members can update/delete.
+        allow create: if isSignedIn();
+        allow update, delete: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
       allow get, list: if true;
 
-      // Helper: Checks if the user is a member of the business that OWNS this market product.
-      function isProductOwner() {
-        return isSignedIn() && isMemberOfBusiness(resource.data.businessId);
-      }
-      
-      // Helper: Checks if the user making the request is a member of the business
-      // they claim to be from in the request data.
-      function isRequestingAsMember() {
-         return isSignedIn() && isMemberOfBusiness(request.resource.data.businessId);
-      }
-
-      // Allow creation only if the user is a member of the business they are creating the product for.
-      allow create: if isRequestingAsMember() || isAdmin();
-      
-      // Allow updates/deletes only if the user is a member of the business that owns the existing product.
-      allow update, delete: if isProductOwner() || isAdmin();
+      // Only an admin or a member of the business can create, update, or delete a market product.
+      allow write: if (isAdmin() || (isSignedIn() && isMemberOfBusiness(request.resource.data.businessId)));
     }
     
     // Rules for the 'blogs' collection
