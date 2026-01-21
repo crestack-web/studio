@@ -25,6 +25,8 @@ service cloud.firestore {
     // Checks if the user is the actual owner of the business document.
     // This relies on isMemberOfBusiness to ensure the initial 'get' is allowed.
     function isBusinessOwner(businessId) {
+      // First, check if the user is a member to allow the 'get' on the business doc.
+      // Then, check the ownerId on that document.
       return isMemberOfBusiness(businessId) && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
@@ -55,45 +57,23 @@ service cloud.firestore {
     
     // Rules for the 'businessProfiles' collection (Public-facing data)
     match /businessProfiles/{businessId} {
-      allow get: if true;
+      allow get, list: if true;
       allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
-    // Rules for the 'inventory' subcollection
-    match /businesses/{businessId}/inventory/{inventoryId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
-    }
+    // Rules for all subcollections under a business.
+    // This rule allows any user linked to the business to read data,
+    // but restricts writes to the business owner.
+    match /businesses/{businessId}/{subcollection}/{docId} {
+        allow read: if isMemberOfBusiness(businessId) || isAdmin();
+        allow write: if isBusinessOwner(businessId) || isAdmin();
 
-    // Rules for the 'products' subcollection
-    match /businesses/{businessId}/products/{productId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
-    }
-
-    // Rules for the 'sales' subcollection
-    match /businesses/{businessId}/sales/{saleId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
-    }
-    
-    // Rules for the 'orders' subcollection
-    match /businesses/{businessId}/orders/{orderId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow create: if true; // Allow anyone to create an order (e.g., public checkout)
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
-    }
-
-    // Rules for the 'expenses' subcollection
-    match /businesses/{businessId}/expenses/{expenseId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
-    }
-
-    // Rules for the 'transactions' subcollection
-    match /businesses/{businessId}/transactions/{transactionId} {
-      allow read: if isMemberOfBusiness(businessId) || isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
+        // Special case for 'orders' - allow anyone to create an order
+        // This must be inside the more specific match block.
+        // We use a separate match for create to override the general write rule.
+        match /orders/{orderId} {
+            allow create: if true;
+        }
     }
 
     // Rules for the 'marketProducts' collection
