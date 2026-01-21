@@ -36,8 +36,12 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      // Only the business owner or an admin can read/write the private business document.
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      // Only the business owner or an admin can GET the private business document.
+      allow get: if isBusinessOwner(businessId) || isAdmin();
+      // Only an admin can LIST all businesses to prevent unsafe queries.
+      allow list: if isAdmin();
+      // Write is safe as it targets a specific document.
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
     
     match /businessProfiles/{businessId} {
@@ -49,9 +53,11 @@ service cloud.firestore {
     }
 
     // Generic rules for most business-owned subcollections.
+    // This is safe because businessId is always a specific document ID here, not a wildcard.
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow get, list: if isBusinessOwner(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Special rules for the 'orders' subcollection.
