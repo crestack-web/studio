@@ -14,11 +14,18 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
+    // Checks if a user is associated with a business via their user profile.
+    function isMemberOfBusiness(businessId) {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
+    }
+
+    // Checks if the user is the actual owner of the business document.
+    // This relies on isMemberOfBusiness to ensure the initial 'get' is allowed.
     function isBusinessOwner(businessId) {
-      return isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      return isMemberOfBusiness(businessId) && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
     // Rules for the 'users' collection
@@ -37,12 +44,11 @@ service cloud.firestore {
     // Rules for the 'businesses' collection
     match /businesses/{businessId} {
       // Read access is granted if the user's profile links to this business.
-      // This is safe because the `businessId` on the user profile is immutable.
-      allow get: if (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
+      allow get: if isMemberOfBusiness(businessId) || isAdmin();
       
       // Write access is ONLY granted if the `ownerId` on the business document itself matches the user.
       allow create: if isOwner(request.resource.data.ownerId);
-      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
 
       allow list: if isAdmin();
     }
@@ -55,36 +61,39 @@ service cloud.firestore {
 
     // Rules for the 'inventory' subcollection
     match /businesses/{businessId}/inventory/{inventoryId} {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'products' subcollection
     match /businesses/{businessId}/products/{productId} {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'sales' subcollection
     match /businesses/{businessId}/sales/{saleId} {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
     
     // Rules for the 'orders' subcollection
     match /businesses/{businessId}/orders/{orderId} {
-        // Business owner can read/update their orders.
-        // Customers can create orders (handled by checkout logic).
-      allow read, update: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
       allow create: if true; // Allow anyone to create an order (e.g., public checkout)
-      allow delete: if isBusinessOwner(businessId) || isAdmin();
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'expenses' subcollection
     match /businesses/{businessId}/expenses/{expenseId} {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'transactions' subcollection
     match /businesses/{businessId}/transactions/{transactionId} {
-      allow read, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'marketProducts' collection
@@ -139,5 +148,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
