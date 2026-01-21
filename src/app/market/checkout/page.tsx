@@ -14,7 +14,7 @@ import MainLayout from '@/components/app/main-layout';
 import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,9 +29,11 @@ const CheckoutContent = () => {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const firestore = useFirestore();
+    const { user, isUserLoading } = useUser();
     
     const productId = searchParams.get('productId');
     const quantity = parseInt(searchParams.get('quantity') || '1', 10);
+    const fullRedirectUrl = `/market/checkout?productId=${productId}&quantity=${quantity}`;
 
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     
@@ -50,13 +52,24 @@ const CheckoutContent = () => {
     const settings = businessProfile?.marketSettings;
 
     useEffect(() => {
+        if (!isUserLoading && !user) {
+            toast({
+                title: "Authentication Required",
+                description: "You need to log in to place an order.",
+                variant: "destructive"
+            });
+            router.push(`/login?redirect=${encodeURIComponent(fullRedirectUrl)}`);
+        }
+    }, [isUserLoading, user, router, toast, fullRedirectUrl]);
+
+    useEffect(() => {
         if (settings) {
             setFulfillmentMethod(settings.delivery.allowDelivery ? 'delivery' : 'pickup');
             setPaymentMethod(settings.payment.allowPayOnDelivery ? 'delivery' : 'transfer');
         }
     }, [settings]);
 
-    if (isLoadingProduct || isLoadingBusiness) {
+    if (isLoadingProduct || isLoadingBusiness || isUserLoading) {
         return (
              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6"><Skeleton className="h-48 w-full" /></div>
@@ -78,10 +91,10 @@ const CheckoutContent = () => {
     const deliveryFee = fulfillmentMethod === 'delivery' ? settings?.delivery.deliveryFee || 0 : 0;
     const total = subtotal + deliveryFee;
     
-    const canPlaceOrder = customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
+    const canPlaceOrder = user && customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
 
     const handlePlaceOrder = async () => {
-        if (!canPlaceOrder || !productData.businessId || !firestore || !productId) return;
+        if (!canPlaceOrder || !productData.businessId || !firestore || !productId || !user) return;
         
         setIsPlacingOrder(true);
         
@@ -93,6 +106,7 @@ const CheckoutContent = () => {
             const orderData = {
                 id: newOrderRef.id,
                 businessId: productData.businessId,
+                userId: user.uid,
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
                 items: [{ productId, productName: productData.productName, quantity, price: productData.price }],
                 subtotal, deliveryFee, total,
@@ -102,11 +116,6 @@ const CheckoutContent = () => {
                 createdAt: serverTimestamp()
             };
             batch.set(newOrderRef, orderData);
-
-            // NOTE: Stock update logic has been removed from the client-side.
-            // A secure implementation would use a server-side function (e.g., Cloud Function)
-            // triggered by order creation to decrement stock.
-            // For now, the business owner must manually update stock after an order is placed.
 
             await batch.commit();
 
@@ -179,3 +188,5 @@ export default function CheckoutPage() {
         </MainLayout>
     );
 }
+
+    

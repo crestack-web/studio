@@ -351,6 +351,7 @@
       "description": "Represents a customer order from the public marketplace.",
       "properties": {
         "businessId": { "type": "string" },
+        "userId": { "type": "string" },
         "customer": {
           "type": "object",
           "properties": {
@@ -380,7 +381,7 @@
         "payment": { "type": "string", "enum": ["transfer", "delivery"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["businessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
+      "required": ["businessId", "userId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
     },
     "Expense": {
       "title": "Expense",
