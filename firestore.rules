@@ -4,9 +4,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- HELPER FUNCTIONS ---
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    // Gets the current user's profile document data. Returns null if not found.
+    function getUserProfile() {
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      if (isSignedIn() && exists(userDocPath)) {
+        return get(userDocPath).data;
+      }
+      return null;
     }
 
     function isOwner(userId) {
@@ -14,23 +23,20 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      // Ensure the user document exists and has a 'role' property before checking its value.
-      return isSignedIn() && 
-             exists(userDocPath) && 
-             'role' in get(userDocPath).data &&
-             get(userDocPath).data.role == 'Admin';
+      let userProfile = getUserProfile();
+      // Ensure the user profile and role exist before checking its value.
+      return userProfile != null && 'role' in userProfile && userProfile.role == 'Admin';
     }
 
     // Checks if a user is associated with a business via their user profile.
     function isMemberOfBusiness(businessId) {
-        // Safer check: ensure user doc and businessId field exist before access.
-        let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-        return isSignedIn() && 
-               exists(userDocPath) &&
-               'businessId' in get(userDocPath).data &&
-               get(userDocPath).data.businessId == businessId;
+        let userProfile = getUserProfile();
+        // Ensure the user profile and businessId exist before checking its value.
+        return userProfile != null && 'businessId' in userProfile && userProfile.businessId == businessId;
     }
+
+
+    // --- COLLECTION RULES ---
 
     // Rules for the 'users' collection
     match /users/{userId} {
@@ -77,9 +83,8 @@ service cloud.firestore {
     // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
       allow get, list: if true;
-
       // Only an admin or a member of the business can create, update, or delete a market product.
-      allow write: if (isAdmin() || (isSignedIn() && isMemberOfBusiness(request.resource.data.businessId)));
+      allow write: if isAdmin() || isMemberOfBusiness(request.resource.data.businessId);
     }
     
     // Rules for the 'blogs' collection
