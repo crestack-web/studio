@@ -168,15 +168,15 @@ export default function MarketPage() {
                                                     <div className="aspect-video overflow-hidden">
                                                         <Image 
                                                             src={product.image || `https://picsum.photos/seed/${product.id}/400/300`}
-                                                            alt={product.productName}
+                                                            alt={product.productName || 'Product image'}
                                                             width={400}
                                                             height={300}
                                                             className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                                                            data-ai-hint={product.hint || product.productName.split(' ').slice(0,2).join(' ')}
+                                                            data-ai-hint={product.hint || (product.productName || '').split(' ').slice(0,2).join(' ')}
                                                         />
                                                     </div>
                                                     <CardContent className="p-4 flex-1 flex flex-col">
-                                                        <h3 className="font-semibold text-lg flex-1">{product.productName}</h3>
+                                                        <h3 className="font-semibold text-lg flex-1">{product.productName || 'Unnamed Product'}</h3>
                                                         <p className="text-sm text-muted-foreground mt-1">by {product.businessName}</p>
                                                         <p className="font-bold text-xl mt-4">{formatCurrency(product.price)}</p>
                                                     </CardContent>
