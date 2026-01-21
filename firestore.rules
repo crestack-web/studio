@@ -9,50 +9,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function getRole() {
-        // Safely get user role, returns null if not found or no role.
-        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        if (userDoc != null && 'role' in userDoc.data) {
-            return userDoc.data.role;
-        }
-        return null;
-    }
-
     function isAdmin() {
-        return isSignedIn() && getRole() == 'Admin';
+      // Safely checks if the currently authenticated user has the 'Admin' role.
+      // Checks for auth, document existence, and role property before returning.
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() && userDoc != null && 'role' in userDoc.data && userDoc.data.role == 'Admin';
     }
     
     function isBusinessOwner(businessId) {
-      // Check that the user making the request is the owner of the business document.
-      // This is a robust way to check ownership without relying on a user's profile doc.
+      // Safely checks if the currently authenticated user is the owner of the specified business.
+      // Checks for auth, document existence, and ownerId property.
       let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
-      return businessDoc != null && businessDoc.data.ownerId == request.auth.uid;
+      return isSignedIn() && businessDoc != null && 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
 
 
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if request.auth.uid == userId || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId);
-      // Owners can update their profile, but NOT change their businessId once set.
-      // Admins can update anything. This prevents users from hijacking other businesses.
-      allow update: if (isOwner(userId) && (resource.data.businessId == null || request.resource.data.businessId == resource.data.businessId)) || isAdmin();
-      allow delete: if isOwner(userId) || isAdmin();
+      allow create: if request.auth.uid == userId;
+      // User can update their own profile, but cannot change their businessId once set.
+      allow update: if (request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || isAdmin();
+      allow delete: if request.auth.uid == userId || isAdmin();
     }
 
     match /businesses/{businessId} {
-      // The owner of the business document can read/write it. Admins too.
+      // Only the business owner or an admin can read/write the private business document.
       allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
     
     match /businessProfiles/{businessId} {
-      // This collection is for public marketplace data.
+      // This collection is for public marketplace data. ANYONE can read it.
       allow get, list: if true;
       
       // Only the business owner or an admin can write to the public profile.
@@ -60,20 +49,21 @@ service cloud.firestore {
     }
 
     // Generic rules for most business-owned subcollections.
-    // Only the business owner or an admin should be able to access these.
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
       allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
-    // Special, more permissive rule for the 'orders' subcollection.
+    // Special rules for the 'orders' subcollection.
     match /businesses/{businessId}/orders/{orderId} {
       // Allow authenticated users to create orders for themselves.
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // Allow the customer who created the order OR the business owner OR an admin to read/update/delete it.
-      allow get, update, delete: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      // Business owner or admin can list all orders.
+      // Allow the customer, business owner, or an admin to get a single order.
+      allow get: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      // Only the business owner or admin can list all orders.
       allow list: if isBusinessOwner(businessId) || isAdmin();
+      // Update/Delete has same permissions as get.
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /marketProducts/{marketProductId} {
