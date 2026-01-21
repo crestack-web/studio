@@ -57,9 +57,11 @@ service cloud.firestore {
     }
     
     match /businessProfiles/{businessId} {
-      // Publicly readable for the market
-      allow get, list: if true;
-      // Allow writes only from authenticated users associated with the business.
+      // This collection is public for the marketplace UI.
+      // Anyone can read business names, descriptions, etc.
+      allow read: if true;
+      
+      // Only the business owner/staff or an admin can write to the public profile.
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 

@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { collection, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, updateDoc, writeBatch } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -52,19 +51,36 @@ export default function BusinessInfoPage() {
         setIsSubmitting(true);
 
         try {
-            const businessesColRef = collection(firestore, 'businesses');
-            const newBusinessDoc = await addDocumentNonBlocking(businessesColRef, {
+            const batch = writeBatch(firestore);
+
+            // Create a new business document reference with an auto-generated ID
+            const newBusinessRef = doc(collection(firestore, 'businesses'));
+            const businessId = newBusinessRef.id;
+
+            // Define the private business data
+            const businessData = {
                 ownerId: authUser.uid,
                 businessName,
                 businessType,
                 createdAt: serverTimestamp(),
-                onboardingCompleted: false,
-            });
+                onboardingCompleted: false, // This will be set to true at the end of the flow
+            };
+            batch.set(newBusinessRef, businessData);
 
+            // Define the public business profile data
+            const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
+            const businessProfileData = {
+                businessName,
+                businessType,
+            };
+            batch.set(businessProfileRef, businessProfileData);
+
+            // Update the user's profile with the new business ID
             const userDocRef = doc(firestore, 'users', authUser.uid);
-            await updateDoc(userDocRef, {
-                businessId: newBusinessDoc.id
-            });
+            batch.update(userDocRef, { businessId: businessId });
+
+            // Commit the batch
+            await batch.commit();
 
             router.replace('/currency');
         } catch (error: any) {

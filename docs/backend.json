@@ -112,6 +112,7 @@
       "description": "Public-facing business information for the marketplace.",
       "properties": {
         "businessName": { "type": "string" },
+        "businessType": { "type": "string" },
         "marketDescription": { "type": "string" },
         "currency": { "type": "string" },
         "marketSettings": {
@@ -144,7 +145,7 @@
           }
         }
       },
-      "required": ["businessName"]
+      "required": ["businessName", "businessType"]
     },
     "Inventory": {
       "title": "Inventory",
@@ -612,5 +613,3 @@
     ]
   }
 }
-
-    
