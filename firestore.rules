@@ -11,6 +11,7 @@ service cloud.firestore {
 
     function isOwner(businessId) {
       // Helper to safely check if the current user owns the specified business.
+      // This is safe because it reads from /users and /businesses, which have their own security rules.
       let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
       let businessPath = /databases/$(database)/documents/businesses/$(businessId);
 
@@ -28,58 +29,106 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow get, list: if isAdmin();
-      allow get: if isSignedIn() && request.auth.uid == userId;
+      // CRITICAL FIX: Break recursive loop.
+      // An admin's permission to read any user document is checked directly,
+      // while a regular user can only read their own document.
+      // When the isAdmin() check triggers a get() on the admin's own user document,
+      // the second part of this rule (request.auth.uid == userId) will pass,
+      // successfully terminating the rule evaluation and preventing a loop.
+      allow get: if isSignedIn() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
+        || request.auth.uid == userId
+      );
+      
+      // Listing users is an admin-only action.
+      allow list: if isAdmin();
+
+      // Any authenticated user can create their own profile.
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Prevent users from changing their own role or businessId after assignment.
+
+      // An admin can update any user. A user can update their own profile but cannot change their role or businessId.
       allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.businessId == resource.data.businessId) || isAdmin();
+      
+      // Only admins can delete users.
       allow delete: if isAdmin();
     }
 
+    // BUSINESS-RELATED COLLECTIONS
     match /businesses/{businessId} {
+        // An owner, staff of that business, or an admin can read the main business document.
         allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
+        
+        // A new business can only be created by a signed-in user who sets themselves as the owner.
         allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-        allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-        allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+        
+        // Only the business owner or an admin can update or delete the business document.
+        allow update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+
+        // Listing all businesses is an admin-only action for security.
         allow list: if isAdmin();
     }
 
     match /businessProfiles/{businessId} {
-      allow get: if true; // Publicly readable
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(businessId) || isAdmin();
+      // Publicly readable for the marketplace.
+      allow get: if true; 
+      
+      // An owner or admin must create the public profile.
+      allow create, update, delete: if isOwner(businessId) || isAdmin();
     }
     
-    match /marketProducts/{productId} {
-      allow get: if resource.data.status == 'active';
-      allow list: if true; // Allow listing to filter on client
-      allow create, update, delete: if isOwner(request.resource.data.businessId) || isAdmin();
-    }
-
+    // Subcollections within a business. Only the owner or an admin can access.
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
       allow read, write: if isOwner(businessId) || isAdmin();
     }
+
+    // MARKETPLACE & ORDER COLLECTIONS
+    match /marketProducts/{productId} {
+      // Anyone can see active products.
+      allow get: if resource.data.status == 'active';
+      // Anyone can list products to filter on the client-side.
+      allow list: if true; 
+      // Only the business owner or an admin can create/manage market products.
+      allow create, update, delete: if isOwner(request.resource.data.businessId) || isAdmin();
+    }
     
     match /orders/{orderId} {
+      // An order can only be created by the authenticated buyer.
       allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+      
+      // An order can be read by the buyer, the seller (owner), or an admin.
       allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(resource.data.sellerBusinessId) || isAdmin();
-      // Secure list queries by enforcing a filter on sellerBusinessId
+      
+      // Orders can only be listed if filtered by the seller's business ID, for the owner or an admin to view.
       allow list: if (request.query.sellerBusinessId != null && isOwner(request.query.sellerBusinessId)) || isAdmin();
-      allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin(); // Seller or admin can update status
+      
+      // Only the seller (owner) or an admin can update an order's status.
+      allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
+      
+      // Only admins can delete orders.
       allow delete: if isAdmin();
     }
 
+    // CONTENT & SUPPORT COLLECTIONS
     match /blogs/{blogId} {
+      // Published blogs are public.
       allow get: if resource.data.isPublished == true;
-      allow list: if true;
+      allow list: if true; // Allow listing all blogs for the main blog page
+      
+      // Only admins can manage blog content.
       allow create, update, delete: if isAdmin();
     }
 
     match /supportTickets/{ticketId} {
+      // The user who created the ticket or an admin can view/update it.
       allow get, update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      // Any signed-in user can create a support ticket.
       allow create: if isSignedIn();
+      
+      // Only admins can list or delete tickets.
       allow list, delete: if isAdmin();
     }
   }
