@@ -36,13 +36,19 @@ service cloud.firestore {
     match /businesses/{businessId} {
       allow get: if isBusinessOwner(businessId) || isAdmin();
       allow list: if isAdmin();
-      allow write: if isBusinessOwner(businessId) || isAdmin();
+      // Allow create if the ownerId in the new document matches the user's UID.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      // Allow update/delete only if the user is the existing owner.
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
     }
     
     match /businessProfiles/{businessId} {
       // Publicly readable for the market
       allow get, list: if true;
-      allow write: if isBusinessOwner(businessId) || isAdmin();
+      // Allow any signed-in user to create a profile. This is necessary for the initial onboarding batch write.
+      allow create: if isSignedIn();
+      // Allow update/delete only if the user is the owner of the corresponding business.
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
     }
 
     match /businesses/{businessId}/{subcollection}/{docId} 
@@ -88,5 +94,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
