@@ -10,79 +10,78 @@ service cloud.firestore {
     }
 
     function isBusinessOwner(businessId) {
-      // Check if the current user owns the specified business.
+      // Safely check if the current user owns the specified business.
       return isSignedIn() &&
              exists(/databases/$(database)/documents/businesses/$(businessId)) &&
              get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+    }
+    
+    function isAdmin() {
+        // Safely check if the current user is an admin.
+        return isSignedIn() &&
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      allow get: if (isSignedIn() && request.auth.uid == userId) || 
-                   (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-      
-      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-      
+      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId;
-
-      allow update: if (isSignedIn() && request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || 
-                      (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-      
-      allow delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow update: if (isSignedIn() && request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /businesses/{businessId} {
       // A user can get a business doc if their user profile points to it. Admins can get any.
-      allow get: if (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) ||
-                   (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
       
       // Use `resource.data` to refer to the existing document to avoid recursion.
-      allow update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) ||
-                              (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       
       // Create is fine, it checks the incoming document's data.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
 
       // List rule for admins is fine.
-      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow list: if isAdmin();
     }
     
     match /businessProfiles/{businessId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
     }
 
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      allow read, write: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-        allow list: if (request.query.sellerBusinessId != null && isBusinessOwner(request.query.sellerBusinessId)) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-        allow update: if isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') || (isSignedIn() && resource.data.buyerId == request.auth.uid);
-        allow delete: if isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
+        allow list: if (request.query.sellerBusinessId != null && isBusinessOwner(request.query.sellerBusinessId)) || isAdmin();
+        allow update: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+        allow delete: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
     }
 
     match /marketProducts/{marketProductId} {
       allow read: if true;
-      allow create, update: if isBusinessOwner(request.resource.data.businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-      allow delete: if isBusinessOwner(resource.data.businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow create, update: if isBusinessOwner(request.resource.data.businessId) || isAdmin();
+      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
     }
     
     match /blogs/{blogId} {
       allow read: if true;
-      allow create, update, delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow create, update, delete: if isAdmin();
     }
     
     match /supportTickets/{ticketId} {
-      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-      allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow update, delete: if isAdmin();
     }
   }
 }
