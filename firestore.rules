@@ -10,10 +10,13 @@ service cloud.firestore {
     }
 
     function isOwner(businessId) {
-      // Safely check if the current user owns the specified business.
-      // This is safe for GET requests, but not for LIST.
-      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
-      return isSignedIn() && businessDoc.data.ownerId == request.auth.uid;
+      // Helper to safely check if the current user owns the specified business.
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let businessPath = /databases/$(database)/documents/businesses/$(businessId);
+
+      return isSignedIn() &&
+             exists(userPath) && get(userPath).data.businessId == businessId &&
+             exists(businessPath) && get(businessPath).data.ownerId == request.auth.uid;
     }
 
     function isAdmin() {
@@ -35,17 +38,17 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Use `resource.data` to refer to the existing document to avoid recursion.
-      allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      allow list: if isAdmin();
+        allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
+        allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+        allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+        allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+        allow list: if isAdmin();
     }
 
     match /businessProfiles/{businessId} {
       allow get: if true; // Publicly readable
-      allow create, update, delete: if isOwner(businessId) || isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(businessId) || isAdmin();
     }
     
     match /marketProducts/{productId} {
