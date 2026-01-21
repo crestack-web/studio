@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { useLanguage } from '@/context/language-provider';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
@@ -127,6 +127,10 @@ export default function PricingPage() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full max-w-xs">
+                  <SheetHeader>
+                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                  </SheetHeader>
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
                       <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>

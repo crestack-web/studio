@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
 import { Menu } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
 import { Separator } from '../ui/separator';
@@ -47,6 +47,10 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="right" className="w-full max-w-xs">
+                                <SheetHeader>
+                                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                                </SheetHeader>
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col items-start gap-4">
                                     <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>

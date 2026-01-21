@@ -150,6 +150,10 @@ export default function LandingPage() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full max-w-xs">
+                  <SheetHeader>
+                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                  </SheetHeader>
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
                       <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
