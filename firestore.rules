@@ -9,95 +9,71 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      // Returns true only if the user is signed in, their user document exists, and their role is 'Admin'.
-      // This is safe to call in any context because it checks for auth and existence before accessing data.
-      return isSignedIn() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-    }
-    
     function isBusinessOwner(businessId) {
-      // Returns false if businessId is null, user is not signed in, the business doesn't exist, or they don't own it.
-      // This is safe to call in any context.
+      // Check if the current user owns the specified business.
       return businessId != null &&
              isSignedIn() &&
              exists(/databases/$(database)/documents/businesses/$(businessId)) &&
              get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
-
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      allow get: if request.auth.uid == userId || isAdmin();
-      allow list: if isAdmin();
-      allow create: if request.auth.uid == userId;
-      // User can update their own profile, but cannot change their businessId once set.
-      allow update: if (request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || isAdmin();
-      allow delete: if isAdmin();
+      allow get: if (isSignedIn() && request.auth.uid == userId) || 
+                   (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      allow update: if (isSignedIn() && request.auth.uid == userId && (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)) || 
+                      (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      
+      allow delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
     match /businesses/{businessId} {
-      // Allow get/update/delete only if the user is the owner of the document being accessed.
-      // This is non-recursive and safe, checking the document's own data.
-      allow get, update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      
-      // Admin can list all businesses.
-      allow list: if isAdmin();
-      
-      // Allow create if the ownerId in the new document matches the user's UID.
+      allow get, update, delete: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
     }
     
     match /businessProfiles/{businessId} {
-      // Publicly readable for the market
-      allow get, list: if true;
-      // Allow any signed-in user to create a profile. This is necessary for the initial onboarding batch write.
+      allow read: if true;
       allow create: if isSignedIn();
-      // Allow update/delete only if the user is the owner of the corresponding business.
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
+      allow update, delete: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
     }
 
     match /businesses/{businessId}/{subcollection}/{docId} 
         where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      allow get, list, write: if isBusinessOwner(businessId) || isAdmin();
+      allow read, write: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
     }
 
     match /orders/{orderId} {
-        // Buyer can create their own order
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-        // Buyer, Seller, or Admin can read
-        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
-        // Seller or Admin can list orders for a specific business
-        allow list: if (request.query.sellerBusinessId != null && isBusinessOwner(request.query.sellerBusinessId)) || isAdmin();
-        // Buyer can cancel, Seller/Admin can update status
-        allow update: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
-        // Only Admin or Seller can delete
-        allow delete: if isBusinessOwner(resource.data.sellerBusinessId) || isAdmin();
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+        allow list: if (request.query.sellerBusinessId != null && isBusinessOwner(request.query.sellerBusinessId)) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+        allow update: if isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+        allow delete: if isBusinessOwner(resource.data.sellerBusinessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
     }
 
     match /marketProducts/{marketProductId} {
-      // Publicly readable for the market.
-      allow get, list: if true;
-      
-      // Allow creation/update if the user is the owner of the business they are listing for.
-      allow create, update: if isBusinessOwner(request.resource.data.businessId) || isAdmin();
-      
-      // Allow deletion if the user owns the business the product belongs to.
-      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
+      allow read: if true;
+      allow create, update: if isBusinessOwner(request.resource.data.businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      allow delete: if isBusinessOwner(resource.data.businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
     }
     
     match /blogs/{blogId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
     match /supportTickets/{ticketId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow get: if (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin') || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow update, delete: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
   }
 }
