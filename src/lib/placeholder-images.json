@@ -74,5 +74,56 @@
       "imageUrl": "https://picsum.photos/seed/prod-food/400/300",
       "imageHint": "plate food"
     }
+  ],
+  "categoryImages": [
+    {
+      "id": "cat-groceries",
+      "name": "Groceries",
+      "description": "A variety of fresh groceries.",
+      "imageUrl": "https://picsum.photos/seed/cat-groceries/300/300",
+      "imageHint": "fresh vegetables"
+    },
+    {
+      "id": "cat-fashion",
+      "name": "Fashion",
+      "description": "Stylish clothing on a rack.",
+      "imageUrl": "https://picsum.photos/seed/cat-fashion/300/300",
+      "imageHint": "clothing rack"
+    },
+    {
+      "id": "cat-electronics",
+      "name": "Electronics",
+      "description": "Modern electronic gadgets like a laptop and phone.",
+      "imageUrl": "https://picsum.photos/seed/cat-electronics/300/300",
+      "imageHint": "laptop phone"
+    },
+    {
+      "id": "cat-home-office",
+      "name": "Home & Office",
+      "description": "A modern armchair in a cozy setting.",
+      "imageUrl": "https://picsum.photos/seed/cat-home-office/300/300",
+      "imageHint": "modern armchair"
+    },
+    {
+      "id": "cat-beauty",
+      "name": "Beauty",
+      "description": "A collection of makeup brushes and beauty products.",
+      "imageUrl": "https://picsum.photos/seed/cat-beauty/300/300",
+      "imageHint": "makeup brushes"
+    },
+    {
+      "id": "cat-sme-deals",
+      "name": "SME Deals",
+      "description": "A sale tag indicating special deals for small businesses.",
+      "imageUrl": "https://picsum.photos/seed/cat-sme-deals/300/300",
+      "imageHint": "sale tag"
+    },
+    {
+      "id": "cat-wholesale",
+      "name": "Wholesale",
+      "description": "Stacked cardboard boxes ready for wholesale shipping.",
+      "imageUrl": "https://picsum.photos/seed/cat-wholesale/300/300",
+      "imageHint": "stacked boxes"
+    }
   ]
 }

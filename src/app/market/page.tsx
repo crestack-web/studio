@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, ShoppingCart, Menu, Star, Zap, ShieldCheck, Truck, PackageCheck, UtensilsCrossed, Shirt, Laptop, Armchair, Sparkles, Tag } from 'lucide-react';
+import { Search, ShoppingCart, Menu, Star, Zap, ShieldCheck, Truck, PackageCheck } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -17,7 +17,7 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { PlaceHolderImages, CategoryImages } from '@/lib/placeholder-images';
 
 interface MarketProduct {
     id: string; // Document ID, which is the same as productId
@@ -36,16 +36,6 @@ const heroBanners = [
     { id: 'banner-clearance', title: 'Clearance Sale', subtitle: 'Up to 50% Off Select Items', image: PlaceHolderImages.find(i => i.id === 'sale-banner-1'), buttonText: 'Shop Now' },
     { id: 'banner-new', title: 'New Arrivals', subtitle: 'Fresh Picks for the New Season', image: PlaceHolderImages.find(i => i.id === 'sale-banner-2'), buttonText: 'Discover More' },
     { id: 'banner-wholesale', title: 'Wholesale Deals', subtitle: 'Buy in Bulk and Save Big', image: PlaceHolderImages.find(i => i.id === 'sale-banner-3'), buttonText: 'View Deals' },
-];
-
-const categories = [
-    { name: 'Groceries', icon: UtensilsCrossed },
-    { name: 'Fashion', icon: Shirt },
-    { name: 'Electronics', icon: Laptop },
-    { name: 'Home & Office', icon: Armchair },
-    { name: 'Beauty', icon: Sparkles },
-    { name: 'SME Deals', icon: Tag },
-    { name: 'Wholesale', icon: ShoppingCart },
 ];
 
 const trustFeatures = [
@@ -230,11 +220,20 @@ export default function MarketPage() {
 
                     {/* 2. Quick Categories */}
                     <section>
-                        <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
-                            {categories.map(category => (
-                                <Link href="#" key={category.name} className="flex flex-col items-center text-center p-2 rounded-lg hover:bg-accent/50 transition-colors w-20 sm:w-28 sm:bg-card sm:border sm:p-4 sm:shadow-sm sm:hover:bg-accent sm:hover:text-accent-foreground group">
-                                    <category.icon className="w-7 h-7 sm:w-8 sm:h-8 mx-auto text-primary sm:group-hover:text-accent-foreground" />
-                                    <p className="mt-1 text-xs font-medium sm:text-sm">{category.name}</p>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                            {CategoryImages.map(category => (
+                                <Link href="#" key={category.id} className="block group">
+                                    <div className="relative aspect-square overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                        <Image
+                                            src={category.imageUrl}
+                                            alt={category.name || ''}
+                                            fill
+                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                            data-ai-hint={category.imageHint}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        <p className="absolute bottom-2 left-2 right-2 text-center text-sm font-bold text-white truncate">{category.name}</p>
+                                    </div>
                                 </Link>
                             ))}
                         </div>
@@ -328,5 +327,3 @@ export default function MarketPage() {
         </div>
     );
 }
-
-    
