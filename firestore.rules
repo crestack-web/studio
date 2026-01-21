@@ -34,13 +34,15 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      // Owner can get their own business doc. Admin can get any.
-      allow get: if (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid) || isAdmin();
+      // Allow get/update/delete only if the user is the owner of the document being accessed.
+      // This is non-recursive and safe, checking the document's own data.
+      allow get, update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      
+      // Admin can list all businesses.
       allow list: if isAdmin();
+      
       // Allow create if the ownerId in the new document matches the user's UID.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Allow update/delete only if the user is the existing owner.
-      allow update, delete: if isBusinessOwner(businessId) || isAdmin();
     }
     
     match /businessProfiles/{businessId} {
