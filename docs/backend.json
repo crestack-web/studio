@@ -135,6 +135,14 @@
           "type": "string",
           "description": "Public-facing product category for the marketplace."
         },
+        "image": {
+            "type": "string",
+            "description": "URL of the primary product image."
+        },
+        "hint": {
+            "type": "string",
+            "description": "A hint for AI image generation services."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -230,6 +238,14 @@
         "category": {
           "type": "string",
           "description": "The product category."
+        },
+        "image": {
+            "type": "string",
+            "description": "URL for the product's primary image."
+        },
+        "hint": {
+            "type": "string",
+            "description": "A hint for AI image services."
         },
         "availableQuantity": {
             "type": "number",

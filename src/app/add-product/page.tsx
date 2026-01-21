@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,7 +43,7 @@ export default function AddProductPage() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
-    const [images, setImages] = useState<File[]>([]);
+    const [images, setImages] = useState<string[]>([]);
     const [productName, setProductName] = useState('');
     const [sellingPrice, setSellingPrice] = useState('');
     const [initialQuantity, setInitialQuantity] = useState('');
@@ -91,11 +91,17 @@ export default function AddProductPage() {
         setIngredients(ingredients.filter((_, i) => i !== index));
     };
 
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            const newImages = Array.from(event.target.files);
-            setImages(prev => [...prev, ...newImages].slice(0, 4));
+    const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            const newImagesCount = Array.from(event.target.files).length;
+            const newImageUrls = Array.from({ length: newImagesCount }, () => {
+                const seed = Math.floor(Math.random() * 10000); // Larger seed range
+                return `https://picsum.photos/seed/${seed}/400/300`;
+            });
+            setImages(prev => [...prev, ...newImageUrls].slice(0, 4));
         }
+        // Clear the input value to allow re-uploading the same file
+        event.target.value = '';
     };
 
     const handleRemoveImage = (index: number) => {
@@ -126,6 +132,8 @@ export default function AddProductPage() {
             description: productDescription,
             category: productCategory,
             createdAt: serverTimestamp(),
+            image: images[0] || null,
+            hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
         };
 
         const productsCollectionRef = collection(firestore, `businesses/${businessId}/products`);
@@ -144,6 +152,8 @@ export default function AddProductPage() {
                     category: productData.category,
                     availableQuantity: productData.quantity,
                     createdAt: new Date(), // Using client-side date for simplicity, serverTimestamp can be tricky with security rules
+                    image: images[0] || null,
+                    hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
@@ -272,10 +282,10 @@ export default function AddProductPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="product-images">Product Images</Label>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {images.map((file, index) => (
+                                        {images.map((imageUrl, index) => (
                                             <div key={index} className="relative aspect-square">
                                                 <Image
-                                                    src={URL.createObjectURL(file)}
+                                                    src={imageUrl}
                                                     alt={`Product image ${index + 1}`}
                                                     fill
                                                     className="rounded-md object-cover"
