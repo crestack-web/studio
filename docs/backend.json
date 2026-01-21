@@ -59,6 +59,35 @@
             "type": "string",
             "description": "Public-facing business description for the marketplace."
         },
+        "marketSettings": {
+          "type": "object",
+          "description": "Settings for the business's public marketplace store.",
+          "properties": {
+            "isStoreActive": { "type": "boolean" },
+            "payment": {
+              "type": "object",
+              "properties": {
+                "allowBankTransfer": { "type": "boolean" },
+                "allowPayOnDelivery": { "type": "boolean" },
+                "bankName": { "type": "string" },
+                "accountNumber": { "type": "string" },
+                "paymentInstructions": { "type": "string" }
+              }
+            },
+            "delivery": {
+              "type": "object",
+              "properties": {
+                "allowDelivery": { "type": "boolean" },
+                "allowPickup": { "type": "boolean" },
+                "deliveryFee": { "type": "number" },
+                "deliveryDays": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -76,6 +105,46 @@
         "createdAt",
         "onboardingCompleted"
       ]
+    },
+    "BusinessProfile": {
+      "title": "Business Profile",
+      "type": "object",
+      "description": "Public-facing business information for the marketplace.",
+      "properties": {
+        "businessName": { "type": "string" },
+        "marketDescription": { "type": "string" },
+        "currency": { "type": "string" },
+        "marketSettings": {
+          "type": "object",
+          "description": "Settings for the business's public marketplace store.",
+          "properties": {
+            "isStoreActive": { "type": "boolean" },
+            "payment": {
+              "type": "object",
+              "properties": {
+                "allowBankTransfer": { "type": "boolean" },
+                "allowPayOnDelivery": { "type": "boolean" },
+                "bankName": { "type": "string" },
+                "accountNumber": { "type": "string" },
+                "paymentInstructions": { "type": "string" }
+              }
+            },
+            "delivery": {
+              "type": "object",
+              "properties": {
+                "allowDelivery": { "type": "boolean" },
+                "allowPickup": { "type": "boolean" },
+                "deliveryFee": { "type": "number" },
+                "deliveryDays": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["businessName"]
     },
     "Inventory": {
       "title": "Inventory",
@@ -268,6 +337,43 @@
         "createdAt"
       ]
     },
+    "MarketOrder": {
+      "title": "Market Order",
+      "type": "object",
+      "description": "Represents a customer order from the public marketplace.",
+      "properties": {
+        "businessId": { "type": "string" },
+        "customer": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "phone": { "type": "string" },
+            "address": { "type": "string" }
+          },
+          "required": ["name", "phone"]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "productName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Shipped", "Delivered", "Cancelled"] },
+        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
+        "payment": { "type": "string", "enum": ["transfer", "delivery"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
+    },
     "Expense": {
       "title": "Expense",
       "type": "object",
@@ -395,6 +501,16 @@
         }
       },
       {
+        "path": "businessProfiles/{businessId}",
+        "definition": {
+          "entityName": "BusinessProfile",
+          "schema": {
+            "$ref": "#/backend/entities/BusinessProfile"
+          },
+          "description": "Publicly readable information about a business for the marketplace."
+        }
+      },
+      {
         "path": "businesses/{businessId}/inventory/{inventoryId}",
         "definition": {
           "entityName": "Inventory",
@@ -422,6 +538,16 @@
             "$ref": "#/backend/entities/Sale"
           },
           "description": "Subcollection for sales transactions belonging to a business."
+        }
+      },
+      {
+        "path": "businesses/{businessId}/orders/{orderId}",
+        "definition": {
+          "entityName": "MarketOrder",
+          "schema": {
+            "$ref": "#/backend/entities/MarketOrder"
+          },
+          "description": "Subcollection for orders made through the public marketplace."
         }
       },
       {
@@ -477,3 +603,5 @@
     ]
   }
 }
+
+    

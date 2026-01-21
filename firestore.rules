@@ -46,6 +46,12 @@ service cloud.firestore {
 
       allow list: if isAdmin();
     }
+    
+    // Rules for the 'businessProfiles' collection (Public-facing data)
+    match /businessProfiles/{businessId} {
+      allow get: if true;
+      allow write: if isBusinessOwner(businessId) || isAdmin();
+    }
 
     // Rules for the 'inventory' subcollection
     match /businesses/{businessId}/inventory/{inventoryId} {
@@ -60,6 +66,15 @@ service cloud.firestore {
     // Rules for the 'sales' subcollection
     match /businesses/{businessId}/sales/{saleId} {
       allow read, write: if isBusinessOwner(businessId) || isAdmin();
+    }
+    
+    // Rules for the 'orders' subcollection
+    match /businesses/{businessId}/orders/{orderId} {
+        // Business owner can read/update their orders.
+        // Customers can create orders (handled by checkout logic).
+      allow read, update: if isBusinessOwner(businessId) || isAdmin();
+      allow create: if true; // Allow anyone to create an order (e.g., public checkout)
+      allow delete: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'expenses' subcollection
@@ -124,3 +139,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

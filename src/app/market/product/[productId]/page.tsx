@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -27,7 +28,7 @@ interface MarketProduct {
     category?: string;
 }
 
-interface Business {
+interface BusinessProfile {
     businessName: string;
     currency: string;
 }
@@ -44,11 +45,11 @@ const ProductDetailContent = () => {
     }, [firestore, productId]);
     const { data: productData, isLoading: isLoadingProduct } = useDoc<MarketProduct>(productRef);
 
-    const businessRef = useMemoFirebase(() => {
+    const businessProfileRef = useMemoFirebase(() => {
         if (!firestore || !productData?.businessId) return null;
-        return doc(firestore, 'businesses', productData.businessId);
+        return doc(firestore, 'businessProfiles', productData.businessId);
     }, [firestore, productData?.businessId]);
-    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
@@ -169,3 +170,5 @@ const ProductDetailContent = () => {
 export default function ProductDetailPage() {
     return <ProductDetailContent />
 }
+
+    

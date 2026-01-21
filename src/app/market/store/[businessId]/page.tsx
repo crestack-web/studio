@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +13,7 @@ import { doc, collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 
-interface Business {
+interface BusinessProfile {
     businessName: string;
     marketDescription?: string;
     currency?: string;
@@ -34,11 +35,11 @@ const StorePageContent = () => {
     const businessId = params.businessId as string;
     const firestore = useFirestore();
 
-    const businessRef = useMemoFirebase(() => {
+    const businessProfileRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return doc(firestore, 'businesses', businessId);
+        return doc(firestore, 'businessProfiles', businessId);
     }, [firestore, businessId]);
-    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
@@ -133,7 +134,7 @@ const StorePageContent = () => {
                             <Card className="overflow-hidden group cursor-pointer h-full flex flex-col">
                                 <div className="aspect-video overflow-hidden">
                                     <Image 
-                                        src={`https://picsum.photos/seed/${product.id}/400/300`}
+                                        src={product.image || `https://picsum.photos/seed/${product.id}/400/300`}
                                         alt={product.productName}
                                         width={400}
                                         height={300}
@@ -166,3 +167,5 @@ const StorePageContent = () => {
 export default function StorePage() {
     return <StorePageContent />;
 }
+
+    
