@@ -10,7 +10,6 @@ service cloud.firestore {
     }
 
     // Gets the current user's profile document data. Returns null if not found.
-    // This is safer as it avoids errors on non-existent documents.
     function getUserProfile() {
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
       if (isSignedIn() && exists(userDocPath)) {
@@ -39,61 +38,58 @@ service cloud.firestore {
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow get, delete: if isOwner(userId) || isAdmin();
-      
-      // Users can update their own profile, but cannot change an existing businessId.
       allow update: if (isOwner(userId) && 
                       (!('businessId' in request.resource.data) || request.resource.data.businessId == resource.data.businessId)) 
                       || isAdmin();
-      allow list: if isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /businesses/{businessId} {
       allow get: if isMemberOfBusiness(businessId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(request.resource.data.ownerId);
       allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
-      allow list: if isAdmin();
     }
     
     match /businessProfiles/{businessId} {
       // This collection is public for the marketplace UI.
-      // Anyone can read business names, descriptions, etc.
-      allow read: if true;
+      allow get, list: if true;
       
       // Only the business owner/staff or an admin can write to the public profile.
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
     // Rules for business-owned subcollections.
-    // These are more specific and secure than a generic wildcard rule.
     match /businesses/{businessId}/inventory/{inventoryId} {
-      allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/products/{productId} {
-      allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/sales/{saleId} {
-      allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/expenses/{expenseId} {
-      allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
     match /businesses/{businessId}/transactions/{transactionId} {
-      allow read, write: if isMemberOfBusiness(businessId) || isAdmin();
+      allow read: if isMemberOfBusiness(businessId) || isAdmin();
+      allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
     // Marketplace orders
     match /businesses/{businessId}/orders/{orderId} {
-      // Anyone signed in can create an order for themselves.
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
-      
-      // A business member or admin can list all orders for that business.
       allow list: if isMemberOfBusiness(businessId) || isAdmin();
-      
-      // A business member, admin, or the user who created the order can get/update/delete it.
-      // This uses `get` and not `read` to avoid errors on list operations.
-      allow get, update, delete: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow get: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isMemberOfBusiness(businessId) || isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /marketProducts/{marketProductId} {
@@ -104,7 +100,6 @@ service cloud.firestore {
       allow create, update: if isAdmin() || isMemberOfBusiness(request.resource.data.businessId);
       
       // Allow deletion if the user is a member of the business the product belongs to.
-      // `resource.data` refers to the document state *before* the delete operation.
       allow delete: if isAdmin() || isMemberOfBusiness(resource.data.businessId);
     }
     
@@ -114,8 +109,9 @@ service cloud.firestore {
     }
     
     match /supportTickets/{ticketId} {
+      allow get, list: if isAdmin();
       allow create: if isSignedIn();
-      allow read, list, update, delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
   }
 }
