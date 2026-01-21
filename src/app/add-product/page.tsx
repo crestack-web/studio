@@ -1,12 +1,12 @@
 'use client';
-import { useState, useMemo, useEffect, ChangeEvent } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Upload, X, Loader2 } from 'lucide-react';
+import { Trash2, Plus, X, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +17,8 @@ import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
+import { ProductPlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
 
 interface Ingredient {
     name: string;
@@ -43,7 +45,9 @@ export default function AddProductPage() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
-    const [images, setImages] = useState<string[]>([]);
+    
+    const [selectedImage, setSelectedImage] = useState<ImagePlaceholder | null>(null);
+
     const [productName, setProductName] = useState('');
     const [sellingPrice, setSellingPrice] = useState('');
     const [initialQuantity, setInitialQuantity] = useState('');
@@ -91,21 +95,12 @@ export default function AddProductPage() {
         setIngredients(ingredients.filter((_, i) => i !== index));
     };
 
-    const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files.length > 0) {
-            const newImagesCount = Array.from(event.target.files).length;
-            const newImageUrls = Array.from({ length: newImagesCount }, () => {
-                const seed = Math.floor(Math.random() * 10000); // Larger seed range
-                return `https://picsum.photos/seed/${seed}/400/300`;
-            });
-            setImages(prev => [...prev, ...newImageUrls].slice(0, 4));
+    const handleSelectImage = (image: ImagePlaceholder) => {
+        if (selectedImage?.id === image.id) {
+            setSelectedImage(null);
+        } else {
+            setSelectedImage(image);
         }
-        // Clear the input value to allow re-uploading the same file
-        event.target.value = '';
-    };
-
-    const handleRemoveImage = (index: number) => {
-        setImages(images.filter((_, i) => i !== index));
     };
     
     const finalCostPrice = isManufactured ? totalIngredientCost : parseFloat(costPrice) || 0;
@@ -113,10 +108,10 @@ export default function AddProductPage() {
     const canAddProduct = useMemo(() => {
         const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured ? totalIngredientCost > 0 : costPrice);
         if (isListedOnMarket) {
-            return hasBaseInfo && images.length > 0 && productDescription && productCategory;
+            return hasBaseInfo && selectedImage && productDescription && productCategory;
         }
         return hasBaseInfo;
-    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
+    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, selectedImage, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
         if (!canAddProduct || !firestore || !businessId || !businessData) return;
@@ -132,8 +127,8 @@ export default function AddProductPage() {
             description: productDescription,
             category: productCategory,
             createdAt: serverTimestamp(),
-            image: images[0] || null,
-            hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
+            image: selectedImage?.imageUrl || null,
+            hint: selectedImage?.imageHint || productCategory || productName.split(' ').slice(0, 2).join(' '),
         };
 
         const productsCollectionRef = collection(firestore, `businesses/${businessId}/products`);
@@ -141,7 +136,7 @@ export default function AddProductPage() {
         try {
             const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
             
-            if (isListedOnMarket) {
+            if (isListedOnMarket && selectedImage) {
                 const marketProductData = {
                     productId: newProductRef.id,
                     businessId: businessId,
@@ -152,8 +147,8 @@ export default function AddProductPage() {
                     category: productData.category,
                     availableQuantity: productData.quantity,
                     createdAt: new Date(), // Using client-side date for simplicity, serverTimestamp can be tricky with security rules
-                    image: images[0] || null,
-                    hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
+                    image: selectedImage.imageUrl,
+                    hint: selectedImage.imageHint,
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
@@ -280,36 +275,27 @@ export default function AddProductPage() {
                         {isListedOnMarket && (
                             <>
                                 <div className="space-y-2">
-                                    <Label htmlFor="product-images">Product Images</Label>
+                                    <Label>Select an Image</Label>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {images.map((imageUrl, index) => (
-                                            <div key={index} className="relative aspect-square">
-                                                <Image
-                                                    src={imageUrl}
-                                                    alt={`Product image ${index + 1}`}
-                                                    fill
-                                                    className="rounded-md object-cover"
-                                                />
-                                                <Button
-                                                    variant="destructive"
-                                                    size="icon"
-                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                                                    onClick={() => handleRemoveImage(index)}
-                                                    disabled={isLoading}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
+                                        {ProductPlaceHolderImages.map((pImage) => (
+                                            <div
+                                                key={pImage.id}
+                                                className={cn(
+                                                    "relative aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all",
+                                                    selectedImage?.id === pImage.id ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground"
+                                                )}
+                                                onClick={() => handleSelectImage(pImage)}
+                                            >
+                                                <Image src={pImage.imageUrl} alt={pImage.description} fill className="object-cover" data-ai-hint={pImage.imageHint} />
+                                                {selectedImage?.id === pImage.id && (
+                                                    <div className="absolute inset-0 bg-primary/70 flex items-center justify-center">
+                                                        <X className="w-8 h-8 text-primary-foreground" />
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
-                                        {images.length < 4 && (
-                                            <Label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full aspect-square border-2 border-dashed rounded-md cursor-pointer hover:bg-muted">
-                                                <Upload className="h-8 w-8 text-muted-foreground" />
-                                                <span className="text-xs text-muted-foreground mt-1 text-center">Upload Image</span>
-                                            </Label>
-                                        )}
                                     </div>
-                                    <Input id="image-upload" type="file" className="hidden" accept="image/*" multiple onChange={handleImageUpload} disabled={isLoading}/>
-                                     <p className="text-xs text-muted-foreground">You must upload at least one image to list on the market.</p>
+                                    <p className="text-xs text-muted-foreground">You must select one image to list on the market.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>
