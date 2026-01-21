@@ -81,7 +81,7 @@ const CheckoutContent = () => {
     const canPlaceOrder = customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
 
     const handlePlaceOrder = async () => {
-        if (!canPlaceOrder || !productData.businessId || !firestore) return;
+        if (!canPlaceOrder || !productData.businessId || !firestore || !productId) return;
         
         setIsPlacingOrder(true);
         
@@ -103,12 +103,10 @@ const CheckoutContent = () => {
             };
             batch.set(newOrderRef, orderData);
 
-            const productDocRef = doc(firestore, `businesses/${productData.businessId}/products`, productId);
-            const newQuantity = productData.availableQuantity - quantity;
-            batch.update(productDocRef, { quantity: newQuantity });
-            
-            const marketProductDocRef = doc(firestore, `marketProducts`, productId);
-            batch.update(marketProductDocRef, { availableQuantity: newQuantity });
+            // NOTE: Stock update logic has been removed from the client-side.
+            // A secure implementation would use a server-side function (e.g., Cloud Function)
+            // triggered by order creation to decrement stock.
+            // For now, the business owner must manually update stock after an order is placed.
 
             await batch.commit();
 
@@ -116,7 +114,7 @@ const CheckoutContent = () => {
             
         } catch (error) {
             console.error("Error placing order: ", error);
-            toast({ variant: 'destructive', title: 'Error placing order', description: 'Please try again.' });
+            toast({ variant: 'destructive', title: 'Error placing order', description: 'There was an issue placing your order. Please try again.' });
         } finally {
             setIsPlacingOrder(false);
         }
@@ -181,5 +179,3 @@ export default function CheckoutPage() {
         </MainLayout>
     );
 }
-
-    
