@@ -480,7 +480,7 @@
         "status": { "type": "string", "enum": ["open", "in-progress", "closed"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["subject", "message", "status", "createdAt"]
+      "required": ["userId", "subject", "message", "status", "createdAt"]
     }
   },
   "auth": {
