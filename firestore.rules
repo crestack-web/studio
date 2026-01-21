@@ -34,7 +34,8 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      allow get: if isBusinessOwner(businessId) || isAdmin();
+      // Owner can get their own business doc. Admin can get any.
+      allow get: if (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid) || isAdmin();
       allow list: if isAdmin();
       // Allow create if the ownerId in the new document matches the user's UID.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
