@@ -14,20 +14,32 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      // Use exists() for safer check
+      let adminUserPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && 
+             exists(adminUserPath) && 
+             get(adminUserPath).data.role == 'Admin';
     }
 
     // Checks if a user is associated with a business via their user profile.
     function isMemberOfBusiness(businessId) {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
+        // Safer check: ensure user doc and businessId field exist before access.
+        let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+        return isSignedIn() && 
+               exists(userDocPath) &&
+               'businessId' in get(userDocPath).data &&
+               get(userDocPath).data.businessId == businessId;
     }
 
     // Checks if the user is the actual owner of the business document.
-    // This relies on isMemberOfBusiness to ensure the initial 'get' is allowed.
     function isBusinessOwner(businessId) {
-      // First, check if the user is a member to allow the 'get' on the business doc.
-      // Then, check the ownerId on that document.
-      return isMemberOfBusiness(businessId) && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      // Safer check: ensure business doc and ownerId field exist.
+      // This also relies on isMemberOfBusiness to allow the initial get().
+      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
+      return isMemberOfBusiness(businessId) &&
+             exists(businessDocPath) &&
+             'ownerId' in get(businessDocPath).data &&
+             get(businessDocPath).data.ownerId == request.auth.uid;
     }
 
     // Rules for the 'users' collection
@@ -59,7 +71,6 @@ service cloud.firestore {
     match /businessProfiles/{businessId} {
       allow get, list: if true;
       // Allow writes only from authenticated users associated with the business.
-      // This is simpler and less prone to recursive errors than isBusinessOwner.
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
@@ -90,17 +101,17 @@ service cloud.firestore {
 
       function isMarketDataConsistent(incomingData, productId) {
         let productPath = /databases/$(database)/documents/businesses/$(incomingData.businessId)/products/$(productId);
-        let product = get(productPath).data;
         let businessPath = /databases/$(database)/documents/businesses/$(incomingData.businessId);
-        let business = get(businessPath).data;
-        
-        return incomingData.productId == productId &&
-               incomingData.businessName == business.businessName &&
-               incomingData.productName == product.name &&
-               incomingData.price == product.price &&
-               incomingData.category == product.category &&
-               incomingData.description == product.description &&
-               incomingData.availableQuantity == product.quantity;
+
+        // Check for document existence before accessing data
+        return exists(productPath) && exists(businessPath) &&
+               get(productPath).data.name == incomingData.productName &&
+               get(businessPath).data.businessName == incomingData.businessName &&
+               incomingData.productId == productId &&
+               incomingData.price == get(productPath).data.price &&
+               incomingData.category == get(productPath).data.category &&
+               incomingData.description == get(productPath).data.description &&
+               incomingData.availableQuantity == get(productPath).data.quantity;
       }
       
       // Allow creation only by the business owner, and only if the source product is published and data is consistent.
