@@ -32,7 +32,7 @@ import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 
 
-const testimonialsData = [
+const testimonialsDataRaw = [
   {
     id: 'testimonial-food-vendor',
     quoteKey: "welcome.testimonial_1_quote",
@@ -53,10 +53,15 @@ const testimonialsData = [
   },
 ];
 
+const testimonialsWithImages = testimonialsDataRaw.map(t => {
+    const img = PlaceHolderImages.find(img => img.id === t.id);
+    return {...t, imageUrl: img?.imageUrl, imageHint: img?.imageHint };
+});
+
 
 // The new landing page component
 export default function LandingPage() {
-  const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -82,12 +87,6 @@ export default function LandingPage() {
   ];
 
   useEffect(() => {
-    const loadedTestimonials = testimonialsData.map(t => {
-        const img = PlaceHolderImages.find(img => img.id === t.id);
-        return {...t, imageUrl: img?.imageUrl, imageHint: img?.imageHint };
-    });
-    setTestimonials(loadedTestimonials);
-    
     setCurrentYear(new Date().getFullYear());
   }, []);
 
