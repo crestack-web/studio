@@ -230,13 +230,11 @@ export default function MarketPage() {
 
                     {/* 2. Quick Categories */}
                     <section>
-                        <div className="flex justify-center overflow-x-auto gap-4 pb-4 -mx-4 px-4 scrollbar-hide">
+                        <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
                             {categories.map(category => (
-                                <Link href="#" key={category.name} className="shrink-0">
-                                    <Card className="w-28 text-center p-4 hover:bg-accent hover:text-accent-foreground transition-colors group">
-                                        <category.icon className="w-8 h-8 mx-auto text-primary group-hover:text-accent-foreground" />
-                                        <p className="mt-2 text-sm font-medium">{category.name}</p>
-                                    </Card>
+                                <Link href="#" key={category.name} className="flex flex-col items-center text-center p-2 rounded-lg hover:bg-accent/50 transition-colors w-20 sm:w-28 sm:bg-card sm:border sm:p-4 sm:shadow-sm sm:hover:bg-accent sm:hover:text-accent-foreground group">
+                                    <category.icon className="w-7 h-7 sm:w-8 sm:h-8 mx-auto text-primary sm:group-hover:text-accent-foreground" />
+                                    <p className="mt-1 text-xs font-medium sm:text-sm">{category.name}</p>
                                 </Link>
                             ))}
                         </div>
