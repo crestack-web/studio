@@ -22,7 +22,7 @@ import { formatCurrency } from '@/lib/currency';
 
 interface MarketProduct { businessId: string; productName: string; price: number; image?: string; hint?: string; availableQuantity: number; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
-interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; }
+interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; currency?: string; }
 
 const CheckoutContent = () => {
     const router = useRouter();
@@ -104,17 +104,16 @@ const CheckoutContent = () => {
         
         try {
             const batch = writeBatch(firestore);
-            const ordersColRef = collection(firestore, `businesses/${productData.businessId}/orders`);
+            const ordersColRef = collection(firestore, 'orders');
             const newOrderRef = doc(ordersColRef);
 
             const orderData = {
-                id: newOrderRef.id,
-                businessId: productData.businessId,
-                userId: user.uid, // CRITICAL: Save the authenticated user's ID
+                buyerId: user.uid,
+                sellerBusinessId: productData.businessId,
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
                 items: [{ productId, productName: productData.productName, quantity, price: productData.price }],
                 subtotal, deliveryFee, total,
-                status: 'Pending',
+                status: 'pending',
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
                 createdAt: serverTimestamp()
@@ -123,7 +122,7 @@ const CheckoutContent = () => {
 
             await batch.commit();
 
-            router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${productData.businessId}`);
+            router.push(`/market/order-confirmation?orderId=${newOrderRef.id}`);
             
         } catch (error) {
             console.error("Error placing order: ", error);
@@ -142,14 +141,14 @@ const CheckoutContent = () => {
                         <div className="flex items-center gap-4">
                             <Image src={productData.image || 'https://picsum.photos/seed/placeholder/80/80'} alt={productData.productName} width={80} height={80} className="rounded-md object-cover bg-muted" data-ai-hint={productData.hint} />
                             <div className="flex-1"><p className="font-semibold">{productData.productName}</p><p className="text-sm text-muted-foreground">Qty: {quantity}</p></div>
-                            <p className="font-semibold">{formatCurrency(subtotal)}</p>
+                            <p className="font-semibold">{formatCurrency(subtotal, businessProfile.currency)}</p>
                         </div>
                         <Separator className="my-4" />
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Delivery Fee</span><span>{formatCurrency(deliveryFee)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal, businessProfile.currency)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Delivery Fee</span><span>{formatCurrency(deliveryFee, businessProfile.currency)}</span></div>
                             <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatCurrency(total)}</span></div>
+                            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{formatCurrency(total, businessProfile.currency)}</span></div>
                         </div>
                     </CardContent>
                 </Card>
@@ -160,7 +159,7 @@ const CheckoutContent = () => {
                 <Card><CardHeader><CardTitle>How would you like to get your order?</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <RadioGroup value={fulfillmentMethod} onValueChange={setFulfillmentMethod} className="space-y-4">
-                            {settings?.delivery.allowDelivery && (<Label htmlFor="delivery" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="delivery" id="delivery" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Truck className="h-5 w-5 text-primary" /><span>Home Delivery</span></div><p className="text-sm text-muted-foreground mt-1">Fee: {formatCurrency(settings.delivery.deliveryFee)}. Delivered on {settings.delivery.deliveryDays.join(', ')}.</p></div></Label>)}
+                            {settings?.delivery.allowDelivery && (<Label htmlFor="delivery" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="delivery" id="delivery" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Truck className="h-5 w-5 text-primary" /><span>Home Delivery</span></div><p className="text-sm text-muted-foreground mt-1">Fee: {formatCurrency(settings.delivery.deliveryFee, businessProfile.currency)}. Delivered on {settings.delivery.deliveryDays.join(', ')}.</p></div></Label>)}
                             {settings?.delivery.allowPickup && (<Label htmlFor="pickup" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="pickup" id="pickup" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Package className="h-5 w-5 text-primary" /><span>In-store Pickup</span></div><p className="text-sm text-muted-foreground mt-1">Pick up your order directly from {businessProfile.businessName}. No extra fees.</p></div></Label>)}
                         </RadioGroup>
                         {fulfillmentMethod === 'delivery' && (<div className="space-y-2 pt-4 border-t mt-4"><Label htmlFor="address">Delivery Address</Label><Textarea id="address" placeholder="Enter your full street address, city, and state" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} required /></div>)}
@@ -176,7 +175,7 @@ const CheckoutContent = () => {
                 </Card>
                 <Button className="w-full h-14 text-lg" onClick={handlePlaceOrder} disabled={!canPlaceOrder || isPlacingOrder}>
                     {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Place Order ({formatCurrency(total)})
+                    Place Order ({formatCurrency(total, businessProfile.currency)})
                 </Button>
             </div>
         </div>
@@ -192,3 +191,5 @@ export default function CheckoutPage() {
         </MainLayout>
     );
 }
+
+    

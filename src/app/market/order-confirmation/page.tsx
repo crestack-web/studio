@@ -15,8 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
-interface BusinessProfile { marketSettings?: MarketSettings; }
-interface MarketOrder { id: string; total: number; payment: string; fulfillment: string; }
+interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
+interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; }
 
 const OrderConfirmationContent = () => {
     const searchParams = useSearchParams();
@@ -24,11 +24,11 @@ const OrderConfirmationContent = () => {
     const firestore = useFirestore();
     
     const orderId = searchParams.get('orderId');
-    const businessId = searchParams.get('businessId');
     
-    const orderRef = useMemoFirebase(() => orderId && businessId ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
-    const { data: order, isLoading: isLoadingOrder } = useDoc<MarketOrder>(orderRef);
+    const orderRef = useMemoFirebase(() => orderId ? doc(firestore, `orders/${orderId}`) : null, [firestore, orderId]);
+    const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
 
+    const businessId = order?.sellerBusinessId;
     const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
     const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
@@ -55,6 +55,7 @@ const OrderConfirmationContent = () => {
     
     const paymentSettings = businessProfile?.marketSettings?.payment;
     const orderNumber = `#${orderId.substring(0,6).toUpperCase()}`;
+    const currency = businessProfile?.currency;
 
     return (
         <div className="w-full max-w-lg space-y-6">
@@ -74,7 +75,7 @@ const OrderConfirmationContent = () => {
                     <CardHeader><CardTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /><span>Complete Payment</span></CardTitle><CardDescription>Please transfer the total amount to the account below.</CardDescription></CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2 rounded-md border p-4">
-                             <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Amount to Pay</span><span className="font-bold text-lg">{formatCurrency(order.total)}</span></div>
+                             <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Amount to Pay</span><span className="font-bold text-lg">{formatCurrency(order.total, currency)}</span></div>
                             <div className="flex justify-between items-center"><span className="text-sm text-muted-foreground">Bank Name</span><span className="font-semibold">{paymentSettings.bankName}</span></div>
                             <div className="flex justify-between items-center">
                                 <span className="text-sm text-muted-foreground">Account Number</span>

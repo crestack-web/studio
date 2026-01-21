@@ -346,13 +346,13 @@
         "createdAt"
       ]
     },
-    "MarketOrder": {
-      "title": "Market Order",
+    "Order": {
+      "title": "Order",
       "type": "object",
       "description": "Represents a customer order from the public marketplace.",
       "properties": {
-        "businessId": { "type": "string" },
-        "userId": { "type": "string" },
+        "buyerId": { "type": "string", "description": "The UID of the user who placed the order." },
+        "sellerBusinessId": { "type": "string", "description": "The ID of the business the order was placed with." },
         "customer": {
           "type": "object",
           "properties": {
@@ -377,12 +377,12 @@
         "subtotal": { "type": "number" },
         "deliveryFee": { "type": "number" },
         "total": { "type": "number" },
-        "status": { "type": "string", "enum": ["Pending", "Shipped", "Delivered", "Cancelled"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "fulfilled", "cancelled"] },
         "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
         "payment": { "type": "string", "enum": ["transfer", "delivery"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["businessId", "userId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
+      "required": ["buyerId", "sellerBusinessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
     },
     "Expense": {
       "title": "Expense",
@@ -551,13 +551,13 @@
         }
       },
       {
-        "path": "businesses/{businessId}/orders/{orderId}",
+        "path": "orders/{orderId}",
         "definition": {
-          "entityName": "MarketOrder",
+          "entityName": "Order",
           "schema": {
-            "$ref": "#/backend/entities/MarketOrder"
+            "$ref": "#/backend/entities/Order"
           },
-          "description": "Subcollection for orders made through the public marketplace."
+          "description": "Top-level collection for orders made through the public marketplace."
         }
       },
       {
@@ -613,3 +613,5 @@
     ]
   }
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -28,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Types
 interface AppUser { businessId?: string }
 interface Product { id: string; name: string; price: number; quantity: number; isPublishedToMarket: boolean; image: string; description: string; category: string; hint?: string; oldPrice?: number; }
-interface MarketOrder { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: string; fulfillment: string; items: { productName: string; quantity: number; price: number }[]; }
+interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: string; fulfillment: string; items: { productName: string; quantity: number; price: number }[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; businessType: string; marketDescription?: string; marketSettings?: MarketSettings; }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
@@ -277,18 +278,18 @@ const OrdersContent = () => {
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
     
-    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/orders`), orderBy('createdAt', 'desc')) : null, [firestore, businessId]);
-    const { data: orders, isLoading } = useCollection<MarketOrder>(ordersQuery);
+    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, 'orders'), where('sellerBusinessId', '==', businessId), orderBy('createdAt', 'desc')) : null, [firestore, businessId]);
+    const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-    const [selectedOrder, setSelectedOrder] = useState<MarketOrder | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     const handleStatusChange = (orderId: string, newStatus: string) => {
         if (!firestore || !businessId) return;
-        const orderDocRef = doc(firestore, `businesses/${businessId}/orders`, orderId);
+        const orderDocRef = doc(firestore, 'orders', orderId);
         updateDocumentNonBlocking(orderDocRef, { status: newStatus });
     };
     
-    const getStatusVariant = (status: string) => ({ 'Delivered': 'default', 'Pending': 'destructive', 'Shipped': 'secondary', 'Cancelled': 'destructive' }[status] || 'outline') as any;
+    const getStatusVariant = (status: string) => ({ 'Delivered': 'default', 'pending': 'destructive', 'Shipped': 'secondary', 'fulfilled': 'default', 'confirmed': 'secondary', 'cancelled': 'destructive' }[status] || 'outline') as any;
     
     if (isLoading) {
         return <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Order</TableHead><TableHead>Customer</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="w-[100px] text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{[...Array(3)].map((_, i) => <TableRow key={i}><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-5 w-32"/></TableCell><TableCell><Skeleton className="h-6 w-20 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto rounded-md"/></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>;
@@ -313,9 +314,10 @@ const OrdersContent = () => {
                                         <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Change Status</DropdownMenuLabel><DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'Shipped') }}>Mark as Shipped</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'Delivered') }}>Mark as Delivered</DropdownMenuItem>
-                                                <DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'Cancelled') }}>Cancel Order</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'confirmed') }}>Mark as Confirmed</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'shipped') }}>Mark as Shipped</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'fulfilled') }}>Mark as Fulfilled</DropdownMenuItem>
+                                                <DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleStatusChange(order.id, 'cancelled') }}>Cancel Order</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -349,8 +351,8 @@ const CustomersContent = () => {
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
-    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/orders`)) : null, [firestore, businessId]);
-    const { data: orders, isLoading } = useCollection<MarketOrder>(ordersQuery);
+    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, 'orders'), where('sellerBusinessId', '==', businessId)) : null, [firestore, businessId]);
+    const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
     const customers = useMemo(() => {
         if (!orders) return [];
@@ -458,3 +460,5 @@ export default function ManageMarketPage() {
         </SidebarProvider>
     );
 }
+
+    
