@@ -30,35 +30,35 @@ service cloud.firestore {
 
     // Rules for the 'businesses' collection
     match /businesses/{businessId} {
-      allow get: if isOwner(resource.data.ownerId);
+      allow get: if isOwner(resource.data.ownerId) || isAdmin();
       allow create: if isOwner(request.resource.data.ownerId);
-      allow update, delete: if isOwner(resource.data.ownerId);
-      allow list: if false;
+      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
+      allow list: if isAdmin();
     }
 
     // Rules for the 'inventory' subcollection
     match /businesses/{businessId}/inventory/{inventoryId} {
-      allow read, write: if isBusinessOwner(businessId);
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'products' subcollection
     match /businesses/{businessId}/products/{productId} {
-      allow read, write: if isBusinessOwner(businessId);
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'sales' subcollection
     match /businesses/{businessId}/sales/{saleId} {
-      allow read, write: if isBusinessOwner(businessId);
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'expenses' subcollection
     match /businesses/{businessId}/expenses/{expenseId} {
-      allow read, write: if isBusinessOwner(businessId);
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'transactions' subcollection
     match /businesses/{businessId}/transactions/{transactionId} {
-      allow read, write: if isBusinessOwner(businessId);
+      allow read, write: if isBusinessOwner(businessId) || isAdmin();
     }
 
     // Rules for the 'marketProducts' collection
@@ -87,17 +87,17 @@ service cloud.firestore {
       }
       
       // Allow creation only by the business owner, and only if the source product is published and data is consistent.
-      allow create: if isBusinessOwner(request.resource.data.businessId) &&
+      allow create: if (isBusinessOwner(request.resource.data.businessId) &&
                        isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
-                       isMarketDataConsistent(request.resource.data, request.resource.data.productId);
+                       isMarketDataConsistent(request.resource.data, request.resource.data.productId)) || isAdmin();
 
       // Allow updates only from the business owner, ensuring data remains consistent.
-      allow update: if isBusinessOwner(resource.data.businessId) &&
+      allow update: if (isBusinessOwner(resource.data.businessId) &&
                        isSourceProductPublished(request.resource.data.businessId, request.resource.data.productId) &&
-                       isMarketDataConsistent(request.resource.data, request.resource.data.productId);
+                       isMarketDataConsistent(request.resource.data, request.resource.data.productId)) || isAdmin();
       
       // Allow deletion only by the business owner.
-      allow delete: if isBusinessOwner(resource.data.businessId);
+      allow delete: if isBusinessOwner(resource.data.businessId) || isAdmin();
     }
     
     // Rules for the 'blogs' collection
