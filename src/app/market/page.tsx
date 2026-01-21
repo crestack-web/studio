@@ -101,10 +101,10 @@ export default function MarketPage() {
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(marketProductsQuery);
     
     // Mock data for UI
-    const flashDeals = useMemo(() => productsData?.slice(0, 4) || [], [productsData]);
+    const flashDeals = useMemo(() => productsData?.slice(0, 6) || [], [productsData]);
 
-    const renderProductSkeletons = (count: number = 8) => (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+    const renderProductSkeletons = (count: number = 12) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {[...Array(count)].map((_, i) => (
                 <Card key={i} className="overflow-hidden h-full flex flex-col">
                     <Skeleton className="aspect-square w-full" />
@@ -206,8 +206,8 @@ export default function MarketPage() {
                             <h2 className="text-2xl font-bold font-headline flex items-center gap-2"><Zap className="text-destructive" /> Flash Sales</h2>
                             <Button variant="link" asChild><Link href="#">See All</Link></Button>
                         </div>
-                        {isLoadingProducts ? renderProductSkeletons(4) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {isLoadingProducts ? renderProductSkeletons(6) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                                 {flashDeals.map(product => (
                                     <ProductCard key={product.id} product={product} />
                                 ))}
@@ -218,8 +218,8 @@ export default function MarketPage() {
                     {/* 4. Product Grid (Core) */}
                     <section>
                          <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
-                         {isLoadingProducts ? renderProductSkeletons() : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                         {isLoadingProducts ? renderProductSkeletons(12) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                                 {productsData?.map(product => (
                                     <ProductCard key={product.id} product={product} />
                                 ))}
