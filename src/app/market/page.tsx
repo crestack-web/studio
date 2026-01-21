@@ -24,6 +24,7 @@ interface MarketProduct {
     productName: string;
     businessName: string;
     price: number;
+    oldPrice?: number;
     category: string;
     description?: string;
     availableQuantity?: number;
@@ -55,9 +56,9 @@ const trustFeatures = [
 ];
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
-    // Mock data for UI purposes
-    const oldPrice = product.price * 1.25;
-    const discount = Math.round(((oldPrice - product.price) / oldPrice) * 100);
+    const oldPrice = product.oldPrice;
+    const showDiscount = oldPrice && oldPrice > product.price;
+    const discount = showDiscount ? Math.round(((oldPrice - product.price) / oldPrice) * 100) : 0;
 
     return (
         <Link href={`/market/product/${product.id}`} key={product.id}>
@@ -70,13 +71,13 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
                         className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                         data-ai-hint={product.hint || (product.productName || '').split(' ').slice(0, 2).join(' ')}
                     />
-                    <Badge variant="destructive" className="absolute top-2 right-2">-{discount}%</Badge>
+                    {showDiscount && <Badge variant="destructive" className="absolute top-2 right-2">-{discount}%</Badge>}
                 </div>
                 <CardContent className="p-3 flex-1 flex flex-col">
                     <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
                     <div className="mt-2">
                         <p className="font-bold text-base">{formatCurrency(product.price)}</p>
-                        <p className="text-xs text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>
+                        {showDiscount && <p className="text-xs text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>}
                     </div>
                     <div className="flex items-center gap-0.5 mt-1">
                         {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
@@ -100,7 +101,6 @@ export default function MarketPage() {
 
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(marketProductsQuery);
     
-    // Mock data for UI
     const flashDeals = useMemo(() => productsData?.slice(0, 6) || [], [productsData]);
 
     const [timeLeft, setTimeLeft] = useState({
@@ -328,3 +328,5 @@ export default function MarketPage() {
         </div>
     );
 }
+
+    

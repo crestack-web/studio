@@ -184,6 +184,10 @@
           "type": "number",
           "description": "The selling price of the product."
         },
+        "oldPrice": {
+          "type": "number",
+          "description": "The previous price of the product, for displaying discounts."
+        },
         "cost": {
           "type": "number",
           "description": "The cost price of the product."
@@ -299,6 +303,10 @@
         "price": {
           "type": "number",
           "description": "The price of the product."
+        },
+        "oldPrice": {
+          "type": "number",
+          "description": "The previous price of the product, for displaying discounts."
         },
         "description": {
             "type": "string",
@@ -603,3 +611,5 @@
     ]
   }
 }
+
+    

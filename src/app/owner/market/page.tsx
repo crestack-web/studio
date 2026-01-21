@@ -27,7 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Types
 interface AppUser { businessId?: string }
-interface Product { id: string; name: string; price: number; quantity: number; isPublishedToMarket: boolean; image: string; description: string; category: string; hint?: string; }
+interface Product { id: string; name: string; price: number; quantity: number; isPublishedToMarket: boolean; image: string; description: string; category: string; hint?: string; oldPrice?: number; }
 interface MarketOrder { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: string; fulfillment: string; items: { productName: string; quantity: number; price: number }[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; marketDescription?: string; marketSettings?: MarketSettings; }
@@ -222,6 +222,7 @@ const ProductsContent = () => {
                 businessName: businessData.businessName,
                 productName: product.name,
                 price: product.price,
+                oldPrice: product.oldPrice,
                 description: product.description,
                 category: product.category,
                 availableQuantity: product.quantity,
@@ -456,3 +457,5 @@ export default function ManageMarketPage() {
         </SidebarProvider>
     );
 }
+
+    

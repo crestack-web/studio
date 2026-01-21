@@ -10,6 +10,7 @@ service cloud.firestore {
     }
 
     // Gets the current user's profile document data. Returns null if not found.
+    // This is safer as it avoids errors on non-existent documents.
     function getUserProfile() {
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
       if (isSignedIn() && exists(userDocPath)) {
@@ -22,81 +23,76 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
+    // Checks if the user has the 'Admin' role in their profile.
     function isAdmin() {
       let userProfile = getUserProfile();
-      // Ensure the user profile and role exist before checking its value.
       return userProfile != null && 'role' in userProfile && userProfile.role == 'Admin';
     }
 
     // Checks if a user is associated with a business via their user profile.
     function isMemberOfBusiness(businessId) {
         let userProfile = getUserProfile();
-        // Ensure the user profile and businessId exist before checking its value.
         return userProfile != null && 'businessId' in userProfile && userProfile.businessId == businessId;
     }
 
 
     // --- COLLECTION RULES ---
 
-    // Rules for the 'users' collection
     match /users/{userId} {
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
       allow get, delete: if isOwner(userId) || isAdmin();
       
       // Users can update their own profile, but cannot change an existing businessId.
-      // This prevents a user from hijacking another business's read access.
       allow update: if (isOwner(userId) && 
-                      (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)
-                    ) || isAdmin();
+                      (!('businessId' in request.resource.data) || request.resource.data.businessId == resource.data.businessId)) 
+                      || isAdmin();
       allow list: if isAdmin();
     }
 
-    // Rules for the 'businesses' collection
     match /businesses/{businessId} {
-      // Read access is granted if the user's profile links to this business.
       allow get: if isMemberOfBusiness(businessId) || isAdmin();
-      
-      // Write access is ONLY granted if the `ownerId` on the business document itself matches the user.
       allow create: if isOwner(request.resource.data.ownerId);
-      // For update/delete, check ownerId on the existing document. This avoids a costly get() call.
-      allow update, delete: if resource.data.ownerId == request.auth.uid || isAdmin();
-
+      allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
       allow list: if isAdmin();
     }
     
-    // Rules for the 'businessProfiles' collection (Public-facing data)
     match /businessProfiles/{businessId} {
+      // Publicly readable for the market
       allow get, list: if true;
       // Allow writes only from authenticated users associated with the business.
       allow write: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
-    // Rules for all subcollections under a business.
+    // This rule allows any authenticated user to create documents in subcollections (e.g., marketplace orders),
+    // but restricts updates and deletes to business members or admins. This is a balance for MVP simplicity.
     match /businesses/{businessId}/{subcollection}/{docId} {
         allow read: if isMemberOfBusiness(businessId) || isAdmin();
-        // Allow any authenticated user to create documents (e.g., orders),
-        // but only members can update/delete.
         allow create: if isSignedIn();
         allow update, delete: if isMemberOfBusiness(businessId) || isAdmin();
     }
 
-    // Rules for the 'marketProducts' collection
     match /marketProducts/{marketProductId} {
+      // Publicly readable for the market
       allow get, list: if true;
-      // Only an admin or a member of the business can create, update, or delete a market product.
-      allow write: if isAdmin() || isMemberOfBusiness(request.resource.data.businessId);
+      
+      // Allow creation/update if the user is a member of the business they are listing for.
+      allow create, update: if isAdmin() || isMemberOfBusiness(request.resource.data.businessId);
+      
+      // Allow deletion if the user is a member of the business the product belongs to.
+      // `resource.data` refers to the document state *before* the delete operation.
+      allow delete: if isAdmin() || isMemberOfBusiness(resource.data.businessId);
     }
     
-    // Rules for the 'blogs' collection
     match /blogs/{blogId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
     
-    // Rules for the 'supportTickets' collection
     match /supportTickets/{ticketId} {
       allow create: if isSignedIn();
       allow read, list, update, delete: if isAdmin();
     }
   }
 }
+
+    
