@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -88,8 +87,10 @@ const ProductDetailContent = () => {
         </MainLayout>;
     }
     
+    const productName = productData.productName || "Unnamed Product";
+
     return (
-        <MainLayout title={productData.productName} backHref="/market">
+        <MainLayout title={productName} backHref="/market">
            <div className="w-full max-w-4xl">
                 <div className="grid md:grid-cols-2 gap-8">
                     <div>
@@ -97,17 +98,17 @@ const ProductDetailContent = () => {
                             <div className="aspect-[4/3] w-full relative">
                             <Image 
                                 src={productData.image || `https://picsum.photos/seed/${productData.id}/800/600`}
-                                alt={productData.productName}
+                                alt={productName}
                                 fill
                                 className="object-cover"
-                                data-ai-hint={productData.hint || productData.category || productData.productName}
+                                data-ai-hint={productData.hint || productData.category || productName}
                             />
                             </div>
                         </Card>
                     </div>
                     <div className="flex flex-col gap-6">
                         <div>
-                            <h1 className="text-3xl font-bold font-headline">{productData.productName}</h1>
+                            <h1 className="text-3xl font-bold font-headline">{productName}</h1>
                             <p className="text-3xl font-bold text-primary mt-2">{formatCurrency(productData.price, businessData?.currency)}</p>
                             <p className="text-muted-foreground mt-4">{productData.description || 'No description available for this product.'}</p>
                         </div>
@@ -170,5 +171,3 @@ const ProductDetailContent = () => {
 export default function ProductDetailPage() {
     return <ProductDetailContent />
 }
-
-    
