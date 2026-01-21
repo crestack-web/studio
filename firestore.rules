@@ -11,8 +11,7 @@ service cloud.firestore {
 
     function isBusinessOwner(businessId) {
       // Check if the current user owns the specified business.
-      return businessId != null &&
-             isSignedIn() &&
+      return isSignedIn() &&
              exists(/databases/$(database)/documents/businesses/$(businessId)) &&
              get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
@@ -34,9 +33,19 @@ service cloud.firestore {
     }
 
     match /businesses/{businessId} {
-      allow get, update, delete: if isBusinessOwner(businessId) || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
-      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      // A user can get a business doc if their user profile points to it. Admins can get any.
+      allow get: if (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) ||
+                   (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      
+      // Use `resource.data` to refer to the existing document to avoid recursion.
+      allow update, delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) ||
+                              (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+      
+      // Create is fine, it checks the incoming document's data.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+
+      // List rule for admins is fine.
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
     match /businessProfiles/{businessId} {
