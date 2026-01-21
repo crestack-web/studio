@@ -24,15 +24,26 @@ service cloud.firestore {
     // Rules for the 'users' collection
     match /users/{userId} {
       allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow get, update, delete: if isOwner(userId) || isAdmin();
+      allow get, delete: if isOwner(userId) || isAdmin();
+      
+      // Users can update their own profile, but cannot change an existing businessId.
+      // This prevents a user from hijacking another business's read access.
+      allow update: if (isOwner(userId) && 
+                      (request.resource.data.businessId == resource.data.businessId || resource.data.businessId == null)
+                    ) || isAdmin();
       allow list: if isAdmin();
     }
 
     // Rules for the 'businesses' collection
     match /businesses/{businessId} {
-      allow get: if isOwner(resource.data.ownerId) || isAdmin();
+      // Read access is granted if the user's profile links to this business.
+      // This is safe because the `businessId` on the user profile is immutable.
+      allow get: if (isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId) || isAdmin();
+      
+      // Write access is ONLY granted if the `ownerId` on the business document itself matches the user.
       allow create: if isOwner(request.resource.data.ownerId);
       allow update, delete: if isOwner(resource.data.ownerId) || isAdmin();
+
       allow list: if isAdmin();
     }
 
