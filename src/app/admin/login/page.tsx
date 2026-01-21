@@ -4,13 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { doc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface UserProfile {
     role?: string;
@@ -31,18 +31,9 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check user role
+      // Check user role imperatively after login
       const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await new Promise<UserProfile | undefined>((resolve) => {
-        const { data } = useDoc<UserProfile>(userDocRef);
-        // This is a bit of a hack, but useDoc is async so we need to wait
-        setTimeout(() => resolve(data), 1000);
-      });
-      
-      // A more robust solution might involve a custom hook or direct getDoc
-      // For this prototype, we will just check the role after a short delay
-      const userProfileSnap = await (await import('firebase/firestore')).getDoc(userDocRef);
-
+      const userProfileSnap = await getDoc(userDocRef);
 
       if (userProfileSnap.exists() && userProfileSnap.data().role === 'Admin') {
         toast({
@@ -52,7 +43,11 @@ export default function AdminLoginPage() {
         router.push('/admin/dashboard');
       } else {
         await auth.signOut();
-        throw new Error("You are not authorized to access this page.");
+        toast({
+            variant: "destructive",
+            title: "Authorization Failed",
+            description: "You are not authorized to access the admin panel.",
+        });
       }
     } catch (error: any) {
       toast({
@@ -60,6 +55,9 @@ export default function AdminLoginPage() {
         title: "Login Failed",
         description: error.message || "Please check your credentials and try again.",
       });
+      if (auth.currentUser) {
+          await auth.signOut();
+      }
     } finally {
       setIsLoading(false);
     }
