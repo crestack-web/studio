@@ -1,8 +1,8 @@
 'use client';
 
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, query, collection, Timestamp, where } from 'firebase/firestore';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
@@ -11,8 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { ShieldCheck, Printer, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Printer, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 
 interface AppUser {
@@ -75,14 +78,15 @@ const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isP
 function StatementContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const fromDateStr = searchParams.get('from');
-    const toDateStr = searchParams.get('to');
 
-    const dateRange = useMemo(() => {
-        const from = fromDateStr ? new Date(fromDateStr) : undefined;
-        const to = toDateStr ? new Date(toDateStr) : undefined;
-        return { from, to };
-    }, [fromDateStr, toDateStr]);
+    const [date, setDate] = useState<DateRange | undefined>(() => {
+        const fromDateStr = searchParams.get('from');
+        const toDateStr = searchParams.get('to');
+        if (fromDateStr && toDateStr) {
+            return { from: new Date(fromDateStr), to: new Date(toDateStr) };
+        }
+        return { from: addDays(new Date(), -29), to: new Date() };
+    });
 
     const firestore = useFirestore();
     const { user: authUser } = useUser();
@@ -102,21 +106,21 @@ function StatementContent() {
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId || !dateRange.from || !dateRange.to) return null;
-        return query(collection(firestore, `businesses/${businessId}/sales`), where('timestamp', '>=', dateRange.from), where('timestamp', '<=', dateRange.to));
-    }, [firestore, businessId, dateRange]);
+        if (!firestore || !businessId || !date?.from || !date.to) return null;
+        return query(collection(firestore, `businesses/${businessId}/sales`), where('timestamp', '>=', date.from), where('timestamp', '<=', date.to));
+    }, [firestore, businessId, date]);
     const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
     
     const expensesQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId || !dateRange.from || !dateRange.to) return null;
-        return query(collection(firestore, `businesses/${businessId}/expenses`), where('createdAt', '>=', dateRange.from), where('createdAt', '<=', dateRange.to));
-    }, [firestore, businessId, dateRange]);
+        if (!firestore || !businessId || !date?.from || !date.to) return null;
+        return query(collection(firestore, `businesses/${businessId}/expenses`), where('createdAt', '>=', date.from), where('createdAt', '<=', date.to));
+    }, [firestore, businessId, date]);
     const { data: expensesData, isLoading: isLoadingExpenses } = useCollection<Expense>(expensesQuery);
 
     const transactionsQuery = useMemoFirebase(() => {
-        if (!firestore || !businessId || !dateRange.from || !dateRange.to) return null;
-        return query(collection(firestore, `businesses/${businessId}/transactions`), where('createdAt', '>=', dateRange.from), where('createdAt', '<=', dateRange.to));
-    }, [firestore, businessId, dateRange]);
+        if (!firestore || !businessId || !date?.from || !date.to) return null;
+        return query(collection(firestore, `businesses/${businessId}/transactions`), where('createdAt', '>=', date.from), where('createdAt', '<=', date.to));
+    }, [firestore, businessId, date]);
     const { data: transactionsData, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
 
     const productsQuery = useMemoFirebase(() => {
@@ -169,15 +173,52 @@ function StatementContent() {
     return (
         <div className="bg-muted/30 dark:bg-background">
              <header className="bg-card p-4 print:hidden sticky top-0 z-10 border-b">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <Button variant="outline" onClick={() => router.back()}>
+                <div className="max-w-4xl mx-auto flex justify-between items-center gap-4">
+                     <Button variant="outline" onClick={() => router.back()} className="hidden sm:inline-flex">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back
                     </Button>
-                    <h1 className="text-lg font-semibold hidden sm:block">Business Statement</h1>
+                    <div className="flex-1 flex justify-center">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full sm:w-[260px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "LLL dd, y")} -{" "}
+                                                {format(date.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(date.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="center">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                     <Button onClick={handlePrint}>
                         <Printer className="mr-2 h-4 w-4" />
-                        Print / Save PDF
+                        <span className="hidden sm:inline">Print / Save PDF</span>
                     </Button>
                 </div>
             </header>
@@ -192,7 +233,7 @@ function StatementContent() {
                     </div>
                     <div className="mt-6 text-sm text-muted-foreground">
                         <p><strong>Report Date:</strong> {format(new Date(), 'PPP')}</p>
-                        {dateRange.from && <p><strong>Period:</strong> {format(dateRange.from, 'PPP')} to {dateRange.to ? format(dateRange.to, 'PPP') : 'now'}</p>}
+                        {date?.from && <p><strong>Period:</strong> {format(date.from, 'PPP')} to {date.to ? format(date.to, 'PPP') : 'now'}</p>}
                     </div>
 
                     <div className="mt-8">

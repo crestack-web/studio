@@ -6,23 +6,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, ChevronsDown } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { DateRange } from 'react-day-picker';
-import { addDays, format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking } from '@/firebase';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { collection, doc, query, where, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { signOut } from 'firebase/auth';
@@ -87,14 +84,6 @@ export default function OwnerHomePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [aiCache, setAiCache] = useState<Record<string, string>>({});
-    
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: addDays(new Date(), -30),
-        to: new Date(),
-    });
-
-    const isMobile = useIsMobile();
-    const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
@@ -141,17 +130,17 @@ export default function OwnerHomePage() {
     const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
     const salesQuery = useMemoFirebase(() => {
-        if (!businessId || !date?.from || !firestore) return null;
+        if (!businessId || !firestore) return null;
         const salesCollection = collection(firestore, `businesses/${businessId}/sales`);
-        return query(salesCollection, where('timestamp', '>=', date.from), where('timestamp', '<=', date.to || new Date()));
-    }, [businessId, date, firestore]);
+        return query(salesCollection, orderBy('timestamp', 'desc'));
+    }, [businessId, firestore]);
     const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
 
     const transactionsQuery = useMemoFirebase(() => {
-        if (!businessId || !date?.from || !firestore) return null;
+        if (!businessId || !firestore) return null;
         const transactionsCollection = collection(firestore, `businesses/${businessId}/transactions`);
-        return query(transactionsCollection, where('createdAt', '>=', date.from), where('createdAt', '<=', date.to || new Date()));
-    }, [businessId, date, firestore]);
+        return query(transactionsCollection, orderBy('createdAt', 'desc'));
+    }, [businessId, firestore]);
     const { data: transactionsData, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
 
     const productsQuery = useMemoFirebase(() => {
@@ -290,13 +279,7 @@ export default function OwnerHomePage() {
         }
     };
     
-    const statementUrl = useMemo(() => {
-        const from = date?.from?.toISOString();
-        const to = date?.to?.toISOString();
-        if (!from) return '/owner/summary';
-        // If 'to' is missing, use 'from' for both to represent a single day.
-        return `/owner/summary?from=${from}&to=${to || from}`;
-    }, [date]);
+    const statementUrl = '/owner/summary';
 
     const handleDownload = () => {
         router.push(statementUrl);
@@ -332,54 +315,6 @@ export default function OwnerHomePage() {
     };
 
     const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
-    
-    const datePickerButtonContent = (
-         <>
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-                date.to ? (
-                    <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
-                    </>
-                ) : (
-                    format(date.from, "LLL dd, y")
-                )
-            ) : (
-                <span>Pick a date range</span>
-            )}
-        </>
-    );
-
-    const datePickerContent = (
-      <div className="flex flex-col sm:flex-row">
-          <div className="flex flex-col gap-1 p-2 sm:border-r sm:pr-2 w-full sm:w-[160px]">
-              <h3 className="font-medium text-sm text-muted-foreground px-2 pb-1 hidden sm:block">Presets</h3>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: startOfDay(new Date()), to: endOfDay(new Date()) }); setIsDatePopoverOpen(false); }}>Today</Button>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -6), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 7 Days</Button>
-              <Button variant="ghost" className="justify-start" onClick={() => { setDate({ from: addDays(new Date(), -29), to: new Date() }); setIsDatePopoverOpen(false); }}>Last 30 Days</Button>
-          </div>
-          <Separator orientation="vertical" className="h-auto hidden sm:block" />
-          <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={(range) => {
-                if (range) {
-                    setDate({ from: range.from ? startOfDay(range.from) : undefined, to: range.to ? endOfDay(range.to) : undefined });
-                } else {
-                    setDate(undefined);
-                }
-                if(range?.from && range.to) {
-                  setIsDatePopoverOpen(false);
-                }
-              }}
-              numberOfMonths={1}
-              className="p-2"
-          />
-      </div>
-    );
     
     const isLoadingData = isLoadingSales || isLoadingTransactions;
 
@@ -445,51 +380,12 @@ export default function OwnerHomePage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between font-headline text-lg gap-2">
+                    <CardTitle className="flex items-center justify-between font-headline text-lg gap-2">
                         <div className='flex items-center gap-2'>
                             <BotMessageSquare className="w-6 h-6 text-accent" />
                             <span>Ask about your business</span>
                         </div>
-                        {isMobile ? (
-                            <Dialog open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
-                                <DialogTrigger asChild>
-                                    <Button
-                                        id="date"
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        {datePickerButtonContent}
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="w-auto p-0">
-                                    <DialogHeader className="p-4 border-b">
-                                        <DialogTitle>Select a date range</DialogTitle>
-                                    </DialogHeader>
-                                    {datePickerContent}
-                                </DialogContent>
-                            </Dialog>
-                        ) : (
-                            <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        id="date"
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-[260px] justify-start text-left font-normal",
-                                            !date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        {datePickerButtonContent}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                    {datePickerContent}
-                                </PopoverContent>
-                            </Popover>
-                        )}
+                        <span className="text-sm font-medium text-muted-foreground">All-Time</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
