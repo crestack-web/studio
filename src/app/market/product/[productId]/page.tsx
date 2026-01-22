@@ -29,12 +29,13 @@ interface MarketProduct {
     productName: string; 
     price: number; 
     description?: string;
-    image?: string;
+    images?: string[];
     hint?: string;
     businessId: string;
     category?: string;
     hasVariants?: boolean;
     variants?: Variant[];
+    availableQuantity?: number;
 }
 
 interface BusinessProfile {
@@ -47,7 +48,7 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
         <Card className="h-full flex flex-col overflow-hidden hover:border-primary transition-colors duration-200">
             <div className="aspect-square relative overflow-hidden">
                 <Image
-                    src={product.image || `https://picsum.photos/seed/${product.id}/400/400`}
+                    src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/400`}
                     alt={product.productName || 'Product image'}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -85,14 +86,7 @@ const ProductDetailContent = () => {
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
     const imageGallery = useMemo(() => {
-        if (!productData?.image) return [];
-        // Simulate a gallery with 4 images by slightly altering the seed
-        return [
-            productData.image,
-            `https://picsum.photos/seed/${productData.id}-2/800/600`,
-            `https://picsum.photos/seed/${productData.id}-3/800/600`,
-            `https://picsum.photos/seed/${productData.id}-4/800/600`,
-        ];
+        return productData?.images || [];
     }, [productData]);
 
     useEffect(() => {
@@ -100,7 +94,7 @@ const ProductDetailContent = () => {
             if (productData.hasVariants && productData.variants && productData.variants.length > 0) {
                 setSelectedVariantId(productData.variants[0].id);
             }
-            setSelectedImage(imageGallery[0] || productData.image);
+            setSelectedImage(imageGallery[0]);
         }
     }, [productData, imageGallery]);
     
@@ -208,7 +202,7 @@ const ProductDetailContent = () => {
                     <div className="space-y-4">
                         <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
                             <Image 
-                                src={selectedImage || `https://picsum.photos/seed/${productData.id}/800/600`}
+                                src={selectedImage || 'https://picsum.photos/seed/placeholder/800/600'}
                                 alt={productName}
                                 fill
                                 className="object-contain transition-opacity duration-300"
@@ -216,23 +210,28 @@ const ProductDetailContent = () => {
                                 key={selectedImage}
                             />
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
-                            {imageGallery.map((img, i) => (
-                                <button key={i} onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
-                                    <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
-                                </button>
-                            ))}
-                        </div>
+                        {imageGallery.length > 1 && (
+                            <div className="grid grid-cols-4 gap-2">
+                                {imageGallery.map((img, i) => (
+                                    <button key={i} onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
+                                        <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     {/* --- Details Column --- */}
                     <div className="flex flex-col gap-4">
                         <div>
                              {businessData && (
-                                <Link href={`/market/store/${productData.businessId}`} className="text-sm text-primary hover:underline">
-                                    Visit the {businessData.businessName} store
-                                </Link>
+                                <Button asChild variant="outline">
+                                    <Link href={`/market/store/${productData.businessId}`}>
+                                        <Store className="mr-2 h-4 w-4" />
+                                        Visit {businessData.businessName}'s Store
+                                    </Link>
+                                </Button>
                              )}
-                            <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-1">{productName}</h1>
+                            <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-2">{productName}</h1>
                             <div className="flex items-center gap-2 mt-2">
                                 <div className="flex items-center gap-0.5">
                                     {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}

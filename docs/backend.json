@@ -183,9 +183,10 @@
           "type": "string",
           "description": "Public-facing product category for the marketplace."
         },
-        "image": {
-            "type": "string",
-            "description": "URL or data URI of the primary product image."
+        "images": {
+            "type": "array",
+            "description": "URLs or data URIs of the product images.",
+            "items": { "type": "string" }
         },
         "hint": {
             "type": "string",
@@ -210,7 +211,8 @@
               "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
               "price": { "type": "number" },
               "cost": { "type": "number" },
-              "quantity": { "type": "number" }
+              "quantity": { "type": "number" },
+              "image": { "type": "string", "description": "URL or data URI of the variant's image." }
             },
             "required": ["id", "name", "price", "quantity"]
           }
@@ -316,9 +318,10 @@
           "type": "string",
           "description": "The product category."
         },
-        "image": {
-            "type": "string",
-            "description": "URL or data URI for the product's primary image."
+        "images": {
+            "type": "array",
+            "description": "URL or data URI for the product's images.",
+            "items": { "type": "string" }
         },
         "hint": {
             "type": "string",
@@ -351,7 +354,8 @@
                   "id": { "type": "string", "description": "Unique ID for the variant within the product." },
                   "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
                   "price": { "type": "number" },
-                  "availableQuantity": { "type": "number" }
+                  "availableQuantity": { "type": "number" },
+                  "image": { "type": "string" }
               },
               "required": ["id", "name", "price", "availableQuantity"]
           }

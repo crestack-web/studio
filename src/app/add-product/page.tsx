@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Loader2, FileUp } from 'lucide-react';
+import { Trash2, Plus, Loader2, FileUp, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,10 +53,11 @@ export default function AddProductPage() {
     const [newIngredientName, setNewIngredientName] = useState('');
     const [newIngredientCost, setNewIngredientCost] = useState('');
     
-    const [imageUrl, setImageUrl] = useState('');
+    const [images, setImages] = useState<string[]>([]);
 
     const [productName, setProductName] = useState('');
     const [sellingPrice, setSellingPrice] = useState('');
+    const [oldPrice, setOldPrice] = useState('');
     const [initialQuantity, setInitialQuantity] = useState('');
     const [costPrice, setCostPrice] = useState('');
     const [productDescription, setProductDescription] = useState('');
@@ -111,24 +112,29 @@ export default function AddProductPage() {
     }, [ingredients]);
     
     const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files) return;
 
-        if (file.size > 500 * 1024) {
-            toast({
-                variant: 'destructive',
-                title: 'Image too large',
-                description: 'Please upload an image smaller than 500KB.',
-            });
-            return;
+        for (const file of Array.from(files)) {
+            if (file.size > 500 * 1024) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Image too large',
+                    description: `${file.name} is larger than 500KB.`,
+                });
+                continue;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImages(prev => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
         }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setImageUrl(reader.result as string);
-        };
-        reader.readAsDataURL(file);
     };
+    
+    const handleRemoveImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+    }
 
     const handleAddIngredient = () => {
         if (newIngredientName.trim() && newIngredientCost.trim()) {
@@ -185,10 +191,10 @@ export default function AddProductPage() {
         }
 
         if (isListedOnMarket) {
-            return imageUrl && productDescription && productCategory;
+            return images.length > 0 && productDescription && productCategory;
         }
         return true;
-    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, imageUrl, productDescription, productCategory]);
+    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
         if (!canAddProduct || !firestore || !businessId || !businessData) return;
@@ -198,6 +204,7 @@ export default function AddProductPage() {
         const productData = {
             name: productName,
             price: hasVariants ? (variants.length > 0 ? parseFloat(variants[0].price) : 0) : parseFloat(sellingPrice),
+            oldPrice: parseFloat(oldPrice) || null,
             cost: hasVariants ? 0 : finalCostPrice,
             quantity: hasVariants ? totalInitialQuantity : parseInt(initialQuantity),
             hasVariants,
@@ -212,7 +219,7 @@ export default function AddProductPage() {
             description: productDescription,
             category: productCategory,
             createdAt: serverTimestamp(),
-            image: imageUrl || null,
+            images: images,
             hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
         };
 
@@ -221,18 +228,19 @@ export default function AddProductPage() {
         try {
             const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
             
-            if (isListedOnMarket && imageUrl) {
+            if (isListedOnMarket && images.length > 0) {
                 const marketProductData = {
                     productId: newProductRef.id,
                     businessId: businessId,
                     businessName: businessData.businessName,
                     productName: productData.name,
                     price: productData.price,
+                    oldPrice: productData.oldPrice,
                     description: productData.description,
                     category: productData.category,
                     availableQuantity: productData.quantity,
                     createdAt: new Date(),
-                    image: imageUrl,
+                    images: images,
                     hint: productData.hint,
                     hasVariants: productData.hasVariants,
                     variants: productData.variants.map(v => ({
@@ -287,6 +295,16 @@ export default function AddProductPage() {
                             <>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
+                                        <Label htmlFor="selling-price">Selling Price</Label>
+                                        <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} disabled={isLoading} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="old-price">Old Price (Optional)</Label>
+                                        <Input id="old-price" type="number" placeholder="0.00" className="h-12 text-base" value={oldPrice} onChange={e => setOldPrice(e.target.value)} disabled={isLoading} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-2">
                                         <Label htmlFor="cost-price">Production/Cost Price</Label>
                                         <Input 
                                             id="cost-price" 
@@ -300,13 +318,9 @@ export default function AddProductPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="selling-price">Selling Price</Label>
-                                        <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} disabled={isLoading} />
+                                        <Label htmlFor="quantity">Initial Quantity</Label>
+                                        <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)} disabled={isLoading}/>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="quantity">Initial Quantity</Label>
-                                    <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)} disabled={isLoading}/>
                                 </div>
                                 {canManufacture && (
                                     <div className="flex items-center space-x-2">
@@ -419,51 +433,21 @@ export default function AddProductPage() {
                         {isListedOnMarket && (
                             <>
                                 <div className="space-y-2">
-                                    <Label>Product Image</Label>
-                                    <Input
-                                        id="image-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                        disabled={isLoading}
-                                    />
-                                    <Label
-                                        htmlFor="image-upload"
-                                        className={cn(
-                                            "flex h-32 w-full cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary",
-                                            isLoading && "cursor-not-allowed opacity-50"
-                                        )}
-                                    >
-                                        {imageUrl ? (
-                                            <div className="relative w-full h-full">
-                                                <Image
-                                                    src={imageUrl}
-                                                    alt="Product image preview"
-                                                    fill
-                                                    className="object-contain p-2"
-                                                />
+                                    <Label>Product Images</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {images.map((url, index) => (
+                                            <div key={index} className="relative aspect-square">
+                                                <Image src={url} alt={`Product image ${index + 1}`} fill className="object-cover rounded-md border" />
+                                                <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => handleRemoveImage(index)} disabled={isLoading}><X className="h-4 w-4" /></Button>
                                             </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <FileUp className="h-8 w-8" />
-                                                <span>Click to upload image</span>
-                                            </div>
-                                        )}
-                                    </Label>
-                                    {imageUrl && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full"
-                                            onClick={() => setImageUrl('')}
-                                            disabled={isLoading}
-                                        >
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Remove Image
-                                        </Button>
-                                    )}
-                                    <p className="text-xs text-muted-foreground">You must provide an image to list on the market. Max file size: 500KB.</p>
+                                        ))}
+                                        <Label htmlFor="image-upload" className={cn("flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                            <FileUp className="h-8 w-8" />
+                                            <span>Upload</span>
+                                        </Label>
+                                    </div>
+                                    <Input id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isLoading} multiple />
+                                    <p className="text-xs text-muted-foreground">You must provide at least one image to list on the market. Max file size: 500KB.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>

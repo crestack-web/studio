@@ -28,7 +28,7 @@ interface MarketProduct {
     category: string;
     description?: string;
     availableQuantity?: number;
-    image?: string;
+    images?: string[];
     hint?: string;
 }
 
@@ -49,13 +49,14 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
     const oldPrice = product.oldPrice;
     const showDiscount = oldPrice && oldPrice > product.price;
     const discount = showDiscount ? Math.round(((oldPrice - product.price) / oldPrice) * 100) : 0;
+    const imageUrl = product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`;
 
     return (
         <Link href={`/market/product/${product.id}`} key={product.id}>
             <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
                 <div className="aspect-square overflow-hidden relative">
                     <Image
-                        src={product.image || `https://picsum.photos/seed/${product.id}/400/300`}
+                        src={imageUrl}
                         alt={product.productName || 'Product image'}
                         fill
                         className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
@@ -83,6 +84,7 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
 
 export default function MarketPage() {
     const firestore = useFirestore();
+    const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
 
     const marketProductsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -91,7 +93,10 @@ export default function MarketPage() {
 
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(marketProductsQuery);
     
-    const flashDeals = useMemo(() => productsData?.slice(0, 6) || [], [productsData]);
+    const flashDeals = useMemo(() => {
+        if (!productsData) return [];
+        return productsData.filter(p => p.oldPrice && p.oldPrice > p.price).slice(0, 6);
+    }, [productsData]);
 
     const [timeLeft, setTimeLeft] = useState({
         hours: '00',
@@ -102,9 +107,7 @@ export default function MarketPage() {
     useEffect(() => {
         const calculateTimeLeft = () => {
             const now = new Date();
-            // Set flash sale to end at midnight of the next day
-            const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
-            const difference = endOfDay.getTime() - now.getTime();
+            const difference = saleEndTime.getTime() - now.getTime();
 
             let timeLeftData: { hours?: number; minutes?: number; seconds?: number } = {};
 
@@ -133,7 +136,7 @@ export default function MarketPage() {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [saleEndTime]);
 
     const renderProductSkeletons = (count: number = 12) => (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -256,11 +259,18 @@ export default function MarketPage() {
                             <Button variant="link" asChild><Link href="#">See All</Link></Button>
                         </div>
                         {isLoadingProducts ? renderProductSkeletons(6) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                {flashDeals.map(product => (
-                                    <ProductCard key={product.id} product={product} />
-                                ))}
-                            </div>
+                            flashDeals.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    {flashDeals.map(product => (
+                                        <ProductCard key={product.id} product={product} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 border rounded-lg bg-card">
+                                    <h2 className="text-lg font-semibold">No Flash Deals</h2>
+                                    <p className="text-muted-foreground mt-1 text-sm">Check back later for exciting offers!</p>
+                                </div>
+                            )
                         )}
                     </section>
 

@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
-interface MarketProduct { businessId: string; productName: string; price: number; image?: string; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
+interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; currency?: string; }
 
@@ -153,7 +153,7 @@ const CheckoutContent = () => {
                     <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-4">
-                            <Image src={productData.image || 'https://picsum.photos/seed/placeholder/80/80'} alt={productData.productName} width={80} height={80} className="rounded-md object-cover bg-muted" data-ai-hint={productData.hint} />
+                            <Image src={productData.images?.[0] || 'https://picsum.photos/seed/placeholder/80/80'} alt={productData.productName} width={80} height={80} className="rounded-md object-cover bg-muted" data-ai-hint={productData.hint} />
                             <div className="flex-1"><p className="font-semibold">{itemName}</p><p className="text-sm text-muted-foreground">Qty: {quantity}</p></div>
                             <p className="font-semibold">{formatCurrency(subtotal, businessProfile.currency)}</p>
                         </div>

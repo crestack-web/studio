@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, MapPin, Loader2, FileUp, PackageCheck } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, orderBy } from 'firebase/firestore';
@@ -26,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 // #region --- TYPES ---
 interface AppUser { businessId?: string }
 interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; }
-interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; image: string; description: string; category: string; hint?: string; oldPrice?: number; }
+interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; businessType: string; marketDescription?: string; marketSettings?: MarketSettings; }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
@@ -233,7 +233,7 @@ const ProductsContent = () => {
                 description: product.description || '',
                 category: product.category || 'other',
                 availableQuantity: totalQuantity,
-                image: product.image || null,
+                images: product.images || [],
                 hint: product.hint || product.name,
                 hasVariants: product.hasVariants,
                 variants: product.hasVariants ? product.variants.map(v => ({
@@ -265,7 +265,7 @@ const ProductsContent = () => {
                             <TableRow key={product.id}>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
-                                        <Image src={product.image || 'https://picsum.photos/seed/placeholder/100/100'} alt={product.name} width={40} height={40} className="rounded-md object-cover bg-muted" data-ai-hint={product.hint} />
+                                        <Image src={product.images?.[0] || 'https://picsum.photos/seed/placeholder/100/100'} alt={product.name} width={40} height={40} className="rounded-md object-cover bg-muted" data-ai-hint={product.hint} />
                                         <span className="font-medium">{product.name}</span>
                                     </div>
                                 </TableCell>
