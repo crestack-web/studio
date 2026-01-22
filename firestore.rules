@@ -107,9 +107,15 @@ service cloud.firestore {
     match /marketProducts/{productId} {
       // Anyone can view and list products.
       allow get, list: if true;
-      // Only the owner of the business that owns the product, or an admin, can write.
-      // This rule is critical for security.
-      allow create, update, delete: if isOwner(request.resource.data.businessId) || isAdmin();
+      
+      // Create: User must be the owner of the business ID in the new product.
+      allow create: if isOwner(request.resource.data.businessId) || isAdmin();
+
+      // Update: User must be owner, and cannot change the business ID.
+      allow update: if (isOwner(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId) || isAdmin();
+      
+      // Delete: User must be the owner of the business ID of the product being deleted.
+      allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
     
 
