@@ -28,13 +28,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
-const presetQuestions = [
-    "How are my sales today?",
-    "Which products should I consider restocking?",
-    "Tell me more about my best selling product.",
-    "What's my net profit today?",
-];
-
 interface AppUser {
     id: string;
     displayName: string;
@@ -84,6 +77,7 @@ export default function OwnerHomePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [aiCache, setAiCache] = useState<Record<string, string>>({});
+    const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
@@ -110,6 +104,22 @@ export default function OwnerHomePage() {
             window.history.replaceState({}, '', currentUrl.toString());
         }
     }, [searchParams]);
+    
+    useEffect(() => {
+        const allQuestions = [
+            "How are my sales today?",
+            "What's my net profit today?",
+            "Which products should I consider restocking?",
+            "Tell me about my best selling product.",
+            "Tell me about my worst selling product.",
+            "How much cash have I deposited in total?",
+            "How much money have I withdrawn in total?",
+            "What are my total sales of all time?",
+        ];
+
+        const shuffled = allQuestions.sort(() => 0.5 - Math.random());
+        setPresetQuestions(shuffled.slice(0, 4));
+    }, []);
 
     const supportAgents = [
         { name: 'Amina', avatarUrl: 'https://picsum.photos/seed/amina/40/40', imageHint: 'woman smiling' },
