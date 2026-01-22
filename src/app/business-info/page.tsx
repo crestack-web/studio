@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUser, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { collection, serverTimestamp, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -51,13 +51,9 @@ export default function BusinessInfoPage() {
         setIsSubmitting(true);
 
         try {
-            const batch = writeBatch(firestore);
-
-            // Create a new business document reference with an auto-generated ID
+            // Step 1: Create the main business document first and wait for it.
             const newBusinessRef = doc(collection(firestore, 'businesses'));
             const businessId = newBusinessRef.id;
-
-            // Define the private business data
             const businessData = {
                 ownerId: authUser.uid,
                 businessName,
@@ -65,9 +61,11 @@ export default function BusinessInfoPage() {
                 createdAt: serverTimestamp(),
                 onboardingCompleted: false, // This will be set to true at the end of the flow
             };
-            batch.set(newBusinessRef, businessData);
+            await setDoc(newBusinessRef, businessData);
 
-            // Define the public business profile data
+            // Step 2: Now that the business exists, create the profile and update the user.
+            const batch = writeBatch(firestore);
+
             const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
             const businessProfileData = {
                 businessName,
@@ -75,11 +73,9 @@ export default function BusinessInfoPage() {
             };
             batch.set(businessProfileRef, businessProfileData);
 
-            // Update the user's profile with the new business ID
             const userDocRef = doc(firestore, 'users', authUser.uid);
             batch.update(userDocRef, { businessId: businessId });
 
-            // Commit the batch
             await batch.commit();
 
             router.replace('/currency');
