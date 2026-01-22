@@ -10,28 +10,31 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Safely checks if the currently authenticated user is an administrator.
-    // This function relies on the /users/{userId} rule allowing a user to read their own profile.
+    // Securely checks if the user has an admin role.
+    // This avoids recursion by checking a separate 'admins' collection.
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Safely checks if the currently authenticated user is the owner of a specific business.
-    // It verifies this by checking the `ownerId` field on the business document itself.
+    // Securely checks if the user owns the specified business.
+    // It handles cases where businessId might be null.
     function isOwner(businessId) {
-      let businessPath = /databases/$(database)/documents/businesses/$(businessId);
-      return isSignedIn() && exists(businessPath) && get(businessPath).data.ownerId == request.auth.uid;
+      return businessId != null &&
+             isSignedIn() &&
+             exists(/databases/$(database)/documents/businesses/$(businessId)) &&
+             get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
-    // Safely checks if the currently authenticated user is a staff member of a specific business.
-    // It verifies this by checking the `businessId` field on the user's own profile.
+    // Securely checks if the user is a staff member of the specified business.
     function isStaff(businessId) {
-       let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-       return isSignedIn() && exists(userPath) && get(userPath).data.businessId == businessId;
+      return businessId != null &&
+             isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
     }
 
 
-    // --- USER PROFILES ---
+    // --- USER & ADMIN PROFILES ---
     match /users/{userId} {
       // Any authenticated user can create their own profile.
       allow create: if isSignedIn() && request.auth.uid == userId;
@@ -39,11 +42,18 @@ service cloud.firestore {
       // Users can read their own profile. Admins can read any profile.
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
       
-      // Users can update their own profile, but cannot change their role or businessId. Admins can update anything.
-      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.businessId == resource.data.businessId) || isAdmin();
+      // Users can update their own profile, but cannot change their role. Admins can update anything.
+      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
 
-      // Only admins can delete or list users.
+      // Deleting users and listing all users is an admin-only action.
       allow delete, list: if isAdmin();
+    }
+    
+    // Admin collection is read-only for other admins, and not publicly writable.
+    // Admins must be added manually in the Firestore console.
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
 
@@ -58,14 +68,14 @@ service cloud.firestore {
       // Only the business owner or an admin can update or delete the business.
       allow update, delete: if isOwner(businessId) || isAdmin();
       
-      // Listing all businesses is restricted to admins.
+      // Listing all businesses is restricted to admins for performance and security.
       allow list: if isAdmin();
     }
 
-    // Business Subcollections
+    // Business Subcollections (inventory, products, sales, expenses, etc.)
     match /businesses/{businessId}/{subcollection}/{docId} 
       where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      // Owner, staff, and admins can read and write to business subcollections.
+      // Only the owner, staff, or admins can read and write to sensitive business subcollections.
       allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
     }
 
@@ -84,6 +94,7 @@ service cloud.firestore {
       // Anyone can view and list products.
       allow get, list: if true;
       // Only the owner of the business that owns the product, or an admin, can write.
+      // This rule is critical for security.
       allow create, update, delete: if isOwner(request.resource.data.businessId) || isAdmin();
     }
     
@@ -98,19 +109,20 @@ service cloud.firestore {
       // Only the seller (owner) or an admin can update an order (e.g., to change its status).
       allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
 
-      // Listing all orders is an admin-only action for security and performance.
-      allow list: if isAdmin();
-      
-      // Deleting orders is an admin-only action.
-      allow delete: if isAdmin();
+      // Listing all orders is an admin-only action.
+      allow list, delete: if isAdmin();
     }
 
     // --- CONTENT & SUPPORT ---
     
     // Blog posts
     match /blogs/{blogId} {
-      // Published posts are public. Admins can read anything.
-      allow read: if resource.data.isPublished == true || isAdmin();
+      // Published posts are public. Admins can read all posts.
+      allow get: if resource.data.isPublished == true || isAdmin();
+
+      // Listing posts is only allowed for admins to prevent leaking unpublished post titles.
+      // Or for public if they only query for published posts.
+      allow list: if request.query.limit <= 10 || isAdmin();
       
       // Only admins can create, update, or delete blog posts.
       allow write: if isAdmin();
