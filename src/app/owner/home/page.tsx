@@ -414,48 +414,10 @@ export default function OwnerHomePage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <BotMessageSquare className="w-6 h-6 text-accent" />
-                        Ask about your business
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                   {presetQuestions.map((q) => (
-                       <Button 
-                        key={q} 
-                        variant="outline" 
-                        className={cn("w-full justify-start h-12", selectedQuestion === q && "bg-accent text-accent-foreground hover:bg-accent/90")} 
-                        onClick={() => handleQuestionClick(q)} 
-                        disabled={isLoading && selectedQuestion === q}
-                       >
-                           {isLoading && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                           {q}
-                       </Button>
-                   ))}
-                </CardContent>
-            </Card>
-            
-            {(isLoading || answer) && (
-                <Card className={isLoading ? "bg-background" : "bg-muted"}>
-                    <CardContent className="p-4">
-                        {isLoading ? (
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-3/4" />
-                                <Skeleton className="h-4 w-1/2" />
-                            </div>
-                        ) : (
-                            <p className="text-muted-foreground">{answer}</p>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-            
-            <Card>
-                <CardHeader>
                     <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between font-headline text-lg gap-2">
                         <div className='flex items-center gap-2'>
-                          <Activity className="w-6 h-6 text-primary" />
-                          <span>Business Health</span>
+                            <BotMessageSquare className="w-6 h-6 text-accent" />
+                            <span>Ask about your business</span>
                         </div>
                         {isMobile ? (
                             <Dialog open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
@@ -497,6 +459,44 @@ export default function OwnerHomePage() {
                                 </PopoverContent>
                             </Popover>
                         )}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                   {presetQuestions.map((q) => (
+                       <Button 
+                        key={q} 
+                        variant="outline" 
+                        className={cn("w-full justify-start h-12", selectedQuestion === q && "bg-accent text-accent-foreground hover:bg-accent/90")} 
+                        onClick={() => handleQuestionClick(q)} 
+                        disabled={isLoading && selectedQuestion === q}
+                       >
+                           {isLoading && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           {q}
+                       </Button>
+                   ))}
+                </CardContent>
+            </Card>
+            
+            {(isLoading || answer) && (
+                <Card className={isLoading ? "bg-background" : "bg-muted"}>
+                    <CardContent className="p-4">
+                        {isLoading ? (
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-4 w-1/2" />
+                            </div>
+                        ) : (
+                            <p className="text-muted-foreground">{answer}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <Activity className="w-6 h-6 text-primary" />
+                        <span>Business Health</span>
                     </CardTitle>
                 </CardHeader>
                  <CardContent className="space-y-4">
