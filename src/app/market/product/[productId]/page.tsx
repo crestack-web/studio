@@ -38,7 +38,7 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
             <div className="aspect-square relative overflow-hidden">
                 <Image
                     src={product.image || `https://picsum.photos/seed/${product.id}/400/400`}
-                    alt={product.productName}
+                    alt={product.productName || 'Product image'}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                     data-ai-hint={product.hint || product.category}
