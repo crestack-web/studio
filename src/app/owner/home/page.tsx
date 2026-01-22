@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Calendar as CalendarIcon, Bell, Users, Link2, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,9 +33,9 @@ import { Textarea } from '@/components/ui/textarea';
 
 const presetQuestions = [
     "Did I make profit today?",
-    "How many sales today?",
+    "How much cash did I withdraw?",
     "Which product sells the most?",
-    "What product is running low?",
+    "What is my worst selling product?",
 ];
 
 interface AppUser {
@@ -69,6 +69,13 @@ interface Product {
     price: number;
     cost: number;
     quantity: number;
+}
+
+interface Transaction {
+    id: string;
+    type: 'deposit' | 'withdrawal';
+    amount: number;
+    createdAt: Timestamp;
 }
 
 
@@ -140,6 +147,13 @@ export default function OwnerHomePage() {
     }, [businessId, date, firestore]);
     const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
 
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!businessId || !date?.from || !firestore) return null;
+        const transactionsCollection = collection(firestore, `businesses/${businessId}/transactions`);
+        return query(transactionsCollection, where('createdAt', '>=', date.from), where('createdAt', '<=', date.to || new Date()));
+    }, [businessId, date, firestore]);
+    const { data: transactionsData, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+
     const productsQuery = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
         return query(collection(firestore, `businesses/${businessId}/products`));
@@ -177,11 +191,14 @@ export default function OwnerHomePage() {
 
 
     const businessInsights = useMemo(() => {
+        const defaultInsights = {
+            totalSales: 0, totalProfit: 0, bestSellingProduct: undefined, worstSellingProduct: undefined,
+            lowStockProducts: [], salesTodayCount: 0, salesTodayTotal: 0, profitToday: 0,
+            totalDeposits: 0, totalWithdrawals: 0,
+        };
+
         if (!salesData || !productsData || !businessData) {
-            return {
-                totalSales: 0, totalProfit: 0, bestSellingProduct: undefined,
-                lowStockProducts: [], salesTodayCount: 0, salesTodayTotal: 0, profitToday: 0,
-            };
+            return defaultInsights;
         }
 
         const todayInterval = { start: startOfDay(new Date()), end: endOfDay(new Date()) };
@@ -217,12 +234,24 @@ export default function OwnerHomePage() {
             }
         }
         
-        const bestSellingProduct = Object.values(salesByProduct).sort((a,b) => b.sales - a.sales)[0];
+        const soldProducts = Object.values(salesByProduct);
+        const bestSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => b.sales - a.sales)[0] : undefined;
+        const worstSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => a.sales - b.sales)[0] : undefined;
+
         const lowStockProducts = productsData.filter(p => p.quantity <= 10);
         
-        return { totalSales, totalProfit, bestSellingProduct, lowStockProducts, salesTodayCount, salesTodayTotal, profitToday };
+        let totalDeposits = 0;
+        let totalWithdrawals = 0;
+        if (transactionsData) {
+            for (const transaction of transactionsData) {
+                if (transaction.type === 'deposit') totalDeposits += transaction.amount;
+                if (transaction.type === 'withdrawal') totalWithdrawals += transaction.amount;
+            }
+        }
+        
+        return { totalSales, totalProfit, bestSellingProduct, worstSellingProduct, lowStockProducts, salesTodayCount, salesTodayTotal, profitToday, totalDeposits, totalWithdrawals };
 
-    }, [salesData, productsData, businessData]);
+    }, [salesData, productsData, businessData, transactionsData]);
 
     const handleQuestionClick = async (question: string) => {
         if (!businessData || !businessInsights) return;
@@ -351,6 +380,8 @@ export default function OwnerHomePage() {
           />
       </div>
     );
+    
+    const isLoadingData = isLoadingSales || isLoadingTransactions;
 
     // Loading state: Show a spinner until we know if onboarding is complete or not.
     if (isUserLoading || isBusinessLoading || (authUser && !businessData?.plan)) {
@@ -500,37 +531,18 @@ export default function OwnerHomePage() {
                     </CardTitle>
                 </CardHeader>
                  <CardContent className="space-y-4">
-                    {isLoadingSales ? (
+                    {isLoadingData ? (
                         <div className="space-y-4 pt-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <Skeleton className="h-12 w-full" />
-                                <Skeleton className="h-12 w-full" />
-                            </div>
-                            <Skeleton className="h-10 w-full" />
+                           <Skeleton className="h-28 w-full" />
+                           <Skeleton className="h-10 w-full" />
                         </div>
-                    ) : salesData && salesData.length > 0 ? (
+                    ) : salesData.length > 0 || transactionsData.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Total Revenue</p>
-                                    <p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Net Profit</p>
-                                    <p className={cn("text-xl font-bold sm:text-2xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>
-                                        {formatCurrency(businessInsights.totalProfit, businessData?.currency)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Sales today</p>
-                                    <p className="text-xl font-bold sm:text-2xl">{businessInsights.salesTodayCount}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm text-muted-foreground">Revenue today</p>
-                                    <p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
-                                </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-xl font-bold sm:text-2xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalDeposits, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.currency)}</p></div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                                 <Link href={statementUrl} passHref>
@@ -598,6 +610,50 @@ export default function OwnerHomePage() {
                             </div>
                         </>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <TrendingUp className="w-6 h-6 text-primary" />
+                        Product Performance
+                    </CardTitle>
+                    <CardDescription>
+                        Highlights of your product sales in this period.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     {isLoadingSales ? <Skeleton className="h-24" /> : salesData.length > 0 ? (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="p-4 rounded-lg bg-muted/50">
+                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><ChevronsUp className="w-5 h-5 text-success"/>Best Seller</h4>
+                                <p className="font-bold text-lg truncate">{businessInsights.bestSellingProduct?.name || 'N/A'}</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.currency)} in revenue</p>
+                             </div>
+                             <div className="p-4 rounded-lg bg-muted/50">
+                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingDown className="w-5 h-5 text-destructive"/>Worst Seller</h4>
+                                <p className="font-bold text-lg truncate">{businessInsights.worstSellingProduct?.name || 'N/A'}</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.currency)} in revenue</p>
+                             </div>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-2"><AlertTriangle className="w-5 h-5 text-warning"/>Low Stock</h4>
+                            {businessInsights.lowStockProducts.length > 0 ? (
+                                <div className="space-y-2 text-sm">
+                                {businessInsights.lowStockProducts.slice(0, 3).map(p => (
+                                    <div key={p.id} className="flex justify-between"><span>{p.name}</span><span className="font-medium">{p.quantity} left</span></div>
+                                ))}
+                                </div>
+                            ) : <p className="text-sm text-muted-foreground">No low-stock alerts.</p>}
+                          </div>
+                        </>
+                     ) : (
+                         <div className="text-center text-sm text-muted-foreground py-4">
+                            <p>No product sales data for this period.</p>
+                        </div>
+                     )}
                 </CardContent>
             </Card>
 
@@ -687,37 +743,6 @@ export default function OwnerHomePage() {
             <Card>
                 <CardHeader>
                      <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <AlertTriangle className="w-6 h-6 text-warning" />
-                        Stock Alert
-                    </CardTitle>
-                    <CardDescription>
-                        Keep track of products that are running low.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     {productsData && businessInsights.lowStockProducts.length > 0 ? (
-                        <div className="space-y-2">
-                          {businessInsights.lowStockProducts.slice(0, 3).map(p => (
-                            <div key={p.id} className="text-sm flex justify-between">
-                              <span>{p.name}</span>
-                              <span className="font-medium">{p.quantity} left</span>
-                            </div>
-                          ))}
-                        </div>
-                     ) : (
-                         <div className="text-center text-sm text-muted-foreground">
-                            <p>No low-stock alerts yet.</p>
-                        </div>
-                     )}
-                    <Button variant="secondary" className="w-full" disabled={!productsData || businessInsights.lowStockProducts.length === 0}>
-                        View Low Stock Items
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
                         <Landmark className="w-6 h-6 text-primary" />
                         Access Capital
                     </CardTitle>
@@ -736,6 +761,22 @@ export default function OwnerHomePage() {
                     </Link>
                 </CardContent>
             </Card>
+
+            {(businessData?.plan === 'multi-branch' || businessData?.plan === 'company') && (
+                <Card className="bg-card/50 border-dashed">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
+                            <TrendingUp className="w-6 h-6" />
+                            Branch Performance
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-center text-sm text-muted-foreground">
+                            <p>Branch performance comparison is coming soon for your plan.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
           </div>
         </div>
       </main>

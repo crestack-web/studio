@@ -23,10 +23,13 @@ const BusinessInsightsDataSchema = z.object({
     totalSales: z.number().describe("The total sales revenue for the period."),
     totalProfit: z.number().describe("The total net profit for the period (Sales - Cost of Goods)."),
     bestSellingProduct: ProductInsightSchema.optional().describe("The product that has generated the most sales revenue."),
+    worstSellingProduct: ProductInsightSchema.optional().describe("The product that has generated the least sales revenue."),
     lowStockProducts: z.array(ProductInsightSchema).describe("A list of products with a stock quantity of 10 or less."),
     salesTodayCount: z.number().describe("The number of individual sales made today."),
     salesTodayTotal: z.number().describe("The total revenue from sales made today."),
     profitToday: z.number().describe("The net profit from sales made today."),
+    totalDeposits: z.number().describe("Total cash deposited into the business."),
+    totalWithdrawals: z.number().describe("Total cash withdrawn from the business."),
 });
 
 const GetBusinessInsightsInputSchema = z.object({
@@ -65,10 +68,13 @@ const prompt = ai.definePrompt({
   - Currency: {{{currency}}}
   - Total Sales Revenue: {{{insights.totalSales}}}
   - Total Profit: {{{insights.totalProfit}}}
+  - Total Cash Deposits: {{{insights.totalDeposits}}}
+  - Total Cash Withdrawals: {{{insights.totalWithdrawals}}}
   - Number of Sales Today: {{{insights.salesTodayCount}}}
   - Total Revenue Today: {{{insights.salesTodayTotal}}}
   - Profit Today: {{{insights.profitToday}}}
   - Best Selling Product: {{#if insights.bestSellingProduct}}{{insights.bestSellingProduct.name}} (Sold {{insights.bestSellingProduct.quantity}} units){{else}}None{{/if}}
+  - Worst Selling Product: {{#if insights.worstSellingProduct}}{{insights.worstSellingProduct.name}} (Sold {{insights.worstSellingProduct.quantity}} units){{else}}None{{/if}}
   - Products Running Low (10 or less in stock):
     {{#each insights.lowStockProducts}}
     - {{name}} ({{quantity}} left)
@@ -90,7 +96,7 @@ const getBusinessInsightsFlow = ai.defineFlow(
   },
   async input => {
     // If there's no data at all, return the standard message.
-    if (input.insights.totalSales === 0 && input.insights.salesTodayCount === 0) {
+    if (input.insights.totalSales === 0 && input.insights.salesTodayCount === 0 && input.insights.totalDeposits === 0 && input.insights.totalWithdrawals === 0) {
         return { answer: "I don’t have enough data yet. Please record more sales to get insights." };
     }
 
