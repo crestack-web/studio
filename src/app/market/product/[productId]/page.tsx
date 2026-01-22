@@ -3,13 +3,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw } from 'lucide-react';
-import MainLayout from '@/components/app/main-layout';
+import MarketLayout from '@/components/app/market-layout';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,12 +17,15 @@ import { formatCurrency } from '@/lib/currency';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useCart } from '@/context/cart-provider';
+import { useToast } from '@/hooks/use-toast';
 
 interface Variant { 
     id: string; 
     name: string; 
     price: number; 
     availableQuantity: number; 
+    image?: string;
 }
 interface MarketProduct { 
     id: string; 
@@ -66,9 +69,12 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
 
 const ProductDetailContent = () => {
     const params = useParams();
+    const router = useRouter();
     const productId = params.productId as string;
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
+    const { addItem } = useCart();
+    const { toast } = useToast();
 
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
     const [selectedImage, setSelectedImage] = useState<string | undefined>();
@@ -92,7 +98,8 @@ const ProductDetailContent = () => {
     useEffect(() => {
         if (productData) {
             if (productData.hasVariants && productData.variants && productData.variants.length > 0) {
-                setSelectedVariantId(productData.variants[0].id);
+                const firstAvailableVariant = productData.variants.find(v => v.availableQuantity > 0);
+                setSelectedVariantId(firstAvailableVariant?.id || productData.variants[0].id);
             }
             setSelectedImage(imageGallery[0]);
         }
@@ -103,17 +110,50 @@ const ProductDetailContent = () => {
         return productData.variants?.find(v => v.id === selectedVariantId);
     }, [productData, selectedVariantId]);
 
+    // Update selected image when variant changes
+    useEffect(() => {
+        if (selectedVariant?.image) {
+            setSelectedImage(selectedVariant.image);
+        } else if (imageGallery.length > 0) {
+            setSelectedImage(imageGallery[0]);
+        }
+    }, [selectedVariant, imageGallery]);
+
+
     const displayPrice = selectedVariant ? selectedVariant.price : productData?.price;
     const stockAvailable = selectedVariant ? selectedVariant.availableQuantity : productData?.availableQuantity;
     const isInStock = stockAvailable !== undefined && stockAvailable > 0;
     
-    const checkoutUrl = useMemo(() => {
+    const buyNowUrl = useMemo(() => {
         let url = `/market/checkout?productId=${productId}&quantity=${quantity}`;
         if (selectedVariantId) {
             url += `&variantId=${selectedVariantId}`;
         }
         return url;
     }, [productId, quantity, selectedVariantId]);
+
+    const handleAddToCart = () => {
+        if (!productData) return;
+        
+        addItem({
+            id: productData.id,
+            name: productData.productName,
+            price: displayPrice || 0,
+            quantity: quantity,
+            image: selectedImage || imageGallery[0],
+            variantId: selectedVariant?.id,
+            variantName: selectedVariant?.name,
+        });
+
+        toast({
+            title: "Added to Cart",
+            description: `${productData.productName} ${selectedVariant ? `(${selectedVariant.name})` : ''} has been added to your cart.`,
+        });
+    };
+
+    const handleBuyNow = () => {
+        router.push(buyNowUrl);
+    };
 
     const similarProductsQuery = useMemoFirebase(() => {
         if (!firestore || !productData?.category) return null;
@@ -144,7 +184,7 @@ const ProductDetailContent = () => {
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
-             <MainLayout title="Loading Product..." backHref="/market">
+             <MarketLayout>
                <div className="w-full max-w-5xl">
                     <div className="grid md:grid-cols-2 gap-8">
                         {/* Image Skeleton */}
@@ -178,24 +218,24 @@ const ProductDetailContent = () => {
                         </div>
                     </div>
                </div>
-            </MainLayout>
+            </MarketLayout>
         );
     }
     
     if (!productData) {
-         return <MainLayout title="Product Not Found" backHref="/market">
+         return <MarketLayout>
             <div className="text-center py-20">
                 <h1 className="text-2xl font-bold">Product not found</h1>
                 <p className="text-muted-foreground">The product you are looking for is not available in the market.</p>
                 <Link href="/market"><Button variant="link" className="mt-4">Back to Market</Button></Link>
             </div>
-        </MainLayout>;
+        </MarketLayout>;
     }
     
     const productName = productData.productName || "Unnamed Product";
 
     return (
-        <MainLayout title={productName} backHref="/market">
+        <MarketLayout>
            <div className="w-full max-w-5xl">
                 <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
                     {/* --- Image Column --- */}
@@ -269,6 +309,30 @@ const ProductDetailContent = () => {
                             </div>
                         )}
 
+                        <div className="flex items-center gap-4 pt-2">
+                            <Label>Quantity</Label>
+                            <div className="flex items-center rounded-md border">
+                                <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}><Minus className="w-4 h-4"/></Button>
+                                <span className="w-8 text-center font-bold">{quantity}</span>
+                                <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleQuantityChange(1)} disabled={quantity >= (stockAvailable || 0)}><Plus className="w-4 h-4"/></Button>
+                            </div>
+                        </div>
+
+                        
+                        {/* --- Sticky CTA for Mobile --- */}
+                        <div className="mt-auto pt-4 md:pt-0 sticky bottom-0 md:static bg-background md:bg-transparent py-4 md:p-0 border-t md:border-none -mx-4 px-4 md:mx-0">
+                             <div className="flex flex-col sm:flex-row items-center gap-4">
+                                <Button className="w-full h-12 text-lg" disabled={!isInStock} onClick={handleBuyNow}>
+                                    Buy Now
+                                </Button>
+                                <Button variant="outline" className="w-full h-12 text-lg" disabled={!isInStock} onClick={handleAddToCart}>
+                                    <ShoppingCart className="mr-2 h-5 w-5"/>
+                                    Add to Cart
+                                </Button>
+                            </div>
+                            {!isInStock && <p className="text-destructive text-sm text-center mt-2">This item is currently unavailable.</p>}
+                        </div>
+
                         <Card className="bg-muted/30">
                             <CardContent className="p-4 grid grid-cols-3 gap-4 text-center">
                                 {trustSignals.map(signal => (
@@ -279,24 +343,6 @@ const ProductDetailContent = () => {
                                 ))}
                             </CardContent>
                         </Card>
-                        
-                        {/* --- Sticky CTA for Mobile --- */}
-                        <div className="mt-auto pt-4 md:pt-0 sticky bottom-0 md:static bg-background md:bg-transparent py-4 md:p-0 border-t md:border-none -mx-4 px-4 md:mx-0">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center rounded-md border">
-                                    <Button variant="ghost" size="icon" className="h-14 w-14" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}><Minus className="w-5 h-5"/></Button>
-                                    <span className="w-8 text-center text-lg font-bold">{quantity}</span>
-                                    <Button variant="ghost" size="icon" className="h-14 w-14" onClick={() => handleQuantityChange(1)} disabled={quantity >= (stockAvailable || 0)}><Plus className="w-5 h-5"/></Button>
-                                </div>
-                                <Link href={checkoutUrl} className="w-full flex-1">
-                                    <Button className="w-full h-14 text-lg flex-1" disabled={!isInStock}>
-                                        <ShoppingCart className="mr-2 h-6 w-6"/>
-                                        Buy Now
-                                    </Button>
-                                </Link>
-                            </div>
-                            {!isInStock && <p className="text-destructive text-sm text-center mt-2">This item is currently unavailable.</p>}
-                        </div>
                     </div>
                 </div>
 
@@ -330,7 +376,7 @@ const ProductDetailContent = () => {
                     )}
                 </div>
            </div>
-        </MainLayout>
+        </MarketLayout>
     );
 }
 

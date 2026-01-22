@@ -5,12 +5,12 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import MainLayout from '@/components/app/main-layout';
 import { Star } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
+import MarketLayout from '@/components/app/market-layout';
 
 interface BusinessProfile {
     businessName: string;
@@ -22,7 +22,7 @@ interface MarketProduct {
     id: string;
     productName: string;
     price: number;
-    image?: string; 
+    images?: string[]; 
     hint?: string;
     category?: string;
     productId: string;
@@ -48,7 +48,7 @@ const StorePageContent = () => {
 
     if (isLoadingBusiness) {
         return (
-             <MainLayout title="Loading Store..." backHref="/market">
+             <MarketLayout>
                 <div className="w-full max-w-6xl">
                      <Card className="overflow-hidden mb-8">
                         <Skeleton className="h-48 md:h-64 w-full" />
@@ -71,22 +71,22 @@ const StorePageContent = () => {
                         ))}
                     </div>
                 </div>
-            </MainLayout>
+            </MarketLayout>
         );
     }
 
     if (!businessData) {
-        return <MainLayout title="Store Not Found" backHref="/market">
+        return <MarketLayout>
             <div className="text-center py-20">
                 <h1 className="text-2xl font-bold">Store not found</h1>
                 <p className="text-muted-foreground">The store you are looking for does not exist.</p>
                 <Link href="/market"><Button variant="link" className="mt-4">Back to Market</Button></Link>
             </div>
-        </MainLayout>;
+        </MarketLayout>;
     }
 
   return (
-    <MainLayout title={businessData.businessName} backHref="/market">
+    <MarketLayout>
         <div className="w-full max-w-6xl">
             <Card className="overflow-hidden mb-8">
                 <div className="h-48 md:h-64 w-full relative">
@@ -131,12 +131,11 @@ const StorePageContent = () => {
                     {productsData.map(product => (
                         <Link href={`/market/product/${product.id}`} key={product.id}>
                             <Card className="overflow-hidden group cursor-pointer h-full flex flex-col">
-                                <div className="aspect-video overflow-hidden">
+                                <div className="aspect-video overflow-hidden relative">
                                     <Image 
-                                        src={product.image || `https://picsum.photos/seed/${product.id}/400/300`}
+                                        src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`}
                                         alt={product.productName || 'Product image'}
-                                        width={400}
-                                        height={300}
+                                        fill
                                         className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                                         data-ai-hint={product.category || (product.productName || '').split(' ').slice(0,2).join(' ')}
                                     />
@@ -158,7 +157,7 @@ const StorePageContent = () => {
             )}
 
         </div>
-    </MainLayout>
+    </MarketLayout>
   );
 }
 

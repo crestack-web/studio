@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -10,20 +9,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import MainLayout from '@/components/app/main-layout';
 import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser, addDocumentNonBlocking } from '@/firebase';
-import { doc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
+import { useCart, CartItem } from '@/context/cart-provider';
+import MarketLayout from '@/components/app/market-layout';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
 interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; currency?: string; }
+
+type CheckoutItem = {
+    productId: string;
+    productName: string;
+    variantId?: string;
+    variantName?: string;
+    quantity: number;
+    price: number;
+    image?: string;
+    businessId: string;
+};
+
 
 const CheckoutContent = () => {
     const router = useRouter();
@@ -31,43 +43,89 @@ const CheckoutContent = () => {
     const searchParams = useSearchParams();
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
+    const { items: cartItems, clearCart } = useCart();
     
-    const productId = searchParams.get('productId');
-    const variantId = searchParams.get('variantId');
-    const quantity = parseInt(searchParams.get('quantity') || '1', 10);
-    
-    const fullRedirectUrl = useMemo(
-        () => `/market/checkout?productId=${productId}&quantity=${quantity}${variantId ? `&variantId=${variantId}`: ''}`,
-        [productId, quantity, variantId]
-    );
+    // State for checkout items
+    const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
+    const [isLoadingItems, setIsLoadingItems] = useState(true);
 
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-    
-    const productRef = useMemoFirebase(() => productId ? doc(firestore, `marketProducts/${productId}`) : null, [firestore, productId]);
-    const { data: productData, isLoading: isLoadingProduct } = useDoc<MarketProduct>(productRef);
-    
-    const businessProfileRef = useMemoFirebase(() => productData?.businessId ? doc(firestore, `businessProfiles/${productData.businessId}`) : null, [firestore, productData?.businessId]);
-    const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
-    
     const [fulfillmentMethod, setFulfillmentMethod] = useState('delivery');
     const [paymentMethod, setPaymentMethod] = useState('delivery');
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerAddress, setCustomerAddress] = useState('');
-    
-    const settings = businessProfile?.marketSettings;
 
+    // This effect determines what's in the checkout. It can be a single item ("Buy Now") or the whole cart.
     useEffect(() => {
-        if (!isUserLoading && !user) {
-            toast({
-                title: "Authentication Required",
-                description: "You need to log in to place an order.",
-                variant: "destructive"
-            });
-            router.push(`/login?redirect=${encodeURIComponent(fullRedirectUrl)}`);
-        }
-    }, [isUserLoading, user, router, toast, fullRedirectUrl]);
+        const productId = searchParams.get('productId');
+        const variantId = searchParams.get('variantId');
+        const quantityStr = searchParams.get('quantity');
 
+        const fetchProductData = async (pId: string, vId: string | null, qty: number) => {
+            if (!firestore) return;
+            setIsLoadingItems(true);
+            const productRef = doc(firestore, 'marketProducts', pId);
+            const productSnap = await getDoc(productRef);
+            if (productSnap.exists()) {
+                const productData = productSnap.data() as MarketProduct;
+                const variant = vId ? productData.variants?.find(v => v.id === vId) : undefined;
+                setCheckoutItems([{
+                    productId: pId,
+                    productName: productData.productName,
+                    variantId: vId ?? undefined,
+                    variantName: variant?.name,
+                    quantity: qty,
+                    price: variant?.price || productData.price,
+                    image: productData.images?.[0],
+                    businessId: productData.businessId
+                }]);
+            }
+            setIsLoadingItems(false);
+        };
+        
+        if (productId && quantityStr) { // "Buy Now" flow
+            fetchProductData(productId, searchParams.get('variantId'), parseInt(quantityStr, 10));
+        } else if (cartItems.length > 0) { // "Cart Checkout" flow
+            const items: CheckoutItem[] = cartItems.map(item => ({
+                productId: item.id,
+                productName: item.name,
+                variantId: item.variantId,
+                variantName: item.variantName,
+                quantity: item.quantity,
+                price: item.price,
+                image: item.image,
+                businessId: '' // Will be fetched later or assumed to be the same
+            }));
+            // For now, assuming all items are from the same business for simplicity.
+            // A more robust solution would fetch businessId for each item or group them.
+            if (items.length > 0) {
+                 const fetchBusinessId = async () => {
+                     if (!firestore) return;
+                     const productRef = doc(firestore, 'marketProducts', items[0].productId);
+                     const productSnap = await getDoc(productRef);
+                     if (productSnap.exists()) {
+                        const businessId = (productSnap.data() as MarketProduct).businessId;
+                        setCheckoutItems(items.map(it => ({ ...it, businessId })));
+                     }
+                     setIsLoadingItems(false);
+                 }
+                 fetchBusinessId();
+            } else {
+                 setIsLoadingItems(false);
+            }
+        } else {
+             setIsLoadingItems(false);
+        }
+    }, [searchParams, cartItems, firestore]);
+
+    const businessId = checkoutItems.length > 0 ? checkoutItems[0].businessId : null;
+    
+    const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
+    const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
+
+    const settings = businessProfile?.marketSettings;
+    
     useEffect(() => {
         if (settings) {
             setFulfillmentMethod(settings.delivery.allowDelivery ? 'delivery' : 'pickup');
@@ -75,12 +133,14 @@ const CheckoutContent = () => {
         }
     }, [settings]);
 
-    const selectedVariant = useMemo(() => {
-        if (!productData?.hasVariants || !variantId) return null;
-        return productData.variants?.find(v => v.id === variantId);
-    }, [productData, variantId]);
+    const { subtotal, deliveryFee, total } = useMemo(() => {
+        const sub = checkoutItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const fee = fulfillmentMethod === 'delivery' ? settings?.delivery.deliveryFee || 0 : 0;
+        return { subtotal: sub, deliveryFee: fee, total: sub + fee };
+    }, [checkoutItems, fulfillmentMethod, settings]);
 
-    if (isLoadingProduct || isLoadingBusiness || isUserLoading) {
+
+    if (isLoadingItems || isLoadingBusiness || isUserLoading) {
         return (
              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6"><Skeleton className="h-48 w-full" /></div>
@@ -89,43 +149,38 @@ const CheckoutContent = () => {
         );
     }
     
-    if (!productData || !businessProfile) {
+    if (!businessProfile || checkoutItems.length === 0) {
         return (
             <div className="text-center">
-                <p className="text-muted-foreground">Product or store not found.</p>
+                <p className="text-muted-foreground">Your cart is empty or the store could not be found.</p>
                 <Link href="/market"><Button variant="link">Return to Market</Button></Link>
             </div>
         );
     }
     
-    const itemPrice = selectedVariant ? selectedVariant.price : productData.price;
-    const itemName = selectedVariant ? `${productData.productName} (${selectedVariant.name})` : productData.productName;
-    const subtotal = itemPrice * quantity;
-    const deliveryFee = fulfillmentMethod === 'delivery' ? settings?.delivery.deliveryFee || 0 : 0;
-    const total = subtotal + deliveryFee;
-    
     const canPlaceOrder = user && customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
 
     const handlePlaceOrder = async () => {
-        if (!canPlaceOrder || !productData.businessId || !firestore || !productId || !user) return;
+        if (!canPlaceOrder || !businessId || !firestore || !user) return;
         
         setIsPlacingOrder(true);
         
         try {
-            const ordersColRef = collection(firestore, 'orders');
+            const batch = writeBatch(firestore);
+            const orderRef = doc(collection(firestore, 'orders'));
 
             const orderData = {
                 buyerId: user.uid,
-                sellerBusinessId: productData.businessId,
+                sellerBusinessId: businessId,
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
-                items: [{ 
-                    productId, 
-                    productName: productData.productName,
-                    variantId: selectedVariant?.id || null,
-                    variantName: selectedVariant?.name || null,
-                    quantity, 
-                    price: itemPrice 
-                }],
+                items: checkoutItems.map(item => ({ 
+                    productId: item.productId, 
+                    productName: item.productName,
+                    variantId: item.variantId || null,
+                    variantName: item.variantName || null,
+                    quantity: item.quantity, 
+                    price: item.price 
+                })),
                 subtotal, 
                 deliveryFee, 
                 total,
@@ -134,10 +189,13 @@ const CheckoutContent = () => {
                 payment: paymentMethod,
                 createdAt: serverTimestamp()
             };
-            
-            const newOrderRef = await addDocumentNonBlocking(ordersColRef, orderData);
 
-            router.push(`/market/order-confirmation?orderId=${newOrderRef.id}`);
+            batch.set(orderRef, orderData);
+            
+            await batch.commit();
+            clearCart(); // Clear cart after successful order
+
+            router.push(`/market/order-confirmation?orderId=${orderRef.id}`);
             
         } catch (error) {
             console.error("Error placing order: ", error);
@@ -152,10 +210,14 @@ const CheckoutContent = () => {
                 <Card>
                     <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
                     <CardContent>
-                        <div className="flex items-center gap-4">
-                            <Image src={productData.images?.[0] || 'https://picsum.photos/seed/placeholder/80/80'} alt={productData.productName} width={80} height={80} className="rounded-md object-cover bg-muted" data-ai-hint={productData.hint} />
-                            <div className="flex-1"><p className="font-semibold">{itemName}</p><p className="text-sm text-muted-foreground">Qty: {quantity}</p></div>
-                            <p className="font-semibold">{formatCurrency(subtotal, businessProfile.currency)}</p>
+                        <div className="space-y-4">
+                        {checkoutItems.map((item, index) => (
+                            <div key={index} className="flex items-center gap-4">
+                                <Image src={item.image || 'https://picsum.photos/seed/placeholder/80/80'} alt={item.productName} width={64} height={64} className="rounded-md object-cover bg-muted" />
+                                <div className="flex-1"><p className="font-semibold text-sm">{item.productName} {item.variantName && `(${item.variantName})`}</p><p className="text-sm text-muted-foreground">Qty: {item.quantity}</p></div>
+                                <p className="font-semibold text-sm">{formatCurrency(item.price * item.quantity, businessProfile.currency)}</p>
+                            </div>
+                        ))}
                         </div>
                         <Separator className="my-4" />
                         <div className="space-y-2 text-sm">
@@ -198,10 +260,10 @@ const CheckoutContent = () => {
 
 export default function CheckoutPage() {
     return (
-        <MainLayout title="Checkout" backHref="/market">
+        <MarketLayout>
             <Suspense fallback={<div>Loading...</div>}>
                 <CheckoutContent />
             </Suspense>
-        </MainLayout>
+        </MarketLayout>
     );
 }

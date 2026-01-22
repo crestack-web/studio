@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/app/theme-provider';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { LanguageProvider } from '@/context/language-provider';
+import { CartProvider } from '@/context/cart-provider';
 
 export const metadata: Metadata = {
   title: 'Busmo',
@@ -22,15 +23,17 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <LanguageProvider>
           <FirebaseClientProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster />
-            </ThemeProvider>
+            <CartProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {children}
+                <Toaster />
+              </ThemeProvider>
+            </CartProvider>
           </FirebaseClientProvider>
         </LanguageProvider>
       </body>

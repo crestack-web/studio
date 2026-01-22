@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense } from 'react';
@@ -6,13 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import MainLayout from '@/components/app/main-layout';
 import { CheckCircle2, Landmark, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
+import MarketLayout from '@/components/app/market-layout';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
@@ -94,12 +93,10 @@ const OrderConfirmationContent = () => {
 
 export default function OrderConfirmationPage() {
     return (
-        <MainLayout title="Order Confirmation" backHref="/market">
+        <MarketLayout>
             <Suspense fallback={<div>Loading...</div>}>
                 <OrderConfirmationContent />
             </Suspense>
-        </MainLayout>
+        </MarketLayout>
     );
 }
-
-    
