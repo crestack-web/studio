@@ -16,6 +16,7 @@ service cloud.firestore {
     }
 
     // Securely checks if the user owns the specified business.
+    // IMPORTANT: This performs a 'get' which costs 1 read operation. Use judiciously.
     function isOwner(businessId) {
       return businessId != null &&
              isSignedIn() &&
@@ -117,19 +118,22 @@ service cloud.firestore {
       // Only the seller (owner) or an admin can update an order (e.g., to change its status).
       allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
 
-      // Listing all orders is an admin-only action.
-      allow list, delete: if isAdmin();
+      // Business owners can list orders for their business.
+      allow list: if (request.query.where.sellerBusinessId != null && isOwner(request.query.where.sellerBusinessId)) || isAdmin();
+
+      // Deleting orders is an admin-only action.
+      allow delete: if isAdmin();
     }
 
     // --- CONTENT & SUPPORT ---
     
     // Blog posts
     match /blogs/{blogId} {
+      // Allow public list of published posts, and admin list of any posts.
+      allow list: if request.query.where.isPublished == true || isAdmin();
+
       // Published posts are public. Admins can read all posts.
       allow get: if resource.data.isPublished == true || isAdmin();
-
-      // Allow public list queries only if they filter for published posts.
-      allow list: if (request.query.limit <= 10 && (!('isPublished' in request.query.where) || request.query.where.isPublished == true)) || isAdmin();
       
       // Only admins can create, update, or delete blog posts.
       allow write: if isAdmin();
@@ -137,8 +141,8 @@ service cloud.firestore {
 
     // Support Tickets
     match /supportTickets/{ticketId} {
-      // Any signed-in user can create a support ticket.
-      allow create: if isSignedIn();
+      // Any signed-in user can create a support ticket for themselves.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
       // The user who created the ticket and admins can view or update it.
       allow get, update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
