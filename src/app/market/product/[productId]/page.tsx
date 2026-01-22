@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -15,7 +15,14 @@ import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase
 import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
+interface Variant { 
+    id: string; 
+    name: string; 
+    price: number; 
+    availableQuantity: number; 
+}
 interface MarketProduct { 
     id: string; 
     productName: string; 
@@ -25,6 +32,8 @@ interface MarketProduct {
     hint?: string;
     businessId: string;
     category?: string;
+    hasVariants?: boolean;
+    variants?: Variant[];
 }
 
 interface BusinessProfile {
@@ -59,6 +68,8 @@ const ProductDetailContent = () => {
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
 
+    const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
+
     const productRef = useMemoFirebase(() => {
         if (!firestore || !productId) return null;
         return doc(firestore, 'marketProducts', productId);
@@ -71,6 +82,27 @@ const ProductDetailContent = () => {
     }, [firestore, productData?.businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
+    useEffect(() => {
+        if (productData?.hasVariants && productData.variants && productData.variants.length > 0) {
+            setSelectedVariantId(productData.variants[0].id);
+        }
+    }, [productData]);
+    
+    const selectedVariant = useMemo(() => {
+        if (!productData?.hasVariants || !selectedVariantId) return null;
+        return productData.variants?.find(v => v.id === selectedVariantId);
+    }, [productData, selectedVariantId]);
+
+    const displayPrice = selectedVariant ? selectedVariant.price : productData?.price;
+    
+    const checkoutUrl = useMemo(() => {
+        let url = `/market/checkout?productId=${productId}&quantity=${quantity}`;
+        if (selectedVariantId) {
+            url += `&variantId=${selectedVariantId}`;
+        }
+        return url;
+    }, [productId, quantity, selectedVariantId]);
+
     const similarProductsQuery = useMemoFirebase(() => {
         if (!firestore || !productData?.category) return null;
         return query(
@@ -146,9 +178,26 @@ const ProductDetailContent = () => {
                     <div className="flex flex-col gap-6">
                         <div>
                             <h1 className="text-3xl font-bold font-headline">{productName}</h1>
-                            <p className="text-3xl font-bold text-primary mt-2">{formatCurrency(productData.price, businessData?.currency)}</p>
+                            <p className="text-3xl font-bold text-primary mt-2">{formatCurrency(displayPrice || 0, businessData?.currency)}</p>
                             <p className="text-muted-foreground mt-4">{productData.description || 'No description available for this product.'}</p>
                         </div>
+                        
+                        {productData.hasVariants && productData.variants && productData.variants.length > 0 && (
+                            <div>
+                                <Label className="font-semibold">Select Option</Label>
+                                <RadioGroup value={selectedVariantId} onValueChange={setSelectedVariantId} className="mt-2 grid grid-cols-2 gap-2">
+                                    {productData.variants.map(variant => (
+                                        <Label key={variant.id} htmlFor={variant.id} className="flex items-center space-x-2 rounded-md border-2 p-2 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                            <RadioGroupItem value={variant.id} id={variant.id} className="peer"/>
+                                            <div className="text-sm">
+                                                <span className="font-medium">{variant.name}</span>
+                                                <span className="text-muted-foreground ml-2">({formatCurrency(variant.price, businessData?.currency)})</span>
+                                            </div>
+                                        </Label>
+                                    ))}
+                                </RadioGroup>
+                            </div>
+                        )}
 
                         <Separator />
 
@@ -163,7 +212,6 @@ const ProductDetailContent = () => {
                                             <p className="font-semibold text-primary">{businessData.businessName}</p>
                                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                                {/* Static rating for now */}
                                                 <span>4.8 (25 reviews)</span>
                                             </div>
                                         </div>
@@ -190,7 +238,7 @@ const ProductDetailContent = () => {
                                     className="h-14 text-lg text-center"
                                 />
                             </div>
-                            <Link href={`/market/checkout?productId=${productData.id}&quantity=${quantity}`} className="w-full flex-1">
+                            <Link href={checkoutUrl} className="w-full flex-1">
                                 <Button className="w-full h-14 text-lg flex-1">
                                     <ShoppingCart className="mr-2 h-6 w-6"/>
                                     Proceed to Checkout

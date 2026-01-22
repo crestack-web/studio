@@ -24,6 +24,14 @@ interface Ingredient {
     cost: string;
 }
 
+interface Variant {
+    id: string;
+    name: string;
+    cost: string;
+    price: string;
+    quantity: string;
+}
+
 interface AppUser {
     businessId?: string;
 }
@@ -53,6 +61,14 @@ export default function AddProductPage() {
     const [costPrice, setCostPrice] = useState('');
     const [productDescription, setProductDescription] = useState('');
     const [productCategory, setProductCategory] = useState('');
+    
+    const [hasVariants, setHasVariants] = useState(false);
+    const [variants, setVariants] = useState<Variant[]>([]);
+    const [newVariantName, setNewVariantName] = useState('');
+    const [newVariantCost, setNewVariantCost] = useState('');
+    const [newVariantPrice, setNewVariantPrice] = useState('');
+    const [newVariantQuantity, setNewVariantQuantity] = useState('');
+
 
     const firestore = useFirestore();
     const { user: authUser } = useUser();
@@ -77,6 +93,18 @@ export default function AddProductPage() {
             setIsManufactured(false);
         }
     }, [canManufacture]);
+    
+    useEffect(() => {
+        if (hasVariants) {
+            setIsManufactured(false);
+        }
+    }, [hasVariants]);
+    
+     useEffect(() => {
+        if (isManufactured) {
+            setHasVariants(false);
+        }
+    }, [isManufactured]);
 
     const totalIngredientCost = useMemo(() => {
         return ingredients.reduce((total, ing) => total + (parseFloat(ing.cost) || 0), 0);
@@ -86,7 +114,6 @@ export default function AddProductPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Limit file size to 500KB to avoid exceeding Firestore document limits
         if (file.size > 500 * 1024) {
             toast({
                 variant: 'destructive',
@@ -114,16 +141,54 @@ export default function AddProductPage() {
     const handleRemoveIngredient = (index: number) => {
         setIngredients(ingredients.filter((_, i) => i !== index));
     };
+
+    const handleAddVariant = () => {
+        if (newVariantName.trim() && newVariantPrice.trim() && newVariantQuantity.trim()) {
+            setVariants([
+                ...variants,
+                { 
+                    id: new Date().getTime().toString(),
+                    name: newVariantName.trim(), 
+                    cost: newVariantCost.trim() || '0', 
+                    price: newVariantPrice.trim(), 
+                    quantity: newVariantQuantity.trim() 
+                }
+            ]);
+            setNewVariantName('');
+            setNewVariantCost('');
+            setNewVariantPrice('');
+            setNewVariantQuantity('');
+        }
+    };
+
+    const handleRemoveVariant = (id: string) => {
+        setVariants(variants.filter(v => v.id !== id));
+    };
     
     const finalCostPrice = isManufactured ? totalIngredientCost : parseFloat(costPrice) || 0;
+    
+    const totalInitialQuantity = useMemo(() => {
+        if (!hasVariants) return parseInt(initialQuantity) || 0;
+        return variants.reduce((total, v) => total + (parseInt(v.quantity) || 0), 0);
+    }, [hasVariants, initialQuantity, variants]);
 
     const canAddProduct = useMemo(() => {
-        const hasBaseInfo = productName && sellingPrice && initialQuantity && (isManufactured ? totalIngredientCost > 0 : costPrice);
-        if (isListedOnMarket) {
-            return hasBaseInfo && imageUrl && productDescription && productCategory;
+        const hasBaseInfo = productName.trim() !== '';
+        if (!hasBaseInfo) return false;
+        
+        if (hasVariants) {
+            if (variants.length === 0) return false;
+            if (variants.some(v => !v.name || !v.price || !v.quantity)) return false;
+        } else {
+            if (!sellingPrice || !initialQuantity || (costPrice === '' && !isManufactured)) return false;
+            if(isManufactured && totalIngredientCost === 0) return false;
         }
-        return hasBaseInfo;
-    }, [productName, sellingPrice, initialQuantity, isManufactured, costPrice, totalIngredientCost, isListedOnMarket, imageUrl, productDescription, productCategory]);
+
+        if (isListedOnMarket) {
+            return imageUrl && productDescription && productCategory;
+        }
+        return true;
+    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, imageUrl, productDescription, productCategory]);
 
     const handleAddProduct = async () => {
         if (!canAddProduct || !firestore || !businessId || !businessData) return;
@@ -132,9 +197,17 @@ export default function AddProductPage() {
 
         const productData = {
             name: productName,
-            price: parseFloat(sellingPrice),
-            cost: finalCostPrice,
-            quantity: parseInt(initialQuantity),
+            price: hasVariants ? (variants.length > 0 ? parseFloat(variants[0].price) : 0) : parseFloat(sellingPrice),
+            cost: hasVariants ? 0 : finalCostPrice,
+            quantity: hasVariants ? totalInitialQuantity : parseInt(initialQuantity),
+            hasVariants,
+            variants: hasVariants ? variants.map(v => ({
+                id: v.id,
+                name: v.name,
+                price: parseFloat(v.price),
+                cost: parseFloat(v.cost) || 0,
+                quantity: parseInt(v.quantity)
+            })) : [],
             isPublishedToMarket: isListedOnMarket,
             description: productDescription,
             category: productCategory,
@@ -160,7 +233,14 @@ export default function AddProductPage() {
                     availableQuantity: productData.quantity,
                     createdAt: new Date(),
                     image: imageUrl,
-                    hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
+                    hint: productData.hint,
+                    hasVariants: productData.hasVariants,
+                    variants: productData.variants.map(v => ({
+                        id: v.id,
+                        name: v.name,
+                        price: v.price,
+                        availableQuantity: v.quantity
+                    }))
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
@@ -197,38 +277,90 @@ export default function AddProductPage() {
                             <Label htmlFor="product-name">Product Name</Label>
                             <Input id="product-name" placeholder="e.g., Bottled Water" className="h-12 text-base" value={productName} onChange={e => setProductName(e.target.value)} disabled={isLoading} />
                         </div>
+
+                        <div className="flex items-center space-x-2">
+                            <Switch id="variants-mode" checked={hasVariants} onCheckedChange={setHasVariants} disabled={isLoading || isManufactured}/>
+                            <Label htmlFor="variants-mode">This product has multiple variants (e.g., sizes, colors)</Label>
+                        </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="cost-price">Production/Cost Price</Label>
-                                <Input 
-                                    id="cost-price" 
-                                    type="number" 
-                                    placeholder="0.00" 
-                                    className="h-12 text-base" 
-                                    value={isManufactured ? totalIngredientCost.toFixed(2) : costPrice}
-                                    onChange={e => !isManufactured && setCostPrice(e.target.value)}
-                                    readOnly={isManufactured}
-                                    disabled={isLoading}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="selling-price">Selling Price</Label>
-                                <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} disabled={isLoading} />
-                            </div>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="quantity">Initial Quantity</Label>
-                            <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)} disabled={isLoading}/>
-                        </div>
-                         {canManufacture && (
-                            <div className="flex items-center space-x-2">
-                                <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} disabled={isLoading}/>
-                                <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
-                            </div>
-                         )}
+                        {!hasVariants && (
+                            <>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cost-price">Production/Cost Price</Label>
+                                        <Input 
+                                            id="cost-price" 
+                                            type="number" 
+                                            placeholder="0.00" 
+                                            className="h-12 text-base" 
+                                            value={isManufactured ? totalIngredientCost.toFixed(2) : costPrice}
+                                            onChange={e => !isManufactured && setCostPrice(e.target.value)}
+                                            readOnly={isManufactured}
+                                            disabled={isLoading}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="selling-price">Selling Price</Label>
+                                        <Input id="selling-price" type="number" placeholder="0.00" className="h-12 text-base" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} disabled={isLoading} />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="quantity">Initial Quantity</Label>
+                                    <Input id="quantity" type="number" placeholder="0" className="h-12 text-base" value={initialQuantity} onChange={e => setInitialQuantity(e.target.value)} disabled={isLoading}/>
+                                </div>
+                                {canManufacture && (
+                                    <div className="flex items-center space-x-2">
+                                        <Switch id="manufacturing-mode" checked={isManufactured} onCheckedChange={setIsManufactured} disabled={isLoading || hasVariants}/>
+                                        <Label htmlFor="manufacturing-mode">This is a manufactured product</Label>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </CardContent>
                 </Card>
+
+                {hasVariants && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Product Variants</CardTitle>
+                            <CardDescription>Add each variant with its own price, cost, and quantity. The first variant's price will be shown as the default.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {variants.length > 0 && (
+                                <div className="space-y-2">
+                                    {variants.map((variant) => (
+                                        <div key={variant.id} className="flex items-center gap-2 p-2 rounded-md border text-sm">
+                                            <div className="flex-1">
+                                                <p className="font-medium">{variant.name}</p>
+                                                <p className="text-muted-foreground">
+                                                    Price: {formatCurrency(parseFloat(variant.price), businessData?.currency)} | Qty: {variant.quantity}
+                                                </p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveVariant(variant.id)} disabled={isLoading}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <Separator />
+                            <div className="space-y-2">
+                                <Label>Add Variant</Label>
+                                <div className="space-y-2 rounded-md border p-3">
+                                    <Input placeholder="Variant name (e.g., Small, Blue)" value={newVariantName} onChange={e => setNewVariantName(e.target.value)} disabled={isLoading} />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Input type="number" placeholder="Price" value={newVariantPrice} onChange={e => setNewVariantPrice(e.target.value)} disabled={isLoading} />
+                                        <Input type="number" placeholder="Cost (opt.)" value={newVariantCost} onChange={e => setNewVariantCost(e.target.value)} disabled={isLoading} />
+                                        <Input type="number" placeholder="Quantity" value={newVariantQuantity} onChange={e => setNewVariantQuantity(e.target.value)} disabled={isLoading} />
+                                    </div>
+                                    <Button size="sm" className="w-full" onClick={handleAddVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
+                                        <Plus className="mr-2 h-4 w-4" /> Add Variant
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {isManufactured && canManufacture && (
                      <Card>

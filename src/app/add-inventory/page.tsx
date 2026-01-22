@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,15 +18,24 @@ interface AppUser {
     businessId?: string;
 }
 
-interface Product {
+interface Variant {
     id: string;
     name: string;
     quantity: number;
 }
 
+interface Product {
+    id: string;
+    name: string;
+    quantity: number;
+    hasVariants?: boolean;
+    variants?: Variant[];
+}
+
 export default function AddInventoryPage() {
     const { toast } = useToast();
     const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
+    const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
     const [quantityAdded, setQuantityAdded] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -45,9 +54,16 @@ export default function AddInventoryPage() {
         return query(collection(firestore, `businesses/${businessId}/products`));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+    
+    const selectedProduct = productsData?.find(p => p.id === selectedProductId);
+
+    const handleProductChange = (productId: string) => {
+        setSelectedProductId(productId);
+        setSelectedVariantId(undefined);
+    };
 
     const handleUpdateInventory = async () => {
-        if (!selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0 || !firestore || !businessId) {
+        if (!selectedProductId || !quantityAdded || parseInt(quantityAdded) <= 0 || !firestore || !businessId || !selectedProduct) {
             toast({
                 variant: 'destructive',
                 title: 'Invalid Input',
@@ -57,29 +73,42 @@ export default function AddInventoryPage() {
         }
 
         setIsLoading(true);
-        const selectedProduct = productsData?.find(p => p.id === selectedProductId);
+        const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProductId);
+        
+        if (selectedProduct.hasVariants) {
+            const selectedVariant = selectedProduct.variants?.find(v => v.id === selectedVariantId);
+            if (!selectedVariant) {
+                toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a variant.' });
+                setIsLoading(false);
+                return;
+            }
 
-        if (selectedProduct) {
-            const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProductId);
-            const newQuantity = (selectedProduct.quantity || 0) + parseInt(quantityAdded);
+            const newVariants = selectedProduct.variants?.map(v => 
+                v.id === selectedVariantId 
+                ? { ...v, quantity: (v.quantity || 0) + parseInt(quantityAdded) }
+                : v
+            ) || [];
+
+            updateDocumentNonBlocking(productRef, { variants: newVariants });
+            toast({ title: 'Inventory Updated', description: `Added ${quantityAdded} to ${selectedProduct.name} (${selectedVariant.name}).` });
             
-            updateDocumentNonBlocking(productRef, { quantity: newQuantity });
-            
-            toast({
-                title: 'Inventory Updated',
-                description: `Added ${quantityAdded} to ${selectedProduct?.name}.`,
-            });
-            setSelectedProductId(undefined);
-            setQuantityAdded('');
         } else {
-             toast({
-                variant: 'destructive',
-                title: 'Product not found',
-                description: 'Could not update inventory for the selected product.',
-            });
+            const newQuantity = (selectedProduct.quantity || 0) + parseInt(quantityAdded);
+            updateDocumentNonBlocking(productRef, { quantity: newQuantity });
+            toast({ title: 'Inventory Updated', description: `Added ${quantityAdded} to ${selectedProduct.name}.` });
         }
+        
+        setSelectedProductId(undefined);
+        setSelectedVariantId(undefined);
+        setQuantityAdded('');
         setIsLoading(false);
     };
+    
+    const canUpdate = useMemo(() => {
+        if (!selectedProduct || !quantityAdded) return false;
+        if (selectedProduct.hasVariants && !selectedVariantId) return false;
+        return true;
+    }, [selectedProduct, quantityAdded, selectedVariantId]);
 
     return (
         <MainLayout title="Add Inventory" backHref="/owner/home">
@@ -94,7 +123,7 @@ export default function AddInventoryPage() {
                             <Label htmlFor="product">Product</Label>
                             <Select 
                                 value={selectedProductId} 
-                                onValueChange={setSelectedProductId} 
+                                onValueChange={handleProductChange} 
                                 disabled={isLoadingProducts || isLoading}
                             >
                                 <SelectTrigger id="product" className="h-12 text-base">
@@ -103,7 +132,7 @@ export default function AddInventoryPage() {
                                 <SelectContent>
                                     {productsData?.map((product) => (
                                          <SelectItem key={product.id} value={product.id}>
-                                            {product.name} (Stock: {product.quantity})
+                                            {product.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -116,6 +145,29 @@ export default function AddInventoryPage() {
                                 </Link>
                             </div>
                         </div>
+
+                        {selectedProduct?.hasVariants && (
+                            <div className="space-y-2">
+                                <Label htmlFor="variant">Variant</Label>
+                                <Select 
+                                    value={selectedVariantId} 
+                                    onValueChange={setSelectedVariantId} 
+                                    disabled={!selectedProduct || isLoading}
+                                >
+                                    <SelectTrigger id="variant" className="h-12 text-base">
+                                        <SelectValue placeholder="Select a variant" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {selectedProduct.variants?.map((variant) => (
+                                            <SelectItem key={variant.id} value={variant.id}>
+                                                {variant.name} (Stock: {variant.quantity})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <Label htmlFor="quantity">Quantity Added</Label>
                             <Input 
@@ -130,7 +182,7 @@ export default function AddInventoryPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Button className="w-full h-14 text-lg" onClick={handleUpdateInventory} disabled={isLoading || !selectedProductId || !quantityAdded}>
+                <Button className="w-full h-14 text-lg" onClick={handleUpdateInventory} disabled={isLoading || !canUpdate}>
                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Update Inventory
                 </Button>

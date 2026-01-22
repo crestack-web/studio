@@ -20,7 +20,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 
-interface MarketProduct { businessId: string; productName: string; price: number; image?: string; hint?: string; availableQuantity: number; }
+interface Variant { id: string; name: string; price: number; availableQuantity: number; }
+interface MarketProduct { businessId: string; productName: string; price: number; image?: string; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; currency?: string; }
 
@@ -32,11 +33,12 @@ const CheckoutContent = () => {
     const { user, isUserLoading } = useUser();
     
     const productId = searchParams.get('productId');
+    const variantId = searchParams.get('variantId');
     const quantity = parseInt(searchParams.get('quantity') || '1', 10);
     
     const fullRedirectUrl = useMemo(
-        () => `/market/checkout?productId=${productId}&quantity=${quantity}`,
-        [productId, quantity]
+        () => `/market/checkout?productId=${productId}&quantity=${quantity}${variantId ? `&variantId=${variantId}`: ''}`,
+        [productId, quantity, variantId]
     );
 
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -73,6 +75,11 @@ const CheckoutContent = () => {
         }
     }, [settings]);
 
+    const selectedVariant = useMemo(() => {
+        if (!productData?.hasVariants || !variantId) return null;
+        return productData.variants?.find(v => v.id === variantId);
+    }, [productData, variantId]);
+
     if (isLoadingProduct || isLoadingBusiness || isUserLoading) {
         return (
              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -90,8 +97,10 @@ const CheckoutContent = () => {
             </div>
         );
     }
-
-    const subtotal = productData.price * quantity;
+    
+    const itemPrice = selectedVariant ? selectedVariant.price : productData.price;
+    const itemName = selectedVariant ? `${productData.productName} (${selectedVariant.name})` : productData.productName;
+    const subtotal = itemPrice * quantity;
     const deliveryFee = fulfillmentMethod === 'delivery' ? settings?.delivery.deliveryFee || 0 : 0;
     const total = subtotal + deliveryFee;
     
@@ -109,7 +118,14 @@ const CheckoutContent = () => {
                 buyerId: user.uid,
                 sellerBusinessId: productData.businessId,
                 customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
-                items: [{ productId, productName: productData.productName, quantity, price: productData.price }],
+                items: [{ 
+                    productId, 
+                    productName: productData.productName,
+                    variantId: selectedVariant?.id || null,
+                    variantName: selectedVariant?.name || null,
+                    quantity, 
+                    price: itemPrice 
+                }],
                 subtotal, 
                 deliveryFee, 
                 total,
@@ -138,7 +154,7 @@ const CheckoutContent = () => {
                     <CardContent>
                         <div className="flex items-center gap-4">
                             <Image src={productData.image || 'https://picsum.photos/seed/placeholder/80/80'} alt={productData.productName} width={80} height={80} className="rounded-md object-cover bg-muted" data-ai-hint={productData.hint} />
-                            <div className="flex-1"><p className="font-semibold">{productData.productName}</p><p className="text-sm text-muted-foreground">Qty: {quantity}</p></div>
+                            <div className="flex-1"><p className="font-semibold">{itemName}</p><p className="text-sm text-muted-foreground">Qty: {quantity}</p></div>
                             <p className="font-semibold">{formatCurrency(subtotal, businessProfile.currency)}</p>
                         </div>
                         <Separator className="my-4" />

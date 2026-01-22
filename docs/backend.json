@@ -157,7 +157,7 @@
         },
         "price": {
           "type": "number",
-          "description": "The selling price of the product."
+          "description": "The selling price of the product (used if no variants)."
         },
         "oldPrice": {
           "type": "number",
@@ -165,11 +165,11 @@
         },
         "cost": {
           "type": "number",
-          "description": "The cost price of the product."
+          "description": "The cost price of the product (used if no variants)."
         },
         "quantity": {
           "type": "number",
-          "description": "The current stock quantity of the product."
+          "description": "The current stock quantity of the product (used if no variants)."
         },
         "isPublishedToMarket": {
           "type": "boolean",
@@ -195,12 +195,29 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp indicating when the product was created."
+        },
+        "hasVariants": {
+          "type": "boolean",
+          "description": "Indicates if the product has multiple variants."
+        },
+        "variants": {
+          "type": "array",
+          "description": "List of product variants, each with its own price, cost, and quantity.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "description": "Unique ID for the variant within the product." },
+              "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
+              "price": { "type": "number" },
+              "cost": { "type": "number" },
+              "quantity": { "type": "number" }
+            },
+            "required": ["id", "name", "price", "quantity"]
+          }
         }
       },
       "required": [
         "name",
-        "price",
-        "quantity",
         "isPublishedToMarket",
         "createdAt"
       ]
@@ -221,6 +238,14 @@
         "productName": {
           "type": "string",
           "description": "The name of the product sold (denormalized)."
+        },
+        "variantId": {
+          "type": "string",
+          "description": "The ID of the product variant sold, if applicable."
+        },
+        "variantName": {
+          "type": "string",
+          "description": "The name of the product variant sold (denormalized)."
         },
         "amount": {
           "type": "number",
@@ -277,7 +302,7 @@
         },
         "price": {
           "type": "number",
-          "description": "The price of the product."
+          "description": "The base or default price of the product."
         },
         "oldPrice": {
           "type": "number",
@@ -301,7 +326,7 @@
         },
         "availableQuantity": {
             "type": "number",
-            "description": "The current available stock of the product."
+            "description": "The total available stock of the product across all variants."
         },
         "status": {
           "type": "string",
@@ -312,6 +337,24 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp from the original product creation."
+        },
+        "hasVariants": {
+          "type": "boolean",
+          "description": "Indicates if the product has multiple variants."
+        },
+        "variants": {
+          "type": "array",
+          "description": "List of available product variants for the market.",
+          "items": {
+              "type": "object",
+              "properties": {
+                  "id": { "type": "string", "description": "Unique ID for the variant within the product." },
+                  "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
+                  "price": { "type": "number" },
+                  "availableQuantity": { "type": "number" }
+              },
+              "required": ["id", "name", "price", "availableQuantity"]
+          }
         }
       },
       "required": [
@@ -349,6 +392,8 @@
             "properties": {
               "productId": { "type": "string" },
               "productName": { "type": "string" },
+              "variantId": { "type": "string" },
+              "variantName": { "type": "string" },
               "quantity": { "type": "number" },
               "price": { "type": "number" }
             }

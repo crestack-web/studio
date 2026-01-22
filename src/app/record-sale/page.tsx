@@ -18,11 +18,20 @@ interface AppUser {
     businessId?: string;
 }
 
+interface Variant {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+}
+
 interface Product {
     id: string;
     name: string;
     price: number;
     quantity: number;
+    hasVariants?: boolean;
+    variants?: Variant[];
 }
 
 interface Business {
@@ -34,6 +43,7 @@ export default function RecordSalePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [paymentType, setPaymentType] = useState('cash');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +71,32 @@ export default function RecordSalePage() {
   const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
   const selectedProduct = productsData?.find(p => p.id === selectedProductId);
-  const totalAmount = selectedProduct ? selectedProduct.price * quantity : 0;
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedProduct?.hasVariants || !selectedVariantId) return undefined;
+    return selectedProduct.variants?.find(v => v.id === selectedVariantId);
+  }, [selectedProduct, selectedVariantId]);
+
+  const totalAmount = useMemo(() => {
+    if (!selectedProduct) return 0;
+    const price = selectedProduct.hasVariants ? selectedVariant?.price : selectedProduct.price;
+    return (price || 0) * quantity;
+  }, [selectedProduct, selectedVariant, quantity]);
+
+  const stockAvailable = useMemo(() => {
+    if (!selectedProduct) return 0;
+    const stock = selectedProduct.hasVariants ? selectedVariant?.quantity : selectedProduct.quantity;
+    return stock || 0;
+  }, [selectedProduct, selectedVariant]);
+  
+  const handleProductChange = (productId: string) => {
+    setSelectedProductId(productId);
+    setSelectedVariantId(undefined); // Reset variant when product changes
+    const product = productsData?.find(p => p.id === productId);
+    if (product?.hasVariants && product.variants && product.variants.length > 0) {
+        setSelectedVariantId(product.variants[0].id);
+    }
+  };
 
   const handleConfirmSale = async () => {
     if (!firestore || !businessId || !selectedProduct || quantity <= 0) {
@@ -73,11 +108,16 @@ export default function RecordSalePage() {
         return;
     }
     
-    if (quantity > selectedProduct.quantity) {
+    if (selectedProduct.hasVariants && !selectedVariant) {
+        toast({ variant: 'destructive', title: 'Invalid Sale', description: 'Please select a product variant.' });
+        return;
+    }
+    
+    if (quantity > stockAvailable) {
          toast({
             variant: 'destructive',
             title: 'Not enough stock',
-            description: `You only have ${selectedProduct.quantity} units of ${selectedProduct.name} left.`,
+            description: `You only have ${stockAvailable} units of ${selectedProduct.name} ${selectedVariant?.name || ''} left.`,
         });
         return;
     }
@@ -88,6 +128,8 @@ export default function RecordSalePage() {
         businessId,
         productId: selectedProduct.id,
         productName: selectedProduct.name,
+        variantId: selectedVariant?.id || null,
+        variantName: selectedVariant?.name || null,
         amount: totalAmount,
         quantity,
         paymentType,
@@ -98,13 +140,11 @@ export default function RecordSalePage() {
     const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
     
     try {
-        // As per instructions, client-side inventory updates are removed.
-        // A backend function should now handle decrementing product quantity.
         addDocumentNonBlocking(salesCollectionRef, saleData);
 
         toast({
           title: "Sale Recorded",
-          description: `Sold ${quantity} of ${selectedProduct.name}. Inventory will be updated shortly.`,
+          description: `Sold ${quantity} of ${selectedProduct.name}${selectedVariant ? ` (${selectedVariant.name})` : ''}. Inventory will be updated shortly.`,
         });
         router.back();
     } catch (error) {
@@ -130,19 +170,37 @@ export default function RecordSalePage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="product">Product</Label>
-              <Select onValueChange={setSelectedProductId} value={selectedProductId} disabled={isLoadingProducts || isLoading}>
+              <Select onValueChange={handleProductChange} value={selectedProductId} disabled={isLoadingProducts || isLoading}>
                 <SelectTrigger id="product" className="h-12 text-base">
                   <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
                 </SelectTrigger>
                 <SelectContent>
                   {productsData?.map(product => (
-                    <SelectItem key={product.id} value={product.id} disabled={product.quantity <= 0}>
-                      {`${product.name} (Stock: ${product.quantity})`}
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedProduct?.hasVariants && (
+              <div className="space-y-2">
+                <Label htmlFor="variant">Variant</Label>
+                <Select onValueChange={setSelectedVariantId} value={selectedVariantId} disabled={!selectedProduct || isLoading}>
+                  <SelectTrigger id="variant" className="h-12 text-base">
+                    <SelectValue placeholder="Select a variant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedProduct.variants?.map(variant => (
+                      <SelectItem key={variant.id} value={variant.id} disabled={variant.quantity <= 0}>
+                        {variant.name} (Stock: {variant.quantity})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 items-end">
                 <div className="space-y-2">
@@ -155,7 +213,7 @@ export default function RecordSalePage() {
                         value={quantity}
                         onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
-                        max={selectedProduct?.quantity}
+                        max={stockAvailable}
                         disabled={!selectedProduct || isLoading}
                     />
                 </div>
@@ -193,7 +251,7 @@ export default function RecordSalePage() {
           </CardContent>
         </Card>
         
-        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > (selectedProduct?.quantity || 0) || isLoading}>
+        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > stockAvailable || isLoading || (selectedProduct.hasVariants && !selectedVariant)}>
           {isLoading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Check className="mr-2 h-6 w-6" />}
           {isLoading ? 'Recording...' : 'Confirm Sale'}
         </Button>
