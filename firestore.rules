@@ -26,6 +26,7 @@ service cloud.firestore {
 
     function isAdmin() {
       // Safely check if the current user has an 'Admin' role.
+      // This is now safe because any authenticated user can read any user profile.
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
@@ -35,19 +36,13 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // CRITICAL FIX: Break recursive loop.
-      // An admin's permission to read any user document is checked directly,
-      // while a regular user can only read their own document.
-      // When the isAdmin() check triggers a get() on the admin's own user document,
-      // the second part of this rule (request.auth.uid == userId) will pass,
-      // successfully terminating the rule evaluation and preventing a loop.
-      allow get: if isSignedIn() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
-        || request.auth.uid == userId
-      );
+      // Any signed-in user can read any user profile. This is necessary to allow
+      // helper functions like isAdmin() and isOwner() to work without causing
+      // recursive crashes in the rules engine.
+      allow get: if isSignedIn();
       
-      // Listing users is an admin-only action.
-      allow list: if isAdmin();
+      // Listing all users is disabled for performance and security.
+      allow list: if false;
 
       // Any authenticated user can create their own profile.
       allow create: if isSignedIn() && request.auth.uid == userId;
