@@ -5,18 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Filter, Building, Handshake, MapPin, BarChart, ChevronRight } from 'lucide-react';
+import { Filter, Building } from 'lucide-react';
 import InvestorLayout from '@/components/app/investor-layout';
 
-const profitSharingOpportunities = [
-  { id: 'biz1', name: 'Aisha\'s Crafts', industry: 'Fashion', location: 'Lagos, NG', revenueRange: '₦1M - ₦5M', investmentType: 'Profit Sharing' },
-  { id: 'biz2', name: 'Femi\'s Farm', industry: 'Agriculture', location: 'Ibadan, NG', revenueRange: '₦500K - ₦2M', investmentType: 'Profit Sharing' },
-  { id: 'biz4', name: 'Mama\'s Kitchen', industry: 'Food & Beverage', location: 'Kano, NG', revenueRange: '₦2M - ₦8M', investmentType: 'Profit Sharing' },
-];
-
-const equityOpportunities = [
-  { id: 'biz3', name: 'City Electronics Inc.', industry: 'Electronics', location: 'Abuja, NG', revenueRange: '₦20M - ₦50M', investmentType: 'Equity' },
-];
 
 export default function InvestPage() {
     return (
@@ -42,7 +33,7 @@ export default function InvestPage() {
                     <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Industry / Niche</label>
-                            <Select>
+                            <Select disabled>
                                 <SelectTrigger><SelectValue placeholder="All Industries" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="fashion">Fashion</SelectItem>
@@ -55,7 +46,7 @@ export default function InvestPage() {
                         </div>
                         <div className="space-y-2">
                              <label className="text-sm font-medium">Location</label>
-                             <Select>
+                             <Select disabled>
                                 <SelectTrigger><SelectValue placeholder="All Locations" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="lagos">Lagos, NG</SelectItem>
@@ -67,7 +58,7 @@ export default function InvestPage() {
                         </div>
                          <div className="space-y-2">
                              <label className="text-sm font-medium">Revenue Range (Annual)</label>
-                             <Select>
+                             <Select disabled>
                                 <SelectTrigger><SelectValue placeholder="Any Revenue" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="1">&lt; ₦5M</SelectItem>
@@ -79,7 +70,7 @@ export default function InvestPage() {
                         </div>
                         <div className="space-y-2">
                              <label className="text-sm font-medium">Investment Type</label>
-                             <Select>
+                             <Select disabled>
                                 <SelectTrigger><SelectValue placeholder="All Types" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="profit-sharing">Profit Sharing</SelectItem>
@@ -90,73 +81,14 @@ export default function InvestPage() {
                     </CardContent>
                 </Card>
 
-                {/* Investment Sections */}
-                <div className="space-y-16">
-                    <section>
-                        <div className="flex items-center gap-3 mb-6">
-                            <Handshake className="w-8 h-8 text-accent"/>
-                            <h2 className="text-2xl font-bold font-headline sm:text-3xl">Profit-Sharing Opportunities</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {profitSharingOpportunities.map(biz => (
-                                <Link href={`/invest/${biz.id}`} key={biz.id}>
-                                    <Card className="h-full overflow-hidden group cursor-pointer hover:border-primary transition-colors duration-200">
-                                        <CardHeader>
-                                            <CardTitle>{biz.name}</CardTitle>
-                                            <CardDescription>{biz.industry}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3 text-sm">
-                                             <div className="flex items-center gap-2 text-muted-foreground">
-                                                <MapPin className="w-4 h-4" />
-                                                <span>{biz.location}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <BarChart className="w-4 h-4" />
-                                                <span>Revenue: {biz.revenueRange}</span>
-                                            </div>
-                                        </CardContent>
-                                        <div className="p-4 pt-2 mt-auto text-sm font-semibold text-primary flex items-center justify-end group-hover:text-accent">
-                                            View Details <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
-                                        </div>
-                                    </Card>
-                                </Link>
-                            ))}
-                        </div>
-                    </section>
-
-                    <section>
-                         <div className="flex items-center gap-3 mb-6">
-                            <Building className="w-8 h-8 text-accent"/>
-                            <h2 className="text-2xl font-bold font-headline sm:text-3xl">Equity Investment Opportunities</h2>
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {equityOpportunities.map(biz => (
-                                <Link href={`/invest/${biz.id}`} key={biz.id}>
-                                    <Card className="h-full overflow-hidden group cursor-pointer hover:border-primary transition-colors duration-200">
-                                         <CardHeader>
-                                            <CardTitle>{biz.name}</CardTitle>
-                                            <CardDescription>{biz.industry}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3 text-sm">
-                                             <div className="flex items-center gap-2 text-muted-foreground">
-                                                <MapPin className="w-4 h-4" />
-                                                <span>{biz.location}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-muted-foreground">
-                                                <BarChart className="w-4 h-4" />
-                                                <span>Revenue: {biz.revenueRange}</span>
-                                            </div>
-                                        </CardContent>
-                                        <div className="p-4 pt-2 mt-auto text-sm font-semibold text-primary flex items-center justify-end group-hover:text-accent">
-                                            View Profile <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
-                                        </div>
-                                    </Card>
-                                </Link>
-                            ))}
-                        </div>
-                    </section>
+                {/* Empty State */}
+                <div className="text-center py-20 border-2 border-dashed rounded-lg">
+                    <Building className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">Opportunities Coming Soon</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        We are currently building our network of verified businesses. Check back soon for investment opportunities.
+                    </p>
                 </div>
-
             </div>
         </InvestorLayout>
     );
