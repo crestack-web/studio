@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -11,8 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingCart, Store, Star } from 'lucide-react';
 import MainLayout from '@/components/app/main-layout';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 
@@ -32,6 +32,27 @@ interface BusinessProfile {
     currency: string;
 }
 
+const ProductCard = ({ product, currency }: { product: MarketProduct, currency?: string }) => (
+    <Link href={`/market/product/${product.id}`} className="block group">
+        <Card className="h-full flex flex-col overflow-hidden hover:border-primary transition-colors duration-200">
+            <div className="aspect-square relative overflow-hidden">
+                <Image
+                    src={product.image || `https://picsum.photos/seed/${product.id}/400/400`}
+                    alt={product.productName}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    data-ai-hint={product.hint || product.category}
+                />
+            </div>
+            <CardContent className="p-3 flex-1 flex flex-col">
+                <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName}</h3>
+                <p className="font-bold text-base mt-2">{formatCurrency(product.price, currency)}</p>
+            </CardContent>
+        </Card>
+    </Link>
+);
+
+
 const ProductDetailContent = () => {
     const params = useParams();
     const productId = params.productId as string;
@@ -49,6 +70,22 @@ const ProductDetailContent = () => {
         return doc(firestore, 'businessProfiles', productData.businessId);
     }, [firestore, productData?.businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
+    
+    const similarProductsQuery = useMemoFirebase(() => {
+        if (!firestore || !productData?.category) return null;
+        return query(
+            collection(firestore, 'marketProducts'),
+            where('category', '==', productData.category),
+            limit(5) // Fetch 5 just in case the current product is included
+        );
+    }, [firestore, productData?.category]);
+
+    const { data: similarProductsData, isLoading: isLoadingSimilar } = useCollection<MarketProduct>(similarProductsQuery);
+
+    const similarProducts = useMemo(() => {
+        if (!similarProductsData) return [];
+        return similarProductsData.filter(p => p.id !== productId).slice(0, 4);
+    }, [similarProductsData, productId]);
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
@@ -161,6 +198,31 @@ const ProductDetailContent = () => {
                             </Link>
                         </div>
                     </div>
+                </div>
+
+                <div className="mt-16 pt-8 border-t">
+                    <h2 className="text-2xl font-bold font-headline mb-6">Similar Products</h2>
+                    {isLoadingSimilar ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {[...Array(4)].map((_, i) => (
+                                <Card key={i}>
+                                    <Skeleton className="aspect-square w-full" />
+                                    <CardContent className="p-3">
+                                        <Skeleton className="h-5 w-3/4" />
+                                        <Skeleton className="h-6 w-1/2 mt-2" />
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : similarProducts.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {similarProducts.map(product => (
+                                <ProductCard key={product.id} product={product} currency={businessData?.currency} />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">No similar products found.</p>
+                    )}
                 </div>
            </div>
         </MainLayout>
