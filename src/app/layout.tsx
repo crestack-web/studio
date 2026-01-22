@@ -8,7 +8,6 @@ import { LanguageProvider } from '@/context/language-provider';
 export const metadata: Metadata = {
   title: 'Busmo',
   description: 'Your AI partner for managing your business money.',
-  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -19,8 +18,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#1A237E" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png"></link>
       </head>
       <body className="font-body antialiased">
         <LanguageProvider>
