@@ -27,14 +27,14 @@ export default function MainLayout({ children, title, backHref }: MainLayoutProp
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-card">
+      <header className="sticky top-0 z-10 flex items-center h-16 px-4 border-b bg-card print:hidden">
         <Button variant="ghost" size="icon" className="h-10 w-10 mr-2" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
           <span className="sr-only">{t('main_layout.back')}</span>
         </Button>
         <h1 className="text-xl font-headline font-semibold flex-1 text-center truncate pr-12">{title}</h1>
       </header>
-      <main className="flex-1 flex flex-col items-center p-4 sm:p-6">{children}</main>
+      <main className="flex-1 flex flex-col items-center p-4 sm:p-6 print:p-0 print:m-0">{children}</main>
     </div>
   );
 }

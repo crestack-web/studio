@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, serverTimestamp, addDoc } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 
 interface AppUser {
@@ -35,7 +35,20 @@ interface Product {
 }
 
 interface Business {
+    businessName: string;
     currency: string;
+}
+
+interface SaleDetails {
+    productName: string;
+    variantName: string | null;
+    quantity: number;
+    pricePerItem: number;
+    totalAmount: number;
+    paymentType: string;
+    businessName?: string;
+    currency?: string;
+    date: Date;
 }
 
 
@@ -47,6 +60,7 @@ export default function RecordSalePage() {
   const [quantity, setQuantity] = useState(1);
   const [paymentType, setPaymentType] = useState('cash');
   const [isLoading, setIsLoading] = useState(false);
+  const [lastSaleDetails, setLastSaleDetails] = useState<SaleDetails | null>(null);
 
   const firestore = useFirestore();
   const { user: authUser } = useUser();
@@ -89,6 +103,13 @@ export default function RecordSalePage() {
     return stock || 0;
   }, [selectedProduct, selectedVariant]);
   
+  const resetForm = () => {
+    setSelectedProductId(undefined);
+    setSelectedVariantId(undefined);
+    setQuantity(1);
+    setPaymentType('cash');
+  }
+
   const handleProductChange = (productId: string) => {
     setSelectedProductId(productId);
     setSelectedVariantId(undefined); // Reset variant when product changes
@@ -140,13 +161,24 @@ export default function RecordSalePage() {
     const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
     
     try {
-        addDocumentNonBlocking(salesCollectionRef, saleData);
+        await addDoc(salesCollectionRef, saleData);
 
         toast({
           title: "Sale Recorded",
-          description: `Sold ${quantity} of ${selectedProduct.name}${selectedVariant ? ` (${selectedVariant.name})` : ''}. Inventory will be updated shortly.`,
+          description: `Sold ${quantity} of ${selectedProduct.name}${selectedVariant ? ` (${selectedVariant.name})` : ''}.`,
         });
-        router.back();
+        
+        setLastSaleDetails({
+            productName: selectedProduct.name,
+            variantName: selectedVariant?.name || null,
+            quantity: quantity,
+            pricePerItem: selectedVariant?.price ?? selectedProduct.price,
+            totalAmount: totalAmount,
+            paymentType: paymentType,
+            businessName: businessData?.businessName,
+            currency: businessData?.currency,
+            date: new Date(),
+        });
     } catch (error) {
         console.error("Error recording sale:", error);
         toast({
@@ -159,103 +191,148 @@ export default function RecordSalePage() {
     }
   }
 
+  const handleNewSaleClick = () => {
+    setLastSaleDetails(null);
+    resetForm();
+  };
+
   return (
-    <MainLayout title="Record Sale">
-      <div className="w-full max-w-md space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>New Sale</CardTitle>
-            <CardDescription>Select a product from your inventory to record a sale.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="product">Product</Label>
-              <Select onValueChange={handleProductChange} value={selectedProductId} disabled={isLoadingProducts || isLoading}>
-                <SelectTrigger id="product" className="h-12 text-base">
-                  <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {productsData?.map(product => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedProduct?.hasVariants && (
-              <div className="space-y-2">
-                <Label htmlFor="variant">Variant</Label>
-                <Select onValueChange={setSelectedVariantId} value={selectedVariantId} disabled={!selectedProduct || isLoading}>
-                  <SelectTrigger id="variant" className="h-12 text-base">
-                    <SelectValue placeholder="Select a variant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedProduct.variants?.map(variant => (
-                      <SelectItem key={variant.id} value={variant.id} disabled={variant.quantity <= 0}>
-                        {variant.name} (Stock: {variant.quantity})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4 items-end">
-                <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input 
-                        id="quantity" 
-                        type="number" 
-                        placeholder="1" 
-                        className="h-12 text-base" 
-                        value={quantity}
-                        onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                        min="1"
-                        max={stockAvailable}
-                        disabled={!selectedProduct || isLoading}
-                    />
-                </div>
-                <div className="text-right">
-                    <Label>Total Amount</Label>
-                    <div className="font-bold text-3xl h-12 flex items-center justify-end">
-                        {formatCurrency(totalAmount, businessData?.currency)}
+    <MainLayout title={lastSaleDetails ? "Sale Recorded" : "Record Sale"}>
+        {lastSaleDetails ? (
+            <div className="w-full max-w-xs text-center">
+                 <Card id="receipt-content" className="p-4 text-left bg-white text-black font-mono text-xs">
+                    <div className="text-center space-y-1 mb-4">
+                        <h3 className="font-bold text-sm">{lastSaleDetails.businessName}</h3>
+                        <p>{lastSaleDetails.date.toLocaleString()}</p>
                     </div>
+                    <div className="space-y-1 border-t border-b border-dashed border-black py-2">
+                        <div className="flex justify-between">
+                            <span>{lastSaleDetails.productName} {lastSaleDetails.variantName ? `(${lastSaleDetails.variantName})` : ''}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>{lastSaleDetails.quantity} x {formatCurrency(lastSaleDetails.pricePerItem, lastSaleDetails.currency)}</span>
+                            <span>{formatCurrency(lastSaleDetails.totalAmount, lastSaleDetails.currency)}</span>
+                        </div>
+                    </div>
+                    <div className="border-b border-dashed border-black py-2 font-bold text-sm">
+                        <div className="flex justify-between">
+                            <span>TOTAL</span>
+                            <span>{formatCurrency(lastSaleDetails.totalAmount, lastSaleDetails.currency)}</span>
+                        </div>
+                    </div>
+                    <div className="py-2 text-xs">
+                        <p>Paid via: {lastSaleDetails.paymentType.toUpperCase()}</p>
+                    </div>
+                    <div className="text-center mt-4">
+                        <p>Thank you for your patronage!</p>
+                    </div>
+                </Card>
+                <div className="mt-6 space-y-2 print:hidden">
+                    <Button onClick={() => window.print()} className="w-full">
+                        <Printer className="mr-2 h-4 w-4" /> Print Receipt
+                    </Button>
+                    <Button variant="outline" onClick={handleNewSaleClick} className="w-full">
+                        Record New Sale
+                    </Button>
                 </div>
             </div>
-            
-            <div className="space-y-3">
-              <Label>Payment Type</Label>
-              <RadioGroup defaultValue="cash" onValueChange={setPaymentType} className="grid grid-cols-3 gap-2">
-                <div>
-                  <RadioGroupItem value="cash" id="cash" className="peer sr-only" disabled={isLoading} />
-                  <Label htmlFor="cash" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                    Cash
-                  </Label>
-                </div>
-                <div>
-                  <RadioGroupItem value="transfer" id="transfer" className="peer sr-only" disabled={isLoading} />
-                  <Label htmlFor="transfer" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                    Transfer
-                  </Label>
-                </div>
-                <div>
-                  <RadioGroupItem value="pos" id="pos" className="peer sr-only" disabled={isLoading} />
-                  <Label htmlFor="pos" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                    POS
-                  </Label>
-                </div>
-              </RadioGroup>
+        ) : (
+            <div className="w-full max-w-md space-y-6">
+                <Card>
+                <CardHeader>
+                    <CardTitle>New Sale</CardTitle>
+                    <CardDescription>Select a product from your inventory to record a sale.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                    <Label htmlFor="product">Product</Label>
+                    <Select onValueChange={handleProductChange} value={selectedProductId} disabled={isLoadingProducts || isLoading}>
+                        <SelectTrigger id="product" className="h-12 text-base">
+                        <SelectValue placeholder={isLoadingProducts ? "Loading products..." : "Select a product"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {productsData?.map(product => (
+                            <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    </div>
+
+                    {selectedProduct?.hasVariants && (
+                    <div className="space-y-2">
+                        <Label htmlFor="variant">Variant</Label>
+                        <Select onValueChange={setSelectedVariantId} value={selectedVariantId} disabled={!selectedProduct || isLoading}>
+                        <SelectTrigger id="variant" className="h-12 text-base">
+                            <SelectValue placeholder="Select a variant" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {selectedProduct.variants?.map(variant => (
+                            <SelectItem key={variant.id} value={variant.id} disabled={variant.quantity <= 0}>
+                                {variant.name} (Stock: {variant.quantity})
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 items-end">
+                        <div className="space-y-2">
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input 
+                                id="quantity" 
+                                type="number" 
+                                placeholder="1" 
+                                className="h-12 text-base" 
+                                value={quantity}
+                                onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                min="1"
+                                max={stockAvailable}
+                                disabled={!selectedProduct || isLoading}
+                            />
+                        </div>
+                        <div className="text-right">
+                            <Label>Total Amount</Label>
+                            <div className="font-bold text-3xl h-12 flex items-center justify-end">
+                                {formatCurrency(totalAmount, businessData?.currency)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                    <Label>Payment Type</Label>
+                    <RadioGroup defaultValue="cash" onValueChange={setPaymentType} className="grid grid-cols-3 gap-2">
+                        <div>
+                        <RadioGroupItem value="cash" id="cash" className="peer sr-only" disabled={isLoading} />
+                        <Label htmlFor="cash" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                            Cash
+                        </Label>
+                        </div>
+                        <div>
+                        <RadioGroupItem value="transfer" id="transfer" className="peer sr-only" disabled={isLoading} />
+                        <Label htmlFor="transfer" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                            Transfer
+                        </Label>
+                        </div>
+                        <div>
+                        <RadioGroupItem value="pos" id="pos" className="peer sr-only" disabled={isLoading} />
+                        <Label htmlFor="pos" className="flex h-12 items-center justify-center rounded-md border-2 border-muted bg-popover hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                            POS
+                        </Label>
+                        </div>
+                    </RadioGroup>
+                    </div>
+                </CardContent>
+                </Card>
+                
+                <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > stockAvailable || isLoading || (selectedProduct.hasVariants && !selectedVariant)}>
+                {isLoading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Check className="mr-2 h-6 w-6" />}
+                {isLoading ? 'Recording...' : 'Confirm Sale'}
+                </Button>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Button onClick={handleConfirmSale} className="w-full h-16 text-xl bg-accent text-accent-foreground hover:bg-accent/90" disabled={!selectedProduct || quantity > stockAvailable || isLoading || (selectedProduct.hasVariants && !selectedVariant)}>
-          {isLoading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Check className="mr-2 h-6 w-6" />}
-          {isLoading ? 'Recording...' : 'Confirm Sale'}
-        </Button>
-      </div>
+        )}
     </MainLayout>
   );
 }
