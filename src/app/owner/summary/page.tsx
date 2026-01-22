@@ -8,11 +8,11 @@ import { doc, query, collection, Timestamp, where } from 'firebase/firestore';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
 import { ShieldCheck, Printer, ArrowLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 
 interface AppUser {
@@ -27,6 +27,7 @@ interface Business {
 
 interface Sale {
     id: string;
+    productId: string;
     productName: string;
     amount: number;
     quantity: number;
@@ -41,6 +42,14 @@ interface Expense {
     createdAt: Timestamp;
 }
 
+interface Transaction {
+    id: string;
+    type: 'deposit' | 'withdrawal';
+    amount: number;
+    description: string;
+    createdAt: Timestamp;
+}
+
 interface Product {
     id: string;
     name: string;
@@ -48,14 +57,14 @@ interface Product {
     price: number;
 }
 
-const StatCard = ({ title, value, isLoading, currency = false, currencyCode }: { title: string; value: number; isLoading: boolean; currency?: boolean; currencyCode?: string; }) => (
+const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isProfit = false }: { title: string; value: number; isLoading: boolean; currency?: boolean; currencyCode?: string; isProfit?: boolean }) => (
     <Card>
         <CardHeader className="pb-2">
             <CardDescription>{title}</CardDescription>
         </CardHeader>
         <CardContent>
             {isLoading ? <Skeleton className="h-8 w-3/4" /> : (
-                <p className="text-2xl font-bold">
+                <p className={cn("text-2xl font-bold", isProfit && (value >= 0 ? 'text-success' : 'text-destructive'))}>
                     {currency ? formatCurrencyUtil(value, currencyCode) : value}
                 </p>
             )}
@@ -104,39 +113,58 @@ function StatementContent() {
     }, [firestore, businessId, dateRange]);
     const { data: expensesData, isLoading: isLoadingExpenses } = useCollection<Expense>(expensesQuery);
 
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId || !dateRange.from || !dateRange.to) return null;
+        return query(collection(firestore, `businesses/${businessId}/transactions`), where('createdAt', '>=', dateRange.from), where('createdAt', '<=', dateRange.to));
+    }, [firestore, businessId, dateRange]);
+    const { data: transactionsData, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
         return query(collection(firestore, `businesses/${businessId}/products`));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
-    const { summary, sortedSales, sortedExpenses } = useMemo(() => {
-        if (!salesData || !productsData || !expensesData) {
-            return { summary: { totalRevenue: 0, cogs: 0, grossProfit: 0, totalExpenses: 0, netProfit: 0 }, sortedSales: [], sortedExpenses: [] };
+    const { summary, sortedSales, sortedExpenses, sortedTransactions } = useMemo(() => {
+        const emptyState = { 
+            summary: { totalRevenue: 0, cogs: 0, grossProfit: 0, totalExpenses: 0, netProfit: 0, totalDeposits: 0, totalWithdrawals: 0 }, 
+            sortedSales: [], 
+            sortedExpenses: [],
+            sortedTransactions: []
+        };
+        if (!salesData || !productsData || !expensesData || !transactionsData) {
+            return emptyState;
         }
 
         const totalRevenue = salesData.reduce((acc, sale) => acc + sale.amount, 0);
-        
         const cogs = salesData.reduce((acc, sale) => {
             const product = productsData.find(p => p.id === sale.productId);
             return acc + (product ? product.cost * sale.quantity : 0);
         }, 0);
-
         const totalExpenses = expensesData.reduce((acc, exp) => acc + exp.amount, 0);
         const grossProfit = totalRevenue - cogs;
         const netProfit = grossProfit - totalExpenses;
         
+        const totalDeposits = transactionsData.filter(t => t.type === 'deposit').reduce((acc, t) => acc + t.amount, 0);
+        const totalWithdrawals = transactionsData.filter(t => t.type === 'withdrawal').reduce((acc, t) => acc + t.amount, 0);
+
         const sortedSales = [...salesData].sort((a,b) => b.timestamp.toMillis() - a.timestamp.toMillis());
         const sortedExpenses = [...expensesData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        const sortedTransactions = [...transactionsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 
-        return { summary: { totalRevenue, cogs, grossProfit, totalExpenses, netProfit }, sortedSales, sortedExpenses };
-    }, [salesData, productsData, expensesData]);
+        return { 
+            summary: { totalRevenue, cogs, grossProfit, totalExpenses, netProfit, totalDeposits, totalWithdrawals }, 
+            sortedSales, 
+            sortedExpenses,
+            sortedTransactions 
+        };
+    }, [salesData, productsData, expensesData, transactionsData]);
 
     const handlePrint = () => {
         window.print();
     };
 
-    const isLoading = isLoadingBusiness || isLoadingSales || isLoadingExpenses || isLoadingProducts;
+    const isLoading = isLoadingBusiness || isLoadingSales || isLoadingExpenses || isLoadingProducts || isLoadingTransactions;
 
     return (
         <div className="bg-muted/30 dark:bg-background">
@@ -169,15 +197,20 @@ function StatementContent() {
 
                     <div className="mt-8">
                         <h2 className="text-xl font-semibold font-headline mb-4">Financial Summary</h2>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                            <StatCard title="Total Revenue" value={summary.totalRevenue} isLoading={isLoading} currency currencyCode={businessData?.currency} />
                            <StatCard title="Cost of Goods" value={summary.cogs} isLoading={isLoading} currency currencyCode={businessData?.currency} />
+                           <StatCard title="Gross Profit" value={summary.grossProfit} isLoading={isLoading} currency currencyCode={businessData?.currency} isProfit />
                            <StatCard title="Operating Expenses" value={summary.totalExpenses} isLoading={isLoading} currency currencyCode={businessData?.currency} />
-                           <StatCard title="Net Profit" value={summary.netProfit} isLoading={isLoading} currency currencyCode={businessData?.currency} />
+                           <StatCard title="Total Money In" value={summary.totalDeposits} isLoading={isLoading} currency currencyCode={businessData?.currency} />
+                           <StatCard title="Total Money Out" value={summary.totalWithdrawals} isLoading={isLoading} currency currencyCode={businessData?.currency} />
+                        </div>
+                        <div className="mt-4">
+                            <StatCard title="Net Profit / Loss" value={summary.netProfit} isLoading={isLoading} currency currencyCode={businessData?.currency} isProfit />
                         </div>
                     </div>
                     
-                     <div className="mt-10">
+                    <div className="mt-10">
                         <h2 className="text-xl font-semibold font-headline mb-4">Sales Transactions</h2>
                          <Table>
                             <TableHeader>
@@ -207,7 +240,7 @@ function StatementContent() {
                          </Table>
                     </div>
 
-                     <div className="mt-10">
+                    <div className="mt-10">
                         <h2 className="text-xl font-semibold font-headline mb-4">Expense Transactions</h2>
                          <Table>
                              <TableHeader>
@@ -232,6 +265,36 @@ function StatementContent() {
                                     ))
                                 ) : (
                                     <TableRow><TableCell colSpan={4} className="text-center h-24">No expenses recorded in this period.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                         </Table>
+                    </div>
+
+                     <div className="mt-10">
+                        <h2 className="text-xl font-semibold font-headline mb-4">Cash Flow Transactions</h2>
+                         <Table>
+                             <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow><TableCell colSpan={4}><Skeleton className="h-20" /></TableCell></TableRow>
+                                ) : sortedTransactions.length > 0 ? (
+                                    sortedTransactions.map(transaction => (
+                                        <TableRow key={transaction.id}>
+                                            <TableCell>{format(transaction.createdAt.toDate(), 'PP')}</TableCell>
+                                            <TableCell className="capitalize">{transaction.type}</TableCell>
+                                            <TableCell>{transaction.description}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatCurrencyUtil(transaction.amount, businessData?.currency)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow><TableCell colSpan={4} className="text-center h-24">No cash flow transactions recorded in this period.</TableCell></TableRow>
                                 )}
                             </TableBody>
                          </Table>
