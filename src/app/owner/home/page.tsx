@@ -440,34 +440,13 @@ export default function OwnerHomePage() {
                                 <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalDeposits, businessData?.currency)}</p></div>
                                 <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.currency)}</p></div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                            <div className="pt-4">
                                 <Link href={statementUrl} passHref>
                                     <Button variant="secondary" className="w-full">
-                                        View Full Statement
+                                        <Activity className="mr-2 h-4 w-4" />
+                                        View Summary & Statement
                                     </Button>
                                 </Link>
-                                 <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary" className="w-full">
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Download Statement
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Download Business Statement</DialogTitle>
-                                            <DialogDescription>
-                                                This will generate a printable statement for the selected date range.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter className="pt-4">
-                                            <Button onClick={handleDownload}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Generate PDF
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
                             </div>
                         </>
                     ) : (
@@ -475,34 +454,13 @@ export default function OwnerHomePage() {
                             <div className="text-center text-sm text-muted-foreground pt-4">
                                 <p>Record sales and expenses to see your summary for this period.</p>
                             </div>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="pt-4">
                                 <Link href={statementUrl} passHref>
                                     <Button variant="secondary" className="w-full">
-                                        View Statement
+                                        <Activity className="mr-2 h-4 w-4" />
+                                        View Summary & Statement
                                     </Button>
                                 </Link>
-                                 <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary" className="w-full">
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Download Statement
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Download Business Statement</DialogTitle>
-                                            <DialogDescription>
-                                                This will generate a printable statement for the selected date range. This statement will be empty as there is no data.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter className="pt-4">
-                                            <Button onClick={handleDownload}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Generate PDF
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
                             </div>
                         </>
                     )}
