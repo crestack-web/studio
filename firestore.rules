@@ -119,6 +119,25 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
 
+    // Orders placed through the market.
+    match /orders/{orderId} {
+      // Authenticated users can create orders for themselves.
+      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+
+      // The buyer, the seller (business owner), or an admin can view an order.
+      allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(resource.data.sellerBusinessId) || isAdmin();
+      
+      // The seller can update the order status.
+      allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
+
+      // Allow business owners and staff to list orders for their business.
+      allow list: if (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == request.query.where.sellerBusinessId) || isAdmin();
+
+      // Deleting orders is restricted to admins.
+      allow delete: if isAdmin();
+    }
+
+
     // --- CONTENT & SUPPORT ---
     
     // Blog posts
