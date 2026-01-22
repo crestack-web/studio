@@ -18,10 +18,11 @@ service cloud.firestore {
     // Securely checks if the user owns the specified business.
     // IMPORTANT: This performs a 'get' which costs 1 read operation. Use judiciously.
     function isOwner(businessId) {
+      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
       return businessId != null &&
              isSignedIn() &&
-             exists(/databases/$(database)/documents/businesses/$(businessId)) &&
-             get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+             businessDoc != null &&
+             businessDoc.data.ownerId == request.auth.uid;
     }
 
     // Securely checks if the user is a staff member of the specified business.
@@ -117,27 +118,6 @@ service cloud.firestore {
       // Delete: User must be the owner of the business ID of the product being deleted.
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
-
-    // Orders placed through the market.
-    match /orders/{orderId} {
-      // Any authenticated user can create an order for themselves.
-      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-      
-      // The buyer, the seller, or an admin can read an individual order.
-      allow get: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isOwner(resource.data.sellerBusinessId) || isAdmin());
-
-      // The seller or an admin can update an order's status.
-      // Buyers can only update if they are cancelling.
-      allow update: if (isOwner(resource.data.sellerBusinessId) || isAdmin()) || 
-                      (isSignedIn() && resource.data.buyerId == request.auth.uid && request.resource.data.status == 'cancelled');
-
-      // Allow owners to list orders for their business. Admins can list all orders.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where.sellerBusinessId == getBusinessIdForCurrentUser());
-      
-      // Deleting orders is admin-only.
-      allow delete: if isAdmin();
-    }
-
 
     // --- CONTENT & SUPPORT ---
     
