@@ -11,13 +11,11 @@ service cloud.firestore {
     }
 
     // Securely checks if the user has an admin role.
-    // This avoids recursion by checking a separate 'admins' collection.
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Securely checks if the user owns the specified business.
-    // It handles cases where businessId might be null.
     function isOwner(businessId) {
       return businessId != null &&
              isSignedIn() &&
@@ -72,10 +70,20 @@ service cloud.firestore {
       allow list: if isAdmin();
     }
 
-    // Business Subcollections (inventory, products, sales, expenses, etc.)
-    match /businesses/{businessId}/{subcollection}/{docId} 
-      where subcollection in ['inventory', 'products', 'sales', 'expenses', 'transactions'] {
-      // Only the owner, staff, or admins can read and write to sensitive business subcollections.
+    // Business Subcollections
+    match /businesses/{businessId}/inventory/{docId} {
+      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+    }
+    match /businesses/{businessId}/products/{docId} {
+      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+    }
+    match /businesses/{businessId}/sales/{docId} {
+      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+    }
+    match /businesses/{businessId}/expenses/{docId} {
+      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+    }
+    match /businesses/{businessId}/transactions/{docId} {
       allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
     }
 
@@ -120,9 +128,8 @@ service cloud.firestore {
       // Published posts are public. Admins can read all posts.
       allow get: if resource.data.isPublished == true || isAdmin();
 
-      // Listing posts is only allowed for admins to prevent leaking unpublished post titles.
-      // Or for public if they only query for published posts.
-      allow list: if request.query.limit <= 10 || isAdmin();
+      // Allow public list queries only if they filter for published posts.
+      allow list: if (request.query.limit <= 10 && (!('isPublished' in request.query.where) || request.query.where.isPublished == true)) || isAdmin();
       
       // Only admins can create, update, or delete blog posts.
       allow write: if isAdmin();
