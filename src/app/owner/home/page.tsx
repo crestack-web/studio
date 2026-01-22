@@ -32,10 +32,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 const presetQuestions = [
-    "Did I make profit today?",
-    "How much cash did I withdraw?",
-    "Which product sells the most?",
-    "What is my worst selling product?",
+    "How are my sales today?",
+    "Which products should I consider restocking?",
+    "Tell me more about my best selling product.",
+    "What's my net profit today?",
 ];
 
 interface AppUser {
