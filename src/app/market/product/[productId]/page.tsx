@@ -5,17 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, Store, Star } from 'lucide-react';
+import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw } from 'lucide-react';
 import MainLayout from '@/components/app/main-layout';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface Variant { 
     id: string; 
@@ -69,6 +70,7 @@ const ProductDetailContent = () => {
     const firestore = useFirestore();
 
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
+    const [selectedImage, setSelectedImage] = useState<string | undefined>();
 
     const productRef = useMemoFirebase(() => {
         if (!firestore || !productId) return null;
@@ -82,11 +84,25 @@ const ProductDetailContent = () => {
     }, [firestore, productData?.businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
-    useEffect(() => {
-        if (productData?.hasVariants && productData.variants && productData.variants.length > 0) {
-            setSelectedVariantId(productData.variants[0].id);
-        }
+    const imageGallery = useMemo(() => {
+        if (!productData?.image) return [];
+        // Simulate a gallery with 4 images by slightly altering the seed
+        return [
+            productData.image,
+            `https://picsum.photos/seed/${productData.id}-2/800/600`,
+            `https://picsum.photos/seed/${productData.id}-3/800/600`,
+            `https://picsum.photos/seed/${productData.id}-4/800/600`,
+        ];
     }, [productData]);
+
+    useEffect(() => {
+        if (productData) {
+            if (productData.hasVariants && productData.variants && productData.variants.length > 0) {
+                setSelectedVariantId(productData.variants[0].id);
+            }
+            setSelectedImage(imageGallery[0] || productData.image);
+        }
+    }, [productData, imageGallery]);
     
     const selectedVariant = useMemo(() => {
         if (!productData?.hasVariants || !selectedVariantId) return null;
@@ -94,6 +110,8 @@ const ProductDetailContent = () => {
     }, [productData, selectedVariantId]);
 
     const displayPrice = selectedVariant ? selectedVariant.price : productData?.price;
+    const stockAvailable = selectedVariant ? selectedVariant.availableQuantity : productData?.availableQuantity;
+    const isInStock = stockAvailable !== undefined && stockAvailable > 0;
     
     const checkoutUrl = useMemo(() => {
         let url = `/market/checkout?productId=${productId}&quantity=${quantity}`;
@@ -108,7 +126,7 @@ const ProductDetailContent = () => {
         return query(
             collection(firestore, 'marketProducts'),
             where('category', '==', productData.category),
-            limit(5) // Fetch 5 just in case the current product is included
+            limit(5)
         );
     }, [firestore, productData?.category]);
 
@@ -118,27 +136,51 @@ const ProductDetailContent = () => {
         if (!similarProductsData) return [];
         return similarProductsData.filter(p => p.id !== productId).slice(0, 4);
     }, [similarProductsData, productId]);
+    
+    const handleQuantityChange = (change: number) => {
+        setQuantity(prev => Math.max(1, Math.min(prev + change, stockAvailable || 1)));
+    }
+    
+    const trustSignals = [
+        { icon: Truck, text: 'Reliable Delivery' },
+        { icon: ShieldCheck, text: 'Secure Payments' },
+        { icon: RotateCw, text: 'Easy Returns' },
+    ];
+
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
              <MainLayout title="Loading Product..." backHref="/market">
-               <div className="w-full max-w-4xl">
+               <div className="w-full max-w-5xl">
                     <div className="grid md:grid-cols-2 gap-8">
+                        {/* Image Skeleton */}
                         <div>
-                            <Card className="overflow-hidden">
-                                <Skeleton className="aspect-[4/3] w-full" />
-                            </Card>
+                            <Skeleton className="aspect-square w-full rounded-lg" />
+                            <div className="grid grid-cols-4 gap-2 mt-2">
+                                <Skeleton className="aspect-square w-full rounded-md" />
+                                <Skeleton className="aspect-square w-full rounded-md" />
+                                <Skeleton className="aspect-square w-full rounded-md" />
+                                <Skeleton className="aspect-square w-full rounded-md" />
+                            </div>
                         </div>
-                        <div className="flex flex-col gap-6">
+                        {/* Details Skeleton */}
+                        <div className="flex flex-col gap-4">
+                            <Skeleton className="h-5 w-1/3" />
+                            <Skeleton className="h-8 w-3/4" />
+                            <Skeleton className="h-10 w-1/2" />
+                            <Separator />
                             <div className="space-y-2">
-                                <Skeleton className="h-8 w-3/4" />
-                                <Skeleton className="h-10 w-1/2" />
-                                <Skeleton className="h-5 w-full mt-2" />
-                                <Skeleton className="h-5 w-5/6" />
+                                <Skeleton className="h-5 w-24" />
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                </div>
                             </div>
                             <Separator />
-                            <Card><CardContent className="p-4"><Skeleton className="h-12 w-full" /></CardContent></Card>
-                            <Skeleton className="h-14 w-full" />
+                            <div className="flex items-center gap-4">
+                                <Skeleton className="h-14 w-32" />
+                                <Skeleton className="h-14 flex-1" />
+                            </div>
                         </div>
                     </div>
                </div>
@@ -160,96 +202,112 @@ const ProductDetailContent = () => {
 
     return (
         <MainLayout title={productName} backHref="/market">
-           <div className="w-full max-w-4xl">
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div>
-                        <Card className="overflow-hidden">
-                            <div className="aspect-[4/3] w-full relative">
+           <div className="w-full max-w-5xl">
+                <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+                    {/* --- Image Column --- */}
+                    <div className="space-y-4">
+                        <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
                             <Image 
-                                src={productData.image || `https://picsum.photos/seed/${productData.id}/800/600`}
+                                src={selectedImage || `https://picsum.photos/seed/${productData.id}/800/600`}
                                 alt={productName}
                                 fill
-                                className="object-cover"
+                                className="object-contain transition-opacity duration-300"
                                 data-ai-hint={productData.hint || productData.category || productName}
+                                key={selectedImage}
                             />
-                            </div>
-                        </Card>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {imageGallery.map((img, i) => (
+                                <button key={i} onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
+                                    <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-6">
+                    {/* --- Details Column --- */}
+                    <div className="flex flex-col gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold font-headline">{productName}</h1>
-                            <p className="text-3xl font-bold text-primary mt-2">{formatCurrency(displayPrice || 0, businessData?.currency)}</p>
-                            <p className="text-muted-foreground mt-4">{productData.description || 'No description available for this product.'}</p>
+                             {businessData && (
+                                <Link href={`/market/store/${productData.businessId}`} className="text-sm text-primary hover:underline">
+                                    Visit the {businessData.businessName} store
+                                </Link>
+                             )}
+                            <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-1">{productName}</h1>
+                            <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-0.5">
+                                    {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
+                                </div>
+                                <span className="text-sm text-muted-foreground">(25 ratings)</span>
+                                <Separator orientation="vertical" className="h-4"/>
+                                {isInStock ? (
+                                    <Badge variant="secondary" className="bg-success/10 text-success border-success/20">In Stock</Badge>
+                                ) : (
+                                    <Badge variant="destructive">Out of Stock</Badge>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div>
+                            <p className="text-3xl lg:text-4xl font-bold text-primary">{formatCurrency(displayPrice || 0, businessData?.currency)}</p>
                         </div>
                         
                         {productData.hasVariants && productData.variants && productData.variants.length > 0 && (
                             <div>
-                                <Label className="font-semibold">Select Option</Label>
-                                <RadioGroup value={selectedVariantId} onValueChange={setSelectedVariantId} className="mt-2 grid grid-cols-2 gap-2">
+                                <Label className="font-semibold text-base">Select {productData.variants[0].name.match(/\d/)? 'Size' : 'Option'}</Label>
+                                <RadioGroup value={selectedVariantId} onValueChange={setSelectedVariantId} className="mt-2 grid grid-cols-3 lg:grid-cols-4 gap-2">
                                     {productData.variants.map(variant => (
-                                        <Label key={variant.id} htmlFor={variant.id} className="flex items-center space-x-2 rounded-md border-2 p-2 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                            <RadioGroupItem value={variant.id} id={variant.id} className="peer"/>
-                                            <div className="text-sm">
-                                                <span className="font-medium">{variant.name}</span>
-                                                <span className="text-muted-foreground ml-2">({formatCurrency(variant.price, businessData?.currency)})</span>
-                                            </div>
-                                        </Label>
+                                        <div key={variant.id}>
+                                            <RadioGroupItem value={variant.id} id={variant.id} className="peer sr-only" disabled={variant.availableQuantity <= 0} />
+                                            <Label htmlFor={variant.id} className={cn("flex flex-col items-center justify-center rounded-md border-2 p-3 text-sm font-medium cursor-pointer transition-colors hover:bg-accent/50", "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 peer-data-[state=checked]:text-primary", "peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-disabled:hover:bg-transparent")}>
+                                                <span>{variant.name}</span>
+                                                <span className="text-xs text-muted-foreground">{formatCurrency(variant.price, businessData?.currency)}</span>
+                                            </Label>
+                                        </div>
                                     ))}
                                 </RadioGroup>
                             </div>
                         )}
 
-                        <Separator />
-
-                         {businessData && (
-                             <Card>
-                                <CardHeader className="p-4">
-                                    <CardTitle className="text-lg">Sold by</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-0">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="font-semibold text-primary">{businessData.businessName}</p>
-                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                                <span>4.8 (25 reviews)</span>
-                                            </div>
-                                        </div>
-                                        <Link href={`/market/store/${productData.businessId}`}>
-                                            <Button variant="secondary">
-                                                <Store className="mr-2 h-4 w-4" />
-                                                Visit Store
-                                            </Button>
-                                        </Link>
+                        <Card className="bg-muted/30">
+                            <CardContent className="p-4 grid grid-cols-3 gap-4 text-center">
+                                {trustSignals.map(signal => (
+                                    <div key={signal.text} className="flex flex-col items-center gap-2">
+                                        <signal.icon className="w-6 h-6 text-muted-foreground"/>
+                                        <p className="text-xs text-muted-foreground">{signal.text}</p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                         )}
-
-                        <div className="flex items-center gap-4">
-                            <div className="w-24">
-                                <Label htmlFor="quantity" className="sr-only">Quantity</Label>
-                                <Input 
-                                    id="quantity" 
-                                    type="number" 
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                                    min="1" 
-                                    className="h-14 text-lg text-center"
-                                />
+                                ))}
+                            </CardContent>
+                        </Card>
+                        
+                        {/* --- Sticky CTA for Mobile --- */}
+                        <div className="mt-auto pt-4 md:pt-0 sticky bottom-0 md:static bg-background md:bg-transparent py-4 md:p-0 border-t md:border-none -mx-4 px-4 md:mx-0">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center rounded-md border">
+                                    <Button variant="ghost" size="icon" className="h-14 w-14" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}><Minus className="w-5 h-5"/></Button>
+                                    <span className="w-8 text-center text-lg font-bold">{quantity}</span>
+                                    <Button variant="ghost" size="icon" className="h-14 w-14" onClick={() => handleQuantityChange(1)} disabled={quantity >= (stockAvailable || 0)}><Plus className="w-5 h-5"/></Button>
+                                </div>
+                                <Link href={checkoutUrl} className="w-full flex-1">
+                                    <Button className="w-full h-14 text-lg flex-1" disabled={!isInStock}>
+                                        <ShoppingCart className="mr-2 h-6 w-6"/>
+                                        Buy Now
+                                    </Button>
+                                </Link>
                             </div>
-                            <Link href={checkoutUrl} className="w-full flex-1">
-                                <Button className="w-full h-14 text-lg flex-1">
-                                    <ShoppingCart className="mr-2 h-6 w-6"/>
-                                    Proceed to Checkout
-                                </Button>
-                            </Link>
+                            {!isInStock && <p className="text-destructive text-sm text-center mt-2">This item is currently unavailable.</p>}
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-16 pt-8 border-t">
-                    <h2 className="text-2xl font-bold font-headline mb-6">Similar Products</h2>
+                    <h2 className="text-2xl font-bold font-headline mb-6">Product Details</h2>
+                    <p className="text-muted-foreground max-w-2xl">{productData.description || 'No description available for this product.'}</p>
+                </div>
+
+                <div className="mt-16 pt-8 border-t">
+                    <h2 className="text-2xl font-bold font-headline mb-6">You Might Also Like</h2>
                     {isLoadingSimilar ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                             {[...Array(4)].map((_, i) => (
