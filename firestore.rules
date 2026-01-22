@@ -31,6 +31,11 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
     }
+    
+    // Gets the business ID for the currently authenticated user from their user profile.
+    function getBusinessIdForCurrentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId;
+    }
 
 
     // --- USER & ADMIN PROFILES ---
@@ -118,8 +123,8 @@ service cloud.firestore {
       // Only the seller (owner) or an admin can update an order (e.g., to change its status).
       allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
 
-      // Business owners can list orders for their business.
-      allow list: if (request.query.where.sellerBusinessId != null && isOwner(request.query.where.sellerBusinessId)) || isAdmin();
+      // Business owners can list orders for their business if the query filters by their business ID.
+      allow list: if (request.query.where.sellerBusinessId != null && request.query.where.sellerBusinessId == getBusinessIdForCurrentUser()) || isAdmin();
 
       // Deleting orders is an admin-only action.
       allow delete: if isAdmin();
