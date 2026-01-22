@@ -4,9 +4,13 @@ import InvestorLayout from '@/components/app/investor-layout';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Building } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
 
-export default function BusinessProfilePage({ params: { businessId } }: { params: { businessId: string } }) {
+export default function BusinessProfilePage() {
+    const params = useParams();
+    const businessId = params.businessId as string;
+    
     return (
         <InvestorLayout>
             <div className="container mx-auto px-4 py-16 text-center">
