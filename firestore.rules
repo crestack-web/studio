@@ -112,12 +112,11 @@ service cloud.firestore {
 
     // CONTENT & SUPPORT COLLECTIONS
     match /blogs/{blogId} {
-      // Published blogs are public.
-      allow get: if resource.data.isPublished == true;
-      allow list: if true; // Allow listing all blogs for the main blog page
+      // Public can read published posts. Admins can read anything.
+      allow read: if resource.data.isPublished == true || isAdmin();
       
       // Only admins can manage blog content.
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /supportTickets/{ticketId} {
