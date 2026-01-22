@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Building } from 'lucide-react';
 
 
-export default function BusinessProfilePage({ params }: { params: { businessId: string } }) {
+export default function BusinessProfilePage({ params: { businessId } }: { params: { businessId: string } }) {
     return (
         <InvestorLayout>
             <div className="container mx-auto px-4 py-16 text-center">
