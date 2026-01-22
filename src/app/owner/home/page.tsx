@@ -435,10 +435,10 @@ export default function OwnerHomePage() {
                     ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-xl font-bold sm:text-2xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalDeposits, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-lg font-bold sm:text-xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalDeposits, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.currency)}</p></div>
                             </div>
                             <div className="pt-4">
                                 <Link href={statementUrl} passHref>
