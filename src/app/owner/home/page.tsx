@@ -432,7 +432,7 @@ export default function OwnerHomePage() {
                            <Skeleton className="h-28 w-full" />
                            <Skeleton className="h-10 w-full" />
                         </div>
-                    ) : salesData.length > 0 || transactionsData.length > 0 ? (
+                    ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold sm:text-2xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p></div>
@@ -478,7 +478,7 @@ export default function OwnerHomePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     {isLoadingSales ? <Skeleton className="h-24" /> : salesData.length > 0 ? (
+                     {isLoadingSales ? <Skeleton className="h-24" /> : (salesData && salesData.length > 0) ? (
                         <>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                              <div className="p-4 rounded-lg bg-muted/50">
