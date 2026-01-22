@@ -10,6 +10,10 @@ service cloud.firestore {
     }
 
     function isOwner(businessId) {
+      // Add a guard against null or empty businessId to prevent crashes.
+      if (businessId == null || businessId == '') {
+        return false;
+      }
       // Helper to safely check if the current user owns the specified business.
       // This is safe because it reads from /users and /businesses, which have their own security rules.
       let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
@@ -72,7 +76,7 @@ service cloud.firestore {
 
     match /businessProfiles/{businessId} {
       // Publicly readable for the marketplace.
-      allow get: if true; 
+      allow get;
       
       // An owner or admin must create the public profile.
       allow create, update, delete: if isOwner(businessId) || isAdmin();
