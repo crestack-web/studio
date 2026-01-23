@@ -253,12 +253,18 @@ export default function MarketPage() {
                 {/* Paid Promotions */}
                 <section>
                     <Link href="#">
-                        <div className="relative h-40 w-full rounded-lg overflow-hidden flex items-center justify-start p-8 bg-amber-400 dark:bg-amber-600 text-black">
-                            <Image src="https://picsum.photos/seed/promo1/1200/300" alt="Promotional Banner" fill className="object-cover opacity-20" data-ai-hint="special offer" />
+                        <div className="relative h-48 w-full rounded-lg overflow-hidden flex items-center justify-start p-8 bg-primary text-primary-foreground">
+                            <Image 
+                                src="https://images.unsplash.com/photo-1567446537708-ac4aa74c9c28?w=1200&auto=format&fit=crop" 
+                                alt="Shoppers on Busmo" 
+                                fill 
+                                className="object-cover object-center opacity-20" 
+                                data-ai-hint="people shopping" 
+                            />
                             <div className="relative z-10">
-                                <p className="text-sm font-bold uppercase tracking-widest">Sponsored</p>
-                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Ankara Fest is Here!</h2>
-                                <p className="text-lg mt-1">Get 20% off all traditional wear.</p>
+                                <p className="text-sm font-bold uppercase tracking-widest">Special Announcement</p>
+                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">The Marketplace is Here!</h2>
+                                <p className="text-lg mt-1">Discover amazing products from local sellers.</p>
                             </div>
                         </div>
                     </Link>
