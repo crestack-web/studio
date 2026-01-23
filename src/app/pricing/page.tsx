@@ -2,9 +2,9 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Check, Menu, X } from 'lucide-react';
+import { Check, Menu, X, Globe } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ import { useLanguage } from '@/context/language-provider';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const plans = [
     {
@@ -83,18 +84,29 @@ const plans = [
     }
 ];
 
+const availableCountries = [
+    { code: 'NG', name: 'Nigeria (NGN)' },
+    { code: 'GH', name: 'Ghana (GHS)' },
+    { code: 'NE', name: 'Niger (XOF)' },
+    { code: 'CM', name: 'Cameroon (XAF)' },
+];
+
+
 export default function PricingPage() {
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
     const { language, t } = useLanguage();
 
-    const currencyCode = useMemo(() => {
-        switch (language) {
-            case 'fr':
-                return 'NE'; // Use Niger for CFA as an example
-            default:
-                return 'NG';
+    const [selectedCountry, setSelectedCountry] = useState('NG');
+
+    useEffect(() => {
+        if (language === 'fr') {
+            setSelectedCountry('NE');
+        } else {
+            setSelectedCountry('NG');
         }
     }, [language]);
+    
+    const currencyCode = selectedCountry;
 
 
     useEffect(() => {
@@ -163,8 +175,26 @@ export default function PricingPage() {
                     {t('pricing.subtitle')}
                 </p>
             </div>
+            
+            <div className="flex justify-center items-center gap-4 mt-8">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-48">
+                             <Globe className="mr-2 h-4 w-4" />
+                            <span>{availableCountries.find(c => c.code === selectedCountry)?.name}</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        {availableCountries.map(country => (
+                            <DropdownMenuItem key={country.code} onSelect={() => setSelectedCountry(country.code)}>
+                                {country.name}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
-            <Tabs defaultValue="monthly" className="w-full max-w-7xl mx-auto mt-12">
+            <Tabs defaultValue="monthly" className="w-full max-w-7xl mx-auto mt-4">
                 <div className="flex justify-center">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
                         <TabsTrigger value="monthly" className="px-8 py-2">{t('pricing.monthly')}</TabsTrigger>
