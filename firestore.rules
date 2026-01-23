@@ -18,24 +18,41 @@ service cloud.firestore {
     // Securely checks if the user owns the specified business.
     // IMPORTANT: This performs a 'get' which costs 1 read operation. Use judiciously.
     function isOwner(businessId) {
-      let businessDoc = get(/databases/$(database)/documents/businesses/$(businessId));
-      return businessId != null &&
-             isSignedIn() &&
-             businessDoc != null &&
-             businessDoc.data.ownerId == request.auth.uid;
+      if (businessId == null || !isSignedIn()) {
+        return false;
+      }
+      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
+      if (!exists(businessDocPath)) {
+          return false;
+      }
+      let businessDoc = get(businessDocPath);
+      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
 
     // Securely checks if the user is a staff member of the specified business.
     function isStaff(businessId) {
-      return businessId != null &&
-             isSignedIn() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
+      if (businessId == null || !isSignedIn()) {
+        return false;
+      }
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      if (!exists(userDocPath)) {
+        return false;
+      }
+      let userDoc = get(userDocPath);
+      return 'businessId' in userDoc.data && userDoc.data.businessId == businessId;
     }
     
     // Gets the business ID for the currently authenticated user from their user profile.
     function getBusinessIdForCurrentUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId;
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      if (!exists(userDocPath)) {
+        return null;
+      }
+      let userDoc = get(userDocPath);
+      if (!('businessId' in userDoc.data)) {
+        return null;
+      }
+      return userDoc.data.businessId;
     }
 
 
@@ -131,7 +148,7 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
 
       // Allow business owners and staff to list orders for their business.
-      allow list: if (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == request.query.where.sellerBusinessId) || isAdmin();
+      allow list: if (getBusinessIdForCurrentUser() != null && getBusinessIdForCurrentUser() == request.query.where.sellerBusinessId) || isAdmin();
 
       // Deleting orders is restricted to admins.
       allow delete: if isAdmin();
