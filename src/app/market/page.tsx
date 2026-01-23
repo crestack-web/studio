@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, Zap } from 'lucide-react';
+import { Star, Zap, Truck, Store } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
@@ -184,6 +184,24 @@ export default function MarketPage() {
         <MarketLayout>
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
+                {/* Utility Banners */}
+                <section className="grid md:grid-cols-2 gap-4">
+                    <Card className="flex items-center p-4 bg-primary/5 border-primary/10">
+                        <Truck className="w-8 h-8 text-primary mr-4" />
+                        <div>
+                            <h3 className="font-semibold">Nationwide Delivery</h3>
+                            <p className="text-sm text-muted-foreground">Fast & reliable shipping to your doorstep.</p>
+                        </div>
+                    </Card>
+                    <Card className="flex items-center p-4 bg-accent/5 border-accent/10">
+                        <Store className="w-8 h-8 text-accent mr-4" />
+                        <div>
+                            <h3 className="font-semibold">Become a Seller</h3>
+                            <p className="text-sm text-muted-foreground">Reach thousands of new customers. <Link href="/signup" className="underline text-accent">Start selling</Link>.</p>
+                        </div>
+                    </Card>
+                </section>
+
                 {/* 1. Hero Banner */}
                 <section>
                     <Carousel
@@ -226,6 +244,20 @@ export default function MarketPage() {
                             </Link>
                         ))}
                     </div>
+                </section>
+
+                {/* Paid Promotions */}
+                <section>
+                    <Link href="#">
+                        <div className="relative h-40 w-full rounded-lg overflow-hidden flex items-center justify-start p-8 bg-amber-400 dark:bg-amber-600 text-black">
+                            <Image src="https://picsum.photos/seed/promo1/1200/300" alt="Promotional Banner" fill className="object-cover opacity-20" data-ai-hint="special offer" />
+                            <div className="relative z-10">
+                                <p className="text-sm font-bold uppercase tracking-widest">Sponsored</p>
+                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Ankara Fest is Here!</h2>
+                                <p className="text-lg mt-1">Get 20% off all traditional wear.</p>
+                            </div>
+                        </div>
+                    </Link>
                 </section>
                 
                 {/* 3. Deals & Promotions */}
