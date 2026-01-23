@@ -16,8 +16,8 @@ const deliveryRates = [
 ];
 
 const howItWorksSteps = [
-    { icon: PackageSearch, title: 'Order is Placed', description: "A customer buys your product from the Busmo Market." },
-    { icon: Bike, title: 'Rider Dispatched', description: "We instantly dispatch a verified local delivery partner to your location for pickup." },
+    { icon: PackageSearch, title: 'Order is Placed', description: "A customer buys your product from the Busmo Market and selects Home Delivery." },
+    { icon: Bike, title: 'Rider Dispatched', description: "Our system automatically finds and dispatches the nearest verified delivery partner to your location for pickup." },
     { icon: Box, title: 'Secure Handover', description: "Our rider securely packages the item and begins the delivery journey." },
     { icon: MapPin, title: 'Real-Time Tracking', description: "You and your customer can track the delivery in real-time until it's safely delivered." },
 ];
