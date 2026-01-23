@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Check, Menu, X } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { useLanguage } from '@/context/language-provider';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import { convertFromNgn, formatCurrency } from '@/lib/currency';
 
 const plans = [
     {
@@ -84,7 +85,17 @@ const plans = [
 
 export default function PricingPage() {
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
-    const { t } = useLanguage();
+    const { language, t } = useLanguage();
+
+    const currencyCode = useMemo(() => {
+        switch (language) {
+            case 'fr':
+                return 'NE'; // Use Niger for CFA as an example
+            default:
+                return 'NG';
+        }
+    }, [language]);
+
 
     useEffect(() => {
         setCurrentYear(new Date().getFullYear());
@@ -165,7 +176,9 @@ export default function PricingPage() {
                 </div>
                 <TabsContent value="monthly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => (
+                        {plans.map((plan) => {
+                            const price = convertFromNgn(plan.monthlyPrice, currencyCode);
+                            return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                 {plan.isPopular && (
                                     <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
@@ -178,7 +191,7 @@ export default function PricingPage() {
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">₦{plan.monthlyPrice.toLocaleString()}</span>
+                                        <span className="text-4xl font-bold">{formatCurrency(price, currencyCode)}</span>
                                         <span className="text-muted-foreground">/ {t('pricing.monthly').toLowerCase()}</span>
                                     </div>
                                      <ul className="mt-6 space-y-3 text-sm">
@@ -202,12 +215,14 @@ export default function PricingPage() {
                                     </Link>
                                 </CardFooter>
                             </Card>
-                        ))}
+                        )})}
                     </div>
                 </TabsContent>
                 <TabsContent value="yearly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => (
+                        {plans.map((plan) => {
+                            const price = convertFromNgn(plan.yearlyPrice, currencyCode);
+                            return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                  {plan.isPopular && (
                                     <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
@@ -220,7 +235,7 @@ export default function PricingPage() {
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">₦{plan.yearlyPrice.toLocaleString()}</span>
+                                        <span className="text-4xl font-bold">{formatCurrency(price, currencyCode)}</span>
                                         <span className="text-muted-foreground">/ {t('pricing.yearly').toLowerCase()}</span>
                                     </div>
                                     <p className="text-sm text-accent font-medium mt-1">
@@ -247,7 +262,7 @@ export default function PricingPage() {
                                     </Link>
                                 </CardFooter>
                             </Card>
-                        ))}
+                        )})}
                     </div>
                 </TabsContent>
             </Tabs>
