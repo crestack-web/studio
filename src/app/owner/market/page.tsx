@@ -22,10 +22,13 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 
 // #region --- TYPES ---
 interface AppUser { businessId?: string }
-interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; }
+interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; image?: string; }
 interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; businessType: string; marketDescription?: string; marketSettings?: MarketSettings; }
@@ -240,6 +243,7 @@ const ProductsContent = () => {
                     id: v.id,
                     name: v.name,
                     price: v.price,
+                    image: v.image || null,
                     availableQuantity: v.quantity
                 })) : [],
                 createdAt: new Date(), // Using client-side date for consistency
@@ -281,6 +285,164 @@ const ProductsContent = () => {
                 </Table>
             </CardContent>
         </Card>
+    );
+};
+// #endregion
+
+// #region --- ORDERS COMPONENT ---
+const OrdersContent = () => {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businesses/${businessId}`) : null, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, 'orders'), where('sellerBusinessId', '==', businessId), orderBy('createdAt', 'desc'));
+    }, [firestore, businessId]);
+    const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+
+    const handleUpdateStatus = (orderId: string, status: Order['status']) => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', orderId);
+        updateDocumentNonBlocking(orderRef, { status });
+        toast({ title: 'Order Status Updated', description: `Order has been marked as ${status}.` });
+    };
+    
+    const statusVariant: { [key in Order['status']]: "default" | "secondary" | "destructive" | "outline" } = {
+        pending: 'destructive',
+        confirmed: 'secondary',
+        shipped: 'outline',
+        fulfilled: 'default',
+        cancelled: 'secondary',
+    };
+
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Incoming Orders</CardTitle>
+                    <CardDescription>View and manage orders from your market store.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {[...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    return (
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Incoming Orders</CardTitle>
+                    <CardDescription>View and manage orders from your market store.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Items</TableHead>
+                                <TableHead className="text-right">Total</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                             {orders && orders.length > 0 ? orders.map((order) => (
+                                <TableRow key={order.id}>
+                                    <TableCell className="font-medium">{order.customer.name}</TableCell>
+                                    <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                    <TableCell><Badge variant={statusVariant[order.status]}>{order.status}</Badge></TableCell>
+                                    <TableCell>{order.items.reduce((acc, item) => acc + item.quantity, 0)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(order.total, businessData?.currency)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => setSelectedOrder(order)}>View Details</DropdownMenuItem>
+                                                <DropdownMenuSub>
+                                                    <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+                                                    <DropdownMenuPortal>
+                                                        <DropdownMenuSubContent>
+                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuPortal>
+                                                </DropdownMenuSub>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No orders yet.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+                <DialogContent className="sm:max-w-lg">
+                    {selectedOrder && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Order #{selectedOrder.id.substring(0,6).toUpperCase()}</DialogTitle>
+                                <DialogDescription>{selectedOrder.createdAt.toDate().toLocaleString()}</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <Card>
+                                    <CardHeader className="p-4"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/>Customer Details</CardTitle></CardHeader>
+                                    <CardContent className="p-4 pt-0 text-sm space-y-1">
+                                        <p className="flex items-center gap-2"><Phone className="h-3 w-3"/> {selectedOrder.customer.phone}</p>
+                                        {selectedOrder.fulfillment === 'delivery' && selectedOrder.customer.address && <p className="flex items-start gap-2"><MapPin className="h-3 w-3 mt-1"/> {selectedOrder.customer.address}</p>}
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                     <CardHeader className="p-4"><CardTitle className="text-base flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-muted-foreground"/>Items Ordered</CardTitle></CardHeader>
+                                     <CardContent className="p-4 pt-0 space-y-2">
+                                        {selectedOrder.items.map((item, index) => (
+                                            <div key={index} className="text-sm flex justify-between">
+                                                <span>{item.quantity} x {item.productName} {item.variantName && `(${item.variantName})`}</span>
+                                                <span className="font-medium">{formatCurrency(item.quantity * item.price, businessData?.currency)}</span>
+                                            </div>
+                                        ))}
+                                        <Separator />
+                                        <div className="font-bold flex justify-between">
+                                            <span>Total</span>
+                                            <span>{formatCurrency(selectedOrder.total, businessData?.currency)}</span>
+                                        </div>
+                                     </CardContent>
+                                </Card>
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 // #endregion
@@ -355,6 +517,7 @@ export default function ManageMarketPage() {
 
     const menuItems = [
         { id: 'products', label: 'Products', icon: Package },
+        { id: 'orders', label: 'Orders', icon: ShoppingCart },
         { id: 'customers', label: 'Customers', icon: Users },
         { id: 'settings', label: 'Settings', icon: Settings },
     ];
@@ -365,6 +528,7 @@ export default function ManageMarketPage() {
         switch (activeSection) {
             case 'settings': return <SettingsContent />;
             case 'products': return <ProductsContent />;
+            case 'orders': return <OrdersContent />;
             case 'customers': return <CustomersContent />;
             default: return <ProductsContent />;
         }
@@ -392,7 +556,28 @@ export default function ManageMarketPage() {
 
                 <SidebarInset>
                     <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3"><SidebarTrigger className="md:hidden"/><div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div></div>
+                        <div className="flex items-center gap-3">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
+                                </SheetTrigger>
+                                <SheetContent side="left" className="w-full max-w-xs">
+                                     <SidebarHeader>
+                                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+                                            <Button variant="ghost" className="justify-start gap-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span>Back to Home</span></Button>
+                                        </div>
+                                    </SidebarHeader>
+                                    <SidebarMenu className="flex-1 px-2 mt-4">
+                                        {menuItems.map((item) => (
+                                            <SidebarMenuItem key={item.id}>
+                                                <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)} tooltip={item.label} className="justify-start"><item.icon /> <span>{item.label}</span></SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        ))}
+                                    </SidebarMenu>
+                                </SheetContent>
+                            </Sheet>
+                            <div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div>
+                        </div>
                         <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                             <Button variant="outline" asChild><Link href="/market" target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />View Public Market</Link></Button>
                         </div>
