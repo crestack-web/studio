@@ -2,7 +2,7 @@
 
 import MarketLayout from '@/components/app/market-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -126,6 +126,48 @@ export default function DeliveryPage() {
                                 <p className="text-sm text-muted-foreground">All our delivery partners are carefully vetted and trained for professional service.</p>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                {/* Partner with us section */}
+                <section>
+                    <h2 className="text-3xl font-bold font-headline text-center mb-6">Join Our Delivery Network</h2>
+                    <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
+                        We're empowering local entrepreneurs. If you're a reliable bike rider or want to guarantee one, you can partner with Busmo to earn more.
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                        <Card className="flex flex-col">
+                            <CardHeader>
+                                <CardTitle>For Riders</CardTitle>
+                                <CardDescription>Turn your bike into a business. Earn competitive fees delivering for stores in your area.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1">
+                                <ul className="space-y-2 text-sm text-muted-foreground">
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Get a steady stream of delivery jobs.</li>
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Get paid instantly for completed deliveries.</li>
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> All you need is a bike, a smartphone, and a guarantor.</li>
+                                </ul>
+                            </CardContent>
+                            <CardFooter>
+                                 <Button className="w-full" disabled>Apply to be a Rider (Coming Soon)</Button>
+                            </CardFooter>
+                        </Card>
+                        <Card className="flex flex-col">
+                            <CardHeader>
+                                <CardTitle>For Guarantors</CardTitle>
+                                <CardDescription>Vouch for a rider you trust and earn a commission on every successful delivery they make.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1">
+                                 <ul className="space-y-2 text-sm text-muted-foreground">
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Provide a safety net for local commerce.</li>
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Earn passive income by vouching for reliable riders.</li>
+                                    <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> A simple way to invest in your community.</li>
+                                </ul>
+                            </CardContent>
+                             <CardFooter>
+                                 <Button variant="secondary" className="w-full" disabled>Become a Guarantor (Coming Soon)</Button>
+                            </CardFooter>
+                        </Card>
                     </div>
                 </section>
                 
