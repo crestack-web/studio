@@ -184,28 +184,6 @@ export default function MarketPage() {
         <MarketLayout>
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
-                {/* Utility Banners */}
-                <section className="grid md:grid-cols-2 gap-4">
-                    <Link href="/market/delivery">
-                        <Card className="flex items-center p-4 bg-primary/5 border-primary/10 h-full hover:bg-primary/10 transition-colors">
-                            <Truck className="w-8 h-8 text-primary mr-4" />
-                            <div>
-                                <h3 className="font-semibold">Nationwide Delivery</h3>
-                                <p className="text-sm text-muted-foreground">Fast & reliable shipping to your doorstep.</p>
-                            </div>
-                        </Card>
-                    </Link>
-                    <Link href="/signup">
-                        <Card className="flex items-center p-4 bg-accent/5 border-accent/10 h-full hover:bg-accent/10 transition-colors">
-                            <Store className="w-8 h-8 text-accent mr-4" />
-                            <div>
-                                <h3 className="font-semibold">Become a Seller</h3>
-                                <p className="text-sm text-muted-foreground">Reach thousands of new customers. <span className="underline text-accent">Start selling</span>.</p>
-                            </div>
-                        </Card>
-                    </Link>
-                </section>
-
                 {/* 1. Hero Banner */}
                 <section>
                     <Carousel
@@ -227,6 +205,28 @@ export default function MarketPage() {
                             ))}
                         </CarouselContent>
                     </Carousel>
+                </section>
+                
+                {/* Utility Banners */}
+                <section className="grid md:grid-cols-2 gap-4">
+                    <Link href="/market/delivery">
+                        <Card className="flex items-center p-4 bg-primary/5 border-primary/10 h-full hover:bg-primary/10 transition-colors">
+                            <Truck className="w-8 h-8 text-primary mr-4" />
+                            <div>
+                                <h3 className="font-semibold">Nationwide Delivery</h3>
+                                <p className="text-sm text-muted-foreground">Fast & reliable shipping to your doorstep.</p>
+                            </div>
+                        </Card>
+                    </Link>
+                    <Link href="/signup">
+                        <Card className="flex items-center p-4 bg-accent/5 border-accent/10 h-full hover:bg-accent/10 transition-colors">
+                            <Store className="w-8 h-8 text-accent mr-4" />
+                            <div>
+                                <h3 className="font-semibold">Become a Seller</h3>
+                                <p className="text-sm text-muted-foreground">Reach thousands of new customers. <span className="underline text-accent">Start selling</span>.</p>
+                            </div>
+                        </Card>
+                    </Link>
                 </section>
 
                 {/* 2. Quick Categories */}
