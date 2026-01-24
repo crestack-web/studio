@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, MapPin, Mail, Phone } from 'lucide-react';
+import { Star, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -110,17 +110,20 @@ const StorePageContent = () => {
                         data-ai-hint="business storefront"
                     />
                 </div>
-                <div className="p-6 bg-card">
-                    <div className="flex flex-col sm:flex-row gap-6 -mt-16 sm:-mt-20 items-end">
-                        <Avatar className="h-28 w-28 border-4 border-card bg-muted shadow-lg">
+                <div className="bg-card p-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <Avatar className="h-28 w-28 border-4 border-card bg-muted shadow-lg -mt-20 sm:-mt-0">
                             <AvatarImage src={settings?.logoImageUrl} alt={`${businessData.businessName} logo`} />
                             <AvatarFallback className="text-3xl">
                                 {businessData.businessName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'B'}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 space-y-1">
-                             <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessData.businessName}</h1>
-                             {businessData.address && <p className="text-muted-foreground mt-1 flex items-center gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessData.address}</p>}
+                        <div className="flex-1 space-y-1 text-center sm:text-left">
+                             <div className="flex items-center justify-center sm:justify-start gap-2">
+                                <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessData.businessName}</h1>
+                                <ShieldCheck className="h-7 w-7 text-success fill-success/20 shrink-0" />
+                            </div>
+                             {businessData.address && <p className="text-muted-foreground mt-1 flex items-center justify-center sm:justify-start gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessData.address}</p>}
                         </div>
                         <div className="flex items-center gap-2">
                              {settings?.contactEmail && <a href={`mailto:${settings.contactEmail}`}><Button variant="outline" size="icon"><Mail className="h-4 w-4" /><span className="sr-only">Email</span></Button></a>}
@@ -128,7 +131,7 @@ const StorePageContent = () => {
                              <Button variant="outline"><Mail className="mr-2 h-4 w-4" /> Subscribe</Button>
                         </div>
                     </div>
-                     <p className="text-muted-foreground mt-4 max-w-2xl">{businessData.marketDescription || 'Welcome to our store on Busmo Market!'}</p>
+                     <p className="text-muted-foreground mt-4 max-w-2xl mx-auto sm:mx-0">{businessData.marketDescription || 'Welcome to our store on Busmo Market!'}</p>
                 </div>
             </Card>
 
