@@ -65,7 +65,7 @@ const SettingsContent = () => {
 
     useEffect(() => {
         if (businessData) {
-            setSettings(businessData.marketSettings ?? {
+            const defaultSettings: MarketSettings = {
                 isStoreActive: false,
                 bannerImageUrl: '',
                 logoImageUrl: '',
@@ -73,7 +73,25 @@ const SettingsContent = () => {
                 contactEmail: '',
                 payment: { allowBankTransfer: true, allowPayOnDelivery: true, bankName: '', accountNumber: '', paymentInstructions: 'Please use your Order ID as the payment reference.' },
                 delivery: { allowDelivery: true, allowPickup: true, deliveryFee: 1500, deliveryDays: ['Monday', 'Wednesday', 'Friday'] }
-            });
+            };
+            
+            const currentSettings = businessData.marketSettings || {};
+
+            // Deep merge to ensure all fields have a default value
+            const mergedSettings: MarketSettings = {
+                ...defaultSettings,
+                ...currentSettings,
+                payment: {
+                    ...defaultSettings.payment,
+                    ...(currentSettings.payment || {})
+                },
+                delivery: {
+                    ...defaultSettings.delivery,
+                    ...(currentSettings.delivery || {})
+                }
+            };
+
+            setSettings(mergedSettings);
             setDescription(businessData.marketDescription ?? `Welcome to ${businessData.businessName} on Busmo! We sell quality ${businessData.businessType} products.`);
         }
     }, [businessData]);
@@ -399,7 +417,7 @@ const ProductsContent = () => {
                     image: v.image || null,
                     availableQuantity: v.quantity
                 })) : [],
-                createdAt: new Date(), // Using client-side date for consistency
+                createdAt: new Date(), // Using client-side date for consistency,
             };
             setDocumentNonBlocking(marketProductDocRef, marketProductData, { merge: true });
         } else {
