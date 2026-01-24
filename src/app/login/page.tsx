@@ -59,13 +59,14 @@ export default function LoginPage() {
                 router.replace('/investor/dashboard');
                 break;
             default:
-                // Fallback for users with profiles but no valid role (e.g., incomplete signup)
-                router.replace('/business-info');
+                // Fallback for users with profiles but no valid role.
+                // Sending to welcome is safer than assuming a flow.
+                router.replace('/welcome');
                 break;
         }
       } else {
         // This case would happen for a brand new user who somehow didn't get a profile doc.
-        // Sending them to onboarding is a safe default.
+        // Sending them to onboarding is a safe default if they have an auth account but no profile.
         router.replace('/business-info');
       }
 

@@ -8,6 +8,15 @@ import { Loader2 } from 'lucide-react';
 
 interface UserProfile {
     role?: string;
+    businessId?: string;
+}
+
+interface Business {
+    onboardingCompleted?: boolean;
+    businessName?: string;
+    businessType?: string;
+    currency?: string;
+    plan?: string;
 }
 
 export default function OwnerLayout({
@@ -23,35 +32,63 @@ export default function OwnerLayout({
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
-
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const businessId = userProfile?.businessId;
+
+  const businessRef = useMemoFirebase(() => {
+    if (!firestore || !businessId) return null;
+    return doc(firestore, 'businesses', businessId);
+  }, [firestore, businessId]);
+  const { data: business, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
   
-  const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'unauthorized'>('loading');
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
   
   useEffect(() => {
-    // Wait until all authentication and profile data is fully loaded.
-    if (isUserLoading || isProfileLoading) {
+    const isLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.role === 'Owner' && !businessId) || (businessId && isBusinessLoading);
+
+    if (isLoading) {
       setAuthStatus('loading');
       return;
     }
 
     if (!user) {
-      // If there's no user, they are unauthorized.
-      setAuthStatus('unauthorized');
+      setAuthStatus('redirecting');
       router.replace('/login');
-    } else if (userProfile?.role === 'Owner' || userProfile?.role === 'Staff') {
-      // If the user has the correct role, they are authorized.
-      setAuthStatus('authorized');
-    } else {
-      // If the user is logged in but does not have the correct role, they are unauthorized.
-      // Redirecting to /login is the safest option, as it will then correctly route them based on their actual role.
-      setAuthStatus('unauthorized');
+      return;
+    }
+
+    const isOwnerOrStaff = userProfile?.role === 'Owner' || userProfile?.role === 'Staff';
+    if (!isOwnerOrStaff) {
+      setAuthStatus('redirecting');
       router.replace('/login');
+      return;
+    }
+
+    if (userProfile.role === 'Owner') {
+      if (!businessId || !business) {
+        setAuthStatus('redirecting');
+        router.replace('/business-info');
+        return;
+      }
+
+      if (!business.onboardingCompleted) {
+        if (!business.businessName || !business.businessType) {
+          router.replace('/business-info');
+        } else if (!business.currency) {
+          router.replace('/currency');
+        } else if (!business.plan) {
+          router.replace('/plans');
+        }
+        setAuthStatus('redirecting');
+        return;
+      }
     }
     
-  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+    setAuthStatus('authorized');
+    
+  }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router]);
 
-  // While loading or redirecting, show a full-screen loader.
   if (authStatus !== 'authorized') {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -60,6 +97,5 @@ export default function OwnerLayout({
     );
   }
 
-  // If authorized, render the protected owner/staff content.
   return <>{children}</>;
 }

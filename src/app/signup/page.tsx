@@ -45,47 +45,22 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Check for a pending staff invitation
-        const invitationRef = doc(firestore, 'invitations', user.email!);
-        const invitationSnap = await getDoc(invitationRef);
-
-        if (invitationSnap.exists()) {
-            // This is a staff member joining a business
-            const invitationData = invitationSnap.data();
-            const staffProfile = {
-                id: user.uid,
-                displayName: name,
-                email: user.email,
-                role: 'Staff',
-                businessId: invitationData.businessId,
-            };
-            // Create the real user profile
-            await setDoc(doc(firestore, 'users', user.uid), staffProfile);
-            // Delete the invitation
-            await deleteDoc(invitationRef);
-
-            toast({
-                title: `Welcome to ${invitationData.businessName}!`,
-                description: "Your staff account has been created.",
-            });
-            router.push('/staff/home');
-
-        } else {
-            // This is a new business owner
-            const ownerProfile = {
-                id: user.uid,
-                displayName: name,
-                email: user.email,
-                role: 'Owner',
-            };
-            await setDoc(doc(firestore, 'users', user.uid), ownerProfile);
-            
-            toast({
-                title: "Account Created",
-                description: "Let's set up your business.",
-            });
-            router.push('/business-info');
-        }
+        // The main sign-up form is for business owners.
+        // Staff members are added via invitations.
+        const ownerProfile = {
+            id: user.uid,
+            displayName: name,
+            email: user.email,
+            role: 'Owner',
+        };
+        // Use setDocumentNonBlocking for optimistic UI updates
+        setDocumentNonBlocking(doc(firestore, 'users', user.uid), ownerProfile, {});
+        
+        toast({
+            title: "Account Created",
+            description: "Let's set up your business.",
+        });
+        router.push('/business-info');
 
     } catch (error: any) {
         toast({
