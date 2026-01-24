@@ -264,14 +264,11 @@ const ProductDetailContent = () => {
                     <div className="flex flex-col gap-4">
                         <div>
                              {businessData && (
-                                <Button asChild variant="outline">
-                                    <Link href={`/market/store/${productData.businessId}`}>
-                                        <Store className="mr-2 h-4 w-4" />
-                                        Visit {businessData.businessName}'s Store
-                                    </Link>
-                                </Button>
+                                <Link href={`/market/store/${productData.businessId}`} className="text-sm font-medium text-primary hover:underline">
+                                    {businessData.businessName}
+                                </Link>
                              )}
-                            <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-2">{productName}</h1>
+                            <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-1">{productName}</h1>
                             <div className="flex items-center gap-2 mt-2">
                                 <div className="flex items-center gap-0.5">
                                     {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
