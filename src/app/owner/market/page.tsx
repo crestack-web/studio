@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, MapPin, Loader2, FileUp, PackageCheck, Menu } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, orderBy } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -30,7 +30,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 interface AppUser { businessId?: string }
 interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; image?: string; }
 interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
-type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
+type MarketSettings = { isStoreActive: boolean; bannerImageUrl: string; logoImageUrl: string; contactPhone: string; contactEmail: string; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; businessType: string; marketDescription?: string; marketSettings?: MarketSettings; }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
 interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productName: string; variantName?: string; quantity: number; price: number }[]; }
@@ -56,6 +56,10 @@ const SettingsContent = () => {
         if (businessData) {
             setSettings(businessData.marketSettings ?? {
                 isStoreActive: false,
+                bannerImageUrl: '',
+                logoImageUrl: '',
+                contactPhone: '',
+                contactEmail: '',
                 payment: { allowBankTransfer: true, allowPayOnDelivery: true, bankName: '', accountNumber: '', paymentInstructions: 'Please use your Order ID as the payment reference.' },
                 delivery: { allowDelivery: true, allowPickup: true, deliveryFee: 1500, deliveryDays: ['Monday', 'Wednesday', 'Friday'] }
             });
@@ -145,6 +149,18 @@ const SettingsContent = () => {
                      <div className="space-y-2">
                         <Label htmlFor="store-description">Store Description</Label>
                         <Textarea id="store-description" placeholder="Describe your business for customers..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={isSaving}/>
+                    </div>
+                    <div className="space-y-4 pt-4 border-t">
+                        <Label className="font-semibold flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Branding</Label>
+                        <div className="space-y-2"><Label htmlFor="banner-url">Banner Image URL</Label><Input id="banner-url" placeholder="https://..." value={settings.bannerImageUrl} onChange={(e) => handleSettingsChange('bannerImageUrl', e.target.value)} disabled={isSaving} /></div>
+                        <div className="space-y-2"><Label htmlFor="logo-url">Logo Image URL</Label><Input id="logo-url" placeholder="https://..." value={settings.logoImageUrl} onChange={(e) => handleSettingsChange('logoImageUrl', e.target.value)} disabled={isSaving} /></div>
+                    </div>
+                     <div className="space-y-4 pt-4 border-t">
+                        <Label className="font-semibold flex items-center gap-2"><Contact className="w-4 h-4"/> Public Contact</Label>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label htmlFor="contact-phone">Contact Phone</Label><Input id="contact-phone" type="tel" placeholder="+234..." value={settings.contactPhone} onChange={(e) => handleSettingsChange('contactPhone', e.target.value)} disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="contact-email">Contact Email</Label><Input id="contact-email" type="email" placeholder="help@..." value={settings.contactEmail} onChange={(e) => handleSettingsChange('contactEmail', e.target.value)} disabled={isSaving} /></div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

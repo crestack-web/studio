@@ -68,6 +68,10 @@
           "description": "Settings for the business's public marketplace store.",
           "properties": {
             "isStoreActive": { "type": "boolean" },
+            "bannerImageUrl": { "type": "string", "description": "URL for the store's banner image." },
+            "logoImageUrl": { "type": "string", "description": "URL for the store's logo." },
+            "contactPhone": { "type": "string", "description": "Public contact phone number." },
+            "contactEmail": { "type": "string", "description": "Public contact email address." },
             "payment": {
               "type": "object",
               "properties": {
@@ -124,6 +128,10 @@
           "description": "Settings for the business's public marketplace store.",
           "properties": {
             "isStoreActive": { "type": "boolean" },
+            "bannerImageUrl": { "type": "string", "description": "URL for the store's banner image." },
+            "logoImageUrl": { "type": "string", "description": "URL for the store's logo." },
+            "contactPhone": { "type": "string", "description": "Public contact phone number." },
+            "contactEmail": { "type": "string", "description": "Public contact email address." },
             "payment": {
               "type": "object",
               "properties": {
