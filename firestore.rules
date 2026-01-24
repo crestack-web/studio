@@ -69,7 +69,7 @@ service cloud.firestore {
                         isSignedIn() && request.auth.uid == userId &&
                         !('role' in request.resource.diff(resource).affectedKeys()) &&
                         (
-                          resource.data.businessId == null ||
+                          !('businessId' in resource.data) ||
                           !('businessId' in request.resource.diff(resource).affectedKeys())
                         )
                       ) || isAdmin()
