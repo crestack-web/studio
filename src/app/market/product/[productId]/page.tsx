@@ -182,7 +182,7 @@ const ProductDetailContent = () => {
         { icon: RotateCw, text: 'Easy Returns' },
     ];
     
-    const businessLink = businessData?.slug ? `/${businessData.slug}` : `/market/store/${productData?.businessId}`;
+    const businessLink = businessData?.slug ? `/${businessData.slug}` : '#';
 
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
