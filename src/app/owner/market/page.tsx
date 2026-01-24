@@ -9,11 +9,10 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDo
 import { collection, doc, query, where, writeBatch, orderBy } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -202,6 +201,62 @@ const SettingsContent = () => {
 // #endregion
 
 // #region --- PRODUCTS COMPONENT ---
+const ProductsSkeleton = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {[...Array(8)].map((_, i) => (
+            <Card key={i}>
+                <Skeleton className="aspect-square w-full" />
+                <CardContent className="p-3">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-6 w-1/2 mt-2" />
+                </CardContent>
+                <CardFooter className="p-3 border-t">
+                    <Skeleton className="h-6 w-full" />
+                </CardFooter>
+            </Card>
+        ))}
+    </div>
+);
+
+
+const OwnerProductCard = ({ product, onListingChange, currency }: { product: Product, onListingChange: (product: Product, isListed: boolean) => void, currency?: string }) => {
+    const stock = product.hasVariants ? product.variants.reduce((sum, v) => sum + v.quantity, 0) : product.quantity;
+    
+    return (
+        <Card className="overflow-hidden h-full flex flex-col">
+            <div className="aspect-square overflow-hidden relative bg-muted">
+                <Image 
+                    src={product.images?.[0] || 'https://picsum.photos/seed/placeholder/400/300'} 
+                    alt={product.name} 
+                    fill 
+                    className="object-cover" 
+                    data-ai-hint={product.hint || product.name.split(' ').slice(0,2).join(' ')}
+                />
+                <Badge variant={product.isPublishedToMarket ? 'default' : 'secondary'} className="absolute top-2 left-2">{product.isPublishedToMarket ? 'Listed' : 'Unlisted'}</Badge>
+            </div>
+            <CardContent className="p-3 flex-1 flex flex-col">
+                <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.name}</h3>
+                <div className="mt-2 flex justify-between items-baseline">
+                    <p className="font-bold text-base">{formatCurrency(product.price, currency)}</p>
+                    <p className="text-xs text-muted-foreground">Stock: {stock}</p>
+                </div>
+            </CardContent>
+            <CardFooter className="p-3 border-t bg-muted/30">
+                 <div className="flex items-center justify-between w-full">
+                    <Label htmlFor={`list-switch-${product.id}`} className="text-sm font-medium">
+                        List on Market
+                    </Label>
+                    <Switch
+                        id={`list-switch-${product.id}`}
+                        checked={product.isPublishedToMarket}
+                        onCheckedChange={(checked) => onListingChange(product, checked)}
+                    />
+                </div>
+            </CardFooter>
+        </Card>
+    );
+}
+
 const ProductsContent = () => {
     const firestore = useFirestore();
     const { user } = useUser();
@@ -256,36 +311,43 @@ const ProductsContent = () => {
     };
     
     if (isLoading) {
-        return <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Price</TableHead><TableHead>Status</TableHead><TableHead className="text-right">List on Market</TableHead></TableRow></TableHeader><TableBody>{[...Array(3)].map((_, i) => <TableRow key={i}><TableCell><Skeleton className="h-8 w-48" /></TableCell><TableCell><Skeleton className="h-8 w-20" /></TableCell><TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell><TableCell className="text-right"><Skeleton className="h-6 w-10 ml-auto" /></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>;
+        return <ProductsSkeleton />;
     }
     
     return (
-        <Card>
-            <CardHeader><CardTitle>Your Products</CardTitle><CardDescription>Manage which of your products are visible on the public marketplace.</CardDescription></CardHeader>
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Price</TableHead><TableHead>Stock</TableHead><TableHead>Status</TableHead><TableHead className="text-right">List on Market</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {products && products.length > 0 ? products.map((product) => (
-                            <TableRow key={product.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Image src={product.images?.[0] || 'https://picsum.photos/seed/placeholder/100/100'} alt={product.name} width={40} height={40} className="rounded-md object-cover bg-muted" data-ai-hint={product.hint} />
-                                        <span className="font-medium">{product.name}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{formatCurrency(product.price, businessData?.currency)}</TableCell>
-                                <TableCell>{product.hasVariants ? product.variants.reduce((sum, v) => sum + v.quantity, 0) : product.quantity}</TableCell>
-                                <TableCell><Badge variant={product.isPublishedToMarket ? 'default' : 'secondary'}>{product.isPublishedToMarket ? 'Listed' : 'Unlisted'}</Badge></TableCell>
-                                <TableCell className="text-right"><Switch checked={product.isPublishedToMarket} onCheckedChange={(checked) => handleListingChange(product, checked)} /></TableCell>
-                            </TableRow>
-                        )) : (
-                             <TableRow><TableCell colSpan={5} className="h-24 text-center">No products found. <Button variant="link" asChild><Link href="/add-product">Add your first product</Link></Button></TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+        <div>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold font-headline">Your Products</h2>
+                    <p className="text-muted-foreground">Manage which of your products are visible on the public marketplace.</p>
+                </div>
+                <Button asChild>
+                    <Link href="/add-product">Add New Product</Link>
+                </Button>
+            </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {products && products.length > 0 ? products.map((product) => (
+                    <OwnerProductCard 
+                        key={product.id}
+                        product={product} 
+                        onListingChange={handleListingChange} 
+                        currency={businessData?.currency}
+                    />
+                )) : (
+                     <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                        <Card className="h-48 flex flex-col items-center justify-center text-center text-muted-foreground border-dashed">
+                            <CardContent className="p-6">
+                                <p className="font-semibold">No products found.</p>
+                                <p className="text-sm">Get started by adding your first product.</p>
+                                <Button variant="link" asChild className="mt-2">
+                                    <Link href="/add-product">Add Product</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 // #endregion
@@ -333,19 +395,12 @@ const OrdersContent = () => {
                     <CardDescription>View and manage orders from your market store.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {[...Array(3)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div className="relative w-full overflow-auto">
+                        <table className="w-full caption-bottom text-sm">
+                            <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th></tr></thead>
+                            <tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
         );
@@ -359,50 +414,52 @@ const OrdersContent = () => {
                     <CardDescription>View and manage orders from your market store.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Customer</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Items</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                             {orders && orders.length > 0 ? orders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-medium">{order.customer.name}</TableCell>
-                                    <TableCell>{order.createdAt.toDate().toLocaleDateString()}</TableCell>
-                                    <TableCell><Badge variant={statusVariant[order.status]}>{order.status}</Badge></TableCell>
-                                    <TableCell>{order.items.reduce((acc, item) => acc + item.quantity, 0)}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(order.total, businessData?.currency)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => setSelectedOrder(order)}>View Details</DropdownMenuItem>
-                                                <DropdownMenuSub>
-                                                    <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
-                                                    <DropdownMenuPortal>
-                                                        <DropdownMenuSubContent>
-                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuPortal>
-                                                </DropdownMenuSub>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={6} className="h-24 text-center">No orders yet.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                    <div className="relative w-full overflow-auto">
+                        <table className="w-full caption-bottom text-sm">
+                            <thead className="[&_tr]:border-b">
+                                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Items</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="[&_tr:last-child]:border-0">
+                                {orders && orders.length > 0 ? orders.map((order) => (
+                                    <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{order.customer.name}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.createdAt.toDate().toLocaleDateString()}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Badge variant={statusVariant[order.status]}>{order.status}</Badge></td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.items.reduce((acc, item) => acc + item.quantity, 0)}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">{formatCurrency(order.total, businessData?.currency)}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => setSelectedOrder(order)}>View Details</DropdownMenuItem>
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+                                                        <DropdownMenuPortal>
+                                                            <DropdownMenuSubContent>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuPortal>
+                                                    </DropdownMenuSub>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td colSpan={6} className="p-4 align-middle [&:has([role=checkbox])]:pr-0 h-24 text-center">No orders yet.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -477,34 +534,36 @@ const CustomersContent = () => {
     }, [orders]);
 
      if (isLoading) {
-        return <Card><CardHeader><CardTitle>Your Customers</CardTitle><CardDescription>A list of everyone who has ordered from your store.</CardDescription></CardHeader><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Phone</TableHead><TableHead>Orders</TableHead><TableHead>Last Order</TableHead><TableHead className="text-right">Total Spent</TableHead></TableRow></TableHeader><TableBody>{[...Array(3)].map((_, i) => <TableRow key={i}><TableCell><Skeleton className="h-8 w-32"/></TableCell><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-10"/></TableCell><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>;
+        return <Card><CardHeader><CardTitle>Your Customers</CardTitle><CardDescription>A list of everyone who has ordered from your store.</CardDescription></CardHeader><CardContent className="p-0"><div className="relative w-full overflow-auto"><table className="w-full caption-bottom text-sm"><thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Phone</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Orders</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Last Order</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total Spent</th></tr></thead><tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-8 w-32"/></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-5 w-24"/></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-5 w-10"/></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-5 w-24"/></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-5 w-16 ml-auto"/></td></tr>)}</tbody></table></div></CardContent></Card>;
     }
 
     return (
         <Card>
             <CardHeader><CardTitle>Your Customers</CardTitle><CardDescription>A list of everyone who has ordered from your store.</CardDescription></CardHeader>
             <CardContent className="p-0">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Phone</TableHead><TableHead>Total Orders</TableHead><TableHead>Last Order</TableHead><TableHead className="text-right">Total Spent</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {customers.length > 0 ? customers.map(customer => (
-                            <TableRow key={customer.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8"><AvatarFallback>{customer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback></Avatar>
-                                        <span className="font-medium">{customer.name}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{customer.phone}</TableCell>
-                                <TableCell>{customer.totalOrders}</TableCell>
-                                <TableCell>{customer.lastOrder.toLocaleDateString()}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(customer.totalSpent)}</TableCell>
-                            </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={5} className="h-24 text-center">No customers yet. Share your store link to get your first order!</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                <div className="relative w-full overflow-auto">
+                    <table className="w-full caption-bottom text-sm">
+                        <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Phone</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total Orders</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Last Order</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total Spent</th></tr></thead>
+                        <tbody className="[&_tr:last-child]:border-0">
+                            {customers.length > 0 ? customers.map(customer => (
+                                <tr key={customer.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8"><AvatarFallback>{customer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback></Avatar>
+                                            <span className="font-medium">{customer.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{customer.phone}</td>
+                                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{customer.totalOrders}</td>
+                                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{customer.lastOrder.toLocaleDateString()}</td>
+                                    <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">{formatCurrency(customer.totalSpent)}</td>
+                                </tr>
+                            )) : (
+                                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td colSpan={5} className="p-4 align-middle [&:has([role=checkbox])]:pr-0 h-24 text-center">No customers yet. Share your store link to get your first order!</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </CardContent>
         </Card>
     );
