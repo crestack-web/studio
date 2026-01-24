@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -63,6 +63,7 @@ export default function AdminLayout({
   if (isAuthorized) {
     const menuItems = [
       { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+      { id: 'users', label: 'Users', href: '/admin/users', icon: Users },
       { id: 'blog', label: 'Blog', href: '/admin/blog', icon: Newspaper },
       { id: 'support', label: 'Support', href: '/admin/support', icon: Mail },
     ];

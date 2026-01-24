@@ -12,7 +12,9 @@ service cloud.firestore {
 
     // Securely checks if the user has an admin role.
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      if (!isSignedIn()) { return false; }
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userDocPath) && get(userDocPath).data.role == 'Admin';
     }
 
     // Securely checks if the user owns the specified business.
@@ -34,9 +36,8 @@ service cloud.firestore {
         return false;
       }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath)) { return false; }
+      if (!exists(userDocPath) || !('businessId' in get(userDocPath).data) || !('role' in get(userDocPath).data)) { return false; }
       let userDoc = get(userDocPath);
-      if (!('businessId' in userDoc.data) || !('role' in userDoc.data)) { return false; }
       return userDoc.data.businessId == businessId && userDoc.data.role == 'Staff';
     }
     
@@ -68,13 +69,6 @@ service cloud.firestore {
 
       // Deleting users is an admin-only action.
       allow delete: if isAdmin();
-    }
-    
-    // Admin collection is read-only for other admins, and not publicly writable.
-    // Admins must be added manually in the Firestore console.
-    match /admins/{adminId} {
-      allow read: if isAdmin();
-      allow write: if false;
     }
 
 

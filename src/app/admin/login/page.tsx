@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface UserProfile {
     role?: string;
@@ -31,8 +31,14 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check user role imperatively after login
       const userDocRef = doc(firestore, 'users', user.uid);
+
+      // If this email is the designated admin, ensure the role is set.
+      if (user.email === 'admin@busmo.com') {
+          await setDoc(userDocRef, { role: 'Admin' }, { merge: true });
+      }
+
+      // Check user role imperatively after login
       const userProfileSnap = await getDoc(userDocRef);
 
       if (userProfileSnap.exists() && userProfileSnap.data().role === 'Admin') {

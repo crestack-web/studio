@@ -1,25 +1,90 @@
+'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, PackagePlus, FilePlus, LogOut } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface AppUser {
+    displayName?: string;
+    businessId?: string;
+}
+
+interface Business {
+    businessName?: string;
+}
 
 export default function StaffHomePage() {
-  return (
-    <div className="flex flex-col min-h-screen bg-background">
-       <header className="flex items-center justify-between p-4 border-b bg-card">
-        <Logo className="h-8" />
-        <div className="text-sm font-medium text-muted-foreground">Staff Mode</div>
-      </header>
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm text-center">
-            <Link href="/record-sale">
-                <Button className="w-full h-48 text-2xl font-headline flex-col gap-4">
-                    <Plus className="w-12 h-12" />
-                    Record a Sale
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
+    const auth = useAuth();
+    const router = useRouter();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [user, firestore]);
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
+
+    const businessRef = useMemoFirebase(() => {
+        if (!userProfile?.businessId || !firestore) return null;
+        return doc(firestore, 'businesses', userProfile.businessId);
+    }, [userProfile?.businessId, firestore]);
+    const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
+
+    const handleSignOut = async () => {
+        if(auth) {
+            await signOut(auth);
+        }
+        router.push('/login');
+    };
+    
+    const isLoading = isUserLoading || isProfileLoading || isBusinessLoading;
+
+    return (
+        <div className="flex flex-col min-h-screen bg-background">
+        <header className="flex items-center justify-between p-4 border-b bg-card">
+            <Logo className="h-8" />
+            <div className="flex items-center gap-4">
+                {isLoading ? <Skeleton className="h-6 w-24" /> : (
+                    <div className="text-right">
+                         <div className="font-semibold">{userProfile?.displayName}</div>
+                         <div className="text-xs text-muted-foreground">Staff at {businessData?.businessName}</div>
+                    </div>
+                )}
+                <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                    <LogOut className="h-5 w-5" />
+                    <span className="sr-only">Sign Out</span>
                 </Button>
-            </Link>
+            </div>
+        </header>
+        <main className="flex-1 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm space-y-4">
+                 <h1 className="text-center text-2xl font-bold font-headline">Staff Dashboard</h1>
+                <Link href="/record-sale">
+                    <Button className="w-full h-24 text-xl font-headline flex-col gap-2">
+                        <Plus className="w-8 h-8" />
+                        Record a Sale
+                    </Button>
+                </Link>
+                 <Link href="/add-inventory">
+                    <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                        <PackagePlus className="w-8 h-8" />
+                        Add Inventory
+                    </Button>
+                </Link>
+                 <Link href="/record-expense">
+                    <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                        <FilePlus className="w-8 h-8" />
+                        Record Expense
+                    </Button>
+                </Link>
+            </div>
+        </main>
         </div>
-      </main>
-    </div>
-  );
+    );
 }
