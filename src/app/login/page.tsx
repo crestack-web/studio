@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import { signInWithEmailAndPassword, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface UserProfile {
-    role?: 'Owner' | 'Staff';
+    role?: 'Owner' | 'Staff' | 'Admin' | 'Investor' | 'Buyer';
 }
 
 export default function LoginPage() {
@@ -58,6 +57,12 @@ export default function LoginPage() {
             router.push('/owner/home');
         } else if (userProfile.role === 'Staff') {
             router.push('/staff/home');
+        } else if (userProfile.role === 'Admin') {
+            router.push('/admin/dashboard');
+        } else if (userProfile.role === 'Investor') {
+            router.push('/investor/dashboard');
+        } else if (userProfile.role === 'Buyer') {
+            router.push('/market');
         } else {
             // Fallback for users with no role or other roles
             router.push('/owner/home');

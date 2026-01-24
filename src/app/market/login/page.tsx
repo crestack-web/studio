@@ -6,17 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+
+interface UserProfile {
+    role?: 'Owner' | 'Staff' | 'Admin' | 'Investor' | 'Buyer';
+}
 
 export default function MarketLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -24,13 +30,43 @@ export default function MarketLoginPage() {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
       toast({
         title: "Login Successful",
         description: "Welcome back!",
       });
+
       const redirectUrl = searchParams.get('redirect');
-      router.push(redirectUrl || '/market');
+      if (redirectUrl) {
+          router.push(redirectUrl);
+          return;
+      }
+
+      // Check the user's role and redirect
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userProfile = userDocSnap.data() as UserProfile;
+        if (userProfile.role === 'Owner') {
+            router.push('/owner/home');
+        } else if (userProfile.role === 'Staff') {
+            router.push('/staff/home');
+        } else if (userProfile.role === 'Admin') {
+            router.push('/admin/dashboard');
+        } else if (userProfile.role === 'Investor') {
+            router.push('/investor/dashboard');
+        } else {
+            // Default to market for Buyers or users with no specific role
+            router.push('/market');
+        }
+      } else {
+        // If no profile, default to market as this is the market login
+        router.push('/market');
+      }
+
     } catch (error: any) {
       toast({
         variant: "destructive",
