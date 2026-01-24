@@ -34,23 +34,20 @@ service cloud.firestore {
         return false;
       }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath) || !('data' in get(userDocPath)) || !('businessId' in get(userDocPath).data)) {
-        return false;
-      }
+      if (!exists(userDocPath)) { return false; }
       let userDoc = get(userDocPath);
+      if (!('businessId' in userDoc.data)) { return false; }
       return userDoc.data.businessId == businessId;
     }
     
     // Gets the business ID for the currently authenticated user from their user profile.
     function getBusinessIdForCurrentUser() {
-      if (!isSignedIn()) {
-        return null;
-      }
+      if (!isSignedIn()) { return null; }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath) || !('data' in get(userDocPath)) || !('businessId' in get(userDocPath).data)) {
-        return null;
-      }
-      return get(userDocPath).data.businessId;
+      if (!exists(userDocPath)) { return null; }
+      let userDoc = get(userDocPath);
+      if (!('businessId' in userDoc.data)) { return null; }
+      return userDoc.data.businessId;
     }
 
 
