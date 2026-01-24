@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
@@ -64,14 +64,12 @@ export default function BusinessInfoPage() {
 
         const batch = writeBatch(firestore);
             
-        // 1. Define refs for all documents to be created/updated
         const newBusinessRef = doc(collection(firestore, 'businesses'));
         const businessId = newBusinessRef.id;
         const businessSlug = createSlug(businessName);
         const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
         const userDocRef = doc(firestore, 'users', authUser.uid);
 
-        // 2. Prepare data for each document
         const businessData = {
             ownerId: authUser.uid,
             businessName,
@@ -90,40 +88,23 @@ export default function BusinessInfoPage() {
             address,
         };
         
-        // 3. Add all operations to the batch
         batch.set(newBusinessRef, businessData);
         batch.set(businessProfileRef, businessProfileData);
-        // Use set with merge:true to handle cases where the user doc might not exist yet
-        // due to the non-blocking write on the signup page. This will create or update as needed.
         batch.set(userDocRef, { businessId: businessId }, { merge: true });
 
-        // 4. Commit the batch atomically
-        batch.commit()
-            .then(() => {
-                router.replace('/currency');
-            })
-            .catch((error) => {
-                // This is a contextual error that helps debug security rule failures.
-                const permissionError = new FirestorePermissionError({
-                    path: `BATCH WRITE on user: ${userDocRef.path}`,
-                    operation: 'write', 
-                    requestResourceData: { 
-                        business: businessData, 
-                        businessProfile: businessProfileData,
-                        userUpdate: { businessId: businessId }
-                    },
-                });
-                errorEmitter.emit('permission-error', permissionError);
-
-                toast({
-                    variant: 'destructive',
-                    title: 'Error Creating Business',
-                    description: 'A permissions issue occurred. See the developer console for details.',
-                });
-            })
-            .finally(() => {
-                setIsSubmitting(false);
+        try {
+            await batch.commit();
+            router.replace('/currency');
+        } catch (error) {
+            console.error("Error creating business:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error Creating Business',
+                description: 'Could not save business details. Please check your connection and try again.',
             });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType || !address;

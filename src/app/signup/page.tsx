@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,9 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -45,15 +44,13 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // The main sign-up form is for business owners.
-        // Staff members are added via invitations.
         const ownerProfile = {
             id: user.uid,
             displayName: name,
             email: user.email,
             role: 'Owner',
         };
-        // Use setDocumentNonBlocking for optimistic UI updates
+        
         setDocumentNonBlocking(doc(firestore, 'users', user.uid), ownerProfile, {});
         
         toast({
@@ -79,7 +76,7 @@ export default function SignUpPage() {
       <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Create your Account</CardTitle>
-          <CardDescription>Get started with Busmo as a business owner or staff.</CardDescription>
+          <CardDescription>Get started with Busmo as a business owner.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
            <div className="space-y-2">
@@ -91,7 +88,7 @@ export default function SignUpPage() {
             <Input id="email" type="email" placeholder="you@example.com" className="h-12 text-base" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading}/>
           </div>
            <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number (for calls)</Label>
+            <Label htmlFor="phone">Phone Number</Label>
             <Input id="phone" type="tel" placeholder="+234 800 000 0000" className="h-12 text-base" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={isLoading}/>
           </div>
           <div className="space-y-2">

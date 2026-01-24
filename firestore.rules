@@ -65,15 +65,12 @@ service cloud.firestore {
       
       // Users can update their own profile, but cannot change their role or businessId once set. Admins can update anything.
       allow update: if (
-                      (
                         isSignedIn() && request.auth.uid == userId &&
-                        !('role' in request.resource.diff(resource).affectedKeys()) &&
-                        (
-                          !('businessId' in resource.data) ||
-                          !('businessId' in request.resource.diff(resource).affectedKeys())
-                        )
-                      ) || isAdmin()
-                    );
+                        // Role cannot be changed
+                        request.resource.data.role == resource.data.role &&
+                        // businessId can be set once, but not changed
+                        (!('businessId' in resource.data) || request.resource.data.businessId == resource.data.businessId)
+                    ) || isAdmin();
 
       // Owners can list staff in their business. Admins can list all users.
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();

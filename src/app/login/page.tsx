@@ -59,14 +59,10 @@ export default function LoginPage() {
                 router.replace('/investor/dashboard');
                 break;
             default:
-                // Fallback for users with profiles but no valid role (e.g. old 'Buyer' roles).
-                // Sending them to onboarding is a safe way to re-establish their business.
                 router.replace('/business-info');
                 break;
         }
       } else {
-        // This case would happen for a brand new user who somehow didn't get a profile doc.
-        // Sending them to onboarding is a safe default if they have an auth account but no profile.
         router.replace('/business-info');
       }
 
