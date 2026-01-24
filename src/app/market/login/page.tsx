@@ -50,17 +50,24 @@ export default function MarketLoginPage() {
 
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        if (userProfile.role === 'Owner') {
-            router.push('/owner/home');
-        } else if (userProfile.role === 'Staff') {
-            router.push('/staff/home');
-        } else if (userProfile.role === 'Admin') {
-            router.push('/admin/dashboard');
-        } else if (userProfile.role === 'Investor') {
-            router.push('/investor/dashboard');
-        } else {
-            // Default to market for Buyers or users with no specific role
-            router.push('/market');
+        switch(userProfile.role) {
+            case 'Owner':
+                router.push('/owner/home');
+                break;
+            case 'Staff':
+                router.push('/staff/home');
+                break;
+            case 'Admin':
+                router.push('/admin/dashboard');
+                break;
+            case 'Investor':
+                router.push('/investor/dashboard');
+                break;
+            case 'Buyer':
+                router.push('/market');
+                break;
+            default:
+                router.push('/market');
         }
       } else {
         // If no profile, default to market as this is the market login

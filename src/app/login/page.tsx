@@ -53,19 +53,24 @@ export default function LoginPage() {
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        if (userProfile.role === 'Owner') {
-            router.push('/owner/home');
-        } else if (userProfile.role === 'Staff') {
-            router.push('/staff/home');
-        } else if (userProfile.role === 'Admin') {
-            router.push('/admin/dashboard');
-        } else if (userProfile.role === 'Investor') {
-            router.push('/investor/dashboard');
-        } else if (userProfile.role === 'Buyer') {
-            router.push('/market');
-        } else {
-            // Fallback for users with no role or other roles
-            router.push('/owner/home');
+        switch(userProfile.role) {
+            case 'Owner':
+                router.push('/owner/home');
+                break;
+            case 'Staff':
+                router.push('/staff/home');
+                break;
+            case 'Admin':
+                router.push('/admin/dashboard');
+                break;
+            case 'Investor':
+                router.push('/investor/dashboard');
+                break;
+            case 'Buyer':
+                router.push('/market');
+                break;
+            default:
+                router.push('/owner/home');
         }
       } else {
         // This case should ideally not happen if profiles are created on signup.
