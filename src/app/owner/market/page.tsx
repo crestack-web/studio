@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -88,6 +88,26 @@ const SettingsContent = () => {
         handleSettingsChange('delivery.deliveryDays', newDays);
     };
 
+    const handleBrandingImageUpload = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 1 * 1024 * 1024) { // 1MB limit for branding images
+            toast({
+                variant: 'destructive',
+                title: 'Image too large',
+                description: `Image must be smaller than 1MB.`,
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            handleSettingsChange(imageType, reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSaveChanges = async () => {
         if (!firestore || !businessId || !settings || !businessData) return;
         setIsSaving(true);
@@ -150,11 +170,53 @@ const SettingsContent = () => {
                         <Label htmlFor="store-description">Store Description</Label>
                         <Textarea id="store-description" placeholder="Describe your business for customers..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={isSaving}/>
                     </div>
+                    
                     <div className="space-y-4 pt-4 border-t">
                         <Label className="font-semibold flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Branding</Label>
-                        <div className="space-y-2"><Label htmlFor="banner-url">Banner Image URL</Label><Input id="banner-url" placeholder="https://..." value={settings.bannerImageUrl} onChange={(e) => handleSettingsChange('bannerImageUrl', e.target.value)} disabled={isSaving} /></div>
-                        <div className="space-y-2"><Label htmlFor="logo-url">Logo Image URL</Label><Input id="logo-url" placeholder="https://..." value={settings.logoImageUrl} onChange={(e) => handleSettingsChange('logoImageUrl', e.target.value)} disabled={isSaving} /></div>
+                        
+                        <div className="space-y-2">
+                            <Label>Store Banner</Label>
+                            <Card className="aspect-[3/1] relative flex items-center justify-center border-2 border-dashed">
+                                {settings.bannerImageUrl ? (
+                                    <Image src={settings.bannerImageUrl} alt="Banner preview" fill className="object-cover rounded-md" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground">
+                                        <ImageIcon className="mx-auto h-8 w-8"/>
+                                        <p>Upload a banner (1200x400 recommended)</p>
+                                    </div>
+                                )}
+                                <Label htmlFor="banner-upload" className="absolute inset-0 cursor-pointer bg-black/20 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <FileUp className="h-8 w-8 text-white"/>
+                                </Label>
+                                <Input id="banner-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'bannerImageUrl')} disabled={isSaving} />
+                            </Card>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Store Logo</Label>
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-24 w-24 border bg-muted">
+                                    {settings.logoImageUrl ? (
+                                        <Image src={settings.logoImageUrl} alt="Logo preview" fill className="object-cover" />
+                                    ) : (
+                                        <AvatarFallback className="text-3xl bg-transparent">
+                                            {businessData?.businessName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'B'}
+                                        </AvatarFallback>
+                                    )}
+                                </Avatar>
+                                <div className="grid w-full max-w-sm items-center gap-1.5">
+                                    <Label htmlFor="logo-upload" className="cursor-pointer">
+                                        <Button asChild variant="outline" className="pointer-events-none">
+                                            <span>Upload Logo</span>
+                                        </Button>
+                                    </Label>
+                                    <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'logoImageUrl')} disabled={isSaving} />
+                                    <p className="text-xs text-muted-foreground">Recommended: Square image, max 1MB.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
                      <div className="space-y-4 pt-4 border-t">
                         <Label className="font-semibold flex items-center gap-2"><Contact className="w-4 h-4"/> Public Contact</Label>
                         <div className="grid sm:grid-cols-2 gap-4">

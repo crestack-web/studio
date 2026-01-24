@@ -51,17 +51,9 @@ export default function LoginPage() {
         const userProfile = userDocSnap.data() as UserProfile;
         
         if (userProfile.role === 'Owner') {
-            if (userProfile.businessId) {
-                const businessDocRef = doc(firestore, 'businesses', userProfile.businessId);
-                const businessDocSnap = await getDoc(businessDocRef);
-                if (businessDocSnap.exists() && businessDocSnap.data()?.onboardingCompleted) {
-                    router.replace('/owner/home');
-                } else {
-                    router.replace('/business-info');
-                }
-            } else {
-                router.replace('/business-info');
-            }
+            // The /owner/home layout will handle redirecting to onboarding if necessary.
+            // This simplifies the login page's responsibility.
+            router.replace('/owner/home');
         } else if (userProfile.role === 'Staff') {
             router.replace('/staff/home');
         } else if (userProfile.role === 'Admin') {
@@ -69,9 +61,11 @@ export default function LoginPage() {
         } else if (userProfile.role === 'Investor') {
             router.replace('/investor/dashboard');
         } else {
+             // Fallback for users with no role.
             router.replace('/business-info');
         }
       } else {
+        // Fallback for users who exist in Auth but not in Firestore.
         router.replace('/business-info');
       }
 
