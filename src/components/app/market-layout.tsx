@@ -11,10 +11,26 @@ import { useLanguage } from '@/context/language-provider';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
     const { t } = useLanguage();
     const { totalItems } = useCart();
+    const { user, isUserLoading } = useUser();
+    const auth = useAuth();
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        if (auth) {
+            await signOut(auth);
+            router.push('/market');
+        }
+    };
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
@@ -29,7 +45,7 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         <Link href="/market/cart" passHref>
                             <Button variant="ghost" size="icon" className="relative">
                                 <ShoppingCart className="h-6 w-6" />
@@ -37,6 +53,30 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                                 <span className="sr-only">Cart</span>
                             </Button>
                         </Link>
+                        
+                        {isUserLoading ? (
+                             <Skeleton className="h-10 w-10 rounded-full" />
+                        ) : user ? (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                                        <Avatar>
+                                            <AvatarFallback>{user.displayName?.split(' ').map(n => n[0]).join('').substring(0,2) || user.email?.[0].toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => router.push('/market/orders')} disabled>My Orders</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : (
+                             <div className="hidden md:flex items-center gap-2">
+                                <Button asChild variant="ghost"><Link href="/market/login">Log In</Link></Button>
+                                <Button asChild><Link href="/market/signup">Sign Up</Link></Button>
+                            </div>
+                        )}
+                        
                          <Sheet>
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" className="md:hidden">
@@ -51,6 +91,12 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                                 </SheetHeader>
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col gap-4">
+                                     {!user && (
+                                        <>
+                                             <Link href="/market/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
+                                             <Link href="/market/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
+                                        </>
+                                     )}
                                     <Link href="/login" passHref>
                                         <Button variant="ghost" className="w-full justify-start text-lg">For Businesses</Button>
                                     </Link>

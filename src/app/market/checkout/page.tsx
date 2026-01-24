@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -160,7 +161,7 @@ const CheckoutContent = () => {
                     </CardHeader>
                     <CardContent>
                         <Button asChild>
-                           <Link href="/login?redirect=/market/checkout">Log In or Sign Up</Link>
+                           <Link href="/market/login?redirect=/market/checkout">Log In or Sign Up</Link>
                         </Button>
                     </CardContent>
                 </Card>

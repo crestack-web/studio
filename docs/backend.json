@@ -25,7 +25,7 @@
         "role": {
           "type": "string",
           "description": "The user's role in the system.",
-          "enum": ["Owner", "Investor", "Admin", "Staff"]
+          "enum": ["Owner", "Investor", "Admin", "Staff", "Buyer"]
         }
       },
       "required": ["id", "displayName", "email", "role"]
