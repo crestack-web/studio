@@ -40,7 +40,7 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                         
                         <div className="hidden md:flex items-center gap-2">
                             <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                            <Button asChild><Link href="/signup">Sign Up</Button>
+                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
                         </div>
                         
                          <Sheet>
@@ -58,7 +58,7 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                                 <Logo className="h-8 mb-8" />
                                 <nav className="flex flex-col gap-4">
                                      <Link href="/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
-                                     <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button>
+                                     <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
                                     <div className="flex items-center gap-2 mt-4">
                                         <ThemeToggle />
                                         <LanguageSwitcher />
