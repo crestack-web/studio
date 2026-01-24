@@ -36,18 +36,16 @@ service cloud.firestore {
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
       if (!exists(userDocPath)) { return false; }
       let userDoc = get(userDocPath);
-      if (!('businessId' in userDoc.data)) { return false; }
-      return userDoc.data.businessId == businessId;
+      if (!('businessId' in userDoc.data) || !('role' in userDoc.data)) { return false; }
+      return userDoc.data.businessId == businessId && userDoc.data.role == 'Staff';
     }
     
     // Gets the business ID for the currently authenticated user from their user profile.
     function getBusinessIdForCurrentUser() {
       if (!isSignedIn()) { return null; }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath)) { return null; }
-      let userDoc = get(userDocPath);
-      if (!('businessId' in userDoc.data)) { return null; }
-      return userDoc.data.businessId;
+      if (!exists(userDocPath) || !('businessId' in get(userDocPath).data)) { return null; }
+      return get(userDocPath).data.businessId;
     }
 
 
@@ -57,13 +55,19 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId;
 
       // Users can read their own profile. Admins can read any profile.
-      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      // Staff and owners can read profiles within the same business.
+      allow get: if (isSignedIn() && request.auth.uid == userId) 
+                   || isAdmin() 
+                   || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
       
       // Users can update their own profile, but cannot change their role. Admins can update anything.
       allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
 
-      // Deleting users and listing all users is an admin-only action.
-      allow delete, list: if isAdmin();
+      // Owners can list staff in their business. Admins can list all users.
+      allow list: if (isSignedIn() && request.query.businessId == getBusinessIdForCurrentUser()) || isAdmin();
+
+      // Deleting users is an admin-only action.
+      allow delete: if isAdmin();
     }
     
     // Admin collection is read-only for other admins, and not publicly writable.
@@ -185,6 +189,22 @@ service cloud.firestore {
     match /guarantorApplications/{applicationId} {
       allow create: if true; // Anyone can apply
       allow read, update, delete: if isAdmin();
+    }
+
+    // Staff Invitations
+    match /invitations/{invitationId} {
+      // An owner can create an invitation for their own business.
+      allow create: if isOwner(request.resource.data.businessId);
+
+      // An invited user can read their own invitation after signing up to process it.
+      // Owners can read invitations for their business to display a pending list.
+      allow get: if (isSignedIn() && request.auth.token.email == invitationId) || isOwner(resource.data.businessId);
+      
+      // An owner can list all invitations for their business.
+      allow list: if isSignedIn() && request.query.businessId == getBusinessIdForCurrentUser();
+
+      // An owner can delete/revoke an invitation. A user can delete it after accepting.
+      allow delete: if isOwner(resource.data.businessId) || (isSignedIn() && request.auth.token.email == invitationId);
     }
   }
 }

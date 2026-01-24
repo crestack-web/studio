@@ -561,6 +561,36 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["guarantorName", "guarantorPhone", "riderName", "riderPhone", "status", "createdAt"]
+    },
+    "StaffInvitation": {
+      "title": "Staff Invitation",
+      "type": "object",
+      "description": "Represents an invitation for a user to become a staff member of a business.",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The email of the user being invited."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business the user is invited to join."
+        },
+        "businessName": {
+          "type": "string",
+          "description": "The name of the business (denormalized)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted"],
+          "description": "The status of the invitation."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the invitation was sent."
+        }
+      },
+      "required": ["email", "businessId", "status", "createdAt"]
     }
   },
   "auth": {
@@ -708,6 +738,16 @@
             "$ref": "#/backend/entities/GuarantorApplication"
           },
           "description": "Collection for all guarantor applications."
+        }
+      },
+      {
+        "path": "invitations/{invitationId}",
+        "definition": {
+          "entityName": "StaffInvitation",
+          "schema": {
+            "$ref": "#/backend/entities/StaffInvitation"
+          },
+          "description": "Stores pending invitations for staff members. The document ID is the invited user's email address."
         }
       }
     ]

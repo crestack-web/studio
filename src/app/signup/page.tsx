@@ -10,9 +10,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -45,20 +45,47 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Create user profile in Firestore
-        const userProfile = {
-            id: user.uid,
-            displayName: name,
-            email: user.email,
-            role: 'Owner',
-        };
-        await setDoc(doc(firestore, 'users', user.uid), userProfile);
-        
-        toast({
-            title: "Account Created",
-            description: "Let's set up your business.",
-        });
-        router.push('/business-info');
+        // Check for a pending staff invitation
+        const invitationRef = doc(firestore, 'invitations', user.email!);
+        const invitationSnap = await getDoc(invitationRef);
+
+        if (invitationSnap.exists()) {
+            // This is a staff member joining a business
+            const invitationData = invitationSnap.data();
+            const staffProfile = {
+                id: user.uid,
+                displayName: name,
+                email: user.email,
+                role: 'Staff',
+                businessId: invitationData.businessId,
+            };
+            // Create the real user profile
+            await setDoc(doc(firestore, 'users', user.uid), staffProfile);
+            // Delete the invitation
+            await deleteDoc(invitationRef);
+
+            toast({
+                title: `Welcome to ${invitationData.businessName}!`,
+                description: "Your staff account has been created.",
+            });
+            router.push('/staff/home');
+
+        } else {
+            // This is a new business owner
+            const ownerProfile = {
+                id: user.uid,
+                displayName: name,
+                email: user.email,
+                role: 'Owner',
+            };
+            await setDoc(doc(firestore, 'users', user.uid), ownerProfile);
+            
+            toast({
+                title: "Account Created",
+                description: "Let's set up your business.",
+            });
+            router.push('/business-info');
+        }
 
     } catch (error: any) {
         toast({
@@ -77,7 +104,7 @@ export default function SignUpPage() {
       <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Create your Account</CardTitle>
-          <CardDescription>Get started with Busmo as a business owner.</CardDescription>
+          <CardDescription>Get started with Busmo as a business owner or staff.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
            <div className="space-y-2">

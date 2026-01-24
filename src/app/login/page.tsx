@@ -11,8 +11,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
+interface UserProfile {
+    role?: 'Owner' | 'Staff';
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -21,19 +26,44 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-        if (!auth) {
-            throw new Error("Firebase auth not available");
+        if (!auth || !firestore) {
+            throw new Error("Firebase services not available");
         }
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to your dashboard...",
-      });
-      router.push('/owner/home');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Check the user's role and redirect
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        const userProfile = userDocSnap.data() as UserProfile;
+        toast({
+            title: "Login Successful",
+            description: "Redirecting to your dashboard...",
+        });
+        if (userProfile.role === 'Owner') {
+            router.push('/owner/home');
+        } else if (userProfile.role === 'Staff') {
+            router.push('/staff/home');
+        } else {
+            // Fallback for users with no role or other roles
+            router.push('/owner/home');
+        }
+      } else {
+        // This case should ideally not happen if profiles are created on signup.
+        // Defaulting to owner dashboard.
+        toast({
+            title: "Login Successful",
+            description: "User profile not found, redirecting to home.",
+        });
+        router.push('/owner/home');
+      }
     } catch (error: any) {
         toast({
             variant: "destructive",
@@ -50,49 +80,27 @@ export default function LoginPage() {
       <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Log In</CardTitle>
-          <CardDescription>Select your role to log in.</CardDescription>
+          <CardDescription>Enter your email and password to log in.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="owner" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="owner">Business Owner</TabsTrigger>
-              <TabsTrigger value="staff">Staff</TabsTrigger>
-            </TabsList>
-            <TabsContent value="owner" className="space-y-6 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="owner-email">Email Address</Label>
-                <Input id="owner-email" type="email" placeholder="you@example.com" className="h-12 text-base" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="owner-password">Password</Label>
-                <Input id="owner-password" type="password" placeholder="••••••••" className="h-12 text-base" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
-              </div>
-              <Button className="w-full h-14 text-lg" onClick={handleLogin} disabled={isLoading || !email || !password}>
+        <CardContent className="space-y-6">
+            <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input id="email" type="email" placeholder="you@example.com" className="h-12 text-base" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" placeholder="••••••••" className="h-12 text-base" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+            </div>
+            <Button className="w-full h-14 text-lg" onClick={handleLogin} disabled={isLoading || !email || !password}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Log In as Owner
-              </Button>
-               <p className="text-sm text-center text-muted-foreground pt-2">
-                  Don't have an account?{' '}
-                  <Link href="/signup" className="underline font-medium text-primary">
-                      Sign Up
-                  </Link>
-              </p>
-            </TabsContent>
-            <TabsContent value="staff" className="space-y-6 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="staff-email">Email Address</Label>
-                <Input id="staff-email" type="email" placeholder="you@example.com" className="h-12 text-base" />
-              </div>
-               <Link href="/staff/home" className="w-full">
-                <Button className="w-full h-14 text-lg">
-                  Log In as Staff
-                </Button>
-              </Link>
-              <p className="text-xs text-center text-muted-foreground pt-2">
-                  You can only log in if the business owner has added you as a staff member.
-              </p>
-            </TabsContent>
-          </Tabs>
+                Log In
+            </Button>
+            <p className="text-sm text-center text-muted-foreground pt-2">
+                Don't have an account?{' '}
+                <Link href="/signup" className="underline font-medium text-primary">
+                    Sign Up
+                </Link>
+            </p>
         </CardContent>
       </Card>
     </OnboardingLayout>
