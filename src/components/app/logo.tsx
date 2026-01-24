@@ -48,7 +48,19 @@ const LogoIcon = () => (
 );
 
 
-export function Logo({ className }: { className?: string }) {
+export function Logo({ className, variant }: { className?: string, variant?: 'default' | 'busmopay' }) {
+  if (variant === 'busmopay') {
+      return (
+        <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
+          <LogoIcon />
+          <div>
+            <span className="text-primary">Busmo</span>
+            <span className="text-busmopay-primary">Pay</span>
+          </div>
+        </div>
+      );
+  }
+
   return (
     <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
       <LogoIcon />
@@ -59,3 +71,4 @@ export function Logo({ className }: { className?: string }) {
     </div>
   );
 }
+

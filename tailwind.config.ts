@@ -81,6 +81,9 @@ export default {
             DEFAULT: 'hsl(var(--success))',
             foreground: 'hsl(var(--success-foreground))',
         },
+        'busmopay-primary': {
+            DEFAULT: 'hsl(var(--busmopay-primary))',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -133,3 +136,4 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+

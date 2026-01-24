@@ -54,152 +54,99 @@ service cloud.firestore {
 
     // --- USER & ADMIN PROFILES ---
     match /users/{userId} {
-      // Any authenticated user can create their own profile.
       allow create: if isSignedIn() && request.auth.uid == userId;
-
-      // Users can read their own profile. Admins can read any profile.
-      // Staff and owners can read profiles within the same business.
-      allow get: if (isSignedIn() && request.auth.uid == userId) 
-                   || isAdmin() 
-                   || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
-      
-      // Users can update their own profile, but cannot change their role or businessId once set. Admins can update anything.
-      allow update: if (
-                        isSignedIn() && request.auth.uid == userId &&
-                        // Role cannot be changed
-                        request.resource.data.role == resource.data.role &&
-                        // businessId can be set once, but not changed
-                        (!('businessId' in resource.data) || request.resource.data.businessId == resource.data.businessId)
-                    ) || isAdmin();
-
-      // Owners can list staff in their business. Admins can list all users.
+      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
+      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role && (!('businessId' in resource.data) || request.resource.data.businessId == resource.data.businessId)) || isAdmin();
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
-
-      // Deleting users is an admin-only action.
       allow delete: if isAdmin();
     }
 
 
     // --- BUSINESS DATA ---
     match /businesses/{businessId} {
-      // The business owner, staff of that business, or an admin can read the business document.
       allow get: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-      
-      // A user can create a business if they set themselves as the owner.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      
-      // Only the business owner or an admin can update or delete the business.
       allow update, delete: if isOwner(businessId) || isAdmin();
-      
-      // Listing all businesses is restricted to admins for performance and security.
       allow list: if isAdmin();
 
       // Business Subcollections
-      match /inventory/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
       match /products/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
       match /sales/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
       match /expenses/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
-      match /transactions/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+      match /cashTransactions/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
 
-       // Orders placed through the market.
       match /orders/{orderId} {
-        // Authenticated users can create orders for themselves.
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-
-        // The buyer, the seller (owner/staff), or an admin can view an order.
         allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(businessId) || isStaff(businessId) || isAdmin();
-        
-        // The seller can update the order status.
         allow update: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-        
-        // Business owners and staff can list orders for their business.
         allow list: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-
-        // Deleting orders is restricted to admins.
         allow delete: if isAdmin();
+      }
+
+      // BusmoPay financial transactions
+      match /financialTransactions/{transactionId} {
+        allow read, list: if isOwner(businessId) || isAdmin();
+        // Transactions are created by backend functions only
+        allow write: if false; 
       }
     }
 
 
-    // --- PUBLIC MARKETPLACE & ORDERS ---
+    // --- PUBLIC MARKETPLACE & PAYMENTS ---
     
     // Publicly readable business profiles for the market.
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      // User must be the owner to create.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Owner can update, but cannot change the ownerId. Admins can do anything.
       allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
-      // Owner can delete.
       allow delete: if isOwner(businessId) || isAdmin();
     }
     
     // Publicly readable product listings.
     match /marketProducts/{productId} {
-      // Anyone can view and list products.
       allow get, list: if true;
-      
-      // Create: User must be the owner of the business ID in the new product.
       allow create: if isOwner(request.resource.data.businessId) || isAdmin();
-
-      // Update: User must be owner, and cannot change the business ID.
       allow update: if (isOwner(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId) || isAdmin();
-      
-      // Delete: User must be the owner of the business ID of the product being deleted.
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
 
+    // BusmoPay payment intents
+    match /paymentIntents/{intentId} {
+      // Authenticated users can create payment intents for themselves
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      // The customer who created it, the merchant, or an admin can read it.
+      allow get: if (isSignedIn() && resource.data.customerId == request.auth.uid) || isOwner(resource.data.merchantId) || isAdmin();
+      // Only backend functions can update the status
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Webhook logs are write-only by backend functions
+    match /webhookLogs/{logId} {
+      allow read, write: if false;
+    }
+
+
     // --- CONTENT & SUPPORT ---
     
-    // Blog posts
     match /blogs/{blogId} {
-      // Allow public list of published posts, and admin list of any posts.
       allow list: if request.query.get("isPublished") == true || isAdmin();
-
-      // Published posts are public. Admins can read all posts.
       allow get: if resource.data.isPublished == true || isAdmin();
-      
-      // Only admins can create, update, or delete blog posts.
       allow write: if isAdmin();
     }
 
-    // Support Tickets
     match /supportTickets/{ticketId} {
-      // Allow creation for authenticated users for themselves.
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      
-      // The user who created the ticket and admins can view or update it.
       allow get, update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
-      
-      // Only admins can list or delete tickets.
       allow list, delete: if isAdmin();
     }
-    
-    // Rider & Guarantor Applications
-    match /riderApplications/{applicationId} {
-      allow create: if true; // Anyone can apply
-      allow read, update, delete: if isAdmin();
-    }
-    
-    match /guarantorApplications/{applicationId} {
-      allow create: if true; // Anyone can apply
-      allow read, update, delete: if isAdmin();
-    }
 
-    // Staff Invitations
     match /invitations/{invitationId} {
-      // An owner can create an invitation for their own business.
       allow create: if isOwner(request.resource.data.businessId);
-
-      // An invited user can read their own invitation after signing up to process it.
-      // Owners can read invitations for their business to display a pending list.
       allow get: if (isSignedIn() && request.auth.token.email == invitationId) || isOwner(resource.data.businessId);
-      
-      // An owner can list all invitations for their business.
       allow list: if isSignedIn() && request.query.get("businessId") == getBusinessIdForCurrentUser();
-
-      // An owner can delete/revoke an invitation. A user can delete it after accepting.
       allow delete: if isOwner(resource.data.businessId) || (isSignedIn() && request.auth.token.email == invitationId);
     }
   }
 }
+

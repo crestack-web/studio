@@ -22,8 +22,9 @@
     --destructive-foreground: 0 0% 100%;
     --warning: 45 93% 47%;
     --warning-foreground: 0 0% 0%;
-    --success: 256 58% 57%; /* Muted purple */
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
+    --busmopay-primary: 142 76% 36%;
     --border: 220 13% 85%;
     --input: 220 13% 88%;
     --ring: 235 62% 29%;
@@ -61,8 +62,9 @@
     --destructive-foreground: 210 20% 98%;
     --warning: 45 83% 57%;
     --warning-foreground: 0 0% 0%;
-    --success: 256 58% 67%;
-    --success-foreground: 235 62% 20%;
+    --success: 142 66% 45%;
+    --success-foreground: 0 0% 100%;
+    --busmopay-primary: 142 66% 45%;
     --border: 240 5% 20%;
     --input: 240 5% 20%;
     --ring: 228 100% 98%;
@@ -107,3 +109,4 @@
     @apply font-headline;
   }
 }
+

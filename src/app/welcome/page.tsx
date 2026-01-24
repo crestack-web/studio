@@ -132,6 +132,7 @@ export default function LandingPage() {
           <Logo className="h-8" />
           <nav className="hidden md:flex items-center gap-2">
             <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
+            <Link href="/busmopay" passHref><Button variant="ghost">BusmoPay</Button></Link>
             <Link href="/market" passHref><Button variant="ghost">{t('nav.market')}</Button></Link>
             <Link href="/invest" passHref><Button variant="ghost">{t('nav.investors')}</Button></Link>
             <Link href="/blog" passHref><Button variant="ghost">Blog</Button></Link>
@@ -160,6 +161,7 @@ export default function LandingPage() {
                   <Logo className="h-8 mb-8" />
                   <nav className="flex flex-col items-start gap-4">
                       <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                      <Link href="/busmopay" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">BusmoPay</Button></Link>
                       <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                       <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                       <Link href="/blog" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Blog</Button></Link>
@@ -800,3 +802,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

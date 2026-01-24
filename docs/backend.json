@@ -100,6 +100,16 @@
             }
           }
         },
+         "busmoPaySettings": {
+          "type": "object",
+          "description": "Settings for BusmoPay integration.",
+          "properties": {
+            "paystackEnabled": { "type": "boolean" },
+            "paystackSecretKey": { "type": "string" },
+            "airtelMoneyEnabled": { "type": "boolean" },
+            "airtelMoneyClientSecret": { "type": "string" }
+          }
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -141,29 +151,7 @@
             "bannerImageUrl": { "type": "string", "description": "URL for the store's banner image." },
             "logoImageUrl": { "type": "string", "description": "URL for the store's logo." },
             "contactPhone": { "type": "string", "description": "Public contact phone number." },
-            "contactEmail": { "type": "string", "description": "Public contact email address." },
-            "payment": {
-              "type": "object",
-              "properties": {
-                "allowBankTransfer": { "type": "boolean" },
-                "allowPayOnDelivery": { "type": "boolean" },
-                "bankName": { "type": "string" },
-                "accountNumber": { "type": "string" },
-                "paymentInstructions": { "type": "string" }
-              }
-            },
-            "delivery": {
-              "type": "object",
-              "properties": {
-                "allowDelivery": { "type": "boolean" },
-                "allowPickup": { "type": "boolean" },
-                "deliveryFee": { "type": "number" },
-                "deliveryDays": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                }
-              }
-            }
+            "contactEmail": { "type": "string", "description": "Public contact email address." }
           }
         }
       },
@@ -239,6 +227,10 @@
             },
             "required": ["id", "name", "price", "quantity"]
           }
+        },
+        "busmoPayEnabled": {
+            "type": "boolean",
+            "description": "Indicates if BusmoPay payment rails are enabled for this product."
         }
       },
       "required": [
@@ -247,191 +239,58 @@
         "createdAt"
       ]
     },
-    "Sale": {
-      "title": "Sale",
+    "PointOfSale": {
+      "title": "Point of Sale",
       "type": "object",
-      "description": "Represents a single sales transaction.",
+      "description": "Represents a single POS sales transaction (not online).",
       "properties": {
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business that made the sale."
-        },
-        "productId": {
-          "type": "string",
-          "description": "The ID of the product sold."
-        },
-        "productName": {
-          "type": "string",
-          "description": "The name of the product sold (denormalized)."
-        },
-        "variantId": {
-          "type": "string",
-          "description": "The ID of the product variant sold, if applicable."
-        },
-        "variantName": {
-          "type": "string",
-          "description": "The name of the product variant sold (denormalized)."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The total amount of the sale."
-        },
-        "quantity": {
-          "type": "number",
-          "description": "The quantity of the product sold."
-        },
-        "paymentType": {
-          "type": "string",
-          "description": "The payment method used (e.g., cash, pos, transfer)."
-        },
-        "source": {
-          "type": "string",
-          "description": "The source of the sale (e.g., pos, market)."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the sale occurred."
-        }
+        "businessId": { "type": "string", "description": "The ID of the business that made the sale." },
+        "productId": { "type": "string", "description": "The ID of the product sold." },
+        "productName": { "type": "string", "description": "The name of the product sold (denormalized)." },
+        "variantId": { "type": "string", "description": "The ID of the product variant sold, if applicable." },
+        "variantName": { "type": "string", "description": "The name of the product variant sold (denormalized)." },
+        "amount": { "type": "number", "description": "The total amount of the sale." },
+        "quantity": { "type": "number", "description": "The quantity of the product sold." },
+        "paymentType": { "type": "string", "description": "The payment method used (e.g., cash, pos, transfer)." },
+        "source": { "type": "string", "description": "The source of the sale (e.g., pos, market)." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the sale occurred." }
       },
-      "required": [
-        "businessId",
-        "productId",
-        "amount",
-        "quantity",
-        "paymentType",
-        "source",
-        "timestamp"
-      ]
+      "required": ["businessId", "productId", "amount", "quantity", "paymentType", "source", "timestamp"]
     },
     "MarketProduct": {
       "title": "MarketProduct",
       "type": "object",
       "description": "A denormalized, public-facing product for the marketplace.",
       "properties": {
-        "productId": {
-          "type": "string",
-          "description": "The original product ID."
-        },
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business selling the product."
-        },
-        "businessName": {
-          "type": "string",
-          "description": "The name of the business selling the product (denormalized)."
-        },
-        "productName": {
-          "type": "string",
-          "description": "The name of the product."
-        },
-        "price": {
-          "type": "number",
-          "description": "The base or default price of the product."
-        },
-        "oldPrice": {
-          "type": "number",
-          "description": "The previous price of the product, for displaying discounts."
-        },
-        "description": {
-            "type": "string",
-            "description": "Public-facing product description."
-        },
-        "category": {
-          "type": "string",
-          "description": "The product category."
-        },
-        "images": {
-            "type": "array",
-            "description": "URL or data URI for the product's images.",
-            "items": { "type": "string" }
-        },
-        "hint": {
-            "type": "string",
-            "description": "A hint for AI image services."
-        },
-        "availableQuantity": {
-            "type": "number",
-            "description": "The total available stock of the product across all variants."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["active", "draft"],
-          "description": "The visibility status of the product on the marketplace."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp from the original product creation."
-        },
-        "hasVariants": {
-          "type": "boolean",
-          "description": "Indicates if the product has multiple variants."
-        },
-        "variants": {
-          "type": "array",
-          "description": "List of available product variants for the market.",
-          "items": {
-              "type": "object",
-              "properties": {
-                  "id": { "type": "string", "description": "Unique ID for the variant within the product." },
-                  "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
-                  "price": { "type": "number" },
-                  "availableQuantity": { "type": "number" },
-                  "image": { "type": "string" }
-              },
-              "required": ["id", "name", "price", "availableQuantity"]
-          }
-        }
+        "productId": { "type": "string", "description": "The original product ID." },
+        "businessId": { "type": "string", "description": "The ID of the business selling the product." },
+        "businessName": { "type": "string", "description": "The name of the business selling the product (denormalized)." },
+        "productName": { "type": "string", "description": "The name of the product." },
+        "price": { "type": "number", "description": "The base or default price of the product." },
+        "oldPrice": { "type": "number", "description": "The previous price of the product, for displaying discounts." },
+        "description": { "type": "string", "description": "Public-facing product description." },
+        "category": { "type": "string", "description": "The product category." },
+        "images": { "type": "array", "description": "URL or data URI for the product's images.", "items": { "type": "string" } },
+        "hint": { "type": "string", "description": "A hint for AI image services." },
+        "availableQuantity": { "type": "number", "description": "The total available stock of the product across all variants." },
+        "status": { "type": "string", "enum": ["active", "draft"], "description": "The visibility status of the product on the marketplace." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp from the original product creation." },
+        "hasVariants": { "type": "boolean", "description": "Indicates if the product has multiple variants." },
+        "variants": { "type": "array", "description": "List of available product variants for the market.", "items": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "price": { "type": "number" }, "availableQuantity": { "type": "number" }, "image": { "type": "string" } }, "required": ["id", "name", "price", "availableQuantity"] } }
       },
-      "required": [
-        "productId",
-        "businessId",
-        "businessName",
-        "productName",
-        "price",
-        "category",
-        "availableQuantity",
-        "status",
-        "createdAt"
-      ]
+      "required": ["productId", "businessId", "businessName", "productName", "price", "category", "availableQuantity", "status", "createdAt"]
     },
     "Order": {
       "title": "Order",
       "type": "object",
-      "description": "Represents a customer order from the public marketplace.",
+      "description": "Represents a customer order from the public marketplace. Legacy, being replaced by PaymentIntent.",
       "properties": {
-        "buyerId": { "type": "string", "description": "The UID of the user who placed the order." },
-        "sellerBusinessId": { "type": "string", "description": "The ID of the business the order was placed with." },
-        "customer": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "phone": { "type": "string" },
-            "address": { "type": "string" }
-          },
-          "required": ["name", "phone"]
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "productId": { "type": "string" },
-              "productName": { "type": "string" },
-              "variantId": { "type": "string" },
-              "variantName": { "type": "string" },
-              "quantity": { "type": "number" },
-              "price": { "type": "number" }
-            }
-          }
-        },
-        "subtotal": { "type": "number" },
-        "deliveryFee": { "type": "number" },
-        "total": { "type": "number" },
+        "buyerId": { "type": "string" }, "sellerBusinessId": { "type": "string" },
+        "customer": { "type": "object", "properties": { "name": { "type": "string" }, "phone": { "type": "string" }, "address": { "type": "string" } }, "required": ["name", "phone"] },
+        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "productName": { "type": "string" }, "variantId": { "type": "string" }, "variantName": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
+        "subtotal": { "type": "number" }, "deliveryFee": { "type": "number" }, "total": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "fulfilled", "cancelled"] },
-        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
-        "payment": { "type": "string", "enum": ["transfer", "delivery"] },
+        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] }, "payment": { "type": "string", "enum": ["transfer", "delivery"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["buyerId", "sellerBusinessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
@@ -441,175 +300,44 @@
       "type": "object",
       "description": "Represents a single business expense.",
       "properties": {
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business that incurred the expense."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the expense."
-        },
-        "title": {
-          "type": "string",
-          "description": "A short title for the expense."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The amount of the expense."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the expense was recorded."
-        }
+        "businessId": { "type": "string" }, "category": { "type": "string" }, "title": { "type": "string" }, "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "businessId",
-        "category",
-        "title",
-        "amount",
-        "createdAt"
-      ]
+      "required": ["businessId", "category", "title", "amount", "createdAt"]
     },
-    "Transaction": {
-      "title": "Transaction",
+    "CashTransaction": {
+      "title": "Cash Transaction",
       "type": "object",
       "description": "Represents a cash deposit or withdrawal.",
       "properties": {
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["deposit", "withdrawal"],
-          "description": "The type of transaction."
-        },
-        "amount": {
-          "type": "number",
-          "description": "The transaction amount."
-        },
-        "description": {
-          "type": "string",
-          "description": "An optional note for the transaction."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the transaction was recorded."
-        }
+        "businessId": { "type": "string" }, "type": { "type": "string", "enum": ["deposit", "withdrawal"] }, "amount": { "type": "number" },
+        "description": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [ "businessId", "type", "amount", "createdAt" ]
+      "required": ["businessId", "type", "amount", "createdAt"]
     },
-    "BlogPost": {
-      "title": "Blog Post",
-      "type": "object",
-      "description": "Represents a single blog post article.",
+    "BlogPost": { "title": "Blog Post", "type": "object", "description": "Represents a single blog post article.", "properties": { "title": { "type": "string" }, "slug": { "type": "string" }, "description": { "type": "string" }, "content": { "type": "string" }, "author": { "type": "string" }, "imageUrl": { "type": "string" }, "imageHint": { "type": "string" }, "isPublished": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }, "required": ["title", "slug", "content", "author", "createdAt"] },
+    "SupportTicket": { "title": "Support Ticket", "type": "object", "description": "Represents a customer support request.", "properties": { "userId": { "type": "string" }, "userName": { "type": "string" }, "userEmail": { "type": "string" }, "subject": { "type": "string" }, "message": { "type": "string" }, "status": { "type": "string", "enum": ["open", "in-progress", "closed"] }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["userId", "subject", "message", "status", "createdAt"] },
+    "StaffInvitation": { "title": "Staff Invitation", "type": "object", "description": "Represents an invitation for a user to become a staff member of a business.", "properties": { "email": { "type": "string" }, "businessId": { "type": "string" }, "businessName": { "type": "string" }, "status": { "type": "string", "enum": ["pending", "accepted"] }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["email", "businessId", "status", "createdAt"] },
+    "PaymentIntent": {
+      "title": "Payment Intent", "type": "object", "description": "Represents a request to create a payment.",
       "properties": {
-        "title": { "type": "string" },
-        "slug": { "type": "string" },
-        "description": { "type": "string" },
-        "content": { "type": "string" },
-        "author": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "imageHint": { "type": "string" },
-        "isPublished": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "merchantId": { "type": "string" }, "customerId": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string" },
+        "method": { "type": "string", "enum": ["paystack", "airtel_money"] }, "status": { "type": "string", "enum": ["pending", "succeeded", "failed"] },
+        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "name": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
+        "providerIntentId": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "slug", "content", "author", "createdAt"]
+      "required": ["merchantId", "amount", "currency", "method", "status", "createdAt"]
     },
-    "SupportTicket": {
-      "title": "Support Ticket",
-      "type": "object",
-      "description": "Represents a customer support request.",
+    "FinancialTransaction": {
+      "title": "Financial Transaction", "type": "object", "description": "Represents a completed financial transaction and profit share.",
       "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userEmail": { "type": "string" },
-        "subject": { "type": "string" },
-        "message": { "type": "string" },
-        "status": { "type": "string", "enum": ["open", "in-progress", "closed"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "paymentIntentId": { "type": "string" }, "merchantId": { "type": "string" }, "customerId": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string" },
+        "method": { "type": "string" }, "status": { "type": "string" }, "platformFee": { "type": "number" }, "investorProfitShare": { "type": "number" }, "merchantPayout": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "subject", "message", "status", "createdAt"]
+      "required": ["paymentIntentId", "merchantId", "amount", "status", "completedAt"]
     },
-    "RiderApplication": {
-      "title": "Rider Application",
-      "type": "object",
-      "description": "Represents an application from a user wanting to become a delivery rider.",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "The full name of the applicant."
-        },
-        "phone": {
-          "type": "string",
-          "description": "The applicant's phone number."
-        },
-        "address": {
-          "type": "string",
-          "description": "The applicant's primary address or area of operation."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["pending", "approved", "rejected"],
-          "description": "The current status of the application."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the application was submitted."
-        }
-      },
-      "required": ["name", "phone", "address", "status", "createdAt"]
-    },
-    "GuarantorApplication": {
-      "title": "Guarantor Application",
-      "type": "object",
-      "description": "Represents an application from a user wanting to become a guarantor for a rider.",
-      "properties": {
-        "guarantorName": { "type": "string" },
-        "guarantorPhone": { "type": "string" },
-        "guarantorAddress": { "type": "string" },
-        "riderName": { "type": "string" },
-        "riderPhone": { "type": "string" },
-        "relationship": { "type": "string", "description": "Relationship to the rider." },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["guarantorName", "guarantorPhone", "riderName", "riderPhone", "status", "createdAt"]
-    },
-    "StaffInvitation": {
-      "title": "Staff Invitation",
-      "type": "object",
-      "description": "Represents an invitation for a user to become a staff member of a business.",
-      "properties": {
-        "email": {
-          "type": "string",
-          "description": "The email of the user being invited."
-        },
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business the user is invited to join."
-        },
-        "businessName": {
-          "type": "string",
-          "description": "The name of the business (denormalized)."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["pending", "accepted"],
-          "description": "The status of the invitation."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the invitation was sent."
-        }
-      },
-      "required": ["email", "businessId", "status", "createdAt"]
-    }
+    "WebhookLog": { "title": "Webhook Log", "type": "object", "description": "Logs incoming webhooks from payment providers.", "properties": { "provider": { "type": "string" }, "payload": { "type": "object" }, "isProcessed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["provider", "payload", "createdAt"] }
   },
   "auth": {
     "providers": [
@@ -618,156 +346,22 @@
   },
   "firestore": {
     "structure": [
-      {
-        "path": "users/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores public-facing user profile information."
-        }
-      },
-      {
-        "path": "businesses/{businessId}",
-        "definition": {
-          "entityName": "Business",
-          "schema": {
-            "$ref": "#/backend/entities/Business"
-          },
-          "description": "Top-level collection for all business data. Each document is owned by a user."
-        }
-      },
-      {
-        "path": "businessProfiles/{businessId}",
-        "definition": {
-          "entityName": "BusinessProfile",
-          "schema": {
-            "$ref": "#/backend/entities/BusinessProfile"
-          },
-          "description": "Publicly readable information about a business for the marketplace."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/inventory/{inventoryId}",
-        "definition": {
-          "entityName": "Inventory",
-          "schema": {
-            "$ref": "#/backend/entities/Inventory"
-          },
-          "description": "Subcollection for inventory items belonging to a business."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Subcollection for products belonging to a business."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Subcollection for sales transactions belonging to a business."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Subcollection for market orders belonging to a business."
-        }
-      },
-      {
-        "path": "marketProducts/{marketProductId}",
-        "definition": {
-          "entityName": "MarketProduct",
-          "schema": {
-            "$ref": "#/backend/entities/MarketProduct"
-          },
-          "description": "Publicly readable collection of products listed on the marketplace."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/expenses/{expenseId}",
-        "definition": {
-          "entityName": "Expense",
-          "schema": {
-            "$ref": "#/backend/entities/Expense"
-          },
-          "description": "Subcollection for expenses belonging to a business."
-        }
-      },
-      {
-        "path": "businesses/{businessId}/transactions/{transactionId}",
-        "definition": {
-          "entityName": "Transaction",
-          "schema": {
-            "$ref": "#/backend/entities/Transaction"
-          },
-          "description": "Subcollection for cash deposits and withdrawals."
-        }
-      },
-       {
-        "path": "blogs/{blogId}",
-        "definition": {
-          "entityName": "BlogPost",
-          "schema": {
-            "$ref": "#/backend/entities/BlogPost"
-          },
-          "description": "Collection for all blog posts."
-        }
-      },
-      {
-        "path": "supportTickets/{ticketId}",
-        "definition": {
-          "entityName": "SupportTicket",
-          "schema": {
-            "$ref": "#/backend/entities/SupportTicket"
-          },
-          "description": "Collection for all customer support tickets."
-        }
-      },
-      {
-        "path": "riderApplications/{applicationId}",
-        "definition": {
-          "entityName": "RiderApplication",
-          "schema": {
-            "$ref": "#/backend/entities/RiderApplication"
-          },
-          "description": "Collection for all rider applications."
-        }
-      },
-      {
-        "path": "guarantorApplications/{applicationId}",
-        "definition": {
-          "entityName": "GuarantorApplication",
-          "schema": {
-            "$ref": "#/backend/entities/GuarantorApplication"
-          },
-          "description": "Collection for all guarantor applications."
-        }
-      },
-      {
-        "path": "invitations/{invitationId}",
-        "definition": {
-          "entityName": "StaffInvitation",
-          "schema": {
-            "$ref": "#/backend/entities/StaffInvitation"
-          },
-          "description": "Stores pending invitations for staff members. The document ID is the invited user's email address."
-        }
-      }
+      { "path": "users/{userId}", "definition": { "entityName": "UserProfile", "schema": { "$ref": "#/backend/entities/UserProfile" }, "description": "Stores user profile information." } },
+      { "path": "businesses/{businessId}", "definition": { "entityName": "Business", "schema": { "$ref": "#/backend/entities/Business" }, "description": "Top-level collection for all business data." } },
+      { "path": "businessProfiles/{businessId}", "definition": { "entityName": "BusinessProfile", "schema": { "$ref": "#/backend/entities/BusinessProfile" }, "description": "Publicly readable information about a business for the marketplace." } },
+      { "path": "businesses/{businessId}/products/{productId}", "definition": { "entityName": "Product", "schema": { "$ref": "#/backend/entities/Product" }, "description": "Subcollection for products belonging to a business." } },
+      { "path": "businesses/{businessId}/sales/{saleId}", "definition": { "entityName": "PointOfSale", "schema": { "$ref": "#/backend/entities/PointOfSale" }, "description": "Subcollection for POS sales transactions belonging to a business." } },
+      { "path": "businesses/{businessId}/orders/{orderId}", "definition": { "entityName": "Order", "schema": { "$ref": "#/backend/entities/Order" }, "description": "Subcollection for market orders (legacy)." } },
+      { "path": "marketProducts/{marketProductId}", "definition": { "entityName": "MarketProduct", "schema": { "$ref": "#/backend/entities/MarketProduct" }, "description": "Publicly readable collection of products listed on the marketplace." } },
+      { "path": "businesses/{businessId}/expenses/{expenseId}", "definition": { "entityName": "Expense", "schema": { "$ref": "#/backend/entities/Expense" }, "description": "Subcollection for expenses belonging to a business." } },
+      { "path": "businesses/{businessId}/cashTransactions/{transactionId}", "definition": { "entityName": "CashTransaction", "schema": { "$ref": "#/backend/entities/CashTransaction" }, "description": "Subcollection for cash deposits and withdrawals." } },
+      { "path": "blogs/{blogId}", "definition": { "entityName": "BlogPost", "schema": { "$ref": "#/backend/entities/BlogPost" }, "description": "Collection for all blog posts." } },
+      { "path": "supportTickets/{ticketId}", "definition": { "entityName": "SupportTicket", "schema": { "$ref": "#/backend/entities/SupportTicket" }, "description": "Collection for all customer support tickets." } },
+      { "path": "invitations/{invitationId}", "definition": { "entityName": "StaffInvitation", "schema": { "$ref": "#/backend/entities/StaffInvitation" }, "description": "Stores pending invitations for staff members." } },
+      { "path": "paymentIntents/{intentId}", "definition": { "entityName": "PaymentIntent", "schema": { "$ref": "#/backend/entities/PaymentIntent" }, "description": "Collection for all BusmoPay payment intents." } },
+      { "path": "businesses/{businessId}/financialTransactions/{transactionId}", "definition": { "entityName": "FinancialTransaction", "schema": { "$ref": "#/backend/entities/FinancialTransaction" }, "description": "Subcollection for completed financial transactions and profit sharing." } },
+      { "path": "webhookLogs/{logId}", "definition": { "entityName": "WebhookLog", "schema": { "$ref": "#/backend/entities/WebhookLog" }, "description": "Logs all incoming webhooks from payment providers." } }
     ]
   }
 }
+
