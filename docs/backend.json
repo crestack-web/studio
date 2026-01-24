@@ -337,7 +337,31 @@
       },
       "required": ["paymentIntentId", "merchantId", "amount", "status", "completedAt"]
     },
-    "WebhookLog": { "title": "Webhook Log", "type": "object", "description": "Logs incoming webhooks from payment providers.", "properties": { "provider": { "type": "string" }, "payload": { "type": "object" }, "isProcessed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["provider", "payload", "createdAt"] }
+    "WebhookLog": { "title": "Webhook Log", "type": "object", "description": "Logs incoming webhooks from payment providers.", "properties": { "provider": { "type": "string" }, "payload": { "type": "object" }, "isProcessed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["provider", "payload", "createdAt"] },
+    "Investment": {
+      "title": "Investment",
+      "type": "object",
+      "description": "Represents an investment made by an investor into a business.",
+      "properties": {
+        "investorId": { "type": "string", "description": "The UID of the investor." },
+        "businessId": { "type": "string", "description": "The ID of the business being invested in." },
+        "businessName": { "type": "string", "description": "Denormalized name of the business." },
+        "amount": { "type": "number", "description": "The amount invested." },
+        "type": { "type": "string", "enum": ["Profit Sharing", "Equity"], "description": "The type of investment deal." },
+        "status": { "type": "string", "enum": ["Pending Acceptance", "Pending Funding", "Active", "Completed", "Rejected", "Cancelled"], "description": "The current status of the investment." },
+        "terms": {
+          "type": "object",
+          "properties": {
+            "profitShare": { "type": "number", "description": "The percentage of profit share for the investor." },
+            "duration": { "type": "number", "description": "The duration of the profit share in months." },
+            "equity": { "type": "number", "description": "The percentage of equity given to the investor." },
+            "valuation": { "type": "number", "description": "The business valuation at the time of investment." }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["investorId", "businessId", "businessName", "amount", "type", "status", "terms", "createdAt"]
+    }
   },
   "auth": {
     "providers": [
@@ -358,10 +382,10 @@
       { "path": "blogs/{blogId}", "definition": { "entityName": "BlogPost", "schema": { "$ref": "#/backend/entities/BlogPost" }, "description": "Collection for all blog posts." } },
       { "path": "supportTickets/{ticketId}", "definition": { "entityName": "SupportTicket", "schema": { "$ref": "#/backend/entities/SupportTicket" }, "description": "Collection for all customer support tickets." } },
       { "path": "invitations/{invitationId}", "definition": { "entityName": "StaffInvitation", "schema": { "$ref": "#/backend/entities/StaffInvitation" }, "description": "Stores pending invitations for staff members." } },
+      { "path": "investments/{investmentId}", "definition": { "entityName": "Investment", "schema": { "$ref": "#/backend/entities/Investment" }, "description": "Collection for all investment offers and agreements." } },
       { "path": "paymentIntents/{intentId}", "definition": { "entityName": "PaymentIntent", "schema": { "$ref": "#/backend/entities/PaymentIntent" }, "description": "Collection for all BusmoPay payment intents." } },
       { "path": "businesses/{businessId}/financialTransactions/{transactionId}", "definition": { "entityName": "FinancialTransaction", "schema": { "$ref": "#/backend/entities/FinancialTransaction" }, "description": "Subcollection for completed financial transactions and profit sharing." } },
       { "path": "webhookLogs/{logId}", "definition": { "entityName": "WebhookLog", "schema": { "$ref": "#/backend/entities/WebhookLog" }, "description": "Logs all incoming webhooks from payment providers." } }
     ]
   }
 }
-

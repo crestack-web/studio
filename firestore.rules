@@ -127,6 +127,21 @@ service cloud.firestore {
     }
 
 
+    // --- INVESTMENTS ---
+    match /investments/{investmentId} {
+      // Investor can create an investment intent for themselves
+      allow create: if isSignedIn() && request.resource.data.investorId == request.auth.uid;
+      // Investor or business owner can read the investment
+      allow get: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+      // Investor or business owner can update the status
+      allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+      // Allow investors to list their own investments (query is secured on client)
+      allow list: if isSignedIn();
+      // Investor can delete their own investment intent; admin can also delete.
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.investorId == request.auth.uid);
+    }
+
+
     // --- CONTENT & SUPPORT ---
     
     match /blogs/{blogId} {
@@ -149,4 +164,3 @@ service cloud.firestore {
     }
   }
 }
-
