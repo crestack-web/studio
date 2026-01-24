@@ -1,3 +1,4 @@
+
 {
   "nav": {
     "home": "Accueil",
@@ -112,7 +113,7 @@
   },
   "pricing": {
     "title": "Trouvez le plan parfait pour votre entreprise",
-    "subtitle": "Tous les plans commencent par un essai gratuit de 30 jours. Aucune carte de crédit requise. Annulez à tout moment.",
+    "subtitle": "Tous les plans commencent par un essai gratuit de 14 jours. Aucune carte de crédit requise. Annulez à tout moment.",
     "monthly": "Mensuel",
     "yearly": "Annuel",
     "save_prefix": "ÉCONOMISEZ",

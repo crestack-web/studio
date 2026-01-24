@@ -153,7 +153,7 @@ export default function PlansPage() {
       <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
-          <CardDescription>All plans start with a 30-day free trial. No credit card needed.</CardDescription>
+          <CardDescription>All plans start with a 14-day free trial. No credit card needed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
             <div className="flex justify-center">
