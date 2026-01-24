@@ -17,7 +17,6 @@ interface UserProfile {
     role?: 'Owner' | 'Staff' | 'Admin' | 'Investor';
 }
 
-// This is the primary login for BUSINESS users (Owners, Staff, Admins).
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,36 +37,36 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
-
-      // Fetch user profile to determine role
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       
+      toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
+
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        // Role-based redirection logic
+        
         switch(userProfile.role) {
             case 'Admin':
-                router.push('/admin/dashboard');
+                router.replace('/admin/dashboard');
                 break;
             case 'Owner':
-                router.push('/owner/home');
+                router.replace('/owner/home');
                 break;
             case 'Staff':
-                router.push('/staff/home');
+                router.replace('/staff/home');
                 break;
             case 'Investor':
-                router.push('/investor/dashboard');
+                router.replace('/investor/dashboard');
                 break;
-            default: // Default to owner home if role is missing but profile exists
-                router.push('/owner/home');
+            default:
+                // Fallback for users with profiles but no valid role (e.g., incomplete signup)
+                router.replace('/business-info');
                 break;
         }
       } else {
         // This case would happen for a brand new user who somehow didn't get a profile doc.
         // Sending them to onboarding is a safe default.
-        router.push('/business-info');
+        router.replace('/business-info');
       }
 
     } catch (error: any) {

@@ -26,36 +26,39 @@ export default function OwnerLayout({
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [authCheckCompleted, setAuthCheckCompleted] = useState(false);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'unauthorized'>('loading');
   
   useEffect(() => {
+    // Wait until all authentication and profile data is fully loaded.
     if (isUserLoading || isProfileLoading) {
-      return; // Still loading, do nothing
+      setAuthStatus('loading');
+      return;
     }
 
-    if (user && (userProfile?.role === 'Owner' || userProfile?.role === 'Staff')) {
-      setIsAuthorized(true);
-    } else if (user) {
-        // User is logged in but not an owner/staff, redirect to a safe page
-        router.replace('/market');
-    }
-    else {
-      // User is not logged in
+    if (!user) {
+      // If there's no user, they are unauthorized.
+      setAuthStatus('unauthorized');
       router.replace('/login');
+    } else if (userProfile?.role === 'Owner' || userProfile?.role === 'Staff') {
+      // If the user has the correct role, they are authorized.
+      setAuthStatus('authorized');
+    } else {
+      // If the user is logged in but does not have the correct role, they are unauthorized.
+      setAuthStatus('unauthorized');
+      router.replace('/market'); // Redirect non-owners/staff to a safe page.
     }
-    setAuthCheckCompleted(true);
     
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
-  if (!authCheckCompleted || !isAuthorized) {
+  // While loading or redirecting, show a full-screen loader.
+  if (authStatus !== 'authorized') {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // If authorized, render the children.
+  // If authorized, render the protected owner/staff content.
   return <>{children}</>;
 }
