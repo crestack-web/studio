@@ -151,24 +151,6 @@ const CheckoutContent = () => {
         );
     }
     
-    if (!user) {
-        return (
-            <div className="w-full max-w-4xl text-center">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Please Log In</CardTitle>
-                        <CardDescription>You need to be logged in to place an order.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button asChild>
-                           <Link href="/market/login?redirect=/market/checkout">Log In or Sign Up</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
     if (!businessProfile || checkoutItems.length === 0) {
         return (
             <div className="text-center">

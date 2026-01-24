@@ -96,15 +96,19 @@ export default function LandingPage() {
         toast({ title: "Error", description: "Could not connect to our services. Please try again later.", variant: "destructive" });
         return;
     }
+    if (!user) {
+        toast({ title: "Please log in", description: "You need to be logged in to create a support ticket.", variant: "destructive" });
+        return;
+    }
     const ticketsCollectionRef = collection(firestore, 'supportTickets');
     addDocumentNonBlocking(ticketsCollectionRef, {
         subject: ticketSubject,
         message: ticketMessage,
         status: 'open',
         createdAt: serverTimestamp(),
-        userId: user?.uid || null,
-        userName: user?.displayName || 'Guest',
-        userEmail: user?.email || 'Not provided'
+        userId: user.uid,
+        userName: user.displayName || 'N/A',
+        userEmail: user.email || 'N/A'
     });
 
     toast({ title: "Ticket Submitted", description: "Our team will review your request and get back to you shortly." });

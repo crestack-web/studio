@@ -14,7 +14,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface UserProfile {
-    role?: 'Owner' | 'Staff' | 'Admin' | 'Investor' | 'Buyer';
+    role?: 'Owner' | 'Staff' | 'Admin' | 'Investor';
 }
 
 // This is the primary login for BUSINESS users (Owners, Staff, Admins).
@@ -59,9 +59,6 @@ export default function LoginPage() {
                 break;
             case 'Investor':
                 router.push('/investor/dashboard');
-                break;
-            case 'Buyer': // Fallback for buyers using the wrong form
-                router.push('/market');
                 break;
             default: // Default to owner home if role is missing but profile exists
                 router.push('/owner/home');

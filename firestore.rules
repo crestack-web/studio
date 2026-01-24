@@ -155,8 +155,8 @@ service cloud.firestore {
 
     // Support Tickets
     match /supportTickets/{ticketId} {
-      // Allow creation for authenticated users for themselves, or for guests (userId is null).
-      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || (!isSignedIn() && request.resource.data.userId == null);
+      // Allow creation for authenticated users for themselves.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
       // The user who created the ticket and admins can view or update it.
       allow get, update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
