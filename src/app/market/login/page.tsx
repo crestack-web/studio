@@ -17,6 +17,7 @@ interface UserProfile {
     role?: 'Owner' | 'Staff' | 'Admin' | 'Investor' | 'Buyer';
 }
 
+// This is the primary login for MARKET customers (Buyers).
 export default function MarketLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,45 +30,47 @@ export default function MarketLoginPage() {
 
   const handleLogin = async () => {
     setIsLoading(true);
+    if (!auth || !firestore) {
+        toast({ variant: "destructive", title: "Initialization Error", description: "Services not ready. Please try again." });
+        setIsLoading(false);
+        return;
+    }
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
+      toast({ title: "Login Successful", description: "Welcome back!" });
 
-      const redirectUrl = searchParams.get('redirect');
-      if (redirectUrl) {
-          router.push(redirectUrl);
-          return;
-      }
-
-      // Check the user's role and redirect
+      // Fetch user profile to determine role
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
+        const redirectUrl = searchParams.get('redirect');
+
+        // Role-based redirection logic
         switch(userProfile.role) {
+            case 'Admin':
+                router.push('/admin/dashboard');
+                break;
             case 'Owner':
                 router.push('/owner/home');
                 break;
             case 'Staff':
                 router.push('/staff/home');
                 break;
-            case 'Admin':
-                router.push('/admin/dashboard');
-                break;
             case 'Investor':
                 router.push('/investor/dashboard');
                 break;
             case 'Buyer':
-                router.push('/market');
+            default: // Default to market for Buyers or if role is missing
+                if (redirectUrl) {
+                    router.push(redirectUrl);
+                } else {
+                    router.push('/market');
+                }
                 break;
-            default:
-                router.push('/market');
         }
       } else {
         // If no profile, default to market as this is the market login
@@ -80,7 +83,6 @@ export default function MarketLoginPage() {
         title: "Login Failed",
         description: error.message || "Please check your credentials and try again.",
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -90,7 +92,7 @@ export default function MarketLoginPage() {
       <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
-          <CardDescription>Log in to continue shopping.</CardDescription>
+          <CardDescription>Log in to your account to continue.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -106,7 +108,7 @@ export default function MarketLoginPage() {
             Log In
           </Button>
           <p className="text-sm text-center text-muted-foreground pt-2">
-              Don't have an account?{' '}
+              Don't have a buyer account?{' '}
               <Link href="/market/signup" className="underline font-medium text-primary">
                   Sign Up
               </Link>

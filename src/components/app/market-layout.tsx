@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Menu, Search, ShoppingCart } from 'lucide-react';
+import { Menu, Search, ShoppingCart, LayoutDashboard } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
@@ -11,19 +11,33 @@ import { useLanguage } from '@/context/language-provider';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { doc } from 'firebase/firestore';
+
+
+interface UserProfile {
+    role?: 'Owner' | 'Staff' | 'Admin' | 'Investor' | 'Buyer';
+    displayName?: string;
+}
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
     const { t } = useLanguage();
     const { totalItems } = useCart();
     const { user, isUserLoading } = useUser();
     const auth = useAuth();
+    const firestore = useFirestore();
     const router = useRouter();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+    const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
     const handleSignOut = async () => {
         if (auth) {
@@ -31,6 +45,9 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
             router.push('/market');
         }
     };
+    
+    const isBusinessUser = userProfile?.role === 'Owner' || userProfile?.role === 'Staff' || userProfile?.role === 'Admin';
+    const displayName = userProfile?.displayName || user?.email;
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
@@ -61,11 +78,20 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                                         <Avatar>
-                                            <AvatarFallback>{user.displayName?.split(' ').map(n => n[0]).join('').substring(0,2) || user.email?.[0].toUpperCase()}</AvatarFallback>
+                                            <AvatarFallback>{displayName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'U'}</AvatarFallback>
                                         </Avatar>
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                    {isBusinessUser && (
+                                        <>
+                                            <DropdownMenuItem onClick={() => router.push('/owner/home')}>
+                                                <LayoutDashboard className="mr-2 h-4 w-4" />
+                                                <span>Business Dashboard</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                        </>
+                                    )}
                                     <DropdownMenuItem onClick={() => router.push('/market/orders')} disabled>My Orders</DropdownMenuItem>
                                     <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
                                 </DropdownMenuContent>
