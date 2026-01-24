@@ -37,7 +37,7 @@ export default function RoleSelectionPage() {
             </CardHeader>
             <CardContent>
                 <Button asChild className="w-full h-12 text-base" variant="secondary">
-                    <Link href="/login/form">Staff Log In</Link>
+                    <Link href="/login/staff">Staff Log In</Link>
                 </Button>
                  <p className="text-xs text-center text-muted-foreground mt-3">You must be invited by a business owner to log in as staff.</p>
             </CardContent>

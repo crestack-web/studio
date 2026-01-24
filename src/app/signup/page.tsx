@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -27,45 +27,20 @@ export default function SignUpPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // This effect handles role assignment after a user is created in Firebase Auth.
   useEffect(() => {
-    // Check if we have a newly authenticated user and are in the processing state.
+    // This effect now only handles owner profile creation.
     if (isProcessing && user && !isUserLoading) {
-      const assignRole = async () => {
-        if (!firestore || !user.email) {
+      const createOwnerProfile = async () => {
+        if (!firestore) {
           toast({ variant: "destructive", title: "Error", description: "Could not initialize services." });
           setIsProcessing(false);
           setIsLoading(false);
           return;
         }
 
-        const invitationRef = doc(firestore, 'invitations', user.email);
         const userDocRef = doc(firestore, 'users', user.uid);
 
         try {
-          const invitationSnap = await getDoc(invitationRef);
-
-          if (invitationSnap.exists() && invitationSnap.data().status === 'pending') {
-            // This is a staff member accepting an invitation.
-            const invitationData = invitationSnap.data();
-            const staffProfile = {
-              id: user.uid,
-              displayName: name,
-              email: user.email,
-              role: 'Staff',
-              businessId: invitationData.businessId,
-            };
-
-            const batch = writeBatch(firestore);
-            batch.set(userDocRef, staffProfile); // Create staff user profile
-            batch.delete(invitationRef); // Delete the used invitation
-            await batch.commit();
-
-            toast({ title: "Welcome!", description: `You have successfully joined ${invitationData.businessName}.` });
-            router.push('/staff/home');
-
-          } else {
-            // This is a new business owner.
             const ownerProfile = {
               id: user.uid,
               displayName: name,
@@ -77,15 +52,14 @@ export default function SignUpPage() {
             
             toast({ title: "Account Created", description: "Let's set up your business." });
             router.push('/business-info');
-          }
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Sign Up Failed", description: "Could not assign role. " + error.message });
+            toast({ variant: "destructive", title: "Sign Up Failed", description: "Could not create user profile. " + error.message });
             setIsLoading(false);
             setIsProcessing(false);
         }
       };
 
-      assignRole();
+      createOwnerProfile();
     }
   }, [user, isUserLoading, isProcessing, firestore, name, email, router, toast]);
 
@@ -101,13 +75,30 @@ export default function SignUpPage() {
         return;
     }
 
+    if (!firestore || !auth) {
+        toast({ variant: "destructive", title: "Error", description: "Could not connect to services." });
+        setIsLoading(false);
+        return;
+    }
+
     try {
-      if (!auth) throw new Error("Firebase Auth service not available.");
+      // Before creating a user, check if they have a pending staff invitation.
+      const invitationRef = doc(firestore, 'invitations', email);
+      const invitationSnap = await getDoc(invitationRef);
+
+      if (invitationSnap.exists() && invitationSnap.data().status === 'pending') {
+        // This email has a pending invitation, so block password-based signup.
+        toast({
+            variant: "destructive",
+            title: "Invitation Found",
+            description: "This email has been invited as a staff member. Please use the staff-specific login page.",
+        });
+        setIsLoading(false);
+        return;
+      }
       
-      // Create the user in Firebase Auth. This will trigger the useEffect above.
+      // If no invitation, proceed with creating an owner account.
       await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Set processing state to true to let the useEffect know it should run the role assignment logic.
       setIsProcessing(true);
 
     } catch (error: any) {
@@ -127,7 +118,7 @@ export default function SignUpPage() {
       <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Create your Account</CardTitle>
-          <CardDescription>Sign up to start your business or join an existing one.</CardDescription>
+          <CardDescription>Sign up to start your business.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
            <div className="space-y-2">
@@ -148,7 +139,7 @@ export default function SignUpPage() {
           </div>
           <Button className="w-full h-14 text-lg" onClick={handleSignUp} disabled={isButtonDisabled}>
             {(isLoading || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isProcessing ? 'Finalizing...' : 'Continue'}
+            {isProcessing ? 'Finalizing...' : 'Create Owner Account'}
           </Button>
            <p className="text-sm text-center text-muted-foreground pt-2">
               Already have an account?{' '}
