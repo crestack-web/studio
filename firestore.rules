@@ -63,8 +63,11 @@ service cloud.firestore {
                    || isAdmin() 
                    || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
       
-      // Users can update their own profile, but cannot change their role. Admins can update anything.
-      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
+      // Users can update their own profile, but cannot change their role or businessId once set. Admins can update anything.
+      allow update: if (isSignedIn() && request.auth.uid == userId && 
+                     request.resource.data.role == resource.data.role &&
+                     (resource.data.businessId == null || resource.data.businessId == request.resource.data.businessId)
+                  ) || isAdmin();
 
       // Owners can list staff in their business. Admins can list all users.
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
@@ -120,8 +123,12 @@ service cloud.firestore {
     // Publicly readable business profiles for the market.
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      // Only the owner or an admin can create or modify the public profile.
-      allow write: if isOwner(businessId) || isAdmin();
+      // User must be the owner to create.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      // Owner can update, but cannot change the ownerId. Admins can do anything.
+      allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
+      // Owner can delete.
+      allow delete: if isOwner(businessId) || isAdmin();
     }
     
     // Publicly readable product listings.

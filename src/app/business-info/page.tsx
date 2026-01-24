@@ -84,6 +84,7 @@ export default function BusinessInfoPage() {
             };
 
             const businessProfileData = {
+                ownerId: authUser.uid,
                 businessName,
                 slug: businessSlug,
                 businessType,
@@ -100,6 +101,7 @@ export default function BusinessInfoPage() {
 
             router.replace('/currency');
         } catch (error: any) {
+            console.error("Error creating business:", error);
             toast({
                 variant: 'destructive',
                 title: 'Error Creating Business',

@@ -123,6 +123,10 @@
       "type": "object",
       "description": "Public-facing business information for the marketplace.",
       "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns the business."
+        },
         "businessName": { "type": "string" },
         "slug": { "type": "string", "description": "URL-friendly version of the business name for public store pages." },
         "businessType": { "type": "string" },
@@ -163,7 +167,7 @@
           }
         }
       },
-      "required": ["businessName", "slug", "businessType"]
+      "required": ["ownerId", "businessName", "slug", "businessType"]
     },
     "Product": {
       "title": "Product",
