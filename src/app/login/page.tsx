@@ -15,6 +15,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 interface UserProfile {
     role?: 'Owner' | 'Staff' | 'Admin' | 'Investor';
+    businessId?: string;
 }
 
 export default function LoginPage() {
@@ -45,24 +46,33 @@ export default function LoginPage() {
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
         
-        switch(userProfile.role) {
-            case 'Admin':
-                router.replace('/admin/dashboard');
-                break;
-            case 'Owner':
-                router.replace('/owner/home');
-                break;
-            case 'Staff':
-                router.replace('/staff/home');
-                break;
-            case 'Investor':
-                router.replace('/investor/dashboard');
-                break;
-            default:
+        // This is the new, more robust redirection logic.
+        if (userProfile.role === 'Owner') {
+            if (userProfile.businessId) {
+                const businessDocRef = doc(firestore, 'businesses', userProfile.businessId);
+                const businessDocSnap = await getDoc(businessDocRef);
+                if (businessDocSnap.exists() && businessDocSnap.data()?.onboardingCompleted) {
+                    router.replace('/owner/home');
+                } else {
+                    // Onboarding is not complete, send to the start of the flow.
+                    router.replace('/business-info');
+                }
+            } else {
+                // Owner profile exists but no businessId, start onboarding.
                 router.replace('/business-info');
-                break;
+            }
+        } else if (userProfile.role === 'Staff') {
+            router.replace('/staff/home');
+        } else if (userProfile.role === 'Admin') {
+            router.replace('/admin/dashboard');
+        } else if (userProfile.role === 'Investor') {
+            router.replace('/investor/dashboard');
+        } else {
+            // Role is unknown or not set, default to business info.
+            router.replace('/business-info');
         }
       } else {
+        // User document doesn't exist at all, treat as a new user.
         router.replace('/business-info');
       }
 

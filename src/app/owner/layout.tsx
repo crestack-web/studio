@@ -13,10 +13,6 @@ interface UserProfile {
 
 interface Business {
     onboardingCompleted?: boolean;
-    businessName?: string;
-    businessType?: string;
-    currency?: string;
-    plan?: string;
 }
 
 export default function OwnerLayout({
@@ -45,7 +41,7 @@ export default function OwnerLayout({
   const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
   
   useEffect(() => {
-    const isLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.role === 'Owner' && !businessId) || (businessId && isBusinessLoading);
+    const isLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.role === 'Owner' && businessId && isBusinessLoading);
 
     if (isLoading) {
       setAuthStatus('loading');
@@ -53,38 +49,29 @@ export default function OwnerLayout({
     }
 
     if (!user) {
-      setAuthStatus('redirecting');
       router.replace('/login');
-      return;
-    }
-
-    const isOwnerOrStaff = userProfile?.role === 'Owner' || userProfile?.role === 'Staff';
-    if (!isOwnerOrStaff) {
       setAuthStatus('redirecting');
-      router.replace('/login');
       return;
-    }
-
-    if (userProfile.role === 'Owner') {
-      if (!businessId || !business) {
-        setAuthStatus('redirecting');
-        router.replace('/business-info');
-        return;
-      }
-
-      if (!business.onboardingCompleted) {
-        if (!business.businessName || !business.businessType) {
-          router.replace('/business-info');
-        } else if (!business.currency) {
-          router.replace('/currency');
-        } else if (!business.plan) {
-          router.replace('/plans');
-        }
-        setAuthStatus('redirecting');
-        return;
-      }
     }
     
+    // Redirect if user is not Owner or Staff
+    if (userProfile?.role !== 'Owner' && userProfile?.role !== 'Staff') {
+        router.replace('/login');
+        setAuthStatus('redirecting');
+        return;
+    }
+
+    // Specific checks for Owner role
+    if (userProfile.role === 'Owner') {
+        // If owner has no business or onboarding is not marked as complete, redirect to start of onboarding.
+        if (!businessId || !business?.onboardingCompleted) {
+            router.replace('/business-info');
+            setAuthStatus('redirecting');
+            return;
+        }
+    }
+    
+    // If all checks pass, user is authorized.
     setAuthStatus('authorized');
     
   }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router]);
