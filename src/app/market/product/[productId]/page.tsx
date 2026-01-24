@@ -20,6 +20,17 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 
+const createSlug = (name: string) => {
+    if (!name) return '';
+    return name
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9\s-]/g, '') // remove special chars
+        .trim()
+        .replace(/\s+/g, '-') // replace spaces with -
+        .replace(/-+/g, '-'); // replace multiple hyphens with a single one
+};
+
 interface Variant { 
     id: string; 
     name: string; 
@@ -182,7 +193,7 @@ const ProductDetailContent = () => {
         { icon: RotateCw, text: 'Easy Returns' },
     ];
     
-    const businessLink = businessData?.slug ? `/${businessData.slug}` : '#';
+    const businessLink = businessData?.slug ? `/${businessData.slug}` : (businessData?.businessName ? `/${createSlug(businessData.businessName)}` : '#');
 
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
