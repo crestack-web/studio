@@ -59,9 +59,9 @@ export default function LoginPage() {
                 router.replace('/investor/dashboard');
                 break;
             default:
-                // Fallback for users with profiles but no valid role.
-                // Sending to welcome is safer than assuming a flow.
-                router.replace('/welcome');
+                // Fallback for users with profiles but no valid role (e.g. old 'Buyer' roles).
+                // Sending them to onboarding is a safe way to re-establish their business.
+                router.replace('/business-info');
                 break;
         }
       } else {
