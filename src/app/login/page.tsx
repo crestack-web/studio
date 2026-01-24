@@ -6,9 +6,8 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
@@ -24,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
@@ -36,6 +36,17 @@ export default function LoginPage() {
         }
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      
+      toast({
+          title: "Login Successful",
+          description: "Redirecting...",
+      });
+
+      const redirectUrl = searchParams.get('redirect');
+      if (redirectUrl) {
+          router.push(redirectUrl);
+          return;
+      }
 
       // Check the user's role and redirect
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -43,10 +54,6 @@ export default function LoginPage() {
       
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data() as UserProfile;
-        toast({
-            title: "Login Successful",
-            description: "Redirecting to your dashboard...",
-        });
         if (userProfile.role === 'Owner') {
             router.push('/owner/home');
         } else if (userProfile.role === 'Staff') {
@@ -58,10 +65,6 @@ export default function LoginPage() {
       } else {
         // This case should ideally not happen if profiles are created on signup.
         // Defaulting to owner dashboard.
-        toast({
-            title: "Login Successful",
-            description: "User profile not found, redirecting to home.",
-        });
         router.push('/owner/home');
       }
     } catch (error: any) {

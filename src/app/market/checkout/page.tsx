@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -5,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -13,7 +14,7 @@ import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, runTransaction, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -149,6 +150,24 @@ const CheckoutContent = () => {
         );
     }
     
+    if (!user) {
+        return (
+            <div className="w-full max-w-4xl text-center">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Please Log In</CardTitle>
+                        <CardDescription>You need to be logged in to place an order.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button asChild>
+                           <Link href="/login?redirect=/market/checkout">Log In or Sign Up</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
     if (!businessProfile || checkoutItems.length === 0) {
         return (
             <div className="text-center">
@@ -167,8 +186,7 @@ const CheckoutContent = () => {
         
         try {
             const orderCollectionRef = collection(firestore, `businesses/${businessId}/orders`);
-            const orderRef = doc(orderCollectionRef);
-
+            
             const orderData = {
                 buyerId: user.uid,
                 sellerBusinessId: businessId,
@@ -190,13 +208,11 @@ const CheckoutContent = () => {
                 createdAt: serverTimestamp()
             };
 
-            await runTransaction(firestore, async (transaction) => {
-                transaction.set(orderRef, orderData);
-            });
+            const newOrderRef = await addDoc(orderCollectionRef, orderData);
             
             clearCart(); // Clear cart after successful order
 
-            router.push(`/market/order-confirmation?orderId=${orderRef.id}&businessId=${businessId}`);
+            router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
             
         } catch (error) {
             console.error("Error placing order: ", error);
