@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from '
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, orderBy, runTransaction } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -728,6 +728,59 @@ const CustomersContent = () => {
 };
 // #endregion
 
+// #region --- BusmoPaySettings ---
+const BusmoPaySettings = () => {
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>BusmoPay Settings</CardTitle>
+                    <CardDescription>Enable payment gateways to accept online payments for your products.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Card className="border-dashed">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="text-lg">Paystack</CardTitle>
+                                <CardDescription>Accept payments from Nigeria (NGN).</CardDescription>
+                            </div>
+                             <Switch disabled />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="space-y-2">
+                                <Label htmlFor="paystack-secret" className="text-muted-foreground">Paystack Secret Key</Label>
+                                <Input id="paystack-secret" placeholder="sk_test_..." disabled />
+                            </div>
+                        </CardContent>
+                         <CardFooter>
+                            <Badge variant="outline">Coming Soon</Badge>
+                        </CardFooter>
+                    </Card>
+                     <Card className="border-dashed">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="text-lg">Airtel Money</CardTitle>
+                                <CardDescription>Accept payments from Niger, Cameroon (CFA).</CardDescription>
+                            </div>
+                             <Switch disabled />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="space-y-2">
+                                <Label htmlFor="airtel-secret" className="text-muted-foreground">Airtel Money Client Secret</Label>
+                                <Input id="airtel-secret" placeholder="client_secret_..." disabled />
+                            </div>
+                        </CardContent>
+                         <CardFooter>
+                            <Badge variant="outline">Coming Soon</Badge>
+                        </CardFooter>
+                    </Card>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+// #endregion
+
 // #region --- MAIN PAGE COMPONENT ---
 export default function ManageMarketPage() {
     const [activeSection, setActiveSection] = useState('products');
@@ -737,7 +790,8 @@ export default function ManageMarketPage() {
         { id: 'products', label: 'Products', icon: Package },
         { id: 'orders', label: 'Orders', icon: ShoppingCart },
         { id: 'customers', label: 'Customers', icon: Users },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'settings', label: 'Store Settings', icon: Settings },
+        { id: 'busmopay', label: 'BusmoPay', icon: CreditCard },
     ];
     
     const activeMenuItem = menuItems.find((item) => item.id === activeSection);
@@ -748,6 +802,7 @@ export default function ManageMarketPage() {
             case 'products': return <ProductsContent />;
             case 'orders': return <OrdersContent />;
             case 'customers': return <CustomersContent />;
+            case 'busmopay': return <BusmoPaySettings />;
             default: return <ProductsContent />;
         }
     };

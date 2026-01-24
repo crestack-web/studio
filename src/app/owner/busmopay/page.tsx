@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, ExternalLink, MoreHorizontal, TrendingUp } from 'lucide-react';
+import { Banknote, CreditCard, Download, ExternalLink, MoreHorizontal, TrendingUp, Rocket } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Mock data
 const transactions = [
@@ -21,6 +22,13 @@ export default function BusmoPayDashboard() {
     return (
         <MainLayout title="BusmoPay Dashboard" backHref="/owner/home">
             <div className="w-full max-w-5xl space-y-6">
+                <Alert>
+                    <Rocket className="h-4 w-4" />
+                    <AlertTitle>Coming Soon!</AlertTitle>
+                    <AlertDescription>
+                        The BusmoPay dashboard is almost here. You'll soon be able to track live transactions, view payouts, and manage payment links. The data below is for demonstration purposes only.
+                    </AlertDescription>
+                </Alert>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card>
                         <CardHeader>
@@ -111,4 +119,3 @@ export default function BusmoPayDashboard() {
         </MainLayout>
     );
 }
-

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent } from 'react';
@@ -208,6 +208,54 @@ export default function LandingPage() {
         </div>
         </section>
         
+        {/* BusmoPay Section */}
+        <section className="bg-primary/5 py-24 sm:py-32">
+          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div className="md:order-last">
+              <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
+                 Sell products & share profits<br/><span className='text-busmopay-primary'>with BusmoPay</span>
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                  The integrated payment solution for the Busmo marketplace. Accept payments via Paystack and Airtel Money, and automatically distribute profits to your investors.
+              </p>
+              <ul className="mt-6 space-y-3 text-muted-foreground">
+                  <li className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-accent"/>
+                      <span>Enable payments and start selling online in minutes.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-accent"/>
+                      <span>Customers enjoy a unified and secure checkout experience.</span>
+                  </li>
+                   <li className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-accent"/>
+                      <span>Get paid and see profit shares tracked automatically.</span>
+                  </li>
+              </ul>
+              <Link href="/busmopay" passHref>
+                <Button size="lg" className="mt-8 h-12 text-base">
+                    Learn about BusmoPay
+                </Button>
+              </Link>
+            </div>
+            <div className="relative mx-auto w-full max-w-lg h-[550px] flex items-center justify-center">
+                 <Card className="w-full h-4/5 flex flex-col p-4 shadow-lg">
+                    <div className="text-center p-2 border-b">
+                        <p className="text-sm font-semibold">Aisha's Crafts</p>
+                    </div>
+                    <div className="flex-1 flex flex-col justify-center items-center text-center space-y-2">
+                        <CreditCard className="w-16 h-16 text-busmopay-primary" />
+                        <p className="text-3xl font-bold">₦12,500</p>
+                        <p className="text-muted-foreground">Payment for Handmade Leather Bag</p>
+                    </div>
+                    <div className="p-2">
+                        <Button className="w-full bg-busmopay-primary hover:bg-busmopay-primary/90">Pay Now</Button>
+                    </div>
+                </Card>
+            </div>
+          </div>
+        </section>
+
         {/* Marketplace Section */}
         <section className="bg-card/30 py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
@@ -802,4 +850,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
