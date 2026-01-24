@@ -93,7 +93,9 @@ export default function BusinessInfoPage() {
         // 3. Add all operations to the batch
         batch.set(newBusinessRef, businessData);
         batch.set(businessProfileRef, businessProfileData);
-        batch.update(userDocRef, { businessId: businessId });
+        // Use set with merge:true to handle cases where the user doc might not exist yet
+        // due to the non-blocking write on the signup page. This will create or update as needed.
+        batch.set(userDocRef, { businessId: businessId }, { merge: true });
 
         // 4. Commit the batch atomically
         batch.commit()
