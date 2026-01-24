@@ -23,11 +23,11 @@ const OrderConfirmationContent = () => {
     const firestore = useFirestore();
     
     const orderId = searchParams.get('orderId');
+    const businessId = searchParams.get('businessId');
     
-    const orderRef = useMemoFirebase(() => orderId ? doc(firestore, `orders/${orderId}`) : null, [firestore, orderId]);
+    const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
 
-    const businessId = order?.sellerBusinessId;
     const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
     const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     

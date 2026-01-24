@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirestore, useDoc, useMemoFirebase, useUser, addDocumentNonBlocking } from '@/firebase';
-import { doc, collection, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { doc, collection, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -66,7 +66,7 @@ const CheckoutContent = () => {
             if (!firestore) return;
             setIsLoadingItems(true);
             const productRef = doc(firestore, 'marketProducts', pId);
-            const productSnap = await getDoc(productRef);
+            const productSnap = await runTransaction(firestore, async (transaction) => transaction.get(productRef));
             if (productSnap.exists()) {
                 const productData = productSnap.data() as MarketProduct;
                 const variant = vId ? productData.variants?.find(v => v.id === vId) : undefined;
@@ -103,7 +103,7 @@ const CheckoutContent = () => {
                  const fetchBusinessId = async () => {
                      if (!firestore) return;
                      const productRef = doc(firestore, 'marketProducts', items[0].productId);
-                     const productSnap = await getDoc(productRef);
+                     const productSnap = await runTransaction(firestore, async (transaction) => transaction.get(productRef));
                      if (productSnap.exists()) {
                         const businessId = (productSnap.data() as MarketProduct).businessId;
                         setCheckoutItems(items.map(it => ({ ...it, businessId })));
@@ -166,8 +166,8 @@ const CheckoutContent = () => {
         setIsPlacingOrder(true);
         
         try {
-            const batch = writeBatch(firestore);
-            const orderRef = doc(collection(firestore, 'orders'));
+            const orderCollectionRef = collection(firestore, `businesses/${businessId}/orders`);
+            const orderRef = doc(orderCollectionRef);
 
             const orderData = {
                 buyerId: user.uid,
@@ -190,12 +190,13 @@ const CheckoutContent = () => {
                 createdAt: serverTimestamp()
             };
 
-            batch.set(orderRef, orderData);
+            await runTransaction(firestore, async (transaction) => {
+                transaction.set(orderRef, orderData);
+            });
             
-            await batch.commit();
             clearCart(); // Clear cart after successful order
 
-            router.push(`/market/order-confirmation?orderId=${orderRef.id}`);
+            router.push(`/market/order-confirmation?orderId=${orderRef.id}&businessId=${businessId}`);
             
         } catch (error) {
             console.error("Error placing order: ", error);

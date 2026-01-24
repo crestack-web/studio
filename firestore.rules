@@ -46,7 +46,9 @@ service cloud.firestore {
       if (!isSignedIn()) { return null; }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
       if (!exists(userDocPath) || !('businessId' in get(userDocPath).data)) { return null; }
-      return get(userDocPath).data.businessId;
+      let data = get(userDocPath).data;
+      if (!('businessId' in data)) { return null; }
+      return data.businessId;
     }
 
 
@@ -65,7 +67,7 @@ service cloud.firestore {
       allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
 
       // Owners can list staff in their business. Admins can list all users.
-      allow list: if (isSignedIn() && request.query.businessId == getBusinessIdForCurrentUser()) || isAdmin();
+      allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
 
       // Deleting users is an admin-only action.
       allow delete: if isAdmin();
@@ -85,23 +87,31 @@ service cloud.firestore {
       
       // Listing all businesses is restricted to admins for performance and security.
       allow list: if isAdmin();
-    }
 
-    // Business Subcollections
-    match /businesses/{businessId}/inventory/{docId} {
-      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/products/{docId} {
-      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/sales/{docId} {
-      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/expenses/{docId} {
-      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
-    }
-    match /businesses/{businessId}/transactions/{docId} {
-      allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+      // Business Subcollections
+      match /inventory/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+      match /products/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+      match /sales/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+      match /expenses/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+      match /transactions/{docId} { allow read, write: if isOwner(businessId) || isStaff(businessId) || isAdmin(); }
+
+       // Orders placed through the market.
+      match /orders/{orderId} {
+        // Authenticated users can create orders for themselves.
+        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+
+        // The buyer, the seller (owner/staff), or an admin can view an order.
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(businessId) || isStaff(businessId) || isAdmin();
+        
+        // The seller can update the order status.
+        allow update: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+        
+        // Business owners and staff can list orders for their business.
+        allow list: if isOwner(businessId) || isStaff(businessId) || isAdmin();
+
+        // Deleting orders is restricted to admins.
+        allow delete: if isAdmin();
+      }
     }
 
 
@@ -129,31 +139,12 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
 
-    // Orders placed through the market.
-    match /orders/{orderId} {
-      // Authenticated users can create orders for themselves.
-      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-
-      // The buyer, the seller (business owner), or an admin can view an order.
-      allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isOwner(resource.data.sellerBusinessId) || isAdmin();
-      
-      // The seller can update the order status.
-      allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
-
-      // Allow business owners and staff to list orders for their business.
-      allow list: if (getBusinessIdForCurrentUser() != null && request.query.sellerBusinessId == getBusinessIdForCurrentUser()) || isAdmin();
-
-      // Deleting orders is restricted to admins.
-      allow delete: if isAdmin();
-    }
-
-
     // --- CONTENT & SUPPORT ---
     
     // Blog posts
     match /blogs/{blogId} {
       // Allow public list of published posts, and admin list of any posts.
-      allow list: if request.query.where.isPublished == true || isAdmin();
+      allow list: if request.query.get("isPublished") == true || isAdmin();
 
       // Published posts are public. Admins can read all posts.
       allow get: if resource.data.isPublished == true || isAdmin();
@@ -195,7 +186,7 @@ service cloud.firestore {
       allow get: if (isSignedIn() && request.auth.token.email == invitationId) || isOwner(resource.data.businessId);
       
       // An owner can list all invitations for their business.
-      allow list: if isSignedIn() && request.query.businessId == getBusinessIdForCurrentUser();
+      allow list: if isSignedIn() && request.query.get("businessId") == getBusinessIdForCurrentUser();
 
       // An owner can delete/revoke an invitation. A user can delete it after accepting.
       allow delete: if isOwner(resource.data.businessId) || (isSignedIn() && request.auth.token.email == invitationId);

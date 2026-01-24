@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, orderBy } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, orderBy, runTransaction } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -33,7 +33,7 @@ interface Product { id: string; name: string; price: number; quantity: number; h
 type MarketSettings = { isStoreActive: boolean; bannerImageUrl: string; logoImageUrl: string; contactPhone: string; contactEmail: string; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface Business { businessName: string; currency: string; plan: string; businessType: string; marketDescription?: string; marketSettings?: MarketSettings; }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
-interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productName: string; variantName?: string; quantity: number; price: number }[]; }
+interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; }
 // #endregion
 
 // #region --- SETTINGS COMPONENT ---
@@ -384,15 +384,58 @@ const OrdersContent = () => {
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return query(collection(firestore, 'orders'), where('sellerBusinessId', '==', businessId), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, `businesses/${businessId}/orders`), orderBy('createdAt', 'desc'));
     }, [firestore, businessId]);
     const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
-    const handleUpdateStatus = (orderId: string, status: Order['status']) => {
-        if (!firestore) return;
-        const orderRef = doc(firestore, 'orders', orderId);
-        updateDocumentNonBlocking(orderRef, { status });
-        toast({ title: 'Order Status Updated', description: `Order has been marked as ${status}.` });
+    const handleUpdateStatus = async (order: Order, status: Order['status']) => {
+        if (!firestore || !businessId) return;
+
+        const orderRef = doc(firestore, `businesses/${businessId}/orders`, order.id);
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                // 1. Update order status
+                transaction.update(orderRef, { status });
+
+                // 2. If confirming, deduct stock
+                if (status === 'confirmed' && order.status === 'pending') {
+                    for (const item of order.items) {
+                        const productRef = doc(firestore, `businesses/${businessId}/products`, item.productId);
+                        const marketProductRef = doc(firestore, 'marketProducts', item.productId);
+
+                        const productSnap = await transaction.get(productRef);
+                        if (!productSnap.exists()) {
+                            throw new Error(`Product ${item.productName} not found in inventory.`);
+                        }
+
+                        const productData = productSnap.data() as Product;
+                        let newTotalStock: number;
+                        
+                        if (item.variantId && productData.hasVariants) {
+                            const newVariants = productData.variants.map(v => 
+                                v.id === item.variantId ? { ...v, quantity: v.quantity - item.quantity } : v
+                            );
+                            newTotalStock = newVariants.reduce((sum, v) => sum + v.quantity, 0);
+                            transaction.update(productRef, { variants: newVariants });
+                            
+                             const marketVariantsUpdate = newVariants.map(v => ({ id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity, image: v.image || null }));
+                             transaction.update(marketProductRef, { variants: marketVariantsUpdate, availableQuantity: newTotalStock });
+                        } else {
+                            newTotalStock = productData.quantity - item.quantity;
+                            transaction.update(productRef, { quantity: newTotalStock });
+                            transaction.update(marketProductRef, { availableQuantity: newTotalStock });
+                        }
+                    }
+                }
+            });
+
+            toast({ title: 'Order Status Updated', description: `Order has been marked as ${status}.` });
+
+        } catch (error: any) {
+            console.error("Error updating order status:", error);
+            toast({ variant: "destructive", title: "Update Failed", description: error.message || 'Could not update order.' });
+        }
     };
     
     const statusVariant: { [key in Order['status']]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -459,10 +502,10 @@ const OrdersContent = () => {
                                                         <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
                                                         <DropdownMenuPortal>
                                                             <DropdownMenuSubContent>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order.id, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'shipped')}>Mark as Shipped</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
                                                             </DropdownMenuSubContent>
                                                         </DropdownMenuPortal>
                                                     </DropdownMenuSub>
@@ -528,7 +571,7 @@ const CustomersContent = () => {
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
-    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, 'orders'), where('sellerBusinessId', '==', businessId)) : null, [firestore, businessId]);
+    const ordersQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/orders`)) : null, [firestore, businessId]);
     const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
     const customers = useMemo(() => {

@@ -669,13 +669,13 @@
         }
       },
       {
-        "path": "orders/{orderId}",
+        "path": "businesses/{businessId}/orders/{orderId}",
         "definition": {
           "entityName": "Order",
           "schema": {
             "$ref": "#/backend/entities/Order"
           },
-          "description": "Top-level collection for orders made through the public marketplace."
+          "description": "Subcollection for market orders belonging to a business."
         }
       },
       {
