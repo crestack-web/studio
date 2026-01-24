@@ -60,47 +60,46 @@ export default function OwnerLayout({
       return;
     }
 
-    // Phase 3: Verify the user's role. This layout is for Owners only.
-    if (userProfile.role !== 'Owner') {
+    // Phase 3: Verify the user's role. This layout is for Owners or Staff.
+    const isAuthorizedRole = userProfile.role === 'Owner' || userProfile.role === 'Staff';
+    if (!isAuthorizedRole) {
       router.replace('/login'); 
       setAuthStatus('redirecting');
       return;
     }
     
-    // At this point, we know we have a user with the 'Owner' role.
+    // At this point, we know we have a user with an authorized role.
 
-    // Phase 4: Check if the owner is fully onboarded.
-    if (business?.onboardingCompleted) {
-        // If onboarding is complete, authorize access to the dashboard.
-        setAuthStatus('authorized');
-        return;
-    }
-
-    // Phase 5: If onboarding is NOT complete, redirect to the correct step.
-    if (businessId && business) {
-        // Check in reverse order of onboarding steps.
-        if (!business.plan) {
-            router.replace('/plans');
-        } else if (!business.currency) {
-            router.replace('/currency');
-        } else {
-            // If plan and currency exist, but onboarding is still not complete,
-            // something is wrong with the base info. Send them to step 1.
-            router.replace('/business-info');
+    // Phase 4: If the user is an Owner, check if they are fully onboarded.
+    if (userProfile.role === 'Owner') {
+        if (business?.onboardingCompleted) {
+            setAuthStatus('authorized');
+            return;
         }
-        setAuthStatus('redirecting');
-        return;
-    }
-    
-    // Phase 6: Fallback for an Owner without a businessId (should trigger onboarding).
-    if (!businessId) {
-        router.replace('/business-info');
-        setAuthStatus('redirecting');
-        return;
-    }
 
-    // Final safety net if none of the above conditions are met.
-    setAuthStatus('loading');
+        // Onboarding is not complete, redirect to the correct step.
+        if (businessId && business) {
+            if (!business.plan) {
+                router.replace('/plans');
+            } else if (!business.currency) {
+                router.replace('/currency');
+            } else {
+                router.replace('/business-info');
+            }
+            setAuthStatus('redirecting');
+            return;
+        }
+        
+        // Fallback for an Owner without a businessId (should trigger onboarding).
+        if (!businessId) {
+            router.replace('/business-info');
+            setAuthStatus('redirecting');
+            return;
+        }
+    } else {
+      // If the user is Staff, they are authorized.
+      setAuthStatus('authorized');
+    }
 
   }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router]);
 
