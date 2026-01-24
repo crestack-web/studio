@@ -11,8 +11,13 @@ interface UserProfile {
     businessId?: string;
 }
 
+// Expanded Business interface to check onboarding progress
 interface Business {
     onboardingCompleted?: boolean;
+    currency?: string;
+    plan?: string;
+    businessName?: string;
+    businessType?: string;
 }
 
 export default function OwnerLayout({
@@ -41,39 +46,62 @@ export default function OwnerLayout({
   const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
   
   useEffect(() => {
-    const isLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.role === 'Owner' && businessId && isBusinessLoading);
-
-    if (isLoading) {
+    // Phase 1: Wait for all essential data to load.
+    const isStillLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.businessId && isBusinessLoading);
+    if (isStillLoading) {
       setAuthStatus('loading');
       return;
     }
 
+    // Phase 2: If no user is logged in, redirect to the main login page.
     if (!user) {
       router.replace('/login');
       setAuthStatus('redirecting');
       return;
     }
+
+    // Phase 3: Verify the user's role. This layout is for Owners only.
+    if (userProfile.role !== 'Owner') {
+      router.replace('/login'); 
+      setAuthStatus('redirecting');
+      return;
+    }
     
-    // Redirect if user is not Owner or Staff
-    if (userProfile?.role !== 'Owner' && userProfile?.role !== 'Staff') {
-        router.replace('/login');
+    // At this point, we know we have a user with the 'Owner' role.
+
+    // Phase 4: Check if the owner is fully onboarded.
+    if (business?.onboardingCompleted) {
+        // If onboarding is complete, authorize access to the dashboard.
+        setAuthStatus('authorized');
+        return;
+    }
+
+    // Phase 5: If onboarding is NOT complete, redirect to the correct step.
+    if (businessId && business) {
+        // Check in reverse order of onboarding steps.
+        if (!business.plan) {
+            router.replace('/plans');
+        } else if (!business.currency) {
+            router.replace('/currency');
+        } else {
+            // If plan and currency exist, but onboarding is still not complete,
+            // something is wrong with the base info. Send them to step 1.
+            router.replace('/business-info');
+        }
+        setAuthStatus('redirecting');
+        return;
+    }
+    
+    // Phase 6: Fallback for an Owner without a businessId (should trigger onboarding).
+    if (!businessId) {
+        router.replace('/business-info');
         setAuthStatus('redirecting');
         return;
     }
 
-    // Specific checks for Owner role
-    if (userProfile.role === 'Owner') {
-        // If owner has no business or onboarding is not marked as complete, redirect to start of onboarding.
-        if (!businessId || !business?.onboardingCompleted) {
-            router.replace('/business-info');
-            setAuthStatus('redirecting');
-            return;
-        }
-    }
-    
-    // If all checks pass, user is authorized.
-    setAuthStatus('authorized');
-    
+    // Final safety net if none of the above conditions are met.
+    setAuthStatus('loading');
+
   }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router]);
 
   if (authStatus !== 'authorized') {
