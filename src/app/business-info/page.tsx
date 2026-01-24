@@ -12,6 +12,17 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { collection, serverTimestamp, doc, setDoc, writeBatch } from 'firebase/firestore';
 
+const createSlug = (name: string) => {
+    return name
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9\s-]/g, '') // remove special chars
+        .trim()
+        .replace(/\s+/g, '-') // replace spaces with -
+        .replace(/-+/g, '-'); // replace multiple hyphens with a single one
+};
+
+
 export default function BusinessInfoPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -55,9 +66,12 @@ export default function BusinessInfoPage() {
             // Step 1: Create the main business document first and wait for it.
             const newBusinessRef = doc(collection(firestore, 'businesses'));
             const businessId = newBusinessRef.id;
+            const businessSlug = createSlug(businessName);
+            
             const businessData = {
                 ownerId: authUser.uid,
                 businessName,
+                slug: businessSlug,
                 businessType,
                 address,
                 createdAt: serverTimestamp(),
@@ -71,6 +85,7 @@ export default function BusinessInfoPage() {
             const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
             const businessProfileData = {
                 businessName,
+                slug: businessSlug,
                 businessType,
                 address,
             };

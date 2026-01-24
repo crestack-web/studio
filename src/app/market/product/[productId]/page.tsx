@@ -44,6 +44,7 @@ interface MarketProduct {
 interface BusinessProfile {
     businessName: string;
     currency: string;
+    slug?: string;
 }
 
 const ProductCard = ({ product, currency }: { product: MarketProduct, currency?: string }) => (
@@ -180,6 +181,8 @@ const ProductDetailContent = () => {
         { icon: ShieldCheck, text: 'Secure Payments' },
         { icon: RotateCw, text: 'Easy Returns' },
     ];
+    
+    const businessLink = businessData?.slug ? `/${businessData.slug}` : `/market/store/${productData?.businessId}`;
 
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
@@ -264,7 +267,7 @@ const ProductDetailContent = () => {
                     <div className="flex flex-col gap-4">
                         <div>
                              {businessData && (
-                                <Link href={`/market/store/${productData.businessId}`} className="text-sm font-medium text-primary hover:underline">
+                                <Link href={businessLink} className="text-sm font-medium text-primary hover:underline">
                                     {businessData.businessName}
                                 </Link>
                              )}

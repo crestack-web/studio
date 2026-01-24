@@ -43,6 +43,10 @@
           "type": "string",
           "description": "The name of the business."
         },
+        "slug": {
+            "type": "string",
+            "description": "URL-friendly version of the business name for public store pages."
+        },
         "businessType": {
           "type": "string",
           "description": "The type of business (e.g., shop, supermarket, food, service)."
@@ -109,6 +113,7 @@
       "required": [
         "ownerId",
         "businessName",
+        "slug",
         "businessType",
         "createdAt"
       ]
@@ -119,6 +124,7 @@
       "description": "Public-facing business information for the marketplace.",
       "properties": {
         "businessName": { "type": "string" },
+        "slug": { "type": "string", "description": "URL-friendly version of the business name for public store pages." },
         "businessType": { "type": "string" },
         "address": { "type": "string" },
         "marketDescription": { "type": "string" },
@@ -157,7 +163,7 @@
           }
         }
       },
-      "required": ["businessName", "businessType"]
+      "required": ["businessName", "slug", "businessType"]
     },
     "Product": {
       "title": "Product",
