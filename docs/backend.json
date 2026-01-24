@@ -47,6 +47,10 @@
           "type": "string",
           "description": "The type of business (e.g., shop, supermarket, food, service)."
         },
+        "address": {
+            "type": "string",
+            "description": "The physical address of the business."
+        },
         "currency": {
             "type": "string",
             "description": "The currency code for the business (e.g., NG, GH)."
@@ -112,6 +116,7 @@
       "properties": {
         "businessName": { "type": "string" },
         "businessType": { "type": "string" },
+        "address": { "type": "string" },
         "marketDescription": { "type": "string" },
         "currency": { "type": "string" },
         "marketSettings": {

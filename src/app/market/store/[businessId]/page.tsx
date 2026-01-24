@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star } from 'lucide-react';
+import { Star, MapPin, Mail } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,7 @@ interface BusinessProfile {
     businessName: string;
     marketDescription?: string;
     currency?: string;
+    address?: string;
 }
 
 interface MarketProduct {
@@ -100,12 +101,16 @@ const StorePageContent = () => {
                 </div>
                 <CardContent className="p-6">
                     <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessData.businessName}</h1>
+                     {businessData.address && <p className="text-muted-foreground mt-1 flex items-center gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessData.address}</p>}
                     <p className="text-muted-foreground mt-2 max-w-2xl">{businessData.marketDescription || 'Welcome to our store on Busmo Market!'}</p>
-                    <div className="flex items-center gap-2 text-muted-foreground mt-2">
-                        {/* Rating and reviews are static for now */}
-                        <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold">4.8</span>
-                        <span>(25 reviews)</span>
+                    <div className="flex items-center gap-4 mt-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            {/* Rating and reviews are static for now */}
+                            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                            <span className="font-semibold">4.8</span>
+                            <span>(25 reviews)</span>
+                        </div>
+                        <Button variant="outline"><Mail className="mr-2 h-4 w-4" /> Subscribe</Button>
                     </div>
                 </CardContent>
             </Card>

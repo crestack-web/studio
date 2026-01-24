@@ -17,6 +17,7 @@ export default function BusinessInfoPage() {
     const { toast } = useToast();
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
+    const [address, setAddress] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { user: authUser, isUserLoading } = useUser();
@@ -29,11 +30,11 @@ export default function BusinessInfoPage() {
     }, [authUser, isUserLoading, router]);
 
     const handleContinue = async () => {
-        if (!businessName || !businessType) {
+        if (!businessName || !businessType || !address) {
             toast({
                 variant: 'destructive',
                 title: 'Missing Information',
-                description: 'Please fill out both fields.',
+                description: 'Please fill out all fields.',
             });
             return;
         }
@@ -58,6 +59,7 @@ export default function BusinessInfoPage() {
                 ownerId: authUser.uid,
                 businessName,
                 businessType,
+                address,
                 createdAt: serverTimestamp(),
                 onboardingCompleted: false, // This will be set to true at the end of the flow
             };
@@ -70,6 +72,7 @@ export default function BusinessInfoPage() {
             const businessProfileData = {
                 businessName,
                 businessType,
+                address,
             };
             batch.set(businessProfileRef, businessProfileData);
 
@@ -90,7 +93,7 @@ export default function BusinessInfoPage() {
         }
     };
 
-    const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType;
+    const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType || !address;
 
 
   return (
@@ -126,6 +129,17 @@ export default function BusinessInfoPage() {
                 <SelectItem value="company">Company</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="address">Business Address</Label>
+            <Input 
+                id="address" 
+                placeholder="e.g., 123 Allen Avenue, Ikeja, Lagos" 
+                className="h-12 text-base" 
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={isUserLoading || isSubmitting}
+            />
           </div>
           <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
             {(isUserLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
