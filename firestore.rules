@@ -16,7 +16,6 @@ service cloud.firestore {
     }
 
     // Securely checks if the user owns the specified business.
-    // IMPORTANT: This performs a 'get' which costs 1 read operation. Use judiciously.
     function isOwner(businessId) {
       if (businessId == null || !isSignedIn()) {
         return false;
@@ -35,24 +34,23 @@ service cloud.firestore {
         return false;
       }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath)) {
+      if (!exists(userDocPath) || !('data' in get(userDocPath)) || !('businessId' in get(userDocPath).data)) {
         return false;
       }
       let userDoc = get(userDocPath);
-      return 'businessId' in userDoc.data && userDoc.data.businessId == businessId;
+      return userDoc.data.businessId == businessId;
     }
     
     // Gets the business ID for the currently authenticated user from their user profile.
     function getBusinessIdForCurrentUser() {
+      if (!isSignedIn()) {
+        return null;
+      }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      if (!exists(userDocPath)) {
+      if (!exists(userDocPath) || !('data' in get(userDocPath)) || !('businessId' in get(userDocPath).data)) {
         return null;
       }
-      let userDoc = get(userDocPath);
-      if (!('businessId' in userDoc.data)) {
-        return null;
-      }
-      return userDoc.data.businessId;
+      return get(userDocPath).data.businessId;
     }
 
 
@@ -148,7 +146,7 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.sellerBusinessId) || isAdmin();
 
       // Allow business owners and staff to list orders for their business.
-      allow list: if (getBusinessIdForCurrentUser() != null && getBusinessIdForCurrentUser() == request.query.where.sellerBusinessId) || isAdmin();
+      allow list: if (getBusinessIdForCurrentUser() != null && request.query.sellerBusinessId == getBusinessIdForCurrentUser()) || isAdmin();
 
       // Deleting orders is restricted to admins.
       allow delete: if isAdmin();
@@ -171,14 +169,25 @@ service cloud.firestore {
 
     // Support Tickets
     match /supportTickets/{ticketId} {
-      // Any signed-in user can create a support ticket for themselves.
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Allow creation for authenticated users for themselves, or for guests (userId is null).
+      allow create: if (isSignedIn() && request.resource.data.userId == request.auth.uid) || (!isSignedIn() && request.resource.data.userId == null);
       
       // The user who created the ticket and admins can view or update it.
       allow get, update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       
       // Only admins can list or delete tickets.
       allow list, delete: if isAdmin();
+    }
+    
+    // Rider & Guarantor Applications
+    match /riderApplications/{applicationId} {
+      allow create: if true; // Anyone can apply
+      allow read, update, delete: if isAdmin();
+    }
+    
+    match /guarantorApplications/{applicationId} {
+      allow create: if true; // Anyone can apply
+      allow read, update, delete: if isAdmin();
     }
   }
 }

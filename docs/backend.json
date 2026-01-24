@@ -510,6 +510,52 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "subject", "message", "status", "createdAt"]
+    },
+    "RiderApplication": {
+      "title": "Rider Application",
+      "type": "object",
+      "description": "Represents an application from a user wanting to become a delivery rider.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The full name of the applicant."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The applicant's phone number."
+        },
+        "address": {
+          "type": "string",
+          "description": "The applicant's primary address or area of operation."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "The current status of the application."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the application was submitted."
+        }
+      },
+      "required": ["name", "phone", "address", "status", "createdAt"]
+    },
+    "GuarantorApplication": {
+      "title": "Guarantor Application",
+      "type": "object",
+      "description": "Represents an application from a user wanting to become a guarantor for a rider.",
+      "properties": {
+        "guarantorName": { "type": "string" },
+        "guarantorPhone": { "type": "string" },
+        "guarantorAddress": { "type": "string" },
+        "riderName": { "type": "string" },
+        "riderPhone": { "type": "string" },
+        "relationship": { "type": "string", "description": "Relationship to the rider." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["guarantorName", "guarantorPhone", "riderName", "riderPhone", "status", "createdAt"]
     }
   },
   "auth": {
@@ -637,6 +683,26 @@
             "$ref": "#/backend/entities/SupportTicket"
           },
           "description": "Collection for all customer support tickets."
+        }
+      },
+      {
+        "path": "riderApplications/{applicationId}",
+        "definition": {
+          "entityName": "RiderApplication",
+          "schema": {
+            "$ref": "#/backend/entities/RiderApplication"
+          },
+          "description": "Collection for all rider applications."
+        }
+      },
+      {
+        "path": "guarantorApplications/{applicationId}",
+        "definition": {
+          "entityName": "GuarantorApplication",
+          "schema": {
+            "$ref": "#/backend/entities/GuarantorApplication"
+          },
+          "description": "Collection for all guarantor applications."
         }
       }
     ]

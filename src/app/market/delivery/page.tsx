@@ -1,11 +1,20 @@
+
 'use client';
 
+import { useState, type FormEvent } from 'react';
 import MarketLayout from '@/components/app/market-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck } from 'lucide-react';
+import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
 
 const deliveryRates = [
     { city: 'Lagos', rate: '₦2,000 - ₦3,500' },
@@ -23,6 +32,91 @@ const howItWorksSteps = [
 ];
 
 export default function DeliveryPage() {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+
+    // Rider Dialog State
+    const [isRiderDialogOpen, setIsRiderDialogOpen] = useState(false);
+    const [riderName, setRiderName] = useState('');
+    const [riderPhone, setRiderPhone] = useState('');
+    const [riderAddress, setRiderAddress] = useState('');
+    const [isSubmittingRider, setIsSubmittingRider] = useState(false);
+
+    // Guarantor Dialog State
+    const [isGuarantorDialogOpen, setIsGuarantorDialogOpen] = useState(false);
+    const [guarantorName, setGuarantorName] = useState('');
+    const [guarantorPhone, setGuarantorPhone] = useState('');
+    const [guarantorAddress, setGuarantorAddress] = useState('');
+    const [guaranteedRiderName, setGuaranteedRiderName] = useState('');
+    const [guaranteedRiderPhone, setGuaranteedRiderPhone] = useState('');
+    const [relationship, setRelationship] = useState('');
+    const [isSubmittingGuarantor, setIsSubmittingGuarantor] = useState(false);
+
+    const handleApplyForRider = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!riderName || !riderPhone || !riderAddress) {
+            toast({ title: 'Please fill all fields', variant: 'destructive' });
+            return;
+        }
+        if (!firestore) return;
+
+        setIsSubmittingRider(true);
+        try {
+            await addDocumentNonBlocking(collection(firestore, 'riderApplications'), {
+                name: riderName,
+                phone: riderPhone,
+                address: riderAddress,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+            });
+            toast({ title: 'Application Submitted!', description: 'We will review your application and contact you soon.' });
+            setIsRiderDialogOpen(false);
+            setRiderName('');
+            setRiderPhone('');
+            setRiderAddress('');
+        } catch (error) {
+            toast({ title: 'Submission failed', description: 'Please try again.', variant: 'destructive' });
+        } finally {
+            setIsSubmittingRider(false);
+        }
+    };
+
+     const handleApplyForGuarantor = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!guarantorName || !guarantorPhone || !guaranteedRiderName || !guaranteedRiderPhone) {
+            toast({ title: 'Please fill all required fields', variant: 'destructive' });
+            return;
+        }
+        if (!firestore) return;
+
+        setIsSubmittingGuarantor(true);
+        try {
+            await addDocumentNonBlocking(collection(firestore, 'guarantorApplications'), {
+                guarantorName,
+                guarantorPhone,
+                guarantorAddress,
+                riderName: guaranteedRiderName,
+                riderPhone: guaranteedRiderPhone,
+                relationship,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+            });
+            toast({ title: 'Application Submitted!', description: 'Thank you for supporting your community. We will be in touch.' });
+            setIsGuarantorDialogOpen(false);
+            setGuarantorName('');
+            setGuarantorPhone('');
+            setGuarantorAddress('');
+            setGuaranteedRiderName('');
+            setGuaranteedRiderPhone('');
+            setRelationship('');
+        } catch (error) {
+            toast({ title: 'Submission failed', description: 'Please try again.', variant: 'destructive' });
+        } finally {
+            setIsSubmittingGuarantor(false);
+        }
+    };
+
+
     return (
         <MarketLayout>
             <div className="w-full max-w-5xl space-y-16">
@@ -149,7 +243,28 @@ export default function DeliveryPage() {
                                 </ul>
                             </CardContent>
                             <CardFooter>
-                                 <Button className="w-full" disabled>Apply to be a Rider (Coming Soon)</Button>
+                                 <Dialog open={isRiderDialogOpen} onOpenChange={setIsRiderDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full">Apply to be a Rider</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Apply to be a Busmo Rider</DialogTitle>
+                                            <DialogDescription>Fill in your details below. We'll contact you for the next steps.</DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleApplyForRider} className="space-y-4 pt-4">
+                                            <div className="space-y-2"><Label htmlFor="rider-name">Full Name</Label><Input id="rider-name" value={riderName} onChange={(e) => setRiderName(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="rider-phone">Phone Number</Label><Input id="rider-phone" type="tel" value={riderPhone} onChange={(e) => setRiderPhone(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="rider-address">Address / Main Area of Operation</Label><Textarea id="rider-address" value={riderAddress} onChange={(e) => setRiderAddress(e.target.value)} required /></div>
+                                            <DialogFooter>
+                                                <Button type="submit" disabled={isSubmittingRider} className="w-full">
+                                                    {isSubmittingRider && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Submit Application
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                             </CardFooter>
                         </Card>
                         <Card className="flex flex-col">
@@ -165,8 +280,36 @@ export default function DeliveryPage() {
                                 </ul>
                             </CardContent>
                              <CardFooter>
-                                 <Button variant="secondary" className="w-full" disabled>Become a Guarantor (Coming Soon)</Button>
-                            </CardFooter>
+                                <Dialog open={isGuarantorDialogOpen} onOpenChange={setIsGuarantorDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full">Become a Guarantor</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Become a Rider Guarantor</DialogTitle>
+                                            <DialogDescription>Fill out your details and the details of the rider you wish to guarantee.</DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleApplyForGuarantor} className="space-y-4 pt-4">
+                                            <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2">Your (Guarantor's) Information</h3>
+                                            <div className="space-y-2"><Label htmlFor="guarantor-name">Your Full Name</Label><Input id="guarantor-name" value={guarantorName} onChange={(e) => setGuarantorName(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="guarantor-phone">Your Phone Number</Label><Input id="guarantor-phone" type="tel" value={guarantorPhone} onChange={(e) => setGuarantorPhone(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="guarantor-address">Your Address</Label><Textarea id="guarantor-address" value={guarantorAddress} onChange={(e) => setGuarantorAddress(e.target.value)} /></div>
+
+                                            <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2 pt-4">Rider's Information</h3>
+                                            <div className="space-y-2"><Label htmlFor="guaranteed-rider-name">Rider's Full Name</Label><Input id="guaranteed-rider-name" value={guaranteedRiderName} onChange={(e) => setGuaranteedRiderName(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="guaranteed-rider-phone">Rider's Phone Number</Label><Input id="guaranteed-rider-phone" type="tel" value={guaranteedRiderPhone} onChange={(e) => setGuaranteedRiderPhone(e.target.value)} required /></div>
+                                            <div className="space-y-2"><Label htmlFor="relationship">Your Relationship to the Rider</Label><Textarea id="relationship" placeholder="e.g., Uncle, family friend, mentor..." value={relationship} onChange={(e) => setRelationship(e.target.value)} /></div>
+                                            
+                                            <DialogFooter className="pt-4">
+                                                <Button type="submit" disabled={isSubmittingGuarantor} className="w-full">
+                                                    {isSubmittingGuarantor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Submit Guarantor Application
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                             </CardFooter>
                         </Card>
                     </div>
                 </section>
