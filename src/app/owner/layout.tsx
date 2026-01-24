@@ -44,8 +44,9 @@ export default function OwnerLayout({
       setAuthStatus('authorized');
     } else {
       // If the user is logged in but does not have the correct role, they are unauthorized.
+      // Redirecting to /login is the safest option, as it will then correctly route them based on their actual role.
       setAuthStatus('unauthorized');
-      router.replace('/market'); // Redirect non-owners/staff to a safe page.
+      router.replace('/login');
     }
     
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
