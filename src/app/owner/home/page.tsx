@@ -574,22 +574,6 @@ export default function OwnerHomePage() {
           
           {/* Right Column */}
           <div className="flex flex-col gap-6">
-            {businessData?.plan !== 'shop' && (
-                <Card className="bg-card/50 border-dashed">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
-                            <TrendingUp className="w-6 h-6" />
-                            Business Forecast
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-center text-sm text-muted-foreground">
-                            <p>Record data for 7+ days to unlock sales trends and future insights.</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
              <Card>
                 <CardHeader>
                      <CardTitle className="flex items-center gap-2 font-headline text-lg">
@@ -636,7 +620,7 @@ export default function OwnerHomePage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
                             <TrendingUp className="w-6 h-6" />
-                            Branch Performance
+                            <span>Branch Performance</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
