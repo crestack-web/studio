@@ -68,22 +68,36 @@ export default function SignUpPage() {
         role: 'Owner',
     };
 
-    setDoc(userDocRef, ownerProfile)
-        .then(() => {
-            toast({ title: "Account Created", description: "Let's set up your business." });
-            router.push('/business-info');
-        })
-        .catch((error) => {
-            const permissionError = new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'create',
-                requestResourceData: ownerProfile,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            
-            auth.signOut();
-            setIsLoading(false);
+    try {
+        await setDoc(userDocRef, ownerProfile);
+        toast({ title: "Account Created", description: "Let's set up your business." });
+        router.push('/business-info');
+    } catch (dbError: any) {
+        console.error("Error creating user profile in Firestore:", dbError);
+        const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: ownerProfile,
         });
+        errorEmitter.emit('permission-error', permissionError);
+
+        toast({
+            variant: "destructive",
+            title: "Account Setup Failed",
+            description: "Your account could not be fully created. Please try again.",
+        });
+
+        // Clean up the created auth user
+        try {
+            if (auth.currentUser) {
+                await auth.currentUser.delete();
+            }
+        } catch (deleteError) {
+            console.error("Failed to clean up user after profile creation failure:", deleteError);
+        }
+
+        setIsLoading(false);
+    }
   };
 
   const isButtonDisabled = isLoading || !name || !email || !password || !phoneNumber;
