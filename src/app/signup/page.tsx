@@ -84,6 +84,10 @@ export default function SignUpPage() {
                     title = "Weak Password";
                     description = "Your password must be at least 6 characters long.";
                     break;
+                case 'auth/network-request-failed':
+                    title = 'Network Error';
+                    description = 'Could not connect to our services. Please check your internet connection and try again.';
+                    break;
                 case 'permission-denied':
                     title = "Account Setup Failed";
                     description = "We couldn't create your user profile due to a permissions issue. This can sometimes happen on a slow network. Please try again.";

@@ -70,10 +70,34 @@ export default function LoginPage() {
       }
 
     } catch (error: any) {
+        let title = 'Login Failed';
+        let description = 'An unexpected error occurred. Please try again.';
+
+        if (error.code) {
+            switch(error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    title = 'Invalid Credentials';
+                    description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
+                    break;
+                case 'auth/invalid-email':
+                    title = 'Invalid Email';
+                    description = 'The email address you entered is not valid. Please check and try again.';
+                    break;
+                case 'auth/network-request-failed':
+                    title = 'Network Error';
+                    description = 'Could not connect to our services. Please check your internet connection and try again.';
+                    break;
+                default:
+                    description = error.message || 'Please check your credentials and try again.';
+            }
+        }
+        
         toast({
             variant: "destructive",
-            title: "Login Failed",
-            description: error.message || "Please check your credentials and try again.",
+            title: title,
+            description: description,
         });
         setIsLoading(false);
     }
