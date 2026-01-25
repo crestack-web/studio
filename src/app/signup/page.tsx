@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function SignUpPage() {
@@ -63,6 +63,9 @@ export default function SignUpPage() {
       // If no invitation, proceed with creating an owner account.
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
+      
+      // Update the user's profile in Firebase Auth as well
+      await updateProfile(newUser, { displayName: name });
 
       // Create the user profile document in Firestore immediately.
       const userDocRef = doc(firestore, 'users', newUser.uid);

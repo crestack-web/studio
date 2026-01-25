@@ -1,9 +1,9 @@
 'use client';
 
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc } from 'firebase/firestore';
+import { doc, signOut } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 interface UserProfile {
@@ -27,6 +27,7 @@ export default function OwnerLayout({
 }) {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const router = useRouter();
 
   const userProfileRef = useMemoFirebase(() => {
@@ -46,62 +47,60 @@ export default function OwnerLayout({
   const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
   
   useEffect(() => {
-    // Phase 1: Wait for all essential data to load.
-    const isStillLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.businessId && isBusinessLoading);
+    const isStillLoading = isUserLoading || isProfileLoading || (user && userProfile?.businessId && isBusinessLoading);
+
     if (isStillLoading) {
       setAuthStatus('loading');
       return;
     }
 
-    // Phase 2: If no user is logged in, redirect to the main login page.
     if (!user) {
       router.replace('/login');
       setAuthStatus('redirecting');
       return;
     }
 
-    // Phase 3: Verify the user's role. This layout is for Owners or Staff.
-    const isAuthorizedRole = userProfile.role === 'Owner' || userProfile.role === 'Staff';
+    const isAuthorizedRole = userProfile?.role === 'Owner' || userProfile?.role === 'Staff';
     if (!isAuthorizedRole) {
       router.replace('/login'); 
       setAuthStatus('redirecting');
       return;
     }
     
-    // At this point, we know we have a user with an authorized role.
-
-    // Phase 4: If the user is an Owner, check if they are fully onboarded.
     if (userProfile.role === 'Owner') {
         if (business?.onboardingCompleted) {
             setAuthStatus('authorized');
             return;
         }
 
-        // Onboarding is not complete, redirect to the correct step.
-        if (businessId && business) {
-            if (!business.plan) {
-                router.replace('/plans');
-            } else if (!business.currency) {
+        if (!businessId) {
+            router.replace('/business-info');
+            setAuthStatus('redirecting');
+            return;
+        }
+
+        if (business) {
+            if (!business.currency) {
                 router.replace('/currency');
+            } else if (!business.plan) {
+                router.replace('/plans');
             } else {
                 router.replace('/business-info');
             }
             setAuthStatus('redirecting');
             return;
         }
-        
-        // Fallback for an Owner without a businessId (should trigger onboarding).
-        if (!businessId) {
-            router.replace('/business-info');
-            setAuthStatus('redirecting');
-            return;
-        }
-    } else {
-      // If the user is Staff, they are authorized.
-      setAuthStatus('authorized');
+    } else if (userProfile.role === 'Staff') {
+      if (businessId) {
+        setAuthStatus('authorized');
+      } else {
+        if (auth) signOut(auth);
+        router.replace('/login');
+        setAuthStatus('redirecting');
+      }
     }
 
-  }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router]);
+  }, [user, userProfile, business, isUserLoading, isProfileLoading, isBusinessLoading, businessId, router, auth]);
 
   if (authStatus !== 'authorized') {
     return (
