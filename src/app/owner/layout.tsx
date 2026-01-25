@@ -3,7 +3,8 @@
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc, signOut } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
 interface UserProfile {
