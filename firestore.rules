@@ -56,7 +56,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
-      allow update: if (isSignedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+                     (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -144,7 +145,7 @@ service cloud.firestore {
     
     // --- REVIEWS ---
     match /reviews/{reviewId} {
-      allow get, list: if true;
+      allow read: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
