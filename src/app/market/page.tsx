@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -35,9 +36,9 @@ interface MarketProduct {
 }
 
 const heroBanners = [
-    { id: 'banner-clearance', title: 'Clearance Sale', subtitle: 'Up to 50% Off Select Items', image: PlaceHolderImages.find(i => i.id === 'sale-banner-1'), buttonText: 'Shop Now' },
-    { id: 'banner-new', title: 'New Arrivals', subtitle: 'Fresh Picks for the New Season', image: PlaceHolderImages.find(i => i.id === 'sale-banner-2'), buttonText: 'Discover More' },
-    { id: 'banner-wholesale', title: 'Wholesale Deals', subtitle: 'Buy in Bulk and Save Big', image: PlaceHolderImages.find(i => i.id === 'sale-banner-3'), buttonText: 'View Deals' },
+    { id: 'banner-clearance', title: 'Clearance Sale', subtitle: 'Up to 50% Off Select Items', image: PlaceHolderImages.find(i => i.id === 'sale-banner-1'), buttonText: 'Shop Now', className: "bg-orange-500" },
+    { id: 'banner-new', title: 'New Arrivals', subtitle: 'Fresh Picks for the New Season', image: PlaceHolderImages.find(i => i.id === 'sale-banner-2'), buttonText: 'Discover More', className: "bg-blue-500" },
+    { id: 'banner-wholesale', title: 'Wholesale Deals', subtitle: 'Buy in Bulk and Save Big', image: PlaceHolderImages.find(i => i.id === 'shopping-banner'), buttonText: 'View Deals', className: "bg-green-500" },
 ];
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
@@ -193,7 +194,7 @@ export default function MarketPage() {
                         <CarouselContent>
                             {heroBanners.map(banner => (
                                 <CarouselItem key={banner.id}>
-                                    <div className="relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 bg-warning text-primary-foreground">
+                                    <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 text-primary-foreground", banner.className)}>
                                         {banner.image && <Image src={banner.image.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.image.imageHint} />}
                                         <div className="relative text-center z-10">
                                             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
