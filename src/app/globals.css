@@ -24,7 +24,6 @@
     --warning-foreground: 0 0% 0%;
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --busmopay-primary: 25 95% 53%; /* Orange */
     --border: 220 13% 85%;
     --input: 220 13% 88%;
     --ring: 235 62% 29%;
@@ -64,7 +63,6 @@
     --warning-foreground: 0 0% 0%;
     --success: 142 66% 45%;
     --success-foreground: 0 0% 100%;
-    --busmopay-primary: 28 96% 61%; /* Light Orange */
     --border: 240 5% 20%;
     --input: 240 5% 20%;
     --ring: 228 100% 98%;
@@ -109,4 +107,3 @@
     @apply font-headline;
   }
 }
-
