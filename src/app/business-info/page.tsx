@@ -73,6 +73,8 @@ export default function BusinessInfoPage() {
         const businessSlug = createSlug(businessName);
         const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
         const userDocRef = doc(firestore, 'users', authUser.uid);
+        const currency = markets.find(m => m.code === country)?.currency || 'NGN';
+
 
         const businessData = {
             ownerId: authUser.uid,
@@ -81,6 +83,7 @@ export default function BusinessInfoPage() {
             businessType,
             country,
             city,
+            currency: currency,
             createdAt: serverTimestamp(),
             onboardingCompleted: false,
         };
@@ -92,6 +95,7 @@ export default function BusinessInfoPage() {
             businessType,
             country,
             city,
+            currency: currency
         };
         
         batch.set(newBusinessRef, businessData);
@@ -100,7 +104,7 @@ export default function BusinessInfoPage() {
 
         try {
             await batch.commit();
-            router.replace('/currency');
+            router.replace('/plans');
         } catch (error: any) {
             console.error("Error creating business:", error);
             let description = 'Could not save business details. Please check your connection and try again.';

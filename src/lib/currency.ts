@@ -9,21 +9,25 @@ export const markets = [
     { 
         code: 'NG', 
         name: 'Nigeria', 
+        currency: 'NGN',
         cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Kano'] 
     },
     { 
         code: 'GH', 
         name: 'Ghana', 
+        currency: 'GHS',
         cities: ['Accra', 'Kumasi', 'Takoradi'] 
     },
     {
         code: 'NE',
         name: 'Niger',
+        currency: 'XOF',
         cities: ['Niamey', 'Maradi', 'Zinder', 'Tahoua']
     },
     {
         code: 'CM',
         name: 'Cameroon',
+        currency: 'XAF',
         cities: ['Douala', 'Yaoundé']
     }
 ];
