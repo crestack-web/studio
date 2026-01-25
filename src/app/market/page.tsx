@@ -38,7 +38,6 @@ interface MarketProduct {
 const heroBanners = [
     { id: 'banner-clearance', title: 'Clearance Sale', subtitle: 'Up to 50% Off Select Items', image: PlaceHolderImages.find(i => i.id === 'sale-banner-1'), buttonText: 'Shop Now', className: "bg-orange-500" },
     { id: 'banner-new', title: 'New Arrivals', subtitle: 'Fresh Picks for the New Season', image: PlaceHolderImages.find(i => i.id === 'sale-banner-2'), buttonText: 'Discover More', className: "bg-blue-500" },
-    { id: 'banner-wholesale', title: 'Wholesale Deals', subtitle: 'Buy in Bulk and Save Big', image: PlaceHolderImages.find(i => i.id === 'shopping-banner'), buttonText: 'View Deals', className: "bg-green-500" },
 ];
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
