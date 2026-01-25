@@ -3,13 +3,13 @@
     {
       "id": "testimonial-food-vendor",
       "description": "A street food vendor smiling at her stall in an African market.",
-      "imageUrl": "https://images.unsplash.com/photo-1608980933655-0a458e18b007?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxmb29kJTIwc3RhbGx8ZW58MHx8fHwxNzY4NjU0MzI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1608686207856-001b95cf60ca?q=80&w=1080&auto=format&fit=crop",
       "imageHint": "food stall"
     },
     {
       "id": "testimonial-retail-shop",
       "description": "A shopkeeper surrounded by colorful fabrics in her small retail store.",
-      "imageUrl": "https://images.unsplash.com/photo-1601924994987-69e26d50dc26?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxyZXRhaWwlMjBzaG9wfGVufDB8fHx8MTc2ODczOTQyMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?q=80&w=1080&auto=format&fit=crop",
       "imageHint": "retail shop"
     },
     {
@@ -80,49 +80,49 @@
       "id": "cat-groceries",
       "name": "Groceries",
       "description": "A variety of fresh groceries.",
-      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJpZXN8ZW58MHx8fHwxNzY5MzQxNTA1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1608686207856-001b95cf60ca?q=80&w=800&auto=format&fit=crop",
       "imageHint": "fresh vegetables"
     },
     {
       "id": "cat-fashion",
       "name": "Fashion",
       "description": "Stylish clothing on a rack.",
-      "imageUrl": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjbG90aGluZyUyMHN0b3JlfGVufDB8fHx8MTc2OTM0MTU0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?q=80&w=800&auto=format&fit=crop",
       "imageHint": "clothing store"
     },
     {
       "id": "cat-electronics",
       "name": "Electronics",
       "description": "Modern electronic gadgets like a laptop and phone.",
-      "imageUrl": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1080&q=80",
+      "imageUrl": "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?q=80&w=800&auto=format&fit=crop",
       "imageHint": "electronic gadgets"
     },
     {
       "id": "cat-home-office",
       "name": "Home & Office",
       "description": "A modern armchair in a cozy setting.",
-      "imageUrl": "https://images.unsplash.com/photo-1618220179428-22790b461013?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxsaXZpbmclMjByb29tfGVufDB8fHx8MTc2OTM0MTY0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=800&auto=format&fit=crop",
       "imageHint": "home decor"
     },
     {
       "id": "cat-beauty",
       "name": "Beauty",
       "description": "A collection of makeup brushes and beauty products.",
-      "imageUrl": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiZWF1dHklMjBwcm9kdWN0c3xlbnwwfHx8fDE3NjkzNDE2ODF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=800&auto=format&fit=crop",
       "imageHint": "beauty products"
     },
     {
       "id": "cat-sme-deals",
       "name": "SME Deals",
       "description": "A sale tag indicating special deals for small businesses.",
-      "imageUrl": "https://images.unsplash.com/photo-1549921297-397517c25b05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzYWxlfGVufDB8fHx8MTc2OTM0MTcyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1556740758-90de374c12ad?q=80&w=800&auto=format&fit=crop",
       "imageHint": "sale sign"
     },
     {
       "id": "cat-wholesale",
       "name": "Wholesale",
       "description": "Stacked cardboard boxes ready for wholesale shipping.",
-      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1578575437136-7242e374d659?q=80&w=800&auto=format&fit=crop",
       "imageHint": "warehouse boxes"
     }
   ]
