@@ -147,7 +147,7 @@ service cloud.firestore {
     
     // --- REVIEWS ---
     match /reviews/{reviewId} {
-      allow get, list: if true;
+      allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
