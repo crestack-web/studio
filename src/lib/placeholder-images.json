@@ -94,8 +94,8 @@
       "id": "cat-electronics",
       "name": "Electronics",
       "description": "Modern electronic gadgets like a laptop and phone.",
-      "imageUrl": "https://images.unsplash.com/photo-1593344484962-796b99061033?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxlbGVjdHJvbmljcyUyMHN0b3JlfGVufDB8fHx8MTc2OTM0MTU4MXww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "electronics store"
+      "imageUrl": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1080&q=80",
+      "imageHint": "electronic gadgets"
     },
     {
       "id": "cat-home-office",
