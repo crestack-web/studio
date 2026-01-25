@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -118,6 +117,7 @@ export default function MarketPage() {
     const firestore = useFirestore();
     const { market } = useMarket();
     const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Query for products available only in the specific city
     const cityProductsQuery = useMemoFirebase(() => {
@@ -152,6 +152,18 @@ export default function MarketPage() {
         return Array.from(allProducts.values());
     }, [cityProducts, nationwideProducts]);
     
+    const filteredProducts = useMemo(() => {
+        if (!searchQuery) {
+            return productsData;
+        }
+        const lowercasedQuery = searchQuery.toLowerCase();
+        return productsData.filter(product => 
+            (product.productName?.toLowerCase().includes(lowercasedQuery)) ||
+            (product.businessName?.toLowerCase().includes(lowercasedQuery)) ||
+            (product.category?.toLowerCase().includes(lowercasedQuery))
+        );
+    }, [productsData, searchQuery]);
+
     const flashDeals = useMemo(() => {
         if (!productsData) return [];
         return productsData.filter(p => p.oldPrice && p.oldPrice > p.price).slice(0, 6);
@@ -213,7 +225,7 @@ export default function MarketPage() {
     );
 
     return (
-        <MarketLayout>
+        <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
                 {/* 1. Hero Banner */}
@@ -297,7 +309,7 @@ export default function MarketPage() {
                         <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
                         {isLoadingProducts ? renderProductSkeletons(12) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {productsData?.map(product => (
+                            {filteredProducts?.map(product => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
                         </div>
@@ -306,6 +318,12 @@ export default function MarketPage() {
                             <div className="text-center py-20 border rounded-lg bg-card">
                             <h2 className="text-xl font-semibold">No Products Found for {market.city}</h2>
                             <p className="text-muted-foreground mt-2">Try changing your market location to see more products.</p>
+                        </div>
+                    )}
+                    {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
+                        <div className="text-center py-20 border rounded-lg bg-card">
+                            <h2 className="text-xl font-semibold">No Results Found for "{searchQuery}"</h2>
+                            <p className="text-muted-foreground mt-2">Try a different search term.</p>
                         </div>
                     )}
                 </section>
@@ -335,5 +353,3 @@ export default function MarketPage() {
         </MarketLayout>
     );
 }
-
-    

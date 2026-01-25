@@ -13,9 +13,19 @@ import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { MarketSwitcher } from './market-switcher';
 
-export default function MarketLayout({ children }: { children: React.ReactNode }) {
+export default function MarketLayout({ 
+    children, 
+    searchValue, 
+    onSearchChange 
+}: { 
+    children: React.ReactNode, 
+    searchValue?: string, 
+    onSearchChange?: (value: string) => void 
+}) {
     const { t } = useLanguage();
     const { totalItems } = useCart();
+
+    const isSearchControlled = searchValue !== undefined && onSearchChange !== undefined;
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
@@ -26,7 +36,12 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                     <div className="flex-1 max-w-2xl">
                          <div className="relative w-full">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input placeholder="Search products, stores, or categories" className="pl-10 h-12 text-base" />
+                            <Input 
+                                placeholder="Search products, stores, or categories" 
+                                className="pl-10 h-12 text-base"
+                                value={isSearchControlled ? searchValue : undefined}
+                                onChange={isSearchControlled ? (e) => onSearchChange(e.target.value) : undefined}
+                            />
                         </div>
                     </div>
 
@@ -104,5 +119,3 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
         </div>
     );
 }
-
-    
