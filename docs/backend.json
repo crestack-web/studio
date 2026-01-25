@@ -18,6 +18,10 @@
           "type": "string",
           "description": "The user's email address."
         },
+        "phoneNumber": {
+            "type": "string",
+            "description": "The user's phone number."
+        },
         "businessId": {
           "type": "string",
           "description": "The ID of the business associated with the user."

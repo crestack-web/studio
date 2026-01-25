@@ -5,11 +5,11 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -19,52 +19,15 @@ export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
-
-  useEffect(() => {
-    // This effect now only handles owner profile creation.
-    if (isProcessing && user && !isUserLoading) {
-      const createOwnerProfile = async () => {
-        if (!firestore) {
-          toast({ variant: "destructive", title: "Error", description: "Could not initialize services." });
-          setIsProcessing(false);
-          setIsLoading(false);
-          return;
-        }
-
-        const userDocRef = doc(firestore, 'users', user.uid);
-
-        try {
-            const ownerProfile = {
-              id: user.uid,
-              displayName: name,
-              email: user.email,
-              role: 'Owner',
-            };
-            
-            await setDoc(userDocRef, ownerProfile);
-            
-            toast({ title: "Account Created", description: "Let's set up your business." });
-            router.push('/business-info');
-        } catch (error: any) {
-            toast({ variant: "destructive", title: "Sign Up Failed", description: "Could not create user profile. " + error.message });
-            setIsLoading(false);
-            setIsProcessing(false);
-        }
-      };
-
-      createOwnerProfile();
-    }
-  }, [user, isUserLoading, isProcessing, firestore, name, email, router, toast]);
 
   const handleSignUp = async () => {
     setIsLoading(true);
+
     if (password.length < 6) {
         toast({
             variant: "destructive",
@@ -98,8 +61,22 @@ export default function SignUpPage() {
       }
       
       // If no invitation, proceed with creating an owner account.
-      await createUserWithEmailAndPassword(auth, email, password);
-      setIsProcessing(true);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newUser = userCredential.user;
+
+      // Create the user profile document in Firestore immediately.
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      const ownerProfile = {
+          id: newUser.uid,
+          displayName: name,
+          email: newUser.email,
+          phoneNumber: phoneNumber,
+          role: 'Owner',
+      };
+      await setDoc(userDocRef, ownerProfile);
+
+      toast({ title: "Account Created", description: "Let's set up your business." });
+      router.push('/business-info');
 
     } catch (error: any) {
         toast({
@@ -111,7 +88,7 @@ export default function SignUpPage() {
     }
   };
 
-  const isButtonDisabled = isLoading || isProcessing || !name || !email || !password || !phoneNumber;
+  const isButtonDisabled = isLoading || !name || !email || !password || !phoneNumber;
 
   return (
     <OnboardingLayout>
@@ -138,8 +115,8 @@ export default function SignUpPage() {
             <Input id="password" type="password" placeholder="Must be at least 6 characters" className="h-12 text-base" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isButtonDisabled} />
           </div>
           <Button className="w-full h-14 text-lg" onClick={handleSignUp} disabled={isButtonDisabled}>
-            {(isLoading || isProcessing) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isProcessing ? 'Finalizing...' : 'Create Owner Account'}
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create Owner Account
           </Button>
            <p className="text-sm text-center text-muted-foreground pt-2">
               Already have an account?{' '}
