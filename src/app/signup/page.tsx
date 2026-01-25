@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -44,38 +44,46 @@ export default function SignUpPage() {
         return;
     }
 
+    let newUser;
     try {
-      // The check for a pending staff invitation was removed.
-      // It caused a permission error because an unauthenticated user cannot read the 'invitations' collection.
-      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-      
-      // Update the user's profile in Firebase Auth as well
+      newUser = userCredential.user;
       await updateProfile(newUser, { displayName: name });
-
-      // Create the user profile document in Firestore immediately.
-      const userDocRef = doc(firestore, 'users', newUser.uid);
-      const ownerProfile = {
-          id: newUser.uid,
-          displayName: name,
-          email: newUser.email,
-          phoneNumber: phoneNumber,
-          role: 'Owner',
-      };
-      await setDoc(userDocRef, ownerProfile);
-
-      toast({ title: "Account Created", description: "Let's set up your business." });
-      router.push('/business-info');
-
-    } catch (error: any) {
+    } catch (authError: any) {
         toast({
             variant: "destructive",
             title: "Sign Up Failed",
-            description: error.message,
+            description: authError.message,
         });
         setIsLoading(false);
+        return;
     }
+
+    const userDocRef = doc(firestore, 'users', newUser.uid);
+    const ownerProfile = {
+        id: newUser.uid,
+        displayName: name,
+        email: newUser.email,
+        phoneNumber: phoneNumber,
+        role: 'Owner',
+    };
+
+    setDoc(userDocRef, ownerProfile)
+        .then(() => {
+            toast({ title: "Account Created", description: "Let's set up your business." });
+            router.push('/business-info');
+        })
+        .catch((error) => {
+            const permissionError = new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'create',
+                requestResourceData: ownerProfile,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            
+            auth.signOut();
+            setIsLoading(false);
+        });
   };
 
   const isButtonDisabled = isLoading || !name || !email || !password || !phoneNumber;
