@@ -57,10 +57,9 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
       allow update: if isSignedIn() && request.auth.uid == userId &&
-                  // Prevent changing role
-                  request.resource.data.role == resource.data.role &&
-                  // Allow setting businessId for the first time, but not changing it later
-                  (!('businessId' in resource.data) || request.resource.data.businessId == resource.data.businessId);
+                  // Users can't change their own role.
+                  // This is written defensively to not fail if the role doesn't exist yet on the resource.
+                  (!('role' in resource.data) || request.resource.data.role == resource.data.role);
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -148,7 +147,7 @@ service cloud.firestore {
     
     // --- REVIEWS ---
     match /reviews/{reviewId} {
-      allow read: if true;
+      allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
