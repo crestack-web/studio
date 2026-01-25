@@ -1,10 +1,9 @@
 'use client';
 
-import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { doc, signOut } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
 interface UserProfile {
@@ -26,9 +25,8 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, auth } = useUser();
   const firestore = useFirestore();
-  const auth = useAuth();
   const router = useRouter();
 
   const userProfileRef = useMemoFirebase(() => {
@@ -48,7 +46,7 @@ export default function OwnerLayout({
   const [authStatus, setAuthStatus] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
   
   useEffect(() => {
-    const isStillLoading = isUserLoading || isProfileLoading || (user && userProfile?.businessId && isBusinessLoading);
+    const isStillLoading = isUserLoading || isProfileLoading || (user && !userProfile) || (userProfile?.businessId && isBusinessLoading);
 
     if (isStillLoading) {
       setAuthStatus('loading');
@@ -63,6 +61,7 @@ export default function OwnerLayout({
 
     const isAuthorizedRole = userProfile?.role === 'Owner' || userProfile?.role === 'Staff';
     if (!isAuthorizedRole) {
+      if (auth) signOut(auth);
       router.replace('/login'); 
       setAuthStatus('redirecting');
       return;
@@ -74,22 +73,17 @@ export default function OwnerLayout({
             return;
         }
 
-        if (!businessId) {
+        // Onboarding is not complete, figure out where to send them.
+        setAuthStatus('redirecting');
+        if (!businessId || !business) {
             router.replace('/business-info');
-            setAuthStatus('redirecting');
-            return;
-        }
-
-        if (business) {
-            if (!business.currency) {
-                router.replace('/currency');
-            } else if (!business.plan) {
-                router.replace('/plans');
-            } else {
-                router.replace('/business-info');
-            }
-            setAuthStatus('redirecting');
-            return;
+        } else if (!business.currency) {
+            router.replace('/currency');
+        } else if (!business.plan) {
+            router.replace('/plans');
+        } else {
+            // This is an inconsistent state, default back to the start.
+            router.replace('/business-info');
         }
     } else if (userProfile.role === 'Staff') {
       if (businessId) {

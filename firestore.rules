@@ -57,7 +57,10 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
       allow update: if isSignedIn() && request.auth.uid == userId &&
-                     (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+                  // Prevent changing role
+                  request.resource.data.role == resource.data.role &&
+                  // Allow setting businessId for the first time, but not changing it later
+                  (!('businessId' in resource.data) || request.resource.data.businessId == resource.data.businessId);
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -168,9 +171,9 @@ service cloud.firestore {
 
     match /invitations/{invitationId} {
       allow create: if isOwner(request.resource.data.businessId);
-      allow get: if (isSignedIn() && request.auth.token.email == invitationId) || isOwner(resource.data.businessId);
+      allow get: if (isSignedIn() && request.auth.token.email == resource.data.email) || isOwner(resource.data.businessId);
       allow list: if isSignedIn() && request.query.get("businessId") == getBusinessIdForCurrentUser();
-      allow delete: if isOwner(resource.data.businessId) || (isSignedIn() && request.auth.token.email == invitationId);
+      allow delete: if isOwner(resource.data.businessId) || (isSignedIn() && request.auth.token.email == resource.data.email);
     }
   }
 }
