@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -45,22 +45,9 @@ export default function SignUpPage() {
     }
 
     try {
-      // Before creating a user, check if they have a pending staff invitation.
-      const invitationRef = doc(firestore, 'invitations', email);
-      const invitationSnap = await getDoc(invitationRef);
-
-      if (invitationSnap.exists() && invitationSnap.data().status === 'pending') {
-        // This email has a pending invitation, so block password-based signup.
-        toast({
-            variant: "destructive",
-            title: "Invitation Found",
-            description: "This email has been invited as a staff member. Please use the staff-specific login page.",
-        });
-        setIsLoading(false);
-        return;
-      }
+      // The check for a pending staff invitation was removed.
+      // It caused a permission error because an unauthenticated user cannot read the 'invitations' collection.
       
-      // If no invitation, proceed with creating an owner account.
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
       
