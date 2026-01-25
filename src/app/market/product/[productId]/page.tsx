@@ -70,7 +70,7 @@ interface Review {
     comment: string;
     createdAt: {
         toDate: () => Date;
-    };
+    } | null;
 }
 
 
@@ -489,7 +489,7 @@ const ProductDetailContent = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between">
                                                 <p className="font-semibold">{review.userName}</p>
-                                                <span className="text-xs text-muted-foreground">{review.createdAt.toDate().toLocaleDateString()}</span>
+                                                <span className="text-xs text-muted-foreground">{review.createdAt?.toDate().toLocaleDateString()}</span>
                                             </div>
                                             <div className="flex items-center gap-0.5 mt-1">
                                                 {[...Array(5)].map((_, i) => (
@@ -540,5 +540,3 @@ const ProductDetailContent = () => {
 export default function ProductDetailPage() {
     return <ProductDetailContent />
 }
-
-    
