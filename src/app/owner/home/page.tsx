@@ -565,9 +565,8 @@ export default function OwnerHomePage() {
                     </Button>
                 </Link>
                  <Link href="/owner/busmopay">
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
-                        <Logo variant="busmopay" className="h-6 w-auto" />
-                        BusmoPay
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" asChild>
+                        <Logo variant="busmopay" className="text-lg" />
                     </Button>
                 </Link>
             </div>
@@ -799,4 +798,3 @@ export default function OwnerHomePage() {
     </div>
   );
 }
-
