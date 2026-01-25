@@ -32,9 +32,9 @@
     },
     {
       "id": "shopping-banner",
-      "description": "A vibrant shopping scene.",
-      "imageUrl": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzaG9wcGluZ3xlbnwwfHx8fDE3NjkzMzk3NDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "shopping"
+      "description": "Stacked boxes of goods in a warehouse, representing stock for wholesale.",
+      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "warehouse boxes"
     }
   ],
   "productImages": [
