@@ -9,7 +9,7 @@ export const markets = [
     { 
         code: 'NG', 
         name: 'Nigeria', 
-        cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'Ibadan'] 
+        cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Kano'] 
     },
     { 
         code: 'GH', 
@@ -19,7 +19,7 @@ export const markets = [
     {
         code: 'NE',
         name: 'Niger',
-        cities: ['Niamey', 'Maradi', 'Zinder']
+        cities: ['Niamey', 'Maradi', 'Zinder', 'Tahoua']
     },
     {
         code: 'CM',
@@ -70,5 +70,3 @@ export function getCurrencySymbol(currencyCode?: string) {
     const code = currencyCode || 'NG';
     return currencyMap[code]?.symbol || '₦';
 }
-
-    
