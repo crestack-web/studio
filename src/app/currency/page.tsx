@@ -71,10 +71,17 @@ export default function CurrencyPage() {
 
         router.replace('/plans');
     } catch (error: any) {
+        console.error("Error saving currency:", error);
+        let description = "We couldn't save your currency selection. Please try again.";
+        if (error.code === 'permission-denied') {
+            description = "You don't have permission to update your business settings. Please try logging in again.";
+        } else if (error.message) {
+            description = `An unexpected error occurred: ${error.message}`;
+        }
         toast({
             variant: 'destructive',
             title: 'Error Saving Currency',
-            description: error.message,
+            description: description,
         });
     } finally {
         setIsSubmitting(false);

@@ -136,10 +136,17 @@ export default function PlansPage() {
         });
         router.replace('/owner/home?onboarding=complete');
     } catch (error: any) {
-         toast({
+        console.error("Error saving plan:", error);
+        let description = "We couldn't save your plan selection. Please try again.";
+        if (error.code === 'permission-denied') {
+            description = "You don't have permission to update your business plan. Please try logging in again.";
+        } else if (error.message) {
+            description = `An unexpected error occurred: ${error.message}`;
+        }
+        toast({
             variant: 'destructive',
             title: 'Error Saving Plan',
-            description: error.message,
+            description: description,
         });
     } finally {
         setIsSubmitting(false);

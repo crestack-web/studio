@@ -96,17 +96,23 @@ export default function BusinessInfoPage() {
         
         batch.set(newBusinessRef, businessData);
         batch.set(businessProfileRef, businessProfileData);
-        batch.set(userDocRef, { businessId: businessId }, { merge: true });
+        batch.update(userDocRef, { businessId: businessId });
 
         try {
             await batch.commit();
             router.replace('/currency');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating business:", error);
+            let description = 'Could not save business details. Please check your connection and try again.';
+            if (error.code === 'permission-denied') {
+                description = "You don't have permission to create a business. This can happen if your session has expired. Please try logging in again.";
+            } else if (error.message) {
+                description = `An unexpected error occurred: ${error.message}`;
+            }
             toast({
                 variant: 'destructive',
                 title: 'Error Creating Business',
-                description: 'Could not save business details. Please check your connection and try again.',
+                description: description,
             });
         } finally {
             setIsSubmitting(false);
@@ -182,5 +188,3 @@ export default function BusinessInfoPage() {
     </OnboardingLayout>
   );
 }
-
-    
