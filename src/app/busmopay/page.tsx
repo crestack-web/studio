@@ -67,9 +67,9 @@ export default function BusmoPayPage() {
                 BusmoPay isn't just a payment gateway. It's a growth engine that connects your sales directly to your business's financial health and investment potential.
             </p>
              <ul className="mt-8 space-y-4 text-left inline-block">
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-busmopay-primary shrink-0 mt-1"/><span><strong>Unified Checkout:</strong> A seamless experience for your customers in Nigeria and beyond.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-busmopay-primary shrink-0 mt-1"/><span><strong>Automated Profit Sharing:</strong> Build investor confidence with transparent, automated profit distribution.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-busmopay-primary shrink-0 mt-1"/><span><strong>One Dashboard:</strong> Track your POS sales and online payments all in one place.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Unified Checkout:</strong> A seamless experience for your customers in Nigeria and beyond.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Automated Profit Sharing:</strong> Build investor confidence with transparent, automated profit distribution.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>One Dashboard:</strong> Track your POS sales and online payments all in one place.</span></li>
             </ul>
         </section>
       </div>

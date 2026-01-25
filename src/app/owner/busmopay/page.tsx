@@ -92,7 +92,7 @@ export default function BusmoPayDashboard() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                             <Badge variant={tx.status === 'succeeded' ? 'secondary' : 'destructive'} className={tx.status === 'succeeded' ? 'text-busmopay-primary' : ''}>
+                                             <Badge variant={tx.status === 'succeeded' ? 'secondary' : 'destructive'} className={tx.status === 'succeeded' ? 'text-primary' : ''}>
                                                 {tx.status}
                                             </Badge>
                                         </TableCell>

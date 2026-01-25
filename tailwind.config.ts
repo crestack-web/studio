@@ -101,9 +101,6 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        busmopay: {
-          primary: 'hsl(var(--busmopay-primary))',
-        },
       },
       borderRadius: {
         lg: 'var(--radius)',

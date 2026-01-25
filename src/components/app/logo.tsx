@@ -54,8 +54,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
         <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
           <LogoIcon />
           <div>
-            <span className="text-primary">Busmo</span>
-            <span className="text-busmopay-primary">Pay</span>
+            <span className="text-primary">BusmoPay</span>
           </div>
         </div>
       );
@@ -71,4 +70,3 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
     </div>
   );
 }
-
