@@ -106,7 +106,7 @@ service cloud.firestore {
     match /marketProducts/{productId} {
       allow get, list: if true;
       allow create: if isOwner(request.resource.data.businessId) || isAdmin();
-      allow update: if (isOwner(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId) || isAdmin();
+      allow update: if (isOwner(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId) || isAdmin() || (isSignedIn() && request.resource.data.keys().hasAll(['averageRating', 'reviewCount']));
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
 
@@ -140,6 +140,14 @@ service cloud.firestore {
       // Investor can delete their own investment intent; admin can also delete.
       allow delete: if isAdmin() || (isSignedIn() && resource.data.investorId == request.auth.uid);
     }
+    
+    // --- REVIEWS ---
+    match /reviews/{reviewId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
 
 
     // --- CONTENT & SUPPORT ---
@@ -164,3 +172,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

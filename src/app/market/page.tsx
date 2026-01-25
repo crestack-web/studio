@@ -33,6 +33,8 @@ interface MarketProduct {
     images?: string[];
     hint?: string;
     hasVariants: boolean;
+    averageRating?: number;
+    reviewCount?: number;
 }
 
 const heroBanners = [
@@ -49,6 +51,9 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
     const showDiscount = oldPrice && oldPrice > product.price;
     const discount = showDiscount ? Math.round(((oldPrice - product.price) / oldPrice) * 100) : 0;
     const imageUrl = product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`;
+    
+    const rating = product.averageRating || 0;
+    const reviewCount = product.reviewCount || 0;
 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -95,8 +100,8 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
                         {showDiscount && <p className="text-xs text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>}
                     </div>
                     <div className="flex items-center gap-0.5 mt-1">
-                        {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
-                        <span className="text-xs text-muted-foreground ml-1">(25)</span>
+                        {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", rating > 0 && i < Math.round(rating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
+                        {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
                     </div>
                     <Button size="sm" className="w-full mt-3 h-9" onClick={handleAddToCart}>
                         {product.hasVariants ? 'Select Options' : 'Add to Cart'}
@@ -228,21 +233,20 @@ export default function MarketPage() {
                     </div>
                 </section>
 
-                {/* Paid Promotions */}
-                <section>
+                 <section>
                     <Link href="#">
                         <div className="relative h-48 w-full rounded-lg overflow-hidden flex items-center justify-start p-8 bg-warning text-primary-foreground">
                             <Image 
-                                src="https://images.unsplash.com/photo-1567446537708-ac4aa74c9c28?w=1200&auto=format&fit=crop" 
-                                alt="Shoppers on Busmo" 
+                                src="https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080" 
+                                alt="Wholesale goods" 
                                 fill 
                                 className="object-cover object-center opacity-75" 
-                                data-ai-hint="people shopping" 
+                                data-ai-hint="goods stock" 
                             />
                             <div className="relative z-10">
-                                <p className="text-sm font-bold uppercase tracking-widest">Special Announcement</p>
-                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">The Marketplace is Here!</h2>
-                                <p className="text-lg mt-1">Discover amazing products from local sellers.</p>
+                                <p className="text-sm font-bold uppercase tracking-widest">Wholesale Deals</p>
+                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Buy in Bulk and Save Big</h2>
+                                <Button size="lg" variant="secondary" className="mt-4">View Deals</Button>
                             </div>
                         </div>
                     </Link>
@@ -323,3 +327,5 @@ export default function MarketPage() {
         </MarketLayout>
     );
 }
+
+    

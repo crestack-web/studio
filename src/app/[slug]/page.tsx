@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -38,6 +39,8 @@ interface MarketProduct {
     hint?: string;
     category?: string;
     productId: string;
+    averageRating?: number;
+    reviewCount?: number;
 }
 
 // This component renders the actual store content
@@ -109,7 +112,10 @@ const StorePageContent = ({ businessProfile, businessId }: { businessProfile: Wi
 
                 {productsData && productsData.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {productsData.map(product => (
+                        {productsData.map(product => {
+                            const rating = product.averageRating || 0;
+                            const reviewCount = product.reviewCount || 0;
+                            return (
                             <Link href={`/market/product/${product.id}`} key={product.id}>
                                 <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
                                     <div className="aspect-square overflow-hidden relative">
@@ -127,8 +133,8 @@ const StorePageContent = ({ businessProfile, businessId }: { businessProfile: Wi
                                             <p className="font-bold text-base">{formatCurrency(product.price, businessProfile?.currency)}</p>
                                         </div>
                                         <div className="flex items-center gap-0.5 mt-1">
-                                            {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
-                                            <span className="text-xs text-muted-foreground ml-1">(25)</span>
+                                            {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", rating > 0 && i < Math.round(rating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
+                                            {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
                                         </div>
                                         <Button size="sm" variant="outline" className="w-full mt-3 h-9">
                                            View Product
@@ -136,7 +142,7 @@ const StorePageContent = ({ businessProfile, businessId }: { businessProfile: Wi
                                     </CardContent>
                                 </Card>
                             </Link>
-                        ))}
+                        )})}
                     </div>
                 )}
                 
@@ -211,3 +217,5 @@ export default function StoreSlugPage() {
 
     return <StorePageContent businessProfile={businessProfile} businessId={businessProfile.id} />;
 }
+
+    

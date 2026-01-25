@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -5,13 +6,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw } from 'lucide-react';
+import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw, Loader2, User } from 'lucide-react';
 import MarketLayout from '@/components/app/market-layout';
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, limit } from 'firebase/firestore';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { doc, collection, query, where, limit, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -19,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const createSlug = (name: string) => {
     if (!name) return '';
@@ -50,6 +53,8 @@ interface MarketProduct {
     hasVariants?: boolean;
     variants?: Variant[];
     availableQuantity?: number;
+    reviewCount?: number;
+    averageRating?: number;
 }
 
 interface BusinessProfile {
@@ -57,6 +62,17 @@ interface BusinessProfile {
     currency: string;
     slug?: string;
 }
+
+interface Review {
+    id: string;
+    userName: string;
+    rating: number;
+    comment: string;
+    createdAt: {
+        toDate: () => Date;
+    };
+}
+
 
 const ProductCard = ({ product, currency }: { product: MarketProduct, currency?: string }) => (
     <Link href={`/market/product/${product.id}`} className="block group">
@@ -87,9 +103,15 @@ const ProductDetailContent = () => {
     const firestore = useFirestore();
     const { addItem } = useCart();
     const { toast } = useToast();
+    const { user } = useUser();
 
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
     const [selectedImage, setSelectedImage] = useState<string | undefined>();
+    
+    // State for review form
+    const [reviewRating, setReviewRating] = useState(0);
+    const [reviewComment, setReviewComment] = useState('');
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     const productRef = useMemoFirebase(() => {
         if (!firestore || !productId) return null;
@@ -102,6 +124,12 @@ const ProductDetailContent = () => {
         return doc(firestore, 'businessProfiles', productData.businessId);
     }, [firestore, productData?.businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
+    
+    const reviewsQuery = useMemoFirebase(() => {
+        if (!firestore || !productId) return null;
+        return query(collection(firestore, 'reviews'), where('productId', '==', productId));
+    }, [firestore, productId]);
+    const { data: reviewsData, isLoading: isLoadingReviews } = useCollection<Review>(reviewsQuery);
     
     const imageGallery = useMemo(() => {
         return productData?.images || [];
@@ -121,6 +149,13 @@ const ProductDetailContent = () => {
         if (!productData?.hasVariants || !selectedVariantId) return null;
         return productData.variants?.find(v => v.id === selectedVariantId);
     }, [productData, selectedVariantId]);
+    
+    const averageRating = useMemo(() => {
+        if (!reviewsData || reviewsData.length === 0) return 0;
+        return reviewsData.reduce((acc, review) => acc + review.rating, 0) / reviewsData.length;
+    }, [reviewsData]);
+
+    const reviewCount = reviewsData?.length || 0;
 
     // Update selected image when variant changes
     useEffect(() => {
@@ -166,6 +201,52 @@ const ProductDetailContent = () => {
     const handleBuyNow = () => {
         router.push(buyNowUrl);
     };
+
+    const handleSubmitReview = async () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Please log in', description: 'You must be logged in to leave a review.' });
+            return;
+        }
+        if (reviewRating === 0 || !reviewComment.trim()) {
+            toast({ variant: 'destructive', title: 'Missing information', description: 'Please provide a rating and a comment.' });
+            return;
+        }
+        if (!firestore || !productData) return;
+
+        setIsSubmittingReview(true);
+        const newReview = {
+            productId: productData.id,
+            businessId: productData.businessId,
+            userId: user.uid,
+            userName: user.displayName || 'Anonymous User',
+            rating: reviewRating,
+            comment: reviewComment.trim(),
+            createdAt: serverTimestamp(),
+        };
+
+        try {
+            await addDocumentNonBlocking(collection(firestore, 'reviews'), newReview);
+
+            // Denormalize: Update average rating on the market product
+            const newReviewCount = (productData.reviewCount || 0) + 1;
+            const newAverageRating = ((productData.averageRating || 0) * (productData.reviewCount || 0) + reviewRating) / newReviewCount;
+            const marketProductRef = doc(firestore, 'marketProducts', productData.id);
+            await updateDocumentNonBlocking(marketProductRef, {
+                reviewCount: newReviewCount,
+                averageRating: newAverageRating
+            });
+
+            toast({ title: 'Review Submitted', description: 'Thank you for your feedback!' });
+            setReviewRating(0);
+            setReviewComment('');
+        } catch (error) {
+            console.error("Error submitting review:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your review.' });
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+
 
     const similarProductsQuery = useMemoFirebase(() => {
         if (!firestore || !productData?.category) return null;
@@ -285,9 +366,9 @@ const ProductDetailContent = () => {
                             <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-1">{productName}</h1>
                             <div className="flex items-center gap-2 mt-2">
                                 <div className="flex items-center gap-0.5">
-                                    {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", i < 4 ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
+                                    {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", averageRating > 0 && i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
                                 </div>
-                                <span className="text-sm text-muted-foreground">(25 ratings)</span>
+                                <span className="text-sm text-muted-foreground">({reviewCount} ratings)</span>
                                 <Separator orientation="vertical" className="h-4"/>
                                 {isInStock ? (
                                     <Badge variant="secondary" className="bg-success/10 text-success border-success/20">In Stock</Badge>
@@ -361,6 +442,70 @@ const ProductDetailContent = () => {
                     <h2 className="text-2xl font-bold font-headline mb-6">Product Details</h2>
                     <p className="text-muted-foreground max-w-2xl">{productData.description || 'No description available for this product.'}</p>
                 </div>
+                
+                 <div className="mt-16 pt-8 border-t">
+                    <h2 className="text-2xl font-bold font-headline mb-6">Customer Reviews ({reviewCount})</h2>
+                    {isLoadingReviews ? (
+                        <div className="space-y-4">
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-24 w-full" />
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                             {user && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Write a Review</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Your Rating</Label>
+                                            <div className="flex items-center gap-1">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <button key={i} onClick={() => setReviewRating(i + 1)}>
+                                                        <Star className={cn("w-6 h-6 transition-colors", i < reviewRating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="review-comment">Your Review</Label>
+                                            <Textarea id="review-comment" placeholder="What did you like or dislike?" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
+                                        </div>
+                                        <Button onClick={handleSubmitReview} disabled={isSubmittingReview}>
+                                            {isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Submit Review
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {reviewCount > 0 ? (
+                                reviewsData?.map(review => (
+                                    <div key={review.id} className="flex gap-4">
+                                        <Avatar>
+                                            <AvatarFallback><User /></AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <p className="font-semibold">{review.userName}</p>
+                                                <span className="text-xs text-muted-foreground">{review.createdAt.toDate().toLocaleDateString()}</span>
+                                            </div>
+                                            <div className="flex items-center gap-0.5 mt-1">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />
+                                                ))}
+                                            </div>
+                                            <p className="mt-2 text-muted-foreground">{review.comment}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-muted-foreground">No reviews yet. Be the first to leave one!</p>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 <div className="mt-16 pt-8 border-t">
                     <h2 className="text-2xl font-bold font-headline mb-6">You Might Also Like</h2>
@@ -395,3 +540,5 @@ const ProductDetailContent = () => {
 export default function ProductDetailPage() {
     return <ProductDetailContent />
 }
+
+    
