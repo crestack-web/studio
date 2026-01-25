@@ -3,7 +3,8 @@
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
+import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 interface UserProfile {
@@ -61,7 +62,9 @@ export default function OwnerLayout({
 
     const isAuthorizedRole = userProfile?.role === 'Owner' || userProfile?.role === 'Staff';
     if (!isAuthorizedRole) {
-      if (auth) signOut(auth);
+      if (auth) {
+        signOut(auth);
+      }
       router.replace('/login'); 
       setAuthStatus('redirecting');
       return;
@@ -89,7 +92,9 @@ export default function OwnerLayout({
       if (businessId) {
         setAuthStatus('authorized');
       } else {
-        if (auth) signOut(auth);
+        if (auth) {
+            signOut(auth);
+        }
         router.replace('/login');
         setAuthStatus('redirecting');
       }
