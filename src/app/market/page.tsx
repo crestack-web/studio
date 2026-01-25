@@ -194,7 +194,7 @@ export default function MarketPage() {
                             {heroBanners.map(banner => (
                                 <CarouselItem key={banner.id}>
                                     <div className="relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 bg-warning text-primary-foreground">
-                                        {banner.image && <Image src={banner.image.imageUrl} alt={banner.title} fill className="object-cover opacity-50" data-ai-hint={banner.image.imageHint} />}
+                                        {banner.image && <Image src={banner.image.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.image.imageHint} />}
                                         <div className="relative text-center z-10">
                                             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
                                             <p className="text-lg md:text-xl mt-2 text-primary-foreground/80">{banner.subtitle}</p>
@@ -236,7 +236,7 @@ export default function MarketPage() {
                                 src="https://images.unsplash.com/photo-1567446537708-ac4aa74c9c28?w=1200&auto=format&fit=crop" 
                                 alt="Shoppers on Busmo" 
                                 fill 
-                                className="object-cover object-center opacity-50" 
+                                className="object-cover object-center opacity-75" 
                                 data-ai-hint="people shopping" 
                             />
                             <div className="relative z-10">
