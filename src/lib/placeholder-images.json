@@ -31,10 +31,10 @@
       "imageHint": "clothing store"
     },
     {
-      "id": "sale-banner-3",
-      "description": "Boxes stacked in a warehouse for a wholesale deals banner.",
-      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "warehouse boxes"
+      "id": "shopping-banner",
+      "description": "A vibrant shopping scene.",
+      "imageUrl": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxzaG9wcGluZ3xlbnwwfHx8fDE3NjkzMzk3NDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "shopping"
     }
   ],
   "productImages": [
@@ -80,50 +80,50 @@
       "id": "cat-groceries",
       "name": "Groceries",
       "description": "A variety of fresh groceries.",
-      "imageUrl": "https://picsum.photos/seed/cat-groceries/300/300",
+      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxncm9jZXJpZXN8ZW58MHx8fHwxNzY5MzQxNTA1fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "fresh vegetables"
     },
     {
       "id": "cat-fashion",
       "name": "Fashion",
       "description": "Stylish clothing on a rack.",
-      "imageUrl": "/image.png",
-      "imageHint": "shirt pants"
+      "imageUrl": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjbG90aGluZyUyMHN0b3JlfGVufDB8fHx8MTc2OTM0MTU0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clothing store"
     },
     {
       "id": "cat-electronics",
       "name": "Electronics",
       "description": "Modern electronic gadgets like a laptop and phone.",
-      "imageUrl": "https://picsum.photos/seed/cat-electronics/300/300",
-      "imageHint": "laptop phone"
+      "imageUrl": "https://images.unsplash.com/photo-1593344484962-796b99061033?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxlbGVjdHJvbmljcyUyMHN0b3JlfGVufDB8fHx8MTc2OTM0MTU4MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "electronics store"
     },
     {
       "id": "cat-home-office",
       "name": "Home & Office",
       "description": "A modern armchair in a cozy setting.",
-      "imageUrl": "https://picsum.photos/seed/cat-home-office/300/300",
-      "imageHint": "modern armchair"
+      "imageUrl": "https://images.unsplash.com/photo-1618220179428-22790b461013?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxsaXZpbmclMjByb29tfGVufDB8fHx8MTc2OTM0MTY0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "home decor"
     },
     {
       "id": "cat-beauty",
       "name": "Beauty",
       "description": "A collection of makeup brushes and beauty products.",
-      "imageUrl": "https://picsum.photos/seed/cat-beauty/300/300",
-      "imageHint": "makeup brushes"
+      "imageUrl": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiZWF1dHklMjBwcm9kdWN0c3xlbnwwfHx8fDE3NjkzNDE2ODF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "beauty products"
     },
     {
       "id": "cat-sme-deals",
       "name": "SME Deals",
       "description": "A sale tag indicating special deals for small businesses.",
-      "imageUrl": "https://picsum.photos/seed/cat-sme-deals/300/300",
-      "imageHint": "sale tag"
+      "imageUrl": "https://images.unsplash.com/photo-1549921297-397517c25b05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzYWxlfGVufDB8fHx8MTc2OTM0MTcyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sale sign"
     },
     {
       "id": "cat-wholesale",
       "name": "Wholesale",
       "description": "Stacked cardboard boxes ready for wholesale shipping.",
-      "imageUrl": "https://picsum.photos/seed/cat-wholesale/300/300",
-      "imageHint": "stacked boxes"
+      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "warehouse boxes"
     }
   ]
 }
