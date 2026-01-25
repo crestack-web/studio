@@ -11,6 +11,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
+import { markets } from '@/lib/currency';
 
 const createSlug = (name: string) => {
     return name
@@ -28,11 +29,14 @@ export default function BusinessInfoPage() {
     const { toast } = useToast();
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
-    const [address, setAddress] = useState('');
+    const [country, setCountry] = useState('');
+    const [city, setCity] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
+    
+    const selectedCountryData = markets.find(c => c.code === country);
 
     useEffect(() => {
         if (!isUserLoading && !authUser) {
@@ -41,7 +45,7 @@ export default function BusinessInfoPage() {
     }, [authUser, isUserLoading, router]);
 
     const handleContinue = async () => {
-        if (!businessName || !businessType || !address) {
+        if (!businessName || !businessType || !country || !city) {
             toast({
                 variant: 'destructive',
                 title: 'Missing Information',
@@ -75,7 +79,8 @@ export default function BusinessInfoPage() {
             businessName,
             slug: businessSlug,
             businessType,
-            address,
+            country,
+            city,
             createdAt: serverTimestamp(),
             onboardingCompleted: false,
         };
@@ -85,7 +90,8 @@ export default function BusinessInfoPage() {
             businessName,
             slug: businessSlug,
             businessType,
-            address,
+            country,
+            city,
         };
         
         batch.set(newBusinessRef, businessData);
@@ -107,8 +113,7 @@ export default function BusinessInfoPage() {
         }
     };
 
-    const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType || !address;
-
+    const isButtonDisabled = isUserLoading || isSubmitting || !businessName || !businessType || !country || !city;
 
   return (
     <OnboardingLayout>
@@ -144,17 +149,30 @@ export default function BusinessInfoPage() {
               </SelectContent>
             </Select>
           </div>
-           <div className="space-y-2">
-            <Label htmlFor="address">Business Address</Label>
-            <Input 
-                id="address" 
-                placeholder="e.g., 123 Allen Avenue, Ikeja, Lagos" 
-                className="h-12 text-base" 
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                disabled={isUserLoading || isSubmitting}
-            />
-          </div>
+           <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Select onValueChange={setCountry} value={country} disabled={isUserLoading || isSubmitting}>
+                  <SelectTrigger id="country" className="h-12 text-base">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="city">Primary City</Label>
+                <Select onValueChange={setCity} value={city} disabled={!country || isSubmitting}>
+                  <SelectTrigger id="city" className="h-12 text-base">
+                    <SelectValue placeholder="Select city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedCountryData?.cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+           </div>
           <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
             {(isUserLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isUserLoading ? 'Loading...' : isSubmitting ? 'Saving...' : 'Continue'}
@@ -164,3 +182,5 @@ export default function BusinessInfoPage() {
     </OnboardingLayout>
   );
 }
+
+    

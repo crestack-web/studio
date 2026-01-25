@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/app/theme-provider';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { LanguageProvider } from '@/context/language-provider';
 import { CartProvider } from '@/context/cart-provider';
+import { MarketProvider } from '@/context/market-provider';
 
 export const metadata: Metadata = {
   title: 'Busmo',
@@ -23,20 +24,24 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <LanguageProvider>
           <FirebaseClientProvider>
-            <CartProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="system"
-                enableSystem
-                disableTransitionOnChange
-              >
-                {children}
-                <Toaster />
-              </ThemeProvider>
-            </CartProvider>
+            <MarketProvider>
+              <CartProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="system"
+                  enableSystem
+                  disableTransitionOnChange
+                >
+                  {children}
+                  <Toaster />
+                </ThemeProvider>
+              </CartProvider>
+            </MarketProvider>
           </FirebaseClientProvider>
         </LanguageProvider>
       </body>
     </html>
   );
 }
+
+    

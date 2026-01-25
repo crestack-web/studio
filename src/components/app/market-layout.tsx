@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/language-provider';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
+import { MarketSwitcher } from './market-switcher';
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {
     const { t } = useLanguage();
@@ -30,6 +31,7 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
                     </div>
 
                     <div className="flex items-center gap-1 sm:gap-2">
+                        <MarketSwitcher />
                         <Link href="/market/cart" passHref>
                             <Button variant="ghost" size="icon" className="relative">
                                 <ShoppingCart className="h-6 w-6" />
@@ -102,3 +104,5 @@ export default function MarketLayout({ children }: { children: React.ReactNode }
         </div>
     );
 }
+
+    

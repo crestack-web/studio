@@ -55,6 +55,8 @@
           "type": "string",
           "description": "The type of business (e.g., shop, supermarket, food, service)."
         },
+        "country": { "type": "string", "description": "The operating country of the business (ISO 3166-1 alpha-2)." },
+        "city": { "type": "string", "description": "The primary operating city of the business." },
         "address": {
             "type": "string",
             "description": "The physical address of the business."
@@ -71,6 +73,8 @@
             "type": "string",
             "description": "Public-facing business description for the marketplace."
         },
+        "deliveryType": { "type": "string", "enum": ["nationwide", "cities"], "description": "The delivery strategy for the business." },
+        "deliveryCities": { "type": "array", "items": { "type": "string" }, "description": "A list of cities the business delivers to, if type is 'cities'."},
         "marketSettings": {
           "type": "object",
           "description": "Settings for the business's public marketplace store.",
@@ -129,6 +133,8 @@
         "businessName",
         "slug",
         "businessType",
+        "country",
+        "city",
         "createdAt"
       ]
     },
@@ -144,6 +150,8 @@
         "businessName": { "type": "string" },
         "slug": { "type": "string", "description": "URL-friendly version of the business name for public store pages." },
         "businessType": { "type": "string" },
+        "country": { "type": "string" },
+        "city": { "type": "string" },
         "address": { "type": "string" },
         "marketDescription": { "type": "string" },
         "currency": { "type": "string" },
@@ -159,7 +167,7 @@
           }
         }
       },
-      "required": ["ownerId", "businessName", "slug", "businessType"]
+      "required": ["ownerId", "businessName", "slug", "businessType", "country", "city"]
     },
     "Product": {
       "title": "Product",
@@ -269,6 +277,9 @@
         "productId": { "type": "string", "description": "The original product ID." },
         "businessId": { "type": "string", "description": "The ID of the business selling the product." },
         "businessName": { "type": "string", "description": "The name of the business selling the product (denormalized)." },
+        "country": { "type": "string", "description": "The country the business operates in." },
+        "deliveryType": { "type": "string", "enum": ["nationwide", "cities"], "description": "The delivery strategy." },
+        "deliveryCities": { "type": "array", "items": { "type": "string" }, "description": "List of cities this product delivers to." },
         "productName": { "type": "string", "description": "The name of the product." },
         "price": { "type": "number", "description": "The base or default price of the product." },
         "oldPrice": { "type": "number", "description": "The previous price of the product, for displaying discounts." },
@@ -284,7 +295,7 @@
         "hasVariants": { "type": "boolean", "description": "Indicates if the product has multiple variants." },
         "variants": { "type": "array", "description": "List of available product variants for the market.", "items": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "price": { "type": "number" }, "availableQuantity": { "type": "number" }, "image": { "type": "string" } }, "required": ["id", "name", "price", "availableQuantity"] } }
       },
-      "required": ["productId", "businessId", "businessName", "productName", "price", "category", "availableQuantity", "status", "createdAt"]
+      "required": ["productId", "businessId", "businessName", "productName", "price", "category", "availableQuantity", "status", "createdAt", "country", "deliveryType"]
     },
     "Order": {
       "title": "Order",

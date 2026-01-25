@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, Zap, Truck, Store } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -20,6 +20,7 @@ import { PlaceHolderImages, CategoryImages } from '@/lib/placeholder-images';
 import MarketLayout from '@/components/app/market-layout';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
+import { useMarket } from '@/context/market-provider';
 
 interface MarketProduct {
     id: string; // Document ID, which is the same as productId
@@ -115,15 +116,41 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
 
 export default function MarketPage() {
     const firestore = useFirestore();
+    const { market } = useMarket();
     const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
-    const router = useRouter();
+    
+    // Query for products available only in the specific city
+    const cityProductsQuery = useMemoFirebase(() => {
+        if (!firestore || !market.country || !market.city) return null;
+        return query(
+            collection(firestore, 'marketProducts'), 
+            where('country', '==', market.country),
+            where('deliveryCities', 'array-contains', market.city)
+        );
+    }, [firestore, market]);
+    const { data: cityProducts, isLoading: isLoadingCity } = useCollection<MarketProduct>(cityProductsQuery);
 
-    const marketProductsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'marketProducts'));
-    }, [firestore]);
+    // Query for products available nationwide in the same country
+    const nationwideProductsQuery = useMemoFirebase(() => {
+        if (!firestore || !market.country) return null;
+        return query(
+            collection(firestore, 'marketProducts'),
+            where('country', '==', market.country),
+            where('deliveryType', '==', 'nationwide')
+        );
+    }, [firestore, market.country]);
+    const { data: nationwideProducts, isLoading: isLoadingNationwide } = useCollection<MarketProduct>(nationwideProductsQuery);
 
-    const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(marketProductsQuery);
+    const isLoadingProducts = isLoadingCity || isLoadingNationwide;
+
+    // Merge and deduplicate products
+    const productsData = useMemo(() => {
+        if (!cityProducts && !nationwideProducts) return [];
+        const allProducts = new Map<string, MarketProduct>();
+        (cityProducts || []).forEach(p => allProducts.set(p.id, p));
+        (nationwideProducts || []).forEach(p => allProducts.set(p.id, p));
+        return Array.from(allProducts.values());
+    }, [cityProducts, nationwideProducts]);
     
     const flashDeals = useMemo(() => {
         if (!productsData) return [];
@@ -232,25 +259,6 @@ export default function MarketPage() {
                         ))}
                     </div>
                 </section>
-
-                 <section>
-                    <Link href="#">
-                        <div className="relative h-48 w-full rounded-lg overflow-hidden flex items-center justify-start p-8 bg-warning text-primary-foreground">
-                            <Image 
-                                src="https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080" 
-                                alt="Wholesale goods" 
-                                fill 
-                                className="object-cover object-center opacity-75" 
-                                data-ai-hint="goods stock" 
-                            />
-                            <div className="relative z-10">
-                                <p className="text-sm font-bold uppercase tracking-widest">Wholesale Deals</p>
-                                <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Buy in Bulk and Save Big</h2>
-                                <Button size="lg" variant="secondary" className="mt-4">View Deals</Button>
-                            </div>
-                        </div>
-                    </Link>
-                </section>
                 
                 {/* 3. Deals & Promotions */}
                 <section>
@@ -296,8 +304,8 @@ export default function MarketPage() {
                     )}
                     {!isLoadingProducts && productsData?.length === 0 && (
                             <div className="text-center py-20 border rounded-lg bg-card">
-                            <h2 className="text-xl font-semibold">The Market is Empty</h2>
-                            <p className="text-muted-foreground mt-2">No products have been listed for sale yet. Check back soon!</p>
+                            <h2 className="text-xl font-semibold">No Products Found for {market.city}</h2>
+                            <p className="text-muted-foreground mt-2">Try changing your market location to see more products.</p>
                         </div>
                     )}
                 </section>

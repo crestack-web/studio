@@ -18,6 +18,7 @@ import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-b
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Ingredient {
     name: string;
@@ -40,6 +41,9 @@ interface Business {
     businessName: string;
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
     currency?: string;
+    country?: string;
+    deliveryType?: 'nationwide' | 'cities';
+    deliveryCities?: string[];
 }
 
 export default function AddProductPage() {
@@ -88,6 +92,8 @@ export default function AddProductPage() {
     const { data: businessData } = useDoc<Business>(businessRef);
 
     const canManufacture = businessData?.plan === 'company';
+    const deliverySettingsConfigured = !!businessData?.deliveryType;
+
 
     useEffect(() => {
         if (!canManufacture) {
@@ -191,10 +197,11 @@ export default function AddProductPage() {
         }
 
         if (isListedOnMarket) {
+            if (!deliverySettingsConfigured) return false;
             return images.length > 0 && productDescription && productCategory;
         }
         return true;
-    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory]);
+    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory, deliverySettingsConfigured]);
 
     const handleAddProduct = async () => {
         if (!canAddProduct || !firestore || !businessId || !businessData) return;
@@ -228,7 +235,7 @@ export default function AddProductPage() {
         try {
             const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
             
-            if (isListedOnMarket && images.length > 0) {
+            if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
                 const marketProductData = {
                     productId: newProductRef.id,
                     businessId: businessId,
@@ -248,7 +255,11 @@ export default function AddProductPage() {
                         name: v.name,
                         price: v.price,
                         availableQuantity: v.quantity
-                    }))
+                    })),
+                    // Denormalize market data
+                    country: businessData.country,
+                    deliveryType: businessData.deliveryType,
+                    deliveryCities: businessData.deliveryCities || [],
                 };
                 const marketProductsCollectionRef = collection(firestore, 'marketProducts');
                 setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
@@ -273,7 +284,7 @@ export default function AddProductPage() {
 
 
     return (
-        <MainLayout title="Add New Product" backHref="/add-inventory">
+        <MainLayout title="Add New Product" backHref="/owner/market">
             <div className="w-full max-w-md space-y-6">
                 <Card>
                     <CardHeader>
@@ -429,6 +440,17 @@ export default function AddProductPage() {
                             <Switch id="market-listing" checked={isListedOnMarket} onCheckedChange={setIsListedOnMarket} disabled={isLoading} />
                             <Label htmlFor="market-listing">List this product on Busmo Market</Label>
                         </div>
+                        
+                        {!deliverySettingsConfigured && isListedOnMarket && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Delivery Settings Required</AlertTitle>
+                                <AlertDescription>
+                                    You must configure your delivery settings before you can list products on the market.
+                                    <Button asChild variant="link" className="p-0 h-auto ml-1"><Link href="/owner/market">Go to Settings</Link></Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
 
                         {isListedOnMarket && (
                             <>
@@ -483,3 +505,5 @@ export default function AddProductPage() {
         </MainLayout>
     );
 }
+
+    

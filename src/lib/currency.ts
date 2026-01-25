@@ -5,6 +5,29 @@ export const currencyMap: { [key: string]: { symbol: string; position: 'before' 
   CM: { symbol: 'CFA', position: 'after', name: 'XAF' },
 };
 
+export const markets = [
+    { 
+        code: 'NG', 
+        name: 'Nigeria', 
+        cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'Ibadan'] 
+    },
+    { 
+        code: 'GH', 
+        name: 'Ghana', 
+        cities: ['Accra', 'Kumasi', 'Takoradi'] 
+    },
+    {
+        code: 'NE',
+        name: 'Niger',
+        cities: ['Niamey', 'Maradi', 'Zinder']
+    },
+    {
+        code: 'CM',
+        name: 'Cameroon',
+        cities: ['Douala', 'Yaoundé']
+    }
+];
+
 // Rates are how many units of the target currency you get for 1 NGN.
 const exchangeRates: { [key: string]: number } = {
     NGN: 1,
@@ -38,7 +61,7 @@ export function formatCurrency(value: number, currencyCode?: string) {
   const formattedValue = Math.round(value).toLocaleString();
 
   if (config.position === 'after') {
-    return `${formattedValue}${config.symbol}`;
+    return `${formattedValue} ${config.symbol}`;
   }
   return `${config.symbol}${formattedValue}`;
 }
@@ -47,3 +70,5 @@ export function getCurrencySymbol(currencyCode?: string) {
     const code = currencyCode || 'NG';
     return currencyMap[code]?.symbol || '₦';
 }
+
+    
