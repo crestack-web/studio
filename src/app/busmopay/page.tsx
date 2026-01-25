@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ export default function BusmoPayPage() {
   const howItWorks = [
     {
       title: "Enable Payments",
-      description: "Activate Paystack or Airtel Money in your Busmo Market settings to start accepting online payments.",
+      description: "Activate your payment gateway and mobile money options in your Busmo Market settings to start accepting online payments.",
     },
     {
       title: "Sell to Customers",
@@ -33,7 +32,7 @@ export default function BusmoPayPage() {
             Sell products & share profits with BusmoPay
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-            The integrated payment solution for the Busmo marketplace. Accept payments via Paystack and Airtel Money, and automatically distribute profits to your investors.
+            The integrated payment solution for the Busmo marketplace. Accept payments via popular payment gateways and mobile money, and automatically distribute profits to your investors.
           </p>
           <div className="mt-10">
             <Link href="/signup">
@@ -77,4 +76,3 @@ export default function BusmoPayPage() {
     </InvestorLayout>
   );
 }
-
