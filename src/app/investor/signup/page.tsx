@@ -9,6 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc } from 'firebase/firestore';
 
 export default function InvestorSignUpPage() {
   const [name, setName] = useState('');
@@ -18,6 +21,8 @@ export default function InvestorSignUpPage() {
   
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -32,12 +37,39 @@ export default function InvestorSignUpPage() {
         return;
     }
     
-    // Simulate backend call
-    setTimeout(() => {
-        toast({ title: "Account Created!", description: "Welcome! Redirecting to your dashboard." });
-        router.push('/investor/dashboard');
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (user) {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userData = {
+              id: user.uid,
+              displayName: name,
+              email: user.email,
+              role: 'Investor',
+          };
+          setDocumentNonBlocking(userDocRef, userData, {});
+
+          toast({ title: "Account Created!", description: "Welcome! Redirecting to your dashboard." });
+          router.push('/investor/dashboard');
+      }
+    } catch (error: any) {
+        console.error(error);
+        let description = 'An unexpected error occurred. Please try again.';
+        if (error.code === 'auth/email-already-in-use') {
+            description = 'This email address is already in use by another account.';
+        } else if (error.code === 'auth/invalid-email') {
+            description = 'Please enter a valid email address.';
+        }
+        toast({
+            variant: "destructive",
+            title: "Sign Up Failed",
+            description: description,
+        });
+    } finally {
         setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const isButtonDisabled = isLoading || !name || !email || !password;

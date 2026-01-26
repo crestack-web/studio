@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function InvestorLoginPage() {
   const [email, setEmail] = useState('');
@@ -16,15 +18,29 @@ export default function InvestorLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const handleLogin = async () => {
     setIsLoading(true);
 
-    // Simulate backend login
-    setTimeout(() => {
-        toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
-        router.replace('/investor/dashboard');
-    }, 1000);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
+      router.replace('/investor/dashboard');
+    } catch (error: any) {
+      console.error(error);
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = "Invalid email or password. Please try again.";
+      }
+      toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: description,
+      });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (

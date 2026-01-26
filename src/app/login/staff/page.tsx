@@ -8,24 +8,41 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/firebase';
+import { sendSignInLinkToEmail } from 'firebase/auth';
 
 export default function StaffLoginPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const { toast } = useToast();
+  const auth = useAuth();
+
+  const actionCodeSettings = {
+    url: `${window.location.origin}/finish-signin`, // URL to redirect to after email verification
+    handleCodeInApp: true,
+  };
 
   const handleLogin = async () => {
     setIsLoading(true);
-    // Simulate sending an email
-    setTimeout(() => {
-        setIsEmailSent(true);
-        toast({
-            title: "Check your email",
-            description: `A sign-in link has been sent to ${email}.`,
-        });
+    try {
+      window.localStorage.setItem('emailForSignIn', email);
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      setIsEmailSent(true);
+      toast({
+          title: "Check your email",
+          description: `A sign-in link has been sent to ${email}.`,
+      });
+    } catch(error: any) {
+      console.error(error);
+      toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "Could not send login link. Please check the email and try again.",
+      });
+    } finally {
         setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
