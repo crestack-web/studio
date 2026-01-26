@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from '
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, orderBy, runTransaction } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -18,13 +18,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, markets } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const createSlug = (name: string) => {
     if (!name) return '';
@@ -42,7 +43,18 @@ interface AppUser { businessId?: string }
 interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; image?: string; }
 interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
 type MarketSettings = { isStoreActive: boolean; bannerImageUrl: string; logoImageUrl: string; contactPhone: string; contactEmail: string; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
-interface Business { businessName: string; currency: string; plan: string; businessType: string; slug?: string; marketDescription?: string; marketSettings?: MarketSettings; }
+interface Business { 
+    businessName: string; 
+    currency: string; 
+    plan: string; 
+    businessType: string; 
+    slug?: string; 
+    marketDescription?: string; 
+    marketSettings?: MarketSettings; 
+    country?: string;
+    deliveryType?: 'nationwide' | 'cities';
+    deliveryCities?: string[];
+}
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
 interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; }
 // #endregion
@@ -61,6 +73,8 @@ const SettingsContent = () => {
 
     const [settings, setSettings] = useState<MarketSettings | undefined>(undefined);
     const [description, setDescription] = useState('');
+    const [deliveryType, setDeliveryType] = useState<'nationwide' | 'cities' | undefined>();
+    const [deliveryCities, setDeliveryCities] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -77,7 +91,6 @@ const SettingsContent = () => {
             
             const currentSettings = businessData.marketSettings || {};
 
-            // Deep merge to ensure all fields have a default value
             const mergedSettings: MarketSettings = {
                 ...defaultSettings,
                 ...currentSettings,
@@ -93,6 +106,8 @@ const SettingsContent = () => {
 
             setSettings(mergedSettings);
             setDescription(businessData.marketDescription ?? `Welcome to ${businessData.businessName} on Busmo! We sell quality ${businessData.businessType} products.`);
+            setDeliveryType(businessData.deliveryType);
+            setDeliveryCities(businessData.deliveryCities || []);
         }
     }, [businessData]);
     
@@ -150,7 +165,9 @@ const SettingsContent = () => {
             const businessUpdate = { 
                 marketDescription: description, 
                 marketSettings: settings,
-                slug: businessSlug
+                slug: businessSlug,
+                deliveryType: deliveryType,
+                deliveryCities: deliveryCities,
             };
 
             const profileUpdate = {
@@ -160,6 +177,9 @@ const SettingsContent = () => {
                 marketSettings: settings,
                 currency: businessData.currency,
                 slug: businessSlug,
+                deliveryType: deliveryType,
+                deliveryCities: deliveryCities,
+                country: businessData.country,
             };
             
             batch.update(businessDocRef, businessUpdate);
@@ -174,6 +194,18 @@ const SettingsContent = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const availableCities = useMemo(() => {
+        if (!businessData?.country) return [];
+        const marketData = markets.find(m => m.code === businessData.country);
+        return marketData?.cities || [];
+    }, [businessData?.country]);
+
+    const handleCityChange = (city: string) => {
+        setDeliveryCities(prev => 
+            prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
+        );
     };
     
     if (isLoadingBusiness || !settings) {
@@ -261,6 +293,44 @@ const SettingsContent = () => {
                             <div className="space-y-2"><Label htmlFor="contact-email">Contact Email</Label><Input id="contact-email" type="email" placeholder="help@..." value={settings.contactEmail} onChange={(e) => handleSettingsChange('contactEmail', e.target.value)} disabled={isSaving} /></div>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery Area</CardTitle>
+                    <CardDescription>Define where you can deliver products to. This is required to list items on the market.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <RadioGroup value={deliveryType} onValueChange={(val) => setDeliveryType(val as 'nationwide' | 'cities')} className="space-y-4">
+                         <Label htmlFor="delivery-nationwide" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <RadioGroupItem value="nationwide" id="delivery-nationwide" className="peer mt-1" />
+                            <div className="ml-4">
+                                <p className="font-semibold flex items-center gap-2"><Globe className="h-4 w-4"/> Nationwide Delivery</p>
+                                <p className="text-sm text-muted-foreground">You can deliver to any city in {businessData?.country}.</p>
+                            </div>
+                        </Label>
+                        <Label htmlFor="delivery-cities" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <RadioGroupItem value="cities" id="delivery-cities" className="peer mt-1" />
+                            <div className="ml-4">
+                                <p className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4"/> Deliver to Specific Cities</p>
+                                <p className="text-sm text-muted-foreground">Select the cities you can deliver to.</p>
+                            </div>
+                        </Label>
+                    </RadioGroup>
+                    {deliveryType === 'cities' && (
+                        <div className="space-y-2 pt-4 border-t mt-4">
+                            <Label>Available Cities</Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
+                                {availableCities.map(city => (
+                                    <div key={city} className="flex items-center space-x-2">
+                                        <Checkbox id={`city-${city}`} checked={deliveryCities.includes(city)} onCheckedChange={() => handleCityChange(city)} disabled={isSaving} />
+                                        <Label htmlFor={`city-${city}`} className="font-normal">{city}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
