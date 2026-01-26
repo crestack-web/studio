@@ -29,7 +29,9 @@ export default function LoginPage() {
         router.replace('/owner/home');
     } catch (error: any) {
         let description = "An unexpected error occurred. Please try again.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/invalid-email') {
+            description = "Please enter a valid email address.";
+        } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             description = "Invalid email or password. Please try again.";
         }
         toast({

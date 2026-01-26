@@ -34,10 +34,14 @@ export default function StaffLoginPage() {
           description: `A sign-in link has been sent to ${email}.`,
       });
     } catch(error: any) {
+      let description = "Could not send login link. Please check the email and try again.";
+      if (error.code === 'auth/invalid-email') {
+          description = 'Please enter a valid email address.';
+      }
       toast({
           variant: "destructive",
           title: "Login Failed",
-          description: "Could not send login link. Please check the email and try again.",
+          description: description,
       });
     } finally {
         setIsLoading(false);
