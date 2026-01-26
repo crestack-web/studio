@@ -56,10 +56,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
+      // Allow updates to a user's own document, but prevent changes to immutable fields like role, email, or id.
+      // This is critical for the onboarding flow where `businessId` is added.
       allow update: if isSignedIn() && request.auth.uid == userId &&
-                  // Users can't change their own role.
-                  // This is written defensively to not fail if the role doesn't exist yet on the resource.
-                  (!('role' in resource.data) || request.resource.data.role == resource.data.role);
+                  !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'id']);
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -140,7 +140,7 @@ service cloud.firestore {
       // Investor or business owner can update the status
       allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
       // A query is allowed if it is constrained to the user's own investments.
-      allow list: if isSignedIn();
+      allow list: if isSignedIn() && request.query.get("investorId") == request.auth.uid;
       // Investor can delete their own investment intent; admin can also delete.
       allow delete: if isAdmin() || (isSignedIn() && resource.data.investorId == request.auth.uid);
     }
