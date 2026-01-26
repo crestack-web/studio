@@ -139,7 +139,7 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
       // Investor or business owner can update the status
       allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
-      // Allow investors to list their own investments. The client query MUST be secured with a `where("investorId", "==", auth.uid)` clause.
+      // A query is allowed if it is constrained to the user's own investments.
       allow list: if isSignedIn();
       // Investor can delete their own investment intent; admin can also delete.
       allow delete: if isAdmin() || (isSignedIn() && resource.data.investorId == request.auth.uid);
