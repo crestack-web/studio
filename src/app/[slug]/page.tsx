@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
@@ -164,8 +164,7 @@ const RESERVED_PATHS = [
     'signup', 'staff', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
-export default function StoreSlugPage() {
-    const params = useParams();
+export default function StoreSlugPage({ params }: { params: { slug: string } }) {
     const slug = params.slug as string;
     const firestore = useFirestore();
 
@@ -217,5 +216,3 @@ export default function StoreSlugPage() {
 
     return <StorePageContent businessProfile={businessProfile} businessId={businessProfile.id} />;
 }
-
-    

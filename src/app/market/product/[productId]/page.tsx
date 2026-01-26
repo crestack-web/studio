@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -100,8 +100,7 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
 );
 
 
-const ProductDetailContent = () => {
-    const params = useParams();
+export default function ProductDetailPage({ params }: { params: { productId: string } }) {
     const router = useRouter();
     const productId = params.productId as string;
     const [quantity, setQuantity] = useState(1);
@@ -539,9 +538,4 @@ const ProductDetailContent = () => {
            </div>
         </MarketLayout>
     );
-}
-
-
-export default function ProductDetailPage() {
-    return <ProductDetailContent />
 }

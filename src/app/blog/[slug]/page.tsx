@@ -1,6 +1,6 @@
+
 'use client';
 
-import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import InvestorLayout from '@/components/app/investor-layout';
@@ -13,8 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { BlogPost } from '../page';
 
 
-export default function BlogPostPage() {
-    const params = useParams();
+export default function BlogPostPage({ params }: { params: { slug: string } }) {
     const slug = params.slug as string;
     const firestore = useFirestore();
 
