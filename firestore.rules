@@ -122,6 +122,18 @@ service cloud.firestore {
       return request.resource.data.userId == resource.data.userId;
     }
 
+    /**
+     * @description   Controls access to user profile documents.
+     * @path          /users/{userId}
+     * @allow         (get, update) A user can read and update their own profile.
+     * @allow         (create) A user can create their own profile document.
+     * @principle     Strict ownership. Users can only access their own data.
+     */
+    match /users/{userId} {
+      allow get, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow list, delete: if false;
+    }
 
     /**
      * @description   Controls access to the main business document.
