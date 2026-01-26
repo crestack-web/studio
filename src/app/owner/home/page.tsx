@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -77,25 +78,25 @@ function OwnerHomeContent() {
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-    const [aiCache, setAiCache = useState<Record<string, string>>({});
-    const [presetQuestions, setPresetQuestions = useState<string[]>([]);
+    const [aiCache, setAiCache] = useState<Record<string, string>>({});
+    const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
     const auth = useAuth();
     
-    const [chatView, setChatView = useState('initial'); // 'initial', 'chat', 'ticket'
-    const [chatMessages, setChatMessages = useState([
+    const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
+    const [chatMessages, setChatMessages] = useState([
         {
         id: '1',
         sender: 'support',
         text: 'Hi there! How can I help you today?',
         }
     ]);
-    const [chatInput, setChatInput = useState('');
-    const [ticketSubject, setTicketSubject = useState('');
-    const [ticketMessage, setTicketMessage = useState('');
-    const [showWelcome, setShowWelcome = useState(false);
+    const [chatInput, setChatInput] = useState('');
+    const [ticketSubject, setTicketSubject] = useState('');
+    const [ticketMessage, setTicketMessage] = useState('');
+    const [showWelcome, setShowWelcome] = useState(false);
 
     useEffect(() => {
         if (onboardingComplete) {
@@ -784,7 +785,7 @@ function OwnerHomeContent() {
   );
 }
 
-export default function OwnerHomePageWrapper() {
+export default function OwnerHomePage() {
   return (
     <Suspense fallback={
         <div className="flex flex-col min-h-screen bg-background items-center justify-center">
@@ -793,7 +794,7 @@ export default function OwnerHomePageWrapper() {
             </div>
         </div>
     }>
-      <OwnerHomePage />
+      <OwnerHomeContent />
     </Suspense>
   )
 }
