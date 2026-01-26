@@ -1,426 +1,339 @@
-
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
+    "Business": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Business",
       "type": "object",
-      "description": "Represents a user's profile information.",
+      "description": "Represents a business using the BizAssistant app.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the User entity, same as Firebase Auth UID."
+          "description": "Unique identifier for the Business entity."
         },
-        "displayName": {
-          "type": "string",
-          "description": "The user's display name."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address."
-        },
-        "phoneNumber": {
-            "type": "string",
-            "description": "The user's phone number."
-        },
-        "businessId": {
-          "type": "string",
-          "description": "The ID of the business associated with the user."
-        },
-        "role": {
-          "type": "string",
-          "description": "The user's role in the system.",
-          "enum": ["Owner", "Investor", "Admin", "Staff"]
-        }
-      },
-      "required": ["id", "displayName", "email", "role"]
-    },
-    "Business": {
-      "title": "Business",
-      "type": "object",
-      "description": "Represents a business in the system.",
-      "properties": {
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the user who owns the business."
-        },
-        "businessName": {
+        "name": {
           "type": "string",
           "description": "The name of the business."
         },
-        "slug": {
-            "type": "string",
-            "description": "URL-friendly version of the business name for public store pages."
-        },
-        "businessType": {
+        "type": {
           "type": "string",
           "description": "The type of business (e.g., shop, supermarket, food, service)."
         },
-        "country": { "type": "string", "description": "The operating country of the business (ISO 3166-1 alpha-2)." },
-        "city": { "type": "string", "description": "The primary operating city of the business." },
-        "address": {
-            "type": "string",
-            "description": "The physical address of the business."
-        },
         "currency": {
-            "type": "string",
-            "description": "The currency code for the business (e.g., NG, GH)."
-        },
-        "plan": {
-            "type": "string",
-            "description": "The selected subscription plan for the business."
-        },
-        "marketDescription": {
-            "type": "string",
-            "description": "Public-facing business description for the marketplace."
-        },
-        "deliveryType": { "type": "string", "enum": ["nationwide", "cities"], "description": "The delivery strategy for the business." },
-        "deliveryCities": { "type": "array", "items": { "type": "string" }, "description": "A list of cities the business delivers to, if type is 'cities'."},
-        "marketSettings": {
-          "type": "object",
-          "description": "Settings for the business's public marketplace store.",
-          "properties": {
-            "isStoreActive": { "type": "boolean" },
-            "bannerImageUrl": { "type": "string", "description": "URL for the store's banner image." },
-            "logoImageUrl": { "type": "string", "description": "URL for the store's logo." },
-            "contactPhone": { "type": "string", "description": "Public contact phone number." },
-            "contactEmail": { "type": "string", "description": "Public contact email address." },
-            "payment": {
-              "type": "object",
-              "properties": {
-                "allowBankTransfer": { "type": "boolean" },
-                "allowPayOnDelivery": { "type": "boolean" },
-                "bankName": { "type": "string" },
-                "accountNumber": { "type": "string" },
-                "paymentInstructions": { "type": "string" }
-              }
-            },
-            "delivery": {
-              "type": "object",
-              "properties": {
-                "allowDelivery": { "type": "boolean" },
-                "allowPickup": { "type": "boolean" },
-                "deliveryFee": { "type": "number" },
-                "deliveryDays": {
-                  "type": "array",
-                  "items": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
-         "busmoPaySettings": {
-          "type": "object",
-          "description": "Settings for BusmoPay integration.",
-          "properties": {
-            "paystackEnabled": { "type": "boolean" },
-            "paystackSecretKey": { "type": "string" },
-            "airtelMoneyEnabled": { "type": "boolean" },
-            "airtelMoneyClientSecret": { "type": "string" }
-          }
-        },
-        "createdAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the business was created."
-        },
-        "onboardingCompleted": {
-          "type": "boolean",
-          "description": "Indicates whether the onboarding process for the business is completed."
+          "description": "The currency used by the business (e.g., ₦ / CFA)."
         }
       },
       "required": [
-        "ownerId",
-        "businessName",
-        "slug",
-        "businessType",
-        "country",
-        "city",
-        "createdAt"
+        "id",
+        "name",
+        "type",
+        "currency"
       ]
     },
-    "BusinessProfile": {
-      "title": "Business Profile",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
-      "description": "Public-facing business information for the marketplace.",
+      "description": "Represents a user of the BizAssistant app.",
       "properties": {
-        "ownerId": {
+        "id": {
           "type": "string",
-          "description": "The UID of the user who owns the business."
+          "description": "Unique identifier for the User entity."
         },
-        "businessName": { "type": "string" },
-        "slug": { "type": "string", "description": "URL-friendly version of the business name for public store pages." },
-        "businessType": { "type": "string" },
-        "country": { "type": "string" },
-        "city": { "type": "string" },
-        "address": { "type": "string" },
-        "marketDescription": { "type": "string" },
-        "currency": { "type": "string" },
-        "marketSettings": {
-          "type": "object",
-          "description": "Settings for the business's public marketplace store.",
-          "properties": {
-            "isStoreActive": { "type": "boolean" },
-            "bannerImageUrl": { "type": "string", "description": "URL for the store's banner image." },
-            "logoImageUrl": { "type": "string", "description": "URL for the store's logo." },
-            "contactPhone": { "type": "string", "description": "Public contact phone number." },
-            "contactEmail": { "type": "string", "description": "Public contact email address." }
-          }
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number (used for login)."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the business (Owner / Staff)."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N User)"
         }
       },
-      "required": ["ownerId", "businessName", "slug", "businessType", "country", "city"]
+      "required": [
+        "id",
+        "phoneNumber",
+        "role",
+        "businessId"
+      ]
     },
     "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
       "type": "object",
-      "description": "Represents a product offered by a business.",
+      "description": "Represents a product sold by the business.",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
         "name": {
           "type": "string",
           "description": "The name of the product."
         },
         "price": {
           "type": "number",
-          "description": "The selling price of the product (used if no variants)."
+          "description": "The price of the product.",
+          "format": "number"
         },
-        "oldPrice": {
-          "type": "number",
-          "description": "The previous price of the product, for displaying discounts."
-        },
-        "cost": {
-          "type": "number",
-          "description": "The cost price of the product (used if no variants)."
-        },
-        "quantity": {
-          "type": "number",
-          "description": "The current stock quantity of the product (used if no variants)."
-        },
-        "isPublishedToMarket": {
-          "type": "boolean",
-          "description": "Indicates if the product is visible on the public marketplace."
-        },
-        "description": {
+        "businessId": {
           "type": "string",
-          "description": "Public-facing product description for the marketplace."
-        },
-        "category": {
-          "type": "string",
-          "description": "Public-facing product category for the marketplace."
-        },
-        "images": {
-            "type": "array",
-            "description": "URLs or data URIs of the product images.",
-            "items": { "type": "string" }
-        },
-        "hint": {
-            "type": "string",
-            "description": "A hint for AI image generation services."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp indicating when the product was created."
-        },
-        "hasVariants": {
-          "type": "boolean",
-          "description": "Indicates if the product has multiple variants."
-        },
-        "variants": {
-          "type": "array",
-          "description": "List of product variants, each with its own price, cost, and quantity.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string", "description": "Unique ID for the variant within the product." },
-              "name": { "type": "string", "description": "Name of the variant (e.g., 'Red', 'Large')." },
-              "price": { "type": "number" },
-              "cost": { "type": "number" },
-              "quantity": { "type": "number" },
-              "image": { "type": "string", "description": "URL or data URI of the variant's image." }
-            },
-            "required": ["id", "name", "price", "quantity"]
-          }
-        },
-        "busmoPayEnabled": {
-            "type": "boolean",
-            "description": "Indicates if BusmoPay payment rails are enabled for this product."
+          "description": "Reference to Business. (Relationship: Business 1:N Product)"
         }
       },
       "required": [
+        "id",
         "name",
-        "isPublishedToMarket",
-        "createdAt"
+        "price",
+        "businessId"
       ]
     },
-    "PointOfSale": {
-      "title": "Point of Sale",
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
       "type": "object",
-      "description": "Represents a single POS sales transaction (not online).",
+      "description": "Represents a sale recorded in the system.",
       "properties": {
-        "businessId": { "type": "string", "description": "The ID of the business that made the sale." },
-        "productId": { "type": "string", "description": "The ID of the product sold." },
-        "productName": { "type": "string", "description": "The name of the product sold (denormalized)." },
-        "variantId": { "type": "string", "description": "The ID of the product variant sold, if applicable." },
-        "variantName": { "type": "string", "description": "The name of the product variant sold (denormalized)." },
-        "amount": { "type": "number", "description": "The total amount of the sale." },
-        "quantity": { "type": "number", "description": "The quantity of the product sold." },
-        "paymentType": { "type": "string", "description": "The payment method used (e.g., cash, pos, transfer)." },
-        "source": { "type": "string", "description": "The source of the sale (e.g., pos, market)." },
-        "timestamp": { "type": "string", "format": "date-time", "description": "Timestamp indicating when the sale occurred." }
-      },
-      "required": ["businessId", "productId", "amount", "quantity", "paymentType", "source", "timestamp"]
-    },
-    "MarketProduct": {
-      "title": "MarketProduct",
-      "type": "object",
-      "description": "A denormalized, public-facing product for the marketplace.",
-      "properties": {
-        "productId": { "type": "string", "description": "The original product ID." },
-        "businessId": { "type": "string", "description": "The ID of the business selling the product." },
-        "businessName": { "type": "string", "description": "The name of the business selling the product (denormalized)." },
-        "country": { "type": "string", "description": "The country the business operates in." },
-        "deliveryType": { "type": "string", "enum": ["nationwide", "cities"], "description": "The delivery strategy." },
-        "deliveryCities": { "type": "array", "items": { "type": "string" }, "description": "List of cities this product delivers to." },
-        "productName": { "type": "string", "description": "The name of the product." },
-        "price": { "type": "number", "description": "The base or default price of the product." },
-        "oldPrice": { "type": "number", "description": "The previous price of the product, for displaying discounts." },
-        "description": { "type": "string", "description": "Public-facing product description." },
-        "category": { "type": "string", "description": "The product category." },
-        "images": { "type": "array", "description": "URL or data URI for the product's images.", "items": { "type": "string" } },
-        "hint": { "type": "string", "description": "A hint for AI image services." },
-        "availableQuantity": { "type": "number", "description": "The total available stock of the product across all variants." },
-        "status": { "type": "string", "enum": ["active", "draft"], "description": "The visibility status of the product on the marketplace." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp from the original product creation." },
-        "reviewCount": { "type": "number", "description": "The total number of reviews for the product." },
-        "averageRating": { "type": "number", "description": "The average star rating for the product (1-5)." },
-        "hasVariants": { "type": "boolean", "description": "Indicates if the product has multiple variants." },
-        "variants": { "type": "array", "description": "List of available product variants for the market.", "items": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "price": { "type": "number" }, "availableQuantity": { "type": "number" }, "image": { "type": "string" } }, "required": ["id", "name", "price", "availableQuantity"] } }
-      },
-      "required": ["productId", "businessId", "businessName", "productName", "price", "category", "availableQuantity", "status", "createdAt", "country", "deliveryType"]
-    },
-    "Order": {
-      "title": "Order",
-      "type": "object",
-      "description": "Represents a customer order from the public marketplace. Legacy, being replaced by PaymentIntent.",
-      "properties": {
-        "buyerId": { "type": "string" }, "sellerBusinessId": { "type": "string" },
-        "customer": { "type": "object", "properties": { "name": { "type": "string" }, "phone": { "type": "string" }, "address": { "type": "string" } }, "required": ["name", "phone"] },
-        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "productName": { "type": "string" }, "variantId": { "type": "string" }, "variantName": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
-        "subtotal": { "type": "number" }, "deliveryFee": { "type": "number" }, "total": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "fulfilled", "cancelled"] },
-        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] }, "payment": { "type": "string", "enum": ["transfer", "delivery"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["buyerId", "sellerBusinessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
-    },
-    "Expense": {
-      "title": "Expense",
-      "type": "object",
-      "description": "Represents a single business expense.",
-      "properties": {
-        "businessId": { "type": "string" }, "category": { "type": "string" }, "title": { "type": "string" }, "amount": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["businessId", "category", "title", "amount", "createdAt"]
-    },
-    "CashTransaction": {
-      "title": "Cash Transaction",
-      "type": "object",
-      "description": "Represents a cash deposit or withdrawal.",
-      "properties": {
-        "businessId": { "type": "string" }, "type": { "type": "string", "enum": ["deposit", "withdrawal"] }, "amount": { "type": "number" },
-        "description": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["businessId", "type", "amount", "createdAt"]
-    },
-    "BlogPost": { "title": "Blog Post", "type": "object", "description": "Represents a single blog post article.", "properties": { "title": { "type": "string" }, "slug": { "type": "string" }, "description": { "type": "string" }, "content": { "type": "string" }, "author": { "type": "string" }, "imageUrl": { "type": "string" }, "imageHint": { "type": "string" }, "isPublished": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" } }, "required": ["title", "slug", "content", "author", "createdAt"] },
-    "SupportTicket": { "title": "Support Ticket", "type": "object", "description": "Represents a customer support request.", "properties": { "userId": { "type": "string" }, "userName": { "type": "string" }, "userEmail": { "type": "string" }, "subject": { "type": "string" }, "message": { "type": "string" }, "status": { "type": "string", "enum": ["open", "in-progress", "closed"] }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["userId", "subject", "message", "status", "createdAt"] },
-    "StaffInvitation": { "title": "Staff Invitation", "type": "object", "description": "Represents an invitation for a user to become a staff member of a business.", "properties": { "email": { "type": "string" }, "businessId": { "type": "string" }, "businessName": { "type": "string" }, "status": { "type": "string", "enum": ["pending", "accepted"] }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["email", "businessId", "status", "createdAt"] },
-    "PaymentIntent": {
-      "title": "Payment Intent", "type": "object", "description": "Represents a request to create a payment.",
-      "properties": {
-        "merchantId": { "type": "string" }, "customerId": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string" },
-        "method": { "type": "string", "enum": ["paystack", "airtel_money"] }, "status": { "type": "string", "enum": ["pending", "succeeded", "failed"] },
-        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "name": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
-        "providerIntentId": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["merchantId", "amount", "currency", "method", "status", "createdAt"]
-    },
-    "FinancialTransaction": {
-      "title": "Financial Transaction", "type": "object", "description": "Represents a completed financial transaction and profit share.",
-      "properties": {
-        "paymentIntentId": { "type": "string" }, "merchantId": { "type": "string" }, "customerId": { "type": "string" }, "amount": { "type": "number" }, "currency": { "type": "string" },
-        "method": { "type": "string" }, "status": { "type": "string" }, "platformFee": { "type": "number" }, "investorProfitShare": { "type": "number" }, "merchantPayout": { "type": "number" },
-        "completedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["paymentIntentId", "merchantId", "amount", "status", "completedAt"]
-    },
-    "WebhookLog": { "title": "Webhook Log", "type": "object", "description": "Logs incoming webhooks from payment providers.", "properties": { "provider": { "type": "string" }, "payload": { "type": "object" }, "isProcessed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["provider", "payload", "createdAt"] },
-    "Investment": {
-      "title": "Investment",
-      "type": "object",
-      "description": "Represents an investment made by an investor into a business.",
-      "properties": {
-        "investorId": { "type": "string", "description": "The UID of the investor." },
-        "businessId": { "type": "string", "description": "The ID of the business being invested in." },
-        "businessName": { "type": "string", "description": "Denormalized name of the business." },
-        "amount": { "type": "number", "description": "The amount invested." },
-        "type": { "type": "string", "enum": ["Profit Sharing", "Equity"], "description": "The type of investment deal." },
-        "status": { "type": "string", "enum": ["Pending Acceptance", "Pending Funding", "Active", "Completed", "Rejected", "Cancelled"], "description": "The current status of the investment." },
-        "terms": {
-          "type": "object",
-          "properties": {
-            "profitShare": { "type": "number", "description": "The percentage of profit share for the investor." },
-            "duration": { "type": "number", "description": "The duration of the profit share in months." },
-            "equity": { "type": "number", "description": "The percentage of equity given to the investor." },
-            "valuation": { "type": "number", "description": "The business valuation at the time of investment." }
-          }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Sale entity."
         },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "amount": {
+          "type": "number",
+          "description": "The total amount of the sale.",
+          "format": "number"
+        },
+        "paymentType": {
+          "type": "string",
+          "description": "The payment type used for the sale (cash/transfer/POS)."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the sale was recorded.",
+          "format": "date-time"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N Sale)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who recorded the sale. (Relationship: User 1:N Sale)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. If the sale was for a specific product. (Relationship: Product 1:N Sale)"
+        }
       },
-      "required": ["investorId", "businessId", "businessName", "amount", "type", "status", "terms", "createdAt"]
+      "required": [
+        "id",
+        "amount",
+        "paymentType",
+        "timestamp",
+        "businessId",
+        "userId"
+      ]
     },
-    "Review": {
-      "title": "Product Review",
+    "AiQuestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AiQuestion",
       "type": "object",
-      "description": "Represents a customer review for a product.",
+      "description": "Represents a question asked to the AI.",
       "properties": {
-        "productId": { "type": "string", "description": "The ID of the product being reviewed." },
-        "businessId": { "type": "string", "description": "The ID of the business selling the product." },
-        "userId": { "type": "string", "description": "The ID of the user who wrote the review." },
-        "userName": { "type": "string", "description": "The name of the user who wrote the review." },
-        "rating": { "type": "number", "description": "The star rating given by the user (1-5)." },
-        "comment": { "type": "string", "description": "The review text." },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the review was submitted." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AI Question entity."
+        },
+        "question": {
+          "type": "string",
+          "description": "The question asked."
+        },
+        "answer": {
+          "type": "string",
+          "description": "The AI's answer to the question."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the question was asked.",
+          "format": "date-time"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N AiQuestion)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who asked the question. (Relationship: User 1:N AiQuestion)"
+        }
       },
-      "required": ["productId", "businessId", "userId", "userName", "rating", "createdAt"]
+      "required": [
+        "id",
+        "question",
+        "answer",
+        "timestamp",
+        "businessId",
+        "userId"
+      ]
+    },
+    "StaffPermission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StaffPermission",
+      "type": "object",
+      "description": "Represents the permissions granted to staff members.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the StaffPermission entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User (staff member). (Relationship: User 1:1 StaffPermission)"
+        },
+        "canRecordSales": {
+          "type": "boolean",
+          "description": "Indicates whether the staff member can record sales."
+        },
+        "canSeeReports": {
+          "type": "boolean",
+          "description": "Indicates whether the staff member can see reports (owner only)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "canRecordSales",
+        "canSeeReports"
+      ]
     }
   },
   "auth": {
     "providers": [
-      "password"
+      "password",
+      "anonymous"
     ]
   },
   "firestore": {
     "structure": [
-      { "path": "users/{userId}", "definition": { "entityName": "UserProfile", "schema": { "$ref": "#/backend/entities/UserProfile" }, "description": "Stores user profile information." } },
-      { "path": "businesses/{businessId}", "definition": { "entityName": "Business", "schema": { "$ref": "#/backend/entities/Business" }, "description": "Top-level collection for all business data." } },
-      { "path": "businessProfiles/{businessId}", "definition": { "entityName": "BusinessProfile", "schema": { "$ref": "#/backend/entities/BusinessProfile" }, "description": "Publicly readable information about a business for the marketplace." } },
-      { "path": "businesses/{businessId}/products/{productId}", "definition": { "entityName": "Product", "schema": { "$ref": "#/backend/entities/Product" }, "description": "Subcollection for products belonging to a business." } },
-      { "path": "businesses/{businessId}/sales/{saleId}", "definition": { "entityName": "PointOfSale", "schema": { "$ref": "#/backend/entities/PointOfSale" }, "description": "Subcollection for POS sales transactions belonging to a business." } },
-      { "path": "businesses/{businessId}/orders/{orderId}", "definition": { "entityName": "Order", "schema": { "$ref": "#/backend/entities/Order" }, "description": "Subcollection for market orders (legacy)." } },
-      { "path": "marketProducts/{marketProductId}", "definition": { "entityName": "MarketProduct", "schema": { "$ref": "#/backend/entities/MarketProduct" }, "description": "Publicly readable collection of products listed on the marketplace." } },
-      { "path": "businesses/{businessId}/expenses/{expenseId}", "definition": { "entityName": "Expense", "schema": { "$ref": "#/backend/entities/Expense" }, "description": "Subcollection for expenses belonging to a business." } },
-      { "path": "businesses/{businessId}/cashTransactions/{transactionId}", "definition": { "entityName": "CashTransaction", "schema": { "$ref": "#/backend/entities/CashTransaction" }, "description": "Subcollection for cash deposits and withdrawals." } },
-      { "path": "blogs/{blogId}", "definition": { "entityName": "BlogPost", "schema": { "$ref": "#/backend/entities/BlogPost" }, "description": "Collection for all blog posts." } },
-      { "path": "supportTickets/{ticketId}", "definition": { "entityName": "SupportTicket", "schema": { "$ref": "#/backend/entities/SupportTicket" }, "description": "Collection for all customer support tickets." } },
-      { "path": "invitations/{invitationId}", "definition": { "entityName": "StaffInvitation", "schema": { "$ref": "#/backend/entities/StaffInvitation" }, "description": "Stores pending invitations for staff members." } },
-      { "path": "investments/{investmentId}", "definition": { "entityName": "Investment", "schema": { "$ref": "#/backend/entities/Investment" }, "description": "Collection for all investment offers and agreements." } },
-      { "path": "paymentIntents/{intentId}", "definition": { "entityName": "PaymentIntent", "schema": { "$ref": "#/backend/entities/PaymentIntent" }, "description": "Collection for all BusmoPay payment intents." } },
-      { "path": "businesses/{businessId}/financialTransactions/{transactionId}", "definition": { "entityName": "FinancialTransaction", "schema": { "$ref": "#/backend/entities/FinancialTransaction" }, "description": "Subcollection for completed financial transactions and profit sharing." } },
-      { "path": "webhookLogs/{logId}", "definition": { "entityName": "WebhookLog", "schema": { "$ref": "#/backend/entities/WebhookLog" }, "description": "Logs all incoming webhooks from payment providers." } },
-      { "path": "reviews/{reviewId}", "definition": { "entityName": "Review", "schema": { "$ref": "#/backend/entities/Review" }, "description": "Collection for all product reviews." } }
-    ]
+      {
+        "path": "/businesses/{businessId}",
+        "definition": {
+          "entityName": "Business",
+          "schema": {
+            "$ref": "#/backend/entities/Business"
+          },
+          "description": "Stores business information.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user information associated with a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (Firebase Auth UID)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information for a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "productId",
+              "description": "The unique identifier of the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Stores sales records associated with a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "saleId",
+              "description": "The unique identifier of the sale."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/ai_questions/{aiQuestionId}",
+        "definition": {
+          "entityName": "AiQuestion",
+          "schema": {
+            "$ref": "#/backend/entities/AiQuestion"
+          },
+          "description": "Stores AI questions and answers related to a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "aiQuestionId",
+              "description": "The unique identifier of the AI question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/staff_permissions/{staffPermissionId}",
+        "definition": {
+          "entityName": "StaffPermission",
+          "schema": {
+            "$ref": "#/backend/entities/StaffPermission"
+          },
+          "description": "Stores staff permissions, accessible only by the user (owner) and secured by their UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (Firebase Auth UID)."
+            },
+            {
+              "name": "staffPermissionId",
+              "description": "The unique identifier of the Staff Permission."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the BizAssistant application, focusing on simplicity, security, and scalability. It prioritizes authorization independence by denormalizing authorization data, thus avoiding the use of `get()` calls in security rules. This design enables atomic operations and simplifies debugging. Structural segregation ensures that collections have homogeneous security requirements, enhancing clarity and security.\n\nThe core principle is to use path-based ownership and denormalization where applicable to ensure Authorization Independence.\n\n*   **/businesses/{businessId}**: Stores general business information. All other data is scoped to the business.\n*   **/businesses/{businessId}/users/{userId}**: Stores user information related to a business, including their role. The `userId` is the Firebase Auth UID.\n*   **/businesses/{businessId}/products/{productId}**: Stores product information for each business.\n*   **/businesses/{businessId}/sales/{saleId}**: Stores sales records associated with a business.\n*   **/businesses/{businessId}/ai_questions/{aiQuestionId}**: Stores AI questions and answers related to a business.\n*   **/users/{userId}/staff_permissions/{staffPermissionId}**: Stores permissions for staff members, using the User's Firebase Auth UID to secure the data.\n\nThis structure facilitates secure list operations (QAPs) through structural segregation. Each top-level collection represents a distinct entity with consistent security needs, enabling straightforward security rules without the need for complex filtering logic."
   }
 }
-
-    
