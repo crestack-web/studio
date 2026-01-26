@@ -124,8 +124,6 @@ export default function LandingPage() {
     { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
   ];
 
-  const aiFeatureImage = PlaceHolderImages.find(img => img.id === 'ai-feature-image');
-
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -398,14 +396,31 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
-            <div className="relative aspect-square rounded-lg overflow-hidden shadow-xl">
-              {aiFeatureImage && <Image 
-                src={aiFeatureImage.imageUrl}
-                alt={aiFeatureImage.description}
-                fill
-                className="object-cover"
-                data-ai-hint={aiFeatureImage.imageHint}
-              />}
+            <div className="space-y-4">
+              <Card className="shadow-lg">
+                <CardHeader className="flex-row items-center gap-4">
+                  <p className="font-semibold">{t('welcome.ai_q1')}</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-primary font-medium">{t('welcome.ai_a1')}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-lg">
+                 <CardHeader className="flex-row items-center gap-4">
+                  <p className="font-semibold">{t('welcome.ai_q2')}</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-success font-medium">{t('welcome.ai_a2')}</p>
+                </CardContent>
+              </Card>
+               <Card className="shadow-lg">
+                 <CardHeader className="flex-row items-center gap-4">
+                  <p className="font-semibold">{t('welcome.ai_q3')}</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-warning font-medium">{t('welcome.ai_a3')}</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>
