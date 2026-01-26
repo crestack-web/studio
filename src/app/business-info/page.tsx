@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import OnboardingLayout from '@/components/app/onboarding-layout';
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { markets } from '@/lib/currency';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -21,6 +23,17 @@ export default function BusinessInfoPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const selectedCountryData = markets.find(c => c.code === country);
+    
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, `users/${authUser.uid}`);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
 
     const handleContinue = async () => {
         if (!businessName || !businessType || !country || !city) {
@@ -32,12 +45,35 @@ export default function BusinessInfoPage() {
             return;
         }
 
+        if (!businessId || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please log in again.' });
+            return;
+        }
+
         setIsSubmitting(true);
 
-        // Simulate backend call
-        setTimeout(() => {
-            router.replace('/plans');
-        }, 1000);
+        const selectedMarket = markets.find(m => m.code === country);
+        const currency = selectedMarket?.currency;
+
+        const businessData = {
+            businessName,
+            businessType,
+            country,
+            city,
+            currency,
+        };
+
+        const businessDocRef = doc(firestore, `businesses/${businessId}`);
+        updateDocumentNonBlocking(businessDocRef, businessData);
+
+        const businessProfileRef = doc(firestore, `businessProfiles/${businessId}`);
+        setDocumentNonBlocking(businessProfileRef, {
+            ...businessData,
+            businessId,
+            ownerId: authUser?.uid
+        }, { merge: true });
+
+        router.replace('/plans');
     };
 
     const isButtonDisabled = isSubmitting || !businessName || !businessType || !country || !city;

@@ -9,9 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
+import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -42,7 +42,20 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        if (user) {
+        if (user && firestore) {
+            const batch = writeBatch(firestore);
+
+            // 1. Create business document with a generated ID
+            const businessDocRef = doc(collection(firestore, 'businesses'));
+            const businessData = {
+                id: businessDocRef.id,
+                ownerId: user.uid,
+                businessName: `${name}'s Business`, // Placeholder name
+                createdAt: serverTimestamp()
+            };
+            batch.set(businessDocRef, businessData);
+
+            // 2. Create user document, linking it to the new business
             const userDocRef = doc(firestore, 'users', user.uid);
             const userData = {
                 id: user.uid,
@@ -50,9 +63,12 @@ export default function SignUpPage() {
                 email: user.email,
                 phoneNumber: phoneNumber,
                 role: 'Owner',
+                businessId: businessDocRef.id
             };
-            // Use non-blocking write to avoid race conditions on redirect
-            setDocumentNonBlocking(userDocRef, userData, {});
+            batch.set(userDocRef, userData);
+            
+            // 3. Commit the batch write
+            await batch.commit();
 
             toast({ title: "Account Created!", description: "Let's set up your business." });
             router.push('/business-info');

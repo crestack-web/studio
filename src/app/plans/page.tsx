@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import OnboardingLayout from '@/components/app/onboarding-layout';
@@ -10,6 +10,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
+
 
 const plans = [
     {
@@ -84,6 +87,17 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState('supermarket');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const firestore = useFirestore();
+  const { user: authUser } = useUser();
+
+  const userProfileRef = useMemoFirebase(() => {
+      if (!firestore || !authUser) return null;
+      return doc(firestore, `users/${authUser.uid}`);
+  }, [firestore, authUser]);
+  const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
+  const businessId = userProfile?.businessId;
+
+
   const handleContinue = async () => {
     if (!selectedPlan) {
       toast({
@@ -94,12 +108,17 @@ export default function PlansPage() {
       return;
     }
     
+    if (!businessId || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please log in again.' });
+        return;
+    }
+    
     setIsSubmitting(true);
     
-    // Simulate backend call
-    setTimeout(() => {
-        router.replace('/owner/home?onboarding=complete');
-    }, 1000);
+    const businessDocRef = doc(firestore, `businesses/${businessId}`);
+    updateDocumentNonBlocking(businessDocRef, { plan: selectedPlan });
+    
+    router.replace('/owner/home?onboarding=complete');
   };
 
   const isButtonDisabled = isSubmitting;
