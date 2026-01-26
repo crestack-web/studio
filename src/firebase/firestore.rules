@@ -10,14 +10,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Securely checks if the user has an admin role.
+    // This is still problematic if used inside /users/{userId} rules, but may work elsewhere.
     function isAdmin() {
       if (!isSignedIn()) { return false; }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
       return exists(userDocPath) && get(userDocPath).data.role == 'Admin';
     }
 
-    // Securely checks if the user owns the specified business.
     function isOwner(businessId) {
       if (businessId == null || !isSignedIn()) {
         return false;
@@ -29,8 +28,8 @@ service cloud.firestore {
       let businessDoc = get(businessDocPath);
       return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
-
-    // Securely checks if the user is a staff member of the specified business.
+    
+    // This is still problematic if used inside /users/{userId} rules, but may work elsewhere.
     function isStaff(businessId) {
       if (businessId == null || !isSignedIn()) {
         return false;
@@ -41,7 +40,7 @@ service cloud.firestore {
       return userDoc.data.businessId == businessId && userDoc.data.role == 'Staff';
     }
     
-    // Gets the business ID for the currently authenticated user from their user profile.
+    // This is the main problematic function causing recursion. Avoid using it in /users rules.
     function getBusinessIdForCurrentUser() {
       if (!isSignedIn()) { return null; }
       let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
@@ -54,13 +53,18 @@ service cloud.firestore {
 
     // --- USER & ADMIN PROFILES ---
     match /users/{userId} {
+      // The previous 'get' rule caused a recursive error.
+      // This new rule fixes it by only allowing a user to read their own document.
+      // Access for other users (admins, colleagues) needs to be re-architected to avoid recursion.
+      allow get: if isSignedIn() && request.auth.uid == userId;
+
+      // Create and Update rules remain, but update is restricted to prevent role escalation.
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
       allow update: if isSignedIn() && request.auth.uid == userId &&
-                  // Prevent changing role, but allow other fields to be updated.
                   request.resource.data.role == resource.data.role;
-      allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
-      allow delete: if isAdmin();
+
+      // List and delete are disabled for now as they depended on the broken recursive logic.
+      allow list, delete: if false;
     }
 
 
