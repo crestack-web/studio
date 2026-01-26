@@ -38,7 +38,9 @@ service cloud.firestore {
                       && request.resource.data.role == resource.data.role
                       && request.resource.data.businessId == resource.data.businessId;
       
-      allow list, delete: if false;
+      // Allow users to list other users only if they are querying for their own business.
+      allow list: if isSignedIn() && request.query.businessId == getUserData().businessId;
+      allow delete: if false;
     }
 
     match /businesses/{businessId} {
