@@ -224,31 +224,11 @@
           "schema": {
             "$ref": "#/backend/entities/Business"
           },
-          "description": "Stores business information.",
+          "description": "Stores general, non-sensitive business information.",
           "params": [
             {
               "name": "businessId",
               "description": "The unique identifier of the business."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/businesses/{businessId}/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user information associated with a business.",
-          "params": [
-            {
-              "name": "businessId",
-              "description": "The unique identifier of the business."
-            },
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user (Firebase Auth UID)."
             }
           ]
         }
@@ -314,6 +294,22 @@
         }
       },
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Top-level collection storing all user profiles. Contains sensitive role and business association information used for security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (Firebase Auth UID)."
+            }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/staff_permissions/{staffPermissionId}",
         "definition": {
           "entityName": "StaffPermission",
@@ -334,6 +330,8 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support the BizAssistant application, focusing on simplicity, security, and scalability. It prioritizes authorization independence by denormalizing authorization data, thus avoiding the use of `get()` calls in security rules. This design enables atomic operations and simplifies debugging. Structural segregation ensures that collections have homogeneous security requirements, enhancing clarity and security.\n\nThe core principle is to use path-based ownership and denormalization where applicable to ensure Authorization Independence.\n\n*   **/businesses/{businessId}**: Stores general business information. All other data is scoped to the business.\n*   **/businesses/{businessId}/users/{userId}**: Stores user information related to a business, including their role. The `userId` is the Firebase Auth UID.\n*   **/businesses/{businessId}/products/{productId}**: Stores product information for each business.\n*   **/businesses/{businessId}/sales/{saleId}**: Stores sales records associated with a business.\n*   **/businesses/{businessId}/ai_questions/{aiQuestionId}**: Stores AI questions and answers related to a business.\n*   **/users/{userId}/staff_permissions/{staffPermissionId}**: Stores permissions for staff members, using the User's Firebase Auth UID to secure the data.\n\nThis structure facilitates secure list operations (QAPs) through structural segregation. Each top-level collection represents a distinct entity with consistent security needs, enabling straightforward security rules without the need for complex filtering logic."
+    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
   }
 }
+
+    

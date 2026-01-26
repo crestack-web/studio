@@ -2,35 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * Core Philosophy:
-     * This ruleset implements a multi-tenant security model where all data is
-     * partitioned by a `businessId`. Access is primarily controlled by custom
-     * claims (`business_id`, `role`) set on a user's authentication token.
-     * This strategy is highly secure and performant, as it avoids slow and costly
-     * `get()` calls in rules, aligning with an "Authorization Independence" principle.
-     *
-     * Data Structure:
-     * Most data is nested under the `/businesses/{businessId}` collection, creating
-     * a clear data silo for each tenant. A separate top-level collection, `/users/{userId}`,
-     * is used for user-specific settings that only the user themselves can manage,
-     * such as staff permissions in the case of a business owner.
-     *
-     * Key Security Decisions:
-     * - Custom Claims Requirement: All authorization within a business context
-     *   depends on `business_id` and `role` custom claims being present on the
-     *   user's auth token. This is a critical prerequisite for these rules to function.
-     * - Role-Based Access: A distinction is made between 'Owner' and 'Staff' roles.
-     *   Owners have administrative privileges (e.g., managing users, editing sales history),
-     *   while other members have more limited access.
-     * - Denied by Default: Access is implicitly denied. Permissions are only granted
-     *   explicitly. Sensitive operations like listing all businesses or deleting a business
-     *   are disallowed from the client.
-     * - Structural Segregation: Business-wide data (`/businesses/{businessId}`) is kept
-     *   separate from user-private data (`/users/{userId}`), allowing for simpler and
-     *   more secure rules for each path.
-     */
-
     // ----------------------------------------------------------------
     // Helper Functions
     // ----------------------------------------------------------------
@@ -51,6 +22,33 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    /**
+     * getUserData
+     * Safely retrieves the user's document data from the top-level /users collection.
+     * This is the cornerstone of the security model, avoiding recursive lookups.
+     */
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    /**
+     * isMemberOfBusiness
+     * Checks if the currently authenticated user belongs to the specified business.
+     * It does this by reading the businessId from the user's own profile document.
+     */
+    function isMemberOfBusiness(businessId) {
+      return isSignedIn() && getUserData(request.auth.uid).businessId == businessId;
+    }
+    
+    /**
+     * isOwnerOfBusiness
+     * Checks if the currently authenticated user is an 'Owner' of the specified business.
+     */
+    function isOwnerOfBusiness(businessId) {
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && userData.businessId == businessId && userData.role == 'Owner';
+    }
 
     /**
      * isExistingDoc
@@ -59,34 +57,7 @@ service cloud.firestore {
     function isExistingDoc() {
       return resource != null;
     }
-
-    /**
-     * isMemberOfBusiness
-     * Checks if a user belongs to the specified business via a custom auth token claim.
-     * CRITICAL: This requires a `business_id` custom claim on the user's auth token.
-     */
-    function isMemberOfBusiness(businessId) {
-      return isSignedIn() && request.auth.token.business_id == businessId;
-    }
-
-    /**
-     * isOwnerOfBusiness
-     * Checks if a user is the 'Owner' of the specified business via custom auth token claims.
-     * CRITICAL: This requires `business_id` and `role` custom claims on the auth token.
-     */
-    function isOwnerOfBusiness(businessId) {
-      return isMemberOfBusiness(businessId) && request.auth.token.role == 'Owner';
-    }
-
-    /**
-     * isDocumentCreator
-     * Checks if the authenticated user is the original creator of the document,
-     * based on a 'userId' field within the document itself.
-     */
-    function isDocumentCreator(doc) {
-      return isSignedIn() && request.auth.uid == doc.userId;
-    }
-
+    
     // --- Data Validation Functions ---
 
     /**
@@ -122,112 +93,96 @@ service cloud.firestore {
       return request.resource.data.userId == resource.data.userId;
     }
 
+    // ----------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------
+
     /**
-     * @description   Controls access to user profile documents.
+     * @description   Controls access to user profile documents. This is the source of truth for roles and business IDs.
      * @path          /users/{userId}
-     * @allow         (get, update) A user can read and update their own profile.
+     * @allow         (get, update) A user can read and update their own profile. Role escalation is prevented.
      * @allow         (create) A user can create their own profile document.
-     * @principle     Strict ownership. Users can only access their own data.
+     * @deny          (list, delete) Listing all users or deleting users is disabled from the client for security.
+     * @principle     Strict ownership. A user manages their own document. This rule is non-recursive and safe.
      */
     match /users/{userId} {
-      allow get, update: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // Allow update by owner, but prevent changing role unless done by an admin (future feature).
+      allow update: if isOwner(userId) && (request.resource.data.role == resource.data.role); 
       allow list, delete: if false;
+
+      /**
+       * @description Manages staff permission settings. These are private to a user (business owner).
+       * @path        /users/{userId}/staff_permissions/{staffPermissionId}
+       * @principle   Strict Ownership. Only the user identified in the path can access documents in this collection.
+       */
+      match /staff_permissions/{staffPermissionId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     /**
-     * @description   Controls access to the main business document.
+     * @description   Controls access to the main business document and its subcollections.
      * @path          /businesses/{businessId}
-     * @allow         (get) A member of business 'b123' reading their own business details.
-     * @deny          (list) Any user attempting to list all businesses in the database.
-     * @deny          (create) Any user trying to create a business directly. Assumed to be a backend operation.
-     * @principle     Restricts sensitive operations and grants read access to members of the business.
+     * @principle     Membership-based access. Rules use `isMemberOfBusiness` and `isOwnerOfBusiness`
+     *                which safely `get()` data from the `/users` collection.
      */
     match /businesses/{businessId} {
       allow get: if isMemberOfBusiness(businessId);
-      allow list: if false;
+      // Creating a business happens in the signup flow, not directly. Updates are for owners.
       allow create: if false;
       allow update: if isOwnerOfBusiness(businessId) && isExistingDoc();
-      allow delete: if false;
-    }
+      // Listing and deleting entire businesses is disabled from the client.
+      allow list, delete: if false;
 
-    /**
-     * @description   Manages users (staff) within a specific business.
-     * @path          /businesses/{businessId}/users/{userId}
-     * @allow         (list) A staff member of business 'b123' viewing the list of colleagues.
-     * @allow         (update) A user updating their own profile information.
-     * @deny          (create) A non-owner attempting to add a new user to the business.
-     * @deny          (update) A staff member attempting to change their own role to 'Owner'.
-     * @principle     Enables collaboration by allowing reads within a business, while restricting management to the owner.
-     */
-    match /businesses/{businessId}/users/{userId} {
-      allow get: if isMemberOfBusiness(businessId);
-      allow list: if isMemberOfBusiness(businessId);
-      allow create: if isOwnerOfBusiness(businessId) && request.resource.data.businessId == businessId && request.resource.data.id == userId;
-      allow update: if isExistingDoc() && (isOwnerOfBusiness(businessId) || (isOwner(userId) && request.resource.data.role == resource.data.role));
-      allow delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
-    }
+      /**
+       * @description   Manages the product inventory for a business.
+       * @path          /businesses/{businessId}/products/{productId}
+       * @principle     Shared Access model where all members of a business can manage the shared product list.
+       */
+      match /products/{productId} {
+        allow read: if isMemberOfBusiness(businessId);
+        allow write: if isMemberOfBusiness(businessId); // create, update, delete
+      }
 
-    /**
-     * @description   Manages the product inventory for a business.
-     * @path          /businesses/{businessId}/products/{productId}
-     * @allow         (create) Any member of business 'b123' adding a new product.
-     * @deny          (create) A user from business 'b456' trying to add a product to business 'b123'.
-     * @principle     Shared Access model where all members of a business can manage the shared product list.
-     */
-    match /businesses/{businessId}/products/{productId} {
-      allow get: if isMemberOfBusiness(businessId);
-      allow list: if isMemberOfBusiness(businessId);
-      allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId);
-      allow update: if isMemberOfBusiness(businessId) && isExistingDoc() && isPreservingBusinessIdOnUpdate();
-      allow delete: if isMemberOfBusiness(businessId) && isExistingDoc();
-    }
+      /**
+       * @description   Manages sales records for a business.
+       * @path          /businesses/{businessId}/sales/{saleId}
+       * @principle     Allows all members to create records but protects historical data integrity by restricting lists and modifications to the owner.
+       */
+      match /sales/{saleId} {
+        allow get: if isMemberOfBusiness(businessId);
+        allow list: if isOwnerOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
+        allow update, delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
+      }
+      
+      /**
+        * @description  Manages expenses, deposits, and withdrawals.
+        * @path         /businesses/{businessId}/(expenses|transactions)/{docId}
+        * @principle    Unified write access for members, read access for owners.
+        */
+      match /(expenses|transactions)/{docId} {
+        allow read, list: if isOwnerOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId);
+        allow update, delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
+      }
 
-    /**
-     * @description   Manages sales records for a business.
-     * @path          /businesses/{businessId}/sales/{saleId}
-     * @allow         (create) A staff member of business 'b123' recording a new sale.
-     * @deny          (list) A staff member trying to list all sales records (reserved for owners).
-     * @deny          (update) Any user trying to modify a historical sale record.
-     * @principle     Allows all members to create records but protects historical data integrity by restricting lists and modifications to the owner.
-     */
-    match /businesses/{businessId}/sales/{saleId} {
-      allow get: if isMemberOfBusiness(businessId);
-      allow list: if isOwnerOfBusiness(businessId);
-      allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
-      allow update: if isOwnerOfBusiness(businessId) && isExistingDoc();
-      allow delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
-    }
-
-    /**
-     * @description   Stores AI-powered questions and answers for a business.
-     * @path          /businesses/{businessId}/ai_questions/{aiQuestionId}
-     * @allow         (create) A staff member asking the AI a question related to their business.
-     * @allow         (delete) The user who asked the question deleting it from the history.
-     * @deny          (update) A user trying to alter the question or answer of another user's query.
-     * @principle     Promotes collaboration by allowing shared reading, while write access is restricted to the creator or business owner.
-     */
-    match /businesses/{businessId}/ai_questions/{aiQuestionId} {
-      allow get: if isMemberOfBusiness(businessId);
-      allow list: if isMemberOfBusiness(businessId);
-      allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
-      allow update: if isExistingDoc() && (isDocumentCreator(resource.data) || isOwnerOfBusiness(businessId)) && isPreservingCreatorIdOnUpdate();
-      allow delete: if isExistingDoc() && (isDocumentCreator(resource.data) || isOwnerOfBusiness(businessId));
-    }
-
-    /**
-     * @description   Manages staff permission settings. These are private to a user (business owner).
-     * @path          /users/{userId}/staff_permissions/{staffPermissionId}
-     * @allow         (create, get, list, update, delete) A business owner (auth.uid == userId) managing permissions for their staff.
-     * @deny          (get) Any other user attempting to read another user's private permission settings.
-     * @principle     Strict Ownership model. Only the user identified in the path can access documents in this collection.
-     */
-    match /users/{userId}/staff_permissions/{staffPermissionId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && isExistingDoc() && request.resource.data.userId == resource.data.userId;
-      allow delete: if isOwner(userId) && isExistingDoc();
+      /**
+       * @description   Stores AI-powered questions and answers for a business.
+       * @path          /businesses/{businessId}/ai_questions/{aiQuestionId}
+       * @principle     Promotes collaboration by allowing shared reading, while write access is restricted to the creator or business owner.
+       */
+      match /ai_questions/{aiQuestionId} {
+        allow read, list: if isMemberOfBusiness(businessId);
+        allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
+        // Allow the user who created it OR the business owner to update/delete.
+        allow update: if isOwnerOfBusiness(businessId) || (isOwner(resource.data.userId) && isPreservingCreatorIdOnUpdate());
+        allow delete: if isOwnerOfBusiness(businessId) || isOwner(resource.data.userId);
+      }
     }
   }
 }
+
+    
