@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -20,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { signOut } from 'firebase/auth';
@@ -114,9 +113,9 @@ function OwnerHomeContent() {
             "Which products should I consider restocking?",
             "Tell me about my best selling product.",
             "Tell me about my worst selling product.",
-            "How much cash have I deposited in total?",
-            "How much money have I withdrawn in total?",
-            "What are my total sales of all time?",
+            "What's my recent sales revenue?",
+            "How much cash have I deposited recently?",
+            "How much money have I withdrawn recently?",
         ];
 
         const shuffled = allQuestions.sort(() => 0.5 - Math.random());
@@ -144,14 +143,14 @@ function OwnerHomeContent() {
     const salesQuery = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
         const salesCollection = collection(firestore, `businesses/${businessId}/sales`);
-        return query(salesCollection, orderBy('timestamp', 'desc'));
+        return query(salesCollection, orderBy('timestamp', 'desc'), limit(500));
     }, [businessId, firestore]);
     const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
 
     const transactionsQuery = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
         const transactionsCollection = collection(firestore, `businesses/${businessId}/transactions`);
-        return query(transactionsCollection, orderBy('createdAt', 'desc'));
+        return query(transactionsCollection, orderBy('createdAt', 'desc'), limit(500));
     }, [businessId, firestore]);
     const { data: transactionsData, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
 
@@ -397,7 +396,7 @@ function OwnerHomeContent() {
                             <BotMessageSquare className="w-6 h-6 text-accent" />
                             <span>Ask about your business</span>
                         </div>
-                        <span className="text-sm font-medium text-muted-foreground">All-Time</span>
+                        <span className="text-sm font-medium text-muted-foreground">Recent Activity</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
