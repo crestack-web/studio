@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -130,8 +131,9 @@ service cloud.firestore {
      */
     match /businesses/{businessId} {
       allow get: if isMemberOfBusiness(businessId);
-      // Creating a business happens in the signup flow, not directly. Updates are for owners.
-      allow create: if false;
+      // Allow a user to create a business document if they set themselves as the owner.
+      // This is essential for the sign-up flow.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isOwnerOfBusiness(businessId) && isExistingDoc();
       // Listing and deleting entire businesses is disabled from the client.
       allow list, delete: if false;
@@ -184,5 +186,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
