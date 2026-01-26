@@ -106,7 +106,8 @@ export default function BusinessInfoPage() {
         
         batch.set(newBusinessRef, businessData);
         batch.set(businessProfileRef, businessProfileData);
-        batch.update(userDocRef, { businessId: businessId });
+        // Use set with merge to prevent race condition where update fails if user doc doesn't exist yet
+        batch.set(userDocRef, { businessId: businessId }, { merge: true });
 
         try {
             await batch.commit();
