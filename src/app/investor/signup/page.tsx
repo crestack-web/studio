@@ -9,9 +9,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, updateProfile, type User } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 
 export default function InvestorSignUpPage() {
   const [name, setName] = useState('');
@@ -21,8 +18,6 @@ export default function InvestorSignUpPage() {
   
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
-  const firestore = useFirestore();
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -36,81 +31,13 @@ export default function InvestorSignUpPage() {
         setIsLoading(false);
         return;
     }
-
-    if (!firestore || !auth) {
-        toast({ variant: "destructive", title: "Initialization Error", description: "Could not connect to services. Please try again." });
+    
+    // Simulate backend call
+    setTimeout(() => {
+        toast({ title: "Account Created!", description: "Welcome! Redirecting to your dashboard." });
+        router.push('/investor/dashboard');
         setIsLoading(false);
-        return;
-    }
-
-    let newUser: User | null = null;
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      newUser = userCredential.user;
-      
-      await updateProfile(newUser, { displayName: name });
-
-      const userDocRef = doc(firestore, 'users', newUser.uid);
-      const investorProfile = {
-          id: newUser.uid,
-          displayName: name,
-          email: newUser.email,
-          role: 'Investor',
-      };
-
-      await setDoc(userDocRef, investorProfile);
-      
-      toast({ title: "Account Created!", description: "Welcome! Redirecting to your dashboard." });
-      router.push('/investor/dashboard');
-
-    } catch (error: any) {
-        console.error("Sign up error:", error);
-        let title = "Sign Up Failed";
-        let description = "An unknown error occurred. Please try again.";
-        
-        if (error.code) {
-            switch(error.code) {
-                case 'auth/email-already-in-use':
-                    title = "Email Already in Use";
-                    description = "This email address is already associated with an account. Please log in or use a different email.";
-                    break;
-                case 'auth/invalid-email':
-                    title = "Invalid Email";
-                    description = "Please enter a valid email address.";
-                    break;
-                case 'auth/weak-password':
-                    title = "Weak Password";
-                    description = "Your password must be at least 6 characters long.";
-                    break;
-                 case 'auth/network-request-failed':
-                    title = 'Network Error';
-                    description = 'Could not connect to our services. Please check your internet connection and try again.';
-                    break;
-                case 'permission-denied':
-                     title = "Account Setup Failed";
-                     description = "We couldn't create your user profile due to a permissions issue. This can happen on a slow network. Please try again.";
-                    break;
-                default:
-                    description = `An unexpected error occurred: ${error.message}`;
-            }
-        }
-        
-        toast({
-            variant: "destructive",
-            title: title,
-            description: description,
-        });
-        
-        if (newUser) {
-            try {
-                await newUser.delete();
-            } catch (deleteError) {
-                console.error("Failed to clean up user after profile creation failure:", deleteError);
-            }
-        }
-    } finally {
-        setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const isButtonDisabled = isLoading || !name || !email || !password;

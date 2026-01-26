@@ -4,69 +4,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-interface UserProfile {
-    role?: string;
-}
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const auth = useAuth();
-  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleLogin = async () => {
     setIsLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      const userDocRef = doc(firestore, 'users', user.uid);
-
-      // If this email is the designated admin, ensure the role is set.
-      if (user.email === 'admin@busmo.com') {
-          await setDoc(userDocRef, { role: 'Admin' }, { merge: true });
-      }
-
-      // Check user role imperatively after login
-      const userProfileSnap = await getDoc(userDocRef);
-
-      if (userProfileSnap.exists() && userProfileSnap.data().role === 'Admin') {
-        toast({
-          title: "Admin Login Successful",
-          description: "Redirecting to your dashboard...",
-        });
-        router.push('/admin/dashboard');
-      } else {
-        await auth.signOut();
-        toast({
-            variant: "destructive",
-            title: "Authorization Failed",
-            description: "You are not authorized to access the admin panel.",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message || "Please check your credentials and try again.",
-      });
-      if (auth.currentUser) {
-          await auth.signOut();
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    
+    // Simulate backend login
+    setTimeout(() => {
+        if (email === 'admin@busmo.com') {
+            toast({
+                title: "Admin Login Successful",
+                description: "Redirecting to your dashboard...",
+            });
+            router.push('/admin/dashboard');
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Authorization Failed",
+                description: "You are not authorized to access the admin panel.",
+            });
+            setIsLoading(false);
+        }
+    }, 1000);
   };
 
   return (

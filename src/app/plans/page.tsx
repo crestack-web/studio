@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,14 +8,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
-
-interface AppUser {
-    businessId?: string;
-}
 
 const plans = [
     {
@@ -91,24 +84,6 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState('supermarket');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user: authUser, isUserLoading } = useUser();
-  const firestore = useFirestore();
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-
-  const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-  const businessId = userProfile?.businessId;
-
-
-  useEffect(() => {
-    if (!isUserLoading && !authUser) {
-      router.push('/signup');
-    }
-  }, [authUser, isUserLoading, router]);
-
   const handleContinue = async () => {
     if (!selectedPlan) {
       toast({
@@ -118,42 +93,16 @@ export default function PlansPage() {
       });
       return;
     }
-    if (!businessId || !firestore) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Business information not found. Please go back and try again.',
-        });
-        return;
-    }
+    
     setIsSubmitting(true);
     
-    try {
-        const businessDocRef = doc(firestore, 'businesses', businessId);
-        await updateDoc(businessDocRef, {
-            plan: selectedPlan,
-            onboardingCompleted: true,
-        });
+    // Simulate backend call
+    setTimeout(() => {
         router.replace('/owner/home?onboarding=complete');
-    } catch (error: any) {
-        console.error("Error saving plan:", error);
-        let description = "We couldn't save your plan selection. Please try again.";
-        if (error.code === 'permission-denied') {
-            description = "You don't have permission to update your business plan. Please try logging in again.";
-        } else if (error.message) {
-            description = `An unexpected error occurred: ${error.message}`;
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Error Saving Plan',
-            description: description,
-        });
-    } finally {
-        setIsSubmitting(false);
-    }
+    }, 1000);
   };
 
-  const isButtonDisabled = isUserLoading || isSubmitting;
+  const isButtonDisabled = isSubmitting;
 
   return (
     <OnboardingLayout>
@@ -166,8 +115,8 @@ export default function PlansPage() {
             <div className="flex justify-center">
                  <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
-                        <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isUserLoading || isSubmitting}>Monthly</TabsTrigger>
-                        <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isUserLoading || isSubmitting}>
+                        <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isSubmitting}>Monthly</TabsTrigger>
+                        <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isSubmitting}>
                             Yearly
                             <span className="absolute -top-2 -right-2.5 bg-accent text-accent-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">SAVE 17%</span>
                         </TabsTrigger>
@@ -175,10 +124,10 @@ export default function PlansPage() {
                 </Tabs>
             </div>
 
-            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isUserLoading || isSubmitting}>
+            <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isSubmitting}>
                  {plans.map((plan) => (
                     <div key={plan.id}>
-                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isUserLoading || isSubmitting} />
+                        <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isSubmitting} />
                         <PlanCard 
                             plan={plan}
                             billingCycle={billingCycle}
@@ -189,8 +138,8 @@ export default function PlansPage() {
             </RadioGroup>
             
             <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
-              {(isUserLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isUserLoading ? 'Loading...' : isSubmitting ? 'Saving...' : 'Start Free Trial'}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'Saving...' : 'Start Free Trial'}
             </Button>
         </CardContent>
       </Card>

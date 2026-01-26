@@ -6,58 +6,22 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { useUser, useFirestore, useDoc, useMemoFirebase, useFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
-import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
 
-interface UserProfile {
-    displayName?: string;
-    role?: string;
-}
+// This layout has been stripped of its authentication logic for UI prototyping.
+// In a real application, this would fetch the user's profile and protect the route.
 
 export default function InvestorDashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const firestore = useFirestore();
-    const { user, isUserLoading, auth } = useFirebase();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return doc(firestore, 'users', user.uid);
-    }, [firestore, user]);
-
-    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.replace('/login');
-        } else if (!isProfileLoading && userProfile?.role !== 'Investor') {
-            // If user is logged in but not an investor, redirect them away
-            router.replace('/owner/home'); 
-        }
-    }, [user, isUserLoading, userProfile, isProfileLoading, router]);
-
 
     const handleSignOut = async () => {
-        if (auth) {
-            await signOut(auth);
-        }
+        // Simulate sign out
         router.push('/login');
     };
     
-    const name = userProfile?.displayName || '';
-    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-
-    if (isUserLoading || isProfileLoading || !user || userProfile?.role !== 'Investor') {
-        return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
+    const name = 'Tunde Oladipo';
+    const initials = 'TO';
 
     return (
         <div className="flex flex-col min-h-screen bg-background">
