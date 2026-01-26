@@ -42,44 +42,50 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        if (user && firestore) {
-            const batch = writeBatch(firestore);
+        const batch = writeBatch(firestore);
 
-            // 1. Create business document with a generated ID
-            const businessDocRef = doc(collection(firestore, 'businesses'));
-            const businessData = {
-                id: businessDocRef.id,
-                ownerId: user.uid,
-                businessName: `${name}'s Business`, // Placeholder name
-                createdAt: serverTimestamp()
-            };
-            batch.set(businessDocRef, businessData);
+        // 1. Create business document with a generated ID
+        const businessDocRef = doc(collection(firestore, 'businesses'));
+        const businessData = {
+            id: businessDocRef.id,
+            ownerId: user.uid,
+            businessName: `${name}'s Business`, // Placeholder name
+            createdAt: serverTimestamp()
+        };
+        batch.set(businessDocRef, businessData);
 
-            // 2. Create user document, linking it to the new business
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userData = {
-                id: user.uid,
-                displayName: name,
-                email: user.email,
-                phoneNumber: phoneNumber,
-                role: 'Owner',
-                businessId: businessDocRef.id
-            };
-            batch.set(userDocRef, userData);
-            
-            // 3. Commit the batch write
-            await batch.commit();
+        // 2. Create user document, linking it to the new business
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userData = {
+            id: user.uid,
+            displayName: name,
+            email: user.email,
+            phoneNumber: phoneNumber,
+            role: 'Owner',
+            businessId: businessDocRef.id
+        };
+        batch.set(userDocRef, userData);
+        
+        // 3. Commit the batch write
+        await batch.commit();
 
-            toast({ title: "Account Created!", description: "Let's set up your business." });
-            router.push('/business-info');
-        }
+        toast({ title: "Account Created!", description: "Let's set up your business." });
+        router.push('/business-info');
 
     } catch (error: any) {
         let description = 'An unexpected error occurred. Please try again.';
-        if (error.code === 'auth/email-already-in-use') {
-            description = 'This email address is already in use. Please log in or use a different email.';
-        } else if (error.code === 'auth/invalid-email') {
-            description = 'Please enter a valid email address.';
+        if (error.code) { // Check if it's a Firebase error
+            switch(error.code) {
+                case 'auth/email-already-in-use':
+                    description = 'This email address is already in use. Please log in or use a different email.';
+                    break;
+                case 'auth/invalid-email':
+                    description = 'Please enter a valid email address.';
+                    break;
+                case 'permission-denied':
+                    description = 'There was a problem setting up your account due to a permissions issue. Please check your network and try again.';
+                    break;
+            }
         }
         toast({
             variant: "destructive",
