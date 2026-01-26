@@ -1,15 +1,11 @@
-'use client';
 
 import InvestorLayout from '@/components/app/investor-layout';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Building } from 'lucide-react';
-import { useParams } from 'next/navigation';
 
-
-export default function BusinessProfilePage() {
-    const params = useParams();
-    const businessId = params.businessId as string;
+export default function BusinessProfilePage({ params }: { params: { businessId: string } }) {
+    const businessId = params.businessId;
     
     return (
         <InvestorLayout>
