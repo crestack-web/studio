@@ -56,6 +56,7 @@ service cloud.firestore {
       match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /invitations/{invitationId} { allow read, write: if isBusinessOwner(businessId); }
 
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
@@ -93,12 +94,6 @@ service cloud.firestore {
     match /supportTickets/{ticketId} {
         allow create: if isSignedIn();
         allow read, write: if false; 
-    }
-    
-    match /invitations/{invitationId} {
-      allow get, delete: if isSignedIn() && request.auth.token.email == resource.data.email;
-      allow create: if isBusinessOwner(request.resource.data.businessId);
-      allow list: if isBusinessMember(request.query.get("businessId"));
     }
   }
 }

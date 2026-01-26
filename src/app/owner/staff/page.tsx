@@ -77,7 +77,7 @@ export default function ManageStaffPage() {
 
     const invitationsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return query(collection(firestore, 'invitations'), where('businessId', '==', businessId));
+        return query(collection(firestore, `businesses/${businessId}/invitations`));
     }, [firestore, businessId]);
     const { data: pendingInvitations, isLoading: isLoadingInvitations } = useCollection<StaffInvitation>(invitationsQuery);
 
@@ -97,7 +97,7 @@ export default function ManageStaffPage() {
 
         setIsInviting(true);
         try {
-            const invitationRef = doc(firestore, 'invitations', email);
+            const invitationRef = doc(firestore, `businesses/${businessId}/invitations`, email);
             await setDocumentNonBlocking(invitationRef, {
                 email: email,
                 businessId: businessId,
@@ -116,8 +116,8 @@ export default function ManageStaffPage() {
     };
 
     const handleRevokeInvite = async (invitationId: string) => {
-        if (!firestore) return;
-        const invitationRef = doc(firestore, 'invitations', invitationId);
+        if (!firestore || !businessId) return;
+        const invitationRef = doc(firestore, `businesses/${businessId}/invitations`, invitationId);
         await deleteDocumentNonBlocking(invitationRef);
         toast({ title: 'Invitation Revoked', description: `The invitation for ${invitationId} has been revoked.` });
     };
