@@ -3,186 +3,102 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ----------------------------------------------------------------
-    // Helper Functions
-    // ----------------------------------------------------------------
-
-    /**
-     * isSignedIn
-     * Checks if the user is authenticated.
-     */
+    // --- HELPER FUNCTIONS ---
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * isOwner
-     * Checks if the authenticated user's UID matches the provided userId.
-     * Used for resources that are strictly owned by a single user.
-     */
-    function isOwner(userId) {
+    function isUserOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    /**
-     * getUserData
-     * Safely retrieves the user's document data from the top-level /users collection.
-     * This is the cornerstone of the security model, avoiding recursive lookups.
-     */
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    /**
-     * isMemberOfBusiness
-     * Checks if the currently authenticated user belongs to the specified business.
-     * It does this by reading the businessId from the user's own profile document.
-     */
-    function isMemberOfBusiness(businessId) {
-      return isSignedIn() && getUserData(request.auth.uid).businessId == businessId;
-    }
-    
-    /**
-     * isOwnerOfBusiness
-     * Checks if the currently authenticated user is an 'Owner' of the specified business.
-     */
-    function isOwnerOfBusiness(businessId) {
-      let userData = getUserData(request.auth.uid);
+    function isBusinessOwner(businessId) {
+      let userData = getUserData();
       return isSignedIn() && userData.businessId == businessId && userData.role == 'Owner';
     }
 
-    /**
-     * isExistingDoc
-     * Checks if a document currently exists. Crucial for safe update/delete operations.
-     */
-    function isExistingDoc() {
-      return resource != null;
+    function isBusinessMember(businessId) {
+      let userData = getUserData();
+      return isSignedIn() && userData.businessId == businessId;
+    }
+
+    // --- MAIN COLLECTIONS ---
+    match /users/{userId} {
+      // Signup: A user can create their own profile document.
+      allow create: if isUserOwner(userId) && request.resource.data.id == userId;
+      
+      // Read/Update: A user can only read and update their own profile.
+      // Role or businessId cannot be changed from the client.
+      allow get: if isUserOwner(userId);
+      allow update: if isUserOwner(userId) 
+                      && request.resource.data.role == resource.data.role
+                      && request.resource.data.businessId == resource.data.businessId;
+      
+      allow list, delete: if false;
+    }
+
+    match /businesses/{businessId} {
+      // Signup: A user can create a business if they are the owner.
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      
+      // Access: Business members can read, only owners can update.
+      allow get: if isBusinessMember(businessId);
+      allow update: if isBusinessOwner(businessId);
+      
+      allow list, delete: if false;
+
+      // Subcollections
+      match /products/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
+
+      match /orders/{orderId} {
+        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId);
+        allow update, list: if isBusinessMember(businessId);
+        allow delete: if false;
+      }
     }
     
-    // --- Data Validation Functions ---
-
-    /**
-     * hasValidBusinessIdOnCreate
-     * On create, ensures the new document's internal `businessId` field matches
-     * the businessId from the collection path.
-     */
-    function hasValidBusinessIdOnCreate(businessId) {
-      return request.resource.data.businessId == businessId;
+    // --- MARKETPLACE & OTHER COLLECTIONS ---
+    match /businessProfiles/{businessId} {
+      allow get, list: if true;
+      allow create, update, delete: if isBusinessOwner(businessId);
+    }
+    
+    match /marketProducts/{productId} {
+      allow get, list: if true;
+      allow create: if isBusinessOwner(request.resource.data.businessId);
+      allow update: if isBusinessOwner(resource.data.businessId) || isBusinessOwner(request.resource.data.businessId);
+      allow delete: if isBusinessOwner(resource.data.businessId);
     }
 
-    /**
-     * isPreservingBusinessIdOnUpdate
-     * On update, ensures the `businessId` field cannot be changed.
-     */
-    function isPreservingBusinessIdOnUpdate() {
-      return request.resource.data.businessId == resource.data.businessId;
+    match /reviews/{reviewId} {
+      allow read, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
-    /**
-     * hasValidCreatorIdOnCreate
-     * On create, ensures a document's `userId` field is set to the creator's UID.
-     */
-    function hasValidCreatorIdOnCreate() {
-      return request.resource.data.userId == request.auth.uid;
+    match /blogs/{blogId} {
+        allow read, list: if true;
+        allow write: if false; 
     }
 
-    /**
-     * isPreservingCreatorIdOnUpdate
-     * On update, ensures the original creator `userId` field cannot be changed.
-     */
-    function isPreservingCreatorIdOnUpdate() {
-      return request.resource.data.userId == resource.data.userId;
+    match /supportTickets/{ticketId} {
+        allow create: if isSignedIn();
+        allow read, write: if false; 
     }
-
-    // ----------------------------------------------------------------
-    // Collection Rules
-    // ----------------------------------------------------------------
-
-    /**
-     * @description   Controls access to user profile documents. This is the source of truth for roles and business IDs.
-     * @path          /users/{userId}
-     * @allow         (get, update) A user can read and update their own profile. Role escalation is prevented.
-     * @allow         (create) A user can create their own profile document.
-     * @deny          (list, delete) Listing all users or deleting users is disabled from the client for security.
-     * @principle     Strict ownership. A user manages their own document. This rule is non-recursive and safe.
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Allow update by owner, but prevent changing role unless done by an admin (future feature).
-      allow update: if isOwner(userId) && (request.resource.data.role == resource.data.role); 
-      allow list, delete: if false;
-
-      /**
-       * @description Manages staff permission settings. These are private to a user (business owner).
-       * @path        /users/{userId}/staff_permissions/{staffPermissionId}
-       * @principle   Strict Ownership. Only the user identified in the path can access documents in this collection.
-       */
-      match /staff_permissions/{staffPermissionId} {
-        allow read, write: if isOwner(userId);
-      }
-    }
-
-    /**
-     * @description   Controls access to the main business document and its subcollections.
-     * @path          /businesses/{businessId}
-     * @principle     Membership-based access. Rules use `isMemberOfBusiness` and `isOwnerOfBusiness`
-     *                which safely `get()` data from the `/users` collection.
-     */
-    match /businesses/{businessId} {
-      allow get: if isMemberOfBusiness(businessId);
-      // Allow a user to create a business document if they set themselves as the owner.
-      // This is essential for the sign-up flow.
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isOwnerOfBusiness(businessId) && isExistingDoc();
-      // Listing and deleting entire businesses is disabled from the client.
-      allow list, delete: if false;
-
-      /**
-       * @description   Manages the product inventory for a business.
-       * @path          /businesses/{businessId}/products/{productId}
-       * @principle     Shared Access model where all members of a business can manage the shared product list.
-       */
-      match /products/{productId} {
-        allow read: if isMemberOfBusiness(businessId);
-        allow write: if isMemberOfBusiness(businessId); // create, update, delete
-      }
-
-      /**
-       * @description   Manages sales records for a business.
-       * @path          /businesses/{businessId}/sales/{saleId}
-       * @principle     Allows all members to create records but protects historical data integrity by restricting lists and modifications to the owner.
-       */
-      match /sales/{saleId} {
-        allow get: if isMemberOfBusiness(businessId);
-        allow list: if isOwnerOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
-        allow update, delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
-      }
-      
-      /**
-        * @description  Manages expenses, deposits, and withdrawals.
-        * @path         /businesses/{businessId}/(expenses|transactions)/{docId}
-        * @principle    Unified write access for members, read access for owners.
-        */
-      match /(expenses|transactions)/{docId} {
-        allow read, list: if isOwnerOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId);
-        allow update, delete: if isOwnerOfBusiness(businessId) && isExistingDoc();
-      }
-
-      /**
-       * @description   Stores AI-powered questions and answers for a business.
-       * @path          /businesses/{businessId}/ai_questions/{aiQuestionId}
-       * @principle     Promotes collaboration by allowing shared reading, while write access is restricted to the creator or business owner.
-       */
-      match /ai_questions/{aiQuestionId} {
-        allow read, list: if isMemberOfBusiness(businessId);
-        allow create: if isMemberOfBusiness(businessId) && hasValidBusinessIdOnCreate(businessId) && hasValidCreatorIdOnCreate();
-        // Allow the user who created it OR the business owner to update/delete.
-        allow update: if isOwnerOfBusiness(businessId) || (isOwner(resource.data.userId) && isPreservingCreatorIdOnUpdate());
-        allow delete: if isOwnerOfBusiness(businessId) || isOwner(resource.data.userId);
-      }
+    
+    match /invitations/{invitationId} {
+      allow get, delete: if isSignedIn() && request.auth.token.email == resource.data.email;
+      allow create: if isBusinessOwner(request.resource.data.businessId);
+      allow list: if isBusinessMember(request.query.get("businessId"));
     }
   }
 }

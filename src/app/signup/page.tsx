@@ -44,17 +44,15 @@ export default function SignUpPage() {
 
         const batch = writeBatch(firestore);
 
-        // 1. Create business document with a generated ID
         const businessDocRef = doc(collection(firestore, 'businesses'));
         const businessData = {
             id: businessDocRef.id,
             ownerId: user.uid,
-            businessName: `${name}'s Business`, // Placeholder name
+            businessName: `${name}'s Business`,
             createdAt: serverTimestamp()
         };
         batch.set(businessDocRef, businessData);
 
-        // 2. Create user document, linking it to the new business
         const userDocRef = doc(firestore, 'users', user.uid);
         const userData = {
             id: user.uid,
@@ -66,15 +64,16 @@ export default function SignUpPage() {
         };
         batch.set(userDocRef, userData);
         
-        // 3. Commit the batch write
         await batch.commit();
 
         toast({ title: "Account Created!", description: "Let's set up your business." });
         router.push('/business-info');
 
     } catch (error: any) {
-        let description = 'An unexpected error occurred. Please try again.';
-        if (error.code) { // Check if it's a Firebase error
+        console.error("Sign up failed:", error);
+        let description = error.message || 'An unexpected error occurred. Please try again.';
+
+        if (error.code) {
             switch(error.code) {
                 case 'auth/email-already-in-use':
                     description = 'This email address is already in use. Please log in or use a different email.';
@@ -83,10 +82,11 @@ export default function SignUpPage() {
                     description = 'Please enter a valid email address.';
                     break;
                 case 'permission-denied':
-                    description = 'There was a problem setting up your account due to a permissions issue. Please check your network and try again.';
+                    description = 'A security permission error occurred while setting up your account. Please contact support.';
                     break;
             }
         }
+        
         toast({
             variant: "destructive",
             title: "Sign Up Failed",
