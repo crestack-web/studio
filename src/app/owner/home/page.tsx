@@ -95,14 +95,16 @@ export default function OwnerHomePage({ searchParams }: { searchParams: { [key: 
     const [ticketMessage, setTicketMessage] = useState('');
     const [showWelcome, setShowWelcome] = useState(false);
 
+    const onboardingComplete = searchParams?.onboarding === 'complete';
+
     useEffect(() => {
-        if (searchParams?.onboarding === 'complete') {
+        if (onboardingComplete) {
             setShowWelcome(true);
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.delete('onboarding');
             window.history.replaceState({}, '', currentUrl.toString());
         }
-    }, [searchParams]);
+    }, [onboardingComplete]);
     
     useEffect(() => {
         const allQuestions = [
