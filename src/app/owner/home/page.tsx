@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo, useEffect, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useEffect, FormEvent, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -68,34 +68,34 @@ interface Transaction {
     createdAt: Timestamp;
 }
 
-
-export default function OwnerHomePage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+function OwnerHomeContent() {
     const router = useRouter();
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const onboardingComplete = searchParams.get('onboarding') === 'complete';
+
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-    const [aiCache, setAiCache] = useState<Record<string, string>>({});
-    const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
+    const [aiCache, setAiCache = useState<Record<string, string>>({});
+    const [presetQuestions, setPresetQuestions = useState<string[]>([]);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
     const auth = useAuth();
     
-    const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
-    const [chatMessages, setChatMessages] = useState([
+    const [chatView, setChatView = useState('initial'); // 'initial', 'chat', 'ticket'
+    const [chatMessages, setChatMessages = useState([
         {
         id: '1',
         sender: 'support',
         text: 'Hi there! How can I help you today?',
         }
     ]);
-    const [chatInput, setChatInput] = useState('');
-    const [ticketSubject, setTicketSubject] = useState('');
-    const [ticketMessage, setTicketMessage] = useState('');
-    const [showWelcome, setShowWelcome] = useState(false);
-
-    const onboardingComplete = searchParams?.onboarding === 'complete';
+    const [chatInput, setChatInput = useState('');
+    const [ticketSubject, setTicketSubject = useState('');
+    const [ticketMessage, setTicketMessage = useState('');
+    const [showWelcome, setShowWelcome = useState(false);
 
     useEffect(() => {
         if (onboardingComplete) {
@@ -432,7 +432,7 @@ export default function OwnerHomePage({ searchParams }: { searchParams: { [key: 
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
                         <Activity className="w-6 h-6 text-primary" />
                         <span>Business Health</span>
                     </CardTitle>
@@ -782,4 +782,18 @@ export default function OwnerHomePage({ searchParams }: { searchParams: { [key: 
       </Sheet>
     </div>
   );
+}
+
+export default function OwnerHomePageWrapper() {
+  return (
+    <Suspense fallback={
+        <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+            <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+        </div>
+    }>
+      <OwnerHomePage />
+    </Suspense>
+  )
 }
