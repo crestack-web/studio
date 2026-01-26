@@ -139,8 +139,8 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
       // Investor or business owner can update the status
       allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
-      // Allow investors to list their own investments (query is secured on client)
-      allow list: if isSignedIn();
+      // Allow investors to list their own investments.
+      allow list: if isSignedIn() && request.query.get("investorId") == request.auth.uid;
       // Investor can delete their own investment intent; admin can also delete.
       allow delete: if isAdmin() || (isSignedIn() && resource.data.investorId == request.auth.uid);
     }
