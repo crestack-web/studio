@@ -34,7 +34,6 @@ export default function StaffLoginPage() {
           description: `A sign-in link has been sent to ${email}.`,
       });
     } catch(error: any) {
-      console.error(error);
       toast({
           variant: "destructive",
           title: "Login Failed",

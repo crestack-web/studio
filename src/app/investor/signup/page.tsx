@@ -55,7 +55,6 @@ export default function InvestorSignUpPage() {
           router.push('/investor/dashboard');
       }
     } catch (error: any) {
-        console.error(error);
         let description = 'An unexpected error occurred. Please try again.';
         if (error.code === 'auth/email-already-in-use') {
             description = 'This email address is already in use by another account.';

@@ -28,7 +28,6 @@ export default function InvestorLoginPage() {
       toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
       router.replace('/investor/dashboard');
     } catch (error: any) {
-      console.error(error);
       let description = "An unexpected error occurred. Please try again.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           description = "Invalid email or password. Please try again.";
