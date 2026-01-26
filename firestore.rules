@@ -54,12 +54,20 @@ service cloud.firestore {
 
     // --- USER & ADMIN PROFILES ---
     match /users/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Stricter create rule to prevent race conditions during onboarding.
+      // A user profile can only be created if it contains the essential fields.
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+                  'role' in request.resource.data &&
+                  'displayName' in request.resource.data &&
+                  'email' in request.resource.data;
+
       allow get: if (isSignedIn() && request.auth.uid == userId) || isAdmin() || (getBusinessIdForCurrentUser() != null && get(/databases/$(database)/documents/users/$(userId)).data.businessId == getBusinessIdForCurrentUser());
-      // Allow updates to a user's own document, but prevent changes to immutable fields like role, email, or id.
-      // This is critical for the onboarding flow where `businessId` is added.
+      
+      // This update rule is now safe because a partial document cannot be created.
+      // It correctly allows adding `businessId` while protecting immutable fields.
       allow update: if isSignedIn() && request.auth.uid == userId &&
                   !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email', 'id']);
+                  
       allow list: if (isSignedIn() && getBusinessIdForCurrentUser() != null && request.query.get("businessId") == getBusinessIdForCurrentUser()) || isAdmin();
       allow delete: if isAdmin();
     }
