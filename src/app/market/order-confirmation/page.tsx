@@ -1,7 +1,6 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,13 +16,12 @@ type MarketSettings = { payment: { bankName?: string; accountNumber?: string; pa
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
 interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; }
 
-const OrderConfirmationContent = () => {
-    const searchParams = useSearchParams();
+const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) => {
     const { toast } = useToast();
     const firestore = useFirestore();
     
-    const orderId = searchParams.get('orderId');
-    const businessId = searchParams.get('businessId');
+    const orderId = searchParams?.orderId as string;
+    const businessId = searchParams?.businessId as string;
     
     const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
@@ -91,11 +89,11 @@ const OrderConfirmationContent = () => {
     );
 };
 
-export default function OrderConfirmationPage() {
+export default function OrderConfirmationPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     return (
         <MarketLayout>
             <Suspense fallback={<div>Loading...</div>}>
-                <OrderConfirmationContent />
+                <OrderConfirmationContent searchParams={searchParams} />
             </Suspense>
         </MarketLayout>
     );

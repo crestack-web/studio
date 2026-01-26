@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useMemo, useEffect, FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -69,9 +69,8 @@ interface Transaction {
 }
 
 
-export default function OwnerHomePage() {
+export default function OwnerHomePage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +96,7 @@ export default function OwnerHomePage() {
     const [showWelcome, setShowWelcome] = useState(false);
 
     useEffect(() => {
-        if (searchParams.get('onboarding') === 'complete') {
+        if (searchParams?.onboarding === 'complete') {
             setShowWelcome(true);
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.delete('onboarding');

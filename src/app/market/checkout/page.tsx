@@ -3,7 +3,7 @@
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -39,10 +39,9 @@ type CheckoutItem = {
 };
 
 
-const CheckoutContent = () => {
+const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) => {
     const router = useRouter();
     const { toast } = useToast();
-    const searchParams = useSearchParams();
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
     const { items: cartItems, clearCart } = useCart();
@@ -60,9 +59,9 @@ const CheckoutContent = () => {
 
     // This effect determines what's in the checkout. It can be a single item ("Buy Now") or the whole cart.
     useEffect(() => {
-        const productId = searchParams.get('productId');
-        const variantId = searchParams.get('variantId');
-        const quantityStr = searchParams.get('quantity');
+        const productId = searchParams?.productId as string | undefined;
+        const variantId = searchParams?.variantId as string | undefined;
+        const quantityStr = searchParams?.quantity as string | undefined;
 
         const fetchProductData = async (pId: string, vId: string | null, qty: number) => {
             if (!firestore) return;
@@ -87,7 +86,7 @@ const CheckoutContent = () => {
         };
         
         if (productId && quantityStr) { // "Buy Now" flow
-            fetchProductData(productId, searchParams.get('variantId'), parseInt(quantityStr, 10));
+            fetchProductData(productId, variantId, parseInt(quantityStr, 10));
         } else if (cartItems.length > 0) { // "Cart Checkout" flow
             const items: CheckoutItem[] = cartItems.map(item => ({
                 productId: item.id,
@@ -258,11 +257,11 @@ const CheckoutContent = () => {
     );
 }
 
-export default function CheckoutPage() {
+export default function CheckoutPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     return (
         <MarketLayout>
             <Suspense fallback={<div>Loading...</div>}>
-                <CheckoutContent />
+                <CheckoutContent searchParams={searchParams} />
             </Suspense>
         </MarketLayout>
     );
