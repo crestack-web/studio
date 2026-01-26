@@ -19,6 +19,7 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 interface Ingredient {
     name: string;
