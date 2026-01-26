@@ -174,15 +174,13 @@ function OwnerHomeContent() {
 
         // Only run this logic if the user is authenticated
         if (authUser) {
-            const { businessName, businessType, currency, plan } = businessData;
+            const { businessName, businessType, plan } = businessData;
             
             // If plan is already set, onboarding is complete, do nothing.
             if (plan) return;
 
             if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
                 router.replace('/business-info');
-            } else if (!currency) {
-                router.replace('/currency');
             } else if (!plan) {
                 router.replace('/plans');
             }
