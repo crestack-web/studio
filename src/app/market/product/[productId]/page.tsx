@@ -25,13 +25,18 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const createSlug = (name: string) => {
     if (!name) return '';
-    return name
+    const slug = name
         .toLowerCase()
         .replace(/&/g, 'and')
         .replace(/[^a-z0-9\s-]/g, '') // remove special chars
         .trim()
         .replace(/\s+/g, '-') // replace spaces with -
-        .replace(/-+/g, '-'); // replace multiple hyphens with a single one
+        .replace(/-+/g, '-');
+    
+    if (!slug) {
+        return Math.random().toString(36).substring(2, 10);
+    }
+    return slug;
 };
 
 interface Variant { 

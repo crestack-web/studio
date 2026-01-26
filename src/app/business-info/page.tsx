@@ -7,20 +7,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
 import { markets } from '@/lib/currency';
 
 const createSlug = (name: string) => {
-    return name
+    const slug = name
         .toLowerCase()
         .replace(/&/g, 'and')
         .replace(/[^a-z0-9\s-]/g, '') // remove special chars
         .trim()
         .replace(/\s+/g, '-') // replace spaces with -
         .replace(/-+/g, '-'); // replace multiple hyphens with a single one
+
+    if (!slug) {
+        // If the name resulted in an empty slug (e.g., name was just "!!"), generate a random one
+        return Math.random().toString(36).substring(2, 10);
+    }
+    return slug;
 };
 
 
