@@ -35,6 +35,12 @@
       "description": "Stacked boxes of goods in a warehouse, representing stock for wholesale.",
       "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "warehouse boxes"
+    },
+    {
+      "id": "ai-feature-image",
+      "description": "An abstract image representing artificial intelligence with glowing nodes and connections.",
+      "imageUrl": "https://images.unsplash.com/photo-1535223289827-42f1e9919769?q=80&w=1080&auto=format&fit=crop",
+      "imageHint": "artificial intelligence"
     }
   ],
   "productImages": [

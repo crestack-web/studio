@@ -124,6 +124,8 @@ export default function LandingPage() {
     { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
   ];
 
+  const aiFeatureImage = PlaceHolderImages.find(img => img.id === 'ai-feature-image');
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -396,40 +398,14 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
-            <div className="space-y-4">
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-accent"/>
-                    <span>{t('welcome.ai_q1')}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-primary font-medium">{t('welcome.ai_a1')}</p>
-                </CardContent>
-              </Card>
-               <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-accent"/>
-                    <span>{t('welcome.ai_q2')}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-success font-medium">{t('welcome.ai_a2')}</p>
-                </CardContent>
-              </Card>
-                 <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-accent"/>
-                    <span>{t('welcome.ai_q3')}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-warning font-medium">{t('welcome.ai_a3')}</p>
-                </CardContent>
-              </Card>
+            <div className="relative aspect-square rounded-lg overflow-hidden shadow-xl">
+              {aiFeatureImage && <Image 
+                src={aiFeatureImage.imageUrl}
+                alt={aiFeatureImage.description}
+                fill
+                className="object-cover"
+                data-ai-hint={aiFeatureImage.imageHint}
+              />}
             </div>
           </div>
         </section>
