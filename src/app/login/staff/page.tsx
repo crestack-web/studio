@@ -51,6 +51,8 @@ export default function StaffLoginPage() {
       let description = "Could not send login link. Please check the email and try again.";
       if (error.code === 'auth/invalid-email') {
           description = 'Please enter a valid email address.';
+      } else if (error.code === 'auth/quota-exceeded') {
+          description = 'The daily quota for sending email links has been exceeded. Please try again tomorrow.';
       }
       toast({
           variant: "destructive",
