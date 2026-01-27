@@ -323,7 +323,7 @@ function OwnerHomeContent() {
         setChatView('initial');
     };
 
-    const canManageStaff = businessData?.plan && businessData.plan !== 'shop';
+    const canManageStaff = true;
     
     const isLoadingData = isLoadingSales || isLoadingTransactions;
 

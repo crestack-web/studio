@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -82,8 +81,7 @@ export default function ManageStaffPage() {
     const { data: pendingInvitations, isLoading: isLoadingInvitations } = useCollection<StaffInvitation>(invitationsQuery);
 
 
-    const userPlan = businessData?.plan || 'shop';
-    const canManageStaff = userPlan === 'supermarket' || userPlan === 'multi-branch' || userPlan === 'company';
+    const canManageStaff = true;
 
     const handleSendInvite = async () => {
         if (!email) {
@@ -144,7 +142,7 @@ export default function ManageStaffPage() {
                     </Alert>
                 )}
                 
-                <Card className={!canManageStaff ? 'opacity-50 pointer-events-none' : ''}>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>Staff Members</CardTitle>
@@ -152,7 +150,7 @@ export default function ManageStaffPage() {
                         </div>
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
-                                <Button disabled={!canManageStaff}>
+                                <Button>
                                     <UserPlus className="mr-2 h-4 w-4" />
                                     Invite Staff
                                 </Button>

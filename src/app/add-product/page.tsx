@@ -92,7 +92,7 @@ export default function AddProductPage() {
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
 
-    const canManufacture = businessData?.plan === 'company';
+    const canManufacture = true;
     const deliverySettingsConfigured = !!businessData?.deliveryType;
 
 
@@ -447,7 +447,7 @@ export default function AddProductPage() {
                                 <AlertTitle>Delivery Settings Required</AlertTitle>
                                 <AlertDescription>
                                     You must configure your delivery settings before you can list products on the market.
-                                    <Button asChild variant="link" className="p-0 h-auto ml-1"><Link href="/owner/market">Go to Settings</Link></Button>
+                                    <Button asChild variant="link" className="p-0 h-auto ml-1"><Link href="/owner/market?section=settings">Go to Settings</Link></Button>
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -506,5 +506,3 @@ export default function AddProductPage() {
         </MainLayout>
     );
 }
-
-    

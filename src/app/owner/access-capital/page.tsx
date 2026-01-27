@@ -68,7 +68,7 @@ export default function AccessCapitalPage() {
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
     
-    const canAccessEquity = businessData?.plan === 'company';
+    const canAccessEquity = true;
 
     const handleAccept = () => {
         if (!offerToAccept) return;
