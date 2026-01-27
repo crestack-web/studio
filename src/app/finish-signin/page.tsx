@@ -39,7 +39,10 @@ export default function FinishSignInPage() {
                 setError("This is not a valid sign-in link.");
             }
         };
-        finishSignIn();
+
+        if (auth) {
+            finishSignIn();
+        }
     }, [auth, router, toast]);
 
     if (error) {

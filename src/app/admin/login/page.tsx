@@ -32,6 +32,7 @@ export default function AdminLoginPage() {
           description: `A sign-in link has been sent to ${email}.`,
       });
     } catch(error: any) {
+      console.error("Failed to send sign-in link:", error);
       let description = "Could not send login link. Please check the email and try again.";
       if (error.code === 'auth/invalid-email') {
           description = 'Please enter a valid email address.';
