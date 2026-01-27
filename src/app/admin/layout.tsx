@@ -29,7 +29,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Don't redirect until we have all the user info.
-    if (isUserLoading || isProfileLoading) {
+    if (isUserLoading || (user && isProfileLoading)) {
       return;
     }
 
@@ -47,7 +47,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
   }, [user, isUserLoading, userProfile, isProfileLoading, pathname]);
 
   // While we're checking, show a loading state.
-  if ((isUserLoading || (user && isProfileLoading)) && pathname !== '/admin/login') {
+  if ((isUserLoading || (user && isProfileLoading))) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -74,8 +74,8 @@ export default function AdminLayout({
     { id: 'support', label: 'Support', href: '/admin/support', icon: Mail },
   ];
   
-  // The login page should not have the sidebar.
-  if (pathname === '/admin/login') {
+  // The login and finish-signin pages should not have the sidebar or be protected.
+  if (pathname === '/admin/login' || pathname === '/admin/finish-signin') {
     return <>{children}</>;
   }
 
