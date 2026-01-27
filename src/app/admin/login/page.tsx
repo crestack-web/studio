@@ -17,14 +17,13 @@ export default function AdminLoginPage() {
   const { toast } = useToast();
   const auth = useAuth();
 
-  const actionCodeSettings = {
-    url: `${window.location.origin}/admin/finish-signin`, // URL to redirect to after email verification
-    handleCodeInApp: true,
-  };
-
   const handleSendLink = async () => {
     setIsLoading(true);
     try {
+      const actionCodeSettings = {
+        url: `${window.location.origin}/admin/finish-signin`, // URL to redirect to after email verification
+        handleCodeInApp: true,
+      };
       window.localStorage.setItem('emailForSignIn', email);
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       setIsEmailSent(true);
