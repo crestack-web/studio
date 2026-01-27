@@ -100,9 +100,8 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
 );
 
 
-export default function ProductDetailPage({ params }: { params: { productId: string } }) {
+export default function ProductDetailPage({ params: { productId } }: { params: { productId: string } }) {
     const router = useRouter();
-    const productId = params.productId as string;
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
     const { addItem } = useCart();
