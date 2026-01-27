@@ -133,13 +133,13 @@ export default function MarketPage() {
     // Query for banners
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
+        return query(collection(firestore, 'marketBanners'));
     }, [firestore]);
     const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketCategories'), orderBy('name', 'asc'));
+        return query(collection(firestore, 'marketCategories'));
     }, [firestore]);
     const { data: categories, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
 

@@ -15,7 +15,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -99,7 +99,7 @@ export default function AddProductPage() {
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketCategories'), orderBy('name', 'asc'));
+        return query(collection(firestore, 'marketCategories'));
     }, [firestore]);
     const { data: categoriesData, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
 

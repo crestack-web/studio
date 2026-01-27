@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp, doc, orderBy } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
 import { Loader2, Plus, FileEdit, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -36,7 +36,7 @@ export default function AdminCategoriesPage() {
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketCategories'), orderBy('name', 'asc'));
+        return query(collection(firestore, 'marketCategories'));
     }, [firestore]);
 
     const { data: categories, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
