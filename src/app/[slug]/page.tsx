@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -164,8 +163,9 @@ const RESERVED_PATHS = [
     'signup', 'staff', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
-export default function StoreSlugPage({ params: { slug } }: { params: { slug: string } }) {
+export default function StoreSlugPage({ params }: { params: { slug: string } }) {
     const firestore = useFirestore();
+    const { slug } = params;
 
     // Prevent this page from matching reserved routes like /login, /admin, etc.
     if (RESERVED_PATHS.includes(slug)) {
