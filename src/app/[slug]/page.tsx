@@ -165,17 +165,16 @@ const RESERVED_PATHS = [
 
 export default function StoreSlugPage({ params }: { params: { slug: string } }) {
     const firestore = useFirestore();
-    const { slug } = params;
 
     // Prevent this page from matching reserved routes like /login, /admin, etc.
-    if (RESERVED_PATHS.includes(slug)) {
+    if (RESERVED_PATHS.includes(params.slug)) {
         notFound();
     }
 
     const businessProfileQuery = useMemoFirebase(() => {
-        if (!firestore || !slug) return null;
-        return query(collection(firestore, 'businessProfiles'), where('slug', '==', slug), limit(1));
-    }, [firestore, slug]);
+        if (!firestore || !params.slug) return null;
+        return query(collection(firestore, 'businessProfiles'), where('slug', '==', params.slug), limit(1));
+    }, [firestore, params.slug]);
     
     const { data: businessData, isLoading } = useCollection<BusinessProfile>(businessProfileQuery);
     const businessProfile = businessData?.[0];
