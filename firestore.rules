@@ -61,7 +61,9 @@ service cloud.firestore {
       match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /invitations/{invitationId} { allow read, write: if isBusinessOwner(businessId); }
+      match /invitations/{invitationId} { 
+        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      }
 
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
