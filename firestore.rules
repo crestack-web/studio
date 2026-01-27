@@ -91,8 +91,13 @@ service cloud.firestore {
     match /marketProducts/{productId} {
       allow get, list: if true;
       allow create: if isOwner(request.resource.data.businessId);
-      allow update: if isOwner(resource.data.businessId) || isOwner(request.resource.data.businessId);
-      allow delete: if isOwner(resource.data.businessId);
+      allow update: if isOwner(resource.data.businessId) || isAdmin();
+      allow delete: if isOwner(resource.data.businessId) || isAdmin();
+    }
+    
+    match /marketBanners/{bannerId} {
+        allow read: if true;
+        allow write: if isAdmin();
     }
 
     match /reviews/{reviewId} {
@@ -109,7 +114,7 @@ service cloud.firestore {
 
     match /supportTickets/{ticketId} {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow read, write: if isAdmin();
+        allow read, write, list, delete: if isAdmin();
     }
   }
 }

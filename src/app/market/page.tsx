@@ -15,7 +15,7 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { PlaceHolderImages, CategoryImages } from '@/lib/placeholder-images';
+import { CategoryImages } from '@/lib/placeholder-images';
 import MarketLayout from '@/components/app/market-layout';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -37,10 +37,15 @@ interface MarketProduct {
     reviewCount?: number;
 }
 
-const heroBanners = [
-    { id: 'banner-clearance', title: 'Clearance Sale', subtitle: 'Up to 50% Off Select Items', image: PlaceHolderImages.find(i => i.id === 'sale-banner-1'), buttonText: 'Shop Now', className: "bg-orange-500" },
-    { id: 'banner-new', title: 'New Arrivals', subtitle: 'Fresh Picks for the New Season', image: PlaceHolderImages.find(i => i.id === 'sale-banner-2'), buttonText: 'Discover More', className: "bg-blue-500" },
-];
+interface MarketBanner {
+    id: string;
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    imageHint: string;
+    buttonText: string;
+    className: string;
+}
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
     const { addItem } = useCart();
@@ -119,6 +124,13 @@ export default function MarketPage() {
     const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Query for banners
+    const bannersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
+    }, [firestore]);
+    const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
+
     // Query for products available only in the specific city
     const cityProductsQuery = useMemoFirebase(() => {
         if (!firestore || !market.country || !market.city) return null;
@@ -230,25 +242,27 @@ export default function MarketPage() {
                 
                 {/* 1. Hero Banner */}
                 <section>
-                    <Carousel
-                        plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
-                        className="w-full"
-                    >
-                        <CarouselContent>
-                            {heroBanners.map(banner => (
-                                <CarouselItem key={banner.id}>
-                                    <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 text-primary-foreground", banner.className)}>
-                                        {banner.image && <Image src={banner.image.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.image.imageHint} />}
-                                        <div className="relative text-center z-10">
-                                            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
-                                            <p className="text-lg md:text-xl mt-2 text-primary-foreground/80">{banner.subtitle}</p>
-                                            <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
+                    {isLoadingBanners ? <Skeleton className="h-56 md:h-72 w-full rounded-lg" /> : (
+                        <Carousel
+                            plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                            className="w-full"
+                        >
+                            <CarouselContent>
+                                {heroBanners?.map(banner => (
+                                    <CarouselItem key={banner.id}>
+                                        <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 text-primary-foreground", banner.className)}>
+                                            {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.imageHint} />}
+                                            <div className="relative text-center z-10">
+                                                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
+                                                <p className="text-lg md:text-xl mt-2 text-primary-foreground/80">{banner.subtitle}</p>
+                                                <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </CarouselItem>
-                            ))}
-                        </CarouselContent>
-                    </Carousel>
+                                    </CarouselItem>
+                                ))}
+                            </CarouselContent>
+                        </Carousel>
+                    )}
                 </section>
                 
                 {/* 2. Quick Categories */}
