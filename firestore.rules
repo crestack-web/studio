@@ -20,9 +20,16 @@ service cloud.firestore {
       return isSignedIn() && getUserData().role == 'Admin';
     }
 
-    function isBusinessOwner(businessId) {
-      let userData = getUserData();
-      return isSignedIn() && userData.businessId == businessId && userData.role == 'Owner';
+    function isOwner(businessId) {
+      if (businessId == null || !isSignedIn()) {
+        return false;
+      }
+      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
+      if (!exists(businessDocPath)) {
+          return false;
+      }
+      let businessDoc = get(businessDocPath);
+      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
 
     function isBusinessMember(businessId) {
@@ -52,7 +59,7 @@ service cloud.firestore {
       
       // Access: Business members can read, only owners can update.
       allow get: if isBusinessMember(businessId);
-      allow update: if isBusinessOwner(businessId);
+      allow update: if isOwner(businessId);
       
       allow list, delete: if false;
 
@@ -76,14 +83,16 @@ service cloud.firestore {
     // --- MARKETPLACE & OTHER COLLECTIONS ---
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      allow create, update, delete: if isBusinessOwner(businessId);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(businessId) || isAdmin();
     }
     
     match /marketProducts/{productId} {
       allow get, list: if true;
-      allow create: if isBusinessOwner(request.resource.data.businessId);
-      allow update: if isBusinessOwner(resource.data.businessId) || isBusinessOwner(request.resource.data.businessId);
-      allow delete: if isBusinessOwner(resource.data.businessId);
+      allow create: if isOwner(request.resource.data.businessId);
+      allow update: if isOwner(resource.data.businessId) || isOwner(request.resource.data.businessId);
+      allow delete: if isOwner(resource.data.businessId);
     }
 
     match /reviews/{reviewId} {
