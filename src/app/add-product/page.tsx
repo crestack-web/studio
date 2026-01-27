@@ -11,11 +11,11 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -45,6 +45,11 @@ interface Business {
     country?: string;
     deliveryType?: 'nationwide' | 'cities';
     deliveryCities?: string[];
+}
+
+interface MarketCategory {
+    id: string;
+    name: string;
 }
 
 export default function AddProductPage() {
@@ -91,6 +96,12 @@ export default function AddProductPage() {
         return doc(firestore, `businesses/${businessId}`);
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
+
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketCategories'), orderBy('name', 'asc'));
+    }, [firestore]);
+    const { data: categoriesData, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
 
     const canManufacture = true;
     const deliverySettingsConfigured = !!businessData?.deliveryType;
@@ -478,16 +489,14 @@ export default function AddProductPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-category">Product Category</Label>
-                                    <Select onValueChange={setProductCategory} value={productCategory} disabled={isLoading}>
+                                    <Select onValueChange={setProductCategory} value={productCategory} disabled={isLoading || isLoadingCategories}>
                                         <SelectTrigger id="product-category">
-                                            <SelectValue placeholder="Select a category" />
+                                            <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="food">Food &amp; Groceries</SelectItem>
-                                            <SelectItem value="fashion">Fashion &amp; Apparel</SelectItem>
-                                            <SelectItem value="electronics">Electronics</SelectItem>
-                                            <SelectItem value="health">Health &amp; Beauty</SelectItem>
-                                            <SelectItem value="home">Home &amp; Garden</SelectItem>
+                                            {categoriesData?.map(cat => (
+                                                <SelectItem key={cat.id} value={cat.name.toLowerCase()}>{cat.name}</SelectItem>
+                                            ))}
                                             <SelectItem value="other">Other</SelectItem>
                                         </SelectContent>
                                     </Select>

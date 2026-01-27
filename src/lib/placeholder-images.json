@@ -75,55 +75,5 @@
       "imageHint": "plate food"
     }
   ],
-  "categoryImages": [
-    {
-      "id": "cat-groceries",
-      "name": "Groceries",
-      "description": "A variety of fresh groceries.",
-      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1080&auto=format&fit=crop",
-      "imageHint": "supermarket aisle"
-    },
-    {
-      "id": "cat-fashion",
-      "name": "Fashion",
-      "description": "Stylish clothing on a rack.",
-      "imageUrl": "https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1080&auto=format&fit=crop",
-      "imageHint": "fashion clothing"
-    },
-    {
-      "id": "cat-electronics",
-      "name": "Electronics",
-      "description": "Modern electronic gadgets like a laptop and phone.",
-      "imageUrl": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?q=80&w=1080&auto=format&fit=crop",
-      "imageHint": "electronic gadgets"
-    },
-    {
-      "id": "cat-home-office",
-      "name": "Home & Office",
-      "description": "A modern armchair in a cozy setting.",
-      "imageUrl": "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=800&auto=format&fit=crop",
-      "imageHint": "home decor"
-    },
-    {
-      "id": "cat-beauty",
-      "name": "Beauty",
-      "description": "A collection of makeup brushes and beauty products.",
-      "imageUrl": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=1080&auto=format&fit=crop",
-      "imageHint": "beauty products"
-    },
-    {
-      "id": "cat-sme-deals",
-      "name": "SME Deals",
-      "description": "A sale tag indicating special deals for small businesses.",
-      "imageUrl": "https://images.unsplash.com/photo-1556740758-90de374c12ad?q=80&w=800&auto=format&fit=crop",
-      "imageHint": "sale sign"
-    },
-    {
-      "id": "cat-wholesale",
-      "name": "Wholesale",
-      "description": "Stacked cardboard boxes ready for wholesale shipping.",
-      "imageUrl": "https://picsum.photos/seed/cat-wholesale/800/800",
-      "imageHint": "warehouse boxes"
-    }
-  ]
+  "categoryImages": []
 }

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, Zap, Truck, Store } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -15,7 +15,6 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CategoryImages } from '@/lib/placeholder-images';
 import MarketLayout from '@/components/app/market-layout';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +44,13 @@ interface MarketBanner {
     imageHint: string;
     buttonText: string;
     className: string;
+}
+
+interface MarketCategory {
+    id: string;
+    name: string;
+    imageUrl: string;
+    imageHint: string;
 }
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
@@ -130,6 +136,12 @@ export default function MarketPage() {
         return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
+
+    const categoriesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketCategories'), orderBy('name', 'asc'));
+    }, [firestore]);
+    const { data: categories, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
 
     // Query for products available only in the specific city
     const cityProductsQuery = useMemoFirebase(() => {
@@ -267,23 +279,33 @@ export default function MarketPage() {
                 
                 {/* 2. Quick Categories */}
                 <section>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
-                        {CategoryImages.map(category => (
-                            <Link href="#" key={category.id} className="block group">
-                                <div className="relative aspect-square overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
-                                    <Image
-                                        src={category.imageUrl}
-                                        alt={category.name || ''}
-                                        fill
-                                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                        data-ai-hint={category.imageHint}
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                    <p className="absolute bottom-2 left-2 right-2 text-center text-sm font-bold text-white truncate">{category.name}</p>
+                    {isLoadingCategories ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                            {[...Array(7)].map((_, i) => (
+                                <div key={i} className="block group">
+                                    <Skeleton className="aspect-square rounded-lg" />
                                 </div>
-                            </Link>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                            {categories?.map(category => (
+                                <Link href="#" key={category.id} className="block group">
+                                    <div className="relative aspect-square overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                        <Image
+                                            src={category.imageUrl}
+                                            alt={category.name || ''}
+                                            fill
+                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                            data-ai-hint={category.imageHint}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        <p className="absolute bottom-2 left-2 right-2 text-center text-sm font-bold text-white truncate">{category.name}</p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </section>
                 
                 {/* 3. Deals & Promotions */}
