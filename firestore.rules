@@ -16,6 +16,10 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'Admin';
+    }
+
     function isBusinessOwner(businessId) {
       let userData = getUserData();
       return isSignedIn() && userData.businessId == businessId && userData.role == 'Owner';
@@ -31,16 +35,15 @@ service cloud.firestore {
       // Signup: A user can create their own profile document.
       allow create: if isUserOwner(userId) && request.resource.data.id == userId;
       
-      // Read/Update: A user can only read and update their own profile.
-      // Role or businessId cannot be changed from the client.
-      allow get: if isUserOwner(userId);
+      // Read/Update: A user can only read and update their own profile. Admins can read any user.
+      allow get: if isUserOwner(userId) || isAdmin();
       allow update: if isUserOwner(userId) 
                       && request.resource.data.role == resource.data.role
                       && request.resource.data.businessId == resource.data.businessId;
       
       // Allow users to list other users only if they are querying for their own business.
-      allow list: if isSignedIn() && request.query.businessId == getUserData().businessId;
-      allow delete: if false;
+      allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /businesses/{businessId} {
@@ -90,12 +93,12 @@ service cloud.firestore {
 
     match /blogs/{blogId} {
         allow read, list: if true;
-        allow write: if false; 
+        allow write: if isAdmin(); 
     }
 
     match /supportTickets/{ticketId} {
-        allow create: if isSignedIn();
-        allow read, write: if false; 
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read, write: if isAdmin();
     }
   }
 }
