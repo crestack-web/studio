@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
             const userDocRef = doc(firestore, 'users', user.uid);
             const userDocSnap = await getDoc(userDocRef);
 
-            if (userDocSnap.exists() && userDocSnap.data().role === 'Admin') {
+            if (userDocSnap.exists() && (userDocSnap.data().role === 'Admin' || userDocSnap.data().role === 'Staff')) {
                 toast({
                     title: "Admin Login Successful",
                     description: "Redirecting to your dashboard...",
