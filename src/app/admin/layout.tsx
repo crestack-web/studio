@@ -1,14 +1,64 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, redirect } from 'next/navigation';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import React, { useEffect } from 'react';
 
-// This layout has been stripped of its authentication logic for UI prototyping.
-// In a real application, this is where you would protect the /admin routes
-// and only allow users with the 'Admin' role to access them.
+
+interface AppUser {
+  role?: string;
+}
+
+// This component is a wrapper to contain the auth logic.
+const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, `users/${user.uid}`);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
+
+  useEffect(() => {
+    // Don't redirect until we have all the user info.
+    if (isUserLoading || isProfileLoading) {
+      return;
+    }
+
+    // If user is not logged in, send them to the admin login page.
+    if (!user) {
+      redirect('/admin/login');
+      return;
+    }
+    
+    // If the user is logged in but is not an admin, they can't be here.
+    // Send them to the regular login page.
+    if (userProfile?.role !== 'Admin') {
+      redirect('/login');
+    }
+  }, [user, isUserLoading, userProfile, isProfileLoading, pathname]);
+
+  // While we're checking, show a loading state.
+  const pathname = usePathname();
+  if ((isUserLoading || (user && isProfileLoading)) && pathname !== '/admin/login') {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If the logic above passes, the user is an authorized admin. Render the children.
+  return <>{children}</>;
+};
+
 
 export default function AdminLayout({
   children,
@@ -23,39 +73,46 @@ export default function AdminLayout({
     { id: 'blog', label: 'Blog', href: '/admin/blog', icon: Newspaper },
     { id: 'support', label: 'Support', href: '/admin/support', icon: Mail },
   ];
+  
+  // The login page should not have the sidebar.
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   return (
-    <SidebarProvider>
-        <div className="flex min-h-screen bg-background text-foreground">
-            <Sidebar>
-                <SidebarHeader>
-                    <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
-                        <Logo className="h-8 group-data-[collapsible=icon]:hidden" />
-                        <SidebarTrigger className="hidden md:flex" />
-                    </div>
-                </SidebarHeader>
-                <SidebarMenu className="flex-1 px-2">
-                    {menuItems.map((item) => (
-                        <SidebarMenuItem key={item.id}>
-                            <Link href={item.href}>
-                                <SidebarMenuButton
-                                    isActive={pathname.startsWith(item.href)}
-                                    tooltip={item.label}
-                                    className="justify-start group-data-[collapsible=icon]:justify-center"
-                                >
-                                    <item.icon />
-                                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
-                    ))}
-                </SidebarMenu>
-            </Sidebar>
+    <ProtectedAdminLayout>
+        <SidebarProvider>
+            <div className="flex min-h-screen bg-background text-foreground">
+                <Sidebar>
+                    <SidebarHeader>
+                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
+                            <Logo className="h-8 group-data-[collapsible=icon]:hidden" />
+                            <SidebarTrigger className="hidden md:flex" />
+                        </div>
+                    </SidebarHeader>
+                    <SidebarMenu className="flex-1 px-2">
+                        {menuItems.map((item) => (
+                            <SidebarMenuItem key={item.id}>
+                                <Link href={item.href}>
+                                    <SidebarMenuButton
+                                        isActive={pathname.startsWith(item.href)}
+                                        tooltip={item.label}
+                                        className="justify-start group-data-[collapsible=icon]:justify-center"
+                                    >
+                                        <item.icon />
+                                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                                    </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </Sidebar>
 
-            <SidebarInset>
-                {children}
-            </SidebarInset>
-        </div>
-    </SidebarProvider>
+                <SidebarInset>
+                    {children}
+                </SidebarInset>
+            </div>
+        </SidebarProvider>
+    </ProtectedAdminLayout>
   );
 }
