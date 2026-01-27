@@ -100,7 +100,7 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
 );
 
 
-export default function ProductDetailPage({ params: { productId } }: { params: { productId: string } }) {
+export default function ProductDetailPage({ params }: { params: { productId: string } }) {
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
@@ -117,9 +117,9 @@ export default function ProductDetailPage({ params: { productId } }: { params: {
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     const productRef = useMemoFirebase(() => {
-        if (!firestore || !productId) return null;
-        return doc(firestore, 'marketProducts', productId);
-    }, [firestore, productId]);
+        if (!firestore || !params.productId) return null;
+        return doc(firestore, 'marketProducts', params.productId);
+    }, [firestore, params.productId]);
     const { data: productData, isLoading: isLoadingProduct } = useDoc<MarketProduct>(productRef);
 
     const businessProfileRef = useMemoFirebase(() => {
@@ -129,9 +129,9 @@ export default function ProductDetailPage({ params: { productId } }: { params: {
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
     const reviewsQuery = useMemoFirebase(() => {
-        if (!firestore || !productId) return null;
-        return query(collection(firestore, 'reviews'), where('productId', '==', productId));
-    }, [firestore, productId]);
+        if (!firestore || !params.productId) return null;
+        return query(collection(firestore, 'reviews'), where('productId', '==', params.productId));
+    }, [firestore, params.productId]);
     const { data: reviewsData, isLoading: isLoadingReviews } = useCollection<Review>(reviewsQuery);
     
     const imageGallery = useMemo(() => {
@@ -175,12 +175,12 @@ export default function ProductDetailPage({ params: { productId } }: { params: {
     const isInStock = stockAvailable !== undefined && stockAvailable > 0;
     
     const buyNowUrl = useMemo(() => {
-        let url = `/market/checkout?productId=${productId}&quantity=${quantity}`;
+        let url = `/market/checkout?productId=${params.productId}&quantity=${quantity}`;
         if (selectedVariantId) {
             url += `&variantId=${selectedVariantId}`;
         }
         return url;
-    }, [productId, quantity, selectedVariantId]);
+    }, [params.productId, quantity, selectedVariantId]);
 
     const handleAddToCart = () => {
         if (!productData) return;
@@ -264,8 +264,8 @@ export default function ProductDetailPage({ params: { productId } }: { params: {
 
     const similarProducts = useMemo(() => {
         if (!similarProductsData) return [];
-        return similarProductsData.filter(p => p.id !== productId).slice(0, 4);
-    }, [similarProductsData, productId]);
+        return similarProductsData.filter(p => p.id !== params.productId).slice(0, 4);
+    }, [similarProductsData, params.productId]);
     
     const handleQuantityChange = (change: number) => {
         setQuantity(prev => Math.max(1, Math.min(prev + change, stockAvailable || 1)));

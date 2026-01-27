@@ -13,6 +13,23 @@ import { markets } from '@/lib/currency';
 import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 
+const createSlug = (name: string) => {
+    if (!name) return '';
+    const slug = name
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    
+    // Prevent empty slug
+    if (!slug) {
+        return Math.random().toString(36).substring(2, 12);
+    }
+    return slug;
+};
+
 export default function BusinessInfoPage() {
     const router = useRouter();
     const { toast } = useToast();
@@ -54,6 +71,7 @@ export default function BusinessInfoPage() {
 
         const selectedMarket = markets.find(m => m.code === country);
         const currency = selectedMarket?.currency;
+        const businessSlug = createSlug(businessName);
 
         const businessData = {
             businessName,
@@ -61,6 +79,7 @@ export default function BusinessInfoPage() {
             country,
             city,
             currency,
+            slug: businessSlug,
         };
 
         const businessDocRef = doc(firestore, `businesses/${businessId}`);

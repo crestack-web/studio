@@ -160,7 +160,7 @@ const RESERVED_PATHS = [
     'add-inventory', 'add-product', 'admin', 'blog', 'business-info', 
     'currency', 'invest', 'investor', 'login', 'market', 'owner', 'page', 
     'plans', 'pricing', 'record-expense', 'record-sale', 'role', 
-    'signup', 'staff', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
+    'signup', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
 export default function StoreSlugPage({ params }: { params: { slug: string } }) {
@@ -177,6 +177,7 @@ export default function StoreSlugPage({ params }: { params: { slug: string } }) 
     }, [firestore, params.slug]);
     
     const { data: businessData, isLoading } = useCollection<BusinessProfile>(businessProfileQuery);
+    
     const businessProfile = businessData?.[0];
 
     if (isLoading) {
