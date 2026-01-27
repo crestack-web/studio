@@ -18,6 +18,7 @@ interface AppUser {
 const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const pathname = usePathname();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -46,7 +47,6 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
   }, [user, isUserLoading, userProfile, isProfileLoading, pathname]);
 
   // While we're checking, show a loading state.
-  const pathname = usePathname();
   if ((isUserLoading || (user && isProfileLoading)) && pathname !== '/admin/login') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
