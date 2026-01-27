@@ -39,9 +39,9 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    // If the user is logged in but is not an admin or staff, they can't be here.
+    // If the user is logged in but is not an admin, they can't be here.
     // Send them to the regular login page.
-    if (userProfile?.role !== 'Admin' && userProfile?.role !== 'Staff') {
+    if (userProfile?.role !== 'Admin') {
       redirect('/login');
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, pathname]);
