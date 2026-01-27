@@ -5,7 +5,7 @@ import OnboardingLayout from '@/components/app/onboarding-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/firebase';
@@ -17,14 +17,28 @@ export default function StaffLoginPage() {
   const [isEmailSent, setIsEmailSent] = useState(false);
   const { toast } = useToast();
   const auth = useAuth();
+  const [actionCodeSettings, setActionCodeSettings] = useState<any>(null);
+
+  useEffect(() => {
+    // This code now runs only on the client, safely accessing `window`
+    setActionCodeSettings({
+      url: `${window.location.origin}/finish-signin`,
+      handleCodeInApp: true,
+    });
+  }, []);
 
   const handleLogin = async () => {
     setIsLoading(true);
+    if (!actionCodeSettings) {
+      toast({
+        variant: 'destructive',
+        title: 'Initialization Error',
+        description: 'Page is still loading. Please try again in a moment.',
+      });
+      setIsLoading(false);
+      return;
+    }
     try {
-      const actionCodeSettings = {
-        url: `${window.location.origin}/finish-signin`, // URL to redirect to after email verification
-        handleCodeInApp: true,
-      };
       window.localStorage.setItem('emailForSignIn', email);
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       setIsEmailSent(true);
