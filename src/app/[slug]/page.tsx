@@ -164,8 +164,7 @@ const RESERVED_PATHS = [
     'signup', 'staff', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
-export default function StoreSlugPage({ params }: { params: { slug: string } }) {
-    const slug = params.slug as string;
+export default function StoreSlugPage({ params: { slug } }: { params: { slug: string } }) {
     const firestore = useFirestore();
 
     // Prevent this page from matching reserved routes like /login, /admin, etc.
