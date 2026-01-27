@@ -8,6 +8,10 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -15,27 +19,48 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleLogin = async () => {
     setIsLoading(true);
     
-    // Simulate backend login
-    setTimeout(() => {
-        if (email === 'admin@busmo.com') {
-            toast({
-                title: "Admin Login Successful",
-                description: "Redirecting to your dashboard...",
-            });
-            router.push('/admin/dashboard');
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Authorization Failed",
-                description: "You are not authorized to access the admin panel.",
-            });
-            setIsLoading(false);
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        if (user) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+
+            if (userDocSnap.exists() && userDocSnap.data().role === 'Admin') {
+                toast({
+                    title: "Admin Login Successful",
+                    description: "Redirecting to your dashboard...",
+                });
+                router.push('/admin/dashboard');
+            } else {
+                await auth.signOut();
+                toast({
+                    variant: "destructive",
+                    title: "Authorization Failed",
+                    description: "You are not authorized to access the admin panel.",
+                });
+                setIsLoading(false);
+            }
         }
-    }, 1000);
+    } catch (error: any) {
+        let description = "An unexpected error occurred. Please try again.";
+        if (error.code === 'auth/invalid-email' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            description = "Invalid email or password.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Login Failed",
+            description: description,
+        });
+        setIsLoading(false);
+    }
   };
 
   return (
