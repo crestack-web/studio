@@ -1,12 +1,24 @@
+
 'use client';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, ExternalLink, MoreHorizontal, TrendingUp, Rocket } from 'lucide-react';
+import { Banknote, CreditCard, Download, Rocket, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { formatCurrency } from '@/lib/currency';
+
+interface AppUser {
+    businessId?: string;
+}
+
+interface Business {
+    currency?: string;
+}
 
 // Mock data
 const transactions = [
@@ -17,6 +29,28 @@ const transactions = [
 ];
 
 export default function BusmoPayDashboard() {
+    const { user: authUser } = useUser();
+    const firestore = useFirestore();
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, `users/${authUser.uid}`);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, `businesses/${businessId}`);
+    }, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+    
+    const currency = businessData?.currency;
+
+    // These totals are derived from mock data for demonstration.
+    const totalRevenue = transactions.filter(t => t.status === 'succeeded').reduce((sum, t) => sum + t.amount, 0);
+    const paystackVolume = transactions.filter(t => t.status === 'succeeded' && t.method === 'paystack').reduce((sum, t) => sum + t.amount, 0);
+    const airtelVolume = transactions.filter(t => t.status === 'succeeded' && t.method === 'airtel').reduce((sum, t) => sum + t.amount, 0);
 
     return (
         <MainLayout title="BusmoPay Dashboard" backHref="/owner/home">
@@ -34,7 +68,7 @@ export default function BusmoPayDashboard() {
                             <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/>Total Revenue</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">₦45,700</p>
+                            <p className="text-3xl font-bold">{formatCurrency(totalRevenue, currency)}</p>
                             <p className="text-xs text-muted-foreground">+15% from last month</p>
                         </CardContent>
                     </Card>
@@ -43,7 +77,7 @@ export default function BusmoPayDashboard() {
                             <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5"/>Paystack Volume</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">₦20,200</p>
+                            <p className="text-3xl font-bold">{formatCurrency(paystackVolume, currency)}</p>
                             <p className="text-xs text-muted-foreground">2 successful transactions</p>
                         </CardContent>
                     </Card>
@@ -52,7 +86,7 @@ export default function BusmoPayDashboard() {
                             <CardTitle className="text-lg flex items-center gap-2"><Banknote className="w-5 h-5"/>Airtel Money Volume</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">5,500 CFA</p>
+                            <p className="text-3xl font-bold">{formatCurrency(airtelVolume, currency)}</p>
                             <p className="text-xs text-muted-foreground">1 successful transaction</p>
                         </CardContent>
                     </Card>
@@ -91,12 +125,12 @@ export default function BusmoPayDashboard() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                             <Badge variant={tx.status === 'succeeded' ? 'secondary' : 'destructive'} className={tx.status === 'succeeded' ? 'text-busmopay-primary' : ''}>
+                                             <Badge variant={tx.status === 'succeeded' ? 'secondary' : 'destructive'} className={tx.status === 'succeeded' ? 'text-primary' : ''}>
                                                 {tx.status}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
-                                            {tx.method === 'paystack' ? `₦${tx.amount.toLocaleString()}` : `${tx.amount.toLocaleString()} CFA`}
+                                            {formatCurrency(tx.amount, currency)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
