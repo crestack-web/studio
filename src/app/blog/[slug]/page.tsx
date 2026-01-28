@@ -36,19 +36,20 @@ export default function BlogPostPage() {
     } : null;
 
     const otherPostsQuery = useMemoFirebase(() => {
-        if (!firestore || !slug) return null;
+        if (!firestore) return null;
         return query(
             collection(firestore, 'blogs'), 
-            where('slug', '!=', slug),
             where('isPublished', '==', true),
-            limit(4)
+            limit(5) // Fetch 5 to have enough to filter one out and have others left.
         );
-    }, [firestore, slug]);
+    }, [firestore]);
     const { data: otherPostsData, isLoading: isLoadingOthers } = useCollection<BlogPost>(otherPostsQuery);
     
     const otherPosts = useMemo(() => {
-        if (!otherPostsData) return [];
-        return otherPostsData.map(p => ({
+        if (!otherPostsData || !slug) return [];
+        return otherPostsData
+        .filter(p => p.slug !== slug) // Filter out the current post
+        .map(p => ({
              ...p,
             date: p.createdAt.toDate().toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -58,7 +59,7 @@ export default function BlogPostPage() {
         }))
         .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
         .slice(0, 2);
-    }, [otherPostsData]);
+    }, [otherPostsData, slug]);
 
     if (isLoadingPost) {
         return (
