@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -27,6 +27,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 const createSlug = (name: string) => {
     if (!name) return '';
@@ -40,7 +43,7 @@ const createSlug = (name: string) => {
 };
 
 // #region --- TYPES ---
-interface AppUser { businessId?: string }
+interface AppUser { businessId?: string, displayName?: string; }
 interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; image?: string; }
 interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
 type MarketSettings = { isStoreActive: boolean; bannerImageUrl: string; logoImageUrl: string; contactPhone: string; contactEmail: string; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
@@ -55,6 +58,13 @@ interface Business {
     country?: string;
     deliveryType?: 'nationwide' | 'cities';
     deliveryCities?: string[];
+}
+interface SellerBankAccount {
+    bankName: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    status: 'unverified' | 'pending' | 'verified' | 'failed';
 }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
 interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid' }
@@ -577,17 +587,25 @@ const OrdersContent = () => {
                 // 1. Update order status
                 transaction.update(orderRef, { status });
 
-                 // If fulfilled, and it's a Nigerian business, create a payout record
+                // If fulfilling a Nigerian order, check for verified bank account and create payout record
                 if (status === 'fulfilled' && order.payoutStatus !== 'paid' && businessData.country === 'NG') {
-                    // In a real app, calculate commission here. For now, payout is total order amount.
-                    const payoutAmount = order.total;
+                    // Check for verified bank account
+                    const bankAccountRef = doc(firestore, `businesses/${businessId}/bankAccount/primary`);
+                    const bankAccountSnap = await transaction.get(bankAccountRef);
+
+                    if (!bankAccountSnap.exists() || bankAccountSnap.data()?.status !== 'verified') {
+                        throw new Error('Payout account is not verified. Please set up your bank account in the BusmoPay settings.');
+                    }
+                    
+                    // If verified, proceed to create payout record
+                    const payoutAmount = order.total * 0.90; // Deduct 10% commission
                     const payoutRef = doc(collection(firestore, `businesses/${businessId}/payouts`));
                     
                     transaction.set(payoutRef, {
                         orderId: order.id,
                         amount: payoutAmount,
-                        currency: businessData?.currency,
-                        status: 'processing', // This would be 'paid' after successful Paystack transfer
+                        currency: businessData.currency,
+                        status: 'processing',
                         createdAt: serverTimestamp(),
                     });
                     
@@ -596,7 +614,7 @@ const OrdersContent = () => {
                 }
 
 
-                // 2. If confirming, deduct stock
+                // If confirming, deduct stock (example logic, adjust as needed)
                 if (status === 'confirmed' && order.status === 'pending') {
                     for (const item of order.items) {
                         const productRef = doc(firestore, `businesses/${businessId}/products`, item.productId);
@@ -829,52 +847,147 @@ const CustomersContent = () => {
 
 // #region --- BusmoPaySettings ---
 const BusmoPaySettings = () => {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const [bankCode, setBankCode] = useState('');
+    const [accountNumber, setAccountNumber] = useState('');
+    const [isVerifying, setIsVerifying] = useState(false);
+    
+    const nigerianBanks = [
+        { name: 'Access Bank', code: '044' }, { name: 'First Bank', code: '011' }, { name: 'Guaranty Trust Bank', code: '058' },
+        { name: 'United Bank for Africa', code: '033' }, { name: 'Zenith Bank', code: '057' }, { name: 'Opay', code: '999992'},
+        { name: 'Kuda Bank', code: '50211'}, { name: 'PalmPay', code: '999991'}
+    ];
+
+    const bankAccountRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, `businesses/${businessId}/bankAccount`, 'primary');
+    }, [firestore, businessId]);
+
+    const { data: bankAccountData, isLoading: isLoadingBankAccount } = useDoc<SellerBankAccount>(bankAccountRef);
+
+    useEffect(() => {
+        if (bankAccountData) {
+            setBankCode(bankAccountData.bankCode || '');
+            setAccountNumber(bankAccountData.accountNumber || '');
+        }
+    }, [bankAccountData]);
+
+    const handleSaveAndVerify = async () => {
+        if (!bankCode || !accountNumber) {
+            toast({ title: 'Missing Details', description: 'Please select a bank and enter your account number.', variant: 'destructive'});
+            return;
+        }
+        if (accountNumber.length !== 10) {
+            toast({ title: 'Invalid Account Number', description: 'Please enter a valid 10-digit NUBAN.', variant: 'destructive'});
+            return;
+        }
+        if (!firestore || !businessId || !bankAccountRef || !userProfile?.displayName) {
+             toast({ title: 'Error', description: 'Could not access business details.', variant: 'destructive'});
+            return;
+        }
+
+        setIsVerifying(true);
+        setDocumentNonBlocking(bankAccountRef, { status: 'pending' }, { merge: true });
+
+        // Mock Paystack verification
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const selectedBank = nigerianBanks.find(b => b.code === bankCode);
+        
+        const verifiedData: SellerBankAccount = {
+            bankCode,
+            accountNumber,
+            bankName: selectedBank?.name || '',
+            accountName: userProfile.displayName,
+            status: 'verified',
+        };
+
+        try {
+            await setDocumentNonBlocking(bankAccountRef, verifiedData, { merge: true });
+            toast({ title: 'Account Verified!', description: `Your account for ${userProfile.displayName} has been verified.` });
+        } catch (error) {
+            toast({ title: 'Verification Failed', description: 'Could not save account details.', variant: 'destructive'});
+            setDocumentNonBlocking(bankAccountRef, { status: 'failed' }, { merge: true });
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const hasChanges = bankAccountData?.bankCode !== bankCode || bankAccountData?.accountNumber !== accountNumber;
+    const effectiveStatus = isVerifying ? 'pending' : (bankAccountData?.status === 'verified' && hasChanges ? 'unverified' : bankAccountData?.status);
+
     return (
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>BusmoPay Settings</CardTitle>
-                    <CardDescription>Enable payment gateways to accept online payments for your products.</CardDescription>
+                    <CardTitle>Payout Settings (Nigeria)</CardTitle>
+                    <CardDescription>Set up your bank account to receive payouts from your sales on Busmo Market.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <Card className="border-dashed">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1">
-                                <CardTitle className="text-lg">Paystack</CardTitle>
-                                <CardDescription>Accept payments from Nigeria (NGN).</CardDescription>
+                <CardContent className="space-y-6">
+                     {isLoadingBankAccount ? (
+                        <Skeleton className="h-48 w-full" />
+                     ) : (
+                        <>
+                             <div className="grid sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="bank-select">Bank</Label>
+                                    <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying}>
+                                        <SelectTrigger id="bank-select"><SelectValue placeholder="Select your bank" /></SelectTrigger>
+                                        <SelectContent>{nigerianBanks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="account-number">Account Number</Label>
+                                    <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying} />
+                                </div>
                             </div>
-                             <Switch disabled />
-                        </CardHeader>
-                        <CardContent>
-                             <div className="space-y-2">
-                                <Label htmlFor="paystack-secret" className="text-muted-foreground">Paystack Secret Key</Label>
-                                <Input id="paystack-secret" placeholder="sk_test_..." disabled />
-                            </div>
-                        </CardContent>
-                         <CardFooter>
-                            <Badge variant="outline">Coming Soon</Badge>
-                        </CardFooter>
-                    </Card>
-                     <Card className="border-dashed">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="space-y-1">
-                                <CardTitle className="text-lg">Airtel Money</CardTitle>
-                                <CardDescription>Accept payments from Niger, Cameroon (CFA).</CardDescription>
-                            </div>
-                             <Switch disabled />
-                        </CardHeader>
-                        <CardContent>
-                             <div className="space-y-2">
-                                <Label htmlFor="airtel-secret" className="text-muted-foreground">Airtel Money Client Secret</Label>
-                                <Input id="airtel-secret" placeholder="client_secret_..." disabled />
-                            </div>
-                        </CardContent>
-                         <CardFooter>
-                            <Badge variant="outline">Coming Soon</Badge>
-                        </CardFooter>
-                    </Card>
+                            
+                            {bankAccountData && (
+                                <Card className="bg-muted/50">
+                                    <CardHeader className="p-4 flex-row items-start justify-between">
+                                        <div>
+                                            <CardTitle className="text-base">Current Payout Account</CardTitle>
+                                            <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
+                                        </div>
+                                         <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus || 'unverified'}</Badge>
+                                    </CardHeader>
+                                    {effectiveStatus === 'verified' && (
+                                        <CardContent className="p-4 pt-0 text-sm space-y-1">
+                                            <p className="font-semibold">{bankAccountData.accountName}</p>
+                                            <p className="text-muted-foreground">{bankAccountData.accountNumber} - {bankAccountData.bankName}</p>
+                                        </CardContent>
+                                    )}
+                                     {(effectiveStatus === 'unverified' && hasChanges) && (
+                                        <CardFooter className="p-4 pt-0">
+                                            <p className="text-xs text-yellow-800 dark:text-yellow-200 bg-yellow-500/10 p-2 rounded-md">You have unsaved changes. Please re-verify your account to receive payouts.</p>
+                                        </CardFooter>
+                                    )}
+                                </Card>
+                            )}
+                        </>
+                     )}
                 </CardContent>
+                <CardFooter>
+                     <Button onClick={handleSaveAndVerify} disabled={isVerifying || isLoadingBankAccount || !bankCode || !accountNumber || (effectiveStatus === 'verified' && !hasChanges)}>
+                        {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isVerifying ? 'Verifying...' : 'Save & Verify Account'}
+                    </Button>
+                </CardFooter>
             </Card>
+            <Alert>
+                <CreditCard className="h-4 w-4" />
+                <AlertTitle>How Payouts Work</AlertTitle>
+                <AlertDescription>
+                    Busmo collects payments from buyers on your behalf. After you fulfill an order, the earnings (minus a small commission) are automatically sent to your verified bank account within 24-48 hours.
+                </AlertDescription>
+            </Alert>
         </div>
     )
 }
@@ -960,3 +1073,4 @@ export default function ManageMarketPage() {
     );
 }
 // #endregion
+
