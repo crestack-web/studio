@@ -162,8 +162,8 @@ export default function AdminBlogPage() {
         <main className="flex-1 p-4 sm:p-6 space-y-6">
             <h1 className="text-2xl font-bold font-headline">Manage Blog</h1>
             
-            <div className="grid gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-2 space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-1 space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Add New Post</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
@@ -193,7 +193,7 @@ export default function AdminBlogPage() {
                         </CardContent>
                     </Card>
                 </div>
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-2">
                      <Card>
                         <CardHeader><CardTitle>Existing Posts</CardTitle><CardDescription>View, edit, or delete existing blog posts.</CardDescription></CardHeader>
                         <CardContent>

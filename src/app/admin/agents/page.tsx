@@ -66,72 +66,74 @@ export default function AdminAgentsPage() {
     const isLoading = isLoadingUsers || isLoadingAgents;
 
     return (
-        <main className="flex-1 p-4 sm:p-6">
-            <h1 className="text-2xl font-bold font-headline mb-6">Support Agents</h1>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Manage Support Agents</CardTitle>
-                    <CardDescription>Promote users to support agents to allow them to handle live chats.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Agent Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading users...</TableCell></TableRow>
-                            ) : users && users.length > 0 ? users.map((user) => (
-                                <TableRow key={user.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-8 w-8"><AvatarFallback>{user.displayName?.charAt(0)}</AvatarFallback></Avatar>
-                                            <div>
-                                                <div className="font-medium">{user.displayName}</div>
-                                                <div className="text-sm text-muted-foreground">{user.email}</div>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell><Badge variant="secondary">{user.role}</Badge></TableCell>
-                                    <TableCell>
-                                        {agentUserIds.includes(user.id) ? (
-                                            <Badge variant="default"><CheckCircle className="mr-1 h-3 w-3" />Agent</Badge>
-                                        ) : (
-                                             <Badge variant="outline"><XCircle className="mr-1 h-3 w-3" />Not an Agent</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {agentUserIds.includes(user.id) ? (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Remove Agent</Button></AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will revoke agent permissions for {user.displayName}. They will no longer be able to answer support chats.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleRemoveAgent(user.id)} className="bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        ) : (
-                                            <Button variant="outline" size="sm" onClick={() => handleMakeAgent(user)}>Make Agent</Button>
-                                        )}
-                                    </TableCell>
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+            <h1 className="text-2xl font-bold font-headline">Support Agents</h1>
+            <div className="grid grid-cols-1 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Manage Support Agents</CardTitle>
+                        <CardDescription>Promote users to support agents to allow them to handle live chats.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Agent Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No users found.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading users...</TableCell></TableRow>
+                                ) : users && users.length > 0 ? users.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8"><AvatarFallback>{user.displayName?.charAt(0)}</AvatarFallback></Avatar>
+                                                <div>
+                                                    <div className="font-medium">{user.displayName}</div>
+                                                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell><Badge variant="secondary">{user.role}</Badge></TableCell>
+                                        <TableCell>
+                                            {agentUserIds.includes(user.id) ? (
+                                                <Badge variant="default"><CheckCircle className="mr-1 h-3 w-3" />Agent</Badge>
+                                            ) : (
+                                                 <Badge variant="outline"><XCircle className="mr-1 h-3 w-3" />Not an Agent</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {agentUserIds.includes(user.id) ? (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Remove Agent</Button></AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>This will revoke agent permissions for {user.displayName}. They will no longer be able to answer support chats.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleRemoveAgent(user.id)} className="bg-destructive hover:bg-destructive/90">Remove</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            ) : (
+                                                <Button variant="outline" size="sm" onClick={() => handleMakeAgent(user)}>Make Agent</Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No users found.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
         </main>
     );
 }

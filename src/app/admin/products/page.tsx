@@ -63,62 +63,64 @@ export default function AdminProductsPage() {
     };
 
     return (
-        <main className="flex-1 p-4 sm:p-6">
-            <h1 className="text-2xl font-bold font-headline mb-6">Manage Market Products</h1>
-            <Card>
-                <CardHeader>
-                    <CardTitle>All Market Products</CardTitle>
-                    <CardDescription>View and manage all products listed on the Busmo Market.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Seller</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoadingProducts ? (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading products...</TableCell></TableRow>
-                            ) : products && products.length > 0 ? products.map((product) => (
-                                <TableRow key={product.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Image src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/40/40`} alt={product.productName} width={40} height={40} className="rounded-md object-cover bg-muted" />
-                                            <div className="font-medium">{product.productName}</div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">{product.businessName}</TableCell>
-                                    <TableCell><Badge variant="outline">{product.category}</Badge></TableCell>
-                                    <TableCell className="text-right">
-                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => setEditingProduct(product)}><FileEdit className="mr-2 h-4 w-4"/>Edit Details</DropdownMenuItem>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delist Product</DropdownMenuItem></AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will remove the product from the public market, but will NOT delete it from the seller's inventory.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteProduct(product.id)} className="bg-destructive hover:bg-destructive/90">Delist</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+            <h1 className="text-2xl font-bold font-headline">Manage Market Products</h1>
+            <div className="grid grid-cols-1 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>All Market Products</CardTitle>
+                        <CardDescription>View and manage all products listed on the Busmo Market.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Seller</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No products found on the market.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoadingProducts ? (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading products...</TableCell></TableRow>
+                                ) : products && products.length > 0 ? products.map((product) => (
+                                    <TableRow key={product.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Image src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/40/40`} alt={product.productName} width={40} height={40} className="rounded-md object-cover bg-muted" />
+                                                <div className="font-medium">{product.productName}</div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">{product.businessName}</TableCell>
+                                        <TableCell><Badge variant="outline">{product.category}</Badge></TableCell>
+                                        <TableCell className="text-right">
+                                             <DropdownMenu>
+                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => setEditingProduct(product)}><FileEdit className="mr-2 h-4 w-4"/>Edit Details</DropdownMenuItem>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild><DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive"><Trash2 className="mr-2 h-4 w-4"/>Delist Product</DropdownMenuItem></AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will remove the product from the public market, but will NOT delete it from the seller's inventory.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteProduct(product.id)} className="bg-destructive hover:bg-destructive/90">Delist</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No products found on the market.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
 
             <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
                 <DialogContent className="sm:max-w-2xl">

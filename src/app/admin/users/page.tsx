@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc } from '@/firebase';
@@ -168,85 +167,87 @@ export default function AdminUsersPage() {
     }
 
     return (
-        <main className="flex-1 p-4 sm:p-6">
-            <h1 className="text-2xl font-bold font-headline mb-6">User Management</h1>
-            <Card>
-                <CardHeader>
-                    <CardTitle>All Users</CardTitle>
-                    <CardDescription>View and manage all users in the system.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Plan</TableHead>
-                                <TableHead>Business ID</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading || isLoadingBusinesses ? (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading users...</TableCell></TableRow>
-                            ) : users && users.length > 0 ? users.map((user) => {
-                                const userBusiness = user.businessId ? businessesMap.get(user.businessId) : null;
-                                const userPlan = userBusiness?.plan;
-                                return (
-                                <TableRow key={user.id}>
-                                    <TableCell>
-                                        <div className="font-medium">{user.displayName}</div>
-                                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={roleVariant[user.role] || 'secondary'}>{user.role}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {userPlan ? <Badge variant="outline">{userPlan}</Badge> : <span className="text-muted-foreground text-xs">N/A</span>}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">{user.businessId || 'N/A'}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleRoleChange(user, 'Admin')}><Shield className="mr-2 h-4 w-4"/>Make Admin</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRoleChange(user, 'Owner')}>Make Owner</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRoleChange(user, 'Staff')}>Make Staff</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRoleChange(user, 'Investor')}>Make Investor</DropdownMenuItem>
-                                                
-                                                {user.role === 'Admin' && (
-                                                    <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsPermissionsDialogOpen(true); }}>
-                                                        <Edit className="mr-2 h-4 w-4" /> Edit Permissions
-                                                    </DropdownMenuItem>
-                                                )}
-
-                                                {user.businessId && (
-                                                     <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>Change Plan</DropdownMenuSubTrigger>
-                                                        <DropdownMenuPortal>
-                                                            <DropdownMenuSubContent>
-                                                                {plans.map(planId => (
-                                                                    <DropdownMenuItem key={planId} onSelect={() => handlePlanChange(user.businessId, planId)}>
-                                                                        Set to {planId}
-                                                                    </DropdownMenuItem>
-                                                                ))}
-                                                            </DropdownMenuSubContent>
-                                                        </DropdownMenuPortal>
-                                                    </DropdownMenuSub>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+            <h1 className="text-2xl font-bold font-headline">User Management</h1>
+            <div className="grid grid-cols-1 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>All Users</CardTitle>
+                        <CardDescription>View and manage all users in the system.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Plan</TableHead>
+                                    <TableHead>Business ID</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )}) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No users found.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading || isLoadingBusinesses ? (
+                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading users...</TableCell></TableRow>
+                                ) : users && users.length > 0 ? users.map((user) => {
+                                    const userBusiness = user.businessId ? businessesMap.get(user.businessId) : null;
+                                    const userPlan = userBusiness?.plan;
+                                    return (
+                                    <TableRow key={user.id}>
+                                        <TableCell>
+                                            <div className="font-medium">{user.displayName}</div>
+                                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={roleVariant[user.role] || 'secondary'}>{user.role}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {userPlan ? <Badge variant="outline">{userPlan}</Badge> : <span className="text-muted-foreground text-xs">N/A</span>}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">{user.businessId || 'N/A'}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(user, 'Admin')}><Shield className="mr-2 h-4 w-4"/>Make Admin</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(user, 'Owner')}>Make Owner</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(user, 'Staff')}>Make Staff</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(user, 'Investor')}>Make Investor</DropdownMenuItem>
+                                                    
+                                                    {user.role === 'Admin' && (
+                                                        <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsPermissionsDialogOpen(true); }}>
+                                                            <Edit className="mr-2 h-4 w-4" /> Edit Permissions
+                                                        </DropdownMenuItem>
+                                                    )}
+
+                                                    {user.businessId && (
+                                                         <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>Change Plan</DropdownMenuSubTrigger>
+                                                            <DropdownMenuPortal>
+                                                                <DropdownMenuSubContent>
+                                                                    {plans.map(planId => (
+                                                                        <DropdownMenuItem key={planId} onSelect={() => handlePlanChange(user.businessId, planId)}>
+                                                                            Set to {planId}
+                                                                        </DropdownMenuItem>
+                                                                    ))}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuPortal>
+                                                        </DropdownMenuSub>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )}) : (
+                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">No users found.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
             {selectedUser && (
                 <AdminPermissionsDialog
                     user={selectedUser}
