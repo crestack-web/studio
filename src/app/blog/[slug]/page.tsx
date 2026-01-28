@@ -9,9 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BlogPost } from '../page';
+import { useMemo } from 'react';
 
 
 export default function BlogPostPage() {
@@ -40,20 +41,24 @@ export default function BlogPostPage() {
             collection(firestore, 'blogs'), 
             where('slug', '!=', slug),
             where('isPublished', '==', true),
-            orderBy('createdAt', 'desc'),
-            limit(2)
+            limit(4)
         );
     }, [firestore, slug]);
     const { data: otherPostsData, isLoading: isLoadingOthers } = useCollection<BlogPost>(otherPostsQuery);
     
-    const otherPosts = otherPostsData?.map(p => ({
-         ...p,
-        date: p.createdAt.toDate().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-    })) || [];
+    const otherPosts = useMemo(() => {
+        if (!otherPostsData) return [];
+        return otherPostsData.map(p => ({
+             ...p,
+            date: p.createdAt.toDate().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            })
+        }))
+        .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
+        .slice(0, 2);
+    }, [otherPostsData]);
 
     if (isLoadingPost) {
         return (
