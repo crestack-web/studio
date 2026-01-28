@@ -134,7 +134,7 @@ function OwnerHomeContent() {
         if (!authUser || !firestore) return null;
         return doc(firestore, `users/${authUser.uid}`);
     }, [authUser, firestore]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
     
     const agentsQuery = useMemoFirebase(() => {
@@ -176,39 +176,36 @@ function OwnerHomeContent() {
     }, [businessId, firestore]);
     const { data: productsData } = useCollection<Product>(productsQuery);
     
-    useEffect(() => {
-        if (!isUserLoading && !authUser) {
-            router.push('/login');
-        }
-    }, [isUserLoading, authUser, router]);
-
     // This effect handles redirecting to the correct onboarding step
     useEffect(() => {
-        if (isBusinessLoading || !userProfile) {
-            return; // Wait for data to load
+        // Wait until all user and business data has finished loading
+        if (isUserLoading || isProfileLoading || isBusinessLoading) {
+            return;
         }
-    
-        // Only run this logic if the user is authenticated
-        if (authUser) {
-             // If businessData is null/undefined but we have a user, it's likely a new signup
-            if (!businessData) {
-                // If they haven't filled business info, send them there.
-                 if (userProfile.businessId) { // Check if businessId exists to avoid errors
-                    router.replace('/business-info');
-                 }
-                return;
-            }
 
-            const { businessName, businessType, plan } = businessData;
-            
-            if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
-                router.replace('/business-info');
-            } else if (!plan) {
-                 // Trial expired or plan not selected, redirect to pricing page.
-                router.replace('/owner/pricing');
-            }
+        // If, after loading, there's no authenticated user, redirect to login
+        if (!authUser) {
+            router.replace('/login');
+            return;
         }
-    }, [businessData, isBusinessLoading, authUser, userProfile, router]);
+
+        // If, after loading, there's a user but no business data, they need to onboard
+        if (!businessData) {
+            if (userProfile?.businessId) {
+                router.replace('/business-info');
+            }
+            return;
+        }
+        
+        // Check for incomplete business info or missing plan
+        const { businessName, businessType, plan } = businessData;
+        if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
+            router.replace('/business-info');
+        } else if (!plan) {
+            router.replace('/owner/pricing');
+        }
+
+    }, [isUserLoading, isProfileLoading, isBusinessLoading, authUser, userProfile, businessData, router]);
 
 
     const businessInsights = useMemo(() => {
@@ -350,8 +347,8 @@ function OwnerHomeContent() {
     
     const isLoadingData = isLoadingSales || isLoadingTransactions;
 
-    // Loading state: Show a spinner until we know if onboarding is complete or not.
-    if (isUserLoading || isBusinessLoading || (authUser && !businessData?.plan)) {
+    // Loading state: Show a spinner until all data is loaded and redirection logic has run.
+    if (isUserLoading || isProfileLoading || (userProfile && isBusinessLoading)) {
         return (
             <div className="flex flex-col min-h-screen bg-background items-center justify-center">
                 <div className="flex items-center justify-center p-4">
@@ -848,4 +845,3 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
-
