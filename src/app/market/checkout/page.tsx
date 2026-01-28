@@ -203,17 +203,19 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
 
             batch.set(newOrderRef, orderData);
 
-             // Create a transaction record
-            const transactionRef = doc(collection(firestore, `businesses/${businessId}/paymentTransactions`));
-            batch.set(transactionRef, {
-                orderId: newOrderRef.id,
-                amount: total,
-                currency: businessProfile.currency,
-                status: 'successful',
-                gateway: 'paystack',
-                reference: `mock_ref_${Date.now()}`,
-                createdAt: serverTimestamp()
-            });
+             // Create a transaction record only for BusmoPay (Nigerian) orders
+            if (market.country === 'NG') {
+                const transactionRef = doc(collection(firestore, `businesses/${businessId}/paymentTransactions`));
+                batch.set(transactionRef, {
+                    orderId: newOrderRef.id,
+                    amount: total,
+                    currency: businessProfile.currency,
+                    status: 'successful',
+                    gateway: 'paystack',
+                    reference: `mock_ref_${Date.now()}`,
+                    createdAt: serverTimestamp()
+                });
+            }
 
             // Deduct stock for each item in the order
             for (const item of checkoutItems) {
@@ -328,5 +330,3 @@ export default function CheckoutPage({ searchParams }: { searchParams: { [key: s
         </MarketLayout>
     );
 }
-
-    

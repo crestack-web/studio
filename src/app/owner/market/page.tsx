@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -6,7 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, runTransaction } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -56,7 +57,7 @@ interface Business {
     deliveryCities?: string[];
 }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
-interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; }
+interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid' }
 // #endregion
 
 // #region --- SETTINGS COMPONENT ---
@@ -567,7 +568,7 @@ const OrdersContent = () => {
     }, [orders]);
 
     const handleUpdateStatus = async (order: Order, status: Order['status']) => {
-        if (!firestore || !businessId) return;
+        if (!firestore || !businessId || !businessData) return;
 
         const orderRef = doc(firestore, `businesses/${businessId}/orders`, order.id);
 
@@ -575,6 +576,25 @@ const OrdersContent = () => {
             await runTransaction(firestore, async (transaction) => {
                 // 1. Update order status
                 transaction.update(orderRef, { status });
+
+                 // If fulfilled, and it's a Nigerian business, create a payout record
+                if (status === 'fulfilled' && order.payoutStatus !== 'paid' && businessData.country === 'NG') {
+                    // In a real app, calculate commission here. For now, payout is total order amount.
+                    const payoutAmount = order.total;
+                    const payoutRef = doc(collection(firestore, `businesses/${businessId}/payouts`));
+                    
+                    transaction.set(payoutRef, {
+                        orderId: order.id,
+                        amount: payoutAmount,
+                        currency: businessData?.currency,
+                        status: 'processing', // This would be 'paid' after successful Paystack transfer
+                        createdAt: serverTimestamp(),
+                    });
+                    
+                    // Mark order as having a payout processing
+                    transaction.update(orderRef, { payoutStatus: 'processing' });
+                }
+
 
                 // 2. If confirming, deduct stock
                 if (status === 'confirmed' && order.status === 'pending') {
