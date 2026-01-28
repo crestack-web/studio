@@ -21,15 +21,12 @@ service cloud.firestore {
     }
 
     function isOwner(businessId) {
-      if (businessId == null || !isSignedIn()) {
+      if (!isSignedIn()) {
         return false;
       }
-      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
-      if (!exists(businessDocPath)) {
-          return false;
-      }
-      let businessDoc = get(businessDocPath);
-      return businessDoc.data != null && 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
+      let userData = getUserData();
+      // An owner is a user whose user document points to the businessId and has the 'Owner' role.
+      return userData != null && userData.businessId == businessId && userData.role == 'Owner';
     }
 
     function isBusinessMember(businessId) {
@@ -74,7 +71,7 @@ service cloud.firestore {
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /invitations/{invitationId} { 
-        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+        allow read, write: if isOwner(businessId);
       }
 
       match /orders/{orderId} {
