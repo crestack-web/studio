@@ -141,7 +141,7 @@ function OwnerHomeContent() {
         if (!firestore) return null;
         return query(collection(firestore, 'supportAgents'));
     }, [firestore]);
-    const { data: allAgents, isLoading: isLoadingAgents } = useCollection<SupportAgent>(agentsQuery);
+    const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
 
     const onlineAgents = useMemo(() => {
         if (!allAgents) return [];
@@ -689,6 +689,8 @@ function OwnerHomeContent() {
                             <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
                             <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
                         </>
+                    ) : agentsError ? (
+                        <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
                     ) : onlineAgents && onlineAgents.length > 0 ? (
                         onlineAgents.map(agent => (
                             <div key={agent.userId} className="flex items-center gap-3">
@@ -715,7 +717,7 @@ function OwnerHomeContent() {
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
+                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>

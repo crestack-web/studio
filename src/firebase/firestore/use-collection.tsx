@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -100,8 +101,9 @@ export function useCollection<T = any>(
         setData(null)
         setIsLoading(false)
 
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // Don't globally throw for list errors, as they can be caused by empty collections or missing indexes.
+        // Let the component decide how to handle the error state.
+        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 
