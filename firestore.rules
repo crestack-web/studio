@@ -164,7 +164,7 @@ service cloud.firestore {
     }
     
     match /supportAgents/{agentId} {
-        allow get, list: if true;
+        allow read: if true;
         allow write: if isAdmin();
     }
   }
