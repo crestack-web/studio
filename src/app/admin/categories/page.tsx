@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
-import { Loader2, Plus, FileEdit, Trash2 } from 'lucide-react';
+import { Loader2, Plus, FileEdit, Trash2, FileUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface MarketCategory {
     id: string;
@@ -25,13 +26,11 @@ export default function AdminCategoriesPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
 
-    // State for creating new category
     const [name, setName] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [imageHint, setImageHint] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
-    // State for editing category
     const [editingCategory, setEditingCategory] = useState<MarketCategory | null>(null);
 
     const categoriesQuery = useMemoFirebase(() => {
@@ -56,9 +55,29 @@ export default function AdminCategoriesPage() {
         setImageHint('');
     };
 
+    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 500 * 1024) { // 500KB limit
+            toast({
+                variant: 'destructive',
+                title: 'Image too large',
+                description: 'Please upload an image smaller than 500KB.',
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setter(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleAddCategory = async () => {
         if (!name || !imageUrl) {
-            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out name and image URL.' });
+            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out name and image.' });
             return;
         }
         setIsLoading(true);
@@ -107,7 +126,24 @@ export default function AdminCategoriesPage() {
                         <CardHeader><CardTitle>Add New Category</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Fashion" disabled={isLoading} /></div>
-                            <div className="space-y-2"><Label htmlFor="imageUrl">Image URL</Label><Input id="imageUrl" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://picsum.photos/..." disabled={isLoading} /></div>
+                            
+                            <div className="space-y-2">
+                                <Label>Image</Label>
+                                {imageUrl ? (
+                                    <div className="relative aspect-video">
+                                        <Image src={imageUrl} alt="Category image" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setImageUrl('')} disabled={isLoading}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload Image</span>
+                                    </Label>
+                                )}
+                                <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
+                                <p className="text-xs text-muted-foreground">Max 500KB.</p>
+                            </div>
+
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., fashion clothing" disabled={isLoading} /></div>
                             <Button onClick={handleAddCategory} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Category</Button>
                         </CardContent>
@@ -156,7 +192,21 @@ export default function AdminCategoriesPage() {
                     {editingCategory && (
                         <div className="grid gap-4 py-4">
                             <div className="space-y-2"><Label htmlFor="edit-name">Name</Label><Input id="edit-name" value={editingCategory.name} onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-imageUrl">Image URL</Label><Input id="edit-imageUrl" value={editingCategory.imageUrl} onChange={(e) => setEditingCategory({ ...editingCategory, imageUrl: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label>Image</Label>
+                                {editingCategory.imageUrl ? (
+                                    <div className="relative aspect-video">
+                                        <Image src={editingCategory.imageUrl} alt="Category image" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingCategory({...editingCategory, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="edit-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload Image</span>
+                                    </Label>
+                                )}
+                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingCategory({...editingCategory!, imageUrl: val}))} className="hidden" disabled={isLoading} />
+                            </div>
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingCategory.imageHint} onChange={(e) => setEditingCategory({ ...editingCategory, imageHint: e.target.value })} /></div>
                         </div>
                     )}

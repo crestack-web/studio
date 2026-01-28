@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,11 +8,14 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
-import { Loader2, Plus, FileEdit, Trash2 } from 'lucide-react';
+import { Loader2, Plus, FileEdit, Trash2, FileUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
 
 interface MarketBanner {
     id: string;
@@ -67,9 +70,29 @@ export default function AdminMarketPage() {
         setIsActive(false);
     };
 
+    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 500 * 1024) { // 500KB limit
+            toast({
+                variant: 'destructive',
+                title: 'Image too large',
+                description: 'Please upload an image smaller than 500KB.',
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setter(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleAddBanner = async () => {
         if (!title || !imageUrl) {
-            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out title and image URL.' });
+            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out title and image.' });
             return;
         }
         setIsLoading(true);
@@ -122,7 +145,22 @@ export default function AdminMarketPage() {
                         <CardContent className="space-y-4">
                             <div className="space-y-2"><Label htmlFor="title">Title</Label><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Clearance Sale" disabled={isLoading} /></div>
                             <div className="space-y-2"><Label htmlFor="subtitle">Subtitle</Label><Input id="subtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="e.g., Up to 50% Off" disabled={isLoading} /></div>
-                            <div className="space-y-2"><Label htmlFor="imageUrl">Image URL</Label><Input id="imageUrl" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://images.unsplash.com/..." disabled={isLoading} /></div>
+                             <div className="space-y-2">
+                                <Label>Image</Label>
+                                {imageUrl ? (
+                                    <div className="relative aspect-video">
+                                        <Image src={imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setImageUrl('')} disabled={isLoading}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload Image</span>
+                                    </Label>
+                                )}
+                                <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
+                                <p className="text-xs text-muted-foreground">Recommended: 1200x630px, max 500KB.</p>
+                            </div>
                              <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., abstract background" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="buttonText">Button Text</Label><Input id="buttonText" value={buttonText} onChange={(e) => setButtonText(e.target.value)} placeholder="e.g., Shop Now" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="className">Background Class</Label><Input id="className" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g., bg-orange-500" disabled={isLoading} /></div>
@@ -171,7 +209,21 @@ export default function AdminMarketPage() {
                         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                             <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingBanner.title} onChange={(e) => setEditingBanner({ ...editingBanner, title: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-subtitle">Subtitle</Label><Input id="edit-subtitle" value={editingBanner.subtitle} onChange={(e) => setEditingBanner({ ...editingBanner, subtitle: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-imageUrl">Image URL</Label><Input id="edit-imageUrl" value={editingBanner.imageUrl} onChange={(e) => setEditingBanner({ ...editingBanner, imageUrl: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label>Image</Label>
+                                {editingBanner.imageUrl ? (
+                                    <div className="relative aspect-video">
+                                        <Image src={editingBanner.imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingBanner({...editingBanner, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="edit-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload Image</span>
+                                    </Label>
+                                )}
+                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingBanner({...editingBanner!, imageUrl: val}))} className="hidden" disabled={isLoading} />
+                            </div>
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>
                              <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>

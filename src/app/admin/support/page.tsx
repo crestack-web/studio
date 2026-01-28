@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Send, MessageSquare, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
 
 // Interfaces based on backend.json
 interface ChatConversation {
@@ -27,7 +28,8 @@ interface ChatMessage {
     id: string;
     senderId: string;
     senderName: string;
-    text: string;
+    text?: string;
+    imageUrl?: string;
     createdAt: { toDate: () => Date };
 }
 
@@ -80,14 +82,13 @@ const ChatInterface = () => {
         const messagesRef = collection(firestore, `chatConversations/${selectedConversation.id}/messages`);
         const conversationRef = doc(firestore, 'chatConversations', selectedConversation.id);
         
-        const newMessage = {
+        const newMessage: Omit<ChatMessage, 'id' | 'createdAt'> = {
             senderId: adminUser.uid,
             senderName: 'Support', // Or adminUser.displayName
             text: messageInput.trim(),
-            createdAt: serverTimestamp(),
         };
 
-        await addDocumentNonBlocking(messagesRef, newMessage);
+        await addDocumentNonBlocking(messagesRef, { ...newMessage, createdAt: serverTimestamp() });
         updateDocumentNonBlocking(conversationRef, {
             lastMessage: messageInput.trim(),
             lastMessageAt: serverTimestamp(),
@@ -149,7 +150,12 @@ const ChatInterface = () => {
                                             <Avatar className="h-8 w-8"><AvatarFallback><User className="h-4 w-4"/></AvatarFallback></Avatar>
                                         )}
                                         <div className={cn("max-w-xs lg:max-w-md rounded-2xl p-3 text-sm", msg.senderId === adminUser?.uid ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted rounded-bl-none")}>
-                                            {msg.text}
+                                            {msg.text && <p>{msg.text}</p>}
+                                            {msg.imageUrl && (
+                                                <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                                    <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg mt-2 cursor-pointer" />
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 ))

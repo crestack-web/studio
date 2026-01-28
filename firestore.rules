@@ -23,53 +23,36 @@ service cloud.firestore {
       if (request.auth.token.email == 'crestack@gmail.com') {
         return true;
       }
-      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(userDocPath) && get(userDocPath).data.role == 'Admin';
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      // Check if userDoc exists and has a role property before accessing it
+      return userDoc != null && 'role' in userDoc.data && userDoc.data.role == 'Admin';
     }
 
     function isOwner(businessId) {
-      if (!isSignedIn()) {
-        return false;
-      }
-      let userData = getUserData();
-      // An owner is a user whose user document points to the businessId and has the 'Owner' role.
-      return userData != null && userData.businessId == businessId && userData.role == 'Owner';
+      if (!isSignedIn()) { return false; }
+      let userDoc = getUserData();
+      return userDoc != null && userDoc.businessId == businessId && userDoc.role == 'Owner';
     }
 
     function isBusinessMember(businessId) {
-      // This function was rewritten to be safer.
-      // It now checks for authentication before trying to read user data.
-      if (!isSignedIn()) {
-        return false;
-      }
-      let userData = getUserData();
-      return userData != null && userData.businessId == businessId;
+      if (!isSignedIn()) { return false; }
+      let userDoc = getUserData();
+      return userDoc != null && userDoc.businessId == businessId;
     }
 
     // --- MAIN COLLECTIONS ---
     match /users/{userId} {
-      // Signup: A user can create their own profile document.
-      allow create: if isUserOwner(userId) && request.resource.data.id == userId;
-      
-      // Read/Update: A user can only read and update their own profile. Admins can read any user.
+      allow create: if isUserOwner(userId);
       allow get: if isUserOwner(userId) || isAdmin();
-      allow update: if isUserOwner(userId) 
-                      && request.resource.data.role == resource.data.role
-                      && request.resource.data.businessId == resource.data.businessId;
-      
-      // Allow users to list other users only if they are querying for their own business.
-      allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
+      allow update: if isUserOwner(userId);
+      allow list: if isAdmin();
       allow delete: if isAdmin();
     }
 
     match /businesses/{businessId} {
-      // Signup: A user can create a business if they are the owner.
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      
-      // Access: Business members can read, only owners can update.
       allow get: if isBusinessMember(businessId);
+      allow create: if isOwner(businessId);
       allow update: if isOwner(businessId);
-      
       allow list, delete: if false;
 
       // Subcollections
@@ -77,38 +60,28 @@ service cloud.firestore {
       match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /invitations/{invitationId} { 
-        allow read, write: if isOwner(businessId);
-      }
-
+      match /invitations/{invitationId} { allow read, write: if isOwner(businessId); }
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
         allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId);
         allow update, list: if isBusinessMember(businessId);
         allow delete: if false;
       }
-
-      match /bankAccount/{accountId} {
-        allow read, write: if isOwner(businessId);
-      }
-      
+      match /bankAccount/{accountId} { allow read, write: if isOwner(businessId); }
       match /paymentTransactions/{transactionId} {
           allow read: if isOwner(businessId);
-          allow write: if false; // Backend only
+          allow write: if false;
       }
-
       match /payouts/{payoutId} {
           allow read: if isOwner(businessId);
-          allow write: if false; // Backend only
+          allow write: if false;
       }
     }
     
-    // --- MARKETPLACE & OTHER COLLECTIONS (PUBLIC ACCESS REVISED) ---
+    // --- MARKETPLACE & OTHER COLLECTIONS ---
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
-      allow delete: if isOwner(businessId) || isAdmin();
+      allow create, update, delete: if isOwner(businessId) || isAdmin();
     }
     
     match /marketProducts/{productId} {
@@ -129,10 +102,10 @@ service cloud.firestore {
     }
 
     match /reviews/{reviewId} {
-      allow get, list: if true;
+      allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     match /blogs/{blogId} {
@@ -140,29 +113,23 @@ service cloud.firestore {
         allow write: if isAdmin(); 
     }
 
+    // --- SUPPORT CHAT ---
     match /supportTickets/{ticketId} {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow read, write, list, delete: if isAdmin();
     }
     
-    // --- SUPPORT CHAT ---
     match /chatConversations/{conversationId} {
-      // User can create their own conversation
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // User can read their own conversation, Admins can read any
       allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
-      // Admin can update (e.g., to assign an agent, change status)
-      allow update: if isAdmin();
-      // Admins can list conversations
+      allow update: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
       allow list: if isAdmin();
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        // User can add messages to their own conversation
-        // Admin can add messages to any conversation
-        allow create: if (isSignedIn() && get(/databases/$(database)/documents/chatConversations/$(conversationId)).data.userId == request.auth.uid) || isAdmin();
-        // User can read messages in their own conversation, Admin can read any
-        allow read, list: if (isSignedIn() && get(/databases/$(database)/documents/chatConversations/$(conversationId)).data.userId == request.auth.uid) || isAdmin();
+        // Use get(parent) which is more efficient and reliable
+        allow create: if (isSignedIn() && get(parent).data.userId == request.auth.uid) || isAdmin();
+        allow read, list: if (isSignedIn() && get(parent).data.userId == request.auth.uid) || isAdmin();
         allow update, delete: if isAdmin();
       }
     }
