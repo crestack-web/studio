@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,15 @@ export default function AdminMarketPage() {
 
     const { data: banners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
     
+    const sortedBanners = useMemo(() => {
+        if (!banners) return [];
+        return [...banners].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [banners]);
+
     const resetForm = () => {
         setTitle('');
         setSubtitle('');
@@ -131,7 +140,7 @@ export default function AdminMarketPage() {
                                 <TableBody>
                                     {isLoadingBanners ? (
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading banners...</TableCell></TableRow>
-                                    ) : banners && banners.length > 0 ? banners.map((banner) => (
+                                    ) : sortedBanners && sortedBanners.length > 0 ? sortedBanners.map((banner) => (
                                         <TableRow key={banner.id}>
                                             <TableCell className="font-medium">{banner.title}</TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>

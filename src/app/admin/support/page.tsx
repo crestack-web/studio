@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { collection, query, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -32,10 +32,19 @@ export default function AdminSupportPage() {
 
     const ticketsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'supportTickets'), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'supportTickets'));
     }, [firestore]);
 
     const { data: tickets, isLoading } = useCollection<SupportTicket>(ticketsQuery);
+
+    const sortedTickets = useMemo(() => {
+        if (!tickets) return [];
+        return [...tickets].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [tickets]);
     
     const handleUpdateStatus = (ticketId: string, status: SupportTicket['status']) => {
         if (!firestore) return;
@@ -65,7 +74,7 @@ export default function AdminSupportPage() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading tickets...</TableCell></TableRow>
-                            ) : tickets && tickets.length > 0 ? tickets.map((ticket) => (
+                            ) : sortedTickets && sortedTickets.length > 0 ? sortedTickets.map((ticket) => (
                                 <TableRow key={ticket.id}>
                                     <TableCell>{ticket.createdAt.toDate().toLocaleDateString()}</TableCell>
                                     <TableCell>{ticket.userName}</TableCell>

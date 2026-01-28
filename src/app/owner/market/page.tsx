@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, orderBy, runTransaction } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, runTransaction } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -553,9 +553,18 @@ const OrdersContent = () => {
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return query(collection(firestore, `businesses/${businessId}/orders`), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, `businesses/${businessId}/orders`));
     }, [firestore, businessId]);
     const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
+
+    const sortedOrders = useMemo(() => {
+        if (!orders) return [];
+        return [...orders].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [orders]);
 
     const handleUpdateStatus = async (order: Order, status: Order['status']) => {
         if (!firestore || !businessId) return;
@@ -655,7 +664,7 @@ const OrdersContent = () => {
                                 </tr>
                             </thead>
                             <tbody className="[&_tr:last-child]:border-0">
-                                {orders && orders.length > 0 ? orders.map((order) => (
+                                {sortedOrders && sortedOrders.length > 0 ? sortedOrders.map((order) => (
                                     <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{order.customer.name}</td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.createdAt.toDate().toLocaleDateString()}</td>

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,15 @@ export default function AdminCategoriesPage() {
     }, [firestore]);
 
     const { data: categories, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
+
+    const sortedCategories = useMemo(() => {
+        if (!categories) return [];
+        return [...categories].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [categories]);
     
     const resetForm = () => {
         setName('');
@@ -113,7 +122,7 @@ export default function AdminCategoriesPage() {
                                 <TableBody>
                                     {isLoadingCategories ? (
                                         <TableRow><TableCell colSpan={2} className="h-24 text-center">Loading categories...</TableCell></TableRow>
-                                    ) : categories && categories.length > 0 ? categories.map((cat) => (
+                                    ) : sortedCategories && sortedCategories.length > 0 ? sortedCategories.map((cat) => (
                                         <TableRow key={cat.id}>
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
