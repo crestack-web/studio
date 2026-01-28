@@ -59,9 +59,16 @@ export function convertFromNgn(ngnValue: number, targetCurrencyCode?: string): n
 }
 
 
-export function formatCurrency(value: number, currencyCode?: string) {
-  const code = currencyCode || 'NG';
-  const config = currencyMap[code] || currencyMap['NG'];
+export function formatCurrency(value: number, currencyName?: string) {
+  let countryCode = 'NG'; // Default to Nigeria
+  if (currencyName) {
+    const market = markets.find(m => m.currency === currencyName);
+    if (market) {
+      countryCode = market.code;
+    }
+  }
+
+  const config = currencyMap[countryCode] || currencyMap['NG'];
   const formattedValue = Math.round(value).toLocaleString();
 
   if (config.position === 'after') {
@@ -70,7 +77,13 @@ export function formatCurrency(value: number, currencyCode?: string) {
   return `${config.symbol}${formattedValue}`;
 }
 
-export function getCurrencySymbol(currencyCode?: string) {
-    const code = currencyCode || 'NG';
-    return currencyMap[code]?.symbol || '₦';
+export function getCurrencySymbol(currencyName?: string) {
+    let countryCode = 'NG'; // Default to Nigeria
+    if (currencyName) {
+        const market = markets.find(m => m.currency === currencyName);
+        if (market) {
+            countryCode = market.code;
+        }
+    }
+    return currencyMap[countryCode]?.symbol || '₦';
 }
