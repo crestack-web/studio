@@ -17,9 +17,6 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // NOTE: The check for `getUserData().role == 'Admin'` was removed to prevent a recursive loop
-      // where the rule for reading a user's role depended on already knowing the user's role.
-      // This is now the single source of truth for admin privileges in security rules.
       return isSignedIn() && request.auth.token.email == 'crestack@gmail.com';
     }
 
@@ -104,7 +101,7 @@ service cloud.firestore {
     }
     
     match /marketBanners/{bannerId} {
-        allow read: if true;
+        allow get, list: if true;
         allow write: if isAdmin();
     }
 
