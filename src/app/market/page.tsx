@@ -253,14 +253,14 @@ export default function MarketPage() {
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
                 {/* 1. Hero Banner */}
-                <section>
-                    {isLoadingBanners ? <Skeleton className="h-56 md:h-72 w-full rounded-lg" /> : (
+                {isLoadingBanners ? <Skeleton className="h-56 md:h-72 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
+                    <section>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                             className="w-full"
                         >
                             <CarouselContent>
-                                {heroBanners?.map(banner => (
+                                {heroBanners.map(banner => (
                                     <CarouselItem key={banner.id}>
                                         <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 text-primary-foreground", banner.className)}>
                                             {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.imageHint} />}
@@ -274,22 +274,22 @@ export default function MarketPage() {
                                 ))}
                             </CarouselContent>
                         </Carousel>
-                    )}
-                </section>
+                    </section>
+                )}
                 
                 {/* 2. Quick Categories */}
-                <section>
-                    {isLoadingCategories ? (
+                 {isLoadingCategories ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                        {[...Array(7)].map((_, i) => (
+                            <div key={i} className="block group">
+                                <Skeleton className="aspect-square rounded-lg" />
+                            </div>
+                        ))}
+                    </div>
+                ) : (categories && categories.length > 0 &&
+                    <section>
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
-                            {[...Array(7)].map((_, i) => (
-                                <div key={i} className="block group">
-                                    <Skeleton className="aspect-square rounded-lg" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
-                            {categories?.map(category => (
+                            {categories.map(category => (
                                 <Link href="#" key={category.id} className="block group">
                                     <div className="relative aspect-square overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
                                         <Image
@@ -305,8 +305,8 @@ export default function MarketPage() {
                                 </Link>
                             ))}
                         </div>
-                    )}
-                </section>
+                    </section>
+                )}
                 
                 {/* 3. Deals & Promotions */}
                 <section>
