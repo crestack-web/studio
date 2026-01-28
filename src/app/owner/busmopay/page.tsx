@@ -1,6 +1,5 @@
-
-
 'use client';
+import { useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +9,7 @@ import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, query } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -59,15 +58,24 @@ export default function BusmoPayDashboard() {
     
     const payoutsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
-        return query(collection(firestore, `businesses/${businessId}/payouts`), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, `businesses/${businessId}/payouts`));
     }, [firestore, businessId]);
 
     const { data: payouts, isLoading: isLoadingPayouts } = useCollection<Payout>(payoutsQuery);
 
+    const sortedPayouts = useMemo(() => {
+        if (!payouts) return [];
+        return [...payouts].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [payouts]);
+
     const currency = businessData?.currency;
 
-    const totalPaidOut = payouts?.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0;
-    const pendingPayouts = payouts?.filter(p => p.status === 'processing').reduce((sum, p) => sum + p.amount, 0) || 0;
+    const totalPaidOut = sortedPayouts?.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0;
+    const pendingPayouts = sortedPayouts?.filter(p => p.status === 'processing').reduce((sum, p) => sum + p.amount, 0) || 0;
 
 
     return (
@@ -130,7 +138,7 @@ export default function BusmoPayDashboard() {
                                         <TableCell><Skeleton className="h-6 w-16 rounded-full"/></TableCell>
                                         <TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell>
                                     </TableRow>
-                                )) : payouts && payouts.length > 0 ? payouts.map((payout) => (
+                                )) : sortedPayouts && sortedPayouts.length > 0 ? sortedPayouts.map((payout) => (
                                     <TableRow key={payout.id}>
                                         <TableCell>{payout.createdAt.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell className="font-mono text-xs">#{payout.orderId.substring(0, 7)}</TableCell>
@@ -159,5 +167,3 @@ export default function BusmoPayDashboard() {
         </MainLayout>
     );
 }
-
-    
