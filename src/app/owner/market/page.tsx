@@ -996,6 +996,7 @@ const BusmoPaySettings = () => {
 // #region --- MAIN PAGE COMPONENT ---
 export default function ManageMarketPage() {
     const [activeSection, setActiveSection] = useState('products');
+    const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const router = useRouter();
 
     const menuItems = [
@@ -1030,7 +1031,17 @@ export default function ManageMarketPage() {
             <SidebarMenu className="flex-1 px-2">
                 {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)} tooltip={item.label} className="justify-start group-data-[collapsible=icon]:justify-center"><item.icon /> <span className="group-data-[collapsible=icon]:hidden">{item.label}</span></SidebarMenuButton>
+                        <SidebarMenuButton 
+                            isActive={activeSection === item.id} 
+                            onClick={() => {
+                                setActiveSection(item.id);
+                                setIsMobileSheetOpen(false); // Close sheet on selection
+                            }} 
+                            tooltip={item.label} 
+                            className="justify-start group-data-[collapsible=icon]:justify-center"
+                        >
+                            <item.icon /> <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 ))}
             </SidebarMenu>
@@ -1047,7 +1058,7 @@ export default function ManageMarketPage() {
                 <SidebarInset>
                     <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                             <Sheet>
+                             <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
                                 <SheetTrigger asChild>
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
