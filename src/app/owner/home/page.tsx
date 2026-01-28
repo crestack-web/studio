@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Link from 'next/link';
@@ -146,9 +144,9 @@ function OwnerHomeContent() {
     const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
 
     const onlineAgents = useMemo(() => {
-        if (!allAgents) return [];
+        if (agentsError || !allAgents) return [];
         return allAgents.filter(agent => agent.status === 'online');
-    }, [allAgents]);
+    }, [allAgents, agentsError]);
     
     const assignedAgent = onlineAgents?.[0];
 
@@ -425,7 +423,7 @@ function OwnerHomeContent() {
                         disabled={isLoading && selectedQuestion === q}
                        >
                            {isLoading && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                           {q}
+                           <span className="truncate">{q}</span>
                        </Button>
                    ))}
                 </CardContent>
