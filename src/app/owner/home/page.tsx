@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -41,6 +42,7 @@ interface Business {
     businessName: string;
     businessType: string;
     currency: string;
+    country?: string;
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
 }
 
@@ -284,7 +286,7 @@ function OwnerHomeContent() {
             const response = await getBusinessInsights({ 
                 query: question,
                 insights: businessInsights,
-                currency: getCurrencySymbol(businessData?.currency),
+                currency: getCurrencySymbol(businessData?.currency || businessData?.country),
             });
             if (response.answer) {
               setAnswer(response.answer);
@@ -460,10 +462,10 @@ function OwnerHomeContent() {
                     ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
                         <>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalSales, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-lg font-bold sm:text-xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalDeposits, businessData?.currency)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.currency)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalSales, businessData?.country)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-lg font-bold sm:text-xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.country)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalDeposits, businessData?.country)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.country)}</p></div>
                             </div>
                             <div className="pt-4">
                                 <Link href={statementUrl} passHref>
@@ -509,12 +511,12 @@ function OwnerHomeContent() {
                              <div className="p-4 rounded-lg bg-muted/50">
                                 <h4 className="font-semibold text-sm flex items-center gap-1.5"><ChevronsUp className="w-5 h-5 text-success"/>Best Seller</h4>
                                 <p className="font-bold text-lg truncate">{businessInsights.bestSellingProduct?.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.currency)} in revenue</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
                              </div>
                              <div className="p-4 rounded-lg bg-muted/50">
                                 <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingDown className="w-5 h-5 text-destructive"/>Worst Seller</h4>
                                 <p className="font-bold text-lg truncate">{businessInsights.worstSellingProduct?.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.currency)} in revenue</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
                              </div>
                           </div>
                           <div>

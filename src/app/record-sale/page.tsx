@@ -1,3 +1,4 @@
+
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
@@ -36,7 +37,8 @@ interface Product {
 
 interface Business {
     businessName: string;
-    currency: string;
+    currency?: string;
+    country?: string;
 }
 
 interface SaleDetails {
@@ -176,7 +178,7 @@ export default function RecordSalePage() {
             totalAmount: totalAmount,
             paymentType: paymentType,
             businessName: businessData?.businessName,
-            currency: businessData?.currency,
+            currency: businessData?.currency || businessData?.country,
             date: new Date(),
         });
     } catch (error) {
@@ -296,7 +298,7 @@ export default function RecordSalePage() {
                         <div className="text-right">
                             <Label>Total Amount</Label>
                             <div className="font-bold text-3xl h-12 flex items-center justify-end">
-                                {formatCurrency(totalAmount, businessData?.currency)}
+                                {formatCurrency(totalAmount, businessData?.country)}
                             </div>
                         </div>
                     </div>

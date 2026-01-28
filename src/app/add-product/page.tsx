@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import MainLayout from '@/components/app/main-layout';
@@ -370,7 +371,7 @@ export default function AddProductPage() {
                                             <div className="flex-1">
                                                 <p className="font-medium">{variant.name}</p>
                                                 <p className="text-muted-foreground">
-                                                    Price: {formatCurrency(parseFloat(variant.price), businessData?.currency)} | Qty: {variant.quantity}
+                                                    Price: {formatCurrency(parseFloat(variant.price), businessData?.country)} | Qty: {variant.quantity}
                                                 </p>
                                             </div>
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveVariant(variant.id)} disabled={isLoading}>
@@ -411,7 +412,7 @@ export default function AddProductPage() {
                                     {ingredients.map((ing, index) => (
                                         <div key={index} className="flex items-center gap-2 p-2 rounded-md border">
                                             <span className="flex-1 font-medium">{ing.name}</span>
-                                            <span className="text-muted-foreground">{formatCurrency(parseFloat(ing.cost), businessData?.currency)}</span>
+                                            <span className="text-muted-foreground">{formatCurrency(parseFloat(ing.cost), businessData?.country)}</span>
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveIngredient(index)} disabled={isLoading}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
