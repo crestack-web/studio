@@ -96,7 +96,7 @@ service cloud.firestore {
     }
     
     match /marketBanners/{bannerId} {
-        allow get, list: if true;
+        allow read: if true;
         allow write: if isAdmin();
     }
 
