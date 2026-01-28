@@ -87,8 +87,8 @@ service cloud.firestore {
     match /marketProducts/{productId} {
       allow get, list: if true;
       allow create: if isOwner(request.resource.data.businessId);
-      allow update: if isOwner(resource.data.businessId) || isAdmin();
-      allow delete: if isOwner(resource.data.businessId) || isAdmin();
+      allow update: if isAdmin() || isOwner(resource.data.businessId);
+      allow delete: if isAdmin() || isOwner(resource.data.businessId);
     }
     
     match /marketBanners/{bannerId} {
