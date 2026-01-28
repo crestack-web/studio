@@ -38,7 +38,6 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             collection(firestore, 'blogs'), 
             where('slug', '!=', slug),
             where('isPublished', '==', true),
-            orderBy('slug', 'asc'), // to have some order
             orderBy('createdAt', 'desc'),
             limit(2)
         );

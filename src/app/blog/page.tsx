@@ -8,6 +8,7 @@ import InvestorLayout from '@/components/app/investor-layout';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMemo } from 'react';
 
 export interface BlogPost {
   id: string;
@@ -19,6 +20,7 @@ export interface BlogPost {
   imageUrl: string;
   imageHint: string;
   createdAt: any; // Firestore Timestamp
+  isPublished: boolean;
 }
 
 const BlogSkeleton = () => (
@@ -48,21 +50,30 @@ export default function BlogPage() {
         if (!firestore) return null;
         return query(
             collection(firestore, 'blogs'), 
-            where('isPublished', '==', true),
-            orderBy('createdAt', 'desc')
+            where('isPublished', '==', true)
         );
     }, [firestore]);
 
     const { data: blogPosts, isLoading } = useCollection<BlogPost>(blogQuery);
 
-    const formattedPosts = blogPosts?.map(post => ({
-        ...post,
-        date: post.createdAt.toDate().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
-    })) || [];
+    const formattedPosts = useMemo(() => {
+        if (!blogPosts) return [];
+        return [...blogPosts]
+            .map(post => ({
+                ...post,
+                date: post.createdAt?.toDate().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                }) || ''
+            }))
+            .sort((a, b) => {
+                const dateA = a.createdAt?.toDate()?.getTime() || 0;
+                const dateB = b.createdAt?.toDate()?.getTime() || 0;
+                return dateB - dateA;
+            });
+    }, [blogPosts]);
+
 
     return (
         <InvestorLayout>

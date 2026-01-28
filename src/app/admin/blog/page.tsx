@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp, orderBy, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
 import { Loader2, Plus, FileEdit, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -48,11 +48,20 @@ export default function AdminBlogPage() {
 
     const blogPostsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'blogs'), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'blogs'));
     }, [firestore]);
 
     const { data: blogPosts, isLoading: isLoadingPosts } = useCollection<BlogPost>(blogPostsQuery);
     
+    const sortedBlogPosts = useMemo(() => {
+        if (!blogPosts) return [];
+        return [...blogPosts].sort((a, b) => {
+            const dateA = a.createdAt?.toDate()?.getTime() || 0;
+            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            return dateB - dateA;
+        });
+    }, [blogPosts]);
+
     const createSlug = (title: string) => {
         return title
             .toLowerCase()
@@ -78,6 +87,7 @@ export default function AdminBlogPage() {
             toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out title, content, and author.' });
             return;
         }
+        if (!firestore) return;
         setIsLoading(true);
 
         const slug = createSlug(title);
@@ -154,7 +164,7 @@ export default function AdminBlogPage() {
                                 <TableBody>
                                     {isLoadingPosts ? (
                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading posts...</TableCell></TableRow>
-                                    ) : blogPosts && blogPosts.length > 0 ? blogPosts.map((post) => (
+                                    ) : sortedBlogPosts && sortedBlogPosts.length > 0 ? sortedBlogPosts.map((post) => (
                                         <TableRow key={post.id}>
                                             <TableCell className="font-medium">{post.title}</TableCell>
                                             <TableCell><Badge variant={post.isPublished ? 'default' : 'secondary'}>{post.isPublished ? 'Published' : 'Draft'}</Badge></TableCell>
