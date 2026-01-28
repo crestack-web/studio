@@ -36,8 +36,13 @@ service cloud.firestore {
     }
 
     function isBusinessMember(businessId) {
+      // This function was rewritten to be safer.
+      // It now checks for authentication before trying to read user data.
+      if (!isSignedIn()) {
+        return false;
+      }
       let userData = getUserData();
-      return isSignedIn() && userData.businessId == businessId;
+      return userData != null && userData.businessId == businessId;
     }
 
     // --- MAIN COLLECTIONS ---
