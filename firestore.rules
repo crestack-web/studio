@@ -109,7 +109,8 @@ service cloud.firestore {
     }
 
     match /marketCategories/{categoryId} {
-        allow read: if true;
+        // This rule allows public read access for marketplace categories.
+        allow get, list: if true;
         allow write: if isAdmin();
     }
 
