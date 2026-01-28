@@ -54,10 +54,10 @@ service cloud.firestore {
         allow read: if isUser(userId);
         allow write: if false; // Only backend
       }
+    }
 
-      match /admin_permissions/{permissionId} {
-        allow read, write: if isAdmin();
-      }
+    match /admin_permissions/{userId} {
+      allow read, write: if isAdmin();
     }
     
     match /subscriptionTransactions/{transactionId} {

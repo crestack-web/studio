@@ -601,21 +601,17 @@
         }
       },
       {
-        "path": "/users/{userId}/admin_permissions/{permissionId}",
+        "path": "/admin_permissions/{userId}",
         "definition": {
           "entityName": "AdminPermission",
           "schema": {
             "$ref": "#/backend/entities/AdminPermission"
           },
-          "description": "Stores granular permissions for an admin user. permissionId is 'settings'.",
+          "description": "Stores granular permissions for an admin user.",
           "params": [
             {
               "name": "userId",
               "description": "The admin user's ID."
-            },
-            {
-              "name": "permissionId",
-              "description": "'settings'"
             }
           ]
         }

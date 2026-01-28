@@ -49,7 +49,7 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
     const firestore = useFirestore();
     const permissionsRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return doc(firestore, `users/${user.id}/admin_permissions/settings`);
+        return doc(firestore, `admin_permissions`, user.id);
     }, [firestore, user]);
     const { data: initialPermissions, isLoading } = useDoc<AdminPermission>(permissionsRef);
     
@@ -144,7 +144,7 @@ export default function AdminUsersPage() {
     const handleSavePermissions = (userId: string, permissions: AdminPermission, newRole: User['role']) => {
         if (!firestore) return;
         const userRef = doc(firestore, 'users', userId);
-        const permissionsRef = doc(firestore, `users/${userId}/admin_permissions/settings`);
+        const permissionsRef = doc(firestore, `admin_permissions`, userId);
         
         updateDocumentNonBlocking(userRef, { role: newRole });
         setDocumentNonBlocking(permissionsRef, permissions, { merge: true });
