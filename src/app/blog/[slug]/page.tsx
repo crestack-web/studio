@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from 'next/image';
@@ -39,29 +38,18 @@ export default function BlogPostPage() {
 
     const otherPostsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(
-            collection(firestore, 'blogs'), 
-            where('isPublished', '==', true),
-            limit(5) // Fetch 5 to have enough to filter one out and have others left.
-        );
+        // Fetch a few more posts than needed, to ensure we have enough to show after filtering.
+        return query(collection(firestore, 'blogs'), where('isPublished', '==', true), limit(5));
     }, [firestore]);
     const { data: otherPostsData, isLoading: isLoadingOthers } = useCollection<BlogPost>(otherPostsQuery);
     
     const otherPosts = useMemo(() => {
-        if (!otherPostsData || !slug) return [];
+        if (!otherPostsData || !post) return [];
         return otherPostsData
-        .filter(p => p.slug !== slug) // Filter out the current post
-        .map(p => ({
-             ...p,
-            date: p.createdAt.toDate().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-            })
-        }))
-        .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
-        .slice(0, 2);
-    }, [otherPostsData, slug]);
+            .filter(p => p.id !== post.id) // Filter out the current post
+            .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime())
+            .slice(0, 2);
+    }, [otherPostsData, post]);
 
     if (isLoadingPost) {
         return (
@@ -125,7 +113,7 @@ export default function BlogPostPage() {
                             />
                         </div>
 
-                        <div className="prose prose-lg dark:prose-invert max-w-none">
+                        <div className="prose prose-lg dark:prose-invert">
                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
                         </div>
                     </article>
