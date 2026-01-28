@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -34,12 +33,14 @@ export function MarketSwitcher() {
   }, [isOpen, market]);
 
   useEffect(() => {
-    // If the country changes, reset the city to the first available one
-    const firstCity = availableMarkets.find(c => c.code === selectedCountry)?.cities[0];
-    if (firstCity) {
-      setSelectedCity(firstCity);
+    // If the country changes, reset the city if it's not valid for the new country
+    if (selectedCountryData) {
+        const cityExists = selectedCountryData.cities.includes(selectedCity);
+        if (!cityExists) {
+            setSelectedCity(selectedCountryData.cities[0]);
+        }
     }
-  }, [selectedCountry, availableMarkets]);
+  }, [selectedCountry, selectedCity, selectedCountryData]);
 
   const handleUpdateMarket = () => {
     setMarket({ country: selectedCountry, city: selectedCity });
@@ -49,9 +50,10 @@ export function MarketSwitcher() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="hidden md:flex items-center gap-2 text-muted-foreground">
-          <MapPin className="h-4 w-4" />
-          <span className="text-sm">{market.city}, {market.country}</span>
+        <Button variant="ghost" className="flex items-center gap-2 text-muted-foreground p-2 md:px-3">
+          <MapPin className="h-5 w-5 md:h-4 md:w-4" />
+          <span className="hidden md:inline text-sm">{market.city}, {market.country}</span>
+          <span className="sr-only">Change market location</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -97,5 +99,3 @@ export function MarketSwitcher() {
     </Dialog>
   );
 }
-
-    
