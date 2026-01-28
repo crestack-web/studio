@@ -885,49 +885,48 @@ export default function ManageMarketPage() {
             default: return <ProductsContent />;
         }
     };
+    
+    const SidebarNavigation = () => (
+         <>
+            <SidebarHeader>
+                <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
+                    <Button variant="ghost" className="justify-start gap-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span className="group-data-[collapsible=icon]:hidden">Back to Home</span></Button>
+                </div>
+            </SidebarHeader>
+
+            <SidebarMenu className="flex-1 px-2">
+                {menuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)} tooltip={item.label} className="justify-start group-data-[collapsible=icon]:justify-center"><item.icon /> <span className="group-data-[collapsible=icon]:hidden">{item.label}</span></SidebarMenuButton>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+        </>
+    )
 
     return (
         <SidebarProvider>
             <div className="flex min-h-screen bg-muted/30 text-foreground">
                 <Sidebar>
-                    <SidebarHeader>
-                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-                            <Button variant="ghost" className="justify-start gap-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span className="group-data-[collapsible=icon]:hidden">Back to Home</span></Button>
-                            <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
-                        </div>
-                    </SidebarHeader>
-
-                    <SidebarMenu className="flex-1 px-2">
-                        {menuItems.map((item) => (
-                            <SidebarMenuItem key={item.id}>
-                                <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)} tooltip={item.label} className="justify-start group-data-[collapsible=icon]:justify-center"><item.icon /> <span className="group-data-[collapsible=icon]:hidden">{item.label}</span></SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
+                    <SidebarNavigation />
                 </Sidebar>
 
                 <SidebarInset>
                     <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                            <Sheet>
+                             <Sheet>
                                 <SheetTrigger asChild>
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
-                                <SheetContent side="left" className="w-full max-w-xs">
-                                     <SidebarHeader>
-                                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-                                            <Button variant="ghost" className="justify-start gap-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span>Back to Home</span></Button>
+                                <SheetContent side="left" className="w-full max-w-xs p-0">
+                                     <Sidebar className="[&>div]:hidden">
+                                        <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+                                           <SidebarNavigation />
                                         </div>
-                                    </SidebarHeader>
-                                    <SidebarMenu className="flex-1 px-2 mt-4">
-                                        {menuItems.map((item) => (
-                                            <SidebarMenuItem key={item.id}>
-                                                <SidebarMenuButton isActive={activeSection === item.id} onClick={() => setActiveSection(item.id)} tooltip={item.label} className="justify-start"><item.icon /> <span>{item.label}</span></SidebarMenuButton>
-                                            </SidebarMenuItem>
-                                        ))}
-                                    </SidebarMenu>
+                                    </Sidebar>
                                 </SheetContent>
                             </Sheet>
+                            <SidebarTrigger className="hidden md:flex" />
                             <div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div>
                         </div>
                         <div className="flex w-full items-center justify-end gap-2 sm:w-auto">

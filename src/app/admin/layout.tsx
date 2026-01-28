@@ -1,13 +1,15 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
 import { usePathname, redirect } from 'next/navigation';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 
 interface AppUser {
@@ -67,6 +69,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -83,36 +86,56 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
+  const SidebarContent = () => (
+    <>
+      <SidebarHeader>
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
+            <Logo className="h-8 group-data-[collapsible=icon]:hidden" />
+        </div>
+      </SidebarHeader>
+      <SidebarMenu className="flex-1 px-2">
+          {menuItems.map((item) => (
+              <SidebarMenuItem key={item.id}>
+                  <Link href={item.href}>
+                      <SidebarMenuButton
+                          isActive={pathname.startsWith(item.href)}
+                          tooltip={item.label}
+                          className="justify-start group-data-[collapsible=icon]:justify-center"
+                      >
+                          <item.icon />
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </SidebarMenuButton>
+                  </Link>
+              </SidebarMenuItem>
+          ))}
+      </SidebarMenu>
+    </>
+  )
+
   return (
     <ProtectedAdminLayout>
         <SidebarProvider>
             <div className="flex min-h-screen bg-background text-foreground">
                 <Sidebar>
-                    <SidebarHeader>
-                        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
-                            <Logo className="h-8 group-data-[collapsible=icon]:hidden" />
-                            <SidebarTrigger className="hidden md:flex" />
-                        </div>
-                    </SidebarHeader>
-                    <SidebarMenu className="flex-1 px-2">
-                        {menuItems.map((item) => (
-                            <SidebarMenuItem key={item.id}>
-                                <Link href={item.href}>
-                                    <SidebarMenuButton
-                                        isActive={pathname.startsWith(item.href)}
-                                        tooltip={item.label}
-                                        className="justify-start group-data-[collapsible=icon]:justify-center"
-                                    >
-                                        <item.icon />
-                                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                                    </SidebarMenuButton>
-                                </Link>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
+                  <SidebarContent />
                 </Sidebar>
 
                 <SidebarInset>
+                    <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background px-4">
+                      <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                          <SheetTrigger asChild>
+                              <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
+                          </SheetTrigger>
+                          <SheetContent side="left" className="w-full max-w-xs p-0">
+                                <Sidebar className="[&>div]:hidden">
+                                  <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+                                    <SidebarContent />
+                                  </div>
+                                </Sidebar>
+                          </SheetContent>
+                      </Sheet>
+                      <SidebarTrigger className="hidden md:flex" />
+                    </header>
                     {children}
                 </SidebarInset>
             </div>
