@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -90,9 +91,15 @@ export default function LandingPage() {
 
   const agentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'supportAgents'), where('status', '==', 'online'));
+    return query(collection(firestore, 'supportAgents'));
   }, [firestore]);
-  const { data: onlineAgents, isLoading: isLoadingAgents } = useCollection<SupportAgent>(agentsQuery);
+  const { data: allAgents, isLoading: isLoadingAgents } = useCollection<SupportAgent>(agentsQuery);
+
+  const onlineAgents = useMemo(() => {
+      if (!allAgents) return [];
+      return allAgents.filter(agent => agent.status === 'online');
+  }, [allAgents]);
+
   const assignedAgent = onlineAgents?.[0];
 
   useEffect(() => {
