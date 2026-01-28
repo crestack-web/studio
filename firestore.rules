@@ -83,6 +83,20 @@ service cloud.firestore {
         allow update, list: if isBusinessMember(businessId);
         allow delete: if false;
       }
+
+      match /bankAccount/{accountId} {
+        allow read, write: if isOwner(businessId);
+      }
+      
+      match /paymentTransactions/{transactionId} {
+          allow read: if isOwner(businessId);
+          allow write: if false; // Backend only
+      }
+
+      match /payouts/{payoutId} {
+          allow read: if isOwner(businessId);
+          allow write: if false; // Backend only
+      }
     }
     
     // --- MARKETPLACE & OTHER COLLECTIONS (PUBLIC ACCESS REVISED) ---
@@ -155,3 +169,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

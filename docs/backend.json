@@ -317,6 +317,50 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["conversationId", "senderId", "senderName", "createdAt"]
+    },
+    "SellerBankAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SellerBankAccount",
+      "type": "object",
+      "description": "Stores verified bank account details for a seller's payouts.",
+      "properties": {
+        "bankName": { "type": "string" },
+        "bankCode": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "accountName": { "type": "string", "description": "Name verified via Paystack." },
+        "status": { "type": "string", "enum": ["unverified", "pending", "verified", "failed"] }
+      },
+      "required": ["bankCode", "accountNumber", "status"]
+    },
+    "PaymentTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaymentTransaction",
+      "type": "object",
+      "description": "Logs a payment attempt for an order.",
+      "properties": {
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "successful", "failed"] },
+        "gateway": { "type": "string", "enum": ["paystack"] },
+        "reference": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "amount", "currency", "status", "gateway", "createdAt"]
+    },
+    "Payout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payout",
+      "type": "object",
+      "description": "Logs a payout to a seller for a completed order.",
+      "properties": {
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["processing", "paid", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "amount", "currency", "status", "createdAt"]
     }
   },
   "auth": {
@@ -424,6 +468,42 @@
         }
       },
       {
+        "path": "/businesses/{businessId}/bankAccount/{accountId}",
+        "definition": {
+          "entityName": "SellerBankAccount",
+          "schema": { "$ref": "#/backend/entities/SellerBankAccount" },
+          "description": "Stores the seller's verified bank account for payouts. `accountId` is typically 'primary'.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "accountId", "description": "The identifier for the bank account." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/paymentTransactions/{transactionId}",
+        "definition": {
+          "entityName": "PaymentTransaction",
+          "schema": { "$ref": "#/backend/entities/PaymentTransaction" },
+          "description": "Logs payment gateway transaction attempts for orders.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "transactionId", "description": "The unique identifier for the transaction." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/payouts/{payoutId}",
+        "definition": {
+          "entityName": "Payout",
+          "schema": { "$ref": "#/backend/entities/Payout" },
+          "description": "Logs payout records to sellers for fulfilled orders.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "payoutId", "description": "The unique identifier for the payout record." }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
@@ -509,3 +589,4 @@
     "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
   }
 }
+    

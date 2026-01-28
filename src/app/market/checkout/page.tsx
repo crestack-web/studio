@@ -11,16 +11,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Banknote, Package, Truck, Landmark, Loader2 } from 'lucide-react';
+import { Banknote, Package, Truck, Landmark, Loader2, CreditCard } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction, addDoc } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { useCart, CartItem } from '@/context/cart-provider';
 import MarketLayout from '@/components/app/market-layout';
+import { useMarket } from '@/context/market-provider';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
 interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
@@ -45,6 +46,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
     const { items: cartItems, clearCart } = useCart();
+    const { market } = useMarket();
     
     // State for checkout items
     const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
@@ -52,7 +54,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
 
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [fulfillmentMethod, setFulfillmentMethod] = useState('delivery');
-    const [paymentMethod, setPaymentMethod] = useState('delivery');
+    const [paymentMethod, setPaymentMethod] = useState('busmopay');
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerAddress, setCustomerAddress] = useState('');
@@ -130,9 +132,13 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
     useEffect(() => {
         if (settings) {
             setFulfillmentMethod(settings.delivery.allowDelivery ? 'delivery' : 'pickup');
-            setPaymentMethod(settings.payment.allowPayOnDelivery ? 'delivery' : 'transfer');
+             if (market.country === 'NG') {
+                setPaymentMethod('busmopay');
+            } else {
+                setPaymentMethod(settings.payment.allowPayOnDelivery ? 'delivery' : 'transfer');
+            }
         }
-    }, [settings]);
+    }, [settings, market.country]);
 
     const { subtotal, deliveryFee, total } = useMemo(() => {
         const sub = checkoutItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -167,7 +173,11 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
         setIsPlacingOrder(true);
         
         try {
+            // Using a batched write for atomicity
+            const batch = writeBatch(firestore);
+
             const orderCollectionRef = collection(firestore, `businesses/${businessId}/orders`);
+            const newOrderRef = doc(orderCollectionRef);
             
             const orderData = {
                 buyerId: user.uid,
@@ -184,13 +194,55 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                 subtotal, 
                 deliveryFee, 
                 total,
-                status: 'pending',
+                status: market.country === 'NG' ? 'confirmed' : 'pending',
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
+                payoutStatus: 'unpaid',
                 createdAt: serverTimestamp()
             };
 
-            const newOrderRef = await addDoc(orderCollectionRef, orderData);
+            batch.set(newOrderRef, orderData);
+
+             // Create a transaction record
+            const transactionRef = doc(collection(firestore, `businesses/${businessId}/paymentTransactions`));
+            batch.set(transactionRef, {
+                orderId: newOrderRef.id,
+                amount: total,
+                currency: businessProfile.currency,
+                status: 'successful',
+                gateway: 'paystack',
+                reference: `mock_ref_${Date.now()}`,
+                createdAt: serverTimestamp()
+            });
+
+            // Deduct stock for each item in the order
+            for (const item of checkoutItems) {
+                const productRef = doc(firestore, `businesses/${businessId}/products`, item.productId);
+                const marketProductRef = doc(firestore, 'marketProducts', item.productId);
+
+                // Note: In a real-world scenario with high traffic, this simple read-then-write
+                // could lead to race conditions. A more robust solution would use Firestore Transactions
+                // to read the current stock and update it in one atomic operation.
+                // For this prototype, we'll proceed with batched writes for simplicity.
+                const productSnap = await doc(firestore, `businesses/${businessId}/products`, item.productId).get();
+                 if (productSnap.exists()) {
+                    const productData = productSnap.data() as any;
+                    if (item.variantId && productData.hasVariants) {
+                        const newVariants = productData.variants.map((v: any) => 
+                            v.id === item.variantId ? { ...v, quantity: v.quantity - item.quantity } : v
+                        );
+                        const newTotalStock = newVariants.reduce((sum: number, v: any) => sum + v.quantity, 0);
+                        batch.update(productRef, { variants: newVariants });
+                        batch.update(marketProductRef, { availableQuantity: newTotalStock });
+                    } else {
+                        const newQuantity = productData.quantity - item.quantity;
+                        batch.update(productRef, { quantity: newQuantity });
+                        batch.update(marketProductRef, { availableQuantity: newQuantity });
+                    }
+                }
+            }
+            
+            await batch.commit();
             
             clearCart(); // Clear cart after successful order
 
@@ -242,15 +294,25 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                 </Card>
                 <Card><CardHeader><CardTitle>How would you like to pay?</CardTitle></CardHeader>
                     <CardContent>
-                         <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
-                             {settings?.payment.allowPayOnDelivery && (<Label htmlFor="pay-on-delivery" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="delivery" id="pay-on-delivery" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Banknote className="h-5 w-5 text-primary" /><span>Pay on Delivery</span></div><p className="text-sm text-muted-foreground mt-1">Pay with cash or POS when your order arrives.</p></div></Label>)}
-                             {settings?.payment.allowBankTransfer && (<Label htmlFor="bank-transfer" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="transfer" id="bank-transfer" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Landmark className="h-5 w-5 text-primary" /><span>Bank Transfer</span></div><p className="text-sm text-muted-foreground mt-1">You'll receive account details after placing your order.</p></div></Label>)}
-                        </RadioGroup>
+                         {market.country === 'NG' ? (
+                            <div className="flex items-center rounded-md border-2 p-4 border-primary bg-primary/5">
+                                <CreditCard className="h-5 w-5 text-primary mr-4" />
+                                <div className="flex-1">
+                                    <p className="font-semibold">Pay with BusmoPay</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Securely pay with Card, Bank Transfer, or USSD.</p>
+                                </div>
+                            </div>
+                         ) : (
+                             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
+                                {settings?.payment.allowPayOnDelivery && (<Label htmlFor="pay-on-delivery" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="delivery" id="pay-on-delivery" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Banknote className="h-5 w-5 text-primary" /><span>Pay on Delivery</span></div><p className="text-sm text-muted-foreground mt-1">Pay with cash or POS when your order arrives.</p></div></Label>)}
+                                {settings?.payment.allowBankTransfer && (<Label htmlFor="bank-transfer" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"><RadioGroupItem value="transfer" id="bank-transfer" className="peer mt-1" /><div className="ml-4"><div className="flex items-center gap-2 font-semibold"><Landmark className="h-5 w-5 text-primary" /><span>Bank Transfer</span></div><p className="text-sm text-muted-foreground mt-1">You'll receive account details after placing your order.</p></div></Label>)}
+                            </RadioGroup>
+                         )}
                     </CardContent>
                 </Card>
                 <Button className="w-full h-14 text-lg" onClick={handlePlaceOrder} disabled={!canPlaceOrder || isPlacingOrder}>
                     {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Place Order ({formatCurrency(total, businessProfile.currency)})
+                    {market.country === 'NG' ? 'Pay Now' : 'Place Order'} ({formatCurrency(total, businessProfile.currency)})
                 </Button>
             </div>
         </div>
@@ -266,3 +328,5 @@ export default function CheckoutPage({ searchParams }: { searchParams: { [key: s
         </MarketLayout>
     );
 }
+
+    

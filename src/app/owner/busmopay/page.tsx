@@ -1,16 +1,18 @@
 
+
 'use client';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, Rocket, TrendingUp } from 'lucide-react';
+import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface AppUser {
     businessId?: string;
@@ -20,13 +22,23 @@ interface Business {
     currency?: string;
 }
 
-// Mock data
-const transactions = [
-    { id: 'txn_1', date: '2024-07-15', method: 'paystack', amount: 12000, status: 'succeeded', customer: 'Tunde O.' },
-    { id: 'txn_2', date: '2024-07-15', method: 'airtel', amount: 5500, status: 'succeeded', customer: 'Amina K.' },
-    { id: 'txn_3', date: '2024-07-14', method: 'paystack', amount: 8200, status: 'succeeded', customer: 'John A.' },
-    { id: 'txn_4', date: '2024-07-13', method: 'paystack', amount: 25000, status: 'failed', customer: 'Jane D.' },
-];
+interface Payout {
+    id: string;
+    orderId: string;
+    amount: number;
+    status: 'processing' | 'paid' | 'failed';
+    createdAt: {
+        toDate: () => Date;
+    };
+}
+
+
+const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
+    processing: 'secondary',
+    paid: 'default',
+    failed: 'destructive',
+};
+
 
 export default function BusmoPayDashboard() {
     const { user: authUser } = useUser();
@@ -45,49 +57,46 @@ export default function BusmoPayDashboard() {
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
     
+    const payoutsQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, `businesses/${businessId}/payouts`), orderBy('createdAt', 'desc'));
+    }, [firestore, businessId]);
+
+    const { data: payouts, isLoading: isLoadingPayouts } = useCollection<Payout>(payoutsQuery);
+
     const currency = businessData?.currency;
 
-    // These totals are derived from mock data for demonstration.
-    const totalRevenue = transactions.filter(t => t.status === 'succeeded').reduce((sum, t) => sum + t.amount, 0);
-    const paystackVolume = transactions.filter(t => t.status === 'succeeded' && t.method === 'paystack').reduce((sum, t) => sum + t.amount, 0);
-    const airtelVolume = transactions.filter(t => t.status === 'succeeded' && t.method === 'airtel').reduce((sum, t) => sum + t.amount, 0);
+    const totalPaidOut = payouts?.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0;
+    const pendingPayouts = payouts?.filter(p => p.status === 'processing').reduce((sum, p) => sum + p.amount, 0) || 0;
+
 
     return (
         <MainLayout title="BusmoPay Dashboard" backHref="/owner/home">
             <div className="w-full max-w-5xl space-y-6">
                 <Alert>
                     <Rocket className="h-4 w-4" />
-                    <AlertTitle>Coming Soon!</AlertTitle>
+                    <AlertTitle>Welcome to BusmoPay!</AlertTitle>
                     <AlertDescription>
-                        The BusmoPay dashboard is almost here. You'll soon be able to track live transactions, view payouts, and manage payment links. The data below is for demonstration purposes only.
+                       Track your earnings from online sales. Payouts are initiated automatically when you mark an order as fulfilled.
                     </AlertDescription>
                 </Alert>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/>Total Revenue</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><Wallet className="w-5 h-5"/>Total Paid Out</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">{formatCurrency(totalRevenue, currency)}</p>
-                            <p className="text-xs text-muted-foreground">+15% from last month</p>
+                            {isLoadingPayouts ? <Skeleton className="h-9 w-36"/> : <p className="text-3xl font-bold">{formatCurrency(totalPaidOut, currency)}</p>}
+                            <p className="text-xs text-muted-foreground">Earnings deposited to your bank account.</p>
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5"/>Paystack Volume</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/>Pending Payouts</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">{formatCurrency(paystackVolume, currency)}</p>
-                            <p className="text-xs text-muted-foreground">2 successful transactions</p>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><Banknote className="w-5 h-5"/>Airtel Money Volume</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold">{formatCurrency(airtelVolume, currency)}</p>
-                            <p className="text-xs text-muted-foreground">1 successful transaction</p>
+                            {isLoadingPayouts ? <Skeleton className="h-9 w-32"/> : <p className="text-3xl font-bold">{formatCurrency(pendingPayouts, currency)}</p>}
+                            <p className="text-xs text-muted-foreground">From fulfilled orders, processing.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -95,12 +104,12 @@ export default function BusmoPayDashboard() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle>Recent Transactions</CardTitle>
-                            <CardDescription>Your latest BusmoPay transactions.</CardDescription>
+                            <CardTitle>Payout History</CardTitle>
+                            <CardDescription>Your recent payouts from completed orders.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                              <Button variant="outline" size="sm" disabled><Download className="mr-2 h-4 w-4" />Export CSV</Button>
-                             <Button size="sm" asChild><Link href="/owner/market?section=busmopay">Payment Settings</Link></Button>
+                             <Button size="sm" asChild><Link href="/owner/market?section=busmopay">Payout Settings</Link></Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -108,47 +117,47 @@ export default function BusmoPayDashboard() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Date</TableHead>
-                                    <TableHead>Customer</TableHead>
-                                    <TableHead>Method</TableHead>
+                                    <TableHead>Order ID</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transactions.map((tx) => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell>{tx.date}</TableCell>
-                                        <TableCell>{tx.customer}</TableCell>
+                                {isLoadingPayouts ? [...Array(3)].map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-5 w-24"/></TableCell>
+                                        <TableCell><Skeleton className="h-5 w-20"/></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-16 rounded-full"/></TableCell>
+                                        <TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell>
+                                    </TableRow>
+                                )) : payouts && payouts.length > 0 ? payouts.map((payout) => (
+                                    <TableRow key={payout.id}>
+                                        <TableCell>{payout.createdAt.toDate().toLocaleDateString()}</TableCell>
+                                        <TableCell className="font-mono text-xs">#{payout.orderId.substring(0, 7)}</TableCell>
                                         <TableCell>
-                                            <Badge variant={tx.method === 'paystack' ? 'default' : 'secondary'} className={tx.method === 'airtel' ? 'bg-red-600 hover:bg-red-700' : ''}>
-                                                {tx.method === 'paystack' ? 'Paystack' : 'Airtel'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                             <Badge variant={tx.status === 'succeeded' ? 'secondary' : 'destructive'} className={tx.status === 'succeeded' ? 'text-primary' : ''}>
-                                                {tx.status}
+                                             <Badge variant={statusVariant[payout.status]} className="capitalize">
+                                                {payout.status === 'paid' && <CheckCircle2 className="mr-1 h-3 w-3"/>}
+                                                {payout.status}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">
-                                            {formatCurrency(tx.amount, currency)}
+                                            {formatCurrency(payout.amount, currency)}
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            No payouts yet. Fulfill an online order to get started.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
-                    </CardContent>
-                </Card>
-
-                 <Card className="border-dashed">
-                    <CardHeader>
-                        <CardTitle className="text-lg">Generate Payment Link</CardTitle>
-                        <CardDescription>Create a simple link to get paid for any product or service.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center text-muted-foreground text-sm">
-                        <p>This feature is coming soon.</p>
                     </CardContent>
                 </Card>
             </div>
         </MainLayout>
     );
 }
+
+    
