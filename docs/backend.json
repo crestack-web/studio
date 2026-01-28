@@ -69,6 +69,26 @@
         "role"
       ]
     },
+    "AdminPermission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminPermission",
+      "type": "object",
+      "description": "Granular permissions for an Admin user.",
+      "properties": {
+        "canManageUsers": {
+          "type": "boolean"
+        },
+        "canManageProducts": {
+          "type": "boolean"
+        },
+        "canManageBlog": {
+          "type": "boolean"
+        },
+        "canManageMarket": {
+          "type": "boolean"
+        }
+      }
+    },
     "Product": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
@@ -581,6 +601,26 @@
         }
       },
       {
+        "path": "/users/{userId}/admin_permissions/{permissionId}",
+        "definition": {
+          "entityName": "AdminPermission",
+          "schema": {
+            "$ref": "#/backend/entities/AdminPermission"
+          },
+          "description": "Stores granular permissions for an admin user. permissionId is 'settings'.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The admin user's ID."
+            },
+            {
+              "name": "permissionId",
+              "description": "'settings'"
+            }
+          ]
+        }
+      },
+      {
         "path": "/marketCategories/{categoryId}",
         "definition": {
           "entityName": "MarketCategory",
@@ -660,4 +700,3 @@
     "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
   }
 }
-

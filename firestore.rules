@@ -20,12 +20,12 @@ service cloud.firestore {
       if (!isSignedIn()) {
         return false;
       }
+      // Super admin check
       if (request.auth.token.email == 'crestack@gmail.com') {
         return true;
       }
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      // Check if userDoc exists and has a role property before accessing it
-      return userDoc != null && 'role' in userDoc.data && userDoc.data.role == 'Admin';
+      return userDoc != null && userDoc.data.role == 'Admin';
     }
 
     function isOwner(businessId) {
@@ -44,25 +44,28 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isUserOwner(userId);
       allow get: if isUserOwner(userId) || isAdmin();
-      allow update: if isUserOwner(userId);
       allow list: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
       
       match /subscriptions/{subscriptionId} {
         allow read: if isUserOwner(userId);
         allow write: if false; // Only backend can manage subscriptions
       }
+
+      match /admin_permissions/{permissionId} {
+        allow read, write: if isAdmin();
+      }
     }
     
     match /subscriptionTransactions/{transactionId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if false; // Only backend
     }
 
     match /businesses/{businessId} {
       allow get: if isBusinessMember(businessId);
       allow create: if isOwner(businessId);
-      allow update: if isOwner(businessId);
+      allow update: if isOwner(businessId) || isAdmin(); // Admins can update plans
       allow list, delete: if false;
 
       // Subcollections
@@ -91,7 +94,7 @@ service cloud.firestore {
     // --- MARKETPLACE & OTHER COLLECTIONS ---
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      allow create, update, delete: if isOwner(businessId) || isAdmin();
+      allow create, update, delete: if isAdmin() || isOwner(businessId);
     }
     
     match /marketProducts/{productId} {
@@ -120,7 +123,7 @@ service cloud.firestore {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
     }
 
     match /blogs/{blogId} {
@@ -155,4 +158,3 @@ service cloud.firestore {
     }
   }
 }
-
