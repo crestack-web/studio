@@ -29,7 +29,7 @@ service cloud.firestore {
           return false;
       }
       let businessDoc = get(businessDocPath);
-      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
+      return businessDoc.data != null && 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
 
     function isBusinessMember(businessId) {
