@@ -8,7 +8,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isUserOwner(userId) {
+    function isUser(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
@@ -20,12 +20,12 @@ service cloud.firestore {
       if (!isSignedIn()) {
         return false;
       }
+      // Super admin check
       if (request.auth.token.email == 'crestack@gmail.com') {
         return true;
       }
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      // Check if userDoc exists and has a role property before accessing it
-      return userDoc != null && 'role' in userDoc.data && userDoc.data.role == 'Admin';
+      return userDoc != null && userDoc.data.role == 'Admin';
     }
 
     function isOwner(businessId) {
@@ -42,17 +42,38 @@ service cloud.firestore {
 
     // --- MAIN COLLECTIONS ---
     match /users/{userId} {
-      allow create: if isUserOwner(userId);
-      allow get: if isUserOwner(userId) || isAdmin();
-      allow update: if isUserOwner(userId);
+      allow create: if isUser(userId);
+      allow get: if isUser(userId) || isAdmin();
       allow list: if isAdmin();
+      // User can update their own data, admin can update any.
+      allow update: if isUser(userId) || isAdmin();
+      // Only admin can delete users.
       allow delete: if isAdmin();
+      
+      match /subscriptions/{subscriptionId} {
+        allow read: if isUser(userId);
+        allow write: if false; // Only backend
+      }
+
+      match /admin_permissions/{permissionId} {
+        allow read, write: if isAdmin();
+      }
+    }
+    
+    match /subscriptionTransactions/{transactionId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false; // Only backend
+    }
+    
+    match /coupons/{couponId} {
+      allow get: if isSignedIn();
+      allow list, write: if isAdmin();
     }
 
     match /businesses/{businessId} {
       allow get: if isBusinessMember(businessId);
       allow create: if isOwner(businessId);
-      allow update: if isOwner(businessId);
+      allow update: if isAdmin() || isOwner(businessId);
       allow list, delete: if false;
 
       // Subcollections
@@ -81,7 +102,7 @@ service cloud.firestore {
     // --- MARKETPLACE & OTHER COLLECTIONS ---
     match /businessProfiles/{businessId} {
       allow get, list: if true;
-      allow create, update, delete: if isOwner(businessId) || isAdmin();
+      allow create, update, delete: if isAdmin() || isOwner(businessId);
     }
     
     match /marketProducts/{productId} {
@@ -100,12 +121,12 @@ service cloud.firestore {
         allow get, list: if true;
         allow write: if isAdmin();
     }
-
+    
     match /reviews/{reviewId} {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
     }
 
     match /blogs/{blogId} {
