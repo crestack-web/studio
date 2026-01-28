@@ -1,18 +1,23 @@
 'use client';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { AlertCircle, Check, X } from 'lucide-react';
+import { AlertCircle, Check, Loader2, X, Ticket } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const plans = [
     {
+        id: 'shop',
         name: 'Shop',
         description: 'For small retailers',
         monthlyPrice: 1500,
@@ -31,6 +36,7 @@ const plans = [
         ]
     },
     {
+        id: 'supermarket',
         name: 'Supermarket',
         description: 'For larger stores & growing businesses',
         monthlyPrice: 10000,
@@ -48,6 +54,7 @@ const plans = [
         ]
     },
     {
+        id: 'multi-branch',
         name: 'Multiple Branches',
         description: 'For chains & franchises',
         monthlyPrice: 30000,
@@ -63,6 +70,7 @@ const plans = [
         ]
     },
     {
+        id: 'company',
         name: 'Company',
         description: 'For manufacturers & corporations',
         monthlyPrice: 50000,
@@ -80,9 +88,24 @@ interface Business {
     currency?: string;
 }
 
+interface Coupon {
+    id: string;
+    code: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    isActive: boolean;
+}
+
 export default function PricingPage() {
+    const router = useRouter();
+    const { toast } = useToast();
     const firestore = useFirestore();
     const { user: authUser } = useUser();
+
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -95,12 +118,72 @@ export default function PricingPage() {
         if (!firestore || !businessId) return null;
         return doc(firestore, `businesses/${businessId}`);
     }, [firestore, businessId]);
-    const { data: businessData } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
-    const userCurrency = businessData?.currency;
+    const couponRef = useMemoFirebase(() => {
+        if (!firestore || !couponCode) return null;
+        return doc(firestore, 'coupons', couponCode.toUpperCase());
+    }, [firestore, couponCode]);
+    // We use a separate useDoc hook for the coupon so it can be fetched independently
+    const { data: couponData, isLoading: isLoadingCoupon } = useDoc<Coupon>(couponRef);
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) {
+            toast({ title: "Please enter a coupon code.", variant: "destructive" });
+            return;
+        }
+        setIsVerifyingCoupon(true);
+        // This will trigger the useDoc hook to fetch the coupon
+        const couponDoc = await import('firebase/firestore').then(m => m.getDoc(couponRef!));
+        
+        if (couponDoc.exists() && couponDoc.data()?.isActive) {
+            setAppliedCoupon(couponDoc.data() as Coupon);
+            toast({ title: "Coupon Applied!", description: `Discount of ${couponDoc.data().discountType === 'percentage' ? `${couponDoc.data().discountValue}%` : formatCurrency(couponDoc.data().discountValue, businessData?.currency)} has been applied.` });
+        } else {
+            setAppliedCoupon(null);
+            toast({ title: "Invalid Coupon", description: "The coupon code is either invalid or has expired.", variant: "destructive" });
+        }
+        setIsVerifyingCoupon(false);
+    };
+
+    const handleSelectPlan = (planId: string) => {
+        let url = `/owner/subscribe?planId=${planId}&billingCycle=${billingCycle}`;
+        if (appliedCoupon) {
+            url += `&couponCode=${appliedCoupon.code}`;
+        }
+        router.push(url);
+    };
+
+    const getPlanPrice = (plan: typeof plans[0]) => {
+        return billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+    };
+
+    const getDiscountedPrice = (price: number) => {
+        if (!appliedCoupon) return price;
+        let discount = 0;
+        if (appliedCoupon.discountType === 'percentage') {
+            discount = price * (appliedCoupon.discountValue / 100);
+        } else {
+            discount = convertFromNgn(appliedCoupon.discountValue, businessData?.currency);
+        }
+        return Math.max(0, price - discount);
+    };
+
+    if (isLoadingBusiness) {
+      return (
+        <MainLayout title="Choose Your Plan">
+          <div className="w-full max-w-7xl space-y-8">
+            <Skeleton className="h-10 w-64 mx-auto" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {[...Array(4)].map(i => <Skeleton key={i} className="h-96 w-full"/>)}
+            </div>
+          </div>
+        </MainLayout>
+      )
+    }
 
   return (
-    <MainLayout title="Choose Your Plan" backHref="/owner/home">
+    <MainLayout title="Choose Your Plan">
         <div className="w-full max-w-7xl space-y-8">
             <Alert variant="destructive" className="max-w-xl mx-auto">
                 <AlertCircle className="h-4 w-4" />
@@ -127,10 +210,22 @@ export default function PricingPage() {
                         </TabsTrigger>
                     </TabsList>
                 </div>
+                <Card className="max-w-md mx-auto mt-8">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5"/> Have a coupon?</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-center gap-2">
+                        <Input placeholder="Enter coupon code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
+                        <Button onClick={handleApplyCoupon} disabled={isVerifyingCoupon}>
+                            {isVerifyingCoupon ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Apply'}
+                        </Button>
+                    </CardContent>
+                </Card>
                 <TabsContent value="monthly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => {
-                            const price = convertFromNgn(plan.monthlyPrice, userCurrency);
+                            const originalPrice = convertFromNgn(plan.monthlyPrice, businessData?.currency);
+                            const finalPrice = getDiscountedPrice(originalPrice);
                             return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                 {plan.isPopular && (
@@ -144,9 +239,12 @@ export default function PricingPage() {
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(price, userCurrency)}</span>
+                                        <span className="text-4xl font-bold">{formatCurrency(finalPrice, businessData?.currency)}</span>
                                         <span className="text-muted-foreground">/ month</span>
                                     </div>
+                                    {appliedCoupon && (
+                                        <p className="text-sm text-muted-foreground line-through">{formatCurrency(originalPrice, businessData?.currency)}</p>
+                                    )}
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
@@ -163,9 +261,7 @@ export default function PricingPage() {
                                     </ul>
                                 </CardContent>
                                 <CardFooter>
-                                    <Link href="#" className="w-full">
-                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
-                                    </Link>
+                                    <Button onClick={() => handleSelectPlan(plan.id)} className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
                                 </CardFooter>
                             </Card>
                         )})}
@@ -174,7 +270,8 @@ export default function PricingPage() {
                 <TabsContent value="yearly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => {
-                            const price = convertFromNgn(plan.yearlyPrice, userCurrency);
+                            const originalPrice = convertFromNgn(plan.yearlyPrice, businessData?.currency);
+                             const finalPrice = getDiscountedPrice(originalPrice);
                             return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
                                  {plan.isPopular && (
@@ -188,11 +285,11 @@ export default function PricingPage() {
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(price, userCurrency)}</span>
+                                        <span className="text-4xl font-bold">{formatCurrency(finalPrice, businessData?.currency)}</span>
                                         <span className="text-muted-foreground">/ year</span>
                                     </div>
                                     <p className="text-sm text-accent font-medium mt-1">
-                                        Save ~17%!
+                                        {appliedCoupon ? `Discount applied (was ${formatCurrency(originalPrice, businessData?.currency)})` : 'Save ~17%!'}
                                     </p>
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {plan.features.map(feature => (
@@ -210,21 +307,15 @@ export default function PricingPage() {
                                     </ul>
                                 </CardContent>
                                 <CardFooter>
-                                    <Link href="#" className="w-full">
-                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
-                                    </Link>
+                                    <Button onClick={() => handleSelectPlan(plan.id)} className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
                                 </CardFooter>
                             </Card>
                         )})}
                     </div>
                 </TabsContent>
             </Tabs>
-             <div className="text-center pt-8">
-                 <h3 className="text-lg font-semibold">Custom Needs?</h3>
-                 <p className="text-muted-foreground">For custom integrations and dedicated support, contact our sales team.</p>
-                 <Button variant="link" className="mt-2">Contact Sales</Button>
-            </div>
         </div>
     </MainLayout>
   );
 }
+

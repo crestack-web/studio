@@ -47,6 +47,16 @@ service cloud.firestore {
       allow update: if isUserOwner(userId);
       allow list: if isAdmin();
       allow delete: if isAdmin();
+      
+      match /subscriptions/{subscriptionId} {
+        allow read: if isUserOwner(userId);
+        allow write: if false; // Only backend can manage subscriptions
+      }
+    }
+    
+    match /subscriptionTransactions/{transactionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only backend
     }
 
     match /businesses/{businessId} {
@@ -100,6 +110,11 @@ service cloud.firestore {
         allow get, list: if true;
         allow write: if isAdmin();
     }
+    
+    match /coupons/{couponId} {
+      allow get: if isSignedIn();
+      allow list, write: if isAdmin();
+    }
 
     match /reviews/{reviewId} {
       allow read, list: if true;
@@ -140,3 +155,4 @@ service cloud.firestore {
     }
   }
 }
+

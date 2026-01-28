@@ -361,6 +361,47 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["orderId", "amount", "currency", "status", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "type": "object",
+      "description": "Represents a user's subscription to a Busmo plan.",
+      "properties": {
+        "planId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "cancelled", "past_due"] },
+        "currentPeriodStart": { "type": "string", "format": "date-time" },
+        "currentPeriodEnd": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["planId", "status"]
+    },
+    "SubscriptionTransaction": {
+      "title": "SubscriptionTransaction",
+      "type": "object",
+      "description": "Logs a payment for a subscription.",
+      "properties": {
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "amountPaid": { "type": "number" },
+        "currency": { "type": "string" },
+        "couponUsed": { "type": "string" },
+        "paystackReference": { "type": "string" },
+        "status": { "type": "string", "enum": ["successful", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "planId", "amountPaid", "currency", "status", "createdAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "type": "object",
+      "description": "Represents a discount coupon.",
+      "properties": {
+        "code": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["code", "discountType", "discountValue", "isActive"]
     }
   },
   "auth": {
@@ -584,9 +625,39 @@
             { "name": "messageId", "description": "The unique ID of the message." }
           ]
         }
+      },
+      {
+        "path": "/coupons/{couponId}",
+        "definition": {
+          "entityName": "Coupon",
+          "schema": { "$ref": "#/backend/entities/Coupon" },
+          "description": "Stores available discount coupons. couponId is the coupon code.",
+          "params": [{ "name": "couponId", "description": "The coupon code." }]
+        }
+      },
+      {
+        "path": "/users/{userId}/subscriptions/{subscriptionId}",
+        "definition": {
+          "entityName": "Subscription",
+          "schema": { "$ref": "#/backend/entities/Subscription" },
+          "description": "Stores user subscriptions.",
+          "params": [
+            { "name": "userId", "description": "The user ID." },
+            { "name": "subscriptionId", "description": "The subscription ID." }
+          ]
+        }
+      },
+      {
+        "path": "/subscriptionTransactions/{transactionId}",
+        "definition": {
+          "entityName": "SubscriptionTransaction",
+          "schema": { "$ref": "#/backend/entities/SubscriptionTransaction" },
+          "description": "Stores all subscription payment transactions.",
+          "params": [{ "name": "transactionId", "description": "The transaction ID." }]
+        }
       }
     ],
-    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
+    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
   }
 }
-    
+

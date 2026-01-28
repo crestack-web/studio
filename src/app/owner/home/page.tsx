@@ -184,21 +184,28 @@ function OwnerHomeContent() {
 
     // This effect handles redirecting to the correct onboarding step
     useEffect(() => {
-        if (isBusinessLoading || !businessData || !userProfile) {
+        if (isBusinessLoading || !userProfile) {
             return; // Wait for data to load
         }
-
+    
         // Only run this logic if the user is authenticated
         if (authUser) {
+             // If businessData is null/undefined but we have a user, it's likely a new signup
+            if (!businessData) {
+                // If they haven't filled business info, send them there.
+                 if (userProfile.businessId) { // Check if businessId exists to avoid errors
+                    router.replace('/business-info');
+                 }
+                return;
+            }
+
             const { businessName, businessType, plan } = businessData;
             
-            // If plan is already set, onboarding is complete, do nothing.
-            if (plan) return;
-
             if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
                 router.replace('/business-info');
             } else if (!plan) {
-                router.replace('/plans');
+                 // Trial expired or plan not selected, redirect to pricing page.
+                router.replace('/owner/pricing');
             }
         }
     }, [businessData, isBusinessLoading, authUser, userProfile, router]);
@@ -758,7 +765,7 @@ function OwnerHomeContent() {
                     {msg.sender === 'support' && assignedAgent && (
                         <Avatar className="w-8 h-8 border">
                              {assignedAgent.avatarUrl ? (
-                                <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} />
+                                <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
                             ) : (
                                 <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
                             )}
@@ -841,3 +848,4 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
+
