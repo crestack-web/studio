@@ -176,38 +176,6 @@ function OwnerHomeContent() {
     }, [businessId, firestore]);
     const { data: productsData } = useCollection<Product>(productsQuery);
     
-    // This effect handles redirecting to the correct onboarding step
-    useEffect(() => {
-        // Wait until all user and business data has finished loading
-        if (isUserLoading || isProfileLoading || isBusinessLoading) {
-            return;
-        }
-
-        // If, after loading, there's no authenticated user, redirect to login
-        if (!authUser) {
-            router.replace('/login');
-            return;
-        }
-
-        // If, after loading, there's a user but no business data, they need to onboard
-        if (!businessData) {
-            if (userProfile?.businessId) {
-                router.replace('/business-info');
-            }
-            return;
-        }
-        
-        // Check for incomplete business info or missing plan
-        const { businessName, businessType, plan } = businessData;
-        if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
-            router.replace('/business-info');
-        } else if (!plan) {
-            router.replace('/owner/pricing');
-        }
-
-    }, [isUserLoading, isProfileLoading, isBusinessLoading, authUser, userProfile, businessData, router]);
-
-
     const businessInsights = useMemo(() => {
         const defaultInsights = {
             totalSales: 0, totalProfit: 0, bestSellingProduct: undefined, worstSellingProduct: undefined,
@@ -346,18 +314,6 @@ function OwnerHomeContent() {
     const canManageStaff = true;
     
     const isLoadingData = isLoadingSales || isLoadingTransactions;
-
-    // Loading state: Show a spinner until all data is loaded and redirection logic has run.
-    if (isUserLoading || isProfileLoading || (userProfile && isBusinessLoading)) {
-        return (
-            <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-                <div className="flex items-center justify-center p-4">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-            </div>
-        );
-    }
-
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
