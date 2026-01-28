@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
@@ -163,18 +163,20 @@ const RESERVED_PATHS = [
     'signup', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
-export default function StoreSlugPage({ params }: { params: { slug: string } }) {
+export default function StoreSlugPage() {
+    const params = useParams();
+    const slug = params.slug as string;
     const firestore = useFirestore();
 
     // Prevent this page from matching reserved routes like /login, /admin, etc.
-    if (RESERVED_PATHS.includes(params.slug)) {
+    if (RESERVED_PATHS.includes(slug)) {
         notFound();
     }
 
     const businessProfileQuery = useMemoFirebase(() => {
-        if (!firestore || !params.slug) return null;
-        return query(collection(firestore, 'businessProfiles'), where('slug', '==', params.slug), limit(1));
-    }, [firestore, params.slug]);
+        if (!firestore || !slug) return null;
+        return query(collection(firestore, 'businessProfiles'), where('slug', '==', slug), limit(1));
+    }, [firestore, slug]);
     
     const { data: businessData, isLoading } = useCollection<BusinessProfile>(businessProfileQuery);
     

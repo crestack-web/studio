@@ -3,6 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import InvestorLayout from '@/components/app/investor-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { BlogPost } from '../page';
 
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
+export default function BlogPostPage() {
+    const params = useParams();
     const slug = params.slug as string;
     const firestore = useFirestore();
 

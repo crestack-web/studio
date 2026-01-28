@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -99,8 +99,9 @@ const ProductCard = ({ product, currency }: { product: MarketProduct, currency?:
 );
 
 
-export default function ProductDetailPage({ params }: { params: { productId: string } }) {
+export default function ProductDetailPage() {
     const router = useRouter();
+    const params = useParams();
     const { productId } = params;
     const [quantity, setQuantity] = useState(1);
     const firestore = useFirestore();
@@ -118,7 +119,7 @@ export default function ProductDetailPage({ params }: { params: { productId: str
 
     const productRef = useMemoFirebase(() => {
         if (!firestore || !productId) return null;
-        return doc(firestore, 'marketProducts', productId);
+        return doc(firestore, 'marketProducts', productId as string);
     }, [firestore, productId]);
     const { data: productData, isLoading: isLoadingProduct } = useDoc<MarketProduct>(productRef);
 
