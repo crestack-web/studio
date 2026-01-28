@@ -13,6 +13,8 @@ import { collection, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BlogPost } from '../page';
 import { useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 
 export default function BlogPostPage() {
@@ -123,8 +125,8 @@ export default function BlogPostPage() {
                             />
                         </div>
 
-                        <div className="prose dark:prose-invert max-w-none text-lg text-foreground/90 leading-relaxed whitespace-pre-wrap">
-                            {post.content}
+                        <div className="prose prose-lg dark:prose-invert max-w-none">
+                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
                         </div>
                     </article>
                     
