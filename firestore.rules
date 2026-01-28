@@ -17,7 +17,14 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'crestack@gmail.com';
+      if (!isSignedIn()) {
+        return false;
+      }
+      if (request.auth.token.email == 'crestack@gmail.com') {
+        return true;
+      }
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userDocPath) && get(userDocPath).data.role == 'Admin';
     }
 
     function isOwner(businessId) {
