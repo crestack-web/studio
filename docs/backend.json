@@ -272,6 +272,51 @@
         "imageHint": { "type": "string" }
       },
       "required": ["name", "imageUrl"]
+    },
+    "SupportAgent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SupportAgent",
+      "type": "object",
+      "description": "Represents a support agent profile.",
+      "properties": {
+        "userId": { "type": "string", "description": "Reference to the User entity." },
+        "displayName": { "type": "string", "description": "The agent's display name." },
+        "avatarUrl": { "type": "string", "description": "URL for the agent's avatar." },
+        "status": { "type": "string", "enum": ["online", "offline"] }
+      },
+      "required": ["userId", "displayName", "status"]
+    },
+    "ChatConversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatConversation",
+      "type": "object",
+      "description": "Represents a single support chat conversation.",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who initiated the chat." },
+        "userName": { "type": "string", "description": "The name of the user." },
+        "agentId": { "type": "string", "description": "The ID of the agent handling the chat." },
+        "status": { "type": "string", "enum": ["open", "in-progress", "closed"] },
+        "lastMessage": { "type": "string", "description": "A snippet of the last message for display." },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "status", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents a single message within a chat conversation.",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "A data URI for an uploaded image." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "senderId", "senderName", "createdAt"]
     }
   },
   "auth": {
@@ -427,6 +472,36 @@
               "name": "categoryId",
               "description": "The unique identifier of the category."
             }
+          ]
+        }
+      },
+      {
+        "path": "/supportAgents/{agentId}",
+        "definition": {
+          "entityName": "SupportAgent",
+          "schema": { "$ref": "#/backend/entities/SupportAgent" },
+          "description": "Stores profiles of customer support agents.",
+          "params": [{ "name": "agentId", "description": "The user ID of the agent." }]
+        }
+      },
+      {
+        "path": "/chatConversations/{conversationId}",
+        "definition": {
+          "entityName": "ChatConversation",
+          "schema": { "$ref": "#/backend/entities/ChatConversation" },
+          "description": "Top-level collection for all support chat conversations.",
+          "params": [{ "name": "conversationId", "description": "Unique ID for the conversation." }]
+        }
+      },
+      {
+        "path": "/chatConversations/{conversationId}/messages/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": { "$ref": "#/backend/entities/ChatMessage" },
+          "description": "Subcollection storing all messages for a specific conversation.",
+          "params": [
+            { "name": "conversationId", "description": "The ID of the parent conversation." },
+            { "name": "messageId", "description": "The unique ID of the message." }
           ]
         }
       }

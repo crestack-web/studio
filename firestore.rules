@@ -86,8 +86,6 @@ service cloud.firestore {
     }
     
     // --- MARKETPLACE & OTHER COLLECTIONS (PUBLIC ACCESS REVISED) ---
-    // The rules below have been simplified to 'allow read: if true' to ensure 
-    // public data is always accessible and avoid backend deployment issues.
     match /businessProfiles/{businessId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
@@ -127,6 +125,33 @@ service cloud.firestore {
     match /supportTickets/{ticketId} {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow read, write, list, delete: if isAdmin();
+    }
+    
+    // --- SUPPORT CHAT ---
+    match /chatConversations/{conversationId} {
+      // User can create their own conversation
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // User can read their own conversation, Admins can read any
+      allow get: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      // Admin can update (e.g., to assign an agent, change status)
+      allow update: if isAdmin();
+      // Admins can list conversations
+      allow list: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        // User can add messages to their own conversation
+        // Admin can add messages to any conversation
+        allow create: if (isSignedIn() && get(/databases/$(database)/documents/chatConversations/$(conversationId)).data.userId == request.auth.uid) || isAdmin();
+        // User can read messages in their own conversation, Admin can read any
+        allow read, list: if (isSignedIn() && get(/databases/$(database)/documents/chatConversations/$(conversationId)).data.userId == request.auth.uid) || isAdmin();
+        allow update, delete: if isAdmin();
+      }
+    }
+    
+    match /supportAgents/{agentId} {
+        allow read, list: if isSignedIn();
+        allow write: if isAdmin();
     }
   }
 }
