@@ -68,6 +68,13 @@ interface Transaction {
     createdAt: Timestamp;
 }
 
+interface SupportAgent {
+    userId: string;
+    displayName: string;
+    avatarUrl?: string;
+    status: 'online' | 'offline';
+}
+
 function OwnerHomeContent() {
     const router = useRouter();
     const { toast } = useToast();
@@ -122,17 +129,19 @@ function OwnerHomeContent() {
         setPresetQuestions(shuffled.slice(0, 4));
     }, []);
 
-    const supportAgents = [
-        { name: 'Amina', avatarUrl: 'https://picsum.photos/seed/amina/40/40', imageHint: 'woman smiling' },
-        { name: 'Tunde', avatarUrl: 'https://picsum.photos/seed/tunde/40/40', imageHint: 'man smiling' }
-    ];
-
     const userProfileRef = useMemoFirebase(() => {
         if (!authUser || !firestore) return null;
         return doc(firestore, `users/${authUser.uid}`);
     }, [authUser, firestore]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
+    
+    const agentsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'supportAgents'), where('status', '==', 'online'));
+    }, [firestore]);
+    const { data: onlineAgents, isLoading: isLoadingAgents } = useCollection<SupportAgent>(agentsQuery);
+    const assignedAgent = onlineAgents?.[0];
 
     const businessRef = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
@@ -668,25 +677,38 @@ function OwnerHomeContent() {
                 <div className="py-4 space-y-4">
                     <h3 className="font-semibold text-sm text-muted-foreground">Available Agents</h3>
                     <div className="space-y-3">
-                    {supportAgents.map(agent => (
-                        <div key={agent.name} className="flex items-center gap-3">
-                            <div className="relative">
-                            <Avatar className="h-10 w-10">
-                                <Image src={agent.avatarUrl} alt={agent.name} width={40} height={40} data-ai-hint={agent.imageHint} />
-                            </Avatar>
-                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                    {isLoadingAgents ? (
+                         <>
+                            <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
+                            <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
+                        </>
+                    ) : onlineAgents && onlineAgents.length > 0 ? (
+                        onlineAgents.map(agent => (
+                            <div key={agent.userId} className="flex items-center gap-3">
+                                <div className="relative">
+                                <Avatar className="h-10 w-10">
+                                    {agent.avatarUrl ? (
+                                        <Image src={agent.avatarUrl} alt={agent.displayName} width={40} height={40} data-ai-hint="support agent" />
+                                    ) : (
+                                        <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
+                                    )}
+                                </Avatar>
+                                {agent.status === 'online' && <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />}
+                                </div>
+                                <div>
+                                <p className="font-semibold">{agent.displayName}</p>
+                                <p className="text-xs text-muted-foreground">Support Agent</p>
+                                </div>
                             </div>
-                            <div>
-                            <p className="font-semibold">{agent.name}</p>
-                            <p className="text-xs text-muted-foreground">Support Agent</p>
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    ) : (
+                         <p className="text-sm text-muted-foreground text-center py-4">No agents are currently online.</p>
+                    )}
                     </div>
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base">Start Live Chat</Button>
+                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>
@@ -697,25 +719,40 @@ function OwnerHomeContent() {
                     <Button variant="ghost" size="icon" className="-ml-2" onClick={() => setChatView('initial')}>
                     <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                        <Avatar className="h-10 w-10">
-                            <Image src={supportAgents[0].avatarUrl} alt={supportAgents[0].name} width={40} height={40} data-ai-hint={supportAgents[0].imageHint} />
-                        </Avatar>
-                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                     {assignedAgent ? (
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                            <Avatar className="h-10 w-10">
+                                {assignedAgent.avatarUrl ? (
+                                    <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={40} height={40} data-ai-hint="support agent" />
+                                ) : (
+                                    <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
+                                )}
+                            </Avatar>
+                            {assignedAgent.status === 'online' && <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />}
+                            </div>
+                            <div>
+                            <SheetTitle>{assignedAgent.displayName}</SheetTitle>
+                            <SheetDescription>Support Agent</SheetDescription>
+                            </div>
                         </div>
+                    ) : (
                         <div>
-                        <SheetTitle>{supportAgents[0].name}</SheetTitle>
-                        <SheetDescription>Support Agent</SheetDescription>
+                            <SheetTitle>Connecting...</SheetTitle>
+                            <SheetDescription>Waiting for an agent.</SheetDescription>
                         </div>
-                    </div>
+                    )}
                 </SheetHeader>
                 <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
                 {chatMessages.map(msg => (
                     <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
-                    {msg.sender === 'support' && (
+                    {msg.sender === 'support' && assignedAgent && (
                         <Avatar className="w-8 h-8 border">
-                        <Image src={supportAgents[0].avatarUrl} alt={supportAgents[0].name} width={32} height={32} />
+                             {assignedAgent.avatarUrl ? (
+                                <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} />
+                            ) : (
+                                <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
+                            )}
                         </Avatar>
                     )}
                     <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
