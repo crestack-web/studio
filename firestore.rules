@@ -101,6 +101,7 @@ service cloud.firestore {
     }
 
     match /marketCategories/{categoryId} {
+        // This rule allows public read access for all users, including unauthenticated ones.
         allow get, list: if true;
         allow write: if isAdmin();
     }
