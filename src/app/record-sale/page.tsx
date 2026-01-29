@@ -12,7 +12,7 @@ import { Check, Loader2, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/app/main-layout';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, doc, query, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 
 interface AppUser {
@@ -24,12 +24,14 @@ interface Variant {
     name: string;
     price: number;
     quantity: number;
+    cost?: number;
 }
 
 interface Product {
     id: string;
     name: string;
     price: number;
+    cost: number;
     quantity: number;
     hasVariants?: boolean;
     variants?: Variant[];
@@ -160,10 +162,35 @@ export default function RecordSalePage() {
         timestamp: serverTimestamp(),
     };
 
-    const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
-    
     try {
-        await addDoc(salesCollectionRef, saleData);
+        await runTransaction(firestore, async (transaction) => {
+            const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProduct.id);
+            const productSnap = await transaction.get(productRef);
+
+            if (!productSnap.exists()) {
+                throw new Error("Product not found in inventory.");
+            }
+
+            const productData = productSnap.data() as Product;
+            
+            if (selectedProduct.hasVariants && selectedVariant) {
+                const variantIndex = productData.variants?.findIndex(v => v.id === selectedVariant.id);
+                if (variantIndex === undefined || variantIndex < 0) {
+                     throw new Error("Variant not found.");
+                }
+                const newVariants = [...(productData.variants || [])];
+                newVariants[variantIndex].quantity -= quantity;
+                transaction.update(productRef, { variants: newVariants });
+            } else {
+                const newQuantity = productData.quantity - quantity;
+                transaction.update(productRef, { quantity: newQuantity });
+            }
+
+            // Now create the sale document
+            const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
+            const newSaleRef = doc(salesCollectionRef);
+            transaction.set(newSaleRef, saleData);
+        });
 
         toast({
           title: "Sale Recorded",
@@ -181,12 +208,12 @@ export default function RecordSalePage() {
             currency: businessData?.currency || businessData?.country,
             date: new Date(),
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error recording sale:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not record sale. Please try again.',
+            description: error.message || 'Could not record sale. Please try again.',
         });
     } finally {
         setIsLoading(false);

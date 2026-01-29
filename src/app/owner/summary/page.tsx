@@ -5,19 +5,20 @@ import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { addDays, format } from 'date-fns';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, query, collection, Timestamp, where } from 'firebase/firestore';
+import { doc, query, collection, Timestamp, where, runTransaction, deleteDoc } from 'firebase/firestore';
 import { formatCurrency as formatCurrencyUtil } from '@/lib/currency';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { ShieldCheck, Printer, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { ShieldCheck, Printer, ArrowLeft, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppUser {
     businessId?: string;
@@ -33,6 +34,7 @@ interface Sale {
     id: string;
     productId: string;
     productName: string;
+    variantId?: string;
     amount: number;
     quantity: number;
     timestamp: Timestamp;
@@ -59,6 +61,9 @@ interface Product {
     name: string;
     cost: number;
     price: number;
+    quantity: number;
+    hasVariants?: boolean;
+    variants?: { id: string; name: string; price: number; cost?: number, quantity: number }[];
 }
 
 const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isProfit = false }: { title: string; value: number; isLoading: boolean; currency?: boolean; currencyCode?: string; isProfit?: boolean }) => (
@@ -78,6 +83,7 @@ const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isP
 
 function StatementContent() {
     const router = useRouter();
+    const { toast } = useToast();
     const searchParams = useSearchParams();
 
     const [date, setDate] = useState<DateRange | undefined>(() => {
@@ -144,7 +150,7 @@ function StatementContent() {
         const totalRevenue = salesData.reduce((acc, sale) => acc + sale.amount, 0);
         const cogs = salesData.reduce((acc, sale) => {
             const product = productsData.find(p => p.id === sale.productId);
-            return acc + (product ? product.cost * sale.quantity : 0);
+            return acc + (product ? (product.cost || 0) * sale.quantity : 0);
         }, 0);
         const totalExpenses = expensesData.reduce((acc, exp) => acc + exp.amount, 0);
         const grossProfit = totalRevenue - cogs;
@@ -164,6 +170,51 @@ function StatementContent() {
             sortedTransactions 
         };
     }, [salesData, productsData, expensesData, transactionsData]);
+    
+    const handleDeleteSale = async (sale: Sale) => {
+        if (!firestore || !businessId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not connect to database.' });
+            return;
+        }
+        
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const saleRef = doc(firestore, `businesses/${businessId}/sales`, sale.id);
+                const productRef = doc(firestore, `businesses/${businessId}/products`, sale.productId);
+                
+                const productSnap = await transaction.get(productRef);
+                if (!productSnap.exists()) {
+                    // Product might have been deleted, so we can't restore inventory.
+                    // Just delete the sale.
+                    transaction.delete(saleRef);
+                    return;
+                }
+                
+                const productData = productSnap.data() as Product;
+
+                // Add back the quantity
+                if (productData.hasVariants && sale.variantId) {
+                    const variantIndex = productData.variants?.findIndex(v => v.id === sale.variantId);
+                    if (variantIndex !== undefined && variantIndex > -1) {
+                        const newVariants = [...(productData.variants || [])];
+                        newVariants[variantIndex].quantity += sale.quantity;
+                        transaction.update(productRef, { variants: newVariants });
+                    }
+                } else {
+                    const newQuantity = productData.quantity + sale.quantity;
+                    transaction.update(productRef, { quantity: newQuantity });
+                }
+                
+                // Delete the sale
+                transaction.delete(saleRef);
+            });
+            toast({ title: 'Sale Deleted', description: 'The sale has been removed and inventory restored.' });
+        } catch (error: any) {
+            console.error("Error deleting sale:", error);
+            toast({ variant: 'destructive', title: 'Error Deleting Sale', description: error.message });
+        }
+    };
+
 
     const handlePrint = () => {
         window.print();
@@ -261,11 +312,12 @@ function StatementContent() {
                                     <TableHead>Product</TableHead>
                                     <TableHead>Qty</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right print:hidden">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                    <TableRow><TableCell colSpan={4}><Skeleton className="h-20" /></TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5}><Skeleton className="h-20" /></TableCell></TableRow>
                                 ) : sortedSales.length > 0 ? (
                                     sortedSales.map(sale => (
                                         <TableRow key={sale.id}>
@@ -273,10 +325,36 @@ function StatementContent() {
                                             <TableCell>{sale.productName}</TableCell>
                                             <TableCell>{sale.quantity}</TableCell>
                                             <TableCell className="text-right font-medium">{formatCurrencyUtil(sale.amount, businessData?.currency)}</TableCell>
+                                            <TableCell className="text-right print:hidden">
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will permanently delete the sale record and add the sold quantity back to your inventory. This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                onClick={() => handleDeleteSale(sale)}
+                                                                className="bg-destructive hover:bg-destructive/90"
+                                                            >
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
-                                    <TableRow><TableCell colSpan={4} className="text-center h-24">No sales recorded in this period.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24">No sales recorded in this period.</TableCell></TableRow>
                                 )}
                             </TableBody>
                          </Table>

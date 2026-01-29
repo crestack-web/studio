@@ -53,6 +53,7 @@ interface Sale {
     source: string;
     timestamp: Timestamp;
     productId?: string;
+    variantId?: string;
     quantity: number;
 }
 
@@ -62,6 +63,14 @@ interface Product {
     price: number;
     cost: number;
     quantity: number;
+    hasVariants?: boolean;
+    variants?: {
+        id: string;
+        name: string;
+        price: number;
+        cost?: number;
+        quantity: number;
+    }[];
 }
 
 interface Transaction {
@@ -226,7 +235,14 @@ function OwnerHomeContent() {
             totalSales += sale.amount;
             const product = productsData.find(p => p.id === sale.productId);
             if (product) {
-                const cogsForSale = (product.cost || 0) * sale.quantity;
+                let costOfItem = 0;
+                if (product.hasVariants && sale.variantId) {
+                    const variant = product.variants?.find(v => v.id === sale.variantId);
+                    costOfItem = variant?.cost || 0;
+                } else {
+                    costOfItem = product.cost || 0;
+                }
+                const cogsForSale = costOfItem * sale.quantity;
                 totalCogs += cogsForSale;
 
                 if (!salesByProduct[product.id]) {
