@@ -6,8 +6,8 @@ import { notFound, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import MarketLayout from '@/components/app/market-layout';
@@ -43,15 +43,54 @@ interface MarketProduct {
     reviewCount?: number;
 }
 
-// This component renders the actual store content
-const StorePageContent = ({ businessProfile, businessId }: { businessProfile: WithId<BusinessProfile>, businessId: string }) => {
+// This component now fetches its own data, ensuring it's always fresh.
+const StorePageContent = ({ businessId }: { businessId: string }) => {
     const firestore = useFirestore();
+
+    const businessProfileRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businessProfiles', businessId);
+    }, [firestore, businessId]);
+    const { data: businessProfile, isLoading: isLoadingProfile } = useDoc<BusinessProfile>(businessProfileRef);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
         return query(collection(firestore, 'marketProducts'), where('businessId', '==', businessId));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
+    
+    if (isLoadingProfile) {
+        return (
+             <div className="w-full max-w-6xl">
+                 <Card className="overflow-hidden mb-8">
+                    <Skeleton className="h-48 md:h-64 w-full" />
+                    <CardContent className="p-6 space-y-2">
+                        <Skeleton className="h-10 w-1/2" />
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-5 w-1/4" />
+                    </CardContent>
+                </Card>
+                 <Skeleton className="h-8 w-1/3 mb-6" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                         <Card key={i} className="overflow-hidden h-full flex flex-col">
+                            <Skeleton className="aspect-video w-full" />
+                            <CardContent className="p-4 flex-1 flex flex-col">
+                                <Skeleton className="h-6 mt-4 w-3/4" />
+                                <Skeleton className="h-8 mt-2 w-1/2" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    if (!businessProfile) {
+        // This can happen briefly or if the profile is deleted.
+        // The parent component should handle notFound for initial load.
+        notFound();
+    }
     
     const settings = businessProfile.marketSettings;
 
@@ -231,5 +270,5 @@ export default function StoreSlugPage() {
         notFound();
     }
 
-    return <StorePageContent businessProfile={businessProfile} businessId={businessProfile.id} />;
+    return <StorePageContent businessId={businessProfile.id} />;
 }
