@@ -2,16 +2,15 @@
 
 import {
   Activity,
-  AlertTriangle,
   BotMessageSquare,
   FilePlus,
   Landmark,
   MousePointer2,
   PackagePlus,
   Plus,
-  TrendingUp,
+  Store,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Logo } from './logo';
@@ -201,39 +200,33 @@ export function DashboardMockup() {
       <Card>
         <CardHeader className="p-3">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <TrendingUp className="w-4 h-4 text-accent" />
-            Business Forecast
+            <Store className="w-4 h-4 text-primary" />
+            Sell Online
           </CardTitle>
+           <CardDescription className="text-xs">
+            Set up your free online store on Busmo Market.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground">
-          Record data for 7+ days to unlock trends.
+        <CardContent className="p-3 pt-0">
+            <Button variant="secondary" size="sm" className="w-full h-8 text-xs">
+                Set Up Your Store
+            </Button>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader className="p-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <AlertTriangle className="w-4 h-4 text-warning" />
-            Stock Alert
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground relative h-8">
-              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", (showContent || isMobile) && currentStep.type === 'stock' ? 'opacity-100 text-warning font-medium' : 'opacity-0')}>
-                {currentStep.type === 'stock' ? 'Bottled Water: 5 left' : ''}
-            </p>
-              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", (showContent || isMobile) && currentStep.type !== 'stock' ? 'opacity-100' : 'opacity-0')}>
-                No low-stock alerts yet.
-            </p>
-        </CardContent>
-      </Card>
-      <Card>
+       <Card>
         <CardHeader className="p-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Landmark className="w-4 h-4 text-primary" />
             Access Capital
           </CardTitle>
+          <CardDescription className="text-xs">
+            Your business data can unlock investment.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground">
-          Keep recording to become eligible.
+        <CardContent className="p-3 pt-0">
+             <Button variant="secondary" size="sm" className="w-full h-8 text-xs">
+                Explore Options
+            </Button>
         </CardContent>
       </Card>
     </div>
