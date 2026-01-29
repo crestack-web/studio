@@ -1,19 +1,17 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/app/main-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { formatCurrency } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { formatCurrency } from '@/lib/currency';
 
 const plans = [
     {
@@ -80,10 +78,6 @@ const plans = [
     }
 ];
 
-interface Business {
-    currency?: string;
-}
-
 const PlanCard = ({ plan, isSelected }: { plan: typeof plans[0], isSelected: boolean }) => {
     const price = plan.monthlyPrice;
     
@@ -132,71 +126,25 @@ const PlanCard = ({ plan, isSelected }: { plan: typeof plans[0], isSelected: boo
 export default function PricingPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const firestore = useFirestore();
-    const { user: authUser } = useUser();
 
     const [selectedPlan, setSelectedPlan] = useState('supermarket');
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, `users/${authUser.uid}`);
-    }, [firestore, authUser]);
-    const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
-    const businessId = userProfile?.businessId;
-
-    const businessRef = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        return doc(firestore, `businesses/${businessId}`);
-    }, [firestore, businessId]);
-    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
     const handleStartTrial = async () => {
         if (!selectedPlan) {
           toast({ variant: 'destructive', title: 'Please select a plan.' });
           return;
         }
-        if (!businessId || !firestore || !authUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details.' });
-            return;
-        }
         
         setIsSubmitting(true);
-        try {
-            const batch = writeBatch(firestore);
 
-            // 1. Update the business document
-            const businessDocRef = doc(firestore, `businesses/${businessId}`);
-            batch.update(businessDocRef, { 
-                plan: selectedPlan,
-                onboardingCompleted: true,
-            });
-            
-            // 2. Create a trial subscription document
-            const subscriptionId = `trial_${authUser.uid}`;
-            const subscriptionRef = doc(firestore, `users/${authUser.uid}/subscriptions`, subscriptionId);
-            const trialEndDate = new Date();
-            trialEndDate.setDate(trialEndDate.getDate() + 14); // 14-day trial
-            
-            batch.set(subscriptionRef, {
-                planId: selectedPlan,
-                status: 'trialing',
-                currentPeriodStart: serverTimestamp(),
-                currentPeriodEnd: trialEndDate, // Set end date
-                createdAt: serverTimestamp()
-            });
-            
-            await batch.commit();
+        // All Firestore write logic is temporarily disabled for flow validation.
 
-            toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
-            router.push('/owner/home?onboarding=complete');
-        } catch (error) {
-            console.error("Error starting trial:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not start your free trial.' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
+        router.push('/owner/home?onboarding=complete');
     };
+
+    const isLoadingBusiness = false; // Mocking this for now as we removed the hook
 
     if (isLoadingBusiness) {
       return (

@@ -10,25 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { markets } from '@/lib/currency';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
-
-const createSlug = (name: string) => {
-    if (!name) return '';
-    const slug = name
-        .toLowerCase()
-        .replace(/&/g, 'and')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-    
-    // Prevent empty slug
-    if (!slug) {
-        return Math.random().toString(36).substring(2, 12);
-    }
-    return slug;
-};
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -40,17 +21,6 @@ export default function BusinessInfoPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const selectedCountryData = markets.find(c => c.code === country);
-    
-    const firestore = useFirestore();
-    const { user: authUser } = useUser();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, `users/${authUser.uid}`);
-    }, [firestore, authUser]);
-    const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
-    const businessId = userProfile?.businessId;
-
 
     const handleContinue = async () => {
         if (!businessName || !businessType || !country || !city) {
@@ -62,36 +32,11 @@ export default function BusinessInfoPage() {
             return;
         }
 
-        if (!businessId || !firestore) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please log in again.' });
-            return;
-        }
-
         setIsSubmitting(true);
 
-        const selectedMarket = markets.find(m => m.code === country);
-        const currency = selectedMarket?.currency;
-        const businessSlug = createSlug(businessName);
+        // All Firestore write logic is temporarily disabled for flow validation.
 
-        const businessData = {
-            businessName,
-            businessType,
-            country,
-            city,
-            currency,
-            slug: businessSlug,
-        };
-
-        const businessDocRef = doc(firestore, `businesses/${businessId}`);
-        updateDocumentNonBlocking(businessDocRef, businessData);
-
-        const businessProfileRef = doc(firestore, `businessProfiles/${businessId}`);
-        setDocumentNonBlocking(businessProfileRef, {
-            ...businessData,
-            businessId,
-            ownerId: authUser?.uid
-        }, { merge: true });
-
+        // Immediately route to the next step.
         router.replace('/owner/pricing');
     };
 

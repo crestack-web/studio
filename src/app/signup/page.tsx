@@ -9,9 +9,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -23,7 +22,6 @@ export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
-  const firestore = useFirestore();
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -39,34 +37,10 @@ export default function SignUpPage() {
     }
     
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+        await createUserWithEmailAndPassword(auth, email, password);
 
-        const batch = writeBatch(firestore);
-
-        const businessDocRef = doc(collection(firestore, 'businesses'));
-        const businessData = {
-            id: businessDocRef.id,
-            ownerId: user.uid,
-            businessName: `${name}'s Business`,
-            createdAt: serverTimestamp(),
-            onboardingCompleted: false, // Set onboarding to false initially
-        };
-        batch.set(businessDocRef, businessData);
-
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userData = {
-            id: user.uid,
-            displayName: name,
-            email: user.email,
-            phoneNumber: phoneNumber,
-            role: 'Owner',
-            businessId: businessDocRef.id
-        };
-        batch.set(userDocRef, userData);
+        // All Firestore write logic is temporarily disabled for flow validation.
         
-        await batch.commit();
-
         toast({ title: "Account Created!", description: "Let's set up your business." });
         router.push('/business-info');
 
