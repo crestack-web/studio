@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
-import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -86,6 +86,20 @@ interface SupportAgent {
     status: 'online' | 'offline';
 }
 
+interface ChatConversation {
+    id: string;
+    userId: string;
+    status: 'open' | 'in-progress' | 'closed';
+}
+
+interface ChatMessage {
+    id: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    createdAt: Timestamp;
+}
+
 function OwnerHomeContent() {
     const router = useRouter();
     const { toast } = useToast();
@@ -93,7 +107,7 @@ function OwnerHomeContent() {
     const onboardingComplete = searchParams.get('onboarding') === 'complete';
 
     const [answer, setAnswer] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingAi, setIsLoadingAi] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [aiCache, setAiCache] = useState<Record<string, string>>({});
     const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
@@ -103,17 +117,11 @@ function OwnerHomeContent() {
     const auth = useAuth();
     
     const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
-    const [chatMessages, setChatMessages] = useState([
-        {
-        id: '1',
-        sender: 'support',
-        text: 'Hi there! How can I help you today?',
-        }
-    ]);
     const [chatInput, setChatInput] = useState('');
     const [ticketSubject, setTicketSubject] = useState('');
     const [ticketMessage, setTicketMessage] = useState('');
     const [showWelcome, setShowWelcome] = useState(false);
+    const [conversationId, setConversationId] = useState<string | null>(null);
 
     useEffect(() => {
         if (onboardingComplete) {
@@ -287,7 +295,7 @@ function OwnerHomeContent() {
             return;
         }
 
-        setIsLoading(true);
+        setIsLoadingAi(true);
         setSelectedQuestion(question);
         setAnswer(null);
         try {
@@ -310,7 +318,7 @@ function OwnerHomeContent() {
                 setAnswer("Sorry, I couldn't process that request. Please try again.");
             }
         } finally {
-            setIsLoading(false);
+            setIsLoadingAi(false);
         }
     };
     
@@ -347,6 +355,84 @@ function OwnerHomeContent() {
         setTicketSubject('');
         setTicketMessage('');
         setChatView('initial');
+    };
+
+    const activeConversationQuery = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return query(
+            collection(firestore, 'chatConversations'),
+            where('userId', '==', authUser.uid),
+            where('status', 'in', ['open', 'in-progress']),
+            limit(1)
+        );
+    }, [firestore, authUser]);
+    const { data: activeConversations } = useCollection<ChatConversation>(activeConversationQuery);
+    const activeConversation = activeConversations?.[0];
+
+    useEffect(() => {
+        if (activeConversation) {
+            setConversationId(activeConversation.id);
+        } else {
+            setConversationId(null);
+        }
+    }, [activeConversation]);
+
+    const chatMessagesQuery = useMemoFirebase(() => {
+        if (!firestore || !conversationId) return null;
+        return query(collection(firestore, `chatConversations/${conversationId}/messages`), orderBy('createdAt', 'asc'));
+    }, [firestore, conversationId]);
+    const { data: realChatMessages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(chatMessagesQuery);
+    const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [realChatMessages]);
+
+    const handleStartChat = async () => {
+        if (!firestore || !authUser || !userProfile) return;
+        setChatView('chat');
+        if (activeConversation) {
+            setConversationId(activeConversation.id);
+            return;
+        }
+
+        const newConversation = {
+            userId: authUser.uid,
+            userName: userProfile.displayName,
+            agentId: null,
+            status: 'open',
+            lastMessage: 'User initiated chat',
+            lastMessageAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+        const newConversationRef = await addDocumentNonBlocking(collection(firestore, 'chatConversations'), newConversation);
+        setConversationId(newConversationRef.id);
+    };
+
+    const handleSendMessageToSupport = (e: FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim() || !firestore || !conversationId || !authUser || !userProfile) return;
+
+        const messageText = chatInput.trim();
+        setChatInput('');
+
+        const message = {
+            senderId: authUser.uid,
+            senderName: userProfile.displayName,
+            text: messageText,
+            createdAt: serverTimestamp(),
+        };
+
+        const messagesRef = collection(firestore, `chatConversations/${conversationId}/messages`);
+        const conversationRef = doc(firestore, 'chatConversations', conversationId);
+        
+        addDocumentNonBlocking(messagesRef, message);
+        updateDocumentNonBlocking(conversationRef, {
+            lastMessage: messageText,
+            lastMessageAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
     };
 
     const canManageStaff = true;
@@ -420,19 +506,19 @@ function OwnerHomeContent() {
                         variant="outline" 
                         className={cn("w-full justify-start h-12", selectedQuestion === q && "bg-accent text-accent-foreground hover:bg-accent/90")} 
                         onClick={() => handleQuestionClick(q)} 
-                        disabled={isLoading && selectedQuestion === q}
+                        disabled={isLoadingAi && selectedQuestion === q}
                        >
-                           {isLoading && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           {isLoadingAi && selectedQuestion === q && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                            <span className="truncate">{q}</span>
                        </Button>
                    ))}
                 </CardContent>
             </Card>
             
-            {(isLoading || answer) && (
-                <Card className={isLoading ? "bg-background" : "bg-muted"}>
+            {(isLoadingAi || answer) && (
+                <Card className={isLoadingAi ? "bg-background" : "bg-muted"}>
                     <CardContent className="p-4">
-                        {isLoading ? (
+                        {isLoadingAi ? (
                             <div className="space-y-2">
                                 <Skeleton className="h-4 w-3/4" />
                                 <Skeleton className="h-4 w-1/2" />
@@ -694,7 +780,6 @@ function OwnerHomeContent() {
                     {isLoadingAgents ? (
                          <>
                             <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
-                            <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
                         </>
                     ) : agentsError ? (
                         <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
@@ -724,7 +809,7 @@ function OwnerHomeContent() {
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
+                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>
@@ -760,34 +845,31 @@ function OwnerHomeContent() {
                     )}
                 </SheetHeader>
                 <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
-                {chatMessages.map(msg => (
-                    <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
-                    {msg.sender === 'support' && assignedAgent && (
-                        <Avatar className="w-8 h-8 border">
-                             {assignedAgent.avatarUrl ? (
-                                <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
-                            ) : (
-                                <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
+                {isLoadingMessages ? (
+                     <div className="flex justify-center items-center h-full"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                ) : realChatMessages ? (
+                    realChatMessages.map(msg => (
+                        <div key={msg.id} className={`flex items-start gap-3 ${msg.senderId === authUser?.uid ? 'justify-end' : ''}`}>
+                            {msg.senderId !== authUser?.uid && assignedAgent && (
+                                <Avatar className="w-8 h-8 border">
+                                    {assignedAgent.avatarUrl ? (
+                                        <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
+                                    ) : (
+                                        <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
+                                    )}
+                                </Avatar>
                             )}
-                        </Avatar>
-                    )}
-                    <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
-                        {msg.text}
-                    </div>
-                    </div>
-                ))}
+                            <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.senderId === authUser?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
+                                {msg.text}
+                            </div>
+                        </div>
+                    ))
+                ) : null}
+                <div ref={chatMessagesEndRef} />
                 </div>
                 <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
                 <form
-                    onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!chatInput.trim()) return;
-                    setChatMessages([...chatMessages, { id: Date.now().toString(), sender: 'user', text: chatInput }]);
-                    setChatInput('');
-                    setTimeout(() => {
-                        setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'support', text: "Thanks for your message. I'm looking into that now."}])
-                    }, 1500)
-                    }}
+                    onSubmit={handleSendMessageToSupport}
                     className="flex w-full items-center gap-2"
                 >
                     <Input
@@ -848,5 +930,3 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
-
-    
