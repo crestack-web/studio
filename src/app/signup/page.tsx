@@ -49,7 +49,8 @@ export default function SignUpPage() {
             id: businessDocRef.id,
             ownerId: user.uid,
             businessName: `${name}'s Business`,
-            createdAt: serverTimestamp()
+            createdAt: serverTimestamp(),
+            onboardingCompleted: false, // Set onboarding to false initially
         };
         batch.set(businessDocRef, businessData);
 

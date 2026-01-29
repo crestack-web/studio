@@ -21,13 +21,15 @@
         "currency": {
           "type": "string",
           "description": "The currency used by the business (e.g., ₦ / CFA)."
+        },
+        "onboardingCompleted": {
+          "type": "boolean",
+          "description": "A flag to indicate if the business has completed the initial setup."
         }
       },
       "required": [
         "id",
-        "name",
-        "type",
-        "currency"
+        "name"
       ]
     },
     "User": {

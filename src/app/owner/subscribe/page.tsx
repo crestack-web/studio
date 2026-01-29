@@ -128,9 +128,12 @@ function SubscribePageContent() {
                 createdAt: serverTimestamp()
             });
 
-            // 3. Update business plan
+            // 3. Update business plan and mark onboarding as complete
             const businessDocRef = doc(firestore, 'businesses', businessId);
-            batch.update(businessDocRef, { plan: planId });
+            batch.update(businessDocRef, { 
+                plan: planId,
+                onboardingCompleted: true 
+            });
 
             await batch.commit();
 
