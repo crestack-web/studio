@@ -198,7 +198,7 @@ function OwnerHomeContent() {
             totalDeposits: 0, totalWithdrawals: 0,
         };
 
-        if (!salesData || !productsData || !businessData || !expensesData) {
+        if (!salesData || !productsData || !businessData || !expensesData || !transactionsData) {
             return defaultInsights;
         }
 
@@ -206,17 +206,17 @@ function OwnerHomeContent() {
         const salesByProduct: { [key: string]: { id: string, name: string, quantity: number, sales: number } } = {};
         
         let totalSales = 0;
-        let grossProfit = 0;
+        let totalCogs = 0;
         let salesTodayCount = 0;
         let salesTodayTotal = 0;
-        let grossProfitToday = 0;
+        let cogsToday = 0;
 
         for (const sale of salesData) {
             totalSales += sale.amount;
             const product = productsData.find(p => p.id === sale.productId);
             if (product) {
-                const profitFromSale = sale.amount - ((product.cost || 0) * sale.quantity);
-                grossProfit += profitFromSale;
+                const cogsForSale = (product.cost || 0) * sale.quantity;
+                totalCogs += cogsForSale;
 
                 if (!salesByProduct[product.id]) {
                     salesByProduct[product.id] = { id: product.id, name: product.name, quantity: 0, sales: 0 };
@@ -225,7 +225,7 @@ function OwnerHomeContent() {
                 salesByProduct[product.id].sales += sale.amount;
 
                 if (isWithinInterval(sale.timestamp.toDate(), todayInterval)) {
-                    grossProfitToday += profitFromSale;
+                    cogsToday += cogsForSale;
                 }
             }
 
@@ -235,13 +235,16 @@ function OwnerHomeContent() {
             }
         }
         
+        const grossProfit = totalSales - totalCogs;
+        const grossProfitToday = salesTodayTotal - cogsToday;
+
         const totalExpenses = expensesData.reduce((acc, exp) => acc + exp.amount, 0);
         const expensesToday = expensesData
-            .filter(exp => isWithinInterval(exp.createdAt.toDate(), todayInterval))
+            .filter(exp => exp.createdAt?.toDate && isWithinInterval(exp.createdAt.toDate(), todayInterval))
             .reduce((acc, exp) => acc + exp.amount, 0);
 
         const netProfit = grossProfit - totalExpenses;
-        const profitToday = grossProfitToday - expensesToday;
+        const netProfitToday = grossProfitToday - expensesToday;
 
         const soldProducts = Object.values(salesByProduct);
         const bestSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => b.sales - a.sales)[0] : undefined;
@@ -258,7 +261,18 @@ function OwnerHomeContent() {
             }
         }
         
-        return { totalSales, totalProfit: netProfit, bestSellingProduct, worstSellingProduct, lowStockProducts, salesTodayCount, salesTodayTotal, profitToday, totalDeposits, totalWithdrawals };
+        return { 
+            totalSales, 
+            totalProfit: netProfit, 
+            bestSellingProduct, 
+            worstSellingProduct, 
+            lowStockProducts, 
+            salesTodayCount, 
+            salesTodayTotal, 
+            profitToday: netProfitToday, 
+            totalDeposits, 
+            totalWithdrawals 
+        };
 
     }, [salesData, productsData, businessData, transactionsData, expensesData]);
 
