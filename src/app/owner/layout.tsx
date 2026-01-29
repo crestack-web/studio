@@ -3,7 +3,7 @@
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { redirect, usePathname } from 'next/navigation';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface AppUser {
@@ -28,14 +28,16 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
 
-  // 1. Define all data dependencies
+  // 1. Get user profile
   const userProfileRef = useMemoFirebase(() => {
     if (!authUser || !firestore) return null;
     return doc(firestore, `users/${authUser.uid}`);
   }, [authUser, firestore]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
+  // 2. Get business data
   const businessId = userProfile?.businessId;
   const businessRef = useMemoFirebase(() => {
     if (!businessId || !firestore) return null;
@@ -43,73 +45,92 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   }, [businessId, firestore]);
   const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
-  // 2. Consolidate loading state
-  const isLoading = isUserLoading || isProfileLoading || (userProfile && isBusinessLoading);
+  // 3. Set a timeout for profile loading to handle replication lag.
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    // If we've finished the initial auth check, are logged in,
+    // and the profile is still not found, start a timer.
+    if (!isUserLoading && authUser && !userProfile) {
+      timer = setTimeout(() => {
+        // If after 5 seconds the profile is STILL not there, we assume an error.
+        if (!userProfile) {
+          setProfileLoadTimedOut(true);
+        }
+      }, 5000); // 5-second timeout
+    }
+    return () => clearTimeout(timer);
+  }, [isUserLoading, authUser, userProfile]);
+
+  // --- Start checks ---
   
-  if (isLoading) {
+  // Show loader during initial auth check
+  if (isUserLoading) {
     return <LoadingScreen />;
   }
 
-  // --- Start checks AFTER loading is complete ---
-
-  // Not logged in
+  // User is not logged in, redirect.
   if (!authUser) {
     if (!pathname.startsWith('/login')) {
-       redirect('/login');
+      redirect('/login');
     }
     return <LoadingScreen />;
   }
 
-  // Logged in, but profile doesn't exist (error state)
+  // User is logged in, but profile is still loading OR hasn't appeared yet (and we haven't timed out).
+  // This gracefully handles replication lag by continuing to show the loader.
+  if (isProfileLoading || (!userProfile && !profileLoadTimedOut)) {
+    return <LoadingScreen />;
+  }
+
+  // At this point, the profile should have loaded, OR the timeout has been reached.
   if (!userProfile) {
-    console.error("User profile not found for logged-in user. Redirecting to login.");
+    // This block now only runs after the 5-second timeout has failed.
+    console.error("User profile not found after timeout. Redirecting to login.");
     if (!pathname.startsWith('/login')) {
-       redirect('/login');
+      redirect('/login');
     }
     return <LoadingScreen />;
   }
   
-  // Check roles: must be 'Owner'
+  // We have a user profile, now check roles.
   if (userProfile.role !== 'Owner') {
     if (userProfile.role === 'Staff' && !pathname.startsWith('/staff')) return redirect('/staff/home');
     if (userProfile.role === 'Investor' && !pathname.startsWith('/investor')) return redirect('/investor/dashboard');
     if (userProfile.role === 'Admin' && !pathname.startsWith('/admin')) return redirect('/admin/dashboard');
     
-    // If role is something else or not owner, and not on another role's page, redirect to login
     if (!pathname.startsWith('/login')) redirect('/login');
     return <LoadingScreen />;
   }
 
-  // At this point, we know the user is an Owner. Check onboarding.
-  
-  // Business ID must exist for an owner.
-  if (!businessId) {
-      console.error("Owner profile is missing a businessId. This is an invalid state.");
+  // Now we know user is an Owner. Check onboarding steps.
+  // We need businessData for these checks. If it's still loading, show spinner.
+  if (isBusinessLoading) {
+      return <LoadingScreen />;
+  }
+
+  if (!businessId || !businessData) {
+      console.error("Owner profile is missing a businessId or business data. This is an invalid state.");
       if (!pathname.startsWith('/login')) redirect('/login');
       return <LoadingScreen />;
   }
   
-  // Business info (name, type) is incomplete.
   const isBusinessInfoIncomplete = !businessData?.businessName || !businessData?.businessType;
   if (isBusinessInfoIncomplete) {
-    // Allow access only to the business-info page
     if (pathname !== '/business-info') {
       redirect('/business-info');
     }
     return <>{children}</>;
   }
   
-  // Plan is missing.
   const isPlanMissing = !businessData.plan;
   if (isPlanMissing) {
-    // Allow access only to the pricing/plans page and subscription confirmation
     if (pathname !== '/owner/pricing' && pathname !== '/owner/subscribe') {
       redirect('/owner/pricing');
     }
     return <>{children}</>;
   }
-
-  // If all checks pass, the user is fully onboarded and can see any owner page.
+  
+  // All good, user is fully onboarded.
   return <>{children}</>;
 };
 
