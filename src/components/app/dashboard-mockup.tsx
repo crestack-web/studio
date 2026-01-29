@@ -30,18 +30,11 @@ const animationSteps = [
     answer: "You've made 18 sales today for a total of ₦45,000.",
     type: 'sales',
   },
-    {
-    question: "What product is running low?",
-    answer: "Bottled Water is running low. You have 5 units left.",
-    type: 'stock',
-  },
 ];
 
 const presetQuestions = [
     "Did I make profit today?",
     "How many sales today?",
-    "Which product sells the most?",
-    "What product is running low?",
 ];
 
 export function DashboardMockup() {
@@ -117,7 +110,7 @@ export function DashboardMockup() {
     timeouts.push(setTimeout(() => runAnimation(0), 1500));
 
     return clearTimeouts;
-  }, [isMobile]);
+  }, []);
 
   const MainColumn = (
     <div className="lg:col-span-2 flex flex-col gap-4">
@@ -128,7 +121,7 @@ export function DashboardMockup() {
             Ask about your business
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
+        <CardContent className="p-4 pt-0 grid grid-cols-1 gap-2">
           {presetQuestions.map((q, i) => (
             <Button
               key={q}
@@ -256,17 +249,10 @@ export function DashboardMockup() {
         </div>
       </header>
       <main className="flex-1 p-4 overflow-y-auto bg-muted/20 relative">
-        {isMobile ? (
-            <div className="grid grid-cols-1 gap-4">
-                {MainColumn}
-                {SidebarColumn}
-            </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
             {MainColumn}
             {SidebarColumn}
-          </div>
-        )}
+        </div>
       </main>
     </div>
   );
