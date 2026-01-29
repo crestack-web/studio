@@ -8,8 +8,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { doc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -165,19 +165,38 @@ export default function PricingPage() {
           toast({ variant: 'destructive', title: 'Please select a plan.' });
           return;
         }
-        if (!businessId || !firestore) {
+        if (!businessId || !firestore || !authUser) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details.' });
             return;
         }
         
         setIsSubmitting(true);
         try {
+            const batch = writeBatch(firestore);
+
+            // 1. Update the business document
             const businessDocRef = doc(firestore, `businesses/${businessId}`);
-            await updateDocumentNonBlocking(businessDocRef, { 
+            batch.update(businessDocRef, { 
                 plan: selectedPlan,
                 onboardingCompleted: true,
-                trialStartedAt: serverTimestamp()
             });
+            
+            // 2. Create a trial subscription document
+            const subscriptionId = `trial_${authUser.uid}`;
+            const subscriptionRef = doc(firestore, `users/${authUser.uid}/subscriptions`, subscriptionId);
+            const trialEndDate = new Date();
+            trialEndDate.setDate(trialEndDate.getDate() + 14); // 14-day trial
+            
+            batch.set(subscriptionRef, {
+                planId: selectedPlan,
+                status: 'trialing',
+                currentPeriodStart: serverTimestamp(),
+                currentPeriodEnd: trialEndDate, // Set end date
+                createdAt: serverTimestamp()
+            });
+            
+            await batch.commit();
+
             toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
             router.push('/owner/home?onboarding=complete');
         } catch (error) {
@@ -186,7 +205,7 @@ export default function PricingPage() {
         } finally {
             setIsSubmitting(false);
         }
-      };
+    };
 
     if (isLoadingBusiness) {
       return (
@@ -225,7 +244,7 @@ export default function PricingPage() {
                         <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
                         <TabsTrigger value="yearly" className="px-8 py-2 relative">
                             Yearly
-                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">SAVE 17%</span>
+                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-semibold px-2 py-0.5 rounded-full">SAVE 17%</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
