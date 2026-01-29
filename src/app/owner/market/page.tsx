@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -380,28 +379,41 @@ const SettingsContent = () => {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader><CardTitle>Payment Methods</CardTitle><CardDescription>Choose how you want to accept payments for online orders.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                        <Label htmlFor="pay-on-delivery" className="flex-1 space-y-0.5"><p className="text-base">Accept Pay on Delivery</p><p className="text-sm text-muted-foreground">Customers can pay with cash or POS upon order arrival.</p></Label>
-                        <Switch id="pay-on-delivery" checked={settings.payment.allowPayOnDelivery} onCheckedChange={(val) => handleSettingsChange('payment.allowPayOnDelivery', val)} disabled={isSaving} />
-                    </div>
-                     <div className="flex items-center justify-between rounded-lg border p-4">
-                        <Label htmlFor="bank-transfer" className="flex-1 space-y-0.5"><p className="text-base">Accept Bank Transfer</p><p className="text-sm text-muted-foreground">Customers will see your bank details to pay upfront.</p></Label>
-                        <Switch id="bank-transfer" checked={settings.payment.allowBankTransfer} onCheckedChange={(val) => handleSettingsChange('payment.allowBankTransfer', val)} disabled={isSaving} />
-                    </div>
-                    {settings.payment.allowBankTransfer && (
-                        <div className="space-y-4 pt-4 border-t">
-                            <div className="grid sm:grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label htmlFor="bank-name">Bank Name</Label><Input id="bank-name" placeholder="e.g., Guaranty Trust Bank" value={settings.payment.bankName} onChange={(e) => handleSettingsChange('payment.bankName', e.target.value)} disabled={isSaving} /></div>
-                                <div className="space-y-2"><Label htmlFor="account-number">Account Number</Label><Input id="account-number" placeholder="0123456789" value={settings.payment.accountNumber} onChange={(e) => handleSettingsChange('payment.accountNumber', e.target.value)} disabled={isSaving} /></div>
-                            </div>
-                            <div className="space-y-2"><Label htmlFor="payment-instructions">Payment Instructions</Label><Textarea id="payment-instructions" placeholder="e.g., Please use your order ID as reference." value={settings.payment.paymentInstructions} onChange={(e) => handleSettingsChange('payment.paymentInstructions', e.target.value)} disabled={isSaving} /></div>
+            {businessData?.country === 'NG' ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary"/> BusmoPay is Active</CardTitle>
+                        <CardDescription>For Nigerian businesses, BusmoPay is the exclusive payment gateway to ensure secure transactions and automated payouts.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Customers will be able to pay securely using Card, Bank Transfer, or USSD at checkout. You do not need to configure anything here.</p>
+                        <Button asChild variant="link" className="px-0"><Link href="/owner/busmopay">Go to BusmoPay Dashboard &rarr;</Link></Button>
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card>
+                    <CardHeader><CardTitle>Payment Methods</CardTitle><CardDescription>Choose how you want to accept payments for online orders.</CardDescription></CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <Label htmlFor="pay-on-delivery" className="flex-1 space-y-0.5"><p className="text-base">Accept Pay on Delivery</p><p className="text-sm text-muted-foreground">Customers can pay with cash or POS upon order arrival.</p></Label>
+                            <Switch id="pay-on-delivery" checked={settings.payment.allowPayOnDelivery} onCheckedChange={(val) => handleSettingsChange('payment.allowPayOnDelivery', val)} disabled={isSaving} />
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <Label htmlFor="bank-transfer" className="flex-1 space-y-0.5"><p className="text-base">Accept Bank Transfer</p><p className="text-sm text-muted-foreground">Customers will see your bank details to pay upfront.</p></Label>
+                            <Switch id="bank-transfer" checked={settings.payment.allowBankTransfer} onCheckedChange={(val) => handleSettingsChange('payment.allowBankTransfer', val)} disabled={isSaving} />
+                        </div>
+                        {settings.payment.allowBankTransfer && (
+                            <div className="space-y-4 pt-4 border-t">
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2"><Label htmlFor="bank-name">Bank Name</Label><Input id="bank-name" placeholder="e.g., Guaranty Trust Bank" value={settings.payment.bankName} onChange={(e) => handleSettingsChange('payment.bankName', e.target.value)} disabled={isSaving} /></div>
+                                    <div className="space-y-2"><Label htmlFor="account-number">Account Number</Label><Input id="account-number" placeholder="0123456789" value={settings.payment.accountNumber} onChange={(e) => handleSettingsChange('payment.accountNumber', e.target.value)} disabled={isSaving} /></div>
+                                </div>
+                                <div className="space-y-2"><Label htmlFor="payment-instructions">Payment Instructions</Label><Textarea id="payment-instructions" placeholder="e.g., Please use your order ID as reference." value={settings.payment.paymentInstructions} onChange={(e) => handleSettingsChange('payment.paymentInstructions', e.target.value)} disabled={isSaving} /></div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader><CardTitle>Order Fulfillment</CardTitle><CardDescription>Set up how customers can receive their orders.</CardDescription></CardHeader>
@@ -1122,7 +1134,7 @@ export default function ManageMarketPage() {
 
                 <SidebarInset>
                     <header className="sticky top-0 z-10 border-b bg-background">
-                        <div className="flex h-auto min-h-16 flex-col items-start justify-center gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
                             <div className="flex items-center gap-3">
                                 <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
                                     <SheetTrigger asChild>
@@ -1143,7 +1155,7 @@ export default function ManageMarketPage() {
                                 <SidebarTrigger className="hidden md:flex" />
                                 <div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div>
                             </div>
-                            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                            <div className="flex items-center justify-end gap-2">
                                 <Button variant="outline" asChild><Link href="/market" target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />View Public Market</Link></Button>
                             </div>
                         </div>
