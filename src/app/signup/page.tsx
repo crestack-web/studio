@@ -9,8 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, serverTimestamp } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -22,6 +23,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -37,9 +39,23 @@ export default function SignUpPage() {
     }
     
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        // All Firestore write logic is temporarily disabled for flow validation.
+        // After successful Firebase Auth creation, create the user profile in Firestore.
+        if (user && firestore) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userData = {
+                id: user.uid,
+                displayName: name,
+                email: user.email,
+                phoneNumber: phoneNumber,
+                role: 'Owner', // Assign the role directly
+                createdAt: serverTimestamp(),
+            };
+            // Use a non-blocking write. The layout will wait for this doc to exist.
+            setDocumentNonBlocking(userDocRef, userData, {});
+        }
         
         toast({ title: "Account Created!", description: "Let's set up your business." });
         router.push('/business-info');

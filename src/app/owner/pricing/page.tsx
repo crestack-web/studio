@@ -12,6 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/currency';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { addDays } from 'date-fns';
 
 const plans = [
     {
@@ -126,9 +129,15 @@ const PlanCard = ({ plan, isSelected }: { plan: typeof plans[0], isSelected: boo
 export default function PricingPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
 
     const [selectedPlan, setSelectedPlan] = useState('supermarket');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const userProfileRef = useMemoFirebase(() => authUser ? doc(firestore, `users/${authUser.uid}`) : null, [firestore, authUser]);
+    const { data: userProfile, isLoading: isLoadingUser } = useDoc<{ businessId?: string }>(userProfileRef);
+    const businessId = userProfile?.businessId;
 
     const handleStartTrial = async () => {
         if (!selectedPlan) {
@@ -136,20 +145,54 @@ export default function PricingPage() {
           return;
         }
         
+        if (!firestore || !authUser || !businessId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your user or business details. Please try again.' });
+            return;
+        }
+
         setIsSubmitting(true);
+        
+        try {
+            const batch = writeBatch(firestore);
 
-        // All Firestore write logic is temporarily disabled for flow validation.
+            // 1. Update business with plan and mark onboarding as complete
+            const businessDocRef = doc(firestore, 'businesses', businessId);
+            batch.update(businessDocRef, {
+                plan: selectedPlan,
+                onboardingCompleted: true,
+            });
 
-        toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
-        router.push('/owner/home?onboarding=complete');
+            // 2. Create a 14-day trial subscription record
+            const subscriptionId = `trial_${Date.now()}`;
+            const subscriptionRef = doc(firestore, `users/${authUser.uid}/subscriptions`, subscriptionId);
+            batch.set(subscriptionRef, {
+                planId: selectedPlan,
+                status: 'trialing',
+                createdAt: serverTimestamp(),
+                currentPeriodStart: serverTimestamp(),
+                currentPeriodEnd: addDays(new Date(), 14),
+            });
+
+            await batch.commit();
+
+            toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
+            router.push('/owner/home?onboarding=complete');
+
+        } catch (error) {
+            console.error("Error starting trial:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not start your free trial. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+    
+    const isLoading = isLoadingUser;
 
-    const isLoadingBusiness = false; // Mocking this for now as we removed the hook
-
-    if (isLoadingBusiness) {
+    if (isLoading) {
       return (
         <MainLayout title="Choose Your Plan">
-          <div className="w-full max-w-7xl space-y-8">
+          <div className="w-full max-w-5xl space-y-8">
+            <Skeleton className="h-24 w-full max-w-xl mx-auto" />
             <Skeleton className="h-10 w-64 mx-auto" />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-96 w-full"/>)}
