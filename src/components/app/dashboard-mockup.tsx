@@ -128,7 +128,7 @@ export function DashboardMockup() {
             Ask about your business
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 grid grid-cols-1 gap-2">
+        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
           {presetQuestions.map((q, i) => (
             <Button
               key={q}
@@ -257,7 +257,7 @@ export function DashboardMockup() {
       </header>
       <main className="flex-1 p-4 overflow-y-auto bg-muted/20 relative">
         {isMobile ? (
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 {MainColumn}
                 {SidebarColumn}
             </div>
