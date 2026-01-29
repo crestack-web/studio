@@ -17,6 +17,7 @@ interface Business {
   businessName?: string;
   businessType?: string;
   plan?: string;
+  country?: string;
   onboardingCompleted?: boolean;
 }
 
@@ -95,9 +96,22 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     }
     
     // At this point, user is an authenticated Owner.
-    
-    // 4. Handle onboarding flow
-    if (!businessData?.onboardingCompleted) {
+
+    // NEW CHECK: Business data must exist. If not, it's a critical error.
+    if (!businessData) {
+         toast({
+            variant: "destructive",
+            title: "Business Data Error",
+            description: "Could not load your business data. Please log in again.",
+        });
+        if (!pathname.startsWith('/login')) {
+            router.replace('/login');
+        }
+        return;
+    }
+
+    // 4. Handle onboarding flow (now safe to access businessData)
+    if (!businessData.onboardingCompleted) {
         if (!businessData.businessType || !businessData.country) {
             if (pathname !== '/business-info') router.replace('/business-info');
         } else if (!businessData.plan) {
