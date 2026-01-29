@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Loader2, FileUp, X } from 'lucide-react';
+import { Trash2, Plus, Loader2, FileUp, X, FileEdit, Check } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -102,6 +102,7 @@ export default function AddProductPage() {
     const [newVariantCost, setNewVariantCost] = useState('');
     const [newVariantPrice, setNewVariantPrice] = useState('');
     const [newVariantQuantity, setNewVariantQuantity] = useState('');
+    const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
 
 
     const firestore = useFirestore();
@@ -242,6 +243,39 @@ export default function AddProductPage() {
     const handleRemoveVariant = (id: string) => {
         setVariants(variants.filter(v => v.id !== id));
     };
+
+    const handleEditClick = (variant: Variant) => {
+        setEditingVariant(variant);
+        setNewVariantName(variant.name);
+        setNewVariantCost(variant.cost || '0');
+        setNewVariantPrice(variant.price);
+        setNewVariantQuantity(variant.quantity);
+    };
+
+    const handleUpdateVariant = () => {
+        if (!editingVariant) return;
+
+        setVariants(variants.map(v => 
+            v.id === editingVariant.id
+            ? {
+                ...v,
+                name: newVariantName.trim(),
+                cost: newVariantCost.trim() || '0',
+                price: newVariantPrice.trim(),
+                quantity: newVariantQuantity.trim(),
+              }
+            : v
+        ));
+        handleCancelEdit();
+    };
+
+    const handleCancelEdit = () => {
+        setEditingVariant(null);
+        setNewVariantName('');
+        setNewVariantCost('');
+        setNewVariantPrice('');
+        setNewVariantQuantity('');
+    }
     
     const finalCostPrice = isManufactured ? totalIngredientCost : parseFloat(costPrice) || 0;
     
@@ -450,6 +484,9 @@ export default function AddProductPage() {
                                                     Price: {formatCurrency(parseFloat(variant.price), businessData?.country)} | Qty: {variant.quantity}
                                                 </p>
                                             </div>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(variant)} disabled={isLoading}>
+                                                <FileEdit className="h-4 w-4" />
+                                            </Button>
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveVariant(variant.id)} disabled={isLoading}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
@@ -459,7 +496,7 @@ export default function AddProductPage() {
                             )}
                             <Separator />
                             <div className="space-y-2">
-                                <Label>Add Variant</Label>
+                                <Label>{editingVariant ? 'Edit Variant' : 'Add Variant'}</Label>
                                 <div className="space-y-2 rounded-md border p-3">
                                     <Input placeholder="Variant name (e.g., Small, Blue)" value={newVariantName} onChange={e => setNewVariantName(e.target.value)} disabled={isLoading} />
                                     <div className="grid grid-cols-3 gap-2">
@@ -467,9 +504,20 @@ export default function AddProductPage() {
                                         <Input type="number" placeholder="Cost (opt.)" value={newVariantCost} onChange={e => setNewVariantCost(e.target.value)} disabled={isLoading} />
                                         <Input type="number" placeholder="Quantity" value={newVariantQuantity} onChange={e => setNewVariantQuantity(e.target.value)} disabled={isLoading} />
                                     </div>
-                                    <Button size="sm" className="w-full" onClick={handleAddVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
-                                        <Plus className="mr-2 h-4 w-4" /> Add Variant
-                                    </Button>
+                                    {editingVariant ? (
+                                        <div className="flex gap-2">
+                                            <Button size="sm" className="w-full" onClick={handleUpdateVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
+                                                <Check className="mr-2 h-4 w-4" /> Update Variant
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="w-full" onClick={handleCancelEdit} disabled={isLoading}>
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Button size="sm" className="w-full" onClick={handleAddVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
+                                            <Plus className="mr-2 h-4 w-4" /> Add Variant
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
