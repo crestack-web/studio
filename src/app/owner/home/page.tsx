@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -338,7 +339,7 @@ function OwnerHomeContent() {
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-3 cursor-pointer">
-                <div className="text-right">
+                <div className="hidden sm:block text-right">
                   <div className="font-semibold">{businessData?.businessName || <Skeleton className="h-5 w-24" />}</div>
                   <div className="text-xs text-muted-foreground">{userProfile?.role || 'Owner'}</div>
                 </div>
