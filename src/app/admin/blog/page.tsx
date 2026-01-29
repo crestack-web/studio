@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import imageCompression from 'browser-image-compression';
 
 
 interface BlogPost {
@@ -84,24 +85,30 @@ export default function AdminBlogPage() {
         setIsPublished(false);
     };
 
-    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 500 * 1024) { // 500KB limit
-            toast({
-                variant: 'destructive',
-                title: 'Image too large',
-                description: 'Please upload an image smaller than 500KB.',
-            });
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setter(reader.result as string);
+        const options = {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true
         };
-        reader.readAsDataURL(file);
+
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setter(reader.result as string);
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Image compression failed',
+                description: 'Please try again with a different image.',
+            });
+        }
     };
 
 
@@ -184,7 +191,7 @@ export default function AdminBlogPage() {
                                     </Label>
                                 )}
                                 <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
-                                <p className="text-xs text-muted-foreground">Recommended size: 1200x630px. Max 500KB.</p>
+                                <p className="text-xs text-muted-foreground">Recommended size: 1200x630px.</p>
                             </div>
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., person writing" disabled={isLoading} /></div>
                             <div className="space-y-2"><Label htmlFor="author">Author</Label><Input id="author" value={author} onChange={(e) => setAuthor(e.target.value)} disabled={isLoading} /></div>

@@ -30,6 +30,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import imageCompression from 'browser-image-compression';
 
 
 const createSlug = (name: string) => {
@@ -146,24 +147,30 @@ const SettingsContent = () => {
         handleSettingsChange('delivery.deliveryDays', newDays);
     };
 
-    const handleBrandingImageUpload = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
+    const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 500 * 1024) { // 500KB limit
+        const options = {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true
+        };
+
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                handleSettingsChange(imageType, reader.result as string);
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
             toast({
                 variant: 'destructive',
-                title: 'Image too large',
-                description: `Image must be smaller than 500KB.`,
+                title: 'Image compression failed',
+                description: 'Please try again with a different image.',
             });
-            return;
         }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            handleSettingsChange(imageType, reader.result as string);
-        };
-        reader.readAsDataURL(file);
     };
 
     const handleSaveChanges = async () => {
@@ -320,7 +327,7 @@ const SettingsContent = () => {
                                         </Button>
                                     </Label>
                                     <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'logoImageUrl')} disabled={isSaving} />
-                                    <p className="text-xs text-muted-foreground">Recommended: Square image, max 500KB.</p>
+                                    <p className="text-xs text-muted-foreground">Recommended: Square image.</p>
                                 </div>
                             </div>
                         </div>
@@ -1117,9 +1124,9 @@ export default function ManageMarketPage() {
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-full max-w-xs p-0">
-                                    <SheetHeader className="sr-only">
-                                        <SheetTitle>Market Menu</SheetTitle>
-                                        <SheetDescription>Links to manage products, orders, and market settings.</SheetDescription>
+                                    <SheetHeader>
+                                        <SheetTitle className="sr-only">Market Menu</SheetTitle>
+                                        <SheetDescription className="sr-only">Links to manage products, orders, and market settings.</SheetDescription>
                                     </SheetHeader>
                                     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
                                        <SidebarNavigation />

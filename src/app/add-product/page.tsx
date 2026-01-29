@@ -21,6 +21,7 @@ import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import imageCompression from 'browser-image-compression';
 
 interface Ingredient {
     name: string;
@@ -184,24 +185,31 @@ export default function AddProductPage() {
         return ingredients.reduce((total, ing) => total + (parseFloat(ing.cost) || 0), 0);
     }, [ingredients]);
     
-    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
 
+        const compressionOptions = {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true,
+        };
+
         for (const file of Array.from(files)) {
-            if (file.size > 500 * 1024) {
-                toast({
+            try {
+                const compressedFile = await imageCompression(file, compressionOptions);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setImages(prev => [...prev, reader.result as string]);
+                };
+                reader.readAsDataURL(compressedFile);
+            } catch (error) {
+                 toast({
                     variant: 'destructive',
-                    title: 'Image too large',
-                    description: `${file.name} is larger than 500KB.`,
+                    title: 'Image compression failed',
+                    description: `Could not process ${file.name}. Please try a different image.`,
                 });
-                continue;
             }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImages(prev => [...prev, reader.result as string]);
-            };
-            reader.readAsDataURL(file);
         }
     };
     
@@ -606,7 +614,7 @@ export default function AddProductPage() {
                                         </Label>
                                     </div>
                                     <Input id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isLoading} multiple />
-                                    <p className="text-xs text-muted-foreground">You must provide at least one image to list on the market. Max file size: 500KB.</p>
+                                    <p className="text-xs text-muted-foreground">You must provide at least one image to list on the market.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="product-description">Product Description</Label>
