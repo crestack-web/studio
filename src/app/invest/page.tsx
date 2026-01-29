@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -25,6 +24,7 @@ interface BusinessProfile {
     marketSettings?: {
         logoImageUrl?: string;
     };
+    isSeekingInvestment?: boolean;
 }
 
 const BusinessCard = ({ profile }: { profile: BusinessProfile }) => {
@@ -92,10 +92,10 @@ export default function InvestPage() {
 
     const { data: profiles, isLoading } = useCollection<BusinessProfile>(profilesQuery);
     
-    // Simple filter logic (can be expanded)
+    // Only show businesses that have opted in to seek investment
     const filteredProfiles = useMemo(() => {
         if (!profiles) return [];
-        return profiles.filter(p => p.marketSettings?.isStoreActive); // Only show active stores
+        return profiles.filter(p => p.isSeekingInvestment);
     }, [profiles]);
 
 
@@ -157,7 +157,7 @@ export default function InvestPage() {
                     ) : (
                         <div className="text-center py-20 border-2 border-dashed rounded-lg">
                             <Building className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">Opportunities Coming Soon</h3>
+                            <h3 className="mt-4 text-lg font-semibold">No Active Opportunities</h3>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 We are currently building our network of verified businesses. Check back soon for investment opportunities.
                             </p>

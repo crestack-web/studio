@@ -4,10 +4,10 @@ import { useState, useMemo } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { CheckCircle2, ShieldCheck, TrendingUp, Handshake, Building2, LockKeyhole, Banknote } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, TrendingUp, Handshake, Building2, LockKeyhole, Banknote, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { doc, collection, query, where } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { formatCurrency } from '@/lib/currency';
+import { differenceInDays } from 'date-fns';
 
 // Interfaces for Firestore data
 interface AppUser {
@@ -24,27 +26,40 @@ interface AppUser {
 
 interface Business {
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+    createdAt: { toDate: () => Date };
 }
 
-type Offer = {
+interface BusinessProfile {
+    isSeekingInvestment?: boolean;
+}
+
+interface Sale {
+    id: string;
+}
+
+interface Investment {
     id: string;
     investorName: string;
-    investorInitials: string;
     amount: number;
-    type: string;
-    terms: string;
-};
-
-const mockOffers: Offer[] = [];
+    type: 'Profit Sharing' | 'Equity';
+    terms: {
+        profitShare?: number;
+        duration?: number;
+        equity?: number;
+        valuation?: number;
+    };
+    status: 'pending-acceptance' | 'active' | 'rejected' | 'completed';
+}
 
 export default function AccessCapitalPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user: authUser } = useUser();
     
-    const [offerToAccept, setOfferToAccept] = useState<Offer | null>(null);
-    const [offerToReject, setOfferToReject] = useState<Offer | null>(null);
+    const [offerToAccept, setOfferToAccept] = useState<Investment | null>(null);
+    const [offerToReject, setOfferToReject] = useState<Investment | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -57,30 +72,101 @@ export default function AccessCapitalPage() {
         if (!firestore || !businessId) return null;
         return doc(firestore, 'businesses', businessId);
     }, [firestore, businessId]);
-    const { data: businessData } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
+
+    const businessProfileRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businessProfiles', businessId);
+    }, [firestore, businessId]);
+    const { data: businessProfileData, isLoading: isLoadingProfile } = useDoc<BusinessProfile>(businessProfileRef);
     
-    const canAccessEquity = true;
+    const salesQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return query(collection(firestore, `businesses/${businessId}/sales`), where('timestamp', '!=', null));
+    }, [firestore, businessId]);
+    const { data: salesData, isLoading: isLoadingSales } = useCollection<Sale>(salesQuery);
+    
+    const investmentOffersQuery = useMemoFirebase(() => {
+        if (!firestore || !businessId || !businessProfileData?.isSeekingInvestment) return null;
+        return query(
+            collection(firestore, 'investments'), 
+            where('businessId', '==', businessId),
+            where('status', '==', 'pending-acceptance')
+        );
+    }, [firestore, businessId, businessProfileData?.isSeekingInvestment]);
+    const { data: investmentOffers, isLoading: isLoadingOffers } = useCollection<Investment>(investmentOffersQuery);
 
-    const handleAccept = () => {
-        if (!offerToAccept) return;
-        toast({
-            title: `Offer Accepted!`,
-            description: `You have accepted the investment offer from ${offerToAccept.investorName}.`,
-        });
-        // In a real app, update Firestore status to 'pending-funding'
-        setOfferToAccept(null);
+    const isEligible = useMemo(() => {
+        if (!businessData || !salesData) return false;
+        const businessAgeInDays = businessData.createdAt ? differenceInDays(new Date(), businessData.createdAt.toDate()) : 0;
+        return businessAgeInDays >= 30 && salesData.length > 0;
+    }, [businessData, salesData]);
+
+    const canAccessEquity = businessData?.plan === 'company';
+    const isSeekingInvestment = businessProfileData?.isSeekingInvestment;
+
+    const handleOptIn = async () => {
+        if (!businessProfileRef) return;
+        setIsUpdating(true);
+        try {
+            await updateDocumentNonBlocking(businessProfileRef, { isSeekingInvestment: true });
+            toast({ title: "You're all set!", description: "Investors can now see your business and send offers." });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not opt-in. Please try again.", variant: 'destructive' });
+        } finally {
+            setIsUpdating(false);
+        }
+    }
+
+    const handleAccept = async () => {
+        if (!offerToAccept || !firestore) return;
+        setIsUpdating(true);
+        const investmentRef = doc(firestore, 'investments', offerToAccept.id);
+        
+        try {
+            await updateDocumentNonBlocking(investmentRef, { status: 'pending-funding' });
+            toast({
+                title: `Offer Accepted!`,
+                description: `You have accepted the investment offer. The investor has been notified to fund the investment.`,
+            });
+        } catch (error) {
+            toast({ title: "Error", description: "Could not accept the offer.", variant: "destructive" });
+        } finally {
+            setOfferToAccept(null);
+            setIsUpdating(false);
+        }
     };
 
-    const handleReject = () => {
-        if (!offerToReject) return;
-        toast({
-            title: `Offer Rejected`,
-            description: `You have rejected the investment offer from ${offerToReject.investorName}.`,
-        });
-        // In a real app, update Firestore status to 'rejected' with the reason
-        setOfferToReject(null);
-        setRejectionReason('');
+    const handleReject = async () => {
+        if (!offerToReject || !firestore) return;
+        setIsUpdating(true);
+        const investmentRef = doc(firestore, 'investments', offerToReject.id);
+        try {
+            await updateDocumentNonBlocking(investmentRef, { status: 'rejected-by-business', rejectionReason });
+            toast({
+                title: `Offer Rejected`,
+                description: `You have rejected the investment offer.`,
+            });
+        } catch (error) {
+             toast({ title: "Error", description: "Could not reject the offer.", variant: "destructive" });
+        } finally {
+            setOfferToReject(null);
+            setRejectionReason('');
+            setIsUpdating(false);
+        }
     };
+
+    const isLoading = isLoadingBusiness || isLoadingSales || isLoadingProfile || isLoadingOffers;
+
+    const getTermsString = (offer: Investment) => {
+        if (offer.type === 'Profit Sharing') {
+            return `${offer.terms.profitShare}% profit share for ${offer.terms.duration} months`;
+        }
+        if (offer.type === 'Equity') {
+            return `${offer.terms.equity}% equity at a ${formatCurrency(offer.terms.valuation, 'NGN')} valuation`;
+        }
+        return 'N/A';
+    }
 
 
     return (
@@ -128,55 +214,75 @@ export default function AccessCapitalPage() {
                         </CardContent>
                     </Card>
                 </div>
+                
+                {isEligible && !isSeekingInvestment && (
+                    <Card className="bg-primary/5 border-primary/20 text-center">
+                        <CardHeader>
+                            <CardTitle className="text-primary">Congratulations! You're eligible for investment.</CardTitle>
+                            <CardDescription>Your consistent data recording has made your business visible to our network of investors.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={handleOptIn} disabled={isUpdating}>
+                                {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Opt-In to Receive Investment Offers
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3">
-                            <Handshake className="w-6 h-6 text-primary" />
-                            <span>Incoming Investment Offers</span>
-                        </CardTitle>
-                        <CardDescription>Review, accept, or reject investment intents from potential investors.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Investor</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Terms</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {mockOffers.map(offer => (
-                                    <TableRow key={offer.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar>
-                                                    <AvatarFallback>{offer.investorInitials}</AvatarFallback>
-                                                </Avatar>
-                                                <span className="font-medium">{offer.investorName}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>₦{offer.amount.toLocaleString()}</TableCell>
-                                        <TableCell>{offer.terms}</TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button size="sm" onClick={() => setOfferToAccept(offer)}>Accept</Button>
-                                            <Button size="sm" variant="outline" onClick={() => setOfferToReject(offer)}>Reject</Button>
-                                        </TableCell>
+                {isSeekingInvestment && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3">
+                                <Handshake className="w-6 h-6 text-primary" />
+                                <span>Incoming Investment Offers</span>
+                            </CardTitle>
+                            <CardDescription>Review, accept, or reject investment intents from potential investors.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Investor</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Terms</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                                {mockOffers.length === 0 && (
-                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
-                                            You have no incoming investment offers.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoadingOffers ? (
+                                        <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
+                                    ) : investmentOffers && investmentOffers.length > 0 ? (
+                                        investmentOffers.map(offer => (
+                                            <TableRow key={offer.id}>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar>
+                                                            <AvatarFallback>{offer.investorName?.split(' ').map(n => n[0]).join('') || '?'}</AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="font-medium">{offer.investorName}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{formatCurrency(offer.amount, 'NGN')}</TableCell>
+                                                <TableCell>{getTermsString(offer)}</TableCell>
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button size="sm" onClick={() => setOfferToAccept(offer)} disabled={isUpdating}>Accept</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setOfferToReject(offer)} disabled={isUpdating}>Reject</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-24 text-center">
+                                                You have no incoming investment offers.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
 
                  <div>
@@ -282,8 +388,11 @@ export default function AccessCapitalPage() {
                         </AlertDescription>
                     </Alert>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setOfferToAccept(null)}>Cancel</Button>
-                        <Button onClick={handleAccept}>Confirm Acceptance</Button>
+                        <Button variant="outline" onClick={() => setOfferToAccept(null)} disabled={isUpdating}>Cancel</Button>
+                        <Button onClick={handleAccept} disabled={isUpdating}>
+                            {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirm Acceptance
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -307,8 +416,11 @@ export default function AccessCapitalPage() {
                          <p className="text-xs text-muted-foreground">Providing a reason helps us improve future capital matches.</p>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setOfferToReject(null)}>Cancel</Button>
-                        <Button variant="destructive" onClick={handleReject}>Reject Offer</Button>
+                        <Button variant="outline" onClick={() => setOfferToReject(null)} disabled={isUpdating}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleReject} disabled={isUpdating}>
+                            {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Reject Offer
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
