@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -81,7 +82,7 @@ export default function ManageStaffPage() {
     const { data: pendingInvitations, isLoading: isLoadingInvitations } = useCollection<StaffInvitation>(invitationsQuery);
 
 
-    const canManageStaff = true;
+    const canManageStaff = businessData?.plan !== 'shop';
 
     const handleSendInvite = async () => {
         if (!email) {
@@ -150,7 +151,7 @@ export default function ManageStaffPage() {
                         </div>
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
-                                <Button>
+                                <Button disabled={!canManageStaff}>
                                     <UserPlus className="mr-2 h-4 w-4" />
                                     Invite Staff
                                 </Button>

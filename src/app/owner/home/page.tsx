@@ -122,6 +122,8 @@ function OwnerHomeContent() {
     const [ticketMessage, setTicketMessage] = useState('');
     const [showWelcome, setShowWelcome] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         if (onboardingComplete) {
@@ -382,8 +384,7 @@ function OwnerHomeContent() {
         return query(collection(firestore, `chatConversations/${conversationId}/messages`), orderBy('createdAt', 'asc'));
     }, [firestore, conversationId]);
     const { data: realChatMessages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(chatMessagesQuery);
-    const chatMessagesEndRef = useRef<HTMLDivElement>(null);
-
+    
     useEffect(() => {
         chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [realChatMessages]);
@@ -435,11 +436,13 @@ function OwnerHomeContent() {
         });
     };
 
-    const canManageStaff = true;
+    const canManageStaff = businessData?.plan !== 'shop';
     
     const isLoadingData = isLoadingSales || isLoadingTransactions || isLoadingExpenses;
 
     const isNigeria = businessData?.country === 'NG';
+
+    const lowStockNotifications = businessInsights.lowStockProducts;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -450,12 +453,38 @@ function OwnerHomeContent() {
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative h-9 w-9">
                 <Bell className="h-5 w-5" />
+                {lowStockNotifications.length > 0 && (
+                  <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                  </span>
+                )}
                 <span className="sr-only">Notifications</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                No new notifications.
+              <div className="p-2">
+                <p className="font-semibold px-2 py-1">Notifications</p>
+                <Separator className="mb-2" />
+                {lowStockNotifications.length > 0 ? (
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                        {lowStockNotifications.map(p => (
+                            <div key={p.id} className="p-2 rounded-md hover:bg-muted text-sm">
+                                <p className="font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5"><AlertTriangle className="h-4 w-4" />Low Stock Alert</p>
+                                <p className="mt-1">
+                                    <span className="font-semibold">{p.name}</span> has only {p.quantity} units left.
+                                </p>
+                                <Link href="/add-inventory" className="text-primary hover:underline text-xs font-semibold">
+                                    Restock now &rarr;
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                     <div className="p-4 text-center text-sm text-muted-foreground">
+                        No new notifications.
+                      </div>
+                )}
               </div>
             </PopoverContent>
           </Popover>
@@ -930,5 +959,3 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
-
-    
