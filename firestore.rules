@@ -19,8 +19,9 @@ service cloud.firestore {
     
     // This is the NEW, NON-RECURSIVE way to check for admin status.
     // It relies on a document existing in the /admins collection.
+    // MODIFIED: Also includes the Super Admin check.
     function isRequestingUserAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || isSuperAdmin());
     }
     
     // This function is for bootstrapping the first admin or for emergency recovery.
