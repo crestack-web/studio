@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -308,11 +309,11 @@ export default function PricingPage() {
         <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
           <Logo className="h-7 mx-auto md:mx-0" />
           <p className="text-sm text-muted-foreground">
-            &copy; {currentYear} Busmo. business money
+            &copy; {currentYear} Busmo.
           </p>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-            <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_privacy')}</Link>
-             <Link href="#" className="text-sm hover:underline">{t('investor_layout.footer_terms')}</Link>
+            <Link href="/terms" className="text-sm hover:underline">{t('investor_layout.footer_privacy')}</Link>
+             <Link href="/terms" className="text-sm hover:underline">{t('investor_layout.footer_terms')}</Link>
           </div>
         </div>
       </footer>
