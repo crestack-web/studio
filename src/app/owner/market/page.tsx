@@ -81,7 +81,7 @@ const SettingsContent = () => {
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
-    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businesses/${businessId}`) : null, [firestore, businessId]);
+    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
     const [settings, setSettings] = useState<MarketSettings | undefined>(undefined);
@@ -1144,10 +1144,6 @@ export default function ManageMarketPage() {
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-full max-w-xs p-0">
-                                    <SheetHeader>
-                                        <SheetTitle className="sr-only">Market Menu</SheetTitle>
-                                        <SheetDescription className="sr-only">Links to manage products, orders, and market settings.</SheetDescription>
-                                    </SheetHeader>
                                     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
                                        <SidebarNavigation />
                                     </div>
