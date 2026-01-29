@@ -10,14 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { markets } from '@/lib/currency';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { user: authUser } = useUser();
-    const firestore = useFirestore();
 
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
@@ -37,42 +33,13 @@ export default function BusinessInfoPage() {
             return;
         }
 
-        if (!authUser || !firestore) {
-            toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not find authenticated user. Please try again.' });
-            return;
-        }
-
         setIsSubmitting(true);
+        // Temporarily disabled all firestore writes
+        // In a real scenario, you would save this data to Firestore here.
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsSubmitting(false);
 
-        try {
-            // Create a new business document
-            const businessesCollection = collection(firestore, 'businesses');
-            const businessData = {
-                ownerId: authUser.uid,
-                businessName: businessName,
-                businessType: businessType,
-                country: country,
-                city: city,
-                currency: selectedCountryData?.currency || 'NGN',
-                onboardingCompleted: false, // Onboarding is not complete yet
-            };
-            const businessDocRef = await addDoc(businessesCollection, businessData);
-
-            // Update the user's document with the new businessId
-            const userDocRef = doc(firestore, 'users', authUser.uid);
-            await updateDoc(userDocRef, {
-                businessId: businessDocRef.id
-            });
-
-            // Navigate to the next step
-            router.push('/owner/pricing');
-
-        } catch (error) {
-            console.error("Error creating business:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not save your business information. Please try again.' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        router.push('/owner/pricing');
     };
 
     const isButtonDisabled = isSubmitting || !businessName || !businessType || !country || !city;
