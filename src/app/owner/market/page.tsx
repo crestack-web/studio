@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -1110,6 +1111,10 @@ export default function ManageMarketPage() {
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-full max-w-xs p-0">
+                                    <SheetHeader className="sr-only">
+                                        <SheetTitle>Market Menu</SheetTitle>
+                                        <SheetDescription>Links to manage products, orders, and market settings.</SheetDescription>
+                                    </SheetHeader>
                                      <Sidebar className="[&>div]:hidden">
                                         <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
                                            <SidebarNavigation />
@@ -1131,4 +1136,3 @@ export default function ManageMarketPage() {
     );
 }
 // #endregion
-
