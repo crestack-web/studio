@@ -92,7 +92,7 @@ export default function BusinessInfoPage() {
             ownerId: authUser?.uid
         }, { merge: true });
 
-        router.replace('/plans');
+        router.replace('/owner/pricing');
     };
 
     const isButtonDisabled = isSubmitting || !businessName || !businessType || !country || !city;
