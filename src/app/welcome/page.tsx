@@ -716,8 +716,8 @@ export default function LandingPage() {
             &copy; {currentYear} Busmo. business money
           </p>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-            <Link href="#" className="text-sm hover:underline">{t('footer.privacy')}</Link>
-             <Link href="#" className="text-sm hover:underline">{t('footer.terms')}</Link>
+            <Link href="/terms" className="text-sm hover:underline">{t('footer.privacy')}</Link>
+             <Link href="/terms" className="text-sm hover:underline">{t('footer.terms')}</Link>
           </div>
         </div>
       </footer>

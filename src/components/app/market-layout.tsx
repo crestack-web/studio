@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -93,7 +94,7 @@ export default function MarketLayout({
                         <div>
                             <h4 className="font-semibold mb-4">Busmo</h4>
                              <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li><Link href="#" className="hover:underline">About Us</Link></li>
+                                <li><Link href="/about" className="hover:underline">About Us</Link></li>
                                 <li><Link href="/pricing" className="hover:underline">For Businesses</Link></li>
                                 <li><Link href="/invest" className="hover:underline">For Investors</Link></li>
                             </ul>
@@ -101,16 +102,16 @@ export default function MarketLayout({
                          <div>
                             <h4 className="font-semibold mb-4">Help</h4>
                              <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li><Link href="#" className="hover:underline">Help Center</Link></li>
-                                <li><Link href="#" className="hover:underline">Contact Us</Link></li>
-                                <li><Link href="#" className="hover:underline">Terms & Conditions</Link></li>
+                                <li><Link href="/help" className="hover:underline">Help Center</Link></li>
+                                <li><Link href="/help" className="hover:underline">Contact Us</Link></li>
+                                <li><Link href="/terms" className="hover:underline">Terms & Conditions</Link></li>
                             </ul>
                         </div>
                          <div>
                             <h4 className="font-semibold mb-4">Sell on Busmo</h4>
                              <ul className="space-y-2 text-sm text-muted-foreground">
                                 <li><Link href="/signup" className="hover:underline">Start Selling</Link></li>
-                                <li><Link href="#" className="hover:underline">Seller FAQ</Link></li>
+                                <li><Link href="/help" className="hover:underline">Seller FAQ</Link></li>
                             </ul>
                         </div>
                     </div>
