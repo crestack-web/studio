@@ -450,13 +450,19 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
     return (
         <Card className="overflow-hidden h-full flex flex-col">
             <div className="aspect-square overflow-hidden relative bg-muted">
-                <Image 
-                    src={product.images?.[0] || 'https://picsum.photos/seed/placeholder/400/300'} 
-                    alt={product.name} 
-                    fill 
-                    className="object-cover" 
-                    data-ai-hint={product.hint || product.name.split(' ').slice(0,2).join(' ')}
-                />
+                {product.images && product.images.length > 0 ? (
+                    <Image 
+                        src={product.images[0]} 
+                        alt={product.name} 
+                        fill 
+                        className="object-cover" 
+                        data-ai-hint={product.hint || product.name.split(' ').slice(0,2).join(' ')}
+                    />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                        <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
+                    </div>
+                )}
                 <Badge variant={product.isPublishedToMarket ? 'default' : 'secondary'} className="absolute top-2 left-2">{product.isPublishedToMarket ? 'Listed' : 'Unlisted'}</Badge>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
