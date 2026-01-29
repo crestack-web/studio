@@ -2,7 +2,7 @@
 
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { redirect, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ const LoadingScreen = () => (
 
 const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
+  const router = useRouter(); // Use router for all client-side navigation
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -47,80 +48,71 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
 
   const isLoading = isUserLoading || isProfileLoading || (userProfile && isBusinessLoading);
 
-  // Show a loading screen while any data is being fetched.
-  if (isLoading) {
+  const hasDataError = !isLoading && authUser && (!userProfile || !businessId || !businessData);
+
+  useEffect(() => {
+    // This effect handles all redirection logic to avoid calling router.replace during render.
+    if (isLoading) return; // Don't do anything while loading
+
+    // Not authenticated
+    if (!authUser) {
+      if (!pathname.startsWith('/login')) {
+        router.replace('/login');
+      }
+      return;
+    }
+
+    // Authenticated but data is missing (error state)
+    if (hasDataError) {
+      toast({
+        variant: "destructive",
+        title: "Account Error",
+        description: "We couldn't load your account details. Please try logging in again.",
+      });
+      if (!pathname.startsWith('/login')) {
+        router.replace('/login');
+      }
+      return;
+    }
+
+    // This check should only run if userProfile and businessData are loaded.
+    if (userProfile && businessData) {
+      // Role-based redirects
+      if (userProfile.role !== 'Owner') {
+        if (userProfile.role === 'Staff' && !pathname.startsWith('/staff')) router.replace('/staff/home');
+        else if (userProfile.role === 'Investor' && !pathname.startsWith('/investor')) router.replace('/investor/dashboard');
+        else if (userProfile.role === 'Admin' && !pathname.startsWith('/admin')) router.replace('/admin/dashboard');
+        else if (!pathname.startsWith('/login')) router.replace('/login'); // Fallback
+        return;
+      }
+
+      // Onboarding redirects for Owners
+      if (!businessData.onboardingCompleted) {
+        const isBusinessInfoIncomplete = !businessData.businessType || !businessData.country;
+        const isPlanMissing = !businessData.plan;
+
+        if (isBusinessInfoIncomplete) {
+          if (pathname !== '/business-info') router.replace('/business-info');
+        } else if (isPlanMissing) {
+          if (pathname !== '/owner/pricing' && pathname !== '/owner/subscribe') router.replace('/owner/pricing');
+        }
+      } else {
+          // Onboarding is complete, redirect from onboarding pages
+          if (pathname === '/business-info' || pathname === '/owner/pricing' || pathname === '/owner/subscribe') {
+              router.replace('/owner/home');
+          }
+      }
+    }
+
+  }, [isLoading, authUser, userProfile, businessData, hasDataError, pathname, router, toast]);
+
+  
+  // Show loading screen until all data is resolved and useEffect has had a chance to run.
+  if (isLoading || !authUser || hasDataError) {
     return <LoadingScreen />;
   }
 
-  // 1. Not authenticated: User must log in.
-  if (!authUser) {
-    if (!pathname.startsWith('/login')) {
-      redirect('/login');
-    }
-    return <LoadingScreen />; // Show loader during redirect
-  }
-  
-  // From here, we know the user is authenticated.
-
-  // 2. Authenticated, but essential profile or business data is missing.
-  // This is an unrecoverable state, likely from an interrupted signup.
-  if (!userProfile || !businessData) {
-     console.error("User profile or business data not found for a logged-in user. This is a critical error state. Redirecting to login.");
-     if (!pathname.startsWith('/login')) {
-        toast({
-            variant: "destructive",
-            title: "Account Error",
-            description: "We couldn't load your account details. Please try logging in again.",
-        });
-        redirect('/login');
-     }
-     return <LoadingScreen />;
-  }
-
-  // 3. User has data, check their role.
-  if (userProfile.role !== 'Owner') {
-    if (userProfile.role === 'Staff' && !pathname.startsWith('/staff')) return redirect('/staff/home');
-    if (userProfile.role === 'Investor' && !pathname.startsWith('/investor')) return redirect('/investor/dashboard');
-    if (userProfile.role === 'Admin' && !pathname.startsWith('/admin')) return redirect('/admin/dashboard');
-    
-    // Fallback for any other role
-    if (!pathname.startsWith('/login')) redirect('/login');
-    return <LoadingScreen />;
-  }
-  
-  // --- From here, we know the user is an Owner with loaded profile and business data ---
-
-  // 4. Check if onboarding is complete.
-  if (businessData.onboardingCompleted) {
-    // If onboarding is complete, but they are on an onboarding page, redirect them home.
-    if (pathname === '/business-info' || pathname === '/owner/pricing' || pathname === '/owner/subscribe') {
-        redirect('/owner/home');
-    }
-    return <>{children}</>;
-  }
-  
-  // --- Onboarding is NOT complete. Guide them to the correct step. ---
-
-  // Step 1: Business Info check.
-  const isBusinessInfoIncomplete = !businessData.businessType || !businessData.country;
-  if (isBusinessInfoIncomplete) {
-    if (pathname !== '/business-info') {
-      redirect('/business-info');
-    }
-    return <>{children}</>; // Render the business-info page
-  }
-  
-  // Step 2: Pricing Plan check.
-  const isPlanMissing = !businessData.plan;
-  if (isPlanMissing) {
-    if (pathname !== '/owner/pricing' && pathname !== '/owner/subscribe') {
-      redirect('/owner/pricing');
-    }
-    return <>{children}</>; // Render the pricing or subscribe page
-  }
-  
-  // This is a fallback, but if we get here, something is inconsistent.
-  // We'll treat them as onboarded and let them access the app.
+  // If we reach here, the user is authenticated, has data, and is on the correct page.
   return <>{children}</>;
 };
 
