@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/app/main-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,10 @@ import { useRouter } from 'next/navigation';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/currency';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, writeBatch, serverTimestamp, collection } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { addDays } from 'date-fns';
 
 const plans = [
     {
@@ -123,15 +127,57 @@ const PlanCard = ({ plan, isSelected }: { plan: typeof plans[0], isSelected: boo
 
 export default function PricingPage() {
     const router = useRouter();
+    const { toast } = useToast();
+    const { user: authUser } = useUser();
+    const firestore = useFirestore();
+
     const [selectedPlan, setSelectedPlan] = useState('supermarket');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleStartTrial = async () => {
-        setIsSubmitting(true);
-        // Temporarily disabled all firestore writes
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsSubmitting(false);
+    const userProfileRef = useMemoFirebase(() => {
+      if (!firestore || !authUser) return null;
+      return doc(firestore, `users/${authUser.uid}`);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
+    const businessId = userProfile?.businessId;
 
+    const handleStartTrial = async () => {
+        if (!businessId || !firestore || !authUser) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please try again.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        
+        const businessDocRef = doc(firestore, `businesses/${businessId}`);
+        const subscriptionRef = doc(collection(firestore, `users/${authUser.uid}/subscriptions`));
+
+        const batch = writeBatch(firestore);
+
+        // Update business with plan and onboarding completion
+        batch.update(businessDocRef, {
+            plan: selectedPlan,
+            onboardingCompleted: true,
+            updatedAt: serverTimestamp(),
+        });
+
+        // Create the trial subscription
+        batch.set(subscriptionRef, {
+            planId: selectedPlan,
+            status: 'trialing',
+            currentPeriodStart: serverTimestamp(),
+            currentPeriodEnd: addDays(new Date(), 14),
+            createdAt: serverTimestamp()
+        });
+        
+        // Commit in the background without blocking navigation
+        batch.commit().catch(error => {
+            console.error("Error starting trial:", error);
+            // Optionally, show a toast for background failure
+            toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your plan choice. Please try again.' });
+        });
+
+        // Immediately navigate to the home page
         router.push('/owner/home?onboarding=complete');
     };
     

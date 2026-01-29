@@ -9,8 +9,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -38,8 +39,41 @@ export default function SignUpPage() {
     }
     
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        // Firestore writes are temporarily disabled.
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        if (user && firestore) {
+            // Create user and business docs in a non-blocking batch
+            const newBusinessRef = doc(collection(firestore, 'businesses'));
+            const userDocRef = doc(firestore, 'users', user.uid);
+
+            const batch = writeBatch(firestore);
+
+            // Create business doc
+            batch.set(newBusinessRef, {
+                ownerId: user.uid,
+                businessName: name, // Use user's full name as a placeholder
+                createdAt: serverTimestamp(),
+                onboardingCompleted: false,
+            });
+
+            // Create user doc and link to business
+            batch.set(userDocRef, {
+                id: user.uid,
+                displayName: name,
+                email: user.email,
+                phoneNumber: phoneNumber,
+                role: 'Owner',
+                businessId: newBusinessRef.id,
+                createdAt: serverTimestamp(),
+            });
+
+            // Commit in the background without blocking navigation
+            batch.commit().catch(error => {
+                console.error("Error creating user/business documents:", error);
+            });
+        }
+
         toast({ title: "Account Created!", description: "Let's set up your business." });
         router.push('/business-info');
 

@@ -10,10 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { markets } from '@/lib/currency';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { doc, serverTimestamp } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const { user: authUser } = useUser();
+    const firestore = useFirestore();
 
     const [businessName, setBusinessName] = useState('');
     const [businessType, setBusinessType] = useState('');
@@ -22,6 +26,14 @@ export default function BusinessInfoPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const selectedCountryData = markets.find(c => c.code === country);
+    
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return doc(firestore, `users/${authUser.uid}`);
+    }, [firestore, authUser]);
+    const { data: userProfile } = useDoc(userProfileRef);
+    const businessId = userProfile?.businessId;
+
 
     const handleContinue = async () => {
         if (!businessName || !businessType || !country || !city) {
@@ -34,11 +46,30 @@ export default function BusinessInfoPage() {
         }
 
         setIsSubmitting(true);
-        // Temporarily disabled all firestore writes
-        // In a real scenario, you would save this data to Firestore here.
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsSubmitting(false);
 
+        if (businessId && firestore) {
+            const businessDocRef = doc(firestore, `businesses/${businessId}`);
+            const businessProfileRef = doc(firestore, 'businessProfiles', businessId);
+            
+            const currency = markets.find(m => m.code === country)?.currency || 'NGN';
+            
+            const businessUpdate = {
+                businessName,
+                businessType,
+                country,
+                city,
+                currency,
+                updatedAt: serverTimestamp(),
+            };
+
+            // Use non-blocking updates. Navigation will not wait for these to complete.
+            updateDocumentNonBlocking(businessDocRef, businessUpdate);
+            setDocumentNonBlocking(businessProfileRef, businessUpdate, { merge: true });
+        } else {
+            console.warn("businessId not found, cannot save business info. Proceeding with navigation.");
+        }
+
+        // Immediately navigate to the next step
         router.push('/owner/pricing');
     };
 
