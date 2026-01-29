@@ -35,16 +35,7 @@ type Offer = {
     terms: string;
 };
 
-const mockOffers: Offer[] = [
-    {
-        id: 'offer1',
-        investorName: 'Tunde Oladipo',
-        investorInitials: 'TO',
-        amount: 500000,
-        type: 'Profit Sharing',
-        terms: '15% profit share over 18 months',
-    }
-];
+const mockOffers: Offer[] = [];
 
 export default function AccessCapitalPage() {
     const { toast } = useToast();
