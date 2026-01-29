@@ -14,6 +14,7 @@ import MarketLayout from '@/components/app/market-layout';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { WithId } from '@/firebase';
+import { Logo } from '@/components/app/logo';
 
 // Interfaces
 interface BusinessProfile {
@@ -150,6 +151,21 @@ const StorePageContent = ({ businessProfile, businessId }: { businessProfile: Wi
                         <p className="text-muted-foreground">This store has not listed any products yet.</p>
                     </div>
                 )}
+            </div>
+             <div className="w-full max-w-4xl mx-auto mt-16">
+                <Card className="bg-muted/50">
+                    <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">Powered by</p>
+                            <Logo className="h-7" />
+                        </div>
+                        <Button asChild>
+                            <Link href="/signup">
+                                Start Selling on Busmo &rarr;
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         </MarketLayout>
     );

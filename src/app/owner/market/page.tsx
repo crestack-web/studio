@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from '
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -32,7 +32,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 const createSlug = (name: string) => {
-    if (!name) return '';
+    if (!name) return Math.random().toString(36).substring(2, 12);
     return name
         .toLowerCase()
         .replace(/&/g, 'and')
@@ -84,6 +84,7 @@ const SettingsContent = () => {
 
     const [settings, setSettings] = useState<MarketSettings | undefined>(undefined);
     const [description, setDescription] = useState('');
+    const [slug, setSlug] = useState('');
     const [deliveryType, setDeliveryType] = useState<'nationwide' | 'cities' | undefined>();
     const [deliveryCities, setDeliveryCities] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -117,6 +118,7 @@ const SettingsContent = () => {
 
             setSettings(mergedSettings);
             setDescription(businessData.marketDescription ?? `Welcome to ${businessData.businessName} on Busmo! We sell quality ${businessData.businessType} products.`);
+            setSlug(businessData.slug || createSlug(businessData.businessName));
             setDeliveryType(businessData.deliveryType);
             setDeliveryCities(businessData.deliveryCities || []);
         }
@@ -171,7 +173,7 @@ const SettingsContent = () => {
             const businessDocRef = doc(firestore, `businesses/${businessId}`);
             const businessProfileDocRef = doc(firestore, `businessProfiles/${businessId}`);
 
-            const businessSlug = businessData.slug || createSlug(businessData.businessName);
+            const businessSlug = createSlug(slug);
 
             const businessUpdate = { 
                 marketDescription: description, 
@@ -233,9 +235,35 @@ const SettingsContent = () => {
 
     return (
         <div className="space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Your Public Storefront</CardTitle>
+                    <CardDescription>This is the public URL for your store. Customize it to make it your own.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Label htmlFor="store-slug">Store URL</Label>
+                    <div className="flex items-center gap-2">
+                        <div className="flex h-10 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                            busmo.com/
+                        </div>
+                        <Input id="store-slug" value={slug} onChange={e => setSlug(e.target.value)} className="rounded-l-none" />
+                    </div>
+                </CardContent>
+                <CardFooter className="gap-2">
+                    <Button variant="outline" onClick={() => {
+                        navigator.clipboard.writeText(`https://your-domain.com/${slug}`);
+                        toast({ title: "Copied to clipboard!" });
+                    }}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Link
+                    </Button>
+                    <Button asChild><Link href={`/${slug}`} target="_blank"><ExternalLink className="mr-2 h-4 w-4" />View Store</Link></Button>
+                </CardFooter>
+            </Card>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Storefront</CardTitle>
+                    <CardTitle>Storefront Details</CardTitle>
                     <CardDescription>Manage your public presence on the Busmo Market.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
