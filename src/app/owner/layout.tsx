@@ -18,6 +18,13 @@ interface Business {
   plan?: string;
 }
 
+const LoadingScreen = () => (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+);
+
+
 const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -36,29 +43,47 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   }, [businessId, firestore]);
   const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
-  const isLoading = isUserLoading || isProfileLoading || (userProfile?.businessId && isBusinessLoading);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  // 1. Wait for Firebase Auth to resolve
+  if (isUserLoading) {
+    return <LoadingScreen />;
   }
 
-  // After all loading is complete, perform checks.
-  if (!authUser || !userProfile) {
+  // 2. If no user, redirect to login
+  if (!authUser) {
     return redirect('/login');
   }
 
+  // 3. User is logged in, now wait for their profile data
+  if (isProfileLoading) {
+    return <LoadingScreen />;
+  }
+  
+  // 4. Profile has loaded (or failed to). If it doesn't exist, this is an error state.
+  if (!userProfile) {
+    console.error("User profile not found for logged-in user. Redirecting to login.");
+    // This could happen if signup failed to create the user doc, or a brief race condition.
+    // Redirecting is the safest fallback.
+    redirect('/login');
+    return null; // Return null after redirect
+  }
+  
+  // 5. We have a profile. Check the role.
   if (userProfile.role !== 'Owner') {
     if (userProfile.role === 'Staff') return redirect('/staff/home');
     if (userProfile.role === 'Investor') return redirect('/investor/dashboard');
     if (userProfile.role === 'Admin') return redirect('/admin/dashboard');
-    return redirect('/login'); // Fallback for unknown roles
+    // Unknown role, redirect to login
+    redirect('/login');
+    return null;
   }
 
-  // At this point, we know the user is an Owner. Check their onboarding status.
+  // 6. Role is Owner. Now we need business data. Wait for it to load.
+  // We only care about business loading if a businessId exists.
+  if (userProfile.businessId && isBusinessLoading) {
+      return <LoadingScreen />;
+  }
+
+  // 7. Business data is loaded. Check onboarding status.
   const isBusinessInfoIncomplete = !businessData || !businessData.businessName || !businessData.businessType || (userProfile.displayName && businessData.businessName === `${userProfile.displayName}'s Business`);
   
   if (isBusinessInfoIncomplete) {
@@ -68,6 +93,7 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   if (!businessData.plan) {
     return redirect('/owner/pricing');
   }
+
 
   // If all checks pass, render the children.
   return <>{children}</>;
