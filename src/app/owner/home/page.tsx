@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -678,6 +678,12 @@ function OwnerHomeContent() {
                     <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
                         <PackagePlus className="w-6 h-6" />
                         Add Inventory
+                    </Button>
+                </Link>
+                 <Link href="/owner/reduce-inventory">
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                        <PackageMinus className="w-6 h-6" />
+                        Reduce Inventory
                     </Button>
                 </Link>
                 <Link href="/record-expense">
