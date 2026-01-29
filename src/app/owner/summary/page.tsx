@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { addDays, format } from 'date-fns';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, query, collection, Timestamp, where } from 'firebase/firestore';
@@ -75,12 +76,13 @@ const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isP
     </Card>
 );
 
-function StatementContent({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+function StatementContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [date, setDate] = useState<DateRange | undefined>(() => {
-        const fromDateStr = searchParams?.from as string;
-        const toDateStr = searchParams?.to as string;
+        const fromDateStr = searchParams.get('from');
+        const toDateStr = searchParams.get('to');
         if (fromDateStr && toDateStr) {
             return { from: new Date(fromDateStr), to: new Date(toDateStr) };
         }
@@ -350,10 +352,10 @@ function StatementContent({ searchParams }: { searchParams: { [key: string]: str
     );
 }
 
-export default function SummaryPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+export default function SummaryPage() {
     return (
         <Suspense fallback={<div className="flex h-screen items-center justify-center"><Skeleton className="h-1/2 w-1/2"/></div>}>
-            <StatementContent searchParams={searchParams} />
+            <StatementContent />
         </Suspense>
     );
 }
