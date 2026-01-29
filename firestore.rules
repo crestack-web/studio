@@ -45,9 +45,7 @@ service cloud.firestore {
       allow create: if isUser(userId);
       allow get: if isUser(userId) || isAdmin();
       allow list: if isAdmin();
-      // User can update their own data, admin can update any.
       allow update: if isUser(userId) || isAdmin();
-      // Only admin can delete users.
       allow delete: if isAdmin();
       
       match /subscriptions/{subscriptionId} {
@@ -77,24 +75,24 @@ service cloud.firestore {
       allow list, delete: if false;
 
       // Subcollections
-      match /products/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
-      match /invitations/{invitationId} { allow read, write: if isOwner(businessId); }
+      match /products/{docId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+      match /sales/{docId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+      match /expenses/{docId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+      match /transactions/{docId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+      match /invitations/{invitationId} { allow read, write: if isOwner(businessId) || isAdmin(); }
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId);
-        allow update, list: if isBusinessMember(businessId);
-        allow delete: if false;
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || isAdmin();
+        allow update, list: if isBusinessMember(businessId) || isAdmin();
+        allow delete: if isAdmin();
       }
-      match /bankAccount/{accountId} { allow read, write: if isOwner(businessId); }
+      match /bankAccount/{accountId} { allow read, write: if isOwner(businessId) || isAdmin(); }
       match /paymentTransactions/{transactionId} {
-          allow read: if isOwner(businessId);
+          allow read: if isOwner(businessId) || isAdmin();
           allow write: if false;
       }
       match /payouts/{payoutId} {
-          allow read: if isOwner(businessId);
+          allow read: if isOwner(businessId) || isAdmin();
           allow write: if false;
       }
     }
@@ -126,7 +124,7 @@ service cloud.firestore {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /blogs/{blogId} {
@@ -148,7 +146,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        // Use get(parent) which is more efficient and reliable
         allow create: if (isSignedIn() && get(parent).data.userId == request.auth.uid) || isAdmin();
         allow read, list: if (isSignedIn() && get(parent).data.userId == request.auth.uid) || isAdmin();
         allow update, delete: if isAdmin();

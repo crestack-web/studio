@@ -38,7 +38,7 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // 1. Wait until all initial data is loaded
-    if (isUserLoading || (authUser && (isProfileLoading || isBusinessLoading))) {
+    if (isUserLoading || (authUser && (isProfileLoading || (userProfile?.businessId && isBusinessLoading)))) {
       return;
     }
 
@@ -65,7 +65,6 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     }
 
     // 5. Check business onboarding status.
-    // If businessData doesn't exist, or is incomplete, redirect to the appropriate onboarding step.
     if (!businessData || !businessData.businessName || !businessData.businessType || businessData.businessName === `${userProfile?.displayName}'s Business`) {
         router.replace('/business-info');
         return;
@@ -73,14 +72,13 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     
     // 6. Check if a plan has been selected.
     if (!businessData.plan) {
-        router.replace('/owner/pricing');
+        router.replace('/plans');
         return;
     }
     
-    // If all checks pass, the user is correctly onboarded and can see the content.
   }, [isUserLoading, isProfileLoading, isBusinessLoading, authUser, userProfile, businessData, router]);
 
-  if (isUserLoading || (authUser && (isProfileLoading || isBusinessLoading))) {
+  if (isUserLoading || (authUser && (isProfileLoading || (userProfile?.businessId && isBusinessLoading)))) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
