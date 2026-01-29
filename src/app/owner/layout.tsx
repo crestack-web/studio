@@ -58,14 +58,16 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   }, [authUser, firestore]);
   const { data: subscriptions, isLoading: isLoadingSubscriptions } = useCollection<Subscription>(subscriptionsQuery);
 
-
-  const isLoading = isUserLoading || isProfileLoading || (userProfile && isBusinessLoading) || (userProfile && isLoadingSubscriptions);
+  const isDataReady = !isUserLoading && !isProfileLoading && !(userProfile && isBusinessLoading) && !(userProfile && isLoadingSubscriptions);
 
   useEffect(() => {
-    // Don't do anything while loading
-    if (isLoading) return;
+    // This effect handles all redirects.
+    // It waits for ALL loading to be false before making any decisions.
+    if (!isDataReady) {
+      return; 
+    }
 
-    // 1. Not authenticated
+    // 1. Not authenticated? Go to login.
     if (!authUser) {
       if (!pathname.startsWith('/login')) {
         router.replace('/login');
@@ -73,20 +75,14 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // 2. Authenticated, but data is missing (error state)
-    if (!userProfile || !businessId) {
-       toast({
-        variant: "destructive",
-        title: "Account Error",
-        description: "We couldn't load your account details. Please log in again.",
-      });
-      if (!pathname.startsWith('/login')) {
-        router.replace('/login');
-      }
+    // 2. Authenticated, but data is missing? Unrecoverable. Go to login.
+    if (!userProfile) {
+      toast({ variant: 'destructive', title: 'Account Error', description: "Could not load your user profile. Please try again." });
+      if (!pathname.startsWith('/login')) router.replace('/login');
       return;
     }
     
-    // 3. Role-based redirects
+    // 3. Role check
     if (userProfile.role !== 'Owner') {
       if (userProfile.role === 'Staff' && !pathname.startsWith('/staff')) router.replace('/staff/home');
       else if (userProfile.role === 'Investor' && !pathname.startsWith('/investor')) router.replace('/investor/dashboard');
@@ -96,56 +92,50 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     }
     
     // At this point, user is an authenticated Owner.
-
-    // NEW CHECK: Business data must exist. If not, it's a critical error.
     if (!businessData) {
-         toast({
-            variant: "destructive",
-            title: "Business Data Error",
-            description: "Could not load your business data. Please log in again.",
-        });
-        if (!pathname.startsWith('/login')) {
-            router.replace('/login');
-        }
+        toast({ variant: 'destructive', title: 'Business Data Error', description: 'Could not load your business data. Please log in again.' });
+        if (!pathname.startsWith('/login')) router.replace('/login');
         return;
     }
 
-    // 4. Handle onboarding flow (now safe to access businessData)
+    // 4. Onboarding flow
     if (!businessData.onboardingCompleted) {
-        if (!businessData.businessType || !businessData.country) {
-            if (pathname !== '/business-info') router.replace('/business-info');
-        } else if (!businessData.plan) {
-            if (pathname !== '/owner/pricing') router.replace('/owner/pricing');
-        }
-        return;
+      if (!businessData.businessType || !businessData.country) {
+        if (pathname !== '/business-info') router.replace('/business-info');
+      } else if (!businessData.plan) {
+        if (pathname !== '/owner/pricing') router.replace('/owner/pricing');
+      }
+      return;
     }
 
-    // 5. Onboarding is complete. Handle subscription status.
+    // 5. Onboarding is complete. Handle subscription.
     const hasActiveSubscription = subscriptions && subscriptions.length > 0;
     if (!hasActiveSubscription) {
-        // If no active sub, they must go to the subscribe page.
-        // Allow access only to subscribe or pricing pages.
-        if (pathname !== '/owner/subscribe' && pathname !== '/owner/pricing') {
-            toast({ title: "Your trial has ended", description: "Please subscribe to continue.", variant: "destructive" });
-            router.replace('/owner/subscribe');
-        }
+      if (pathname !== '/owner/subscribe' && pathname !== '/owner/pricing') {
+        toast({ title: 'Your trial has ended', description: 'Please subscribe to continue.', variant: 'destructive' });
+        router.replace('/owner/subscribe');
+      }
     } else {
-        // Has active subscription. Should not be on onboarding pages.
-        if (pathname === '/business-info' || pathname === '/owner/pricing' || pathname === '/owner/subscribe') {
-            router.replace('/owner/home');
-        }
+      // Is subscribed, should not be on onboarding pages.
+      if (pathname === '/business-info' || pathname === '/owner/pricing' || pathname === '/owner/subscribe') {
+        router.replace('/owner/home');
+      }
     }
+  }, [isDataReady, authUser, userProfile, businessData, subscriptions, pathname, router, toast]);
 
-  }, [isLoading, authUser, userProfile, businessData, subscriptions, businessId, pathname, router, toast]);
-
-  
-  // Show loading screen until all data is resolved and useEffect has had a chance to run.
-  if (isLoading || !authUser || !userProfile || !businessId) {
+  // Show loading screen if any data is still being fetched.
+  if (!isDataReady) {
     return <LoadingScreen />;
   }
+  
+  // Only render children if data is ready AND user is authenticated.
+  // This prevents content flashing on logout before redirect.
+  if (isDataReady && authUser) {
+    return <>{children}</>;
+  }
 
-  // If we reach here, the user is an authorized owner and on a valid page for their state.
-  return <>{children}</>;
+  // Fallback loading screen during redirects or logout.
+  return <LoadingScreen />;
 };
 
 export default function OwnerLayout({
