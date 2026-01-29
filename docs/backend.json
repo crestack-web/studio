@@ -69,6 +69,23 @@
         "role"
       ]
     },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an admin user's status for efficient security rule checks.",
+      "properties": {
+        "isAdmin": {
+          "type": "boolean",
+          "description": "A flag indicating admin status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["isAdmin"]
+    },
     "AdminPermission": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminPermission",
@@ -596,6 +613,22 @@
             {
               "name": "staffPermissionId",
               "description": "The unique identifier of the Staff Permission."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{userId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "A collection to flag users as admins for efficient, non-recursive security rule checks.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user's ID."
             }
           ]
         }

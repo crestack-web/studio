@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc } from '@/firebase';
-import { collection, query, doc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -133,6 +133,13 @@ export default function AdminUsersPage() {
         } else {
             const userRef = doc(firestore, 'users', user.id);
             updateDocumentNonBlocking(userRef, { role: newRole });
+
+            // If demoting from admin, remove from the 'admins' collection.
+            if (user.role === 'Admin') {
+                const adminRef = doc(firestore, 'admins', user.id);
+                deleteDocumentNonBlocking(adminRef);
+            }
+
             toast({
                 title: 'Role Updated',
                 description: `${user.displayName}'s role has been changed to ${newRole}.`,
@@ -144,17 +151,27 @@ export default function AdminUsersPage() {
         if (!firestore) return;
         const userRef = doc(firestore, 'users', userId);
         const permissionsRef = doc(firestore, `admin_permissions`, userId);
-        
-        updateDocumentNonBlocking(userRef, { role: newRole });
-        setDocumentNonBlocking(permissionsRef, permissions, { merge: true });
+        const adminRef = doc(firestore, 'admins', userId);
 
-        toast({
-            title: 'Admin Permissions Saved',
-            description: `Permissions have been updated for this admin.`,
+        const batch = writeBatch(firestore);
+
+        batch.update(userRef, { role: newRole });
+        batch.set(permissionsRef, permissions, { merge: true });
+        batch.set(adminRef, { isAdmin: true, createdAt: serverTimestamp() });
+
+        batch.commit().then(() => {
+            toast({
+                title: 'Admin Permissions Saved',
+                description: `Permissions have been updated for this admin.`,
+            });
+        }).catch(error => {
+            console.error("Error saving admin permissions:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save admin permissions.' });
+        }).finally(() => {
+            setIsPermissionsDialogOpen(false);
+            setSelectedUser(null);
         });
-        setIsPermissionsDialogOpen(false);
-        setSelectedUser(null);
-    }
+    };
 
     const handlePlanChange = (businessId: string | undefined, newPlan: Business['plan']) => {
         if (!firestore || !businessId) return;

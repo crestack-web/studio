@@ -16,10 +16,16 @@ service cloud.firestore {
     function getRequestingUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
-    // Check if the requesting user has the 'Admin' role.
+    
+    // This is the NEW, NON-RECURSIVE way to check for admin status.
+    // It relies on a document existing in the /admins collection.
     function isRequestingUserAdmin() {
-      return isSignedIn() && getRequestingUserData().role == 'Admin';
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    // This function is for bootstrapping the first admin or for emergency recovery.
+    function isSuperAdmin() {
+      return request.auth.token.email == 'crestack@gmail.com';
     }
     
     // Check if the requesting user is the owner of a specific business.
@@ -32,25 +38,34 @@ service cloud.firestore {
     // Check if the requesting user is a member of a specific business.
     function isBusinessMember(businessId) {
       if (!isSignedIn()) { return false; }
-      return getRequestingUserData().businessId == businessId;
+      let userData = getRequestingUserData();
+      return userData != null && userData.businessId == businessId;
     }
 
     // --- COLLECTIONS ---
     match /users/{userId} {
+      // Any signed-in user can create their own user document.
       allow create: if isUser(userId);
+      // A user can read their own document. An admin can read any user document.
       allow get: if isUser(userId) || isRequestingUserAdmin();
-      // Admins can list users, users can't list everyone.
+      // Admins can list users.
       allow list: if isRequestingUserAdmin();
-      // Only an admin can change a user's role or businessId.
-      // A user can update their own profile, but not their role or businessId.
-      allow update: if (isUser(userId) && request.resource.data.keys().removeAll(['role', 'businessId']).size() == request.resource.data.keys().size()) || isRequestingUserAdmin();
+      // An admin can update any user. A user can only update their own profile, and cannot change their role or businessId.
+      allow update: if (isUser(userId) && !('role' in request.resource.data) && !('businessId' in request.resource.data)) || isRequestingUserAdmin();
       allow delete: if isRequestingUserAdmin();
       
-      // Subscriptions can only be read by the user, and written by a backend process.
+      // Subscriptions can only be read by the user, and written by a secure backend process (simulated).
       match /subscriptions/{subscriptionId} {
         allow read: if isUser(userId);
         allow write: if false; 
       }
+    }
+    
+    // The 'admins' collection is used for the non-recursive admin check.
+    // Only another admin or the super admin can create/delete admin records.
+    match /admins/{userId} {
+      allow read: if true;
+      allow write: if isRequestingUserAdmin() || isSuperAdmin();
     }
 
     match /admin_permissions/{userId} {
