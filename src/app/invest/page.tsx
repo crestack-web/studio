@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -34,7 +35,7 @@ const BusinessCard = ({ profile }: { profile: BusinessProfile }) => {
                 <div className="flex items-center gap-4">
                     <Avatar className="h-14 w-14 border">
                         <AvatarImage src={profile.marketSettings?.logoImageUrl} alt={`${profile.businessName} logo`} />
-                        <AvatarFallback>{profile.businessName.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{profile.businessName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'B'}</AvatarFallback>
                     </Avatar>
                     <div>
                         <CardTitle>{profile.businessName}</CardTitle>
