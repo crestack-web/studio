@@ -110,7 +110,7 @@ export function DashboardMockup() {
     timeouts.push(setTimeout(() => runAnimation(0), 1500));
 
     return clearTimeouts;
-  }, []);
+  }, [isMobile]);
 
   const MainColumn = (
     <div className="lg:col-span-2 flex flex-col gap-4">
@@ -159,8 +159,23 @@ export function DashboardMockup() {
             Business Health
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 text-center text-sm text-muted-foreground">
-          <p className="py-2">Record sales and expenses to see your summary.</p>
+        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
+          <div className="space-y-0.5 rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Revenue</p>
+            <p className="text-sm font-bold">₦45,000</p>
+          </div>
+          <div className="space-y-0.5 rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Profit</p>
+            <p className="text-sm font-bold text-success">₦13,000</p>
+          </div>
+          <div className="space-y-0.5 rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Sales</p>
+            <p className="text-sm font-bold">18</p>
+          </div>
+          <div className="space-y-0.5 rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Expenses</p>
+            <p className="text-sm font-bold">₦5,200</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -250,8 +265,17 @@ export function DashboardMockup() {
       </header>
       <main className="flex-1 p-4 overflow-y-auto bg-muted/20 relative">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-            {MainColumn}
-            {SidebarColumn}
+            {isMobile ? (
+              <div className="lg:col-span-3 flex flex-col gap-4">
+                  {MainColumn}
+                  {SidebarColumn}
+              </div>
+            ) : (
+              <>
+                {MainColumn}
+                {SidebarColumn}
+              </>
+            )}
         </div>
       </main>
     </div>
