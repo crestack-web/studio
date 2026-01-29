@@ -150,11 +150,11 @@ const SettingsContent = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 1 * 1024 * 1024) { // 1MB limit for branding images
+        if (file.size > 500 * 1024) { // 500KB limit
             toast({
                 variant: 'destructive',
                 title: 'Image too large',
-                description: `Image must be smaller than 1MB.`,
+                description: `Image must be smaller than 500KB.`,
             });
             return;
         }
@@ -320,7 +320,7 @@ const SettingsContent = () => {
                                         </Button>
                                     </Label>
                                     <Input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'logoImageUrl')} disabled={isSaving} />
-                                    <p className="text-xs text-muted-foreground">Recommended: Square image, max 1MB.</p>
+                                    <p className="text-xs text-muted-foreground">Recommended: Square image, max 500KB.</p>
                                 </div>
                             </div>
                         </div>
@@ -578,7 +578,7 @@ const ProductsContent = () => {
                         currency={businessData?.currency}
                     />
                 )) : (
-                     <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                     <div className="sm:col-span-2 lg:col-span-3 xl:grid-cols-4">
                         <Card className="h-48 flex flex-col items-center justify-center text-center text-muted-foreground border-dashed">
                             <CardContent className="p-6">
                                 <p className="font-semibold">No products found.</p>
@@ -1111,7 +1111,7 @@ export default function ManageMarketPage() {
                                     <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-full max-w-xs p-0">
-                                     <SheetHeader className="sr-only">
+                                    <SheetHeader className="sr-only">
                                         <SheetTitle>Market Menu</SheetTitle>
                                         <SheetDescription>Links to manage products, orders, and market settings.</SheetDescription>
                                     </SheetHeader>
