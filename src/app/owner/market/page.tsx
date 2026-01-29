@@ -81,8 +81,8 @@ const SettingsContent = () => {
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
 
-    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
-    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
+    const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessProfileRef);
 
     const [settings, setSettings] = useState<MarketSettings | undefined>(undefined);
     const [description, setDescription] = useState('');
@@ -183,9 +183,8 @@ const SettingsContent = () => {
 
             const businessSlug = createSlug(slug);
 
-            const businessUpdate = { 
-                marketDescription: description, 
-                marketSettings: settings,
+            // Only update core, non-presentational fields in the main 'businesses' doc
+            const businessUpdate = {
                 slug: businessSlug,
                 deliveryType: deliveryType || null,
                 deliveryCities: deliveryCities,
@@ -724,22 +723,7 @@ const OrdersContent = () => {
     };
 
     if (isLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Incoming Orders</CardTitle>
-                    <CardDescription>View and manage orders from your market store.</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="relative w-full overflow-auto">
-                        <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th></tr></thead>
-                            <tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
-        );
+        return <Card><CardHeader><CardTitle>Incoming Orders</CardTitle><CardDescription>View and manage orders from your market store.</CardDescription></CardHeader><CardContent className="p-0"><div className="relative w-full overflow-auto"><table className="w-full caption-bottom text-sm"><thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th></tr></thead><tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody></table></div></CardContent></Card>;
     }
     
     return (
@@ -1138,7 +1122,7 @@ export default function ManageMarketPage() {
 
                 <SidebarInset>
                     <header className="sticky top-0 z-10 border-b bg-background">
-                         <div className="flex h-auto min-h-16 flex-col items-start justify-center gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex h-auto min-h-16 flex-col items-start justify-center gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
                                     <SheetTrigger asChild>

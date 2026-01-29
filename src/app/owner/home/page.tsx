@@ -44,6 +44,9 @@ interface Business {
     currency: string;
     country?: string;
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+    slug?: string;
+    deliveryType?: 'nationwide' | 'cities';
+    deliveryCities?: string[];
 }
 
 interface Sale {
