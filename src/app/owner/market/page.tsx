@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from '
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -457,6 +457,25 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
                     data-ai-hint={product.hint || product.name.split(' ').slice(0,2).join(' ')}
                 />
                 <Badge variant={product.isPublishedToMarket ? 'default' : 'secondary'} className="absolute top-2 left-2">{product.isPublishedToMarket ? 'Listed' : 'Unlisted'}</Badge>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-8 w-8 bg-black/20 hover:bg-black/40 text-white hover:text-white">
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                            <Link href={`/add-product?id=${product.id}`}>
+                                <FileEdit className="mr-2 h-4 w-4"/>
+                                <span>Edit Product</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" disabled>
+                            <Trash2 className="mr-2 h-4 w-4"/>
+                            <span>Delete</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             <CardContent className="p-3 flex-1 flex flex-col">
                 <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.name}</h3>

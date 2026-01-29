@@ -14,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, serverTimestamp, query } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,24 @@ interface Variant {
     cost: string;
     price: string;
     quantity: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    price: number;
+    oldPrice?: number | null;
+    cost: number;
+    quantity: number;
+    hasVariants: boolean;
+    variants: { id: string; name: string; price: number; cost: number; quantity: number; image?: string; }[];
+    isPublishedToMarket: boolean;
+    description: string;
+    category: string;
+    createdAt?: any;
+    updatedAt?: any;
+    images: string[];
+    hint?: string;
 }
 
 interface AppUser {
@@ -56,6 +74,10 @@ interface MarketCategory {
 export default function AddProductPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const productId = searchParams.get('id');
+    const isEditMode = !!productId;
+
     const [isLoading, setIsLoading] = useState(false);
 
     const [isManufactured, setIsManufactured] = useState(false);
@@ -98,6 +120,13 @@ export default function AddProductPage() {
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
 
+    const productRef = useMemoFirebase(() => {
+        if (!isEditMode || !firestore || !businessId) return null;
+        return doc(firestore, `businesses/${businessId}/products/${productId}`);
+    }, [isEditMode, firestore, businessId, productId]);
+
+    const { data: productData, isLoading: isLoadingProduct } = useDoc<Product>(productRef);
+
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'marketCategories'));
@@ -106,6 +135,30 @@ export default function AddProductPage() {
 
     const canManufacture = true;
     const deliverySettingsConfigured = !!businessData?.deliveryType;
+
+    useEffect(() => {
+        if (isEditMode && productData) {
+            setProductName(productData.name || '');
+            setSellingPrice(productData.price?.toString() || '');
+            setOldPrice(productData.oldPrice?.toString() || '');
+            setCostPrice(productData.cost?.toString() || '');
+            setInitialQuantity(productData.quantity?.toString() || '');
+            setProductDescription(productData.description || '');
+            setProductCategory(productData.category || '');
+            setIsListedOnMarket(productData.isPublishedToMarket || false);
+            setHasVariants(productData.hasVariants || false);
+            setImages(productData.images || []);
+            if (productData.hasVariants && productData.variants) {
+                setVariants(productData.variants.map(v => ({
+                    id: v.id,
+                    name: v.name,
+                    cost: v.cost?.toString() || '0',
+                    price: v.price.toString(),
+                    quantity: v.quantity.toString()
+                })));
+            }
+        }
+    }, [isEditMode, productData]);
 
 
     useEffect(() => {
@@ -197,7 +250,7 @@ export default function AddProductPage() {
         return variants.reduce((total, v) => total + (parseInt(v.quantity) || 0), 0);
     }, [hasVariants, initialQuantity, variants]);
 
-    const canAddProduct = useMemo(() => {
+    const canSaveProduct = useMemo(() => {
         const hasBaseInfo = productName.trim() !== '';
         if (!hasBaseInfo) return false;
         
@@ -216,12 +269,12 @@ export default function AddProductPage() {
         return true;
     }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory, deliverySettingsConfigured]);
 
-    const handleAddProduct = async () => {
-        if (!canAddProduct || !firestore || !businessId || !businessData) return;
+    const handleSaveProduct = async () => {
+        if (!canSaveProduct || !firestore || !businessId || !businessData) return;
 
         setIsLoading(true);
 
-        const productData = {
+        const productPayload = {
             name: productName,
             price: hasVariants ? (variants.length > 0 ? parseFloat(variants[0].price) : 0) : parseFloat(sellingPrice),
             oldPrice: parseFloat(oldPrice) || null,
@@ -238,71 +291,94 @@ export default function AddProductPage() {
             isPublishedToMarket: isListedOnMarket,
             description: productDescription,
             category: productCategory,
-            createdAt: serverTimestamp(),
             images: images,
             hint: productCategory || productName.split(' ').slice(0, 2).join(' '),
         };
 
-        const productsCollectionRef = collection(firestore, `businesses/${businessId}/products`);
-        
         try {
-            const newProductRef = await addDocumentNonBlocking(productsCollectionRef, productData);
-            
-            if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
-                const marketProductData = {
-                    productId: newProductRef.id,
-                    businessId: businessId,
-                    businessName: businessData.businessName,
-                    productName: productData.name,
-                    price: productData.price,
-                    oldPrice: productData.oldPrice,
-                    description: productData.description,
-                    category: productData.category,
-                    availableQuantity: productData.quantity,
-                    createdAt: new Date(),
-                    images: images,
-                    hint: productData.hint,
-                    hasVariants: productData.hasVariants,
-                    variants: productData.variants.map(v => ({
-                        id: v.id,
-                        name: v.name,
-                        price: v.price,
-                        availableQuantity: v.quantity
-                    })),
-                    // Denormalize market data
-                    country: businessData.country,
-                    deliveryType: businessData.deliveryType,
-                    deliveryCities: businessData.deliveryCities || [],
+            if (isEditMode && productId) {
+                const docRef = doc(firestore, `businesses/${businessId}/products`, productId);
+                const updatedProductData = {
+                    ...productPayload,
+                    updatedAt: serverTimestamp(),
                 };
-                const marketProductsCollectionRef = collection(firestore, 'marketProducts');
-                setDocumentNonBlocking(doc(marketProductsCollectionRef, newProductRef.id), marketProductData, {});
+                updateDocumentNonBlocking(docRef, updatedProductData);
+                
+                const marketProductRef = doc(firestore, 'marketProducts', productId);
+                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
+                    setDocumentNonBlocking(marketProductRef, {
+                        ...updatedProductData,
+                        productId: productId,
+                        businessId: businessId,
+                        businessName: businessData.businessName,
+                        availableQuantity: productPayload.quantity,
+                        variants: productPayload.variants.map(v => ({
+                            id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity
+                        })),
+                        country: businessData.country,
+                        deliveryType: businessData.deliveryType,
+                        deliveryCities: businessData.deliveryCities || [],
+                    }, { merge: true });
+                } else {
+                    deleteDocumentNonBlocking(marketProductRef);
+                }
+                toast({ title: 'Product Updated!', description: `${productName} has been updated.` });
+            } else {
+                const newProductData = { ...productPayload, createdAt: serverTimestamp() };
+                const newProductRef = await addDocumentNonBlocking(collection(firestore, `businesses/${businessId}/products`), newProductData);
+                
+                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
+                    const marketProductData = {
+                        productId: newProductRef.id,
+                        businessId: businessId,
+                        businessName: businessData.businessName,
+                        productName: newProductData.name,
+                        price: newProductData.price,
+                        oldPrice: newProductData.oldPrice,
+                        description: newProductData.description,
+                        category: newProductData.category,
+                        availableQuantity: newProductData.quantity,
+                        createdAt: new Date(),
+                        images: images,
+                        hint: newProductData.hint,
+                        hasVariants: newProductData.hasVariants,
+                        variants: newProductData.variants.map(v => ({
+                            id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity
+                        })),
+                        country: businessData.country,
+                        deliveryType: businessData.deliveryType,
+                        deliveryCities: businessData.deliveryCities || [],
+                    };
+                    setDocumentNonBlocking(doc(collection(firestore, 'marketProducts'), newProductRef.id), marketProductData, {});
+                }
+                toast({ title: 'Product Added!', description: `${productName} has been added.` });
             }
-
-            toast({
-                title: 'Product Added!',
-                description: `${productName} has been added to your inventory.`,
-            });
             router.back();
         } catch (error) {
-            console.error("Error adding product: ", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error adding product',
-                description: 'There was an issue saving your product. Please try again.',
-            });
+            console.error("Error saving product: ", error);
+            toast({ variant: 'destructive', title: 'Error saving product', description: 'There was an issue saving your product. Please try again.' });
         } finally {
             setIsLoading(false);
         }
     };
 
+    if (isLoadingProduct) {
+        return (
+            <MainLayout title="Loading Product..." backHref="/owner/market">
+                <div className="w-full max-w-md space-y-6">
+                    <Card><CardContent className="p-6"><Loader2 className="mx-auto animate-spin" /></CardContent></Card>
+                </div>
+            </MainLayout>
+        );
+    }
 
     return (
-        <MainLayout title="Add New Product" backHref="/owner/market">
+        <MainLayout title={isEditMode ? "Edit Product" : "Add New Product"} backHref="/owner/market">
             <div className="w-full max-w-md space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>New Product</CardTitle>
-                        <CardDescription>Add a new product to your inventory.</CardDescription>
+                        <CardTitle>{isEditMode ? "Edit Product" : "New Product"}</CardTitle>
+                        <CardDescription>{isEditMode ? "Update the details for this product." : "Add a new product to your inventory."}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-2">
@@ -508,9 +584,9 @@ export default function AddProductPage() {
                 </Card>
 
 
-                <Button className="w-full h-14 text-lg" disabled={!canAddProduct || isLoading} onClick={handleAddProduct}>
+                <Button className="w-full h-14 text-lg" disabled={!canSaveProduct || isLoading} onClick={handleSaveProduct}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Add Product
+                    {isEditMode ? "Update Product" : "Add Product"}
                 </Button>
             </div>
         </MainLayout>
