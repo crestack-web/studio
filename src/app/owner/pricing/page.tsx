@@ -5,12 +5,11 @@ import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { convertFromNgn, formatCurrency } from '@/lib/currency';
+import { formatCurrency } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -22,7 +21,6 @@ const plans = [
         name: 'Shop',
         description: 'For small retailers',
         monthlyPrice: 1500,
-        yearlyPrice: 15000,
         features: [
             'Record Sales, Expenses & Inventory',
             'Basic AI Insights',
@@ -41,7 +39,6 @@ const plans = [
         name: 'Supermarket',
         description: 'For larger stores & growing businesses',
         monthlyPrice: 10000,
-        yearlyPrice: 100000,
         isPopular: true,
         features: [
             'Everything in Shop',
@@ -59,7 +56,6 @@ const plans = [
         name: 'Multiple Branches',
         description: 'For chains & franchises',
         monthlyPrice: 30000,
-        yearlyPrice: 300000,
         features: [
             'Everything in Supermarket',
             'Unlimited Staff Members',
@@ -75,7 +71,6 @@ const plans = [
         name: 'Company',
         description: 'For manufacturers & corporations',
         monthlyPrice: 50000,
-        yearlyPrice: 500000,
         features: [
             'Everything in Multiple Branches',
             'Production Tracking (Cost of Goods)',
@@ -89,12 +84,12 @@ interface Business {
     currency?: string;
 }
 
-const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], billingCycle: 'monthly' | 'yearly', isSelected: boolean }) => {
-    const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+const PlanCard = ({ plan, isSelected }: { plan: typeof plans[0], isSelected: boolean }) => {
+    const price = plan.monthlyPrice;
     
     return (
         <Label 
-            htmlFor={`${plan.id}-${billingCycle}`}
+            htmlFor={plan.id}
             className={cn(
                 "block rounded-lg border-2 p-4 cursor-pointer transition-all h-full flex flex-col",
                 isSelected ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground/50",
@@ -113,11 +108,8 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], b
             <CardContent className="flex-1 p-0 mt-4">
                 <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-bold">{formatCurrency(price, 'NGN')}</span>
-                    <span className="text-muted-foreground">/ {billingCycle === 'monthly' ? 'month' : 'year'}</span>
+                    <span className="text-muted-foreground">/ month</span>
                 </div>
-                {billingCycle === 'yearly' && (
-                    <p className="text-sm text-accent font-medium mt-1">Save ~17%!</p>
-                )}
                  <ul className="mt-6 space-y-3 text-sm">
                     {plan.features.map(feature => (
                         <li key={feature} className="flex items-start gap-2">
@@ -143,7 +135,6 @@ export default function PricingPage() {
     const firestore = useFirestore();
     const { user: authUser } = useUser();
 
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const [selectedPlan, setSelectedPlan] = useState('supermarket');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -213,7 +204,7 @@ export default function PricingPage() {
           <div className="w-full max-w-7xl space-y-8">
             <Skeleton className="h-10 w-64 mx-auto" />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {[...Array(4)].map((i) => <Skeleton key={i} className="h-96 w-full"/>)}
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-96 w-full"/>)}
             </div>
           </div>
         </MainLayout>
@@ -237,33 +228,21 @@ export default function PricingPage() {
                     All plans start with a 14-day free trial. You can upgrade, downgrade, or cancel anytime.
                 </p>
             </div>
-
-             <Tabs value={billingCycle} onValueChange={(val) => setBillingCycle(val as 'monthly' | 'yearly')} className="w-full">
-                <div className="flex justify-center">
-                    <TabsList className="grid grid-cols-2 p-1 h-auto">
-                        <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
-                        <TabsTrigger value="yearly" className="px-8 py-2 relative">
-                            Yearly
-                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-semibold px-2 py-0.5 rounded-full">SAVE 17%</span>
-                        </TabsTrigger>
-                    </TabsList>
-                </div>
                
-                <div className="mt-8">
-                     <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" disabled={isSubmitting}>
-                        {plans.map((plan) => (
-                             <div key={plan.id}>
-                                <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" />
-                                <PlanCard 
-                                    plan={plan}
-                                    billingCycle={billingCycle}
-                                    isSelected={selectedPlan === plan.id}
-                                />
-                            </div>
-                        ))}
-                    </RadioGroup>
-                </div>
-            </Tabs>
+            <div className="mt-8">
+                 <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" disabled={isSubmitting}>
+                    {plans.map((plan) => (
+                         <div key={plan.id}>
+                            <RadioGroupItem value={plan.id} id={plan.id} className="peer sr-only" />
+                            <PlanCard 
+                                plan={plan}
+                                isSelected={selectedPlan === plan.id}
+                            />
+                        </div>
+                    ))}
+                </RadioGroup>
+            </div>
+            
              <div className="flex justify-center pt-8">
                 <Button onClick={handleStartTrial} className="w-full max-w-md h-14 text-lg" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
