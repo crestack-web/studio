@@ -59,6 +59,8 @@ export function DashboardMockup() {
   const currentStep = animationSteps[stepIndex];
   
   useEffect(() => {
+    if (isMobile) return;
+    
     buttonRefs.current = buttonRefs.current.slice(0, presetQuestions.length);
     const container = containerRef.current;
     let timeouts: NodeJS.Timeout[] = [];
@@ -115,7 +117,7 @@ export function DashboardMockup() {
     timeouts.push(setTimeout(() => runAnimation(0), 1500));
 
     return clearTimeouts;
-  }, []);
+  }, [isMobile]);
 
   const MainColumn = (
     <div className="lg:col-span-2 flex flex-col gap-4">
@@ -126,7 +128,7 @@ export function DashboardMockup() {
             Ask about your business
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
+        <CardContent className="p-4 pt-0 grid grid-cols-1 gap-2">
           {presetQuestions.map((q, i) => (
             <Button
               key={q}
@@ -135,7 +137,7 @@ export function DashboardMockup() {
               size="sm"
               className={cn(
                 "h-auto py-1.5 justify-start text-xs transition-colors duration-300",
-                showContent && currentStep.question === q && "bg-accent/80 text-accent-foreground"
+                showContent && currentStep.question === q && !isMobile && "bg-accent/80 text-accent-foreground"
               )}
             >
               {q}
@@ -148,7 +150,7 @@ export function DashboardMockup() {
           <CardContent className="p-3 w-full">
             <p className={cn(
                 "text-sm font-medium text-foreground transition-opacity duration-300",
-                showContent ? 'opacity-100' : 'opacity-0',
+                showContent || isMobile ? 'opacity-100' : 'opacity-0',
                 currentStep.type === 'profit' && 'text-success',
                 currentStep.type === 'stock' && 'text-warning'
             )}>
@@ -207,10 +209,10 @@ export function DashboardMockup() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3 pt-0 text-center text-xs text-muted-foreground relative h-8">
-              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type === 'stock' ? 'opacity-100 text-warning font-medium' : 'opacity-0')}>
+              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", (showContent || isMobile) && currentStep.type === 'stock' ? 'opacity-100 text-warning font-medium' : 'opacity-0')}>
                 {currentStep.type === 'stock' ? 'Bottled Water: 5 left' : ''}
             </p>
-              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", showContent && currentStep.type !== 'stock' ? 'opacity-100' : 'opacity-0')}>
+              <p className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-500", (showContent || isMobile) && currentStep.type !== 'stock' ? 'opacity-100' : 'opacity-0')}>
                 No low-stock alerts yet.
             </p>
         </CardContent>
