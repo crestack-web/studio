@@ -1,19 +1,20 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { AlertCircle, Check, Loader2, X, Ticket } from 'lucide-react';
+import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { doc, serverTimestamp } from 'firebase/firestore';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const plans = [
     {
@@ -88,12 +89,52 @@ interface Business {
     currency?: string;
 }
 
-interface Coupon {
-    id: string;
-    code: string;
-    discountType: 'percentage' | 'fixed';
-    discountValue: number;
-    isActive: boolean;
+const PlanCard = ({ plan, billingCycle, isSelected }: { plan: typeof plans[0], billingCycle: 'monthly' | 'yearly', isSelected: boolean }) => {
+    const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+    
+    return (
+        <Label 
+            htmlFor={`${plan.id}-${billingCycle}`}
+            className={cn(
+                "block rounded-lg border-2 p-4 cursor-pointer transition-all h-full flex flex-col",
+                isSelected ? "border-primary ring-2 ring-primary" : "border-muted hover:border-muted-foreground/50",
+                plan.isPopular && "relative"
+            )}
+        >
+            {plan.isPopular && (
+                <div className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-xs font-semibold py-0.5 px-2 rounded-full">
+                    Popular
+                </div>
+            )}
+            <CardHeader className="p-0">
+                <CardTitle className="font-headline">{plan.name}</CardTitle>
+                <CardDescription>{plan.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 p-0 mt-4">
+                <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold">{formatCurrency(price, 'NGN')}</span>
+                    <span className="text-muted-foreground">/ {billingCycle === 'monthly' ? 'month' : 'year'}</span>
+                </div>
+                {billingCycle === 'yearly' && (
+                    <p className="text-sm text-accent font-medium mt-1">Save ~17%!</p>
+                )}
+                 <ul className="mt-6 space-y-3 text-sm">
+                    {plan.features.map(feature => (
+                        <li key={feature} className="flex items-start gap-2">
+                            <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
+                            <span className="text-muted-foreground">{feature}</span>
+                        </li>
+                    ))}
+                    {plan.notIncluded && plan.notIncluded.map(feature => (
+                        <li key={feature} className="flex items-start gap-2">
+                            <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
+                            <span className="text-muted-foreground/50">{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+        </Label>
+    )
 }
 
 export default function PricingPage() {
@@ -103,13 +144,12 @@ export default function PricingPage() {
     const { user: authUser } = useUser();
 
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-    const [couponCode, setCouponCode] = useState('');
-    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-    const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState('supermarket');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
+        return doc(firestore, `users/${authUser.uid}`);
     }, [firestore, authUser]);
     const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
     const businessId = userProfile?.businessId;
@@ -120,54 +160,33 @@ export default function PricingPage() {
     }, [firestore, businessId]);
     const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
 
-    const couponRef = useMemoFirebase(() => {
-        if (!firestore || !couponCode) return null;
-        return doc(firestore, 'coupons', couponCode.toUpperCase());
-    }, [firestore, couponCode]);
-    // We use a separate useDoc hook for the coupon so it can be fetched independently
-    const { data: couponData, isLoading: isLoadingCoupon } = useDoc<Coupon>(couponRef);
-
-    const handleApplyCoupon = async () => {
-        if (!couponCode.trim()) {
-            toast({ title: "Please enter a coupon code.", variant: "destructive" });
+    const handleStartTrial = async () => {
+        if (!selectedPlan) {
+          toast({ variant: 'destructive', title: 'Please select a plan.' });
+          return;
+        }
+        if (!businessId || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details.' });
             return;
         }
-        setIsVerifyingCoupon(true);
-        // This will trigger the useDoc hook to fetch the coupon
-        const couponDoc = await import('firebase/firestore').then(m => m.getDoc(couponRef!));
         
-        if (couponDoc.exists() && couponDoc.data()?.isActive) {
-            setAppliedCoupon(couponDoc.data() as Coupon);
-            toast({ title: "Coupon Applied!", description: `Discount of ${couponDoc.data().discountType === 'percentage' ? `${couponDoc.data().discountValue}%` : formatCurrency(couponDoc.data().discountValue, businessData?.currency)} has been applied.` });
-        } else {
-            setAppliedCoupon(null);
-            toast({ title: "Invalid Coupon", description: "The coupon code is either invalid or has expired.", variant: "destructive" });
+        setIsSubmitting(true);
+        try {
+            const businessDocRef = doc(firestore, `businesses/${businessId}`);
+            await updateDocumentNonBlocking(businessDocRef, { 
+                plan: selectedPlan,
+                onboardingCompleted: true,
+                trialStartedAt: serverTimestamp()
+            });
+            toast({ title: "Free Trial Started!", description: `You're now on the ${selectedPlan} plan.` });
+            router.push('/owner/home?onboarding=complete');
+        } catch (error) {
+            console.error("Error starting trial:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not start your free trial.' });
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsVerifyingCoupon(false);
-    };
-
-    const handleSelectPlan = (planId: string) => {
-        let url = `/owner/subscribe?planId=${planId}&billingCycle=${billingCycle}`;
-        if (appliedCoupon) {
-            url += `&couponCode=${appliedCoupon.code}`;
-        }
-        router.push(url);
-    };
-
-    const getPlanPrice = (plan: typeof plans[0]) => {
-        return billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-    };
-
-    const getDiscountedPrice = (price: number) => {
-        if (!appliedCoupon) return price;
-        let discount = 0;
-        if (appliedCoupon.discountType === 'percentage') {
-            discount = price * (appliedCoupon.discountValue / 100);
-        } else {
-            discount = convertFromNgn(appliedCoupon.discountValue, businessData?.currency);
-        }
-        return Math.max(0, price - discount);
-    };
+      };
 
     if (isLoadingBusiness) {
       return (
@@ -175,7 +194,7 @@ export default function PricingPage() {
           <div className="w-full max-w-7xl space-y-8">
             <Skeleton className="h-10 w-64 mx-auto" />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {[...Array(4)].map(i => <Skeleton key={i} className="h-96 w-full"/>)}
+              {[...Array(4)].map((i) => <Skeleton key={i} className="h-96 w-full"/>)}
             </div>
           </div>
         </MainLayout>
@@ -184,23 +203,23 @@ export default function PricingPage() {
 
   return (
     <MainLayout title="Choose Your Plan">
-        <div className="w-full max-w-7xl space-y-8">
+        <div className="w-full max-w-5xl space-y-8">
             <Alert variant="destructive" className="max-w-xl mx-auto">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Your Free Trial Has Ended</AlertTitle>
+                <AlertTitle>Last Step!</AlertTitle>
                 <AlertDescription>
-                    Please choose a plan to continue using Busmo and access your data.
+                    Choose a plan to start your 14-day free trial. No payment needed now.
                 </AlertDescription>
             </Alert>
 
              <div className="text-center space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Upgrade Your Plan</h1>
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Choose Your Plan</h1>
                 <p className="text-muted-foreground max-w-2xl mx-auto">
-                    All plans are billed monthly or yearly. You can cancel anytime.
+                    All plans start with a 14-day free trial. You can upgrade, downgrade, or cancel anytime.
                 </p>
             </div>
 
-             <Tabs defaultValue="monthly" className="w-full">
+             <Tabs value={billingCycle} onValueChange={(val) => setBillingCycle(val as 'monthly' | 'yearly')} className="w-full">
                 <div className="flex justify-center">
                     <TabsList className="grid grid-cols-2 p-1 h-auto">
                         <TabsTrigger value="monthly" className="px-8 py-2">Monthly</TabsTrigger>
@@ -210,112 +229,29 @@ export default function PricingPage() {
                         </TabsTrigger>
                     </TabsList>
                 </div>
-                <Card className="max-w-md mx-auto mt-8">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5"/> Have a coupon?</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-center gap-2">
-                        <Input placeholder="Enter coupon code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
-                        <Button onClick={handleApplyCoupon} disabled={isVerifyingCoupon}>
-                            {isVerifyingCoupon ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Apply'}
-                        </Button>
-                    </CardContent>
-                </Card>
-                <TabsContent value="monthly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => {
-                            const originalPrice = convertFromNgn(plan.monthlyPrice, businessData?.currency);
-                            const finalPrice = getDiscountedPrice(originalPrice);
-                            return (
-                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
-                                {plan.isPopular && (
-                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        Most Popular
-                                    </div>
-                                )}
-                                <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(finalPrice, businessData?.currency)}</span>
-                                        <span className="text-muted-foreground">/ month</span>
-                                    </div>
-                                    {appliedCoupon && (
-                                        <p className="text-sm text-muted-foreground line-through">{formatCurrency(originalPrice, businessData?.currency)}</p>
-                                    )}
-                                     <ul className="mt-6 space-y-3 text-sm">
-                                        {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground">{feature}</span>
-                                            </li>
-                                        ))}
-                                        {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground/50">{feature}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button onClick={() => handleSelectPlan(plan.id)} className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
-                                </CardFooter>
-                            </Card>
-                        )})}
-                    </div>
-                </TabsContent>
-                <TabsContent value="yearly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => {
-                            const originalPrice = convertFromNgn(plan.yearlyPrice, businessData?.currency);
-                             const finalPrice = getDiscountedPrice(originalPrice);
-                            return (
-                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
-                                 {plan.isPopular && (
-                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        Most Popular
-                                    </div>
-                                )}
-                                <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(finalPrice, businessData?.currency)}</span>
-                                        <span className="text-muted-foreground">/ year</span>
-                                    </div>
-                                    <p className="text-sm text-accent font-medium mt-1">
-                                        {appliedCoupon ? `Discount applied (was ${formatCurrency(originalPrice, businessData?.currency)})` : 'Save ~17%!'}
-                                    </p>
-                                     <ul className="mt-6 space-y-3 text-sm">
-                                        {plan.features.map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground">{feature}</span>
-                                            </li>
-                                        ))}
-                                        {plan.notIncluded && plan.notIncluded.map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground/50">{feature}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </CardContent>
-                                <CardFooter>
-                                    <Button onClick={() => handleSelectPlan(plan.id)} className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>Select Plan</Button>
-                                </CardFooter>
-                            </Card>
-                        )})}
-                    </div>
-                </TabsContent>
+               
+                <div className="mt-8">
+                     <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" disabled={isSubmitting}>
+                        {plans.map((plan) => (
+                             <div key={plan.id}>
+                                <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" />
+                                <PlanCard 
+                                    plan={plan}
+                                    billingCycle={billingCycle}
+                                    isSelected={selectedPlan === plan.id}
+                                />
+                            </div>
+                        ))}
+                    </RadioGroup>
+                </div>
             </Tabs>
+             <div className="flex justify-center pt-8">
+                <Button onClick={handleStartTrial} className="w-full max-w-md h-14 text-lg" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Start 14-Day Free Trial
+                </Button>
+            </div>
         </div>
     </MainLayout>
   );
 }
-
