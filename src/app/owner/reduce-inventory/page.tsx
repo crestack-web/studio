@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { collection, doc, query, updateDoc } from 'firebase/firestore';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, query, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
 
 
 interface AppUser {
@@ -37,6 +37,8 @@ export default function ReduceInventoryPage() {
     const [selectedProductId, setSelectedProductId] = useState<string | undefined>(undefined);
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
     const [quantityReduced, setQuantityReduced] = useState('');
+    const [reason, setReason] = useState('');
+    const [notes, setNotes] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const firestore = useFirestore();
@@ -63,66 +65,93 @@ export default function ReduceInventoryPage() {
     };
 
     const handleUpdateInventory = async () => {
-        if (!selectedProductId || !quantityReduced || parseInt(quantityReduced) <= 0 || !firestore || !businessId || !selectedProduct) {
+        if (!selectedProductId || !quantityReduced || parseInt(quantityReduced) <= 0 || !reason || !firestore || !businessId || !selectedProduct) {
             toast({
                 variant: 'destructive',
                 title: 'Invalid Input',
-                description: 'Please select a product and enter a valid quantity to reduce.',
+                description: 'Please select a product, a reason, and enter a valid quantity.',
             });
             return;
         }
         
+        setIsLoading(true);
         const quantityToReduce = parseInt(quantityReduced);
 
-        setIsLoading(true);
-        const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProductId);
-        
-        if (selectedProduct.hasVariants) {
-            const selectedVariant = selectedProduct.variants?.find(v => v.id === selectedVariantId);
-            if (!selectedVariant) {
-                toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please select a variant.' });
-                setIsLoading(false);
-                return;
-            }
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProductId);
+                const productSnap = await transaction.get(productRef);
 
-            if (quantityToReduce > (selectedVariant.quantity || 0)) {
-                 toast({ variant: 'destructive', title: 'Invalid Quantity', description: `You cannot reduce more than the available stock of ${selectedVariant.quantity}.` });
-                 setIsLoading(false);
-                 return;
-            }
+                if (!productSnap.exists()) {
+                    throw new Error("Product does not exist.");
+                }
 
-            const newVariants = selectedProduct.variants?.map(v => 
-                v.id === selectedVariantId 
-                ? { ...v, quantity: (v.quantity || 0) - quantityToReduce }
-                : v
-            ) || [];
+                const productData = productSnap.data();
+                let variantName: string | null = null;
+                
+                if (selectedProduct.hasVariants) {
+                    const selectedVariant = selectedProduct.variants?.find(v => v.id === selectedVariantId);
+                    if (!selectedVariant) {
+                        throw new Error("Please select a variant.");
+                    }
+                    variantName = selectedVariant.name;
 
-            updateDocumentNonBlocking(productRef, { variants: newVariants });
-            toast({ title: 'Inventory Updated', description: `Reduced ${quantityReduced} from ${selectedProduct.name} (${selectedVariant.name}).` });
-            
-        } else {
-             if (quantityToReduce > (selectedProduct.quantity || 0)) {
-                 toast({ variant: 'destructive', title: 'Invalid Quantity', description: `You cannot reduce more than the available stock of ${selectedProduct.quantity}.` });
-                 setIsLoading(false);
-                 return;
-            }
+                    if (quantityToReduce > (selectedVariant.quantity || 0)) {
+                        throw new Error(`Cannot reduce more than the available stock of ${selectedVariant.quantity}.`);
+                    }
 
-            const newQuantity = (selectedProduct.quantity || 0) - quantityToReduce;
-            updateDocumentNonBlocking(productRef, { quantity: newQuantity });
+                    const newVariants = productData.variants.map((v: Variant) => 
+                        v.id === selectedVariantId 
+                        ? { ...v, quantity: (v.quantity || 0) - quantityToReduce }
+                        : v
+                    );
+                    transaction.update(productRef, { variants: newVariants });
+                } else {
+                    if (quantityToReduce > (productData.quantity || 0)) {
+                        throw new Error(`Cannot reduce more than the available stock of ${productData.quantity}.`);
+                    }
+                    const newQuantity = (productData.quantity || 0) - quantityToReduce;
+                    transaction.update(productRef, { quantity: newQuantity });
+                }
+
+                // Log the adjustment
+                const adjustmentRef = doc(collection(firestore, `businesses/${businessId}/inventoryAdjustments`));
+                transaction.set(adjustmentRef, {
+                    productId: selectedProductId,
+                    productName: selectedProduct.name,
+                    variantId: selectedVariantId || null,
+                    variantName: variantName,
+                    quantityChange: -quantityToReduce,
+                    reason: reason,
+                    notes: notes,
+                    createdAt: serverTimestamp(),
+                    userId: authUser?.uid
+                });
+            });
+
             toast({ title: 'Inventory Updated', description: `Reduced ${quantityReduced} from ${selectedProduct.name}.` });
+            setSelectedProductId(undefined);
+            setSelectedVariantId(undefined);
+            setQuantityReduced('');
+            setReason('');
+            setNotes('');
+        } catch (error: any) {
+            console.error("Error reducing inventory:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || "Failed to update inventory.",
+            });
+        } finally {
+            setIsLoading(false);
         }
-        
-        setSelectedProductId(undefined);
-        setSelectedVariantId(undefined);
-        setQuantityReduced('');
-        setIsLoading(false);
     };
     
     const canUpdate = useMemo(() => {
-        if (!selectedProduct || !quantityReduced) return false;
+        if (!selectedProduct || !quantityReduced || !reason) return false;
         if (selectedProduct.hasVariants && !selectedVariantId) return false;
         return true;
-    }, [selectedProduct, quantityReduced, selectedVariantId]);
+    }, [selectedProduct, quantityReduced, selectedVariantId, reason]);
 
     return (
         <MainLayout title="Reduce Inventory" backHref="/owner/home">
@@ -184,6 +213,34 @@ export default function ReduceInventoryPage() {
                                 className="h-12 text-base" 
                                 value={quantityReduced}
                                 onChange={(e) => setQuantityReduced(e.target.value)}
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                         <div className="space-y-2">
+                            <Label htmlFor="reason">Reason for Reduction</Label>
+                            <Select value={reason} onValueChange={setReason} disabled={isLoading}>
+                                <SelectTrigger id="reason" className="h-12 text-base">
+                                    <SelectValue placeholder="Select a reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="damage">Damage</SelectItem>
+                                    <SelectItem value="spoilage">Spoilage / Expiry</SelectItem>
+                                    <SelectItem value="theft">Theft</SelectItem>
+                                    <SelectItem value="correction">Stock Correction</SelectItem>
+                                    <SelectItem value="internal-use">Internal Use</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                         <div className="space-y-2">
+                            <Label htmlFor="notes">Notes (Optional)</Label>
+                            <Textarea 
+                                id="notes" 
+                                placeholder="e.g., 'Dropped a crate of drinks', 'Expired items'" 
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
                                 disabled={isLoading}
                             />
                         </div>
