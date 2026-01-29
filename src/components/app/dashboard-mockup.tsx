@@ -55,7 +55,6 @@ export function DashboardMockup() {
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   
   const isMobile = useIsMobile();
-  const [mobileView, setMobileView] = useState('main'); // 'main' or 'sidebar'
 
   const currentStep = animationSteps[stepIndex];
   
@@ -117,19 +116,6 @@ export function DashboardMockup() {
 
     return clearTimeouts;
   }, []);
-
-  useEffect(() => {
-    if (!isMobile) {
-      if (mobileView !== 'main') setMobileView('main');
-      return;
-    }
-
-    const viewInterval = setInterval(() => {
-      setMobileView(current => (current === 'main' ? 'sidebar' : 'main'));
-    }, 4500);
-
-    return () => clearInterval(viewInterval);
-  }, [isMobile, mobileView]);
 
   const MainColumn = (
     <div className="lg:col-span-2 flex flex-col gap-4">
@@ -250,7 +236,7 @@ export function DashboardMockup() {
         style={{
           top: cursorPosition.top,
           left: cursorPosition.left,
-          opacity: cursorVisible && mobileView === 'main' ? 1 : 0,
+          opacity: cursorVisible && !isMobile ? 1 : 0,
           transform: `scale(${isClicking ? 0.9 : 1}) rotate(-15deg)`,
         }}
         className="absolute text-foreground transition-all duration-500 ease-in-out z-50 pointer-events-none h-5 w-5 -translate-x-1 -translate-y-1"
@@ -267,16 +253,12 @@ export function DashboardMockup() {
           </Avatar>
         </div>
       </header>
-      <main className="flex-1 p-4 overflow-hidden bg-muted/20 relative">
+      <main className="flex-1 p-4 overflow-y-auto bg-muted/20 relative">
         {isMobile ? (
-          <>
-            <div className={cn("absolute inset-4 transition-opacity duration-500", mobileView === 'main' ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-              {MainColumn}
+            <div className="flex flex-col gap-4">
+                {MainColumn}
+                {SidebarColumn}
             </div>
-            <div className={cn("absolute inset-4 transition-opacity duration-500", mobileView === 'sidebar' ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-              {SidebarColumn}
-            </div>
-          </>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
             {MainColumn}
