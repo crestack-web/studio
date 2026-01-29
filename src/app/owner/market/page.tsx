@@ -1060,13 +1060,33 @@ export default function ManageMarketPage() {
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const router = useRouter();
 
-    const menuItems = [
-        { id: 'products', label: 'Products', icon: Package },
-        { id: 'orders', label: 'Orders', icon: ShoppingCart },
-        { id: 'customers', label: 'Customers', icon: Users },
-        { id: 'settings', label: 'Store Settings', icon: Settings },
-        { id: 'busmopay', label: 'BusmoPay', icon: CreditCard },
-    ];
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businesses/${businessId}`) : null, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+
+    const menuItems = useMemo(() => {
+        const items = [
+            { id: 'products', label: 'Products', icon: Package },
+            { id: 'orders', label: 'Orders', icon: ShoppingCart },
+            { id: 'customers', label: 'Customers', icon: Users },
+            { id: 'settings', label: 'Store Settings', icon: Settings },
+        ];
+        if (businessData?.country === 'NG') {
+            items.push({ id: 'busmopay', label: 'BusmoPay', icon: CreditCard });
+        }
+        return items;
+    }, [businessData]);
+    
+    useEffect(() => {
+        if (activeSection === 'busmopay' && !menuItems.find(item => item.id === 'busmopay')) {
+            setActiveSection('products');
+        }
+    }, [activeSection, menuItems]);
     
     const activeMenuItem = menuItems.find((item) => item.id === activeSection);
     

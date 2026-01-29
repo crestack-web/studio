@@ -19,6 +19,7 @@ interface AppUser {
 
 interface Business {
     currency?: string;
+    country?: string;
 }
 
 interface Payout {
@@ -54,7 +55,7 @@ export default function BusmoPayDashboard() {
         if (!firestore || !businessId) return null;
         return doc(firestore, `businesses/${businessId}`);
     }, [firestore, businessId]);
-    const { data: businessData } = useDoc<Business>(businessRef);
+    const { data: businessData, isLoading: isLoadingBusiness } = useDoc<Business>(businessRef);
     
     const payoutsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
@@ -76,6 +77,35 @@ export default function BusmoPayDashboard() {
 
     const totalPaidOut = sortedPayouts?.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0;
     const pendingPayouts = sortedPayouts?.filter(p => p.status === 'processing').reduce((sum, p) => sum + p.amount, 0) || 0;
+
+    if (isLoadingBusiness) {
+        return (
+            <MainLayout title="BusmoPay Dashboard" backHref="/owner/home">
+                <div className="w-full max-w-5xl space-y-6">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                </div>
+            </MainLayout>
+        )
+    }
+
+    if (businessData && businessData.country !== 'NG') {
+        return (
+            <MainLayout title="BusmoPay" backHref="/owner/home">
+                <div className="w-full max-w-lg text-center">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Coming Soon!</CardTitle>
+                            <CardDescription>BusmoPay is currently available only for businesses in Nigeria.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">We are working hard to bring BusmoPay to your country. Stay tuned for updates!</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </MainLayout>
+        );
+    }
 
 
     return (

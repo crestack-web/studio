@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, ChevronsDown } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 
 interface AppUser {
     id: string;
@@ -352,6 +353,8 @@ function OwnerHomeContent() {
     
     const isLoadingData = isLoadingSales || isLoadingTransactions || isLoadingExpenses;
 
+    const isNigeria = businessData?.country === 'NG';
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-card">
@@ -576,11 +579,18 @@ function OwnerHomeContent() {
                         My Market
                     </Button>
                 </Link>
-                 <Link href="/owner/busmopay">
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" asChild>
-                        <Logo variant="busmopay" className="text-lg" />
+                {isNigeria ? (
+                    <Button asChild variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                        <Link href="/owner/busmopay">
+                            <Logo variant="busmopay" className="text-lg" />
+                        </Link>
                     </Button>
-                </Link>
+                ) : (
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" disabled>
+                        <Logo variant="busmopay" className="text-lg" />
+                        <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
+                    </Button>
+                )}
             </div>
           </div>
           
