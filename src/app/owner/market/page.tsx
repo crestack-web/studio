@@ -187,7 +187,7 @@ const SettingsContent = () => {
                 marketDescription: description, 
                 marketSettings: settings,
                 slug: businessSlug,
-                deliveryType: deliveryType,
+                deliveryType: deliveryType || null,
                 deliveryCities: deliveryCities,
             };
 
@@ -198,7 +198,7 @@ const SettingsContent = () => {
                 marketSettings: settings,
                 currency: businessData.currency,
                 slug: businessSlug,
-                deliveryType: deliveryType,
+                deliveryType: deliveryType || null,
                 deliveryCities: deliveryCities,
                 country: businessData.country,
             };
