@@ -29,6 +29,7 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // 1. Define all data dependencies
   const userProfileRef = useMemoFirebase(() => {
     if (!authUser || !firestore) return null;
     return doc(firestore, `users/${authUser.uid}`);
@@ -36,64 +37,63 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
   const businessId = userProfile?.businessId;
-
   const businessRef = useMemoFirebase(() => {
     if (!businessId || !firestore) return null;
     return doc(firestore, `businesses/${businessId}`);
   }, [businessId, firestore]);
   const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
-  // 1. Wait for Firebase Auth to resolve
-  if (isUserLoading) {
+  // 2. Consolidate loading state
+  // The layout is loading if auth is loading, OR if auth is done but the profile is still loading, 
+  // OR if the profile is done and we have a businessId but the business data is still loading.
+  const isLoading = isUserLoading || (authUser && isProfileLoading) || (businessId && isBusinessLoading);
+
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // 2. If no user, redirect to login
+  // 3. Perform checks *after* all loading is complete
+
+  // If loading is finished and there's no authUser, they're not logged in.
   if (!authUser) {
     return redirect('/login');
   }
 
-  // 3. User is logged in, now wait for their profile data
-  if (isProfileLoading) {
-    return <LoadingScreen />;
-  }
-  
-  // 4. Profile has loaded (or failed to). If it doesn't exist, this is an error state.
+  // If loading is finished and there's no userProfile, the user doc is missing.
   if (!userProfile) {
     console.error("User profile not found for logged-in user. Redirecting to login.");
-    // This could happen if signup failed to create the user doc, or a brief race condition.
-    // Redirecting is the safest fallback.
     redirect('/login');
     return null; // Return null after redirect
   }
   
-  // 5. We have a profile. Check the role.
+  // Check roles
   if (userProfile.role !== 'Owner') {
     if (userProfile.role === 'Staff') return redirect('/staff/home');
     if (userProfile.role === 'Investor') return redirect('/investor/dashboard');
     if (userProfile.role === 'Admin') return redirect('/admin/dashboard');
-    // Unknown role, redirect to login
+    // Unknown role
     redirect('/login');
     return null;
   }
 
-  // 6. Role is Owner. Now we need business data. Wait for it to load.
-  // We only care about business loading if a businessId exists.
-  if (userProfile.businessId && isBusinessLoading) {
-      return <LoadingScreen />;
+  // At this point, we know the user is an Owner. Check onboarding.
+  // A businessId *must* exist for an owner. If not, that's an error state.
+  if (!businessId) {
+      console.error("Owner profile is missing a businessId. Redirecting to login.");
+      redirect('/login');
+      return null;
   }
-
-  // 7. Business data is loaded. Check onboarding status.
-  const isBusinessInfoIncomplete = !businessData || !businessData.businessName || !businessData.businessType || (userProfile.displayName && businessData.businessName === `${userProfile.displayName}'s Business`);
   
+  // Now check the business data itself.
+  const isBusinessInfoIncomplete = !businessData || !businessData.businessName || !businessData.businessType;
   if (isBusinessInfoIncomplete) {
     return redirect('/business-info');
   }
   
-  if (!businessData.plan) {
+  const isPlanMissing = !businessData.plan;
+  if (isPlanMissing) {
     return redirect('/owner/pricing');
   }
-
 
   // If all checks pass, render the children.
   return <>{children}</>;
