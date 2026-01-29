@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -182,13 +183,11 @@ const SettingsContent = () => {
 
             const businessSlug = createSlug(slug);
 
-            // Only update core, non-presentational fields in the main 'businesses' doc
             const businessUpdate = {
-                slug: businessSlug,
                 deliveryType: deliveryType || null,
-                deliveryCities: deliveryCities,
+                deliveryCities: deliveryCities || [],
             };
-
+            
             const profileUpdate = {
                 businessName: businessData.businessName,
                 businessType: businessData.businessType,
@@ -197,7 +196,7 @@ const SettingsContent = () => {
                 currency: businessData.currency,
                 slug: businessSlug,
                 deliveryType: deliveryType || null,
-                deliveryCities: deliveryCities,
+                deliveryCities: deliveryCities || [],
                 country: businessData.country,
             };
             
@@ -945,7 +944,7 @@ const BusmoPaySettings = () => {
             toast({ title: 'Invalid Account Number', description: 'Please enter a valid 10-digit NUBAN.', variant: 'destructive'});
             return;
         }
-        if (!firestore || !businessId || !bankAccountRef || !userProfile?.displayName) {
+        if (!firestore || !businessId || !bankAccountRef || !userProfile) {
              toast({ title: 'Error', description: 'Could not access business details.', variant: 'destructive'});
             return;
         }
@@ -962,7 +961,7 @@ const BusmoPaySettings = () => {
             bankCode,
             accountNumber,
             bankName: selectedBank?.name || '',
-            accountName: userProfile.displayName,
+            accountName: userProfile.displayName || '',
             status: 'verified',
         };
 
@@ -978,7 +977,13 @@ const BusmoPaySettings = () => {
     };
 
     const hasChanges = bankAccountData?.bankCode !== bankCode || bankAccountData?.accountNumber !== accountNumber;
-    const effectiveStatus = isVerifying ? 'pending' : (bankAccountData?.status === 'verified' && hasChanges ? 'unverified' : bankAccountData?.status);
+    
+    const effectiveStatus: 'verified' | 'unverified' | 'pending' | 'failed' = useMemo(() => {
+        if (isVerifying) return 'pending';
+        if (!bankAccountData || !bankAccountData.status) return 'unverified';
+        if (bankAccountData.status === 'verified' && hasChanges) return 'unverified';
+        return bankAccountData.status;
+    }, [isVerifying, bankAccountData, hasChanges]);
 
     return (
         <div className="space-y-6">
@@ -1013,7 +1018,7 @@ const BusmoPaySettings = () => {
                                             <CardTitle className="text-base">Current Payout Account</CardTitle>
                                             <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
                                         </div>
-                                         <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus || 'unverified'}</Badge>
+                                         <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus}</Badge>
                                     </CardHeader>
                                     {effectiveStatus === 'verified' && (
                                         <CardContent className="p-4 pt-0 text-sm space-y-1">
@@ -1141,14 +1146,8 @@ export default function ManageMarketPage() {
                                         <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
                                     </SheetTrigger>
                                     <SheetContent side="left" className="w-full max-w-xs p-0">
-                                        <SheetHeader className="sr-only">
-                                            <SheetTitle>Market Menu</SheetTitle>
-                                            <SheetDescription>
-                                                Links to manage products, orders, and market settings.
-                                            </SheetDescription>
-                                        </SheetHeader>
                                         <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-                                        <SidebarNavigation />
+                                          <SidebarNavigation />
                                         </div>
                                     </SheetContent>
                                 </Sheet>
