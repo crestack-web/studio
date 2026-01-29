@@ -37,37 +37,47 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const { data: businessData, isLoading: isBusinessLoading } = useDoc<Business>(businessRef);
 
   useEffect(() => {
+    // 1. Wait until all initial data is loaded
     if (isUserLoading || (authUser && (isProfileLoading || isBusinessLoading))) {
       return;
     }
 
+    // 2. If not logged in, go to login.
     if (!authUser) {
       redirect('/login');
       return;
     }
     
-    if (userProfile && userProfile.role !== 'Owner') {
-        // Not an owner, redirect to their respective dashboard
+    // 3. If logged in, but profile document is missing, it's an error state. Redirect to login.
+    if (!userProfile) {
+      console.error("User profile not found for logged-in user. Redirecting to login.");
+      redirect('/login');
+      return;
+    }
+
+    // 4. Check role. If not an Owner, redirect to their correct dashboard.
+    if (userProfile.role !== 'Owner') {
         if (userProfile.role === 'Staff') router.replace('/staff/home');
         else if (userProfile.role === 'Investor') router.replace('/investor/dashboard');
         else if (userProfile.role === 'Admin') router.replace('/admin/dashboard');
-        else router.replace('/login'); // Fallback
+        else router.replace('/login'); // Fallback for unknown roles
         return;
     }
 
-    if (!businessData) {
-        if (userProfile?.businessId) {
-            router.replace('/business-info');
-        }
-        return;
-    }
-
-    const { businessName, businessType, plan } = businessData;
-    if (!businessName || !businessType || businessName === `${userProfile?.displayName}'s Business`) {
+    // 5. Check business onboarding status.
+    // If businessData doesn't exist, or is incomplete, redirect to the appropriate onboarding step.
+    if (!businessData || !businessData.businessName || !businessData.businessType || businessData.businessName === `${userProfile?.displayName}'s Business`) {
         router.replace('/business-info');
-    } else if (!plan) {
-        router.replace('/owner/pricing');
+        return;
     }
+    
+    // 6. Check if a plan has been selected.
+    if (!businessData.plan) {
+        router.replace('/owner/pricing');
+        return;
+    }
+    
+    // If all checks pass, the user is correctly onboarded and can see the content.
   }, [isUserLoading, isProfileLoading, isBusinessLoading, authUser, userProfile, businessData, router]);
 
   if (isUserLoading || (authUser && (isProfileLoading || isBusinessLoading))) {
