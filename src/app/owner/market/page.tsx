@@ -1137,29 +1137,31 @@ export default function ManageMarketPage() {
                 </Sidebar>
 
                 <SidebarInset>
-                    <header className="sticky top-0 z-10 flex h-auto min-h-16 flex-col items-start justify-center gap-1 border-b bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                             <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
-                                </SheetTrigger>
-                                <SheetContent side="left" className="w-full max-w-xs p-0">
-                                    <SheetHeader className="sr-only">
-                                        <SheetTitle>Market Menu</SheetTitle>
-                                        <SheetDescription>
-                                            Links to manage products, orders, and market settings.
-                                        </SheetDescription>
-                                    </SheetHeader>
-                                    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-                                       <SidebarNavigation />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                            <SidebarTrigger className="hidden md:flex" />
-                            <div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div>
-                        </div>
-                        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-                            <Button variant="outline" asChild><Link href="/market" target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />View Public Market</Link></Button>
+                    <header className="sticky top-0 z-10 border-b bg-background">
+                         <div className="flex h-auto min-h-16 flex-col items-start justify-center gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3">
+                                <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                                    <SheetTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
+                                    </SheetTrigger>
+                                    <SheetContent side="left" className="w-full max-w-xs p-0">
+                                        <SheetHeader className="sr-only">
+                                            <SheetTitle>Market Menu</SheetTitle>
+                                            <SheetDescription>
+                                                Links to manage products, orders, and market settings.
+                                            </SheetDescription>
+                                        </SheetHeader>
+                                        <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+                                        <SidebarNavigation />
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+                                <SidebarTrigger className="hidden md:flex" />
+                                <div><h1 className="text-xl font-headline font-semibold md:text-2xl">{activeMenuItem?.label}</h1></div>
+                            </div>
+                            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                                <Button variant="outline" asChild><Link href="/market" target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-2 h-4 w-4" />View Public Market</Link></Button>
+                            </div>
                         </div>
                     </header>
                     <main className="flex-1 p-4 sm:p-6">{renderContent()}</main>
