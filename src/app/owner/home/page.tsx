@@ -707,9 +707,13 @@ function OwnerHomeContent() {
                     <CardTitle className="text-base font-medium">Today's Key Insight</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground font-semibold">
-                         {isLoadingData ? <Skeleton className="h-5 w-3/4" /> : topInsight}
-                    </p>
+                    {isLoadingData ? (
+                        <Skeleton className="h-5 w-3/4" />
+                    ) : (
+                        <p className="text-muted-foreground font-semibold">
+                            {topInsight}
+                        </p>
+                    )}
                 </CardContent>
             </Card>
 
@@ -864,7 +868,7 @@ function OwnerHomeContent() {
           <div className="flex flex-col gap-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
                         <TrendingUp className="w-6 h-6 text-primary" />
                         <span>Business Forecast</span>
                     </CardTitle>
