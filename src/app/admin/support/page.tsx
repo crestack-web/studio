@@ -1,16 +1,21 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, query, doc, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, query, doc, orderBy, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { Send, MessageSquare, User, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, User, Loader2, Eye, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 // Interfaces based on backend.json
 interface ChatConversation {
@@ -31,6 +36,17 @@ interface ChatMessage {
     text?: string;
     imageUrl?: string;
     createdAt: { toDate: () => Date };
+}
+
+interface SupportTicket {
+    id: string;
+    subject: string;
+    message: string;
+    status: 'open' | 'in-progress' | 'closed';
+    createdAt: { toDate: () => Date };
+    userId: string;
+    userName: string;
+    userEmail: string;
 }
 
 const statusVariant: { [key in ChatConversation['status']]: "default" | "secondary" | "destructive" } = {
@@ -100,7 +116,7 @@ const ChatInterface = () => {
 
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 h-[calc(100vh-10rem)]">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 h-[calc(100vh-14rem)]">
             {/* Conversations List */}
             <Card className="md:col-span-1 xl:col-span-1 flex flex-col">
                 <CardHeader>
@@ -117,7 +133,9 @@ const ChatInterface = () => {
                                         <p className="font-semibold text-sm">{convo.userName}</p>
                                         <Badge variant={statusVariant[convo.status] || 'default'} className="capitalize text-xs">{convo.status}</Badge>
                                     </div>
-                                    <p className="text-xs text-muted-foreground truncate pr-4">{convo.lastMessage}</p>
+                                    <p className="text-xs text-muted-foreground truncate pr-4 flex items-center gap-1">
+                                        {convo.lastMessage.startsWith('data:image') ? <><ImageIcon className="w-3 h-3" /> Image</> : convo.lastMessage}
+                                    </p>
                                     <p className="text-xs text-muted-foreground mt-1">{convo.lastMessageAt ? formatDistanceToNow(convo.lastMessageAt.toDate(), { addSuffix: true }) : ''}</p>
                                 </button>
                             ))}
@@ -183,14 +201,111 @@ const ChatInterface = () => {
             </Card>
         </div>
     );
-}
+};
+
+const SupportTickets = () => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+
+    const ticketsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'supportTickets'), orderBy('createdAt', 'desc'));
+    }, [firestore]);
+    const { data: tickets, isLoading } = useCollection<SupportTicket>(ticketsQuery);
+
+    const handleUpdateStatus = async (ticketId: string, status: SupportTicket['status']) => {
+        if (!firestore) return;
+        const ticketRef = doc(firestore, 'supportTickets', ticketId);
+        await updateDoc(ticketRef, { status });
+        toast({ title: 'Ticket Status Updated' });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Support Tickets</CardTitle>
+                <CardDescription>View and manage all submitted support tickets.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Subject</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading tickets...</TableCell></TableRow>
+                        ) : tickets && tickets.length > 0 ? tickets.map(ticket => (
+                            <TableRow key={ticket.id}>
+                                <TableCell>{format(ticket.createdAt.toDate(), 'PPP')}</TableCell>
+                                <TableCell>
+                                    <div className="font-medium">{ticket.userName}</div>
+                                    <div className="text-xs text-muted-foreground">{ticket.userEmail}</div>
+                                </TableCell>
+                                <TableCell>{ticket.subject}</TableCell>
+                                <TableCell>
+                                    <Select defaultValue={ticket.status} onValueChange={(val) => handleUpdateStatus(ticket.id, val as SupportTicket['status'])}>
+                                        <SelectTrigger className="w-32 h-8 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="open">Open</SelectItem>
+                                            <SelectItem value="in-progress">In Progress</SelectItem>
+                                            <SelectItem value="closed">Closed</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="outline" size="sm" onClick={() => setSelectedTicket(ticket)}><Eye className="mr-2 h-4 w-4"/>View</Button>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">No tickets found.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                 </Table>
+                 <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
+                     <DialogContent className="sm:max-w-lg">
+                         <DialogHeader>
+                             <DialogTitle>{selectedTicket?.subject}</DialogTitle>
+                             <DialogDescription>
+                                From: {selectedTicket?.userName} ({selectedTicket?.userEmail}) <br/>
+                                Submitted: {selectedTicket && format(selectedTicket.createdAt.toDate(), 'PPpp')}
+                             </DialogDescription>
+                         </DialogHeader>
+                         <div className="py-4 whitespace-pre-wrap bg-muted p-4 rounded-md">
+                            {selectedTicket?.message}
+                         </div>
+                     </DialogContent>
+                 </Dialog>
+            </CardContent>
+        </Card>
+    );
+};
 
 
 export default function AdminSupportPage() {
     return (
-        <main className="flex-1 p-4 sm:p-6">
-            <h1 className="text-2xl font-bold font-headline mb-6">Live Chat Support</h1>
-            <ChatInterface />
+        <main className="flex-1 p-4 sm:p-6 space-y-6">
+            <h1 className="text-2xl font-bold font-headline">Support Center</h1>
+            <Tabs defaultValue="live-chat">
+                <TabsList>
+                    <TabsTrigger value="live-chat">Live Chat</TabsTrigger>
+                    <TabsTrigger value="tickets">Support Tickets</TabsTrigger>
+                </TabsList>
+                <TabsContent value="live-chat" className="mt-6">
+                    <ChatInterface />
+                </TabsContent>
+                <TabsContent value="tickets" className="mt-6">
+                    <SupportTickets />
+                </TabsContent>
+            </Tabs>
         </main>
     );
 }

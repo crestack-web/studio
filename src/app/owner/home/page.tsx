@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -7,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import imageCompression from 'browser-image-compression';
 
 interface AppUser {
     id: string;
@@ -111,7 +111,8 @@ interface ChatMessage {
     id: string;
     senderId: string;
     senderName: string;
-    text: string;
+    text?: string;
+    imageUrl?: string;
     createdAt: Timestamp;
 }
 
@@ -195,6 +196,7 @@ function OwnerHomeContent() {
     const [showWelcome, setShowWelcome] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
 
     useEffect(() => {
@@ -592,30 +594,66 @@ function OwnerHomeContent() {
         setConversationId(newConversationRef.id);
     };
 
-    const handleSendMessageToSupport = (e: FormEvent) => {
-        e.preventDefault();
-        if (!chatInput.trim() || !firestore || !conversationId || !authUser || !userProfile) return;
+    const handleSendChatMessage = async (message: { text?: string; imageUrl?: string }) => {
+        if (!firestore || !conversationId || !authUser || !userProfile) return;
 
-        const messageText = chatInput.trim();
-        setChatInput('');
-
-        const message = {
+        const messageData = {
             senderId: authUser.uid,
             senderName: userProfile.displayName,
-            text: messageText,
+            ...message,
             createdAt: serverTimestamp(),
         };
 
         const messagesRef = collection(firestore, `chatConversations/${conversationId}/messages`);
         const conversationRef = doc(firestore, 'chatConversations', conversationId);
         
-        addDocumentNonBlocking(messagesRef, message);
+        await addDocumentNonBlocking(messagesRef, messageData);
         updateDocumentNonBlocking(conversationRef, {
-            lastMessage: messageText,
+            lastMessage: message.imageUrl ? 'data:image' : message.text,
             lastMessageAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
     };
+
+    const handleSendTextMessage = (e: FormEvent) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+        handleSendChatMessage({ text: chatInput.trim() });
+        setChatInput('');
+    };
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1024,
+            useWebWorker: true,
+        };
+
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                handleSendChatMessage({ imageUrl: dataUrl });
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+            console.error('Error compressing image:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Image Upload Failed',
+                description: 'There was an error processing your image.',
+            });
+        } finally {
+            if(fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
 
     const canManageStaff = businessData?.plan !== 'shop';
     
@@ -935,40 +973,6 @@ function OwnerHomeContent() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                    <TrendingUp className="w-6 h-6 text-primary" />
-                    Product Performance
-                  </CardTitle>
-                  <CardDescription>
-                    Highlights of your product sales in this period.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isLoadingSales ? <Skeleton className="h-24" /> : (salesData && salesData.length > 0) ? (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-lg bg-muted/50">
-                          <h4 className="font-semibold text-sm flex items-center gap-1.5"><ChevronsUp className="w-5 h-5 text-success" />Best Seller</h4>
-                          <p className="font-bold text-lg truncate">{businessInsights.bestSellingProduct?.name || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted/50">
-                          <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingDown className="w-5 h-5 text-destructive" />Worst Seller</h4>
-                          <p className="font-bold text-lg truncate">{businessInsights.worstSellingProduct?.name || 'N/A'}</p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground py-4">
-                      <p>No product sales data for this period.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {businessData?.marketSettings?.isStoreActive && businessId && (
                 <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />
               )}
@@ -1148,7 +1152,12 @@ function OwnerHomeContent() {
                         </Avatar>
                       )}
                       <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.senderId === authUser?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
-                        {msg.text}
+                        {msg.text && <p>{msg.text}</p>}
+                        {msg.imageUrl && (
+                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg mt-2 cursor-pointer" />
+                            </a>
+                        )}
                       </div>
                     </div>
                   ))
@@ -1157,15 +1166,17 @@ function OwnerHomeContent() {
               </div>
               <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
                 <form
-                  onSubmit={handleSendMessageToSupport}
+                  onSubmit={handleSendTextMessage}
                   className="flex w-full items-center gap-2"
                 >
+                  <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} className="shrink-0 h-12 w-12"><FileUp className="h-6 w-6" /></Button>
                   <Input
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Type your message..."
                     className="h-12 flex-1 text-base"
                   />
+                  <Input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
                   <Button type="submit" size="icon" className="h-12 w-12 shrink-0">
                     <Send className="h-6 w-6" />
                   </Button>
