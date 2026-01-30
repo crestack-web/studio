@@ -333,11 +333,11 @@ export default function MarketPage() {
                             <CarouselContent>
                                 {heroBanners.map(banner => (
                                     <CarouselItem key={banner.id}>
-                                        <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8 text-primary-foreground", banner.className)}>
-                                            {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover opacity-75" data-ai-hint={banner.imageHint} />}
-                                            <div className="relative text-center z-10">
+                                        <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                            {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
+                                            <div className="relative text-center z-10 bg-black/40 text-white p-6 rounded-lg backdrop-blur-sm">
                                                 <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
-                                                <p className="text-lg md:text-xl mt-2 text-primary-foreground/80">{banner.subtitle}</p>
+                                                <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>
                                                 <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
                                             </div>
                                         </div>
@@ -362,7 +362,7 @@ export default function MarketPage() {
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
                             {categories.map(category => (
                                 <Link href="#" key={category.id} className="block group">
-                                    <div className="relative aspect-square overflow-hidden rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                    <div className="relative aspect-square overflow-hidden rounded-lg">
                                         <Image
                                             src={category.imageUrl}
                                             alt={category.name || ''}
