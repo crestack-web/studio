@@ -722,7 +722,7 @@ function OwnerHomeContent() {
                   </CardHeader>
                   <CardContent>
                     {isLoadingData ? (
-                      <p className="font-semibold"><Skeleton className="h-5 w-3/4" /></p>
+                      <div className="font-semibold"><Skeleton className="h-5 w-3/4" /></div>
                     ) : (
                       <p className="font-semibold">
                         {topInsight}
@@ -1121,11 +1121,11 @@ function OwnerHomeContent() {
                     <div key={msg.id} className={`flex items-start gap-3 ${msg.senderId === authUser?.uid ? 'justify-end' : ''}`}>
                       {msg.senderId !== authUser?.uid && assignedAgent && (
                         <Avatar className="w-8 h-8 border">
-                          {assignedAgent.avatarUrl ? (
-                            <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
-                          ) : (
-                            <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
-                          )}
+                             {assignedAgent.avatarUrl ? (
+                                <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
+                            ) : (
+                                <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
+                            )}
                         </Avatar>
                       )}
                       <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.senderId === authUser?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
