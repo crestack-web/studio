@@ -38,7 +38,8 @@ service cloud.firestore {
       }
       // Directly check the ownerId on the business document for robustness.
       let businessDoc = get(businessDocPath);
-      return businessDoc.data.ownerId == request.auth.uid;
+      // Safely check for ownerId existence before comparing.
+      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
     }
 
     // Check if the requesting user is a member of a specific business.
