@@ -29,17 +29,24 @@ service cloud.firestore {
       return request.auth.token.email == 'crestack@gmail.com';
     }
     
-    // Check if the requesting user is the owner of a specific business.
+    // Check if the requesting user is the owner of a specific business by checking the business doc itself.
+    // This is the source of truth for ownership.
     function isOwner(businessId) {
       if (!isSignedIn()) { return false; }
       let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
       if (!exists(businessDocPath)) {
           return false;
       }
-      // Directly check the ownerId on the business document for robustness.
       let businessDoc = get(businessDocPath);
-      // Safely check for ownerId existence before comparing.
       return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
+    }
+
+    // A more efficient way to check if a user is the owner of a business by checking their own user document.
+    // This is safe because a user cannot change their own role.
+    function isOwnerOfBusiness(businessId) {
+        if (!isSignedIn()) { return false; }
+        let userData = getRequestingUserData();
+        return userData != null && userData.role == 'Owner' && userData.businessId == businessId;
     }
 
     // Check if the requesting user is a member of a specific business.
@@ -103,20 +110,20 @@ service cloud.firestore {
       match /sales/{docId} { allow read, write: if isBusinessMember(businessId) || isRequestingUserAdmin(); }
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId) || isRequestingUserAdmin(); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId) || isRequestingUserAdmin(); }
-      match /invitations/{invitationId} { allow read, write: if isOwner(businessId) || isRequestingUserAdmin(); }
+      match /invitations/{invitationId} { allow read, write: if isOwnerOfBusiness(businessId) || isRequestingUserAdmin(); }
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
         allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || isRequestingUserAdmin();
         allow update, list: if isBusinessMember(businessId) || isRequestingUserAdmin();
         allow delete: if isRequestingUserAdmin();
       }
-      match /bankAccount/{accountId} { allow read, write: if isOwner(businessId) || isRequestingUserAdmin(); }
+      match /bankAccount/{accountId} { allow read, write: if isOwnerOfBusiness(businessId) || isRequestingUserAdmin(); }
       match /paymentTransactions/{transactionId} {
-          allow read: if isOwner(businessId) || isRequestingUserAdmin();
+          allow read: if isOwnerOfBusiness(businessId) || isRequestingUserAdmin();
           allow write: if false;
       }
       match /payouts/{payoutId} {
-          allow read: if isOwner(businessId) || isRequestingUserAdmin();
+          allow read: if isOwnerOfBusiness(businessId) || isRequestingUserAdmin();
           allow write: if false;
       }
     }
@@ -183,7 +190,7 @@ service cloud.firestore {
     }
 
     match /businessVerifications/{businessId} {
-        allow read, create, update: if isOwner(businessId) || isRequestingUserAdmin();
+        allow read, create, update: if isOwnerOfBusiness(businessId) || isRequestingUserAdmin();
         allow list, delete: if isRequestingUserAdmin();
     }
   }
