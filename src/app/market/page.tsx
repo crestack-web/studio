@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -50,6 +49,7 @@ interface MarketBanner {
     imageHint?: string;
     buttonText?: string;
     className?: string;
+    isActive?: boolean;
 }
 
 interface MarketCategory {
@@ -165,7 +165,7 @@ export default function MarketPage() {
     // Query for banners
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketBanners'));
+        return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
 
@@ -335,7 +335,7 @@ export default function MarketPage() {
             <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
                 
                  {/* 1. Hero Section */}
-                <section className="pt-6">
+                <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -408,7 +408,7 @@ export default function MarketPage() {
                 
                 {/* 2. Quick Categories */}
                  {isLoadingCategories ? (
-                     <section className="-mt-6">
+                     <section>
                         <Card>
                             <CardHeader>
                                 <Skeleton className="h-5 w-40" />
@@ -426,7 +426,7 @@ export default function MarketPage() {
                         </Card>
                     </section>
                 ) : (categories && categories.length > 0 &&
-                    <section className="-mt-6">
+                    <section>
                         <Card>
                              <CardHeader>
                                 <CardTitle className="text-xl">Shop by Category</CardTitle>
