@@ -182,5 +182,10 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isRequestingUserAdmin();
     }
+
+    match /businessVerifications/{businessId} {
+        allow read, create, update: if isOwner(businessId) || isRequestingUserAdmin();
+        allow list, delete: if isRequestingUserAdmin();
+    }
   }
 }

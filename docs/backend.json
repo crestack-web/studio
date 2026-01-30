@@ -441,6 +441,23 @@
         "isActive": { "type": "boolean" }
       },
       "required": ["code", "discountType", "discountValue", "isActive"]
+    },
+    "BusinessVerification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BusinessVerification",
+      "type": "object",
+      "description": "Stores documents for business verification to sell on the market.",
+      "properties": {
+        "businessId": { "type": "string", "description": "The ID of the business being verified." },
+        "idImageUrl": { "type": "string", "description": "Data URI of the owner's ID document." },
+        "stockImageUrl": { "type": "string", "description": "Data URI of an image showing proof of stock." },
+        "storeImageUrl": { "type": "string", "description": "Data URI of an image of the physical store/shop." },
+        "status": { "type": "string", "enum": ["unverified", "pending", "verified", "rejected"] },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "rejectionReason": { "type": "string" }
+      },
+      "required": ["businessId", "status"]
     }
   },
   "auth": {
@@ -725,6 +742,17 @@
           "schema": { "$ref": "#/backend/entities/SubscriptionTransaction" },
           "description": "Stores all subscription payment transactions.",
           "params": [{ "name": "transactionId", "description": "The transaction ID." }]
+        }
+      },
+      {
+        "path": "/businessVerifications/{businessId}",
+        "definition": {
+          "entityName": "BusinessVerification",
+          "schema": { "$ref": "#/backend/entities/BusinessVerification" },
+          "description": "Stores verification documents for each business. ID is businessId.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." }
+          ]
         }
       }
     ],

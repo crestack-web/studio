@@ -1,7 +1,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
 import { usePathname, redirect } from 'next/navigation';
@@ -74,6 +74,7 @@ export default function AdminLayout({
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { id: 'users', label: 'Users', href: '/admin/users', icon: Users },
+    { id: 'verifications', label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck },
     { id: 'market', label: 'Market', href: '/admin/market', icon: Store },
     { id: 'products', label: 'Products', href: '/admin/products', icon: Package },
     { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
@@ -145,4 +146,3 @@ export default function AdminLayout({
     </ProtectedAdminLayout>
   );
 }
-
