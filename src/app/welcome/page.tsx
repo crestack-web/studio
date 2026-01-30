@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -73,6 +73,8 @@ interface ChatConversation {
     id: string;
     userId: string;
     status: 'open' | 'in-progress' | 'closed';
+    lastMessage: string;
+    lastMessageAt: { toDate: () => Date };
 }
 
 interface ChatMessage {
@@ -145,6 +147,17 @@ export default function LandingPage() {
   const { data: activeConversations } = useCollection<ChatConversation>(activeConversationQuery);
   const activeConversation = activeConversations?.[0];
 
+  const allConversationsQuery = useMemoFirebase(() => {
+      if (!firestore || !user) return null;
+      return query(
+          collection(firestore, 'chatConversations'),
+          where('userId', '==', user.uid),
+          orderBy('lastMessageAt', 'desc')
+      );
+  }, [firestore, user]);
+  const { data: allUserConversations, isLoading: isLoadingConversations } = useCollection<ChatConversation>(allConversationsQuery);
+
+
   useEffect(() => {
       if (activeConversation) {
           setConversationId(activeConversation.id);
@@ -169,6 +182,8 @@ export default function LandingPage() {
         return;
     }
     setChatView('chat');
+    // Don't create a new conversation if there's an active one.
+    // Instead, allow users to explicitly start a new one if they want.
     if (activeConversation) {
         setConversationId(activeConversation.id);
         return;
@@ -274,6 +289,11 @@ export default function LandingPage() {
     setTicketSubject('');
     setTicketMessage('');
     setChatView('initial');
+  };
+
+  const handleConversationClick = (convoId: string) => {
+      setConversationId(convoId);
+      setChatView('chat');
   };
 
   const faqItems = [
@@ -817,10 +837,38 @@ export default function LandingPage() {
                          <p className="text-sm text-muted-foreground text-center py-4">No support agents have been set up yet.</p>
                     )}
                     </div>
+                    {user && (
+                      <>
+                        <Separator />
+                        <div>
+                            <h3 className="font-semibold text-sm text-muted-foreground mb-2">Your Conversations</h3>
+                            {isLoadingConversations ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-12 w-full" />
+                                    <Skeleton className="h-12 w-full" />
+                                </div>
+                            ) : allUserConversations && allUserConversations.length > 0 ? (
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                    {allUserConversations.map(convo => (
+                                        <button key={convo.id} onClick={() => handleConversationClick(convo.id)} className="w-full text-left p-2 rounded-md border hover:bg-muted/50">
+                                            <p className="text-sm font-medium truncate flex items-center">
+                                              {convo.lastMessage === 'Image' && <ImageIcon className="w-4 h-4 mr-2 inline-block shrink-0" />}
+                                              {convo.lastMessage === 'Image' ? 'Image Sent' : convo.lastMessage}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-1">{convo.lastMessageAt?.toDate().toLocaleString()}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground text-center py-2">You have no previous conversations.</p>
+                            )}
+                        </div>
+                      </>
+                    )}
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start Live Chat</Button>
+                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start New Conversation</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>
