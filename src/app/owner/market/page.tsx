@@ -904,36 +904,17 @@ const CustomersContent = () => {
 // #region --- BusmoPaySettings ---
 const BusmoPaySettings = () => {
     const { toast } = useToast();
-    const firestore = useFirestore();
-    const { user } = useUser();
-
-    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-    const businessId = userProfile?.businessId;
-
     const [bankCode, setBankCode] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
-    
+    const [accountStatus, setAccountStatus] = useState<'unverified' | 'pending' | 'verified' | 'failed'>('unverified');
+    const [verifiedAccount, setVerifiedAccount] = useState<{name: string, number: string, bank: string} | null>(null);
+
     const nigerianBanks = [
         { name: 'Access Bank', code: '044' }, { name: 'First Bank', code: '011' }, { name: 'Guaranty Trust Bank', code: '058' },
         { name: 'United Bank for Africa', code: '033' }, { name: 'Zenith Bank', code: '057' }, { name: 'Opay', code: '999992'},
         { name: 'Kuda Bank', code: '50211'}, { name: 'PalmPay', code: '999991'}
     ];
-
-    const bankAccountRef = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        return doc(firestore, `businesses/${businessId}/bankAccount`, 'primary');
-    }, [firestore, businessId]);
-
-    const { data: bankAccountData, isLoading: isLoadingBankAccount } = useDoc<SellerBankAccount>(bankAccountRef);
-
-    useEffect(() => {
-        if (bankAccountData) {
-            setBankCode(bankAccountData.bankCode || '');
-            setAccountNumber(bankAccountData.accountNumber || '');
-        }
-    }, [bankAccountData]);
 
     const handleSaveAndVerify = async () => {
         if (!bankCode || !accountNumber) {
@@ -944,46 +925,40 @@ const BusmoPaySettings = () => {
             toast({ title: 'Invalid Account Number', description: 'Please enter a valid 10-digit NUBAN.', variant: 'destructive'});
             return;
         }
-        if (!firestore || !businessId || !bankAccountRef || !userProfile) {
-             toast({ title: 'Error', description: 'Could not access business details.', variant: 'destructive'});
-            return;
-        }
 
         setIsVerifying(true);
-        setDocumentNonBlocking(bankAccountRef, { status: 'pending' }, { merge: true });
+        setAccountStatus('pending');
 
-        // Mock Paystack verification
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        const selectedBank = nigerianBanks.find(b => b.code === bankCode);
-        
-        const verifiedData: SellerBankAccount = {
-            bankCode,
-            accountNumber,
-            bankName: selectedBank?.name || '',
-            accountName: userProfile.displayName || '',
-            status: 'verified',
-        };
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        try {
-            await setDocumentNonBlocking(bankAccountRef, verifiedData, { merge: true });
-            toast({ title: 'Account Verified!', description: `Your account for ${userProfile.displayName} has been verified.` });
-        } catch (error) {
-            toast({ title: 'Verification Failed', description: 'Could not save account details.', variant: 'destructive'});
-            setDocumentNonBlocking(bankAccountRef, { status: 'failed' }, { merge: true });
-        } finally {
-            setIsVerifying(false);
+        const success = Math.random() > 0.2; // 80% chance of success for demo
+
+        if (success) {
+            const selectedBank = nigerianBanks.find(b => b.code === bankCode);
+            const accountName = 'John Doe'; 
+            setVerifiedAccount({
+                name: accountName,
+                number: accountNumber,
+                bank: selectedBank?.name || ''
+            });
+            setAccountStatus('verified');
+            toast({ title: 'Account Verified!', description: `Your account for ${accountName} has been verified.` });
+        } else {
+            setAccountStatus('failed');
+            toast({ title: 'Verification Failed', description: 'Could not verify account details. Please check and try again.', variant: 'destructive'});
         }
+
+        setIsVerifying(false);
     };
 
-    const hasChanges = bankAccountData?.bankCode !== bankCode || bankAccountData?.accountNumber !== accountNumber;
-    
-    const effectiveStatus: 'verified' | 'unverified' | 'pending' | 'failed' = useMemo(() => {
+    const hasChanges = verifiedAccount?.bank !== nigerianBanks.find(b => b.code === bankCode)?.name || verifiedAccount?.number !== accountNumber;
+
+    const effectiveStatus = useMemo(() => {
         if (isVerifying) return 'pending';
-        if (!bankAccountData || !bankAccountData.status) return 'unverified';
-        if (bankAccountData.status === 'verified' && hasChanges) return 'unverified';
-        return bankAccountData.status;
-    }, [isVerifying, bankAccountData, hasChanges]);
+        if (accountStatus === 'verified' && hasChanges) return 'unverified';
+        return accountStatus;
+    }, [isVerifying, accountStatus, hasChanges]);
+
 
     return (
         <div className="space-y-6">
@@ -993,51 +968,45 @@ const BusmoPaySettings = () => {
                     <CardDescription>Set up your bank account to receive payouts from your sales on Busmo Market.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                     {isLoadingBankAccount ? (
-                        <Skeleton className="h-48 w-full" />
-                     ) : (
-                        <>
-                             <div className="grid sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="bank-select">Bank</Label>
-                                    <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying}>
-                                        <SelectTrigger id="bank-select"><SelectValue placeholder="Select your bank" /></SelectTrigger>
-                                        <SelectContent>{nigerianBanks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
-                                    </Select>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="bank-select">Bank</Label>
+                            <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying}>
+                                <SelectTrigger id="bank-select"><SelectValue placeholder="Select your bank" /></SelectTrigger>
+                                <SelectContent>{nigerianBanks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="account-number">Account Number</Label>
+                            <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying} />
+                        </div>
+                    </div>
+                    
+                    {effectiveStatus !== 'unverified' && verifiedAccount && (
+                        <Card className="bg-muted/50">
+                            <CardHeader className="p-4 flex-row items-start justify-between">
+                                <div>
+                                    <CardTitle className="text-base">Current Payout Account</CardTitle>
+                                    <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="account-number">Account Number</Label>
-                                    <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying} />
-                                </div>
-                            </div>
-                            
-                            {bankAccountData && (
-                                <Card className="bg-muted/50">
-                                    <CardHeader className="p-4 flex-row items-start justify-between">
-                                        <div>
-                                            <CardTitle className="text-base">Current Payout Account</CardTitle>
-                                            <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
-                                        </div>
-                                         <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus}</Badge>
-                                    </CardHeader>
-                                    {effectiveStatus === 'verified' && (
-                                        <CardContent className="p-4 pt-0 text-sm space-y-1">
-                                            <p className="font-semibold">{bankAccountData.accountName}</p>
-                                            <p className="text-muted-foreground">{bankAccountData.accountNumber} - {bankAccountData.bankName}</p>
-                                        </CardContent>
-                                    )}
-                                     {(effectiveStatus === 'unverified' && hasChanges) && (
-                                        <CardFooter className="p-4 pt-0">
-                                            <p className="text-xs text-yellow-800 dark:text-yellow-200 bg-yellow-500/10 p-2 rounded-md">You have unsaved changes. Please re-verify your account to receive payouts.</p>
-                                        </CardFooter>
-                                    )}
-                                </Card>
+                                    <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus}</Badge>
+                            </CardHeader>
+                            {effectiveStatus === 'verified' && (
+                                <CardContent className="p-4 pt-0 text-sm space-y-1">
+                                    <p className="font-semibold">{verifiedAccount.name}</p>
+                                    <p className="text-muted-foreground">{verifiedAccount.number} - {verifiedAccount.bank}</p>
+                                </CardContent>
                             )}
-                        </>
-                     )}
+                        </Card>
+                    )}
+                     {(effectiveStatus === 'unverified' && hasChanges && accountStatus === 'verified') && (
+                        <CardFooter className="p-4 pt-0">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200 bg-yellow-500/10 p-2 rounded-md">You have unsaved changes. Please re-verify your account to receive payouts.</p>
+                        </CardFooter>
+                    )}
                 </CardContent>
                 <CardFooter>
-                     <Button onClick={handleSaveAndVerify} disabled={isVerifying || isLoadingBankAccount || !bankCode || !accountNumber || (effectiveStatus === 'verified' && !hasChanges)}>
+                     <Button onClick={handleSaveAndVerify} disabled={isVerifying || !bankCode || !accountNumber || (effectiveStatus === 'verified' && !hasChanges)}>
                         {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isVerifying ? 'Verifying...' : 'Save & Verify Account'}
                     </Button>
