@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -182,6 +182,7 @@ function OwnerHomeContent() {
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [aiCache, setAiCache] = useState<Record<string, string>>({});
     const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
+    const [isInsightVisible, setIsInsightVisible] = useState(true);
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
@@ -702,20 +703,26 @@ function OwnerHomeContent() {
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <Card className="border border-warning bg-warning/20">
-                <CardHeader>
-                    <CardTitle className="text-base font-medium text-foreground/80">Today's Key Insight</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLoadingData ? (
-                        <div className="font-semibold"><Skeleton className="h-5 w-3/4" /></div>
-                    ) : (
-                        <p className="font-semibold">
-                            {topInsight}
-                        </p>
-                    )}
-                </CardContent>
-            </Card>
+            {isInsightVisible && (
+              <Card className="border border-warning bg-warning/20">
+                  <CardHeader className="flex flex-row items-start justify-between">
+                      <CardTitle className="text-base font-medium text-foreground/80">Today's Key Insight</CardTitle>
+                       <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-2" onClick={() => setIsInsightVisible(false)}>
+                           <X className="h-4 w-4" />
+                           <span className="sr-only">Hide insight</span>
+                        </Button>
+                  </CardHeader>
+                  <CardContent>
+                      {isLoadingData ? (
+                          <div className="font-semibold"><Skeleton className="h-5 w-3/4" /></div>
+                      ) : (
+                          <p className="font-semibold">
+                              {topInsight}
+                          </p>
+                      )}
+                  </CardContent>
+              </Card>
+            )}
 
             <Card>
                 <CardHeader>
