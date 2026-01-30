@@ -429,7 +429,7 @@ function OwnerHomeContent() {
     }, [businessInsights, salesData]);
 
     const topInsight = useMemo(() => {
-        if (!businessData || salesData.length < 5) {
+        if (!businessData || !salesData || salesData.length < 5) {
             return "Record more activity to unlock today's key insight.";
         }
         if(forecasts.cashRunway !== null && forecasts.cashRunway < 14) {
@@ -448,7 +448,7 @@ function OwnerHomeContent() {
     }, [businessData, salesData, businessInsights, forecasts]);
     
     const healthScore = useMemo(() => {
-        if (businessInsights.salesDays < 3) return { score: null, label: 'Needs Data' };
+        if (!salesData || businessInsights.salesDays < 3) return { score: null, label: 'Needs Data' };
         
         let score = 0;
         const margin = businessInsights.profitMargin;
@@ -468,7 +468,7 @@ function OwnerHomeContent() {
         else if (finalScore >= 50) label = 'Stable';
 
         return { score: finalScore, label };
-    }, [businessInsights]);
+    }, [businessInsights, salesData]);
 
 
     const handleQuestionClick = async (question: string) => {
@@ -708,7 +708,7 @@ function OwnerHomeContent() {
                 </CardHeader>
                 <CardContent>
                     {isLoadingData ? (
-                        <Skeleton className="h-5 w-3/4" />
+                        <div className="text-muted-foreground font-semibold"><Skeleton className="h-5 w-3/4" /></div>
                     ) : (
                         <p className="text-muted-foreground font-semibold">
                             {topInsight}
