@@ -264,7 +264,7 @@ export default function MarketPage() {
 
     const handleUpdateMarket = () => {
         setMarket({ country: selectedCountry, city: selectedCity });
-        setIsLocationModalOpen(false);
+        setIsOpen(false);
     };
     // --- End Location Modal Logic ---
 
@@ -363,17 +363,17 @@ export default function MarketPage() {
                                 </Carousel>
                         )}
                         </Card>
-                        <div className="w-[250px]">
+                        <div className="hidden w-[250px] lg:block">
                             <Card className="h-full">
-                                <CardHeader className="p-4 pb-2">
-                                    <CardTitle className="text-lg">Categories</CardTitle>
+                                <CardHeader className="p-3 pb-1">
+                                    <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
-                                <CardContent className="p-4 pt-0">
-                                    <div className="space-y-2">
+                                <CardContent className="p-3 pt-0">
+                                    <div className="space-y-1">
                                         {promoCategories.map(category => (
                                             <Link href={category.href} key={category.name} className="block">
-                                                <div className="flex items-center gap-3 hover:bg-muted/50 p-2 rounded-md transition-colors">
-                                                    <category.icon className="h-4 w-4 text-muted-foreground" />
+                                                <div className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-md transition-colors">
+                                                    <category.icon className="h-3.5 w-3.5 text-muted-foreground" />
                                                     <span className="font-medium text-sm">{category.name}</span>
                                                 </div>
                                             </Link>
