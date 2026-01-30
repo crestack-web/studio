@@ -335,7 +335,8 @@
         "userId": { "type": "string", "description": "Reference to the User entity." },
         "displayName": { "type": "string", "description": "The agent's display name." },
         "avatarUrl": { "type": "string", "description": "URL for the agent's avatar." },
-        "status": { "type": "string", "enum": ["online", "offline"] }
+        "status": { "type": "string", "enum": ["online", "offline"] },
+        "language": { "type": "string", "enum": ["en", "fr"], "description": "The primary language the agent supports." }
       },
       "required": ["userId", "displayName", "status"]
     },

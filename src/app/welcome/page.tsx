@@ -65,6 +65,7 @@ interface SupportAgent {
     displayName: string;
     avatarUrl?: string;
     status: 'online' | 'offline';
+    language?: 'en' | 'fr';
 }
 
 // The new landing page component
@@ -88,6 +89,7 @@ export default function LandingPage() {
 
   const { user } = useUser();
   const firestore = useFirestore();
+  const { language } = useLanguage();
 
   const agentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -95,12 +97,22 @@ export default function LandingPage() {
   }, [firestore]);
   const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
 
-  const onlineAgents = useMemo(() => {
-      if (!allAgents) return [];
-      return allAgents.filter(agent => agent.status === 'online');
+  const assignedAgent = useMemo(() => {
+    if (!allAgents) return null;
+    const onlineLanguageMatches = allAgents.filter(a => a.status === 'online' && a.language === language);
+    if (onlineLanguageMatches.length > 0) return onlineLanguageMatches[0];
+    
+    const anyOnline = allAgents.filter(a => a.status === 'online');
+    if (anyOnline.length > 0) return anyOnline[0];
+
+    return null;
+  }, [allAgents, language]);
+
+  const canChat = useMemo(() => {
+      if(!allAgents) return false;
+      return allAgents.some(a => a.status === 'online');
   }, [allAgents]);
 
-  const assignedAgent = onlineAgents?.[0];
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -667,7 +679,7 @@ export default function LandingPage() {
                                 </div>
                                 <div>
                                 <p className="font-semibold">{agent.displayName}</p>
-                                <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status})</p>
+                                <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status}) {agent.language && `- ${agent.language.toUpperCase()}`}</p>
                                 </div>
                             </div>
                         ))
@@ -678,7 +690,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
+                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>

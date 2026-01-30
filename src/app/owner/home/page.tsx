@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import imageCompression from 'browser-image-compression';
+import { useLanguage } from '@/context/language-provider';
 
 interface AppUser {
     id: string;
@@ -100,6 +101,7 @@ interface SupportAgent {
     displayName: string;
     avatarUrl?: string;
     status: 'online' | 'offline';
+    language?: 'en' | 'fr';
 }
 
 interface ChatConversation {
@@ -189,6 +191,7 @@ function OwnerHomeContent() {
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
     const auth = useAuth();
+    const { language } = useLanguage();
     
     const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
     const [chatInput, setChatInput] = useState('');
@@ -238,13 +241,22 @@ function OwnerHomeContent() {
     }, [firestore]);
     const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
 
-    const onlineAgents = useMemo(() => {
-        if (agentsError || !allAgents) return [];
-        return allAgents.filter(agent => agent.status === 'online');
-    }, [allAgents, agentsError]);
-    
-    const assignedAgent = onlineAgents?.[0];
+    const assignedAgent = useMemo(() => {
+        if (!allAgents) return null;
+        const onlineLanguageMatches = allAgents.filter(a => a.status === 'online' && a.language === language);
+        if (onlineLanguageMatches.length > 0) return onlineLanguageMatches[0];
+        
+        const anyOnline = allAgents.filter(a => a.status === 'online');
+        if (anyOnline.length > 0) return anyOnline[0];
 
+        return null;
+    }, [allAgents, language]);
+
+    const canChat = useMemo(() => {
+        if(!allAgents) return false;
+        return allAgents.some(a => a.status === 'online');
+    }, [allAgents]);
+    
     const businessRef = useMemoFirebase(() => {
         if (!businessId || !firestore) return null;
         return doc(firestore, `businesses/${businessId}`);
@@ -761,7 +773,7 @@ function OwnerHomeContent() {
                   </CardHeader>
                   <CardContent>
                     {isLoadingData ? (
-                      <div className="font-semibold"><Skeleton className="h-5 w-3/4" /></div>
+                      <Skeleton className="h-5 w-3/4" />
                     ) : (
                       <p className="font-semibold">
                         {topInsight}
@@ -934,7 +946,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success" />Weekly Profit Forecast</h4>
                     {isLoadingData ? (
-                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
+                      <Skeleton className="h-5 w-48 mt-1" />
                     ) : forecasts.weeklyProfit !== null ? (
                       <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(forecasts.weeklyProfit, businessData?.country)}</span> in profit next week.</p>
                     ) : (
@@ -944,7 +956,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary" />Busiest Day Prediction</h4>
                     {isLoadingData ? (
-                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
+                      <Skeleton className="h-5 w-48 mt-1" />
                     ) : forecasts.busiestDay ? (
                       <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">{forecasts.busiestDay}</span>. Plan for extra stock.</p>
                     ) : (
@@ -954,7 +966,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning" />Inventory Outlook</h4>
                     {isLoadingData ? (
-                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
+                      <Skeleton className="h-5 w-48 mt-1" />
                     ) : forecasts.inventoryOutlook ? (
                       <p className="text-muted-foreground text-sm mt-1">{forecasts.inventoryOutlook}</p>
                     ) : (
@@ -964,7 +976,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><CircleDollarSign className="w-5 h-5 text-destructive" />Cash Runway</h4>
                     {isLoadingData ? (
-                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
+                      <Skeleton className="h-5 w-48 mt-1" />
                     ) : forecasts.cashRunway !== null ? (
                       <p className="text-muted-foreground text-sm mt-1">Your business can run for <span className="font-bold text-foreground">{forecasts.cashRunway} days</span> without new sales.</p>
                     ) : (
@@ -1095,7 +1107,7 @@ function OwnerHomeContent() {
                         </div>
                         <div>
                           <p className="font-semibold">{agent.displayName}</p>
-                          <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status})</p>
+                          <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status}) {agent.language && `- ${agent.language.toUpperCase()}`}</p>
                         </div>
                       </div>
                     ))
@@ -1106,7 +1118,7 @@ function OwnerHomeContent() {
               </div>
               <div className="flex-1" />
               <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !onlineAgents || onlineAgents.length === 0}>Start Live Chat</Button>
+                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
               </SheetFooter>
             </>
