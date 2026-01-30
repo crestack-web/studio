@@ -331,7 +331,7 @@ export default function MarketPage() {
 
     return (
         <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
-            <div className="container mx-auto px-4 py-8 space-y-12">
+            <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
                 
                  {/* 1. Hero Section */}
                 <section>
@@ -348,7 +348,7 @@ export default function MarketPage() {
                                 >
                                     <CarouselContent className="h-full">
                                         {heroBanners.map((banner, index) => (
-                                            <CarouselItem key={banner.id} className={cn("relative h-full p-0", banner.className)}>
+                                            <CarouselItem key={banner.id} className={cn("relative h-full", banner.className)}>
                                                 {banner.imageUrl && 
                                                     <Image 
                                                         src={banner.imageUrl} 
