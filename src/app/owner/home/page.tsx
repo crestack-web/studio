@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,13 +47,16 @@ interface Business {
     slug?: string;
     deliveryType?: 'nationwide' | 'cities';
     deliveryCities?: string[];
+    marketSettings?: {
+        isStoreActive?: boolean;
+    }
 }
 
 interface Sale {
     id: string;
     amount: number;
     paymentType: string;
-    source: string;
+    source?: string;
     timestamp: Timestamp;
     productId?: string;
     variantId?: string;
@@ -112,6 +115,62 @@ interface ChatMessage {
     createdAt: Timestamp;
 }
 
+interface MarketplaceOrder {
+    id: string;
+    total: number;
+}
+
+
+const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: string; currency?: string; }) => {
+    const firestore = useFirestore();
+
+    const marketOrdersQuery = useMemoFirebase(() => {
+        return query(
+            collection(firestore, `businesses/${businessId}/orders`), 
+            where('source', '==', 'market')
+        );
+    }, [firestore, businessId]);
+
+    const { data: marketOrders, isLoading } = useCollection<MarketplaceOrder>(marketOrdersQuery);
+
+    const marketRevenue = useMemo(() => {
+        if (!marketOrders) return 0;
+        return marketOrders.reduce((acc, order) => acc + order.total, 0);
+    }, [marketOrders]);
+
+    if (isLoading) {
+        return <Skeleton className="h-24 w-full" />;
+    }
+
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-primary" />
+                    <span>Marketplace Performance</span>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {marketOrders && marketOrders.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                            <p className="text-2xl font-bold">{marketOrders.length}</p>
+                            <p className="text-xs text-muted-foreground">Orders</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-2xl font-bold">{formatCurrency(marketRevenue, currency)}</p>
+                            <p className="text-xs text-muted-foreground">Revenue</p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-center text-muted-foreground py-4">No marketplace orders yet.</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
+
 function OwnerHomeContent() {
     const router = useRouter();
     const { toast } = useToast();
@@ -148,13 +207,13 @@ function OwnerHomeContent() {
     
     useEffect(() => {
         const allQuestions = [
+            "Why did my profit drop this week?",
+            "Which product should I restock first?",
+            "Am I spending too much on expenses?",
+            "Can I afford to grow this month?",
             "How are my sales today?",
             "What's my net profit today?",
-            "Which products should I consider restocking?",
-            "Tell me about my best selling product.",
-            "Tell me about my worst selling product.",
             "What's my recent sales revenue?",
-            "How much cash have I deposited recently?",
             "How much money have I withdrawn recently?",
         ];
 
@@ -218,7 +277,8 @@ function OwnerHomeContent() {
         const defaultInsights = {
             totalSales: 0, totalProfit: 0, bestSellingProduct: undefined, worstSellingProduct: undefined,
             lowStockProducts: [], salesTodayCount: 0, salesTodayTotal: 0, profitToday: 0,
-            totalDeposits: 0, totalWithdrawals: 0,
+            totalDeposits: 0, totalWithdrawals: 0, profitMargin: 0, totalExpenses: 0,
+            cashBalance: 0, dailyAvgExpense: 0, salesDays: 0,
         };
 
         if (!salesData || !productsData || !businessData || !expensesData || !transactionsData) {
@@ -233,9 +293,12 @@ function OwnerHomeContent() {
         let salesTodayCount = 0;
         let salesTodayTotal = 0;
         let cogsToday = 0;
+        
+        const saleDates = new Set<string>();
 
         for (const sale of salesData) {
             totalSales += sale.amount;
+            saleDates.add(sale.timestamp.toDate().toDateString());
             const product = productsData.find(p => p.id === sale.productId);
             if (product) {
                 let costOfItem = 0;
@@ -291,17 +354,17 @@ function OwnerHomeContent() {
             }
         }
         
+        const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
+        const cashBalance = totalDeposits - totalWithdrawals;
+
+        const daysWithExpenses = new Set(expensesData.map(e => e.createdAt.toDate().toDateString())).size;
+        const dailyAvgExpense = daysWithExpenses > 0 ? totalExpenses / daysWithExpenses : 0;
+
         return { 
-            totalSales, 
-            totalProfit: netProfit, 
-            bestSellingProduct, 
-            worstSellingProduct, 
-            lowStockProducts, 
-            salesTodayCount, 
-            salesTodayTotal, 
-            profitToday: netProfitToday, 
-            totalDeposits, 
-            totalWithdrawals 
+            totalSales, totalProfit: netProfit, bestSellingProduct, worstSellingProduct, 
+            lowStockProducts, salesTodayCount, salesTodayTotal, profitToday: netProfitToday, 
+            totalDeposits, totalWithdrawals, profitMargin, totalExpenses, cashBalance,
+            dailyAvgExpense, salesDays: saleDates.size
         };
 
     }, [salesData, productsData, businessData, transactionsData, expensesData]);
@@ -311,13 +374,13 @@ function OwnerHomeContent() {
             weeklyProfit: null,
             busiestDay: null,
             inventoryOutlook: null,
+            cashRunway: null,
         };
 
         if (!salesData || salesData.length < 2 || !businessInsights.totalProfit) {
             return defaultForecasts;
         }
 
-        // 1. Weekly Profit Forecast
         const firstSaleDate = salesData[salesData.length - 1].timestamp.toDate();
         const lastSaleDate = salesData[0].timestamp.toDate();
         const periodInDays = differenceInDays(lastSaleDate, firstSaleDate) + 1;
@@ -327,54 +390,86 @@ function OwnerHomeContent() {
             weeklyProfit = dailyAvgProfit * 7;
         }
 
-        // 2. Busiest Day Prediction
         const dayCounts = Array(7).fill(0);
         salesData.forEach(sale => {
-            const dayIndex = sale.timestamp.toDate().getDay(); // 0 for Sunday, 1 for Monday, etc.
+            const dayIndex = sale.timestamp.toDate().getDay();
             dayCounts[dayIndex]++;
         });
         const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const busiestDayIndex = dayCounts.indexOf(Math.max(...dayCounts));
         const busiestDay = daysOfWeek[busiestDayIndex];
         
-        // 3. Inventory Outlook
         let inventoryOutlook = null;
         if (businessInsights.lowStockProducts.length > 0 && periodInDays > 0) {
             let mostAtRiskProduct: { name: string; days: number; } | null = null;
             let minDays = Infinity;
-
             for (const lowStockProduct of businessInsights.lowStockProducts) {
                 const salesOfProduct = salesData.filter(s => s.productId === lowStockProduct.id);
                 const totalSold = salesOfProduct.reduce((acc, s) => acc + s.quantity, 0);
-
                 if (totalSold > 0) {
                     const dailyConsumption = totalSold / periodInDays;
                     if (dailyConsumption > 0) {
                         const daysToDepletion = lowStockProduct.quantity / dailyConsumption;
                         if (daysToDepletion < minDays) {
                             minDays = daysToDepletion;
-                            mostAtRiskProduct = {
-                                name: lowStockProduct.name,
-                                days: Math.floor(daysToDepletion)
-                            };
+                            mostAtRiskProduct = { name: lowStockProduct.name, days: Math.floor(daysToDepletion) };
                         }
                     }
                 }
             }
-            
             if (mostAtRiskProduct && mostAtRiskProduct.days !== Infinity && mostAtRiskProduct.days >= 0) {
                 inventoryOutlook = `You are likely to run out of ${mostAtRiskProduct.name} in ${mostAtRiskProduct.days} days.`;
             }
         }
+        
+        const cashRunway = businessInsights.dailyAvgExpense > 0 ? Math.floor(businessInsights.cashBalance / businessInsights.dailyAvgExpense) : null;
 
-
-        return {
-            weeklyProfit,
-            busiestDay,
-            inventoryOutlook,
-        };
+        return { weeklyProfit, busiestDay, inventoryOutlook, cashRunway };
 
     }, [businessInsights, salesData]);
+
+    const topInsight = useMemo(() => {
+        if (!businessData || salesData.length < 5) {
+            return "Record more activity to unlock today's key insight.";
+        }
+        if(forecasts.cashRunway !== null && forecasts.cashRunway < 14) {
+            return `Cash runway is low. You have an estimated ${forecasts.cashRunway} days of cash left based on current expenses.`;
+        }
+        if (businessInsights.profitMargin < 10 && businessInsights.totalSales > 0) {
+            return `Profit margin is risky at ${businessInsights.profitMargin.toFixed(0)}%. Review your product costs and expenses.`;
+        }
+        if(businessInsights.bestSellingProduct) {
+            const bestSellerRevenuePercentage = (businessInsights.bestSellingProduct.sales / businessInsights.totalSales) * 100;
+            if(bestSellerRevenuePercentage > 50) {
+                return `Your best seller, ${businessInsights.bestSellingProduct.name}, accounts for ${bestSellerRevenuePercentage.toFixed(0)}% of revenue. Consider promoting other products.`;
+            }
+        }
+        return "Your business is performing consistently. Keep up the great work!";
+    }, [businessData, salesData, businessInsights, forecasts]);
+    
+    const healthScore = useMemo(() => {
+        if (businessInsights.salesDays < 3) return { score: null, label: 'Needs Data' };
+        
+        let score = 0;
+        const margin = businessInsights.profitMargin;
+        if(margin >= 30) score += 40;
+        else if (margin >= 10) score += 20 + ((margin - 10) / 20) * 20; // Pro-rata score for 10-29%
+        else score += (margin / 10) * 20; // Pro-rata for <10%
+
+        const salesConsistency = Math.min(1, businessInsights.salesDays / 30);
+        score += salesConsistency * 30;
+
+        const expenseRatio = businessInsights.totalSales > 0 ? businessInsights.totalExpenses / businessInsights.totalSales : 1;
+        score += Math.max(0, (1 - expenseRatio)) * 30;
+
+        const finalScore = Math.min(100, Math.max(0, Math.round(score)));
+        let label = 'At Risk';
+        if (finalScore >= 75) label = 'Healthy';
+        else if (finalScore >= 50) label = 'Stable';
+
+        return { score: finalScore, label };
+    }, [businessInsights]);
+
 
     const handleQuestionClick = async (question: string) => {
         if (!businessData || !businessInsights) return;
@@ -414,10 +509,6 @@ function OwnerHomeContent() {
     };
     
     const statementUrl = '/owner/summary';
-
-    const handleDownload = () => {
-        router.push(statementUrl);
-    }
     
     const handleSignOut = async () => {
       if(auth) {
@@ -533,6 +624,11 @@ function OwnerHomeContent() {
 
     const lowStockNotifications = businessInsights.lowStockProducts;
 
+    const profitMargin = businessInsights.profitMargin;
+    const profitMarginLabel = profitMargin >= 30 ? 'Healthy' : profitMargin >= 10 ? 'Fair' : 'Risky';
+    const profitMarginColor = profitMargin >= 30 ? 'text-success' : profitMargin >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive';
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-50 flex items-center justify-between p-4 border-b bg-card">
@@ -606,7 +702,70 @@ function OwnerHomeContent() {
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 flex flex-col gap-6">
-            
+            <Card className="bg-muted/30">
+                <CardHeader>
+                    <CardTitle className="text-base font-medium">Today's Key Insight</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground font-semibold">
+                         {isLoadingData ? <Skeleton className="h-5 w-3/4" /> : topInsight}
+                    </p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                     <CardTitle className="flex items-center gap-3 font-headline text-lg">
+                        <Activity className="w-6 h-6 text-primary" />
+                        <div className="flex-1">Business Health</div>
+                        {healthScore.score !== null && (
+                            <div className="text-right">
+                                <p className="text-2xl font-bold">{healthScore.score}<span className="text-sm text-muted-foreground">/100</span></p>
+                                <p className="text-xs font-semibold">{healthScore.label}</p>
+                            </div>
+                        )}
+                    </CardTitle>
+                </CardHeader>
+                 <CardContent className="space-y-4">
+                    {isLoadingData ? (
+                        <div className="space-y-4 pt-4">
+                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-20 w-full" />
+                           </div>
+                           <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
+                        <>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalSales, businessData?.country)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3">
+                                    <p className="text-sm text-muted-foreground">Net Profit</p>
+                                    <p className={cn("text-lg font-bold sm:text-xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.country)}</p>
+                                    {businessInsights.totalSales > 0 && <p className={cn("text-xs font-semibold", profitMarginColor)}>{profitMargin.toFixed(0)}% margin ({profitMarginLabel})</p>}
+                                </div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalDeposits, businessData?.country)}</p></div>
+                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.country)}</p></div>
+                            </div>
+                            <div className="pt-4">
+                                <Link href={statementUrl} passHref>
+                                    <Button variant="secondary" className="w-full">
+                                        <Download className="mr-2 h-4 w-4" />
+                                        View Summary & Statement
+                                    </Button>
+                                </Link>
+                            </div>
+                        </>
+                    ) : (
+                         <div className="text-center text-sm text-muted-foreground py-8">
+                            <p>Record sales and expenses to see your summary.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between font-headline text-lg gap-2">
@@ -614,7 +773,6 @@ function OwnerHomeContent() {
                             <BotMessageSquare className="w-6 h-6 text-accent" />
                             <span>Ask about your business</span>
                         </div>
-                        <span className="text-sm font-medium text-muted-foreground">Recent Activity</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -647,65 +805,18 @@ function OwnerHomeContent() {
                     </CardContent>
                 </Card>
             )}
-            
-            <Card>
-                <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <Activity className="w-6 h-6 text-primary" />
-                        <span>Business Health</span>
-                    </CardTitle>
-                </CardHeader>
-                 <CardContent className="space-y-4">
-                    {isLoadingData ? (
-                        <div className="space-y-4 pt-4">
-                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                           </div>
-                           <Skeleton className="h-10 w-full" />
-                        </div>
-                    ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
-                        <>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalSales, businessData?.country)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Net Profit</p><p className={cn("text-lg font-bold sm:text-xl", businessInsights.totalProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(businessInsights.totalProfit, businessData?.country)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money In</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalDeposits, businessData?.country)}</p></div>
-                                <div className="space-y-1 rounded-md border p-3"><p className="text-sm text-muted-foreground">Money Out</p><p className="text-lg font-bold sm:text-xl">{formatCurrency(businessInsights.totalWithdrawals, businessData?.country)}</p></div>
-                            </div>
-                            <div className="pt-4">
-                                <Link href={statementUrl} passHref>
-                                    <Button variant="secondary" className="w-full">
-                                        <Activity className="mr-2 h-4 w-4" />
-                                        View Summary & Statement
-                                    </Button>
-                                </Link>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="text-center text-sm text-muted-foreground pt-4">
-                                <p>Record sales and expenses to see your summary for this period.</p>
-                            </div>
-                             <div className="pt-4">
-                                <Link href={statementUrl} passHref>
-                                    <Button variant="secondary" className="w-full">
-                                        <Activity className="mr-2 h-4 w-4" />
-                                        View Summary & Statement
-                                    </Button>
-                                </Link>
-                            </div>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Link href="/record-sale">
                     <Button className="w-full h-16 text-lg justify-start px-4 gap-3">
                         <Plus className="w-6 h-6" />
                         Record Sale
+                    </Button>
+                </Link>
+                <Link href="/record-expense">
+                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
+                        <FilePlus className="w-6 h-6" />
+                        Record Expense
                     </Button>
                 </Link>
                 <Link href="/add-inventory">
@@ -720,12 +831,6 @@ function OwnerHomeContent() {
                         Reduce Inventory
                     </Button>
                 </Link>
-                <Link href="/record-expense">
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
-                        <FilePlus className="w-6 h-6" />
-                        Record Expense
-                    </Button>
-                </Link>
                  <Link href="/owner/add-money">
                     <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
                         <Landmark className="w-6 h-6" />
@@ -738,31 +843,21 @@ function OwnerHomeContent() {
                         Take Money
                     </Button>
                 </Link>
-                 <Link href={canManageStaff ? "/owner/staff" : "/owner/pricing"} passHref>
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" title={!canManageStaff ? "Upgrade plan to manage staff" : ""}>
-                        <Users className="w-6 h-6" />
-                        Manage Staff
-                    </Button>
-                </Link>
-                 <Link href="/owner/market">
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
-                        <Store className="w-6 h-6" />
-                        My Market
-                    </Button>
-                </Link>
-                {isNigeria ? (
-                    <Button asChild variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3">
-                        <Link href="/owner/busmopay">
-                            <Logo variant="busmopay" className="text-lg" />
-                        </Link>
-                    </Button>
-                ) : (
-                    <Button variant="secondary" className="w-full h-16 text-lg justify-start px-4 gap-3" disabled>
-                        <Logo variant="busmopay" className="text-lg" />
-                        <Badge variant="outline" className="ml-auto">Coming Soon</Badge>
-                    </Button>
-                )}
             </div>
+            
+            <Card className="border-dashed border-primary/50">
+                <CardHeader className="text-center">
+                    <div className="flex justify-center"><Lock className="w-8 h-8 text-muted-foreground"/></div>
+                    <CardTitle className="text-xl pt-2">Unlock Funding</CardTitle>
+                    <CardDescription>Build consistent records to unlock loans and investments.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center">
+                    <Button asChild variant="outline">
+                        <Link href="/owner/access-capital">Learn More</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+
           </div>
           
           {/* Right Column */}
@@ -778,7 +873,6 @@ function OwnerHomeContent() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* Weekly Profit */}
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success"/>Weekly Profit Forecast</h4>
                         {isLoadingData ? (
@@ -789,7 +883,6 @@ function OwnerHomeContent() {
                             <p className="text-muted-foreground text-xs mt-1">Not enough data to forecast profit.</p>
                         )}
                     </div>
-                    {/* Busiest Day */}
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary"/>Busiest Day Prediction</h4>
                         {isLoadingData ? (
@@ -800,7 +893,6 @@ function OwnerHomeContent() {
                             <p className="text-muted-foreground text-xs mt-1">Record more sales to predict your busiest day.</p>
                         )}
                     </div>
-                    {/* Inventory Outlook */}
                      <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning"/>Inventory Outlook</h4>
                         {isLoadingData ? (
@@ -809,6 +901,16 @@ function OwnerHomeContent() {
                              <p className="text-muted-foreground text-sm mt-1">{forecasts.inventoryOutlook}</p>
                         ) : (
                              <p className="text-muted-foreground text-xs mt-1">No low-stock items with predictable sales.</p>
+                        )}
+                    </div>
+                     <div className="p-4 rounded-lg bg-muted/50">
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5"><CircleDollarSign className="w-5 h-5 text-destructive"/>Cash Runway</h4>
+                        {isLoadingData ? (
+                             <Skeleton className="h-5 w-48 mt-1" />
+                        ) : forecasts.cashRunway !== null ? (
+                             <p className="text-muted-foreground text-sm mt-1">Your business can run for <span className="font-bold text-foreground">{forecasts.cashRunway} days</span> without new sales.</p>
+                        ) : (
+                             <p className="text-muted-foreground text-xs mt-1">Not enough expense data to calculate.</p>
                         )}
                     </div>
                 </CardContent>
@@ -839,16 +941,6 @@ function OwnerHomeContent() {
                                 <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
                              </div>
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-2"><AlertTriangle className="w-5 h-5 text-warning"/>Low Stock</h4>
-                            {businessInsights.lowStockProducts.length > 0 ? (
-                                <div className="space-y-2 text-sm">
-                                {businessInsights.lowStockProducts.slice(0, 3).map(p => (
-                                    <div key={p.id} className="flex justify-between"><span>{p.name}</span><span className="font-medium">{p.quantity} left</span></div>
-                                ))}
-                                </div>
-                            ) : <p className="text-sm text-muted-foreground">No low-stock alerts.</p>}
-                          </div>
                         </>
                      ) : (
                          <div className="text-center text-sm text-muted-foreground py-4">
@@ -857,6 +949,10 @@ function OwnerHomeContent() {
                      )}
                 </CardContent>
             </Card>
+            
+            {businessData?.marketSettings?.isStoreActive && businessId && (
+                <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />
+            )}
 
             <Card>
                 <CardHeader className="p-4">
@@ -870,7 +966,7 @@ function OwnerHomeContent() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
                     <Button variant="secondary" size="sm" className="w-full h-8 text-xs" asChild>
-                        <Link href="/owner/market">Set Up Your Store</Link>
+                        <Link href="/owner/market">Manage My Store</Link>
                     </Button>
                 </CardContent>
             </Card>
@@ -1083,5 +1179,3 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
-
-    
