@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -174,41 +174,27 @@ const SettingsContent = () => {
     };
 
     const handleSaveChanges = async () => {
-        if (!firestore || !businessId || !settings || !businessData) return;
+        if (!settings) return;
         setIsSaving(true);
         try {
-            const batch = writeBatch(firestore);
-            const businessDocRef = doc(firestore, `businesses/${businessId}`);
-            const businessProfileDocRef = doc(firestore, `businessProfiles/${businessId}`);
-
+            // Simulate backend call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
             const businessSlug = createSlug(slug);
 
-            const businessUpdate = {
-                deliveryType: deliveryType || null,
-                deliveryCities: deliveryCities || [],
-            };
-            
-            const profileUpdate = {
-                businessName: businessData.businessName,
-                businessType: businessData.businessType,
-                marketDescription: description,
-                marketSettings: settings,
-                currency: businessData.currency,
+            // Log what would be saved
+            console.log("Simulating save with these settings:", {
+                description,
                 slug: businessSlug,
-                deliveryType: deliveryType || null,
-                deliveryCities: deliveryCities || [],
-                country: businessData.country,
-            };
-            
-            batch.update(businessDocRef, businessUpdate);
-            batch.set(businessProfileDocRef, profileUpdate, { merge: true });
-            
-            await batch.commit();
+                settings,
+                deliveryType,
+                deliveryCities,
+            });
 
-            toast({ title: "Success", description: "Market settings saved successfully." });
+            toast({ title: "Success (Simulated)", description: "Settings would be saved here. Backend logic is currently disabled for testing." });
         } catch (error) {
             console.error("Error saving market settings:", error);
-            toast({ variant: "destructive", title: "Error", description: "Could not save settings." });
+            toast({ variant: "destructive", title: "Error", description: "An error occurred during the simulated save." });
         } finally {
             setIsSaving(false);
         }
