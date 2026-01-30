@@ -455,7 +455,7 @@ function OwnerHomeContent() {
         const margin = businessInsights.profitMargin;
         if(margin >= 30) score += 40;
         else if (margin >= 10) score += 20 + ((margin - 10) / 20) * 20; // Pro-rata score for 10-29%
-        else score += (margin / 10) * 20; // Pro-rata for <10%
+        else score += (margin / 10) * 20; // Pro-rata for &lt;10%
 
         const salesConsistency = Math.min(1, businessInsights.salesDays / 30);
         score += salesConsistency * 30;
@@ -895,7 +895,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success" />Weekly Profit Forecast</h4>
                     {isLoadingData ? (
-                      <p className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></p>
+                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                     ) : forecasts.weeklyProfit !== null ? (
                       <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(forecasts.weeklyProfit, businessData?.country)}</span> in profit next week.</p>
                     ) : (
@@ -905,7 +905,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary" />Busiest Day Prediction</h4>
                     {isLoadingData ? (
-                      <p className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></p>
+                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                     ) : forecasts.busiestDay ? (
                       <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">{forecasts.busiestDay}</span>. Plan for extra stock.</p>
                     ) : (
@@ -915,7 +915,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning" />Inventory Outlook</h4>
                     {isLoadingData ? (
-                      <p className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></p>
+                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                     ) : forecasts.inventoryOutlook ? (
                       <p className="text-muted-foreground text-sm mt-1">{forecasts.inventoryOutlook}</p>
                     ) : (
@@ -925,7 +925,7 @@ function OwnerHomeContent() {
                   <div className="p-4 rounded-lg bg-muted/50">
                     <h4 className="font-semibold text-sm flex items-center gap-1.5"><CircleDollarSign className="w-5 h-5 text-destructive" />Cash Runway</h4>
                     {isLoadingData ? (
-                      <p className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></p>
+                      <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                     ) : forecasts.cashRunway !== null ? (
                       <p className="text-muted-foreground text-sm mt-1">Your business can run for <span className="font-bold text-foreground">{forecasts.cashRunway} days</span> without new sales.</p>
                     ) : (
