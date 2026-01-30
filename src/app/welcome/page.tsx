@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -827,7 +826,7 @@ export default function LandingPage() {
                             <h3 className="font-semibold text-sm text-muted-foreground mb-2">Active Conversation</h3>
                             <button
                                 onClick={() => handleConversationClick(activeConversation.id)}
-                                className="w-full text-left p-3 rounded-lg border bg-accent/50 border-primary/50 hover:bg-accent"
+                                className="w-full text-left p-3 rounded-lg border bg-primary/50 border-primary/50 hover:bg-primary/60"
                             >
                                 <div className="flex items-center gap-3">
                                     {activeChatAgent ? (
