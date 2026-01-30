@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -1075,8 +1076,8 @@ function OwnerHomeContent() {
                     </>
                   ) : agentsError ? (
                     <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
-                  ) : onlineAgents && onlineAgents.length > 0 ? (
-                    onlineAgents.map(agent => (
+                  ) : allAgents && allAgents.length > 0 ? (
+                    allAgents.map(agent => (
                       <div key={agent.userId} className="flex items-center gap-3">
                         <div className="relative">
                           <Avatar className="h-10 w-10">
@@ -1086,16 +1087,20 @@ function OwnerHomeContent() {
                               <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
                             )}
                           </Avatar>
-                          {agent.status === 'online' && <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />}
+                          {agent.status === 'online' ? (
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                          ) : (
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-background" />
+                          )}
                         </div>
                         <div>
                           <p className="font-semibold">{agent.displayName}</p>
-                          <p className="text-xs text-muted-foreground">Support Agent</p>
+                          <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status})</p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No agents are currently online.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No support agents have been set up yet.</p>
                   )}
                 </div>
               </div>
