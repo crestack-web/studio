@@ -32,8 +32,13 @@ service cloud.firestore {
     // Check if the requesting user is the owner of a specific business.
     function isOwner(businessId) {
       if (!isSignedIn()) { return false; }
-      let userData = getRequestingUserData();
-      return userData.businessId == businessId && userData.role == 'Owner';
+      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
+      if (!exists(businessDocPath)) {
+          return false;
+      }
+      // Directly check the ownerId on the business document for robustness.
+      let businessDoc = get(businessDocPath);
+      return businessDoc.data.ownerId == request.auth.uid;
     }
 
     // Check if the requesting user is a member of a specific business.
