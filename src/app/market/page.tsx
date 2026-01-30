@@ -336,7 +336,7 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
-                        <Card className="min-h-[420px] overflow-hidden p-0">
+                        <Card className="h-[250px] lg:h-[420px] overflow-hidden p-0">
                         {isLoadingBanners ? <Skeleton className="h-full w-full" /> : (heroBanners && heroBanners.length > 0 &&
                                 <Carousel
                                     plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -363,7 +363,7 @@ export default function MarketPage() {
                                 </Carousel>
                         )}
                         </Card>
-                        <div className="hidden w-[250px] lg:block">
+                        <div className="hidden lg:block w-[250px]">
                             <Card className="h-full">
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
