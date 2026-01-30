@@ -31,9 +31,10 @@ export default function MarketLayout({
         <div className="flex flex-col min-h-screen bg-muted/20">
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
                 <div className="container mx-auto">
-                    <div className="flex h-20 items-center justify-between px-4 gap-4">
-                        <div className="flex-1 flex justify-start">
-                            <div className="md:hidden">
+                    {/* Mobile Header */}
+                    <div className="md:hidden">
+                        <div className="flex h-16 items-center justify-between px-4">
+                            <div>
                                 <Sheet>
                                     <SheetTrigger asChild>
                                         <Button variant="ghost" size="icon">
@@ -58,38 +59,58 @@ export default function MarketLayout({
                                     </SheetContent>
                                 </Sheet>
                             </div>
-                        </div>
-                        
-                        <div className="flex-shrink-0">
                             <Link href="/market"><Logo className="h-8" /></Link>
+                            <div className="flex items-center gap-1">
+                                <MarketSwitcher />
+                                <Link href="/market/cart" passHref>
+                                    <Button variant="ghost" size="icon" className="relative">
+                                        <ShoppingCart className="h-6 w-6" />
+                                        {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
+                                        <span className="sr-only">Cart</span>
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
+                        <div className="px-4 pb-4">
+                            <div className="relative w-full max-w-2xl mx-auto">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search products, stores, or categories" 
+                                    className="pl-10 h-12 text-base"
+                                    value={isSearchControlled ? searchValue : undefined}
+                                    onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
+                                />
+                            </div>
+                        </div>
+                    </div>
 
-                        <div className="flex-1 flex justify-end items-center gap-1 sm:gap-2">
+                    {/* Desktop Header */}
+                    <div className="hidden md:flex h-20 items-center justify-between px-4 gap-6">
+                        <div className="flex items-center gap-6">
+                            <Link href="/market"><Logo className="h-8" /></Link>
                             <MarketSwitcher />
-                            <Link href="/market/cart" passHref>
+                        </div>
+                        <div className="flex-1 max-w-lg">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search products, stores, or categories" 
+                                    className="pl-10 h-12 text-base"
+                                    value={isSearchControlled ? searchValue : undefined}
+                                    onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <Link href="/market/cart" passHref>
                                 <Button variant="ghost" size="icon" className="relative">
                                     <ShoppingCart className="h-6 w-6" />
                                     {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
                                     <span className="sr-only">Cart</span>
                                 </Button>
                             </Link>
-                            
-                            <div className="hidden md:flex items-center gap-2">
-                                <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                                <Button asChild><Link href="/signup">Sign Up</Link></Button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="px-4 pb-4">
-                        <div className="relative w-full max-w-2xl mx-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search products, stores, or categories" 
-                                className="pl-10 h-12 text-base"
-                                value={isSearchControlled ? searchValue : undefined}
-                                onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
-                            />
+                            <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
                         </div>
                     </div>
                 </div>
