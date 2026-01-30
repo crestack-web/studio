@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -989,6 +989,25 @@ function OwnerHomeContent() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {isNigeria && (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CreditCard className="w-5 h-5 text-primary" />
+                      BusmoPay
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Track online revenue and manage payouts.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <Button variant="secondary" size="sm" className="w-full h-8 text-xs" asChild>
+                      <Link href="/owner/busmopay">View Dashboard</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader className="p-4">
