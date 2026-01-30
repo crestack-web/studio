@@ -360,19 +360,24 @@ export default function MarketPage() {
                                 </Carousel>
                         )}
                         </div>
-                        <div className="lg:col-span-1 flex flex-col justify-between gap-3">
-                            {promoCategories.map(category => (
-                                <Link href={category.href} key={category.name} className="flex-1">
-                                    <Card className="hover:bg-muted/50 hover:border-primary/30 transition-colors h-full">
-                                        <CardContent className="p-4 flex items-center gap-4 h-full">
-                                            <div className="p-3 bg-primary/10 rounded-md">
-                                                <category.icon className="h-6 w-6 text-primary" />
-                                            </div>
-                                            <span className="font-semibold">{category.name}</span>
-                                        </CardContent>
-                                    </Card>
-                                </Link>
-                            ))}
+                        <div className="lg:col-span-1">
+                            <Card className="h-full">
+                                <CardHeader className="p-4 pb-2">
+                                    <CardTitle className="text-lg">Categories</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4 pt-0">
+                                    <div className="space-y-2">
+                                        {promoCategories.map(category => (
+                                            <Link href={category.href} key={category.name} className="block">
+                                                <div className="flex items-center gap-3 hover:bg-muted/50 p-2 rounded-md transition-colors">
+                                                    <category.icon className="h-5 w-5 text-muted-foreground" />
+                                                    <span className="font-medium text-sm">{category.name}</span>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </div>
                 </section>
