@@ -13,7 +13,7 @@ import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -329,6 +329,10 @@ export default function MarketPage() {
                     <section>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                            opts={{
+                              align: "start",
+                              loop: true,
+                            }}
                             className="w-full"
                         >
                             <CarouselContent>
@@ -336,9 +340,9 @@ export default function MarketPage() {
                                     <CarouselItem key={banner.id}>
                                         <div className={cn("relative h-64 md:h-80 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
                                             {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
-                                            <div className="relative text-center z-10 bg-black/40 text-white p-6 rounded-lg backdrop-blur-sm">
-                                                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
-                                                <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>
+                                            <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
+                                                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">{banner.title}</h1>
+                                                <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>
                                                 <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
                                             </div>
                                         </div>
@@ -351,32 +355,58 @@ export default function MarketPage() {
                 
                 {/* 2. Quick Categories */}
                  {isLoadingCategories ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-4">
-                        {[...Array(7)].map((_, i) => (
-                            <div key={i} className="block group text-center">
-                                <Skeleton className="aspect-square rounded-lg mb-2" />
-                                <Skeleton className="h-5 w-16 mx-auto" />
+                    <Card>
+                        <CardHeader>
+                            <Skeleton className="h-8 w-48" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex gap-4">
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="flex-shrink-0 w-24">
+                                        <Skeleton className="aspect-square rounded-lg mb-2" />
+                                        <Skeleton className="h-5 w-16 mx-auto" />
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </CardContent>
+                    </Card>
                 ) : (categories && categories.length > 0 &&
                     <section>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-4">
-                            {categories.map(category => (
-                                <Link href="#" key={category.id} className="block group text-center">
-                                    <div className="relative aspect-square overflow-hidden rounded-lg">
-                                        <Image
-                                            src={category.imageUrl}
-                                            alt={category.name || ''}
-                                            fill
-                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                            data-ai-hint={category.imageHint}
-                                        />
-                                    </div>
-                                    <p className="mt-2 text-sm font-semibold text-foreground truncate">{category.name}</p>
-                                </Link>
-                            ))}
-                        </div>
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Shop by Category</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4">
+                                <Carousel
+                                    opts={{
+                                        align: "start",
+                                        loop: false,
+                                    }}
+                                    className="w-full"
+                                >
+                                    <CarouselContent className="-ml-4">
+                                        {categories.map(category => (
+                                            <CarouselItem key={category.id} className="pl-4 basis-1/3 sm:basis-1/4 md:basis-1/6 lg:basis-1/8">
+                                                <Link href="#" className="block group text-center">
+                                                    <div className="relative aspect-square overflow-hidden rounded-lg">
+                                                        <Image
+                                                            src={category.imageUrl}
+                                                            alt={category.name || ''}
+                                                            fill
+                                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                            data-ai-hint={category.imageHint}
+                                                        />
+                                                    </div>
+                                                    <p className="mt-2 text-sm font-semibold text-foreground truncate">{category.name}</p>
+                                                </Link>
+                                            </CarouselItem>
+                                        ))}
+                                    </CarouselContent>
+                                    <CarouselPrevious className="hidden sm:flex" />
+                                    <CarouselNext className="hidden sm:flex" />
+                                </Carousel>
+                            </CardContent>
+                        </Card>
                     </section>
                 )}
                 
