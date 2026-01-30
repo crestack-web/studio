@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket } from 'lucide-react';
+import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
@@ -145,6 +145,10 @@ const promoCategories = [
     { name: 'Electronics', icon: Smartphone, href: '#' },
     { name: 'Home Goods', icon: Lamp, href: '#' },
     { name: 'Groceries', icon: ShoppingBasket, href: '#' },
+    { name: 'Health & Beauty', icon: HeartPulse, href: '#' },
+    { name: 'Books', icon: BookOpen, href: '#' },
+    { name: 'Toys & Games', icon: Puzzle, href: '#' },
+    { name: 'Automotive', icon: Car, href: '#' },
 ];
 
 export default function MarketPage() {
@@ -332,8 +336,8 @@ export default function MarketPage() {
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-                        <div className="lg:col-span-2 min-h-[420px]">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
+                        <div className="min-h-[420px]">
                         {isLoadingBanners ? <Skeleton className="h-full w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
                                 <Carousel
                                     plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -360,7 +364,7 @@ export default function MarketPage() {
                                 </Carousel>
                         )}
                         </div>
-                        <div className="lg:col-span-1">
+                        <div>
                             <Card className="h-full">
                                 <CardHeader className="p-4 pb-2">
                                     <CardTitle className="text-lg">Categories</CardTitle>
