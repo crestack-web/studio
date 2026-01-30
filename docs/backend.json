@@ -25,6 +25,20 @@
         "onboardingCompleted": {
           "type": "boolean",
           "description": "A flag to indicate if the business has completed the initial setup."
+        },
+        "slug": {
+          "type": "string",
+          "description": "The unique, URL-friendly slug for the business's market page."
+        },
+        "deliveryType": {
+          "type": "string",
+          "enum": ["nationwide", "cities"],
+          "description": "The delivery scope for the business."
+        },
+        "deliveryCities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of cities the business delivers to."
         }
       },
       "required": [

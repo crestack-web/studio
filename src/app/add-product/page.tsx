@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, Plus, Loader2, FileUp, X, FileEdit, Check } from 'lucide-react';
+import { Trash2, Plus, Loader2, FileUp, X, FileEdit, Check, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -72,6 +72,10 @@ interface MarketCategory {
     name: string;
 }
 
+interface BusinessVerification {
+    status: 'unverified' | 'pending' | 'verified' | 'rejected';
+}
+
 export default function AddProductPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -121,6 +125,13 @@ export default function AddProductPage() {
         return doc(firestore, `businesses/${businessId}`);
     }, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
+
+    const verificationRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, `businessVerifications/${businessId}`);
+    }, [firestore, businessId]);
+    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<BusinessVerification>(verificationRef);
+    const isBusinessVerified = verificationData?.status === 'verified';
 
     const productRef = useMemoFirebase(() => {
         if (!isEditMode || !firestore || !businessId) return null;
@@ -305,11 +316,12 @@ export default function AddProductPage() {
         }
 
         if (isListedOnMarket) {
+            if (!isBusinessVerified) return false;
             if (!deliverySettingsConfigured) return false;
             return images.length > 0 && productDescription && productCategory;
         }
         return true;
-    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory, deliverySettingsConfigured]);
+    }, [productName, sellingPrice, initialQuantity, costPrice, hasVariants, variants, isManufactured, totalIngredientCost, isListedOnMarket, images, productDescription, productCategory, deliverySettingsConfigured, isBusinessVerified]);
 
     const handleSaveProduct = async () => {
         if (!canSaveProduct || !firestore || !businessId || !businessData) return;
@@ -347,7 +359,7 @@ export default function AddProductPage() {
                 updateDocumentNonBlocking(docRef, updatedProductData);
                 
                 const marketProductRef = doc(firestore, 'marketProducts', productId);
-                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
+                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured && isBusinessVerified) {
                     setDocumentNonBlocking(marketProductRef, {
                         ...updatedProductData,
                         productId: productId,
@@ -369,7 +381,7 @@ export default function AddProductPage() {
                 const newProductData = { ...productPayload, createdAt: serverTimestamp() };
                 const newProductRef = await addDocumentNonBlocking(collection(firestore, `businesses/${businessId}/products`), newProductData);
                 
-                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured) {
+                if (isListedOnMarket && images.length > 0 && deliverySettingsConfigured && isBusinessVerified) {
                     const marketProductData = {
                         productId: newProductRef.id,
                         businessId: businessId,
@@ -404,7 +416,7 @@ export default function AddProductPage() {
         }
     };
 
-    if (isLoadingProduct) {
+    if (isLoadingProduct || isLoadingVerification) {
         return (
             <MainLayout title="Loading Product..." backHref="/owner/market">
                 <div className="w-full max-w-md space-y-6">
@@ -586,6 +598,17 @@ export default function AddProductPage() {
                             <Label htmlFor="market-listing">List this product on Busmo Market</Label>
                         </div>
                         
+                        {isListedOnMarket && !isBusinessVerified && (
+                             <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Business Verification Required</AlertTitle>
+                                <AlertDescription>
+                                    You must verify your business to list products.
+                                    <Button asChild variant="link" className="p-0 h-auto ml-1"><Link href="/owner/market?section=verification">Go to Verification</Link></Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        
                         {!deliverySettingsConfigured && isListedOnMarket && (
                             <Alert variant="destructive">
                                 <AlertTitle>Delivery Settings Required</AlertTitle>
@@ -640,7 +663,7 @@ export default function AddProductPage() {
                 </Card>
 
 
-                <Button className="w-full h-14 text-lg" disabled={!canSaveProduct || isLoading} onClick={handleSaveProduct}>
+                <Button className="w-full h-14 text-lg" disabled={!canSaveProduct || isLoading || isLoadingVerification} onClick={handleSaveProduct}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isEditMode ? "Update Product" : "Add Product"}
                 </Button>

@@ -5,8 +5,8 @@
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
+import { useToast, ToastAction } from '@/hooks/use-toast';
 import { formatCurrency, markets } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -174,27 +174,31 @@ const SettingsContent = () => {
     };
 
     const handleSaveChanges = async () => {
-        if (!settings) return;
+        if (!settings || !businessId || !firestore) return;
         setIsSaving(true);
         try {
-            // Simulate backend call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
             const businessSlug = createSlug(slug);
+            const businessDocRef = doc(firestore, 'businesses', businessId);
+            const businessProfileDocRef = doc(firestore, 'businessProfiles', businessId);
 
-            // Log what would be saved
-            console.log("Simulating save with these settings:", {
-                description,
+            // Use non-blocking updates for a faster UI response.
+            updateDocumentNonBlocking(businessProfileDocRef, {
+                marketDescription: description,
                 slug: businessSlug,
-                settings,
-                deliveryType,
-                deliveryCities,
+                marketSettings: settings,
             });
 
-            toast({ title: "Success (Simulated)", description: "Settings would be saved here. Backend logic is currently disabled for testing." });
+            updateDocumentNonBlocking(businessDocRef, {
+                slug: businessSlug,
+                deliveryType: deliveryType,
+                deliveryCities: deliveryCities || [],
+            });
+
+
+            toast({ title: "Settings Saved", description: "Your market settings have been updated." });
         } catch (error) {
             console.error("Error saving market settings:", error);
-            toast({ variant: "destructive", title: "Error", description: "An error occurred during the simulated save." });
+            toast({ variant: "destructive", title: "Save Failed", description: "There was an issue saving your settings." });
         } finally {
             setIsSaving(false);
         }
@@ -510,9 +514,12 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
     );
 }
 
-const ProductsContent = () => {
+const ProductsContent = ({ setActiveSection }: { setActiveSection: (section: string) => void }) => {
     const firestore = useFirestore();
     const { user } = useUser();
+    const { toast } = useToast();
+    const router = useRouter();
+
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
     const businessId = userProfile?.businessId;
@@ -520,12 +527,26 @@ const ProductsContent = () => {
     const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businesses/${businessId}`) : null, [firestore, businessId]);
     const { data: businessData } = useDoc<Business>(businessRef);
 
+    const verificationRef = useMemoFirebase(() => businessId ? doc(firestore, `businessVerifications/${businessId}`) : null, [firestore, businessId]);
+    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{ status: string }>(verificationRef);
+    const isBusinessVerified = verificationData?.status === 'verified';
+
     const productsQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/products`)) : null, [firestore, businessId]);
-    const { data: products, isLoading } = useCollection<Product>(productsQuery);
+    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
     const handleListingChange = async (product: Product, isListed: boolean) => {
         if (!firestore || !businessId || !businessData) return;
-        
+
+        if (isListed && !isBusinessVerified) {
+            toast({
+                variant: 'destructive',
+                title: 'Business Not Verified',
+                description: 'Please complete your business verification to list products.',
+                action: <ToastAction altText="Verify Now" onClick={() => setActiveSection('verification')}>Verify</ToastAction>,
+            });
+            return;
+        }
+
         const productDocRef = doc(firestore, `businesses/${businessId}/products`, product.id);
         updateDocumentNonBlocking(productDocRef, { isPublishedToMarket: isListed });
 
@@ -563,7 +584,7 @@ const ProductsContent = () => {
         }
     };
     
-    if (isLoading) {
+    if (isLoadingProducts || isLoadingVerification) {
         return <ProductsSkeleton />;
     }
     
@@ -578,6 +599,18 @@ const ProductsContent = () => {
                     <Link href="/add-product">Add New Product</Link>
                 </Button>
             </div>
+            {!isBusinessVerified && (
+                <Alert variant="destructive" className="mb-6">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Verification Required to Sell</AlertTitle>
+                    <AlertDescription>
+                        Your business must be verified to list products on the market. 
+                        <Button variant="link" className="p-0 h-auto ml-1" onClick={() => setActiveSection('verification')}>
+                            Complete Verification Now
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products && products.length > 0 ? products.map((product) => (
                     <OwnerProductCard 
@@ -733,16 +766,7 @@ const OrdersContent = () => {
                 <CardContent className="p-0">
                     <div className="relative w-full overflow-auto">
                         <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b">
-                                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Items</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Actions</th>
-                                </tr>
-                            </thead>
+                            <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Items</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Actions</th></tr></thead>
                             <tbody className="[&_tr:last-child]:border-0">
                                 {sortedOrders && sortedOrders.length > 0 ? sortedOrders.map((order) => (
                                     <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
@@ -1012,7 +1036,9 @@ const BusmoPaySettings = () => {
 
 // #region --- MAIN PAGE COMPONENT ---
 export default function ManageMarketPage() {
-    const [activeSection, setActiveSection] = useState('products');
+    const searchParams = useSearchParams();
+    const initialSection = searchParams.get('section') || 'products';
+    const [activeSection, setActiveSection] = useState(initialSection);
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const router = useRouter();
 
@@ -1030,6 +1056,7 @@ export default function ManageMarketPage() {
             { id: 'products', label: 'Products', icon: Package },
             { id: 'orders', label: 'Orders', icon: ShoppingCart },
             { id: 'customers', label: 'Customers', icon: Users },
+            { id: 'verification', label: 'Verification', icon: PackageCheck },
             { id: 'settings', label: 'Store Settings', icon: Settings },
         ];
         if (businessData?.country === 'NG') {
@@ -1039,21 +1066,23 @@ export default function ManageMarketPage() {
     }, [businessData]);
     
     useEffect(() => {
-        if (activeSection === 'busmopay' && !menuItems.find(item => item.id === 'busmopay')) {
-            setActiveSection('products');
+        const section = searchParams.get('section');
+        if (section && menuItems.find(item => item.id === section)) {
+            setActiveSection(section);
         }
-    }, [activeSection, menuItems]);
+    }, [searchParams, menuItems]);
     
     const activeMenuItem = menuItems.find((item) => item.id === activeSection);
     
     const renderContent = () => {
         switch (activeSection) {
             case 'settings': return <SettingsContent />;
-            case 'products': return <ProductsContent />;
+            case 'products': return <ProductsContent setActiveSection={setActiveSection} />;
             case 'orders': return <OrdersContent />;
             case 'customers': return <CustomersContent />;
             case 'busmopay': return <BusmoPaySettings />;
-            default: return <ProductsContent />;
+            case 'verification': return <BusinessVerificationContent />;
+            default: return <ProductsContent setActiveSection={setActiveSection} />;
         }
     };
     
@@ -1119,5 +1148,135 @@ export default function ManageMarketPage() {
             </div>
         </SidebarProvider>
     );
+}
+
+const BusinessVerificationContent = () => {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+    
+    const verificationRef = useMemoFirebase(() => businessId ? doc(firestore, `businessVerifications/${businessId}`) : null, [firestore, businessId]);
+    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{status: string, rejectionReason?: string, idImageUrl?: string, stockImageUrl?: string, storeImageUrl?: string}>(verificationRef);
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [idImage, setIdImage] = useState<string | null>(null);
+    const [stockImage, setStockImage] = useState<string | null>(null);
+    const [storeImage, setStoreImage] = useState<string | null>(null);
+
+    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => setter(reader.result as string);
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Image Upload Failed', description: 'Could not process the image. Please try another file.' });
+        }
+    };
+    
+    const handleSubmit = async () => {
+        if (!idImage || !stockImage || !storeImage) {
+            toast({ variant: 'destructive', title: 'Missing Documents', description: 'Please upload all three required images.' });
+            return;
+        }
+        if (!verificationRef) return;
+        
+        setIsSubmitting(true);
+        try {
+            await setDocumentNonBlocking(verificationRef, {
+                businessId: businessId,
+                status: 'pending',
+                submittedAt: serverTimestamp(),
+                idImageUrl: idImage,
+                stockImageUrl: stockImage,
+                storeImageUrl: storeImage,
+            }, { merge: true });
+            toast({ title: 'Documents Submitted!', description: 'Your verification application is now pending review.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Submission Failed', description: 'An error occurred. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    const ImageUploader = ({ title, description, image, onImageUpload, isSubmitting }: any) => (
+        <Card>
+            <CardHeader><CardTitle className="text-base">{title}</CardTitle><CardDescription className="text-sm">{description}</CardDescription></CardHeader>
+            <CardContent>
+                <Label htmlFor={`${title}-upload`} className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
+                    {image ? (
+                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2" />
+                    ) : (
+                        <div className="text-center text-muted-foreground"><FileUp className="mx-auto h-8 w-8" /><span>Click to Upload</span></div>
+                    )}
+                </Label>
+                <Input id={`${title}-upload`} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, onImageUpload)} disabled={isSubmitting} />
+            </CardContent>
+        </Card>
+    );
+    
+    if (isLoadingVerification) {
+        return <div className="space-y-6"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>
+    }
+
+    if (verificationData?.status === 'verified') {
+        return (
+            <Card className="text-center">
+                <CardHeader>
+                    <div className="flex justify-center"><CheckCircle className="w-16 h-16 text-success" /></div>
+                    <CardTitle className="text-2xl pt-4">Business Verified!</CardTitle>
+                    <CardDescription>Your business is verified and you can now sell products on the Busmo Market.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+    
+     if (verificationData?.status === 'pending') {
+        return (
+            <Card className="text-center">
+                <CardHeader>
+                    <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
+                    <CardTitle className="text-2xl pt-4">Verification Pending</CardTitle>
+                    <CardDescription>Your documents have been submitted and are awaiting review. This typically takes 24-48 hours.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+
+    return (
+         <div className="space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Business Verification</CardTitle>
+                    <CardDescription>To ensure a safe marketplace, please provide the following documents.</CardDescription>
+                </CardHeader>
+             </Card>
+            {verificationData?.status === 'rejected' && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Verification Rejected</AlertTitle>
+                    <AlertDescription>
+                       Your previous submission was rejected. Reason: {verificationData.rejectionReason || 'No reason provided.'} Please re-upload your documents and submit again.
+                    </AlertDescription>
+                </Alert>
+            )}
+             <div className="grid md:grid-cols-3 gap-6">
+                <ImageUploader title="Valid ID" description="e.g., National ID, Driver's License" image={idImage || verificationData?.idImageUrl} onImageUpload={setIdImage} isSubmitting={isSubmitting}/>
+                <ImageUploader title="Proof of Stock" description="A photo showing your products/inventory" image={stockImage || verificationData?.stockImageUrl} onImageUpload={setStockImage} isSubmitting={isSubmitting}/>
+                <ImageUploader title="Store/Shop Image" description="A photo of your physical shop or workspace" image={storeImage || verificationData?.storeImageUrl} onImageUpload={setStoreImage} isSubmitting={isSubmitting}/>
+             </div>
+             <Button size="lg" className="w-full h-14 text-lg" onClick={handleSubmit} disabled={isSubmitting || !idImage || !stockImage || !storeImage}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit for Verification
+            </Button>
+         </div>
+    )
 }
 // #endregion
