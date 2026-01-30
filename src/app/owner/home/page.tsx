@@ -702,13 +702,13 @@ function OwnerHomeContent() {
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <Card className="bg-primary text-primary-foreground">
+            <Card className="bg-primary/30">
                 <CardHeader>
-                    <CardTitle className="text-base font-medium text-primary-foreground/80">Today's Key Insight</CardTitle>
+                    <CardTitle className="text-base font-medium text-foreground/80">Today's Key Insight</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {isLoadingData ? (
-                        <div className="font-semibold"><Skeleton className="h-5 w-3/4 bg-primary-foreground/20" /></div>
+                        <div className="font-semibold"><Skeleton className="h-5 w-3/4" /></div>
                     ) : (
                         <p className="font-semibold">
                             {topInsight}
@@ -880,7 +880,7 @@ function OwnerHomeContent() {
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success"/>Weekly Profit Forecast</h4>
                         {isLoadingData ? (
-                            <Skeleton className="h-5 w-48 mt-1" />
+                            <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                         ) : forecasts.weeklyProfit !== null ? (
                             <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(forecasts.weeklyProfit, businessData?.country)}</span> in profit next week.</p>
                         ) : (
@@ -890,7 +890,7 @@ function OwnerHomeContent() {
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary"/>Busiest Day Prediction</h4>
                         {isLoadingData ? (
-                             <Skeleton className="h-5 w-48 mt-1" />
+                             <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                         ) : forecasts.busiestDay ? (
                             <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">{forecasts.busiestDay}</span>. Plan for extra stock.</p>
                         ) : (
@@ -900,7 +900,7 @@ function OwnerHomeContent() {
                      <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning"/>Inventory Outlook</h4>
                         {isLoadingData ? (
-                             <Skeleton className="h-5 w-48 mt-1" />
+                             <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                         ) : forecasts.inventoryOutlook ? (
                              <p className="text-muted-foreground text-sm mt-1">{forecasts.inventoryOutlook}</p>
                         ) : (
@@ -910,7 +910,7 @@ function OwnerHomeContent() {
                      <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><CircleDollarSign className="w-5 h-5 text-destructive"/>Cash Runway</h4>
                         {isLoadingData ? (
-                             <Skeleton className="h-5 w-48 mt-1" />
+                             <div className="font-semibold"><Skeleton className="h-5 w-48 mt-1" /></div>
                         ) : forecasts.cashRunway !== null ? (
                              <p className="text-muted-foreground text-sm mt-1">Your business can run for <span className="font-bold text-foreground">{forecasts.cashRunway} days</span> without new sales.</p>
                         ) : (
