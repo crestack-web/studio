@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useUser, useDoc } from '@/firebase';
 import { collection, query, doc, orderBy, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Interfaces based on backend.json
 interface ChatConversation {
@@ -49,10 +52,62 @@ interface SupportTicket {
     userEmail: string;
 }
 
+interface SupportAgent {
+    userId: string;
+    displayName: string;
+    avatarUrl?: string;
+    status: 'online' | 'offline';
+    language?: 'en' | 'fr';
+}
+
 const statusVariant: { [key in ChatConversation['status']]: "default" | "secondary" | "destructive" } = {
     open: 'destructive',
     'in-progress': 'secondary',
     closed: 'default',
+};
+
+const AgentStatusControl = () => {
+    const firestore = useFirestore();
+    const { user: adminUser, isUserLoading } = useUser();
+    const { toast } = useToast();
+
+    const agentRef = useMemoFirebase(() => {
+        if (!firestore || !adminUser) return null;
+        return doc(firestore, 'supportAgents', adminUser.uid);
+    }, [firestore, adminUser]);
+
+    const { data: agentProfile, isLoading: isLoadingAgent } = useDoc<SupportAgent>(agentRef);
+
+    const handleStatusChange = async (isOnline: boolean) => {
+        if (!agentRef) return;
+        const newStatus = isOnline ? 'online' : 'offline';
+        await updateDocumentNonBlocking(agentRef, { status: newStatus });
+        toast({
+            title: `You are now ${newStatus}.`,
+            description: isOnline ? "You will now receive incoming chats." : "You will not receive new chats.",
+        });
+    };
+
+    if (isUserLoading || isLoadingAgent) {
+        return <Skeleton className="h-8 w-24" />;
+    }
+
+    if (!agentProfile) {
+        return null;
+    }
+
+    return (
+        <div className="flex items-center space-x-2">
+            <Switch
+                id="agent-status"
+                checked={agentProfile.status === 'online'}
+                onCheckedChange={handleStatusChange}
+            />
+            <Label htmlFor="agent-status" className="font-medium capitalize">
+                {agentProfile.status}
+            </Label>
+        </div>
+    );
 };
 
 
@@ -293,7 +348,10 @@ const SupportTickets = () => {
 export default function AdminSupportPage() {
     return (
         <main className="flex-1 p-4 sm:p-6 space-y-6">
-            <h1 className="text-2xl font-bold font-headline">Support Center</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold font-headline">Support Center</h1>
+                <AgentStatusControl />
+            </div>
             <Tabs defaultValue="live-chat">
                 <TabsList>
                     <TabsTrigger value="live-chat">Live Chat</TabsTrigger>
