@@ -702,15 +702,15 @@ function OwnerHomeContent() {
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <Card className="bg-muted/30">
+            <Card className="bg-primary text-primary-foreground">
                 <CardHeader>
-                    <CardTitle className="text-base font-medium">Today's Key Insight</CardTitle>
+                    <CardTitle className="text-base font-medium text-primary-foreground/80">Today's Key Insight</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {isLoadingData ? (
-                        <div className="text-muted-foreground font-semibold"><Skeleton className="h-5 w-3/4" /></div>
+                        <div className="font-semibold"><Skeleton className="h-5 w-3/4 bg-primary-foreground/20" /></div>
                     ) : (
-                        <p className="text-muted-foreground font-semibold">
+                        <p className="font-semibold">
                             {topInsight}
                         </p>
                     )}
