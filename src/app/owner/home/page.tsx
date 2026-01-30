@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -305,6 +305,76 @@ function OwnerHomeContent() {
         };
 
     }, [salesData, productsData, businessData, transactionsData, expensesData]);
+    
+    const forecasts = useMemo(() => {
+        const defaultForecasts = {
+            weeklyProfit: null,
+            busiestDay: null,
+            inventoryOutlook: null,
+        };
+
+        if (!salesData || salesData.length < 2 || !businessInsights.totalProfit) {
+            return defaultForecasts;
+        }
+
+        // 1. Weekly Profit Forecast
+        const firstSaleDate = salesData[salesData.length - 1].timestamp.toDate();
+        const lastSaleDate = salesData[0].timestamp.toDate();
+        const periodInDays = differenceInDays(lastSaleDate, firstSaleDate) + 1;
+        let weeklyProfit = null;
+        if (periodInDays > 0) {
+            const dailyAvgProfit = businessInsights.totalProfit / periodInDays;
+            weeklyProfit = dailyAvgProfit * 7;
+        }
+
+        // 2. Busiest Day Prediction
+        const dayCounts = Array(7).fill(0);
+        salesData.forEach(sale => {
+            const dayIndex = sale.timestamp.toDate().getDay(); // 0 for Sunday, 1 for Monday, etc.
+            dayCounts[dayIndex]++;
+        });
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const busiestDayIndex = dayCounts.indexOf(Math.max(...dayCounts));
+        const busiestDay = daysOfWeek[busiestDayIndex];
+        
+        // 3. Inventory Outlook
+        let inventoryOutlook = null;
+        if (businessInsights.lowStockProducts.length > 0 && periodInDays > 0) {
+            let mostAtRiskProduct: { name: string; days: number; } | null = null;
+            let minDays = Infinity;
+
+            for (const lowStockProduct of businessInsights.lowStockProducts) {
+                const salesOfProduct = salesData.filter(s => s.productId === lowStockProduct.id);
+                const totalSold = salesOfProduct.reduce((acc, s) => acc + s.quantity, 0);
+
+                if (totalSold > 0) {
+                    const dailyConsumption = totalSold / periodInDays;
+                    if (dailyConsumption > 0) {
+                        const daysToDepletion = lowStockProduct.quantity / dailyConsumption;
+                        if (daysToDepletion < minDays) {
+                            minDays = daysToDepletion;
+                            mostAtRiskProduct = {
+                                name: lowStockProduct.name,
+                                days: Math.floor(daysToDepletion)
+                            };
+                        }
+                    }
+                }
+            }
+            
+            if (mostAtRiskProduct && mostAtRiskProduct.days !== Infinity && mostAtRiskProduct.days >= 0) {
+                inventoryOutlook = `You are likely to run out of ${mostAtRiskProduct.name} in ${mostAtRiskProduct.days} days.`;
+            }
+        }
+
+
+        return {
+            weeklyProfit,
+            busiestDay,
+            inventoryOutlook,
+        };
+
+    }, [businessInsights, salesData]);
 
     const handleQuestionClick = async (question: string) => {
         if (!businessData || !businessInsights) return;
@@ -752,21 +822,42 @@ function OwnerHomeContent() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {/* Weekly Profit */}
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success"/>Weekly Profit Forecast</h4>
-                        <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(42000, businessData?.country)}</span> in profit next week.</p>
+                        {isLoadingData ? (
+                            <Skeleton className="h-5 w-48 mt-1" />
+                        ) : forecasts.weeklyProfit !== null ? (
+                            <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(forecasts.weeklyProfit, businessData?.country)}</span> in profit next week.</p>
+                        ) : (
+                            <p className="text-muted-foreground text-xs mt-1">Not enough data to forecast profit.</p>
+                        )}
                     </div>
+                    {/* Busiest Day */}
                     <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary"/>Busiest Day Prediction</h4>
-                        <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">Saturday</span>. Plan for extra stock.</p>
+                        {isLoadingData ? (
+                             <Skeleton className="h-5 w-48 mt-1" />
+                        ) : forecasts.busiestDay ? (
+                            <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">{forecasts.busiestDay}</span>. Plan for extra stock.</p>
+                        ) : (
+                            <p className="text-muted-foreground text-xs mt-1">Record more sales to predict your busiest day.</p>
+                        )}
                     </div>
+                    {/* Inventory Outlook */}
                      <div className="p-4 rounded-lg bg-muted/50">
                         <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning"/>Inventory Outlook</h4>
-                        <p className="text-muted-foreground text-sm mt-1">You are likely to run out of <span className="font-bold text-foreground">Bottled Water</span> in 3 days.</p>
+                        {isLoadingData ? (
+                             <Skeleton className="h-5 w-48 mt-1" />
+                        ) : forecasts.inventoryOutlook ? (
+                             <p className="text-muted-foreground text-sm mt-1">{forecasts.inventoryOutlook}</p>
+                        ) : (
+                             <p className="text-muted-foreground text-xs mt-1">No low-stock items with predictable sales.</p>
+                        )}
                     </div>
                 </CardContent>
             </Card>
-             <Card>
+            <Card>
                 <CardHeader className="p-4">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Store className="w-5 h-5 text-primary" />
