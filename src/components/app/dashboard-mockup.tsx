@@ -158,23 +158,29 @@ export function DashboardMockup() {
             Business Health
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 grid grid-cols-2 gap-2">
-          <div className="space-y-0.5 rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Revenue</p>
-            <p className="text-sm font-bold">₦45,000</p>
+        <CardContent className="p-4 pt-0 space-y-2">
+          <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-0.5 rounded-md border p-2">
+              <p className="text-xs text-muted-foreground">Revenue</p>
+              <p className="text-sm font-bold">₦45,000</p>
+            </div>
+            <div className="space-y-0.5 rounded-md border p-2">
+              <p className="text-xs text-muted-foreground">Profit</p>
+              <p className="text-sm font-bold text-success">₦13,000</p>
+            </div>
+            <div className="space-y-0.5 rounded-md border p-2">
+              <p className="text-xs text-muted-foreground">Sales</p>
+              <p className="text-sm font-bold">18</p>
+            </div>
+            <div className="space-y-0.5 rounded-md border p-2">
+              <p className="text-xs text-muted-foreground">Expenses</p>
+              <p className="text-sm font-bold">₦5,200</p>
+            </div>
           </div>
-          <div className="space-y-0.5 rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Profit</p>
-            <p className="text-sm font-bold text-success">₦13,000</p>
-          </div>
-          <div className="space-y-0.5 rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Sales</p>
-            <p className="text-sm font-bold">18</p>
-          </div>
-          <div className="space-y-0.5 rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Expenses</p>
-            <p className="text-sm font-bold">₦5,200</p>
-          </div>
+          <Button variant="secondary" size="sm" className="w-full h-8 text-xs">
+            <Activity className="mr-2 h-3 w-3" />
+            View Full Statement
+          </Button>
         </CardContent>
       </Card>
 
