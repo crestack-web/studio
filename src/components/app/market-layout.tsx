@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Menu, Search, ShoppingCart } from 'lucide-react';
+import { Menu, Search, ShoppingCart, Megaphone } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
@@ -12,6 +12,8 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { MarketSwitcher } from './market-switcher';
+import { useMarket } from '@/context/market-provider';
+import { formatCurrency } from '@/lib/currency';
 
 export default function MarketLayout({ 
     children, 
@@ -24,44 +26,88 @@ export default function MarketLayout({
 }) {
     const { t } = useLanguage();
     const { totalItems } = useCart();
+    const { market } = useMarket();
 
     const isSearchControlled = searchValue !== undefined && onSearchChange !== undefined;
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
-            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
-                <div className="container mx-auto">
-                    {/* Mobile Header */}
-                    <div className="md:hidden">
-                        <div className="flex h-16 items-center justify-between px-4">
-                            <div>
-                                <Sheet>
-                                    <SheetTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <Menu className="h-6 w-6" />
-                                            <span className="sr-only">Open menu</span>
+            <div className="sticky top-0 z-40">
+                <div className="bg-primary text-primary-foreground text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2">
+                    <Megaphone className="h-4 w-4" />
+                    <span>Free delivery for all orders over {formatCurrency(50000, market.country)}!</span>
+                </div>
+                <header className="bg-card border-b">
+                    <div className="container mx-auto">
+                        {/* Mobile Header */}
+                        <div className="md:hidden">
+                            <div className="flex h-16 items-center justify-between px-4">
+                                <Link href="/market"><Logo className="h-8" /></Link>
+                                <div className="flex items-center gap-1">
+                                    <MarketSwitcher />
+                                    <Link href="/market/cart" passHref>
+                                        <Button variant="ghost" size="icon" className="relative">
+                                            <ShoppingCart className="h-6 w-6" />
+                                            {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
+                                            <span className="sr-only">Cart</span>
                                         </Button>
-                                    </SheetTrigger>
-                                    <SheetContent>
-                                        <SheetHeader>
-                                            <SheetTitle className="sr-only">Menu</SheetTitle>
-                                            <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
-                                        </SheetHeader>
-                                        <Logo className="h-8 mb-8" />
-                                        <nav className="flex flex-col gap-4">
-                                            <Link href="/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
-                                            <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
-                                            <div className="flex items-center gap-2 mt-4">
-                                                <ThemeToggle />
-                                                <LanguageSwitcher />
-                                            </div>
-                                        </nav>
-                                    </SheetContent>
-                                </Sheet>
+                                    </Link>
+                                    <Sheet>
+                                        <SheetTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <Menu className="h-6 w-6" />
+                                                <span className="sr-only">Open menu</span>
+                                            </Button>
+                                        </SheetTrigger>
+                                        <SheetContent>
+                                            <SheetHeader>
+                                                <SheetTitle className="sr-only">Menu</SheetTitle>
+                                                <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                                            </SheetHeader>
+                                            <Logo className="h-8 mb-8" />
+                                            <nav className="flex flex-col gap-4">
+                                                <Link href="/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
+                                                <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
+                                                <div className="flex items-center gap-2 mt-4">
+                                                    <ThemeToggle />
+                                                    <LanguageSwitcher />
+                                                </div>
+                                            </nav>
+                                        </SheetContent>
+                                    </Sheet>
+                                </div>
                             </div>
-                            <Link href="/market"><Logo className="h-8" /></Link>
-                            <div className="flex items-center gap-1">
+                            <div className="px-4 pb-4">
+                                <div className="relative w-full max-w-2xl mx-auto">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search products, stores, or categories" 
+                                        className="pl-10 h-12 text-base"
+                                        value={isSearchControlled ? searchValue : undefined}
+                                        onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Desktop Header */}
+                        <div className="hidden md:flex h-20 items-center justify-between px-4 gap-6">
+                            <div className="flex items-center gap-6">
+                                <Link href="/market"><Logo className="h-8" /></Link>
                                 <MarketSwitcher />
+                            </div>
+                            <div className="flex-1 max-w-lg">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search products, stores, or categories" 
+                                        className="pl-10 h-12 text-base"
+                                        value={isSearchControlled ? searchValue : undefined}
+                                        onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
                                 <Link href="/market/cart" passHref>
                                     <Button variant="ghost" size="icon" className="relative">
                                         <ShoppingCart className="h-6 w-6" />
@@ -69,52 +115,13 @@ export default function MarketLayout({
                                         <span className="sr-only">Cart</span>
                                     </Button>
                                 </Link>
-                            </div>
-                        </div>
-                        <div className="px-4 pb-4">
-                            <div className="relative w-full max-w-2xl mx-auto">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search products, stores, or categories" 
-                                    className="pl-10 h-12 text-base"
-                                    value={isSearchControlled ? searchValue : undefined}
-                                    onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
-                                />
+                                <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+                                <Button asChild><Link href="/signup">Sign Up</Button></Link>
                             </div>
                         </div>
                     </div>
-
-                    {/* Desktop Header */}
-                    <div className="hidden md:flex h-20 items-center justify-between px-4 gap-6">
-                        <div className="flex items-center gap-6">
-                            <Link href="/market"><Logo className="h-8" /></Link>
-                            <MarketSwitcher />
-                        </div>
-                        <div className="flex-1 max-w-lg">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search products, stores, or categories" 
-                                    className="pl-10 h-12 text-base"
-                                    value={isSearchControlled ? searchValue : undefined}
-                                    onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <Link href="/market/cart" passHref>
-                                <Button variant="ghost" size="icon" className="relative">
-                                    <ShoppingCart className="h-6 w-6" />
-                                    {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
-                                    <span className="sr-only">Cart</span>
-                                </Button>
-                            </Link>
-                            <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+                </header>
+            </div>
             <main className="flex-1 flex flex-col items-center p-4 sm:p-6">{children}</main>
             <footer className="bg-background border-t">
                 <div className="container mx-auto py-8 px-4 text-center sm:text-left">
