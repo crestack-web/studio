@@ -43,12 +43,12 @@ interface MarketProduct {
 
 interface MarketBanner {
     id: string;
-    title: string;
-    subtitle: string;
+    title?: string;
+    subtitle?: string;
     imageUrl: string;
-    imageHint: string;
-    buttonText: string;
-    className: string;
+    imageHint?: string;
+    buttonText?: string;
+    className?: string;
 }
 
 interface MarketCategory {
@@ -350,12 +350,15 @@ export default function MarketPage() {
                                         {heroBanners.map(banner => (
                                             <CarouselItem key={banner.id} className="h-full">
                                                 <div className={cn("relative h-full w-full overflow-hidden flex items-center justify-center p-8", banner.className)}>
-                                                    {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
-                                                    <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
-                                                        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>
-                                                        <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>
-                                                        <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
-                                                    </div>
+                                                    {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title || 'Market banner'} fill className="object-cover" data-ai-hint={banner.imageHint || ''} />}
+                                                    
+                                                    {(banner.title || banner.subtitle || banner.buttonText) && (
+                                                        <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
+                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>}
+                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>}
+                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </CarouselItem>
                                         ))}

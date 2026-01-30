@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,12 @@ import imageCompression from 'browser-image-compression';
 
 interface MarketBanner {
     id: string;
-    title: string;
-    subtitle: string;
+    title?: string;
+    subtitle?: string;
     imageUrl: string;
-    imageHint: string;
-    buttonText: string;
-    className: string;
+    imageHint?: string;
+    buttonText?: string;
+    className?: string;
     isActive: boolean;
     createdAt: any;
 }
@@ -98,8 +99,8 @@ export default function AdminMarketPage() {
     };
 
     const handleAddBanner = async () => {
-        if (!title || !imageUrl) {
-            toast({ variant: 'destructive', title: 'Missing fields', description: 'Please fill out title and image.' });
+        if (!imageUrl) {
+            toast({ variant: 'destructive', title: 'Missing Image', description: 'Please upload an image for the banner.' });
             return;
         }
         setIsLoading(true);
@@ -117,7 +118,7 @@ export default function AdminMarketPage() {
         
         await addDocumentNonBlocking(collection(firestore, 'marketBanners'), newBanner);
 
-        toast({ title: 'Banner Added!', description: `"${title}" has been created.` });
+        toast({ title: 'Banner Added!', description: `A new banner has been created.` });
         resetForm();
         setIsLoading(false);
     };
@@ -214,8 +215,8 @@ export default function AdminMarketPage() {
                     <DialogHeader><DialogTitle>Edit Banner</DialogTitle><DialogDescription>Make changes to your banner here. Click save when you're done.</DialogDescription></DialogHeader>
                     {editingBanner && (
                         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                            <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingBanner.title} onChange={(e) => setEditingBanner({ ...editingBanner, title: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-subtitle">Subtitle</Label><Input id="edit-subtitle" value={editingBanner.subtitle} onChange={(e) => setEditingBanner({ ...editingBanner, subtitle: e.target.value })} /></div>
+                            <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingBanner.title || ''} onChange={(e) => setEditingBanner({ ...editingBanner, title: e.target.value })} /></div>
+                            <div className="space-y-2"><Label htmlFor="edit-subtitle">Subtitle</Label><Input id="edit-subtitle" value={editingBanner.subtitle || ''} onChange={(e) => setEditingBanner({ ...editingBanner, subtitle: e.target.value })} /></div>
                             <div className="space-y-2">
                                 <Label>Image</Label>
                                 {editingBanner.imageUrl ? (
@@ -231,10 +232,10 @@ export default function AdminMarketPage() {
                                 )}
                                 <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingBanner({...editingBanner!, imageUrl: val}))} className="hidden" disabled={isLoading} />
                             </div>
-                            <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>
-                             <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>
-                            <div className="flex items-center space-x-2"><Switch id="edit-isActive" checked={editingBanner.isActive} onCheckedChange={(checked) => setEditingBanner({ ...editingBanner, isActive: checked })} /><Label htmlFor="edit-isActive">Active</Label></div>
+                            <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint || ''} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
+                            <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText || ''} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>
+                             <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className || ''} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>
+                            <div className="flex items-center space-x-2"><Switch id="edit-isActive" checked={editingBanner.isActive} onCheckedChange={(checked) => setEditingBanner({ ...editingBanner, isPublished: checked })} /><Label htmlFor="edit-isActive">Active</Label></div>
                         </div>
                     )}
                     <DialogFooter>
