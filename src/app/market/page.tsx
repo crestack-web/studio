@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -348,15 +347,17 @@ export default function MarketPage() {
                                 >
                                     <CarouselContent className="h-full">
                                         {heroBanners.map(banner => (
-                                            <CarouselItem key={banner.id} className="h-full">
-                                                <div className={cn("relative h-full w-full overflow-hidden flex items-center justify-center", banner.className)}>
+                                            <CarouselItem key={banner.id} className="h-full p-0">
+                                                <div className={cn("relative h-full w-full overflow-hidden", banner.className)}>
                                                     {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title || 'Market banner'} fill className="object-cover" data-ai-hint={banner.imageHint || ''} />}
                                                     
                                                     {(banner.title || banner.subtitle || banner.buttonText) && (
-                                                        <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
-                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>}
-                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>}
-                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                          <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
+                                                              {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>}
+                                                              {banner.subtitle && <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>}
+                                                              {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                                          </div>
                                                         </div>
                                                     )}
                                                 </div>
