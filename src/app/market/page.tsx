@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -337,8 +336,8 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
-                        <div className="min-h-[420px]">
-                        {isLoadingBanners ? <Skeleton className="h-full w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
+                        <Card className="min-h-[420px] overflow-hidden p-0">
+                        {isLoadingBanners ? <Skeleton className="h-full w-full" /> : (heroBanners && heroBanners.length > 0 &&
                                 <Carousel
                                     plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                                     opts={{
@@ -350,7 +349,7 @@ export default function MarketPage() {
                                     <CarouselContent className="h-full">
                                         {heroBanners.map(banner => (
                                             <CarouselItem key={banner.id} className="h-full">
-                                                <div className={cn("relative h-full w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                                <div className={cn("relative h-full w-full overflow-hidden flex items-center justify-center p-8", banner.className)}>
                                                     {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
                                                     <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
                                                         <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>
@@ -363,8 +362,8 @@ export default function MarketPage() {
                                     </CarouselContent>
                                 </Carousel>
                         )}
-                        </div>
-                        <div>
+                        </Card>
+                        <div className="w-[250px]">
                             <Card className="h-full">
                                 <CardHeader className="p-4 pb-2">
                                     <CardTitle className="text-lg">Categories</CardTitle>
@@ -374,7 +373,7 @@ export default function MarketPage() {
                                         {promoCategories.map(category => (
                                             <Link href={category.href} key={category.name} className="block">
                                                 <div className="flex items-center gap-3 hover:bg-muted/50 p-2 rounded-md transition-colors">
-                                                    <category.icon className="h-5 w-5 text-muted-foreground" />
+                                                    <category.icon className="h-4 w-4 text-muted-foreground" />
                                                     <span className="font-medium text-sm">{category.name}</span>
                                                 </div>
                                             </Link>
@@ -390,7 +389,7 @@ export default function MarketPage() {
                  {isLoadingCategories ? (
                     <Card>
                         <CardHeader>
-                            <Skeleton className="h-6 w-40" />
+                            <Skeleton className="h-5 w-40" />
                         </CardHeader>
                         <CardContent>
                             <div className="flex gap-4">
