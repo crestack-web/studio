@@ -766,6 +766,39 @@ function OwnerHomeContent() {
                     </div>
                 </CardContent>
             </Card>
+             <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Store className="w-5 h-5 text-primary" />
+                    Sell Online
+                  </CardTitle>
+                   <CardDescription className="text-xs">
+                    Set up your free online store on Busmo Market.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                    <Button variant="secondary" size="sm" className="w-full h-8 text-xs" asChild>
+                        <Link href="/owner/market">Set Up Your Store</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Landmark className="w-5 h-5 text-primary" />
+                    Access Capital
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Your business data can unlock investment.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                     <Button variant="secondary" size="sm" className="w-full h-8 text-xs" asChild>
+                        <Link href="/owner/access-capital">Explore Options</Link>
+                    </Button>
+                </CardContent>
+            </Card>
           </div>
         </div>
       </main>
