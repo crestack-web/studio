@@ -1,7 +1,8 @@
+
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useUser, useDoc } from '@/firebase';
-import { collection, query, doc, orderBy, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, query, doc, orderBy, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 // Interfaces based on backend.json
 interface ChatConversation {
@@ -117,13 +120,20 @@ const ChatInterface = () => {
     const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
     const [messageInput, setMessageInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+    const [closingConversation, setClosingConversation] = useState<ChatConversation | null>(null);
 
     // Fetch conversations
     const conversationsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'chatConversations'), orderBy('lastMessageAt', 'desc'));
+        return query(collection(firestore, 'chatConversations'), where('status', 'in', ['open', 'in-progress']));
     }, [firestore]);
     const { data: conversations, isLoading: isLoadingConversations } = useCollection<ChatConversation>(conversationsQuery);
+    
+    const sortedConversations = useMemo(() => {
+        if (!conversations) return [];
+        return [...conversations].sort((a,b) => b.lastMessageAt.toDate().getTime() - a.lastMessageAt.toDate().getTime())
+    }, [conversations]);
 
     // Fetch messages for the selected conversation
     const messagesQuery = useMemoFirebase(() => {
@@ -169,6 +179,18 @@ const ChatInterface = () => {
         setMessageInput('');
     };
 
+    const handleCloseConversation = async () => {
+        if (!firestore || !closingConversation) return;
+        const conversationRef = doc(firestore, 'chatConversations', closingConversation.id);
+        await updateDocumentNonBlocking(conversationRef, { status: 'closed' });
+        setSelectedConversation(null); // Go back to the list
+        setClosingConversation(null);
+        toast({
+            title: "Conversation Closed",
+            description: "The chat has been marked as closed.",
+        });
+    };
+
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6 h-[calc(100vh-14rem)]">
@@ -180,9 +202,9 @@ const ChatInterface = () => {
                 <CardContent className="flex-1 overflow-y-auto p-2">
                     {isLoadingConversations ? (
                          <div className="space-y-2 p-2"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground"/></div>
-                    ) : conversations && conversations.length > 0 ? (
+                    ) : sortedConversations && sortedConversations.length > 0 ? (
                         <div className="space-y-2">
-                            {conversations.map(convo => (
+                            {sortedConversations.map(convo => (
                                 <button key={convo.id} onClick={() => setSelectedConversation(convo)} className={cn("w-full text-left p-3 rounded-lg border transition-colors", selectedConversation?.id === convo.id ? "bg-accent border-primary" : "hover:bg-muted/50")}>
                                     <div className="flex justify-between items-start">
                                         <p className="font-semibold text-sm">{convo.userName}</p>
@@ -212,6 +234,13 @@ const ChatInterface = () => {
                                 <CardTitle>{selectedConversation.userName}</CardTitle>
                                 <CardDescription>User ID: {selectedConversation.userId.substring(0, 6)}...</CardDescription>
                             </div>
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setClosingConversation(selectedConversation)}
+                            >
+                                Close Chat
+                            </Button>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
                              {isLoadingMessages ? (
@@ -254,6 +283,20 @@ const ChatInterface = () => {
                     </div>
                 )}
             </Card>
+             <AlertDialog open={!!closingConversation} onOpenChange={(open) => !open && setClosingConversation(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will mark the conversation as closed. The user will see it in their history but won't be able to send new messages to it.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleCloseConversation} className="bg-destructive hover:bg-destructive/90">Confirm & Close</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

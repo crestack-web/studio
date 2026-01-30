@@ -33,6 +33,7 @@ import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFi
 import { collection, query, where, serverTimestamp, doc, limit, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import imageCompression from 'browser-image-compression';
+import { Badge } from '@/components/ui/badge';
 
 
 const testimonialsDataRaw = [
@@ -72,6 +73,7 @@ interface SupportAgent {
 interface ChatConversation {
     id: string;
     userId: string;
+    agentId?: string;
     status: 'open' | 'in-progress' | 'closed';
     lastMessage: string;
     lastMessageAt: { toDate: () => Date };
@@ -113,6 +115,11 @@ export default function LandingPage() {
     return query(collection(firestore, 'supportAgents'));
   }, [firestore]);
   const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
+
+  const agentsMap = useMemo(() => {
+    if (!allAgents) return new Map();
+    return new Map(allAgents.map(a => [a.userId, a]));
+  }, [allAgents]);
 
   const assignedAgent = useMemo(() => {
     if (!allAgents) return null;
@@ -156,6 +163,19 @@ export default function LandingPage() {
       );
   }, [firestore, user]);
   const { data: allUserConversations, isLoading: isLoadingConversations } = useCollection<ChatConversation>(allConversationsQuery);
+  
+  const pastConversations = useMemo(() => {
+    if (!allUserConversations) return [];
+    if (activeConversation) {
+        return allUserConversations.filter(c => c.id !== activeConversation.id);
+    }
+    return allUserConversations;
+  }, [allUserConversations, activeConversation]);
+
+  const activeChatAgent = useMemo(() => {
+    if (!activeConversation?.agentId || !agentsMap) return null;
+    return agentsMap.get(activeConversation.agentId);
+  }, [activeConversation, agentsMap]);
 
 
   useEffect(() => {
@@ -184,9 +204,9 @@ export default function LandingPage() {
     setChatView('chat');
     // Don't create a new conversation if there's an active one.
     // Instead, allow users to explicitly start a new one if they want.
-    if (activeConversation) {
-        setConversationId(activeConversation.id);
-        return;
+    if (activeConversation && conversationId) {
+        // A new conversation is needed
+        setConversationId(null); // Reset to trigger new creation
     }
 
     const newConversation = {
@@ -798,75 +818,97 @@ export default function LandingPage() {
                 <SheetHeader>
                 <SheetTitle>Customer Support</SheetTitle>
                 <SheetDescription>
-                    Our team is online and ready to help.
+                   {activeConversation ? 'Continue your active conversation or start a new one.' : 'Our team is here to help. How can we assist you?'}
                 </SheetDescription>
                 </SheetHeader>
-                <div className="py-4 space-y-4">
-                    <h3 className="font-semibold text-sm text-muted-foreground">Available Agents</h3>
-                    <div className="space-y-3">
-                    {isLoadingAgents ? (
-                         <>
-                            <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
-                        </>
-                    ) : agentsError ? (
-                        <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
-                    ) : allAgents && allAgents.length > 0 ? (
-                        allAgents.map(agent => (
-                            <div key={agent.userId} className="flex items-center gap-3">
-                                <div className="relative">
-                                <Avatar className="h-10 w-10">
-                                    {agent.avatarUrl ? (
-                                        <Image src={agent.avatarUrl} alt={agent.displayName} width={40} height={40} data-ai-hint="support agent" />
+                <div className="flex-1 py-4 overflow-y-auto pr-2 -mr-6 space-y-6">
+                    {user && activeConversation && (
+                         <div>
+                            <h3 className="font-semibold text-sm text-muted-foreground mb-2">Active Conversation</h3>
+                            <button
+                                onClick={() => handleConversationClick(activeConversation.id)}
+                                className="w-full text-left p-3 rounded-lg border bg-accent/50 border-primary/50 hover:bg-accent"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {activeChatAgent ? (
+                                        <Avatar className="h-10 w-10">
+                                            {activeChatAgent.avatarUrl ? (
+                                                <Image src={activeChatAgent.avatarUrl} alt={activeChatAgent.displayName} width={40} height={40} data-ai-hint="support agent" />
+                                            ) : (
+                                                <AvatarFallback>{activeChatAgent.displayName.charAt(0)}</AvatarFallback>
+                                            )}
+                                        </Avatar>
                                     ) : (
-                                        <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
+                                        <Avatar className="h-10 w-10"><AvatarFallback>?</AvatarFallback></Avatar>
                                     )}
-                                </Avatar>
-                                {agent.status === 'online' ? (
-                                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
-                                ) : (
-                                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-background" />
-                                )}
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm">
+                                            Chat with {activeChatAgent ? activeChatAgent.displayName : 'an agent'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate mt-1 flex items-center">
+                                            {activeConversation.lastMessage === 'Image' && <ImageIcon className="w-3 h-3 mr-1.5 inline-block shrink-0" />}
+                                            <span className="truncate">{activeConversation.lastMessage === 'Image' ? 'Image Sent' : activeConversation.lastMessage}</span>
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                <p className="font-semibold">{agent.displayName}</p>
-                                <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status}) {agent.language && `- ${agent.language.toUpperCase()}`}</p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                         <p className="text-sm text-muted-foreground text-center py-4">No support agents have been set up yet.</p>
-                    )}
-                    </div>
-                    {user && (
-                      <>
-                        <Separator />
-                        <div>
-                            <h3 className="font-semibold text-sm text-muted-foreground mb-2">Your Conversations</h3>
-                            {isLoadingConversations ? (
-                                <div className="space-y-2">
-                                    <Skeleton className="h-12 w-full" />
-                                    <Skeleton className="h-12 w-full" />
-                                </div>
-                            ) : allUserConversations && allUserConversations.length > 0 ? (
-                                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-                                    {allUserConversations.map(convo => (
-                                        <button key={convo.id} onClick={() => handleConversationClick(convo.id)} className="w-full text-left p-2 rounded-md border hover:bg-muted/50">
-                                            <p className="text-sm font-medium truncate flex items-center">
-                                              {convo.lastMessage === 'Image' && <ImageIcon className="w-4 h-4 mr-2 inline-block shrink-0" />}
-                                              {convo.lastMessage === 'Image' ? 'Image Sent' : convo.lastMessage}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">{convo.lastMessageAt?.toDate().toLocaleString()}</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-xs text-muted-foreground text-center py-2">You have no previous conversations.</p>
-                            )}
+                            </button>
                         </div>
-                      </>
                     )}
+                    {user && pastConversations && pastConversations.length > 0 && (
+                        <div>
+                            <h3 className="font-semibold text-sm text-muted-foreground mb-2">{activeConversation ? 'Past Conversations' : 'Your Conversations'}</h3>
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                {pastConversations.map(convo => (
+                                    <button key={convo.id} onClick={() => handleConversationClick(convo.id)} className="w-full text-left p-2 rounded-md border hover:bg-muted/50">
+                                        <div className="text-sm font-medium truncate flex items-center">
+                                            {convo.lastMessage === 'Image' && <ImageIcon className="w-4 h-4 mr-2 inline-block shrink-0" />}
+                                            <span className="flex-1 truncate">{convo.lastMessage === 'Image' ? 'Image Sent' : convo.lastMessage}</span>
+                                            {convo.status === 'closed' && <Badge variant="secondary" className="ml-2">Closed</Badge>}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">{convo.lastMessageAt?.toDate().toLocaleString()}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <div>
+                        <h3 className="font-semibold text-sm text-muted-foreground mb-2">Available Agents</h3>
+                        <div className="space-y-3">
+                        {isLoadingAgents ? (
+                            <>
+                                <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
+                            </>
+                        ) : agentsError ? (
+                            <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
+                        ) : allAgents && allAgents.length > 0 ? (
+                            allAgents.map(agent => (
+                                <div key={agent.userId} className="flex items-center gap-3">
+                                    <div className="relative">
+                                    <Avatar className="h-10 w-10">
+                                        {agent.avatarUrl ? (
+                                            <Image src={agent.avatarUrl} alt={agent.displayName} width={40} height={40} data-ai-hint="support agent" />
+                                        ) : (
+                                            <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
+                                        )}
+                                    </Avatar>
+                                    {agent.status === 'online' ? (
+                                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                                    ) : (
+                                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2 ring-background" />
+                                    )}
+                                    </div>
+                                    <div>
+                                    <p className="font-semibold">{agent.displayName}</p>
+                                    <p className="text-xs text-muted-foreground capitalize">Support Agent ({agent.status}) {agent.language && `- ${agent.language.toUpperCase()}`}</p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No support agents have been set up yet.</p>
+                        )}
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
                 <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start New Conversation</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
