@@ -701,50 +701,6 @@ function OwnerHomeContent() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <TrendingUp className="w-6 h-6 text-primary" />
-                        Product Performance
-                    </CardTitle>
-                    <CardDescription>
-                        Highlights of your product sales in this period.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     {isLoadingSales ? <Skeleton className="h-24" /> : (salesData && salesData.length > 0) ? (
-                        <>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div className="p-4 rounded-lg bg-muted/50">
-                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><ChevronsUp className="w-5 h-5 text-success"/>Best Seller</h4>
-                                <p className="font-bold text-lg truncate">{businessInsights.bestSellingProduct?.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
-                             </div>
-                             <div className="p-4 rounded-lg bg-muted/50">
-                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingDown className="w-5 h-5 text-destructive"/>Worst Seller</h4>
-                                <p className="font-bold text-lg truncate">{businessInsights.worstSellingProduct?.name || 'N/A'}</p>
-                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
-                             </div>
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-2"><AlertTriangle className="w-5 h-5 text-warning"/>Low Stock</h4>
-                            {businessInsights.lowStockProducts.length > 0 ? (
-                                <div className="space-y-2 text-sm">
-                                {businessInsights.lowStockProducts.slice(0, 3).map(p => (
-                                    <div key={p.id} className="flex justify-between"><span>{p.name}</span><span className="font-medium">{p.quantity} left</span></div>
-                                ))}
-                                </div>
-                            ) : <p className="text-sm text-muted-foreground">No low-stock alerts.</p>}
-                          </div>
-                        </>
-                     ) : (
-                         <div className="text-center text-sm text-muted-foreground py-4">
-                            <p>No product sales data for this period.</p>
-                        </div>
-                     )}
-                </CardContent>
-            </Card>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Link href="/record-sale">
                     <Button className="w-full h-16 text-lg justify-start px-4 gap-3">
@@ -857,6 +813,51 @@ function OwnerHomeContent() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <TrendingUp className="w-6 h-6 text-primary" />
+                        Product Performance
+                    </CardTitle>
+                    <CardDescription>
+                        Highlights of your product sales in this period.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     {isLoadingSales ? <Skeleton className="h-24" /> : (salesData && salesData.length > 0) ? (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="p-4 rounded-lg bg-muted/50">
+                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><ChevronsUp className="w-5 h-5 text-success"/>Best Seller</h4>
+                                <p className="font-bold text-lg truncate">{businessInsights.bestSellingProduct?.name || 'N/A'}</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.bestSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
+                             </div>
+                             <div className="p-4 rounded-lg bg-muted/50">
+                                <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingDown className="w-5 h-5 text-destructive"/>Worst Seller</h4>
+                                <p className="font-bold text-lg truncate">{businessInsights.worstSellingProduct?.name || 'N/A'}</p>
+                                <p className="text-sm text-muted-foreground">{formatCurrency(businessInsights.worstSellingProduct?.sales || 0, businessData?.country)} in revenue</p>
+                             </div>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-2"><AlertTriangle className="w-5 h-5 text-warning"/>Low Stock</h4>
+                            {businessInsights.lowStockProducts.length > 0 ? (
+                                <div className="space-y-2 text-sm">
+                                {businessInsights.lowStockProducts.slice(0, 3).map(p => (
+                                    <div key={p.id} className="flex justify-between"><span>{p.name}</span><span className="font-medium">{p.quantity} left</span></div>
+                                ))}
+                                </div>
+                            ) : <p className="text-sm text-muted-foreground">No low-stock alerts.</p>}
+                          </div>
+                        </>
+                     ) : (
+                         <div className="text-center text-sm text-muted-foreground py-4">
+                            <p>No product sales data for this period.</p>
+                        </div>
+                     )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader className="p-4">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -1082,3 +1083,5 @@ export default function OwnerHomePage() {
     </Suspense>
   )
 }
+
+    
