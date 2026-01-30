@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -335,37 +336,44 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
-                        <Card className="h-[250px] lg:h-[420px] overflow-hidden p-0">
-                        {isLoadingBanners ? <Skeleton className="h-full w-full" /> : (heroBanners && heroBanners.length > 0 &&
+                        <Card className="overflow-hidden p-0">
+                            {isLoadingBanners ? <Skeleton className="h-[250px] w-full lg:h-[420px]" /> : (heroBanners && heroBanners.length > 0 &&
                                 <Carousel
                                     plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                                     opts={{
-                                    align: "start",
-                                    loop: true,
+                                        align: "start",
+                                        loop: true,
                                     }}
-                                    className="w-full h-full"
+                                    className="w-full h-[250px] lg:h-[420px]"
                                 >
                                     <CarouselContent className="h-full">
-                                        {heroBanners.map(banner => (
-                                            <CarouselItem key={banner.id} className="h-full p-0">
-                                                <div className={cn("relative h-full w-full overflow-hidden", banner.className)}>
-                                                    {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title || 'Market banner'} fill className="object-cover" data-ai-hint={banner.imageHint || ''} />}
-                                                    
-                                                    {(banner.title || banner.subtitle || banner.buttonText) && (
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                          <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
-                                                              {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>}
-                                                              {banner.subtitle && <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>}
-                                                              {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
-                                                          </div>
+                                        {heroBanners.map((banner, index) => (
+                                            <CarouselItem key={banner.id} className={cn("relative h-full p-0", banner.className)}>
+                                                {banner.imageUrl && 
+                                                    <Image 
+                                                        src={banner.imageUrl} 
+                                                        alt={banner.title || 'Market banner'} 
+                                                        fill 
+                                                        className="object-cover" 
+                                                        data-ai-hint={banner.imageHint || ''} 
+                                                        priority={index === 0}
+                                                    />
+                                                }
+                                                
+                                                {(banner.title || banner.subtitle || banner.buttonText) && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
+                                                        <div className="text-center text-white max-w-lg">
+                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
+                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
+                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
                                                         </div>
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                )}
                                             </CarouselItem>
                                         ))}
                                     </CarouselContent>
                                 </Carousel>
-                        )}
+                            )}
                         </Card>
                         <div className="hidden lg:block w-[250px]">
                             <Card className="h-full">
