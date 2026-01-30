@@ -325,7 +325,7 @@ export default function MarketPage() {
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
                 {/* 1. Hero Banner */}
-                {isLoadingBanners ? <Skeleton className="h-64 md:h-80 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
+                {isLoadingBanners ? <Skeleton className="h-80 md:h-96 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
                     <section>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -338,7 +338,7 @@ export default function MarketPage() {
                             <CarouselContent>
                                 {heroBanners.map(banner => (
                                     <CarouselItem key={banner.id}>
-                                        <div className={cn("relative h-64 md:h-80 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                        <div className={cn("relative h-80 md:h-96 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
                                             {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
                                             <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
                                                 <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">{banner.title}</h1>
@@ -374,7 +374,7 @@ export default function MarketPage() {
                     <section>
                         <Card>
                              <CardHeader>
-                                <CardTitle>Shop by Category</CardTitle>
+                                <CardTitle className="text-xl">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4">
                                 <Carousel
@@ -386,7 +386,7 @@ export default function MarketPage() {
                                 >
                                     <CarouselContent className="-ml-4">
                                         {categories.map(category => (
-                                            <CarouselItem key={category.id} className="pl-4 basis-1/3 sm:basis-1/4 md:basis-1/6 lg:basis-1/8">
+                                            <CarouselItem key={category.id} className="pl-4 basis-1/4 sm:basis-1/5 md:basis-1/8 lg:basis-1/10">
                                                 <Link href="#" className="block group text-center">
                                                     <div className="relative aspect-square overflow-hidden rounded-lg">
                                                         <Image
