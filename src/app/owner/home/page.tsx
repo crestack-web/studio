@@ -702,7 +702,7 @@ function OwnerHomeContent() {
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <Card className="bg-primary/30">
+            <Card className="border border-warning bg-warning/20">
                 <CardHeader>
                     <CardTitle className="text-base font-medium text-foreground/80">Today's Key Insight</CardTitle>
                 </CardHeader>
