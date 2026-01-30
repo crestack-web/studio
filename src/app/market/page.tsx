@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car } from 'lucide-react';
+import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car, Search } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface MarketProduct {
     id: string; // Document ID, which is the same as productId
@@ -330,51 +331,59 @@ export default function MarketPage() {
     )
 
     return (
-        <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
+        <MarketLayout>
             <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
                 
                  {/* 1. Hero Section */}
-                <section>
+                <section className="pt-6">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
-                        <Card className="overflow-hidden p-0">
-                            {isLoadingBanners ? <Skeleton className="h-[250px] w-full lg:h-[420px]" /> : (heroBanners && heroBanners.length > 0 &&
-                                <Carousel
-                                    plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
-                                    opts={{
-                                        align: "start",
-                                        loop: true,
-                                    }}
-                                    className="w-full h-[250px] lg:h-[420px]"
-                                >
-                                    <CarouselContent className="h-full">
-                                        {heroBanners.map((banner, index) => (
-                                            <CarouselItem key={banner.id} className={cn("relative h-full", banner.className)}>
-                                                {banner.imageUrl && 
-                                                    <Image 
-                                                        src={banner.imageUrl} 
-                                                        alt={banner.title || 'Market banner'} 
-                                                        fill 
-                                                        className="object-cover" 
-                                                        data-ai-hint={banner.imageHint || ''} 
-                                                        priority={index === 0}
-                                                    />
-                                                }
-                                                
-                                                {(banner.title || banner.subtitle || banner.buttonText) && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
-                                                        <div className="text-center text-white max-w-lg">
-                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
-                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
-                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
-                                                        </div>
+                        <Carousel
+                            plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                            opts={{
+                                align: "start",
+                                loop: true,
+                            }}
+                            className="w-full h-[250px] lg:h-[420px]"
+                        >
+                            <CarouselContent className="h-full">
+                                {isLoadingBanners ? (
+                                    <CarouselItem>
+                                        <Skeleton className="h-full w-full" />
+                                    </CarouselItem>
+                                ) : (heroBanners && heroBanners.length > 0) ? (
+                                    heroBanners.map((banner, index) => (
+                                        <CarouselItem key={banner.id} className={cn("relative h-full overflow-hidden rounded-lg", banner.className)}>
+                                            {banner.imageUrl && 
+                                                <Image 
+                                                    src={banner.imageUrl} 
+                                                    alt={banner.title || 'Market banner'} 
+                                                    fill 
+                                                    className="object-cover" 
+                                                    data-ai-hint={banner.imageHint || ''} 
+                                                    priority={index === 0}
+                                                />
+                                            }
+                                            
+                                            {(banner.title || banner.subtitle || banner.buttonText) && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
+                                                    <div className="text-center text-white max-w-lg">
+                                                        {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
+                                                        {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
+                                                        {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
                                                     </div>
-                                                )}
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                </Carousel>
-                            )}
-                        </Card>
+                                                </div>
+                                            )}
+                                        </CarouselItem>
+                                    ))
+                                ) : (
+                                    <CarouselItem>
+                                        <div className="h-full w-full bg-muted rounded-lg flex items-center justify-center">
+                                            <p className="text-muted-foreground">Banners will appear here</p>
+                                        </div>
+                                    </CarouselItem>
+                                )}
+                            </CarouselContent>
+                        </Carousel>
                         <div className="hidden lg:block w-[250px]">
                             <Card className="h-full">
                                 <CardHeader className="p-3 pb-1">
@@ -399,23 +408,25 @@ export default function MarketPage() {
                 
                 {/* 2. Quick Categories */}
                  {isLoadingCategories ? (
-                    <Card>
-                        <CardHeader>
-                            <Skeleton className="h-5 w-40" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex gap-4">
-                                {[...Array(8)].map((_, i) => (
-                                    <div key={i} className="flex-shrink-0 w-24">
-                                        <Skeleton className="aspect-square rounded-lg mb-2" />
-                                        <Skeleton className="h-5 w-16 mx-auto" />
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                     <section className="-mt-6">
+                        <Card>
+                            <CardHeader>
+                                <Skeleton className="h-5 w-40" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex gap-4">
+                                    {[...Array(8)].map((_, i) => (
+                                        <div key={i} className="flex-shrink-0 w-24">
+                                            <Skeleton className="aspect-square rounded-lg mb-2" />
+                                            <Skeleton className="h-5 w-16 mx-auto" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </section>
                 ) : (categories && categories.length > 0 &&
-                    <section>
+                    <section className="-mt-6">
                         <Card>
                              <CardHeader>
                                 <CardTitle className="text-xl">Shop by Category</CardTitle>
