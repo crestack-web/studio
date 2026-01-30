@@ -39,6 +39,9 @@ service cloud.firestore {
     // Check if the requesting user is a member of a specific business.
     function isBusinessMember(businessId) {
       if (!isSignedIn()) { return false; }
+      // An owner is always a business member, even if their user document is out of sync.
+      if (get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid) { return true; }
+      // For other members (e.g., staff), we check their user document.
       let userData = getRequestingUserData();
       return userData != null && userData.businessId == businessId;
     }
@@ -176,5 +179,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
