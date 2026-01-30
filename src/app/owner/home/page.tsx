@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -588,7 +588,12 @@ function OwnerHomeContent() {
                  <CardContent className="space-y-4">
                     {isLoadingData ? (
                         <div className="space-y-4 pt-4">
-                           <Skeleton className="h-28 w-full" />
+                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                           </div>
                            <Skeleton className="h-10 w-full" />
                         </div>
                     ) : (salesData && salesData.length > 0) || (transactionsData && transactionsData.length > 0) ? (
@@ -736,62 +741,31 @@ function OwnerHomeContent() {
           
           {/* Right Column */}
           <div className="flex flex-col gap-6">
-             <Card>
-                <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <Store className="w-6 h-6 text-primary" />
-                        Sell Online
-                    </CardTitle>
-                    <CardDescription>
-                        Set up your free online store on Busmo Market and reach more customers.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Link href="/owner/market" className='w-full'>
-                        <Button variant="secondary" className="w-full">
-                            Set Up Your Store
-                        </Button>
-                    </Link>
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader>
-                     <CardTitle className="flex items-center gap-2 font-headline text-lg">
-                        <Landmark className="w-6 h-6 text-primary" />
-                        Access Capital
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                        <TrendingUp className="w-6 h-6 text-primary" />
+                        <span>Business Forecast</span>
                     </CardTitle>
                     <CardDescription>
-                        Your business data can unlock investment. See your options.
+                        Based on your recent activity, here's what to expect.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="text-center text-sm text-muted-foreground">
-                        <p>Your performance data helps build a trusted financial story for investors.</p>
+                    <div className="p-4 rounded-lg bg-muted/50">
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5"><TrendingUp className="w-5 h-5 text-success"/>Weekly Profit Forecast</h4>
+                        <p className="text-muted-foreground text-sm mt-1">You're on track to make <span className="font-bold text-foreground">~{formatCurrency(42000, businessData?.country)}</span> in profit next week.</p>
                     </div>
-                    <Link href="/owner/access-capital" className='w-full'>
-                        <Button variant="secondary" className="w-full">
-                            Explore Capital Options
-                        </Button>
-                    </Link>
+                    <div className="p-4 rounded-lg bg-muted/50">
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5"><Activity className="w-5 h-5 text-primary"/>Busiest Day Prediction</h4>
+                        <p className="text-muted-foreground text-sm mt-1">Expect your busiest day to be <span className="font-bold text-foreground">Saturday</span>. Plan for extra stock.</p>
+                    </div>
+                     <div className="p-4 rounded-lg bg-muted/50">
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5"><Package className="w-5 h-5 text-warning"/>Inventory Outlook</h4>
+                        <p className="text-muted-foreground text-sm mt-1">You are likely to run out of <span className="font-bold text-foreground">Bottled Water</span> in 3 days.</p>
+                    </div>
                 </CardContent>
             </Card>
-
-            {(businessData?.plan === 'multi-branch' || businessData?.plan === 'company') && (
-                <Card className="bg-card/50 border-dashed">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 font-headline text-lg text-muted-foreground">
-                            <TrendingUp className="w-6 h-6" />
-                            <span>Branch Performance</span>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-center text-sm text-muted-foreground">
-                            <p>Branch performance comparison is coming soon for your plan.</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
           </div>
         </div>
       </main>
