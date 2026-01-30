@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building } from 'lucide-react';
+import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
@@ -140,6 +140,12 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
     );
 };
 
+const promoCategories = [
+    { name: 'Fashion', icon: Shirt, href: '#' },
+    { name: 'Electronics', icon: Smartphone, href: '#' },
+    { name: 'Home Goods', icon: Lamp, href: '#' },
+    { name: 'Groceries', icon: ShoppingBasket, href: '#' },
+];
 
 export default function MarketPage() {
     const firestore = useFirestore();
@@ -324,40 +330,58 @@ export default function MarketPage() {
         <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
-                {/* 1. Hero Banner */}
-                {isLoadingBanners ? <Skeleton className="h-80 md:h-96 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
-                    <section>
-                        <Carousel
-                            plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
-                            opts={{
-                              align: "start",
-                              loop: true,
-                            }}
-                            className="w-full"
-                        >
-                            <CarouselContent>
-                                {heroBanners.map(banner => (
-                                    <CarouselItem key={banner.id}>
-                                        <div className={cn("relative h-80 md:h-96 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
-                                            {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
-                                            <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
-                                                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">{banner.title}</h1>
-                                                <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>
-                                                <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
+                 {/* 1. Hero Section */}
+                <section>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                        <div className="lg:col-span-2 min-h-[420px]">
+                        {isLoadingBanners ? <Skeleton className="h-full w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
+                                <Carousel
+                                    plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                                    opts={{
+                                    align: "start",
+                                    loop: true,
+                                    }}
+                                    className="w-full h-full"
+                                >
+                                    <CarouselContent className="h-full">
+                                        {heroBanners.map(banner => (
+                                            <CarouselItem key={banner.id} className="h-full">
+                                                <div className={cn("relative h-full w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                                    {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
+                                                    <div className="relative z-10 text-center bg-black/40 p-6 rounded-lg backdrop-blur-sm">
+                                                        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{banner.title}</h1>
+                                                        <p className="text-lg md:text-xl mt-2 text-white/90">{banner.subtitle}</p>
+                                                        <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>
+                                                    </div>
+                                                </div>
+                                            </CarouselItem>
+                                        ))}
+                                    </CarouselContent>
+                                </Carousel>
+                        )}
+                        </div>
+                        <div className="lg:col-span-1 flex flex-col justify-between gap-3">
+                            {promoCategories.map(category => (
+                                <Link href={category.href} key={category.name} className="flex-1">
+                                    <Card className="hover:bg-muted/50 hover:border-primary/30 transition-colors h-full">
+                                        <CardContent className="p-4 flex items-center gap-4 h-full">
+                                            <div className="p-3 bg-primary/10 rounded-md">
+                                                <category.icon className="h-6 w-6 text-primary" />
                                             </div>
-                                        </div>
-                                    </CarouselItem>
-                                ))}
-                            </CarouselContent>
-                        </Carousel>
-                    </section>
-                )}
+                                            <span className="font-semibold">{category.name}</span>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </section>
                 
                 {/* 2. Quick Categories */}
                  {isLoadingCategories ? (
                     <Card>
                         <CardHeader>
-                            <Skeleton className="h-8 w-48" />
+                            <Skeleton className="h-6 w-40" />
                         </CardHeader>
                         <CardContent>
                             <div className="flex gap-4">
@@ -384,11 +408,11 @@ export default function MarketPage() {
                                     }}
                                     className="w-full"
                                 >
-                                    <CarouselContent className="-ml-4">
+                                    <CarouselContent className="-ml-2">
                                         {categories.map(category => (
-                                            <CarouselItem key={category.id} className="pl-4 basis-1/4 sm:basis-1/5 md:basis-1/8 lg:basis-1/10">
+                                            <CarouselItem key={category.id} className="pl-2 basis-1/4 sm:basis-1/5 md:basis-1/8 lg:basis-[12%]">
                                                 <Link href="#" className="block group text-center">
-                                                    <div className="relative aspect-square overflow-hidden rounded-lg">
+                                                    <div className="aspect-square relative overflow-hidden rounded-lg bg-card">
                                                         <Image
                                                             src={category.imageUrl}
                                                             alt={category.name || ''}
