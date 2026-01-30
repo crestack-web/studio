@@ -1,13 +1,14 @@
+
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Star, Zap, Truck, Store } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -19,6 +20,10 @@ import MarketLayout from '@/components/app/market-layout';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { useMarket } from '@/context/market-provider';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MarketProduct {
     id: string; // Document ID, which is the same as productId
@@ -52,6 +57,17 @@ interface MarketCategory {
     imageUrl: string;
     imageHint: string;
 }
+
+interface BusinessProfile {
+    id: string;
+    businessName: string;
+    businessType: string;
+    slug?: string;
+    marketSettings?: {
+        logoImageUrl?: string;
+    };
+}
+
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
     const { addItem } = useCart();
@@ -126,10 +142,15 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
 
 export default function MarketPage() {
     const firestore = useFirestore();
-    const { market } = useMarket();
+    const { market, setMarket, availableMarkets } = useMarket();
     const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
     const [searchQuery, setSearchQuery] = useState('');
     
+    // State for the location modal
+    const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+    const [selectedCountry, setSelectedCountry] = useState(market.country);
+    const [selectedCity, setSelectedCity] = useState(market.city);
+
     // Query for banners
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -142,6 +163,12 @@ export default function MarketPage() {
         return query(collection(firestore, 'marketCategories'));
     }, [firestore]);
     const { data: categories, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
+
+    const businessProfilesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'businessProfiles'), limit(6));
+    }, [firestore]);
+    const { data: businessProfiles, isLoading: isLoadingProfiles } = useCollection<BusinessProfile>(businessProfilesQuery);
 
     // Query for products available only in the specific city
     const cityProductsQuery = useMemoFirebase(() => {
@@ -192,12 +219,45 @@ export default function MarketPage() {
         if (!productsData) return [];
         return productsData.filter(p => p.oldPrice && p.oldPrice > p.price).slice(0, 6);
     }, [productsData]);
+    
+    const trustSignals = [
+        { icon: ShieldCheck, text: 'Verified Sellers' },
+        { icon: CreditCard, text: 'Secure Payments' },
+        { icon: Truck, text: 'Local Delivery' },
+        { icon: Store, text: 'Real Businesses' },
+    ];
 
     const [timeLeft, setTimeLeft] = useState({
         hours: '00',
         minutes: '00',
         seconds: '00',
     });
+    
+    // --- Location Modal Logic ---
+    const selectedCountryData = availableMarkets.find(c => c.code === selectedCountry);
+
+    useEffect(() => {
+        if (isLocationModalOpen) {
+            setSelectedCountry(market.country);
+            setSelectedCity(market.city);
+        }
+    }, [isLocationModalOpen, market]);
+
+    useEffect(() => {
+        if (selectedCountryData) {
+            const cityExists = selectedCountryData.cities.includes(selectedCity);
+            if (!cityExists) {
+                setSelectedCity(selectedCountryData.cities[0]);
+            }
+        }
+    }, [selectedCountry, selectedCity, selectedCountryData]);
+
+    const handleUpdateMarket = () => {
+        setMarket({ country: selectedCountry, city: selectedCity });
+        setIsLocationModalOpen(false);
+    };
+    // --- End Location Modal Logic ---
+
 
     useEffect(() => {
         const calculateTimeLeft = () => {
@@ -247,6 +307,17 @@ export default function MarketPage() {
             ))}
         </div>
     );
+    
+    const renderBusinessSkeletons = (count: number = 6) => (
+         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[...Array(count)].map((_, i) => (
+                <Card key={i} className="overflow-hidden h-full flex flex-col items-center justify-center p-4">
+                    <Skeleton className="h-16 w-16 rounded-full mb-4" />
+                    <Skeleton className="h-5 w-24" />
+                </Card>
+            ))}
+        </div>
+    )
 
     return (
         <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
@@ -339,6 +410,52 @@ export default function MarketPage() {
                         )
                     )}
                 </section>
+                
+                {/* Trust Signals */}
+                 <section>
+                    <Card>
+                        <CardContent className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                            {trustSignals.map((signal) => (
+                                <div key={signal.text} className="flex items-center justify-center gap-2">
+                                    <signal.icon className="w-5 h-5 text-muted-foreground" />
+                                    <span className="text-sm font-medium text-muted-foreground">{signal.text}</span>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </section>
+                
+                {/* Featured Sellers */}
+                 <section>
+                    <h2 className="text-2xl font-bold font-headline mb-6">Featured Local Businesses</h2>
+                    {isLoadingProfiles ? renderBusinessSkeletons() : (
+                        businessProfiles && businessProfiles.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                                {businessProfiles.map(profile => (
+                                    <Link href={profile.slug ? `/${profile.slug}` : '#'} key={profile.id}>
+                                    <Card className="overflow-hidden group cursor-pointer h-full flex flex-col items-center justify-center p-4 shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                        <Avatar className="h-16 w-16 border mb-4">
+                                            <AvatarImage src={profile.marketSettings?.logoImageUrl} alt={profile.businessName} />
+                                            <AvatarFallback>{profile.businessName?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <h3 className="font-semibold text-sm text-center line-clamp-1">{profile.businessName}</h3>
+                                        <p className="text-xs text-muted-foreground capitalize text-center">{profile.businessType}</p>
+                                    </Card>
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : (
+                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                                {[...Array(6)].map((_, i) => (
+                                    <Card key={i} className="h-full flex flex-col items-center justify-center text-center p-4 border-dashed">
+                                        <Building className="w-8 h-8 text-muted-foreground mb-2"/>
+                                        <p className="text-xs text-muted-foreground">Your business could be featured here</p>
+                                    </Card>
+                                ))}
+                            </div>
+                        )
+                    )}
+                </section>
 
                 {/* 4. Product Grid (Core) */}
                 <section>
@@ -351,10 +468,53 @@ export default function MarketPage() {
                         </div>
                     )}
                     {!isLoadingProducts && productsData?.length === 0 && (
-                            <div className="text-center py-20 border rounded-lg bg-card">
-                            <h2 className="text-xl font-semibold">No Products Found for {market.city}</h2>
-                            <p className="text-muted-foreground mt-2">Try changing your market location to see more products.</p>
-                        </div>
+                        <Card className="text-center py-16 border-2 border-dashed">
+                            <CardHeader>
+                                <div className="mx-auto bg-secondary p-3 rounded-full inline-block">
+                                    <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="mt-4">No products in your area yet</CardTitle>
+                                <CardDescription>Businesses are joining daily. Check back soon or change your location.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex gap-4 justify-center">
+                                    <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button>Change Location</Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle>Change Your Market</DialogTitle>
+                                                <DialogDescription>Select your location to see products available for delivery in your area.</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="country-select">Country</Label>
+                                                    <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                                                        <SelectTrigger id="country-select"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {availableMarkets.map(country => (<SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="city-select">City</Label>
+                                                    <Select value={selectedCity} onValueChange={setSelectedCity} disabled={!selectedCountryData}>
+                                                        <SelectTrigger id="city-select"><SelectValue placeholder="Select a city" /></SelectTrigger>
+                                                        <SelectContent>{selectedCountryData?.cities.map(city => (<SelectItem key={city} value={city}>{city}</SelectItem>))}</SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button type="button" variant="outline" onClick={() => setIsLocationModalOpen(false)}>Cancel</Button>
+                                                <Button type="button" onClick={handleUpdateMarket}>Update Market</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                    <Button asChild variant="secondary"><Link href="/signup">Become a Seller</Link></Button>
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
                     {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
                         <div className="text-center py-20 border rounded-lg bg-card">
@@ -362,28 +522,6 @@ export default function MarketPage() {
                             <p className="text-muted-foreground mt-2">Try a different search term.</p>
                         </div>
                     )}
-                </section>
-
-                {/* Utility Banners */}
-                <section className="grid md:grid-cols-2 gap-4">
-                    <Link href="/market/delivery">
-                        <Card className="flex items-center p-4 bg-primary/5 border-primary/10 h-full hover:bg-primary/10 transition-colors">
-                            <Truck className="w-8 h-8 text-primary mr-4" />
-                            <div>
-                                <h3 className="font-semibold">Nationwide Delivery</h3>
-                                <p className="text-sm text-muted-foreground">Fast & reliable shipping to your doorstep.</p>
-                            </div>
-                        </Card>
-                    </Link>
-                    <Link href="/signup">
-                        <Card className="flex items-center p-4 bg-accent/5 border-accent/10 h-full hover:bg-accent/10 transition-colors">
-                            <Store className="w-8 h-8 text-accent mr-4" />
-                            <div>
-                                <h3 className="font-semibold">Become a Seller</h3>
-                                <p className="text-sm text-muted-foreground">Reach thousands of new customers. <span className="underline text-accent">Start selling</span>.</p>
-                            </div>
-                        </Card>
-                    </Link>
                 </section>
             </div>
         </MarketLayout>

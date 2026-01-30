@@ -292,7 +292,7 @@ export default function LandingPage() {
         </section>
 
         {/* Testimonials Section */}
-        <section className="bg-card/30 py-24 sm:py-32">
+        <section className="py-24 sm:py-32">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-2xl mx-auto">
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
@@ -349,7 +349,7 @@ export default function LandingPage() {
         </section>
 
         {/* AI Section */}
-        <section className="py-24 sm:py-32">
+        <section className="bg-card/30 py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
@@ -393,145 +393,12 @@ export default function LandingPage() {
           </div>
         </section>
         
-        {/* Forecasting Section */}
-        <section className="bg-card/30 py-24 sm:py-32">
-          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-              <div>
-                 <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl"
-                    dangerouslySetInnerHTML={{ __html: t('welcome.forecast_title') }}
-                 />
-                <p className="mt-4 text-lg text-muted-foreground">
-                    {t('welcome.forecast_subtitle')}
-                </p>
-                <ul className="mt-6 space-y-3 text-muted-foreground">
-                    {(t('welcome.forecast_features', { returnObjects: true }) as string[]).map((feature, i) => (
-                        <li key={i} className="flex items-center gap-3">
-                            <CheckCircle className="w-5 h-5 text-accent"/>
-                            <span>{feature}</span>
-                        </li>
-                    ))}
-                </ul>
-              </div>
-              <div className="space-y-4">
-                <Card className="shadow-lg">
-                    <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-accent"/>
-                        <span>{t('welcome.forecast_1_title')}</span>
-                    </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    <p className="text-success font-medium">{t('welcome.forecast_1_desc')}</p>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-lg">
-                    <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-accent"/>
-                        <span>{t('welcome.forecast_2_title')}</span>
-                    </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    <p className="text-primary font-medium">{t('welcome.forecast_2_desc')}</p>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-lg">
-                    <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Package className="w-5 h-5 text-accent"/>
-                        <span>{t('welcome.forecast_3_title')}</span>
-                    </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                    <p className="text-warning font-medium">{t('welcome.forecast_3_desc')}</p>
-                    </CardContent>
-                </Card>
-              </div>
-          </div>
-        </section>
-
-        {/* Funding Section */}
-        <section className="py-24 sm:py-32">
-          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
-                {t('welcome.funding_title')}
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                {t('welcome.funding_subtitle')}
-              </p>
-              <ul className="mt-6 space-y-3 text-muted-foreground">
-                 {(t('welcome.funding_features', { returnObjects: true }) as string[]).map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3">
-                      <CheckCircle className="w-5 h-5 text-accent"/>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-            <div className="space-y-4">
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Landmark className="w-5 h-5 text-accent"/>
-                    <span>{t('welcome.funding_1_title')}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-primary font-medium" dangerouslySetInnerHTML={{ __html: t('welcome.funding_1_desc') }} />
-                </CardContent>
-              </Card>
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-accent"/>
-                    <span>{t('welcome.funding_2_title')}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-success font-medium" dangerouslySetInnerHTML={{ __html: t('welcome.funding_2_desc') }} />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-
-        {/* Investor Section */}
-        <section className="bg-card/30 py-24 sm:py-32">
-          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            <div className="relative mx-auto w-full max-w-lg h-[550px] flex items-center justify-center">
-                <InvestorMockup />
-            </div>
-            <div className="md:order-first">
-                 <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl"
-                    dangerouslySetInnerHTML={{ __html: t('welcome.investor_title') }}
-                 />
-                <p className="mt-4 text-lg text-muted-foreground">
-                    {t('welcome.investor_subtitle')}
-                </p>
-                <ul className="mt-6 space-y-3 text-muted-foreground">
-                    {(t('welcome.investor_features', { returnObjects: true }) as string[]).map((feature, i) => (
-                        <li key={i} className="flex items-center gap-3">
-                            <CheckCircle className="w-5 h-5 text-accent"/>
-                            <span>{feature}</span>
-                        </li>
-                    ))}
-                </ul>
-                 <Link href="/invest" passHref>
-                    <Button size="lg" className="mt-8 h-12 text-base">
-                        {t('welcome.investor_cta')}
-                    </Button>
-                </Link>
-            </div>
-          </div>
-        </section>
-
         {/* BusmoPay Section */}
-        <section className="bg-primary/5 py-24 sm:py-32">
+        <section className="py-24 sm:py-32">
           <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div className="md:order-last">
               <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl">
-                 Sell products & share profits<br/><span className='text-primary'>with BusmoPay</span>
+                 Sell products & share profits<br/><Logo variant="busmopay" className="inline-block text-[1em]" />
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
                   The integrated payment solution for the Busmo marketplace. Accept payments via popular payment gateways and mobile money, and automatically distribute profits to your investors.
@@ -573,7 +440,37 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-        
+
+        {/* Investor Section */}
+        <section className="bg-card/30 py-24 sm:py-32">
+          <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <div className="relative mx-auto w-full max-w-lg h-[550px] flex items-center justify-center">
+                <InvestorMockup />
+            </div>
+            <div className="md:order-first">
+                 <h2 className="text-3xl font-bold tracking-tight font-headline sm:text-4xl"
+                    dangerouslySetInnerHTML={{ __html: t('welcome.investor_title') }}
+                 />
+                <p className="mt-4 text-lg text-muted-foreground">
+                    {t('welcome.investor_subtitle')}
+                </p>
+                <ul className="mt-6 space-y-3 text-muted-foreground">
+                    {(t('welcome.investor_features', { returnObjects: true }) as string[]).map((feature, i) => (
+                        <li key={i} className="flex items-center gap-3">
+                            <CheckCircle className="w-5 h-5 text-accent"/>
+                            <span>{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+                 <Link href="/invest" passHref>
+                    <Button size="lg" className="mt-8 h-12 text-base">
+                        {t('welcome.investor_cta')}
+                    </Button>
+                </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Why Busmo Section */}
         <section className="py-24 sm:py-32">
             <div className="container mx-auto px-4">
