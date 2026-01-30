@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -324,7 +325,7 @@ export default function MarketPage() {
             <div className="container mx-auto px-4 py-8 space-y-12">
                 
                 {/* 1. Hero Banner */}
-                {isLoadingBanners ? <Skeleton className="h-56 md:h-72 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
+                {isLoadingBanners ? <Skeleton className="h-64 md:h-80 w-full rounded-lg" /> : (heroBanners && heroBanners.length > 0 &&
                     <section>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -333,7 +334,7 @@ export default function MarketPage() {
                             <CarouselContent>
                                 {heroBanners.map(banner => (
                                     <CarouselItem key={banner.id}>
-                                        <div className={cn("relative h-56 md:h-72 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                        <div className={cn("relative h-64 md:h-80 w-full rounded-lg overflow-hidden flex items-center justify-center p-8", banner.className)}>
                                             {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title} fill className="object-cover" data-ai-hint={banner.imageHint} />}
                                             <div className="relative text-center z-10 bg-black/40 text-white p-6 rounded-lg backdrop-blur-sm">
                                                 <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">{banner.title}</h1>
@@ -350,18 +351,19 @@ export default function MarketPage() {
                 
                 {/* 2. Quick Categories */}
                  {isLoadingCategories ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-4">
                         {[...Array(7)].map((_, i) => (
-                            <div key={i} className="block group">
-                                <Skeleton className="aspect-square rounded-lg" />
+                            <div key={i} className="block group text-center">
+                                <Skeleton className="aspect-square rounded-lg mb-2" />
+                                <Skeleton className="h-5 w-16 mx-auto" />
                             </div>
                         ))}
                     </div>
                 ) : (categories && categories.length > 0 &&
                     <section>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-4">
                             {categories.map(category => (
-                                <Link href="#" key={category.id} className="block group">
+                                <Link href="#" key={category.id} className="block group text-center">
                                     <div className="relative aspect-square overflow-hidden rounded-lg">
                                         <Image
                                             src={category.imageUrl}
@@ -370,9 +372,8 @@ export default function MarketPage() {
                                             className="object-cover transition-transform duration-300 group-hover:scale-105"
                                             data-ai-hint={category.imageHint}
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                        <p className="absolute bottom-2 left-2 right-2 text-center text-sm font-bold text-white truncate">{category.name}</p>
                                     </div>
+                                    <p className="mt-2 text-sm font-semibold text-foreground truncate">{category.name}</p>
                                 </Link>
                             ))}
                         </div>
