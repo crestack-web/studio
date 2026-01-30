@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -31,59 +30,67 @@ export default function MarketLayout({
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
-                <div className="container mx-auto flex h-20 items-center justify-between px-4 gap-4">
-                    <Link href="/market"><Logo className="h-8 hidden sm:flex" /></Link>
-                    
-                    <div className="flex-1 max-w-2xl">
-                         <div className="relative w-full">
+                <div className="container mx-auto">
+                    <div className="flex h-20 items-center justify-between px-4 gap-4">
+                        <div className="flex-1 flex justify-start">
+                            <div className="md:hidden">
+                                <Sheet>
+                                    <SheetTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <Menu className="h-6 w-6" />
+                                            <span className="sr-only">Open menu</span>
+                                        </Button>
+                                    </SheetTrigger>
+                                    <SheetContent>
+                                        <SheetHeader>
+                                            <SheetTitle className="sr-only">Menu</SheetTitle>
+                                            <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                                        </SheetHeader>
+                                        <Logo className="h-8 mb-8" />
+                                        <nav className="flex flex-col gap-4">
+                                            <Link href="/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
+                                            <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
+                                            <div className="flex items-center gap-2 mt-4">
+                                                <ThemeToggle />
+                                                <LanguageSwitcher />
+                                            </div>
+                                        </nav>
+                                    </SheetContent>
+                                </Sheet>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-shrink-0">
+                            <Link href="/market"><Logo className="h-8" /></Link>
+                        </div>
+
+                        <div className="flex-1 flex justify-end items-center gap-1 sm:gap-2">
+                            <MarketSwitcher />
+                            <Link href="/market/cart" passHref>
+                                <Button variant="ghost" size="icon" className="relative">
+                                    <ShoppingCart className="h-6 w-6" />
+                                    {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
+                                    <span className="sr-only">Cart</span>
+                                </Button>
+                            </Link>
+                            
+                            <div className="hidden md:flex items-center gap-2">
+                                <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+                                <Button asChild><Link href="/signup">Sign Up</Link></Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="px-4 pb-4">
+                        <div className="relative w-full max-w-2xl mx-auto">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input 
                                 placeholder="Search products, stores, or categories" 
                                 className="pl-10 h-12 text-base"
                                 value={isSearchControlled ? searchValue : undefined}
-                                onChange={isSearchControlled ? (e) => onSearchChange(e.target.value) : undefined}
+                                onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
                             />
                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 sm:gap-2">
-                        <MarketSwitcher />
-                        <Link href="/market/cart" passHref>
-                            <Button variant="ghost" size="icon" className="relative">
-                                <ShoppingCart className="h-6 w-6" />
-                                {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
-                                <span className="sr-only">Cart</span>
-                            </Button>
-                        </Link>
-                        
-                        <div className="hidden md:flex items-center gap-2">
-                            <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
-                        </div>
-                        
-                         <Sheet>
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" className="md:hidden">
-                                    <Menu className="h-6 w-6" />
-                                    <span className="sr-only">Open menu</span>
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent>
-                                <SheetHeader>
-                                    <SheetTitle className="sr-only">Menu</SheetTitle>
-                                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
-                                </SheetHeader>
-                                <Logo className="h-8 mb-8" />
-                                <nav className="flex flex-col gap-4">
-                                     <Link href="/login" passHref><Button variant="outline" className="w-full justify-start text-lg">Log In</Button></Link>
-                                     <Link href="/signup" passHref><Button className="w-full justify-start text-lg">Sign Up</Button></Link>
-                                    <div className="flex items-center gap-2 mt-4">
-                                        <ThemeToggle />
-                                        <LanguageSwitcher />
-                                    </div>
-                                </nav>
-                            </SheetContent>
-                        </Sheet>
                     </div>
                 </div>
             </header>
