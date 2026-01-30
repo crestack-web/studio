@@ -349,7 +349,7 @@ export default function MarketPage() {
                                     <CarouselContent className="h-full">
                                         {heroBanners.map(banner => (
                                             <CarouselItem key={banner.id} className="h-full">
-                                                <div className={cn("relative h-full w-full overflow-hidden flex items-center justify-center p-8", banner.className)}>
+                                                <div className={cn("relative h-full w-full overflow-hidden flex items-center justify-center", banner.className)}>
                                                     {banner.imageUrl && <Image src={banner.imageUrl} alt={banner.title || 'Market banner'} fill className="object-cover" data-ai-hint={banner.imageHint || ''} />}
                                                     
                                                     {(banner.title || banner.subtitle || banner.buttonText) && (
