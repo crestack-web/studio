@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2 } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -29,9 +29,10 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, updateDocumentNonBlocking, useDoc } from '@/firebase';
+import { collection, query, where, serverTimestamp, doc, limit, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import imageCompression from 'browser-image-compression';
 
 
 const testimonialsDataRaw = [
@@ -68,6 +69,21 @@ interface SupportAgent {
     language?: 'en' | 'fr';
 }
 
+interface ChatConversation {
+    id: string;
+    userId: string;
+    status: 'open' | 'in-progress' | 'closed';
+}
+
+interface ChatMessage {
+    id: string;
+    senderId: string;
+    senderName: string;
+    text?: string;
+    imageUrl?: string;
+    createdAt: { toDate: () => Date };
+}
+
 // The new landing page component
 export default function LandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
@@ -76,20 +92,19 @@ export default function LandingPage() {
   const { toast } = useToast();
   
   const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: '1',
-      sender: 'support',
-      text: 'Hi there! How can I help you today?',
-    }
-  ]);
   const [chatInput, setChatInput] = useState('');
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketMessage, setTicketMessage] = useState('');
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useUser();
   const firestore = useFirestore();
   const { language } = useLanguage();
+
+  const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userProfile } = useDoc(userProfileRef);
 
   const agentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -117,6 +132,122 @@ export default function LandingPage() {
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
   }, []);
+  
+  const activeConversationQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(
+        collection(firestore, 'chatConversations'),
+        where('userId', '==', user.uid),
+        where('status', 'in', ['open', 'in-progress']),
+        limit(1)
+    );
+  }, [firestore, user]);
+  const { data: activeConversations } = useCollection<ChatConversation>(activeConversationQuery);
+  const activeConversation = activeConversations?.[0];
+
+  useEffect(() => {
+      if (activeConversation) {
+          setConversationId(activeConversation.id);
+      } else {
+          setConversationId(null);
+      }
+  }, [activeConversation]);
+  
+  const chatMessagesQuery = useMemoFirebase(() => {
+    if (!firestore || !conversationId) return null;
+    return query(collection(firestore, `chatConversations/${conversationId}/messages`), orderBy('createdAt', 'asc'));
+  }, [firestore, conversationId]);
+  const { data: realChatMessages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(chatMessagesQuery);
+  
+  useEffect(() => {
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [realChatMessages]);
+
+  const handleStartChat = async () => {
+    if (!firestore || !user || !userProfile) {
+        toast({ title: "Please log in", description: "You must be logged in to start a chat.", variant: "destructive" });
+        return;
+    }
+    setChatView('chat');
+    if (activeConversation) {
+        setConversationId(activeConversation.id);
+        return;
+    }
+
+    const newConversation = {
+        userId: user.uid,
+        userName: userProfile.displayName,
+        agentId: null,
+        status: 'open',
+        lastMessage: 'User initiated chat',
+        lastMessageAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+    const newConversationRef = await addDocumentNonBlocking(collection(firestore, 'chatConversations'), newConversation);
+    setConversationId(newConversationRef.id);
+  };
+  
+  const handleSendChatMessage = async (message: { text?: string; imageUrl?: string }) => {
+    if (!firestore || !conversationId || !user || !userProfile) return;
+
+    const messageData = {
+        senderId: user.uid,
+        senderName: userProfile.displayName,
+        ...message,
+        createdAt: serverTimestamp(),
+    };
+
+    const messagesRef = collection(firestore, `chatConversations/${conversationId}/messages`);
+    const conversationRef = doc(firestore, 'chatConversations', conversationId);
+    
+    await addDocumentNonBlocking(messagesRef, messageData);
+    updateDocumentNonBlocking(conversationRef, {
+        lastMessage: message.imageUrl ? 'Image' : message.text,
+        lastMessageAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleSendTextMessage = (e: FormEvent) => {
+      e.preventDefault();
+      if (!chatInput.trim()) return;
+      handleSendChatMessage({ text: chatInput.trim() });
+      setChatInput('');
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1024,
+        useWebWorker: true,
+    };
+
+    try {
+        const compressedFile = await imageCompression(file, options);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const dataUrl = reader.result as string;
+            handleSendChatMessage({ imageUrl: dataUrl });
+        };
+        reader.readAsDataURL(compressedFile);
+    } catch (error) {
+        console.error('Error compressing image:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Image Upload Failed',
+            description: 'There was an error processing your image.',
+        });
+    } finally {
+        if(fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+  };
+
 
   const handleCreateTicket = (e: FormEvent) => {
     e.preventDefault();
@@ -135,7 +266,7 @@ export default function LandingPage() {
         status: 'open',
         createdAt: serverTimestamp(),
         userId: user.uid,
-        userName: user.displayName || 'N/A',
+        userName: userProfile?.displayName || 'N/A',
         userEmail: user.email || 'N/A'
     });
 
@@ -656,7 +787,6 @@ export default function LandingPage() {
                     {isLoadingAgents ? (
                          <>
                             <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
-                            <div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-16" /></div></div>
                         </>
                     ) : agentsError ? (
                         <p className="text-sm text-destructive text-center py-4">Could not load agent list.</p>
@@ -690,7 +820,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex-1" />
                 <SheetFooter className="flex-col-reverse sm:flex-col-reverse gap-2 pt-4 border-t">
-                <Button onClick={() => setChatView('chat')} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start Live Chat</Button>
+                <Button onClick={handleStartChat} className="w-full h-12 text-base" disabled={isLoadingAgents || !!agentsError || !canChat}>Start Live Chat</Button>
                 <Button onClick={() => setChatView('ticket')} variant="outline" className="w-full h-12 text-base">Create Support Ticket</Button>
                 </SheetFooter>
             </>
@@ -726,9 +856,12 @@ export default function LandingPage() {
                     )}
                 </SheetHeader>
                 <div className="flex-1 space-y-4 py-4 pr-4 overflow-y-auto -mr-6">
-                {chatMessages.map(msg => (
-                    <div key={msg.id} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
-                    {msg.sender === 'support' && assignedAgent && (
+                {isLoadingMessages ? (
+                  <div className="flex justify-center items-center h-full"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : realChatMessages ? (
+                  realChatMessages.map(msg => (
+                    <div key={msg.id} className={`flex items-start gap-3 ${msg.senderId === user?.uid ? 'justify-end' : ''}`}>
+                      {msg.senderId !== user?.uid && assignedAgent && (
                         <Avatar className="w-8 h-8 border">
                              {assignedAgent.avatarUrl ? (
                                 <Image src={assignedAgent.avatarUrl} alt={assignedAgent.displayName} width={32} height={32} data-ai-hint="support agent" />
@@ -736,34 +869,35 @@ export default function LandingPage() {
                                 <AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback>
                             )}
                         </Avatar>
-                    )}
-                    <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
-                        {msg.text}
+                      )}
+                      <div className={`rounded-xl p-3 text-sm max-w-[80%] ${msg.senderId === user?.uid ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-card border rounded-bl-none'}`}>
+                        {msg.text && <p>{msg.text}</p>}
+                        {msg.imageUrl && (
+                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg mt-2 cursor-pointer" />
+                            </a>
+                        )}
+                      </div>
                     </div>
-                    </div>
-                ))}
+                  ))
+                ) : null}
+                <div ref={chatMessagesEndRef} />
                 </div>
                 <SheetFooter className="pt-4 -mx-6 px-6 pb-6 border-t bg-background">
                 <form
-                    onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!chatInput.trim()) return;
-                    setChatMessages([...chatMessages, { id: Date.now().toString(), sender: 'user', text: chatInput }]);
-                    setChatInput('');
-                    setTimeout(() => {
-                        setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'support', text: "Thanks for your message. I'm looking into that now."}])
-                    }, 1500)
-                    }}
+                    onSubmit={handleSendTextMessage}
                     className="flex w-full items-center gap-2"
                 >
+                    <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} className="shrink-0 h-12 w-12"><FileUp className="h-6 w-6" /></Button>
                     <Input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type your message..."
-                    className="h-12 flex-1 text-base"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Type your message..."
+                      className="h-12 flex-1 text-base"
                     />
+                    <Input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
                     <Button type="submit" size="icon" className="h-12 w-12 shrink-0">
-                    <Send className="h-6 w-6" />
+                        <Send className="h-6 w-6" />
                     </Button>
                 </form>
                 </SheetFooter>
