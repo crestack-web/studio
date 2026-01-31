@@ -331,12 +331,20 @@ export default function MarketPage() {
     )
 
     return (
-        <MarketLayout>
-            <div className="container mx-auto px-4 pt-0 pb-8 space-y-8">
+        <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
+            <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
+                        <div className="hidden lg:flex flex-col gap-4">
+                             <Card className="overflow-hidden h-[202px] relative">
+                                <Image src="https://picsum.photos/seed/promo1/250/202" alt="Promotion 1" fill className="object-cover" data-ai-hint="sale banner" />
+                            </Card>
+                             <Card className="overflow-hidden h-[202px] relative">
+                                <Image src="https://picsum.photos/seed/promo2/250/202" alt="Promotion 2" fill className="object-cover" data-ai-hint="product promotion" />
+                            </Card>
+                        </div>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                             opts={{
@@ -428,8 +436,8 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-4">
-                                <CardTitle className="text-xl">Shop by Category</CardTitle>
+                             <CardHeader className="p-3">
+                                <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
                                 <Carousel
