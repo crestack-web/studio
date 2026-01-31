@@ -357,20 +357,19 @@ export default function MarketPage() {
                         <div className="hidden lg:flex flex-col gap-6">
                            {isLoadingGifBanners ? (
                                 <>
-                                    <Skeleton className="h-[198px] w-full" />
-                                    <Skeleton className="h-[198px] w-full" />
+                                    <Skeleton className="h-[168px] w-full" />
+                                    <Skeleton className="h-[168px] w-full" />
                                 </>
                             ) : (
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
                                     <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
-                                        <Card className="overflow-hidden h-[198px] relative group">
+                                        <Card className="overflow-hidden h-[168px] relative group">
                                             <Image 
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
                                                 fill
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
-                                                unoptimized={banner?.imageUrl?.endsWith('.gif')}
                                             />
                                         </Card>
                                     </Link>
@@ -383,7 +382,7 @@ export default function MarketPage() {
                                 align: "start",
                                 loop: true,
                             }}
-                            className="w-full h-[250px] lg:h-[420px]"
+                            className="w-full h-[250px] lg:h-[360px]"
                         >
                             <CarouselContent className="h-full">
                                 {isLoadingBanners ? (
@@ -425,7 +424,7 @@ export default function MarketPage() {
                             </CarouselContent>
                         </Carousel>
                         <div className="hidden lg:block">
-                            <Card>
+                             <Card>
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
@@ -652,4 +651,5 @@ export default function MarketPage() {
             </div>
         </MarketLayout>
     );
-}
+
+    
