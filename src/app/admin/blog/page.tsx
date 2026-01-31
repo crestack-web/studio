@@ -2,7 +2,7 @@
 'use client';
 import { useState, useMemo, ChangeEvent, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import imageCompression from 'browser-image-compression';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 
 interface BlogPost {
@@ -263,16 +265,19 @@ export default function AdminBlogPage() {
         <main className="flex-1 p-4 sm:p-6 space-y-6">
             <h1 className="text-2xl font-bold font-headline">Manage Blog</h1>
             
-            <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-1 space-y-6">
-                    <Card>
-                        <CardHeader><CardTitle>Add New Post</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Add New Post</CardTitle>
+                        <CardDescription>Use markdown for content. A live preview is shown on the right.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
                             <div className="space-y-2"><Label htmlFor="title">Title</Label><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Post title" disabled={isLoading} /></div>
-                            <div className="space-y-2"><Label htmlFor="description">Short Description</Label><Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief summary for the blog list page." disabled={isLoading} /></div>
+                            <div className="space-y-2"><Label htmlFor="description">Short Description</Label><Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief summary for the blog list page." disabled={isLoading} rows={2} /></div>
                             
                             <div className="space-y-2">
-                                <Label htmlFor="content">Content</Label>
+                                <Label htmlFor="content">Content (Markdown)</Label>
                                 <div className="rounded-md border border-input">
                                     <MarkdownToolbar 
                                         onInsert={(type) => handleInsert(addContentRef, content, setContent, type)}
@@ -284,7 +289,7 @@ export default function AdminBlogPage() {
                                         value={content}
                                         onChange={(e) => setContent(e.target.value)}
                                         placeholder="Write your blog post content here. Use markdown for formatting."
-                                        rows={10}
+                                        rows={15}
                                         disabled={isLoading}
                                         className="border-0 rounded-t-none focus-visible:ring-0"
                                     />
@@ -309,91 +314,110 @@ export default function AdminBlogPage() {
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., person writing" disabled={isLoading} /></div>
                             <div className="space-y-2"><Label htmlFor="author">Author</Label><Input id="author" value={author} onChange={(e) => setAuthor(e.target.value)} disabled={isLoading} /></div>
                             <div className="flex items-center space-x-2"><Switch id="isPublished" checked={isPublished} onCheckedChange={setIsPublished} disabled={isLoading} /><Label htmlFor="isPublished">Publish immediately</Label></div>
-                            <Button onClick={handleAddPost} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Post</Button>
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-2">
-                     <Card>
-                        <CardHeader><CardTitle>Existing Posts</CardTitle><CardDescription>View, edit, or delete existing blog posts.</CardDescription></CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead>Author</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {isLoadingPosts ? (
-                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading posts...</TableCell></TableRow>
-                                    ) : sortedBlogPosts && sortedBlogPosts.length > 0 ? sortedBlogPosts.map((post) => (
-                                        <TableRow key={post.id}>
-                                            <TableCell className="font-medium">{post.title}</TableCell>
-                                            <TableCell><Badge variant={post.isPublished ? 'default' : 'secondary'}>{post.isPublished ? 'Published' : 'Draft'}</Badge></TableCell>
-                                            <TableCell>{post.author}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => setEditingPost(post)}><FileEdit className="h-4 w-4" /></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the post titled "{post.title}".</AlertDialogDescription></AlertDialogHeader>
-                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeletePost(post.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
-                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">No blog posts found.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Live Preview</Label>
+                            <div className="prose dark:prose-invert border rounded-lg p-6 h-full overflow-y-auto bg-muted/30">
+                                {title && <h1 className="text-4xl font-bold mb-2 font-headline">{title}</h1>}
+                                {imageUrl && <div className="relative aspect-video my-8 rounded-lg overflow-hidden"><Image src={imageUrl} alt="Featured image preview" fill className="object-cover" /></div>}
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "Start writing to see your post take shape..."}</ReactMarkdown>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                         <Button onClick={handleAddPost} disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Post</Button>
+                    </CardFooter>
+                </Card>
+                
+                <Card>
+                    <CardHeader><CardTitle>Existing Posts</CardTitle><CardDescription>View, edit, or delete existing blog posts.</CardDescription></CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead>Author</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {isLoadingPosts ? (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading posts...</TableCell></TableRow>
+                                ) : sortedBlogPosts && sortedBlogPosts.length > 0 ? sortedBlogPosts.map((post) => (
+                                    <TableRow key={post.id}>
+                                        <TableCell className="font-medium">{post.title}</TableCell>
+                                        <TableCell><Badge variant={post.isPublished ? 'default' : 'secondary'}>{post.isPublished ? 'Published' : 'Draft'}</Badge></TableCell>
+                                        <TableCell>{post.author}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => setEditingPost(post)}><FileEdit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the post titled "{post.title}".</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeletePost(post.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">No blog posts found.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
              <Dialog open={!!editingPost} onOpenChange={(open) => !open && setEditingPost(null)}>
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-6xl">
                     <DialogHeader><DialogTitle>Edit Blog Post</DialogTitle><DialogDescription>Make changes to your post here. Click save when you're done.</DialogDescription></DialogHeader>
                     {editingPost && (
-                        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                            <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingPost.title} onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-description">Short Description</Label><Textarea id="edit-description" value={editingPost.description} onChange={(e) => setEditingPost({ ...editingPost, description: e.target.value })} /></div>
-                            
-                             <div className="space-y-2">
-                                <Label htmlFor="edit-content">Content</Label>
-                                <div className="rounded-md border border-input">
-                                    <MarkdownToolbar 
-                                        onInsert={(type) => handleInsert(editContentRef, editingPost.content, (val) => setEditingPost({ ...editingPost, content: val }), type)}
-                                        onImageClick={() => handleImageTrigger((val) => setEditingPost({ ...editingPost!, content: val }), editContentRef)}
-                                    />
-                                    <Textarea
-                                        ref={editContentRef}
-                                        id="edit-content"
-                                        value={editingPost.content}
-                                        onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
-                                        rows={12}
-                                        className="border-0 rounded-t-none focus-visible:ring-0"
-                                    />
+                        <div className="grid grid-cols-2 gap-6 max-h-[80vh]">
+                            <div className="space-y-4 pr-4 overflow-y-auto">
+                                <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingPost.title} onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })} /></div>
+                                <div className="space-y-2"><Label htmlFor="edit-description">Short Description</Label><Textarea id="edit-description" value={editingPost.description} onChange={(e) => setEditingPost({ ...editingPost, description: e.target.value })} rows={2}/></div>
+                                
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-content">Content (Markdown)</Label>
+                                    <div className="rounded-md border border-input">
+                                        <MarkdownToolbar 
+                                            onInsert={(type) => handleInsert(editContentRef, editingPost.content, (val) => setEditingPost({ ...editingPost, content: val }), type)}
+                                            onImageClick={() => handleImageTrigger((val) => setEditingPost({ ...editingPost!, content: val }), editContentRef)}
+                                        />
+                                        <Textarea
+                                            ref={editContentRef}
+                                            id="edit-content"
+                                            value={editingPost.content}
+                                            onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                                            rows={12}
+                                            className="border-0 rounded-t-none focus-visible:ring-0"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <Label>Featured Image</Label>
+                                    {editingPost.imageUrl ? (
+                                        <div className="relative aspect-video">
+                                            <Image src={editingPost.imageUrl} alt="Blog post image" fill className="object-cover rounded-md border" />
+                                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingPost({...editingPost, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
+                                        </div>
+                                    ) : (
+                                        <Label htmlFor="edit-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
+                                            <FileUp className="h-8 w-8" />
+                                            <span>Upload Image</span>
+                                        </Label>
+                                    )}
+                                    <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleFeatureImageUpload(e, (val) => setEditingPost({...editingPost!, imageUrl: val}))} className="hidden" disabled={isLoading} />
+                                </div>
+                                <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingPost.imageHint} onChange={(e) => setEditingPost({ ...editingPost, imageHint: e.target.value })} /></div>
+                                <div className="space-y-2"><Label htmlFor="edit-author">Author</Label><Input id="edit-author" value={editingPost.author} onChange={(e) => setEditingPost({ ...editingPost, author: e.target.value })} /></div>
+                                <div className="flex items-center space-x-2"><Switch id="edit-isPublished" checked={editingPost.isPublished} onCheckedChange={(checked) => setEditingPost({ ...editingPost, isPublished: checked })} /><Label htmlFor="edit-isPublished">Published</Label></div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Live Preview</Label>
+                                <div className="prose dark:prose-invert border rounded-lg p-6 h-full overflow-y-auto bg-muted/30">
+                                    {editingPost.title && <h1 className="text-4xl font-bold mb-2 font-headline">{editingPost.title}</h1>}
+                                    {editingPost.imageUrl && <div className="relative aspect-video my-8 rounded-lg overflow-hidden"><Image src={editingPost.imageUrl} alt="Featured image preview" fill className="object-cover" /></div>}
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{editingPost.content || "Start writing to see your post take shape..."}</ReactMarkdown>
                                 </div>
                             </div>
-                            
-                            <div className="space-y-2">
-                                <Label>Featured Image</Label>
-                                {editingPost.imageUrl ? (
-                                    <div className="relative aspect-video">
-                                        <Image src={editingPost.imageUrl} alt="Blog post image" fill className="object-cover rounded-md border" />
-                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingPost({...editingPost, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
-                                    </div>
-                                ) : (
-                                    <Label htmlFor="edit-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoading && "cursor-not-allowed opacity-50")}>
-                                        <FileUp className="h-8 w-8" />
-                                        <span>Upload Image</span>
-                                    </Label>
-                                )}
-                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleFeatureImageUpload(e, (val) => setEditingPost({...editingPost!, imageUrl: val}))} className="hidden" disabled={isLoading} />
-                            </div>
-                            <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingPost.imageHint} onChange={(e) => setEditingPost({ ...editingPost, imageHint: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-author">Author</Label><Input id="edit-author" value={editingPost.author} onChange={(e) => setEditingPost({ ...editingPost, author: e.target.value })} /></div>
-                            <div className="flex items-center space-x-2"><Switch id="edit-isPublished" checked={editingPost.isPublished} onCheckedChange={(checked) => setEditingPost({ ...editingPost, isPublished: checked })} /><Label htmlFor="edit-isPublished">Published</Label></div>
                         </div>
                     )}
-                    <DialogFooter>
+                    <DialogFooter className="pt-4">
                         <Button variant="outline" onClick={() => setEditingPost(null)}>Cancel</Button>
                         <Button onClick={handleUpdatePost} disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
