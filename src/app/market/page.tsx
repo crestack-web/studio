@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -354,15 +353,15 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch h-[250px]">
-                        <div className="hidden lg:flex flex-col gap-6">
+                        <div className="hidden lg:flex flex-col gap-6 h-full">
                            {isLoadingGifBanners ? (
                                 <>
-                                    <Skeleton className="h-full w-full" />
-                                    <Skeleton className="h-full w-full" />
+                                    <Skeleton className="flex-1 w-full" />
+                                    <Skeleton className="flex-1 w-full" />
                                 </>
                             ) : (
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
-                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'} className="block h-full">
+                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'} className="block flex-1">
                                         <Card className="overflow-hidden h-full relative group">
                                             <img 
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/140`}
@@ -424,7 +423,7 @@ export default function MarketPage() {
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
-                                <CardContent className="p-4 pt-0 flex-1">
+                                <CardContent className="p-4 pt-0 pb-2 flex-1">
                                     <div className="space-y-1">
                                         {promoCategories.map(category => (
                                             <Link href={category.href} key={category.name} className="block">
@@ -649,6 +648,7 @@ export default function MarketPage() {
     );
 
     
+
 
 
 
