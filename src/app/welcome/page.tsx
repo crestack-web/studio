@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -322,6 +322,12 @@ export default function LandingPage() {
     { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
   ];
 
+  const announcementMessages = [
+    { text: t('welcome.promo_1'), href: "/pricing" },
+    { text: t('welcome.promo_2'), href: "#" },
+    { text: t('welcome.promo_3'), href: "#" },
+  ];
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -372,6 +378,29 @@ export default function LandingPage() {
           </div>
         </div>
       </header>
+
+      {/* Announcement Bar */}
+      <div className="bg-primary/10 text-primary border-b border-primary/20">
+          <Carousel
+              plugins={[ Autoplay({ delay: 10000, stopOnInteraction: true }) ]}
+              opts={{ align: "start", loop: true, }}
+              className="w-full"
+          >
+              <CarouselContent>
+                  {announcementMessages.map((msg, index) => (
+                      <CarouselItem key={index}>
+                          <div className="text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
+                              <Megaphone className="h-4 w-4 shrink-0" />
+                              <Link href={msg.href} className="hover:underline">
+                                  {msg.text}
+                              </Link>
+                          </div>
+                      </CarouselItem>
+                  ))}
+              </CarouselContent>
+          </Carousel>
+      </div>
+
 
       {/* Main Content */}
       <main className="flex-1">
