@@ -332,7 +332,7 @@ export default function MarketPage() {
 
     return (
         <MarketLayout>
-            <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
+            <div className="container mx-auto px-4 pt-0 pb-8 space-y-8">
                 
                  {/* 1. Hero Section */}
                 <section>
@@ -410,10 +410,10 @@ export default function MarketPage() {
                  {isLoadingCategories ? (
                      <section>
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="p-4">
                                 <Skeleton className="h-5 w-40" />
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-4 pt-0">
                                 <div className="flex gap-4">
                                     {[...Array(8)].map((_, i) => (
                                         <div key={i} className="flex-shrink-0 w-24">
@@ -428,10 +428,10 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader>
+                             <CardHeader className="p-4">
                                 <CardTitle className="text-xl">Shop by Category</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-4">
+                            <CardContent className="p-4 pt-0">
                                 <Carousel
                                     opts={{
                                         align: "start",
