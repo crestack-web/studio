@@ -205,7 +205,11 @@ export default function AdminMarketPage() {
                                 <Label>Image</Label>
                                 {imageUrl ? (
                                     <div className="relative aspect-video">
-                                        <Image src={imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        {imageUrl.startsWith('data:image/gif') ? (
+                                            <img src={imageUrl} alt="Banner image" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                        ) : (
+                                            <Image src={imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        )}
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setImageUrl('')} disabled={isLoading}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
@@ -214,7 +218,7 @@ export default function AdminMarketPage() {
                                         <span>Upload Image</span>
                                     </Label>
                                 )}
-                                <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
+                                <Input id="image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
                                 <p className="text-xs text-muted-foreground">Recommended: 1200x630px.</p>
                             </div>
                              <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., abstract background" disabled={isLoading} /></div>
@@ -325,7 +329,11 @@ export default function AdminMarketPage() {
                                 <Label>Image</Label>
                                 {editingBanner.imageUrl ? (
                                     <div className="relative aspect-video">
-                                        <Image src={editingBanner.imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        {editingBanner.imageUrl.startsWith('data:image/gif') ? (
+                                            <img src={editingBanner.imageUrl} alt="Banner image" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                        ) : (
+                                            <Image src={editingBanner.imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
+                                        )}
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingBanner({...editingBanner, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
@@ -334,7 +342,7 @@ export default function AdminMarketPage() {
                                         <span>Upload Image</span>
                                     </Label>
                                 )}
-                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingBanner({...editingBanner!, imageUrl: val}))} className="hidden" disabled={isLoading} />
+                                <Input id="edit-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, (val) => setEditingBanner({...editingBanner!, imageUrl: val}))} className="hidden" disabled={isLoading} />
                             </div>
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint || ''} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText || ''} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>

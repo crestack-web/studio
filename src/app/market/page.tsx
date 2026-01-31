@@ -354,19 +354,18 @@ export default function MarketPage() {
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:flex flex-col gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch h-[250px] lg:h-[300px]">
+                        <div className="hidden lg:flex flex-col gap-6 h-full">
                            {isLoadingGifBanners ? (
                                 <>
-                                    <Skeleton className="h-[168px] w-full" />
-                                    <Skeleton className="h-[168px] w-full" />
+                                    <Skeleton className="h-full w-full" />
                                 </>
                             ) : (
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
                                     <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
-                                        <Card className="overflow-hidden h-[168px] relative group">
+                                        <Card className="overflow-hidden h-full relative group">
                                             <img 
-                                                src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
+                                                src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/140`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
                                                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
@@ -382,7 +381,7 @@ export default function MarketPage() {
                                 align: "start",
                                 loop: true,
                             }}
-                            className="w-full h-[250px] lg:h-[360px]"
+                            className="w-full h-full"
                         >
                             <CarouselContent className="h-full">
                                 {isLoadingBanners ? (
@@ -392,16 +391,25 @@ export default function MarketPage() {
                                 ) : (heroBanners && heroBanners.length > 0) ? (
                                     heroBanners.map((banner, index) => (
                                         <CarouselItem key={banner.id} className={cn("relative h-full overflow-hidden rounded-lg", banner.className)}>
-                                            {banner.imageUrl && 
-                                                <Image 
-                                                    src={banner.imageUrl} 
-                                                    alt={banner.title || 'Market banner'} 
-                                                    fill 
-                                                    className="object-cover" 
-                                                    data-ai-hint={banner.imageHint || ''} 
-                                                    priority={index === 0}
-                                                />
-                                            }
+                                            {banner.imageUrl && (
+                                                banner.imageUrl.startsWith('data:image/gif') ? (
+                                                    <img 
+                                                        src={banner.imageUrl} 
+                                                        alt={banner.title || 'Market banner'} 
+                                                        className="absolute inset-0 w-full h-full object-cover" 
+                                                        data-ai-hint={banner.imageHint || ''} 
+                                                    />
+                                                ) : (
+                                                    <Image 
+                                                        src={banner.imageUrl} 
+                                                        alt={banner.title || 'Market banner'} 
+                                                        fill 
+                                                        className="object-cover" 
+                                                        data-ai-hint={banner.imageHint || ''} 
+                                                        priority={index === 0}
+                                                    />
+                                                )
+                                            )}
                                             
                                             {(banner.title || banner.subtitle || banner.buttonText) && (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
@@ -423,8 +431,8 @@ export default function MarketPage() {
                                 )}
                             </CarouselContent>
                         </Carousel>
-                        <div className="hidden lg:block">
-                             <Card>
+                        <div className="hidden lg:block h-full">
+                             <Card className="h-full">
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
@@ -653,3 +661,4 @@ export default function MarketPage() {
     );
 
     
+
