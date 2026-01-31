@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -281,7 +282,7 @@ export default function MarketPage() {
 
     const handleUpdateMarket = () => {
         setMarket({ country: selectedCountry, city: selectedCity });
-        setIsOpen(false);
+        setIsLocationModalOpen(false);
     };
     // --- End Location Modal Logic ---
 
@@ -352,7 +353,7 @@ export default function MarketPage() {
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
                         <div className="hidden lg:flex flex-col gap-6">
                            {isLoadingGifBanners ? (
                                 <>
@@ -367,6 +368,7 @@ export default function MarketPage() {
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
                                                 fill
+                                                unoptimized
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
                                             />
@@ -466,7 +468,7 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-4 pt-2">
+                             <CardHeader className="p-2">
                                 <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">

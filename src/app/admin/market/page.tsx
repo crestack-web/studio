@@ -231,7 +231,7 @@ export default function AdminMarketPage() {
                                 <Label>Image / GIF</Label>
                                 {gifImageUrl ? (
                                     <div className="relative aspect-[250/202]">
-                                        <Image src={gifImageUrl} alt="GIF banner" fill className="object-cover rounded-md border" />
+                                        <Image src={gifImageUrl} alt="GIF banner" fill className="object-cover rounded-md border" unoptimized />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setGifImageUrl('')} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
@@ -291,7 +291,7 @@ export default function AdminMarketPage() {
                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell></TableRow>
                                     ) : gifBanners && gifBanners.length > 0 ? gifBanners.map((banner) => (
                                         <TableRow key={banner.id}>
-                                            <TableCell><Image src={banner.imageUrl} alt="GIF banner" width={80} height={60} className="rounded-md object-cover bg-muted" /></TableCell>
+                                            <TableCell><Image src={banner.imageUrl} alt="GIF banner" width={80} height={60} className="rounded-md object-cover bg-muted" unoptimized /></TableCell>
                                             <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
                                             <TableCell className="text-right">
@@ -361,7 +361,7 @@ export default function AdminMarketPage() {
                                 <Label>Image / GIF</Label>
                                 {editingGifBanner.imageUrl ? (
                                     <div className="relative aspect-[250/202]">
-                                        <Image src={editingGifBanner.imageUrl} alt="GIF banner" fill className="object-cover rounded-md border" />
+                                        <Image src={editingGifBanner.imageUrl} alt="GIF banner" fill className="object-cover rounded-md border" unoptimized />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingGifBanner({ ...editingGifBanner, imageUrl: '' })} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
@@ -388,4 +388,5 @@ export default function AdminMarketPage() {
         </main>
     );
 }
+
 
