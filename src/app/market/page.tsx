@@ -392,23 +392,14 @@ export default function MarketPage() {
                                     heroBanners.map((banner, index) => (
                                         <CarouselItem key={banner.id} className={cn("relative h-full overflow-hidden rounded-lg", banner.className)}>
                                             {banner.imageUrl && (
-                                                banner.imageUrl.startsWith('data:image/gif') ? (
-                                                    <img 
-                                                        src={banner.imageUrl} 
-                                                        alt={banner.title || 'Market banner'} 
-                                                        className="absolute inset-0 w-full h-full object-cover" 
-                                                        data-ai-hint={banner.imageHint || ''} 
-                                                    />
-                                                ) : (
-                                                    <Image 
-                                                        src={banner.imageUrl} 
-                                                        alt={banner.title || 'Market banner'} 
-                                                        fill 
-                                                        className="object-cover" 
-                                                        data-ai-hint={banner.imageHint || ''} 
-                                                        priority={index === 0}
-                                                    />
-                                                )
+                                                <Image 
+                                                    src={banner.imageUrl} 
+                                                    alt={banner.title || 'Market banner'} 
+                                                    fill 
+                                                    className="object-cover" 
+                                                    data-ai-hint={banner.imageHint || ''} 
+                                                    priority={index === 0}
+                                                />
                                             )}
                                             
                                             {(banner.title || banner.subtitle || banner.buttonText) && (
@@ -661,4 +652,5 @@ export default function MarketPage() {
     );
 
     
+
 

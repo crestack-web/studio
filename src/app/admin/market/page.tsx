@@ -205,11 +205,7 @@ export default function AdminMarketPage() {
                                 <Label>Image</Label>
                                 {imageUrl ? (
                                     <div className="relative aspect-video">
-                                        {imageUrl.startsWith('data:image/gif') ? (
-                                            <img src={imageUrl} alt="Banner image" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
-                                        ) : (
-                                            <Image src={imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
-                                        )}
+                                        <Image src={imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setImageUrl('')} disabled={isLoading}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
@@ -329,11 +325,7 @@ export default function AdminMarketPage() {
                                 <Label>Image</Label>
                                 {editingBanner.imageUrl ? (
                                     <div className="relative aspect-video">
-                                        {editingBanner.imageUrl.startsWith('data:image/gif') ? (
-                                            <img src={editingBanner.imageUrl} alt="Banner image" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
-                                        ) : (
-                                            <Image src={editingBanner.imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
-                                        )}
+                                        <Image src={editingBanner.imageUrl} alt="Banner image" fill className="object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingBanner({...editingBanner, imageUrl: ''})} disabled={isLoading}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
