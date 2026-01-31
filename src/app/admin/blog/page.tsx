@@ -1,5 +1,6 @@
+
 'use client';
-import { useState, useMemo, ChangeEvent } from 'react';
+import { useState, useMemo, ChangeEvent, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
-import { Loader2, Plus, FileEdit, Trash2, FileUp, X } from 'lucide-react';
+import { Loader2, Plus, FileEdit, Trash2, FileUp, X, Bold, Italic, Link2, Image as ImageIcon } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -32,11 +33,19 @@ interface BlogPost {
     createdAt: any;
 }
 
+const MarkdownToolbar = ({ onInsert, onImageClick }: { onInsert: (type: 'bold' | 'italic' | 'link') => void, onImageClick: () => void}) => (
+    <div className="flex items-center gap-1 rounded-t-md border-b border-input bg-muted p-1">
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onInsert('bold')} title="Bold"><Bold className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onInsert('italic')} title="Italic"><Italic className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onInsert('link')} title="Link"><Link2 className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onImageClick} title="Image"><ImageIcon className="h-4 w-4" /></Button>
+    </div>
+);
+
 export default function AdminBlogPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
 
-    // State for creating new post
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [description, setDescription] = useState('');
@@ -46,8 +55,13 @@ export default function AdminBlogPage() {
     const [isPublished, setIsPublished] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
-    // State for editing post
     const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+
+    const addContentRef = useRef<HTMLTextAreaElement>(null);
+    const editContentRef = useRef<HTMLTextAreaElement>(null);
+    const imageUploadRef = useRef<HTMLInputElement>(null);
+    const [imageTarget, setImageTarget] = useState<{ setter: (value: string) => void, ref: React.RefObject<HTMLTextAreaElement> } | null>(null);
+
 
     const blogPostsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -85,7 +99,7 @@ export default function AdminBlogPage() {
         setIsPublished(false);
     };
 
-    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+    const handleFeatureImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -108,6 +122,86 @@ export default function AdminBlogPage() {
                 title: 'Image compression failed',
                 description: 'Please try again with a different image.',
             });
+        }
+    };
+    
+    const handleInsert = (
+        ref: React.RefObject<HTMLTextAreaElement>,
+        currentValue: string,
+        setter: (value: string) => void,
+        type: 'bold' | 'italic' | 'link'
+    ) => {
+        const textarea = ref.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = currentValue.substring(start, end) || 'text';
+
+        let before = '';
+        let after = '';
+        let text = selectedText;
+
+        switch (type) {
+            case 'bold':
+                before = '**'; after = '**'; break;
+            case 'italic':
+                before = '*'; after = '*'; break;
+            case 'link':
+                before = '['; after = '](url)'; break;
+        }
+
+        const newText = `${before}${text}${after}`;
+        const finalValue = `${currentValue.substring(0, start)}${newText}${currentValue.substring(end)}`;
+        setter(finalValue);
+        
+        setTimeout(() => {
+            textarea.focus();
+            if (type === 'link') {
+                const urlStart = start + newText.indexOf('](url)') + 2;
+                textarea.setSelectionRange(urlStart, urlStart + 3);
+            } else {
+                 const textStart = start + before.length;
+                 textarea.setSelectionRange(textStart, textStart + text.length);
+            }
+        }, 0);
+    };
+
+    const handleImageTrigger = (setter: (value: string) => void, ref: React.RefObject<HTMLTextAreaElement>) => {
+        setImageTarget({ setter, ref });
+        imageUploadRef.current?.click();
+    };
+
+    const handleContentImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !imageTarget) return;
+
+        toast({ title: 'Compressing image...' });
+
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                const textarea = imageTarget.ref.current;
+                if (!textarea) return;
+
+                const start = textarea.selectionStart;
+                const currentValue = textarea.value;
+                const newText = `\n![${file.name}](${dataUrl})\n`;
+                const finalValue = `${currentValue.substring(0, start)}${newText}${currentValue.substring(start)}`;
+                
+                imageTarget.setter(finalValue);
+                toast({ title: 'Image inserted!' });
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+             toast({ variant: 'destructive', title: 'Image compression failed' });
+        } finally {
+            setImageTarget(null);
+            if(e.target) e.target.value = '';
         }
     };
 
@@ -176,7 +270,26 @@ export default function AdminBlogPage() {
                         <CardContent className="space-y-4">
                             <div className="space-y-2"><Label htmlFor="title">Title</Label><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Post title" disabled={isLoading} /></div>
                             <div className="space-y-2"><Label htmlFor="description">Short Description</Label><Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A brief summary for the blog list page." disabled={isLoading} /></div>
-                            <div className="space-y-2"><Label htmlFor="content">Content</Label><Textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your blog post content here. Use markdown for formatting." rows={10} disabled={isLoading} /></div>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="content">Content</Label>
+                                <div className="rounded-md border border-input">
+                                    <MarkdownToolbar 
+                                        onInsert={(type) => handleInsert(addContentRef, content, setContent, type)}
+                                        onImageClick={() => handleImageTrigger(setContent, addContentRef)}
+                                    />
+                                    <Textarea
+                                        ref={addContentRef}
+                                        id="content"
+                                        value={content}
+                                        onChange={(e) => setContent(e.target.value)}
+                                        placeholder="Write your blog post content here. Use markdown for formatting."
+                                        rows={10}
+                                        disabled={isLoading}
+                                        className="border-0 rounded-t-none focus-visible:ring-0"
+                                    />
+                                </div>
+                            </div>
                              <div className="space-y-2">
                                 <Label>Featured Image</Label>
                                 {imageUrl ? (
@@ -190,7 +303,7 @@ export default function AdminBlogPage() {
                                         <span>Upload Image</span>
                                     </Label>
                                 )}
-                                <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
+                                <Input id="image-upload" type="file" accept="image/*" onChange={(e) => handleFeatureImageUpload(e, setImageUrl)} className="hidden" disabled={isLoading} />
                                 <p className="text-xs text-muted-foreground">Recommended size: 1200x630px.</p>
                             </div>
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., person writing" disabled={isLoading} /></div>
@@ -241,7 +354,25 @@ export default function AdminBlogPage() {
                         <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                             <div className="space-y-2"><Label htmlFor="edit-title">Title</Label><Input id="edit-title" value={editingPost.title} onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-description">Short Description</Label><Textarea id="edit-description" value={editingPost.description} onChange={(e) => setEditingPost({ ...editingPost, description: e.target.value })} /></div>
-                            <div className="space-y-2"><Label htmlFor="edit-content">Content</Label><Textarea id="edit-content" value={editingPost.content} onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })} rows={12} /></div>
+                            
+                             <div className="space-y-2">
+                                <Label htmlFor="edit-content">Content</Label>
+                                <div className="rounded-md border border-input">
+                                    <MarkdownToolbar 
+                                        onInsert={(type) => handleInsert(editContentRef, editingPost.content, (val) => setEditingPost({ ...editingPost, content: val }), type)}
+                                        onImageClick={() => handleImageTrigger((val) => setEditingPost({ ...editingPost!, content: val }), editContentRef)}
+                                    />
+                                    <Textarea
+                                        ref={editContentRef}
+                                        id="edit-content"
+                                        value={editingPost.content}
+                                        onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                                        rows={12}
+                                        className="border-0 rounded-t-none focus-visible:ring-0"
+                                    />
+                                </div>
+                            </div>
+                            
                             <div className="space-y-2">
                                 <Label>Featured Image</Label>
                                 {editingPost.imageUrl ? (
@@ -255,7 +386,7 @@ export default function AdminBlogPage() {
                                         <span>Upload Image</span>
                                     </Label>
                                 )}
-                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingPost({...editingPost!, imageUrl: val}))} className="hidden" disabled={isLoading} />
+                                <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleFeatureImageUpload(e, (val) => setEditingPost({...editingPost!, imageUrl: val}))} className="hidden" disabled={isLoading} />
                             </div>
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingPost.imageHint} onChange={(e) => setEditingPost({ ...editingPost, imageHint: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-author">Author</Label><Input id="edit-author" value={editingPost.author} onChange={(e) => setEditingPost({ ...editingPost, author: e.target.value })} /></div>
@@ -271,6 +402,7 @@ export default function AdminBlogPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <Input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleContentImageUpload} />
         </main>
     );
 }
