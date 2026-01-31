@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Menu } from 'lucide-react';
+import { Instagram, Facebook, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
@@ -76,14 +76,23 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
             <footer className="bg-card border-t">
                 <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
                     <Logo className="h-7 mx-auto md:mx-0" />
-                    <p className="text-sm text-muted-foreground">
-                        &copy; {currentYear} business money.
-                    </p>
+                    <div className="flex items-center gap-4 justify-center text-sm text-muted-foreground">
+                        <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
+                        <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
+                    </div>
                     <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-                        <Link href="/terms" className="text-sm hover:underline">{t('footer.privacy')}</Link>
-                        <Link href="/terms" className="text-sm hover:underline">{t('footer.terms')}</Link>
+                        <a href="https://x.com/busmo_io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
+                            <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+                        </a>
+                        <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                            <Instagram className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                        </a>
+                        <a href="https://facebook.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                            <Facebook className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                        </a>
                     </div>
                 </div>
+                <p className="text-center text-xs text-muted-foreground pb-4">&copy; {currentYear} busmo.</p>
             </footer>
         </div>
     );

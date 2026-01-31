@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Menu, Search, ShoppingCart, Megaphone } from 'lucide-react';
+import { Menu, Search, ShoppingCart, Megaphone, Instagram, Facebook } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
@@ -37,14 +37,16 @@ export default function MarketLayout({
                     <Megaphone className="h-4 w-4" />
                     <span>Free delivery for all orders over {formatCurrency(50000, market.country)}!</span>
                 </div>
-                <header className="bg-card border-b">
+                <header className="bg-background border-b">
                     <div className="container mx-auto">
                         {/* Mobile Header */}
                         <div className="md:hidden">
                             <div className="flex h-16 items-center justify-between px-4">
-                                <Link href="/market"><Logo className="h-8" /></Link>
-                                <div className="flex items-center gap-1">
+                                <div className="flex-1">
                                     <MarketSwitcher />
+                                </div>
+                                <Link href="/market" className="absolute left-1/2 -translate-x-1/2"><Logo className="h-8" /></Link>
+                                <div className="flex flex-1 items-center justify-end gap-1">
                                     <Link href="/market/cart" passHref>
                                         <Button variant="ghost" size="icon" className="relative">
                                             <ShoppingCart className="h-6 w-6" />
@@ -75,17 +77,6 @@ export default function MarketLayout({
                                             </nav>
                                         </SheetContent>
                                     </Sheet>
-                                </div>
-                            </div>
-                            <div className="px-4 pb-4">
-                                <div className="relative w-full max-w-2xl mx-auto">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                    <Input 
-                                        placeholder="Search products, stores, or categories" 
-                                        className="pl-10 h-12 text-base"
-                                        value={isSearchControlled ? searchValue : undefined}
-                                        onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
-                                    />
                                 </div>
                             </div>
                         </div>
@@ -148,6 +139,20 @@ export default function MarketLayout({
                                 <li><Link href="/signup" className="hover:underline">Start Selling</Link></li>
                                 <li><Link href="/help" className="hover:underline">Seller FAQ</Link></li>
                             </ul>
+                        </div>
+                         <div>
+                            <h4 className="font-semibold mb-4">Follow Us</h4>
+                             <div className="flex items-center gap-4">
+                                <a href="https://x.com/busmo_io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
+                                    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+                                </a>
+                                <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                                    <Instagram className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                                </a>
+                                <a href="https://facebook.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                                    <Facebook className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
