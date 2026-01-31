@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -354,21 +353,21 @@ export default function MarketPage() {
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch h-[250px] lg:h-[300px]">
-                        <div className="hidden lg:flex flex-col gap-6 h-full">
+                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch h-[250px]">
+                        <div className="hidden lg:flex flex-col gap-6">
                            {isLoadingGifBanners ? (
                                 <>
+                                    <Skeleton className="h-full w-full" />
                                     <Skeleton className="h-full w-full" />
                                 </>
                             ) : (
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
-                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
+                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'} className="block h-full">
                                         <Card className="overflow-hidden h-full relative group">
                                             <img 
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/140`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
                                                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                data-ai-hint="sale banner"
                                             />
                                         </Card>
                                     </Link>
@@ -391,16 +390,14 @@ export default function MarketPage() {
                                 ) : (heroBanners && heroBanners.length > 0) ? (
                                     heroBanners.map((banner, index) => (
                                         <CarouselItem key={banner.id} className={cn("relative h-full overflow-hidden rounded-lg", banner.className)}>
-                                            {banner.imageUrl && (
-                                                <Image 
-                                                    src={banner.imageUrl} 
-                                                    alt={banner.title || 'Market banner'} 
-                                                    fill 
-                                                    className="object-cover" 
-                                                    data-ai-hint={banner.imageHint || ''} 
-                                                    priority={index === 0}
-                                                />
-                                            )}
+                                            <Image 
+                                                src={banner.imageUrl} 
+                                                alt={banner.title || 'Market banner'} 
+                                                fill 
+                                                className="object-cover" 
+                                                data-ai-hint={banner.imageHint || ''} 
+                                                priority={index === 0}
+                                            />
                                             
                                             {(banner.title || banner.subtitle || banner.buttonText) && (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
@@ -652,5 +649,6 @@ export default function MarketPage() {
     );
 
     
+
 
 
