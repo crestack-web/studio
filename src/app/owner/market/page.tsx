@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from '
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -1035,6 +1035,142 @@ const BusmoPaySettings = () => {
 }
 // #endregion
 
+// #region --- VERIFICATION COMPONENT ---
+const BusinessVerificationContent = () => {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+    
+    const verificationRef = useMemoFirebase(() => businessId ? doc(firestore, `businessVerifications/${businessId}`) : null, [firestore, businessId]);
+    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{status: string, rejectionReason?: string, idImageUrl?: string, stockImageUrl?: string, storeImageUrl?: string}>(verificationRef);
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [idImage, setIdImage] = useState<string | null>(null);
+    const [stockImage, setStockImage] = useState<string | null>(null);
+    const [storeImage, setStoreImage] = useState<string | null>(null);
+
+    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        try {
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => setter(reader.result as string);
+            reader.readAsDataURL(compressedFile);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Image Upload Failed', description: 'Could not process the image. Please try another file.' });
+        }
+    };
+    
+    const handleSubmit = async () => {
+        if (!idImage || !stockImage || !storeImage) {
+            toast({ variant: 'destructive', title: 'Missing Documents', description: 'Please upload all three required images.' });
+            return;
+        }
+        if (!verificationRef) return;
+        
+        setIsSubmitting(true);
+        try {
+            await setDocumentNonBlocking(verificationRef, {
+                businessId: businessId,
+                status: 'pending',
+                submittedAt: serverTimestamp(),
+                idImageUrl: idImage,
+                stockImageUrl: stockImage,
+                storeImageUrl: storeImage,
+            }, { merge: true });
+            toast({ title: 'Documents Submitted!', description: 'Your verification application is now pending review.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Submission Failed', description: 'An error occurred. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    const ImageUploader = ({ title, description, image, onImageUpload, isSubmitting }: any) => (
+        <Card>
+            <CardHeader><CardTitle className="text-base">{title}</CardTitle><CardDescription className="text-sm">{description}</CardDescription></CardHeader>
+            <CardContent>
+                <Label htmlFor={`${title}-upload`} className={cn("relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
+                    <Input id={`${title}-upload`} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, onImageUpload)} disabled={isSubmitting} />
+                    {image ? (
+                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2" />
+                    ) : (
+                        <div className="text-center text-muted-foreground">
+                            <FileUp className="mx-auto h-8 w-8" />
+                            <span>Click to Upload</span>
+                        </div>
+                    )}
+                </Label>
+            </CardContent>
+        </Card>
+    );
+    
+    if (isLoadingVerification) {
+        return <div className="space-y-6"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>
+    }
+
+    if (verificationData?.status === 'verified') {
+        return (
+            <Card className="text-center">
+                <CardHeader>
+                    <div className="flex justify-center"><CheckCircle className="w-16 h-16 text-success" /></div>
+                    <CardTitle className="text-2xl pt-4">Business Verified!</CardTitle>
+                    <CardDescription>Your business is verified and you can now sell products on the Busmo Market.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+    
+     if (verificationData?.status === 'pending') {
+        return (
+            <Card className="text-center">
+                <CardHeader>
+                    <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
+                    <CardTitle className="text-2xl pt-4">Verification Pending</CardTitle>
+                    <CardDescription>Your documents have been submitted and are awaiting review. This typically takes 24-48 hours.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+
+    return (
+         <div className="space-y-6">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Business Verification</CardTitle>
+                    <CardDescription>To ensure a safe marketplace, please provide the following documents.</CardDescription>
+                </CardHeader>
+             </Card>
+            {verificationData?.status === 'rejected' && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Verification Rejected</AlertTitle>
+                    <AlertDescription>
+                       Your previous submission was rejected. Reason: {verificationData.rejectionReason || 'No reason provided.'} Please re-upload your documents and submit again.
+                    </AlertDescription>
+                </Alert>
+            )}
+             <div className="grid md:grid-cols-3 gap-6">
+                <ImageUploader title="Valid ID" description="e.g., National ID, Driver's License" image={idImage || verificationData?.idImageUrl} onImageUpload={setIdImage} isSubmitting={isSubmitting}/>
+                <ImageUploader title="Proof of Stock" description="A photo showing your products/inventory" image={stockImage || verificationData?.stockImageUrl} onImageUpload={setStockImage} isSubmitting={isSubmitting}/>
+                <ImageUploader title="Store/Shop Image" description="A photo of your physical shop or workspace" image={storeImage || verificationData?.storeImageUrl} onImageUpload={setStoreImage} isSubmitting={isSubmitting}/>
+             </div>
+             <Button size="lg" className="w-full h-14 text-lg" onClick={handleSubmit} disabled={isSubmitting || !idImage || !stockImage || !storeImage}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit for Verification
+            </Button>
+         </div>
+    )
+}
+// #endregion
+
+
 // #region --- MAIN PAGE COMPONENT ---
 export default function ManageMarketPage() {
     const searchParams = useSearchParams();
@@ -1151,139 +1287,4 @@ export default function ManageMarketPage() {
     );
 }
 
-const BusinessVerificationContent = () => {
-    const { toast } = useToast();
-    const firestore = useFirestore();
-    const { user } = useUser();
-    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-    const businessId = userProfile?.businessId;
-    
-    const verificationRef = useMemoFirebase(() => businessId ? doc(firestore, `businessVerifications/${businessId}`) : null, [firestore, businessId]);
-    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{status: string, rejectionReason?: string, idImageUrl?: string, stockImageUrl?: string, storeImageUrl?: string}>(verificationRef);
-    
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [idImage, setIdImage] = useState<string | null>(null);
-    const [stockImage, setStockImage] = useState<string | null>(null);
-    const [storeImage, setStoreImage] = useState<string | null>(null);
-
-    const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-        try {
-            const compressedFile = await imageCompression(file, options);
-            const reader = new FileReader();
-            reader.onloadend = () => setter(reader.result as string);
-            reader.readAsDataURL(compressedFile);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Image Upload Failed', description: 'Could not process the image. Please try another file.' });
-        }
-    };
-    
-    const handleSubmit = async () => {
-        if (!idImage || !stockImage || !storeImage) {
-            toast({ variant: 'destructive', title: 'Missing Documents', description: 'Please upload all three required images.' });
-            return;
-        }
-        if (!verificationRef) return;
-        
-        setIsSubmitting(true);
-        try {
-            await setDocumentNonBlocking(verificationRef, {
-                businessId: businessId,
-                status: 'pending',
-                submittedAt: serverTimestamp(),
-                idImageUrl: idImage,
-                stockImageUrl: stockImage,
-                storeImageUrl: storeImage,
-            }, { merge: true });
-            toast({ title: 'Documents Submitted!', description: 'Your verification application is now pending review.' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Submission Failed', description: 'An error occurred. Please try again.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
-    const ImageUploader = ({ title, description, image, onImageUpload, isSubmitting }: any) => (
-        <Card>
-            <CardHeader><CardTitle className="text-base">{title}</CardTitle><CardDescription className="text-sm">{description}</CardDescription></CardHeader>
-            <CardContent>
-                <div className={cn("relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
-                    <Input id={`${title}-upload`} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, onImageUpload)} disabled={isSubmitting} />
-                    <Label htmlFor={`${title}-upload`} className="absolute inset-0 z-10 cursor-pointer">
-                        <span className="sr-only">Upload {title}</span>
-                    </Label>
-                    {image ? (
-                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2" />
-                    ) : (
-                        <div className="text-center text-muted-foreground">
-                            <FileUp className="mx-auto h-8 w-8" />
-                            <span>Click to Upload</span>
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-    
-    if (isLoadingVerification) {
-        return <div className="space-y-6"><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /></div>
-    }
-
-    if (verificationData?.status === 'verified') {
-        return (
-            <Card className="text-center">
-                <CardHeader>
-                    <div className="flex justify-center"><CheckCircle className="w-16 h-16 text-success" /></div>
-                    <CardTitle className="text-2xl pt-4">Business Verified!</CardTitle>
-                    <CardDescription>Your business is verified and you can now sell products on the Busmo Market.</CardDescription>
-                </CardHeader>
-            </Card>
-        );
-    }
-    
-     if (verificationData?.status === 'pending') {
-        return (
-            <Card className="text-center">
-                <CardHeader>
-                    <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
-                    <CardTitle className="text-2xl pt-4">Verification Pending</CardTitle>
-                    <CardDescription>Your documents have been submitted and are awaiting review. This typically takes 24-48 hours.</CardDescription>
-                </CardHeader>
-            </Card>
-        );
-    }
-
-    return (
-         <div className="space-y-6">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Business Verification</CardTitle>
-                    <CardDescription>To ensure a safe marketplace, please provide the following documents.</CardDescription>
-                </CardHeader>
-             </Card>
-            {verificationData?.status === 'rejected' && (
-                <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Verification Rejected</AlertTitle>
-                    <AlertDescription>
-                       Your previous submission was rejected. Reason: {verificationData.rejectionReason || 'No reason provided.'} Please re-upload your documents and submit again.
-                    </AlertDescription>
-                </Alert>
-            )}
-             <div className="grid md:grid-cols-3 gap-6">
-                <ImageUploader title="Valid ID" description="e.g., National ID, Driver's License" image={idImage || verificationData?.idImageUrl} onImageUpload={setIdImage} isSubmitting={isSubmitting}/>
-                <ImageUploader title="Proof of Stock" description="A photo showing your products/inventory" image={stockImage || verificationData?.stockImageUrl} onImageUpload={setStockImage} isSubmitting={isSubmitting}/>
-                <ImageUploader title="Store/Shop Image" description="A photo of your physical shop or workspace" image={storeImage || verificationData?.storeImageUrl} onImageUpload={setStoreImage} isSubmitting={isSubmitting}/>
-             </div>
-             <Button size="lg" className="w-full h-14 text-lg" onClick={handleSubmit} disabled={isSubmitting || !idImage || !stockImage || !storeImage}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit for Verification
-            </Button>
-         </div>
-    )
-}
 // #endregion
