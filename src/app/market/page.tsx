@@ -357,13 +357,13 @@ export default function MarketPage() {
                         <div className="hidden lg:flex flex-col gap-6">
                            {isLoadingGifBanners ? (
                                 <>
-                                    <Skeleton className="h-[202px] w-full" />
-                                    <Skeleton className="h-[202px] w-full" />
+                                    <Skeleton className="h-[198px] w-full" />
+                                    <Skeleton className="h-[198px] w-full" />
                                 </>
                             ) : (
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
                                     <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
-                                        <Card className="overflow-hidden h-[202px] relative group">
+                                        <Card className="overflow-hidden h-[198px] relative group">
                                             <Image 
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
@@ -450,8 +450,8 @@ export default function MarketPage() {
                  {isLoadingCategories ? (
                      <section>
                         <Card>
-                            <CardHeader className="p-4 pt-2">
-                                <Skeleton className="h-5 w-40" />
+                            <CardHeader className="p-4">
+                                <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
                                 <div className="flex gap-4">
@@ -468,10 +468,10 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-2 pb-0">
+                             <CardHeader className="p-4">
                                 <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-4">
+                            <CardContent className="p-4 pt-0">
                                 <Carousel
                                     opts={{
                                         align: "start",
