@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -181,7 +182,7 @@ export default function MarketPage() {
     // Query for GIF banners
     const gifBannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true), limit(2));
+        return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
 
@@ -353,24 +354,34 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:flex flex-col gap-6 h-full">
+                        <div className="hidden lg:flex flex-col">
                            {isLoadingGifBanners ? (
-                                <>
-                                    <Skeleton className="flex-1 w-full" />
-                                    <Skeleton className="flex-1 w-full" />
-                                </>
+                                <Skeleton className="h-full w-full rounded-lg" />
+                            ) : gifBanners && gifBanners.length > 0 ? (
+                                <Carousel
+                                    plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                                    opts={{ align: "start", loop: true }}
+                                    orientation="vertical"
+                                    className="w-full h-full"
+                                >
+                                    <CarouselContent className="h-full">
+                                        {gifBanners.map((banner) => (
+                                            <CarouselItem key={banner.id} className="basis-full">
+                                                <Link href={banner.linkUrl || '#'} className="block h-full">
+                                                    <Card className="overflow-hidden h-full relative group rounded-lg">
+                                                        <img 
+                                                            src={banner.imageUrl}
+                                                            alt="Promotional banner"
+                                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                        />
+                                                    </Card>
+                                                </Link>
+                                            </CarouselItem>
+                                        ))}
+                                    </CarouselContent>
+                                </Carousel>
                             ) : (
-                                (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
-                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'} className="block flex-1">
-                                        <Card className="overflow-hidden h-full relative group">
-                                            <img 
-                                                src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/140`}
-                                                alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
-                                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
-                                        </Card>
-                                    </Link>
-                                ))
+                                <Skeleton className="h-full w-full rounded-lg" />
                             )}
                         </div>
                         <Carousel
@@ -654,3 +665,6 @@ export default function MarketPage() {
 
 
 
+
+
+    
