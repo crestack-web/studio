@@ -65,7 +65,7 @@ export default function AdminMarketPage() {
     // Queries
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketBanners'), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: banners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
 
@@ -91,25 +91,39 @@ export default function AdminMarketPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const options = {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1280,
-            useWebWorker: true
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setter(reader.result as string);
+        };
+        reader.onerror = () => {
+             toast({
+                variant: 'destructive',
+                title: 'Image Read Failed',
+                description: 'Could not read the selected file.',
+            });
         };
 
-        try {
-            const compressedFile = await imageCompression(file, options);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setter(reader.result as string);
+        // For GIFs, read the file directly without compression to preserve animation
+        if (file.type === 'image/gif') {
+            reader.readAsDataURL(file);
+        } else {
+            // For other images, apply compression
+            const options = {
+                maxSizeMB: 0.5,
+                maxWidthOrHeight: 1280,
+                useWebWorker: true
             };
-            reader.readAsDataURL(compressedFile);
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Image compression failed',
-                description: 'Please try again with a different image.',
-            });
+
+            try {
+                const compressedFile = await imageCompression(file, options);
+                reader.readAsDataURL(compressedFile);
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Image compression failed',
+                    description: 'Please try again with a different image.',
+                });
+            }
         }
     };
 
@@ -130,7 +144,7 @@ export default function AdminMarketPage() {
         if (!editingBanner || !firestore) return;
         setIsLoading(true);
         const bannerRef = doc(firestore, 'marketBanners', editingBanner.id);
-        await updateDocumentNonBlocking(bannerRef, { ...editingBanner });
+        await updateDocumentNonBlocking(bannerRef, { ...editingBanner, isActive: editingBanner.isActive });
         toast({ title: 'Banner Updated', description: `"${editingBanner.title}" has been saved.` });
         setEditingBanner(null);
         setIsLoading(false);
@@ -226,7 +240,7 @@ export default function AdminMarketPage() {
                                         <span>Upload</span>
                                     </Label>
                                 )}
-                                <Input id="gif-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setGifImageUrl)} className="hidden" disabled={isLoadingGif} />
+                                <Input id="gif-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, setGifImageUrl)} className="hidden" disabled={isLoadingGif} />
                                 <p className="text-xs text-muted-foreground">Recommended size: 250x202px.</p>
                             </div>
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
@@ -356,7 +370,7 @@ export default function AdminMarketPage() {
                                         <span>Upload</span>
                                     </Label>
                                 )}
-                                <Input id="edit-gif-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingGifBanner({ ...editingGifBanner!, imageUrl: val }))} className="hidden" disabled={isLoadingGif} />
+                                <Input id="edit-gif-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, (val) => setEditingGifBanner({ ...editingGifBanner!, imageUrl: val }))} className="hidden" disabled={isLoadingGif} />
                             </div>
                            <div className="space-y-2"><Label>Link URL</Label><Input value={editingGifBanner.linkUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, linkUrl: e.target.value })} /></div>
                            <div className="flex items-center space-x-2"><Switch checked={editingGifBanner.isActive} onCheckedChange={(checked) => setEditingGifBanner({ ...editingGifBanner, isActive: checked })} /><Label>Active</Label></div>
