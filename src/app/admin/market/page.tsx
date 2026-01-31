@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -145,7 +146,7 @@ export default function AdminMarketPage() {
     // Handlers for GIF banners
     const handleAddGifBanner = async () => {
         if (!gifImageUrl) {
-            toast({ variant: 'destructive', title: 'Missing Image', description: 'Please provide an image or GIF URL.' });
+            toast({ variant: 'destructive', title: 'Missing Image', description: 'Please provide an image or GIF.' });
             return;
         }
         setIsLoadingGif(true);
@@ -212,14 +213,25 @@ export default function AdminMarketPage() {
                      <Card>
                         <CardHeader><CardTitle>Add New GIF Banner</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Image / GIF URL</Label>
-                                <Input value={gifImageUrl} onChange={(e) => setGifImageUrl(e.target.value)} placeholder="https://..." disabled={isLoadingGif} />
-                                <p className="text-xs text-muted-foreground">Direct link to an image or GIF. Recommended size: 250x202px.</p>
+                           <div className="space-y-2">
+                                <Label>Image / GIF</Label>
+                                {gifImageUrl ? (
+                                    <div className="relative aspect-[250/202]">
+                                        <Image src={gifImageUrl} alt="GIF banner" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setGifImageUrl('')} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="gif-image-upload" className={cn("flex aspect-[250/202] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload</span>
+                                    </Label>
+                                )}
+                                <Input id="gif-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setGifImageUrl)} className="hidden" disabled={isLoadingGif} />
+                                <p className="text-xs text-muted-foreground">Recommended size: 250x202px.</p>
                             </div>
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
                             <div className="flex items-center space-x-2"><Switch checked={gifIsActive} onCheckedChange={setGifIsActive} disabled={isLoadingGif} /><Label>Activate banner</Label></div>
-                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add GIF Banner</Button>
+                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add GIF Banner</Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -331,14 +343,28 @@ export default function AdminMarketPage() {
                     <DialogHeader><DialogTitle>Edit GIF Banner</DialogTitle></DialogHeader>
                     {editingGifBanner && (
                         <div className="grid gap-4 py-4">
-                           <div className="space-y-2"><Label>Image / GIF URL</Label><Input value={editingGifBanner.imageUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, imageUrl: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label>Image / GIF</Label>
+                                {editingGifBanner.imageUrl ? (
+                                    <div className="relative aspect-[250/202]">
+                                        <Image src={editingGifBanner.imageUrl} alt="GIF banner" fill className="object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingGifBanner({ ...editingGifBanner, imageUrl: '' })} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="edit-gif-image-upload" className={cn("flex aspect-[250/202] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload</span>
+                                    </Label>
+                                )}
+                                <Input id="edit-gif-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingGifBanner({ ...editingGifBanner!, imageUrl: val }))} className="hidden" disabled={isLoadingGif} />
+                            </div>
                            <div className="space-y-2"><Label>Link URL</Label><Input value={editingGifBanner.linkUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, linkUrl: e.target.value })} /></div>
                            <div className="flex items-center space-x-2"><Switch checked={editingGifBanner.isActive} onCheckedChange={(checked) => setEditingGifBanner({ ...editingGifBanner, isActive: checked })} /><Label>Active</Label></div>
                         </div>
                     )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingGifBanner(null)}>Cancel</Button>
-                        <Button onClick={handleUpdateGifBanner} disabled={isLoadingGif}>
+                        <Button onClick={handleUpdateGifBanner} disabled={isLoadingGif || !editingGifBanner?.imageUrl}>
                             {isLoadingGif && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
                         </Button>
@@ -348,3 +374,4 @@ export default function AdminMarketPage() {
         </main>
     );
 }
+
