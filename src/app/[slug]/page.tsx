@@ -1,11 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, Mail, Phone, ShieldCheck, Check } from 'lucide-react';
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,11 +16,16 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { WithId } from '@/firebase';
 import { Logo } from '@/components/app/logo';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+
 
 // Interfaces
 interface BusinessProfile {
     id: string; // useCollection adds this
     businessName: string;
+    businessType?: string;
     marketDescription?: string;
     currency?: string;
     address?: string;
@@ -46,6 +52,8 @@ interface MarketProduct {
 // This component now fetches its own data, ensuring it's always fresh.
 const StorePageContent = ({ businessId }: { businessId: string }) => {
     const firestore = useFirestore();
+    const { toast } = useToast();
+    const [isSubscribed, setIsSubscribed] = useState(false);
 
     const businessProfileRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
@@ -66,6 +74,16 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
     
+    const handleSubscribe = () => {
+        if (!businessProfile) return;
+        setIsSubscribed(true);
+        toast({
+            title: "Subscribed!",
+            description: `You'll now hear about updates from ${businessProfile.businessName}.`,
+        });
+        // In a real app, you would also make an API call here to save the subscription.
+    };
+
     if (isLoadingProfile || isLoadingVerification) {
         return (
              <div className="w-full max-w-6xl">
@@ -127,12 +145,28 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                                     <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessProfile.businessName}</h1>
                                     {isVerified && <ShieldCheck className="h-7 w-7 text-success fill-success/20 shrink-0" />}
                                 </div>
-                                 {businessProfile.address && <p className="text-muted-foreground mt-1 flex items-center justify-center sm:justify-start gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessProfile.address}</p>}
+                                <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground mt-1">
+                                    {businessProfile.address && <span className="flex items-center gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessProfile.address}</span>}
+                                    {businessProfile.businessType && (
+                                        <>
+                                            {businessProfile.address && <Separator orientation="vertical" className="h-4" />}
+                                            <Badge variant="outline" className="capitalize">{businessProfile.businessType}</Badge>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                  {settings?.contactEmail && <a href={`mailto:${settings.contactEmail}`}><Button variant="outline" size="icon"><Mail className="h-4 w-4" /><span className="sr-only">Email</span></Button></a>}
                                  {settings?.contactPhone && <a href={`tel:${settings.contactPhone}`}><Button variant="outline" size="icon"><Phone className="h-4 w-4" /><span className="sr-only">Call</span></Button></a>}
-                                 <Button variant="outline"><Mail className="mr-2 h-4 w-4" /> Subscribe</Button>
+                                 {isSubscribed ? (
+                                    <Button variant="secondary" disabled className="cursor-default">
+                                        <Check className="mr-2 h-4 w-4" /> Subscribed
+                                    </Button>
+                                ) : (
+                                    <Button variant="outline" onClick={handleSubscribe}>
+                                        <Mail className="mr-2 h-4 w-4" /> Subscribe
+                                    </Button>
+                                )}
                             </div>
                         </div>
                          <p className="text-muted-foreground mt-4 max-w-2xl mx-auto sm:mx-0">{businessProfile.marketDescription || `Welcome to our store on Busmo Market!`}</p>
