@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -369,7 +370,7 @@ export default function LandingPage() {
                       <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                       <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                       <Link href="/blog" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Blog</Button></Link>
-                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
+                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.for_businesses')}</Button></Link>
                       <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
                       <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
                   </nav>
@@ -380,25 +381,13 @@ export default function LandingPage() {
       </header>
 
       {/* Announcement Bar */}
-      <div className="bg-primary/10 text-primary border-b border-primary/20">
-          <Carousel
-              plugins={[ Autoplay({ delay: 10000, stopOnInteraction: true }) ]}
-              opts={{ align: "start", loop: true, }}
-              className="w-full"
-          >
-              <CarouselContent>
-                  {announcementMessages.map((msg, index) => (
-                      <CarouselItem key={index}>
-                          <div className="text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
-                              <Megaphone className="h-4 w-4 shrink-0" />
-                              <Link href={msg.href} className="hover:underline">
-                                  {msg.text}
-                              </Link>
-                          </div>
-                      </CarouselItem>
-                  ))}
-              </CarouselContent>
-          </Carousel>
+      <div className="bg-primary text-primary-foreground">
+          <div className="container mx-auto text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
+              <Megaphone className="h-4 w-4 shrink-0" />
+              <Link href={announcementMessages[0].href} className="hover:underline">
+                  {announcementMessages[0].text}
+              </Link>
+          </div>
       </div>
 
 

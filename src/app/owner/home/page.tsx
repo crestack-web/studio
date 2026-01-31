@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import imageCompression from 'browser-image-compression';
 import { useLanguage } from '@/context/language-provider';
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import Autoplay from "embla-carousel-autoplay";
 
 interface AppUser {
     id: string;
@@ -680,6 +682,12 @@ function OwnerHomeContent() {
     const profitMarginLabel = profitMargin >= 30 ? 'Healthy' : profitMargin >= 10 ? 'Fair' : 'Risky';
     const profitMarginColor = profitMargin >= 30 ? 'text-success' : profitMargin >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive';
 
+    const ownerAnnouncements = [
+        { text: "Upgrade to the Supermarket plan to manage staff and unlock advanced forecasting!", href: "/owner/pricing" },
+        { text: "Set up your free online store on Busmo Market to reach more customers.", href: "/owner/market?section=settings" },
+        { text: "Your business data is valuable! Keep recording to unlock funding opportunities.", href: "/owner/access-capital" },
+    ];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -750,6 +758,28 @@ function OwnerHomeContent() {
           </DropdownMenu>
         </div>
       </header>
+
+      <div className="bg-primary/10 text-primary border-b border-primary/20">
+          <Carousel
+              plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
+              opts={{ align: "start", loop: true, }}
+              className="w-full"
+          >
+              <CarouselContent>
+                  {ownerAnnouncements.map((msg, index) => (
+                      <CarouselItem key={index}>
+                          <div className="container mx-auto text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
+                              <Megaphone className="h-4 w-4 shrink-0" />
+                              <Link href={msg.href} className="hover:underline">
+                                  {msg.text}
+                              </Link>
+                          </div>
+                      </CarouselItem>
+                  ))}
+              </CarouselContent>
+          </Carousel>
+      </div>
+
       <main className="flex-1 p-4 sm:p-6">
         <div className="w-full max-w-7xl mx-auto space-y-6">
           <div>
