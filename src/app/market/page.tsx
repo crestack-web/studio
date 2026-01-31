@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -25,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Logo } from '@/components/app/logo';
 
 interface MarketProduct {
     id: string; // Document ID, which is the same as productId
@@ -347,39 +347,7 @@ export default function MarketPage() {
     )
 
     return (
-        <MarketLayout>
-            <header className="bg-white dark:bg-card border-b py-4">
-                <div className="container mx-auto px-4">
-                    <div className="hidden md:flex h-16 items-center justify-between gap-6">
-                        <div className="flex items-center gap-6">
-                            <Link href="/market"><Logo className="h-8" /></Link>
-                            <MarketSwitcher />
-                        </div>
-                        <div className="flex-1 max-w-lg">
-                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search products, stores, or categories" 
-                                    className="pl-10 h-12 text-base"
-                                    value={searchValue}
-                                    onChange={(e) => onSearchChange!(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Link href="/market/cart" passHref>
-                                <Button variant="ghost" size="icon" className="relative">
-                                    <ShoppingCart className="h-6 w-6" />
-                                    {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
-                                    <span className="sr-only">Cart</span>
-                                </Button>
-                            </Link>
-                            <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+        <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
             <div className="container mx-auto px-4 pt-6 pb-8 space-y-8">
                 
                  {/* 1. Hero Section */}
@@ -480,7 +448,7 @@ export default function MarketPage() {
                  {isLoadingCategories ? (
                      <section>
                         <Card>
-                            <CardHeader className="p-3">
+                            <CardHeader className="p-4 pt-2">
                                 <Skeleton className="h-5 w-40" />
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
@@ -498,7 +466,7 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-4">
+                             <CardHeader className="p-4 pt-2">
                                 <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
