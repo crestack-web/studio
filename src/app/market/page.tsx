@@ -368,7 +368,6 @@ export default function MarketPage() {
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
                                                 fill
-                                                unoptimized
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
                                             />
@@ -425,7 +424,7 @@ export default function MarketPage() {
                             </CarouselContent>
                         </Carousel>
                         <div className="hidden lg:block w-[250px]">
-                            <Card className="h-full">
+                            <Card>
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
