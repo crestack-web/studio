@@ -354,7 +354,7 @@ export default function MarketPage() {
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:flex flex-col">
+                        <div className="hidden lg:flex flex-col h-full">
                            {isLoadingGifBanners ? (
                                 <Skeleton className="h-full w-full rounded-lg" />
                             ) : gifBanners && gifBanners.length > 0 ? (
@@ -364,9 +364,9 @@ export default function MarketPage() {
                                     orientation="vertical"
                                     className="w-full h-full"
                                 >
-                                    <CarouselContent className="h-full">
+                                    <CarouselContent className="h-full -mt-4">
                                         {gifBanners.map((banner) => (
-                                            <CarouselItem key={banner.id} className="basis-full">
+                                            <CarouselItem key={banner.id} className="basis-full pt-4">
                                                 <Link href={banner.linkUrl || '#'} className="block h-full">
                                                     <Card className="overflow-hidden h-full relative group rounded-lg">
                                                         <img 
@@ -430,7 +430,7 @@ export default function MarketPage() {
                             </CarouselContent>
                         </Carousel>
                         <div className="hidden lg:block h-full">
-                             <Card className="h-full flex flex-col">
+                            <Card className="h-full flex flex-col">
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
@@ -446,6 +446,9 @@ export default function MarketPage() {
                                         ))}
                                     </div>
                                 </CardContent>
+                                <CardFooter className="p-4 pt-0">
+                                    <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
+                                </CardFooter>
                             </Card>
                         </div>
                     </div>
