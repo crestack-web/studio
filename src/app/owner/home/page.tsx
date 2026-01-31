@@ -753,7 +753,7 @@ function OwnerHomeContent() {
       <main className="flex-1 p-4 sm:p-6">
         <div className="w-full max-w-7xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl font-bold font-headline sm:text-4xl">
+            <h1 className="text-2xl font-bold font-headline sm:text-3xl">
               Welcome back, {userProfile?.displayName || 'Owner'}!
             </h1>
             <p className="text-muted-foreground mt-2">
