@@ -53,13 +53,20 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
     }, [firestore, businessId]);
     const { data: businessProfile, isLoading: isLoadingProfile } = useDoc<BusinessProfile>(businessProfileRef);
 
+    const verificationRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businessVerifications', businessId);
+    }, [firestore, businessId]);
+    const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{ status: string }>(verificationRef);
+    const isVerified = verificationData?.status === 'verified';
+
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
         return query(collection(firestore, 'marketProducts'), where('businessId', '==', businessId));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
     
-    if (isLoadingProfile) {
+    if (isLoadingProfile || isLoadingVerification) {
         return (
              <div className="w-full max-w-6xl">
                  <Card className="overflow-hidden mb-8">
@@ -118,7 +125,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                             <div className="flex-1 space-y-1 text-center sm:text-left">
                                  <div className="flex items-center justify-center sm:justify-start gap-2">
                                     <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessProfile.businessName}</h1>
-                                    <ShieldCheck className="h-7 w-7 text-success fill-success/20 shrink-0" />
+                                    {isVerified && <ShieldCheck className="h-7 w-7 text-success fill-success/20 shrink-0" />}
                                 </div>
                                  {businessProfile.address && <p className="text-muted-foreground mt-1 flex items-center justify-center sm:justify-start gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessProfile.address}</p>}
                             </div>

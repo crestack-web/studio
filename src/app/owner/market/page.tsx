@@ -1213,7 +1213,7 @@ const BusinessVerificationContent = () => {
             <CardContent>
                 <Label htmlFor={`${title}-upload`} className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
                     {image ? (
-                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2" />
+                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2 pointer-events-none" />
                     ) : (
                         <div className="text-center text-muted-foreground"><FileUp className="mx-auto h-8 w-8" /><span>Click to Upload</span></div>
                     )}
