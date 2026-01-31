@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc, orderBy } from 'firebase/firestore';
 import { Loader2, Plus, FileEdit, Trash2, FileUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,10 +31,19 @@ interface MarketBanner {
     createdAt: any;
 }
 
+interface MarketGifBanner {
+    id: string;
+    imageUrl: string;
+    linkUrl: string;
+    isActive: boolean;
+    createdAt: any;
+}
+
 export default function AdminMarketPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
 
+    // State for main banners
     const [title, setTitle] = useState('');
     const [subtitle, setSubtitle] = useState('');
     const [imageUrl, setImageUrl] = useState('');
@@ -43,25 +52,30 @@ export default function AdminMarketPage() {
     const [className, setClassName] = useState('bg-blue-500');
     const [isActive, setIsActive] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
     const [editingBanner, setEditingBanner] = useState<MarketBanner | null>(null);
 
+    // State for GIF banners
+    const [gifImageUrl, setGifImageUrl] = useState('');
+    const [gifLinkUrl, setGifLinkUrl] = useState('');
+    const [gifIsActive, setGifIsActive] = useState(false);
+    const [isLoadingGif, setIsLoadingGif] = useState(false);
+    const [editingGifBanner, setEditingGifBanner] = useState<MarketGifBanner | null>(null);
+
+    // Queries
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketBanners'));
+        return query(collection(firestore, 'marketBanners'), orderBy('createdAt', 'desc'));
     }, [firestore]);
-
     const { data: banners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
-    
-    const sortedBanners = useMemo(() => {
-        if (!banners) return [];
-        return [...banners].sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
-            return dateB - dateA;
-        });
-    }, [banners]);
 
+    const gifBannersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketGifBanners'), orderBy('createdAt', 'desc'));
+    }, [firestore]);
+    const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
+
+    
+    // Handlers for main banners
     const resetForm = () => {
         setTitle('');
         setSubtitle('');
@@ -104,20 +118,8 @@ export default function AdminMarketPage() {
             return;
         }
         setIsLoading(true);
-
-        const newBanner = {
-            title,
-            subtitle,
-            imageUrl,
-            imageHint,
-            buttonText,
-            className,
-            isActive,
-            createdAt: serverTimestamp(),
-        };
-        
+        const newBanner = { title, subtitle, imageUrl, imageHint, buttonText, className, isActive, createdAt: serverTimestamp() };
         await addDocumentNonBlocking(collection(firestore, 'marketBanners'), newBanner);
-
         toast({ title: 'Banner Added!', description: `A new banner has been created.` });
         resetForm();
         setIsLoading(false);
@@ -126,9 +128,7 @@ export default function AdminMarketPage() {
     const handleUpdateBanner = async () => {
         if (!editingBanner || !firestore) return;
         setIsLoading(true);
-
         const bannerRef = doc(firestore, 'marketBanners', editingBanner.id);
-        
         await updateDocumentNonBlocking(bannerRef, { ...editingBanner });
         toast({ title: 'Banner Updated', description: `"${editingBanner.title}" has been saved.` });
         setEditingBanner(null);
@@ -141,15 +141,48 @@ export default function AdminMarketPage() {
         await deleteDocumentNonBlocking(bannerRef);
         toast({ title: 'Banner Deleted', description: 'The banner has been permanently removed.' });
     };
+    
+    // Handlers for GIF banners
+    const handleAddGifBanner = async () => {
+        if (!gifImageUrl) {
+            toast({ variant: 'destructive', title: 'Missing Image', description: 'Please provide an image or GIF URL.' });
+            return;
+        }
+        setIsLoadingGif(true);
+        const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, createdAt: serverTimestamp() };
+        await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
+        toast({ title: 'GIF Banner Added' });
+        setGifImageUrl('');
+        setGifLinkUrl('');
+        setGifIsActive(false);
+        setIsLoadingGif(false);
+    };
+
+    const handleUpdateGifBanner = async () => {
+        if (!editingGifBanner || !firestore) return;
+        setIsLoadingGif(true);
+        const bannerRef = doc(firestore, 'marketGifBanners', editingGifBanner.id);
+        await updateDocumentNonBlocking(bannerRef, { ...editingGifBanner });
+        toast({ title: 'GIF Banner Updated' });
+        setEditingGifBanner(null);
+        setIsLoadingGif(false);
+    };
+
+    const handleDeleteGifBanner = async (bannerId: string) => {
+        if (!firestore) return;
+        const bannerRef = doc(firestore, 'marketGifBanners', bannerId);
+        await deleteDocumentNonBlocking(bannerRef);
+        toast({ title: 'GIF Banner Deleted' });
+    };
 
     return (
         <main className="flex-1 p-4 sm:p-6 space-y-6">
-            <h1 className="text-2xl font-bold font-headline">Manage Market Banners</h1>
+            <h1 className="text-2xl font-bold font-headline">Manage Market Homepage</h1>
             
-            <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-1 space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-6">
                     <Card>
-                        <CardHeader><CardTitle>Add New Banner</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Add New Main Banner</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2"><Label htmlFor="title">Title</Label><Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Clearance Sale" disabled={isLoading} /></div>
                             <div className="space-y-2"><Label htmlFor="subtitle">Subtitle</Label><Input id="subtitle" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="e.g., Up to 50% Off" disabled={isLoading} /></div>
@@ -172,21 +205,34 @@ export default function AdminMarketPage() {
                              <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., abstract background" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="buttonText">Button Text</Label><Input id="buttonText" value={buttonText} onChange={(e) => setButtonText(e.target.value)} placeholder="e.g., Shop Now" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="className">Background Class</Label><Input id="className" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g., bg-orange-500" disabled={isLoading} /></div>
-                            <div className="flex items-center space-x-2"><Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} disabled={isLoading} /><Label htmlFor="isActive">Activate banner</Label></div>
-                            <Button onClick={handleAddBanner} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Banner</Button>
+                            <div className="flex items-center space-x-2"><Switch id="isActive" checked={isActive} onCheckedChange={(val) => setIsActive(val)} disabled={isLoading} /><Label htmlFor="isActive">Activate banner</Label></div>
+                            <Button onClick={handleAddBanner} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Main Banner</Button>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader><CardTitle>Add New GIF Banner</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Image / GIF URL</Label>
+                                <Input value={gifImageUrl} onChange={(e) => setGifImageUrl(e.target.value)} placeholder="https://..." disabled={isLoadingGif} />
+                                <p className="text-xs text-muted-foreground">Direct link to an image or GIF. Recommended size: 250x202px.</p>
+                            </div>
+                            <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
+                            <div className="flex items-center space-x-2"><Switch checked={gifIsActive} onCheckedChange={setGifIsActive} disabled={isLoadingGif} /><Label>Activate banner</Label></div>
+                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add GIF Banner</Button>
                         </CardContent>
                     </Card>
                 </div>
-                <div className="lg:col-span-2">
+                <div className="space-y-6">
                      <Card>
-                        <CardHeader><CardTitle>Existing Banners</CardTitle><CardDescription>View, edit, or delete existing market banners.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle>Existing Main Banners</CardTitle><CardDescription>View, edit, or delete main carousel banners.</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {isLoadingBanners ? (
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading banners...</TableCell></TableRow>
-                                    ) : sortedBanners && sortedBanners.length > 0 ? sortedBanners.map((banner) => (
+                                    ) : banners && banners.length > 0 ? banners.map((banner) => (
                                         <TableRow key={banner.id}>
                                             <TableCell className="font-medium">{banner.title}</TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
@@ -202,7 +248,39 @@ export default function AdminMarketPage() {
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">No banners found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">No main banners found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader><CardTitle>Existing GIF Banners</CardTitle><CardDescription>Manage small promotional side banners.</CardDescription></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoadingGifBanners ? (
+                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell></TableRow>
+                                    ) : gifBanners && gifBanners.length > 0 ? gifBanners.map((banner) => (
+                                        <TableRow key={banner.id}>
+                                            <TableCell><Image src={banner.imageUrl} alt="GIF banner" width={80} height={60} className="rounded-md object-cover bg-muted" /></TableCell>
+                                            <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
+                                            <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingGifBanner(banner)}><FileEdit className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the GIF banner.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteGifBanner(banner.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">No GIF banners found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -235,13 +313,33 @@ export default function AdminMarketPage() {
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint || ''} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText || ''} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>
                              <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className || ''} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>
-                            <div className="flex items-center space-x-2"><Switch id="edit-isActive" checked={editingBanner.isActive} onCheckedChange={(checked) => setEditingBanner({ ...editingBanner, isActive: checked })} /><Label htmlFor="edit-isActive">Active</Label></div>
+                            <div className="flex items-center space-x-2"><Switch id="edit-isPublished" checked={editingBanner.isActive} onCheckedChange={(checked) => setEditingBanner({ ...editingBanner, isActive: checked })} /><Label htmlFor="edit-isPublished">Active</Label></div>
                         </div>
                     )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingBanner(null)}>Cancel</Button>
                         <Button onClick={handleUpdateBanner} disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={!!editingGifBanner} onOpenChange={(open) => !open && setEditingGifBanner(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Edit GIF Banner</DialogTitle></DialogHeader>
+                    {editingGifBanner && (
+                        <div className="grid gap-4 py-4">
+                           <div className="space-y-2"><Label>Image / GIF URL</Label><Input value={editingGifBanner.imageUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, imageUrl: e.target.value })} /></div>
+                           <div className="space-y-2"><Label>Link URL</Label><Input value={editingGifBanner.linkUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, linkUrl: e.target.value })} /></div>
+                           <div className="flex items-center space-x-2"><Switch checked={editingGifBanner.isActive} onCheckedChange={(checked) => setEditingGifBanner({ ...editingGifBanner, isActive: checked })} /><Label>Active</Label></div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingGifBanner(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateGifBanner} disabled={isLoadingGif}>
+                            {isLoadingGif && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
                         </Button>
                     </DialogFooter>

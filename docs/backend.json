@@ -326,6 +326,20 @@
       },
       "required": ["name", "imageUrl"]
     },
+    "MarketGifBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketGifBanner",
+      "type": "object",
+      "description": "Represents a small GIF-style banner for the marketplace homepage.",
+      "properties": {
+        "id": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Direct URL to the image or GIF." },
+        "linkUrl": { "type": "string", "description": "The relative or absolute URL the banner links to." },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
+    },
     "SupportAgent": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "SupportAgent",
@@ -696,6 +710,19 @@
               "name": "categoryId",
               "description": "The unique identifier of the category."
             }
+          ]
+        }
+      },
+       {
+        "path": "/marketGifBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketGifBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketGifBanner"
+          },
+          "description": "Stores the small, animated-style banners for the market homepage.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the GIF banner." }
           ]
         }
       },

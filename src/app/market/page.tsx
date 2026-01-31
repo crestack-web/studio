@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -51,6 +52,14 @@ interface MarketBanner {
     className?: string;
     isActive?: boolean;
 }
+
+interface MarketGifBanner {
+    id: string;
+    imageUrl: string;
+    linkUrl?: string;
+    isActive?: boolean;
+}
+
 
 interface MarketCategory {
     id: string;
@@ -168,6 +177,13 @@ export default function MarketPage() {
         return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
+    
+    // Query for GIF banners
+    const gifBannersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true), limit(2));
+    }, [firestore]);
+    const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -331,19 +347,65 @@ export default function MarketPage() {
     )
 
     return (
-        <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
-            <div className="container mx-auto px-4 pt-0 pb-8 space-y-12">
+        <MarketLayout>
+            <header className="bg-white dark:bg-card border-b py-4">
+                <div className="container mx-auto px-4">
+                    <div className="hidden md:flex h-16 items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                            <Link href="/market"><Logo className="h-8" /></Link>
+                            <MarketSwitcher />
+                        </div>
+                        <div className="flex-1 max-w-lg">
+                             <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search products, stores, or categories" 
+                                    className="pl-10 h-12 text-base"
+                                    value={searchValue}
+                                    onChange={(e) => onSearchChange!(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Link href="/market/cart" passHref>
+                                <Button variant="ghost" size="icon" className="relative">
+                                    <ShoppingCart className="h-6 w-6" />
+                                    {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
+                                    <span className="sr-only">Cart</span>
+                                </Button>
+                            </Link>
+                            <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+                            <Button asChild><Link href="/signup">Sign Up</Link></Button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <div className="container mx-auto px-4 pt-6 pb-8 space-y-8">
                 
                  {/* 1. Hero Section */}
                 <section>
                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:flex flex-col gap-4">
-                             <Card className="overflow-hidden h-[202px] relative">
-                                <Image src="https://picsum.photos/seed/promo1/250/202" alt="Promotion 1" fill className="object-cover" data-ai-hint="sale banner" />
-                            </Card>
-                             <Card className="overflow-hidden h-[202px] relative">
-                                <Image src="https://picsum.photos/seed/promo2/250/202" alt="Promotion 2" fill className="object-cover" data-ai-hint="product promotion" />
-                            </Card>
+                        <div className="hidden lg:flex flex-col gap-6">
+                           {isLoadingGifBanners ? (
+                                <>
+                                    <Skeleton className="h-[202px] w-full" />
+                                    <Skeleton className="h-[202px] w-full" />
+                                </>
+                            ) : (
+                                (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
+                                    <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
+                                        <Card className="overflow-hidden h-[202px] relative group">
+                                            <Image 
+                                                src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
+                                                alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
+                                                fill
+                                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                data-ai-hint="sale banner"
+                                            />
+                                        </Card>
+                                    </Link>
+                                ))
+                            )}
                         </div>
                         <Carousel
                             plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
@@ -418,7 +480,7 @@ export default function MarketPage() {
                  {isLoadingCategories ? (
                      <section>
                         <Card>
-                            <CardHeader className="p-4">
+                            <CardHeader className="p-3">
                                 <Skeleton className="h-5 w-40" />
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
@@ -436,7 +498,7 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-3">
+                             <CardHeader className="p-4">
                                 <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">

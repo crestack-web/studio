@@ -108,6 +108,11 @@ service cloud.firestore {
         allow write: if isAdmin();
     }
 
+    match /marketGifBanners/{bannerId} {
+        allow read: if true;
+        allow write: if isAdmin();
+    }
+
     match /marketCategories/{categoryId} {
         allow read: if true;
         allow write: if isAdmin();
