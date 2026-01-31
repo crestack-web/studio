@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car, Search } from 'lucide-react';
+import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car, Search, Menu, Megaphone, Instagram, Facebook } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
@@ -349,11 +349,11 @@ export default function MarketPage() {
 
     return (
         <MarketLayout searchValue={searchQuery} onSearchChange={setSearchQuery}>
-            <div className="container mx-auto px-4 pt-6 pb-8 space-y-8">
+            <div className="container mx-auto px-4 space-y-8">
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
                         <div className="hidden lg:flex flex-col gap-6">
                            {isLoadingGifBanners ? (
                                 <>
@@ -370,6 +370,7 @@ export default function MarketPage() {
                                                 fill
                                                 className="object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
+                                                unoptimized={banner?.imageUrl?.endsWith('.gif')}
                                             />
                                         </Card>
                                     </Link>
@@ -423,7 +424,7 @@ export default function MarketPage() {
                                 )}
                             </CarouselContent>
                         </Carousel>
-                        <div className="hidden lg:block w-[250px]">
+                        <div className="hidden lg:block">
                             <Card>
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
@@ -467,10 +468,10 @@ export default function MarketPage() {
                 ) : (categories && categories.length > 0 &&
                     <section>
                         <Card>
-                             <CardHeader className="p-2">
+                             <CardHeader className="p-2 pb-0">
                                 <CardTitle className="text-lg">Shop by Category</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-4 pt-0">
+                            <CardContent className="p-4">
                                 <Carousel
                                     opts={{
                                         align: "start",
