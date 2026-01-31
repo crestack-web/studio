@@ -352,7 +352,7 @@ export default function MarketPage() {
                 
                  {/* 1. Hero Section */}
                 <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch h-[250px]">
+                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
                         <div className="hidden lg:flex flex-col gap-6 h-full">
                            {isLoadingGifBanners ? (
                                 <>
@@ -379,16 +379,16 @@ export default function MarketPage() {
                                 align: "start",
                                 loop: true,
                             }}
-                            className="w-full h-full"
+                            className="w-full"
                         >
-                            <CarouselContent className="h-full">
+                            <CarouselContent>
                                 {isLoadingBanners ? (
-                                    <CarouselItem>
-                                        <Skeleton className="h-full w-full" />
+                                    <CarouselItem className="aspect-[16/7]">
+                                        <Skeleton className="h-full w-full rounded-lg" />
                                     </CarouselItem>
                                 ) : (heroBanners && heroBanners.length > 0) ? (
                                     heroBanners.map((banner, index) => (
-                                        <CarouselItem key={banner.id} className={cn("relative h-full overflow-hidden rounded-lg", banner.className)}>
+                                        <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
                                             <Image 
                                                 src={banner.imageUrl} 
                                                 alt={banner.title || 'Market banner'} 
@@ -410,7 +410,7 @@ export default function MarketPage() {
                                         </CarouselItem>
                                     ))
                                 ) : (
-                                    <CarouselItem>
+                                    <CarouselItem className="aspect-[16/7]">
                                         <div className="h-full w-full bg-muted rounded-lg flex items-center justify-center">
                                             <p className="text-muted-foreground">Banners will appear here</p>
                                         </div>
@@ -648,6 +648,7 @@ export default function MarketPage() {
     );
 
     
+
 
 
 
