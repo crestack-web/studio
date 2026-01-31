@@ -420,11 +420,11 @@ export default function MarketPage() {
                             </CarouselContent>
                         </Carousel>
                         <div className="hidden lg:block h-full">
-                             <Card className="h-full">
+                             <Card className="h-full flex flex-col">
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
                                 </CardHeader>
-                                <CardContent className="p-3 pt-0">
+                                <CardContent className="p-4 pt-0 flex-1">
                                     <div className="space-y-1">
                                         {promoCategories.map(category => (
                                             <Link href={category.href} key={category.name} className="block">
@@ -649,6 +649,7 @@ export default function MarketPage() {
     );
 
     
+
 
 
 
