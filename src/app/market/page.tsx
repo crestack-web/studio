@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -364,11 +365,10 @@ export default function MarketPage() {
                                 (gifBanners && gifBanners.length > 0 ? gifBanners : [null, null]).slice(0, 2).map((banner, i) => (
                                     <Link key={banner?.id || i} href={banner?.linkUrl || '#'}>
                                         <Card className="overflow-hidden h-[168px] relative group">
-                                            <Image 
+                                            <img 
                                                 src={banner?.imageUrl || `https://picsum.photos/seed/promo${i+1}/250/202`}
                                                 alt={banner ? 'Promotional banner' : `Promotion ${i+1}`}
-                                                fill
-                                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                 data-ai-hint="sale banner"
                                             />
                                         </Card>
