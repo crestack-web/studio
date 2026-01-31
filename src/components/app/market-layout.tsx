@@ -37,7 +37,7 @@ export default function MarketLayout({
                     <Megaphone className="h-4 w-4" />
                     <span>Free delivery for all orders over {formatCurrency(50000, market.country)}!</span>
                 </div>
-                <header className="bg-background border-b">
+                <header className="bg-card border-b">
                     <div className="container mx-auto">
                         {/* Mobile Header */}
                         <div className="md:hidden">
@@ -79,6 +79,17 @@ export default function MarketLayout({
                                     </Sheet>
                                 </div>
                             </div>
+                            <div className="px-4 pb-4">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search products, stores, or categories" 
+                                        className="pl-10 h-12 text-base"
+                                        value={isSearchControlled ? searchValue : undefined}
+                                        onChange={isSearchControlled ? (e) => onSearchChange!(e.target.value) : undefined}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Desktop Header */}
@@ -114,7 +125,7 @@ export default function MarketLayout({
                 </header>
             </div>
             <main className="flex-1 flex flex-col items-center p-4 sm:p-6">{children}</main>
-            <footer className="bg-background border-t">
+            <footer className="bg-card border-t">
                 <div className="container mx-auto py-8 px-4 text-center sm:text-left">
                      <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                         <div>
@@ -143,7 +154,7 @@ export default function MarketLayout({
                          <div>
                             <h4 className="font-semibold mb-4">Follow Us</h4>
                              <div className="flex items-center gap-4">
-                                <a href="https://x.com/busmo_io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
+                                <a href="https://x.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
                                     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
                                 </a>
                                 <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
