@@ -1211,14 +1211,20 @@ const BusinessVerificationContent = () => {
         <Card>
             <CardHeader><CardTitle className="text-base">{title}</CardTitle><CardDescription className="text-sm">{description}</CardDescription></CardHeader>
             <CardContent>
-                <Label htmlFor={`${title}-upload`} className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
+                <div className={cn("relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50", isSubmitting && "cursor-not-allowed opacity-50")}>
+                    <Input id={`${title}-upload`} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, onImageUpload)} disabled={isSubmitting} />
+                    <Label htmlFor={`${title}-upload`} className="absolute inset-0 z-10 cursor-pointer">
+                        <span className="sr-only">Upload {title}</span>
+                    </Label>
                     {image ? (
-                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2 pointer-events-none" />
+                        <Image src={image} alt={`${title} preview`} fill className="object-contain rounded-md p-2" />
                     ) : (
-                        <div className="text-center text-muted-foreground"><FileUp className="mx-auto h-8 w-8" /><span>Click to Upload</span></div>
+                        <div className="text-center text-muted-foreground">
+                            <FileUp className="mx-auto h-8 w-8" />
+                            <span>Click to Upload</span>
+                        </div>
                     )}
-                </Label>
-                <Input id={`${title}-upload`} type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, onImageUpload)} disabled={isSubmitting} />
+                </div>
             </CardContent>
         </Card>
     );
