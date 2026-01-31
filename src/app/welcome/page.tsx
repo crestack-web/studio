@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -154,7 +153,7 @@ export default function LandingPage() {
   const { data: activeConversations } = useCollection<ChatConversation>(activeConversationQuery);
   const activeConversation = activeConversations?.[0];
 
-  const allConversationsQuery = useMemoFirebase(() => {
+  const allUserConversationsQuery = useMemoFirebase(() => {
       if (!firestore || !user) return null;
       return query(
           collection(firestore, 'chatConversations'),
@@ -162,7 +161,7 @@ export default function LandingPage() {
           orderBy('lastMessageAt', 'desc')
       );
   }, [firestore, user]);
-  const { data: allUserConversations, isLoading: isLoadingConversations } = useCollection<ChatConversation>(allConversationsQuery);
+  const { data: allUserConversations, isLoading: isLoadingConversations } = useCollection<ChatConversation>(allUserConversationsQuery);
   
   const pastConversations = useMemo(() => {
     if (!allUserConversations) return [];
@@ -331,6 +330,16 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {/* Announcement Bar */}
+      <div className="bg-primary text-primary-foreground">
+          <div className="container mx-auto text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
+              <Megaphone className="h-4 w-4 shrink-0" />
+              <Link href={announcementMessages[0].href} className="hover:underline">
+                  {announcementMessages[0].text}
+              </Link>
+          </div>
+      </div>
+      
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -344,7 +353,7 @@ export default function LandingPage() {
             <Link href="/pricing" passHref><Button variant="ghost">{t('nav.pricing')}</Button></Link>
             <ThemeToggle />
             <LanguageSwitcher />
-            <Separator orientation="vertical" className="h-8" />
+            <Separator orientation='vertical' className='h-8' />
             <Link href="/login" passHref><Button variant="ghost">{t('nav.login')}</Button></Link>
             <Link href="/signup" passHref><Button>{t('nav.signup')}</Button></Link>
           </nav>
@@ -380,15 +389,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Announcement Bar */}
-      <div className="bg-primary text-primary-foreground">
-          <div className="container mx-auto text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
-              <Megaphone className="h-4 w-4 shrink-0" />
-              <Link href={announcementMessages[0].href} className="hover:underline">
-                  {announcementMessages[0].text}
-              </Link>
-          </div>
-      </div>
+
 
 
       {/* Main Content */}
