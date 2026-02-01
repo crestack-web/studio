@@ -57,3 +57,42 @@ exports.initializePaystackTransaction = functions
       );
     }
   });
+
+exports.verifyPaystackTransaction = functions
+  .runWith({ secrets: [PAYSTACK_SECRET] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    const { reference } = data;
+
+    if (!reference) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Transaction reference is required"
+      );
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET.value()}`,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Paystack verify error:", error.response?.data || error.message);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Payment verification failed"
+      );
+    }
+  });
