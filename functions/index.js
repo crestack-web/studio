@@ -1,8 +1,6 @@
-const functions = require('firebase-functions');
-const logger = functions.logger;
+const functions = require("firebase-functions");
 
-// Example HTTP function
-exports.api = functions.https.onRequest((req, res) => {
-  logger.info('Request received', { path: req.path, method: req.method });
-  res.send('Hello from Firebase Functions!');
+exports.helloWorld = functions.https.onRequest((req, res) => {
+  functions.logger.info("Hello logs!");
+  res.send("Functions are working 🚀");
 });
