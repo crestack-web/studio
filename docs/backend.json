@@ -473,6 +473,7 @@
       "description": "Stores documents for business verification to sell on the market.",
       "properties": {
         "businessId": { "type": "string", "description": "The ID of the business being verified." },
+        "businessName": { "type": "string", "description": "The name of the business (for display in admin panel)." },
         "idImageUrl": { "type": "string", "description": "Data URI of the owner's ID document." },
         "stockImageUrl": { "type": "string", "description": "Data URI of an image showing proof of stock." },
         "storeImageUrl": { "type": "string", "description": "Data URI of an image of the physical store/shop." },
