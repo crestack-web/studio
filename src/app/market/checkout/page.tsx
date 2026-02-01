@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -11,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Banknote, Package, Truck, Landmark, Loader2, CreditCard } from 'lucide-react';
+import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
@@ -22,6 +21,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useCart, CartItem } from '@/context/cart-provider';
 import MarketLayout from '@/components/app/market-layout';
 import { useMarket } from '@/context/market-provider';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
 interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
@@ -312,9 +312,15 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                          )}
                     </CardContent>
                 </Card>
-                <Button className="w-full h-14 text-lg" onClick={handlePlaceOrder} disabled={!canPlaceOrder || isPlacingOrder}>
-                    {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {market.country === 'NG' ? 'Pay Now' : 'Place Order'} ({formatCurrency(total, businessProfile.currency)})
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Next Step: Payments</AlertTitle>
+                    <AlertDescription>
+                        This is a prototype. A real payment gateway integration is required for this button to function.
+                    </AlertDescription>
+                </Alert>
+                <Button className="w-full h-14 text-lg" disabled>
+                    Payment Integration Coming Soon
                 </Button>
             </div>
         </div>
