@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Star, Zap, Truck, Store, ShoppingBag, ShieldCheck, CreditCard, Building, Shirt, Smartphone, Lamp, ShoppingBasket, HeartPulse, BookOpen, Puzzle, Car, Search, Menu, Megaphone, Instagram, Facebook } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
@@ -171,6 +171,8 @@ export default function MarketPage() {
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState(market.country);
     const [selectedCity, setSelectedCity] = useState(market.city);
+    
+    const [currentGifIndex, setCurrentGifIndex] = useState(0);
 
     // Query for banners
     const bannersQuery = useMemoFirebase(() => {
@@ -185,6 +187,15 @@ export default function MarketPage() {
         return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
+    
+    useEffect(() => {
+        if (gifBanners && gifBanners.length > 1) {
+            const timer = setInterval(() => {
+                setCurrentGifIndex(prevIndex => (prevIndex + 1) % gifBanners.length);
+            }, 5000); // Change banner every 5 seconds
+            return () => clearInterval(timer);
+        }
+    }, [gifBanners]);
 
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -352,36 +363,36 @@ export default function MarketPage() {
             <div className="container mx-auto px-4 space-y-8">
                 
                  {/* 1. Hero Section */}
-                <section>
-                    <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:flex flex-col h-full">
-                           {isLoadingGifBanners ? (
-                                <Skeleton className="h-full w-full rounded-lg" />
+                 <section className="mb-8">
+                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
+                         <div className="hidden lg:flex flex-col gap-6">
+                            {isLoadingGifBanners ? (
+                                <>
+                                    <Skeleton className="flex-1 rounded-lg" />
+                                    <Skeleton className="flex-1 rounded-lg" />
+                                </>
                             ) : gifBanners && gifBanners.length > 0 ? (
-                                <Carousel
-                                    plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
-                                    opts={{ align: "start", loop: true }}
-                                    orientation="vertical"
-                                    className="w-full h-full"
-                                >
-                                    <CarouselContent className="h-full -mt-4">
-                                        {gifBanners.map((banner) => (
-                                            <CarouselItem key={banner.id} className="basis-full pt-4">
-                                                <Link href={banner.linkUrl || '#'} className="block h-full">
-                                                    <Card className="overflow-hidden h-full relative group rounded-lg">
-                                                        <img 
-                                                            src={banner.imageUrl}
-                                                            alt="Promotional banner"
-                                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                        />
-                                                    </Card>
-                                                </Link>
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                </Carousel>
+                                <>
+                                    {[...Array(2)].map((_, i) => {
+                                        const banner = gifBanners[(currentGifIndex + i) % gifBanners.length];
+                                        return (
+                                            <Link href={banner.linkUrl || '#'} className="block h-full" key={banner.id + i}>
+                                                <Card className="overflow-hidden h-full relative group rounded-lg">
+                                                    <img 
+                                                        src={banner.imageUrl}
+                                                        alt="Promotional banner"
+                                                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                </Card>
+                                            </Link>
+                                        )
+                                    })}
+                                </>
                             ) : (
-                                <Skeleton className="h-full w-full rounded-lg" />
+                                <>
+                                    <Skeleton className="flex-1 rounded-lg" />
+                                    <Skeleton className="flex-1 rounded-lg" />
+                                </>
                             )}
                         </div>
                         <Carousel
@@ -429,7 +440,7 @@ export default function MarketPage() {
                                 )}
                             </CarouselContent>
                         </Carousel>
-                        <div className="hidden lg:block h-full">
+                        <div className="hidden lg:block">
                             <Card className="h-full flex flex-col">
                                 <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-base">Categories</CardTitle>
@@ -446,7 +457,7 @@ export default function MarketPage() {
                                         ))}
                                     </div>
                                 </CardContent>
-                                <CardFooter className="p-4 pt-0">
+                                <CardFooter className="p-4 pt-0 pb-3">
                                     <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
                                 </CardFooter>
                             </Card>
@@ -660,14 +671,5 @@ export default function MarketPage() {
             </div>
         </MarketLayout>
     );
-
-    
-
-
-
-
-
-
-
 
     
