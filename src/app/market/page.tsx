@@ -669,9 +669,10 @@ export default function MarketPage() {
                         </Card>
                     )}
                     {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
-                        <div className="text-center py-20 border rounded-lg bg-card">
-                            <h2 className="text-xl font-semibold">No Results Found for "{searchQuery}"</h2>
-                            <p className="text-muted-foreground mt-2">Try a different search term.</p>
+                        <div className="text-center py-20 border rounded-lg bg-card flex flex-col items-center">
+                            <Search className="h-12 w-12 text-muted-foreground" />
+                            <h2 className="mt-6 text-xl font-semibold">No products found for "{searchQuery}"</h2>
+                            <p className="mt-2 text-sm text-muted-foreground">Try searching for something else, or check your spelling.</p>
                         </div>
                     )}
                 </section>
@@ -680,5 +681,6 @@ export default function MarketPage() {
     );
 
     
+
 
 
