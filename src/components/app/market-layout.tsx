@@ -123,7 +123,7 @@ export default function MarketLayout({
                                             />
                                         </div>
                                     </PopoverTrigger>
-                                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                     <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-[var(--radix-popover-trigger-width)] p-0">
                                         {searchQuery && (suggestions.products.length === 0 && suggestions.categories.length === 0) ? (
                                             <div className="p-4 text-sm text-center text-muted-foreground">No results found for "{searchQuery}"</div>
                                         ) : (
