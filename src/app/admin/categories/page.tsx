@@ -14,12 +14,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import imageCompression from 'browser-image-compression';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { markets } from '@/lib/currency';
+import { Badge } from '@/components/ui/badge';
 
 interface MarketCategory {
     id: string;
     name: string;
     imageUrl: string;
     imageHint: string;
+    country?: string;
     createdAt: any;
 }
 
@@ -30,6 +34,7 @@ export default function AdminCategoriesPage() {
     const [name, setName] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [imageHint, setImageHint] = useState('');
+    const [country, setCountry] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
     const [editingCategory, setEditingCategory] = useState<MarketCategory | null>(null);
@@ -54,6 +59,7 @@ export default function AdminCategoriesPage() {
         setName('');
         setImageUrl('');
         setImageHint('');
+        setCountry('');
     };
 
     const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
@@ -93,6 +99,7 @@ export default function AdminCategoriesPage() {
             name,
             imageUrl,
             imageHint,
+            country,
             createdAt: serverTimestamp(),
         };
         
@@ -151,6 +158,16 @@ export default function AdminCategoriesPage() {
                             </div>
 
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., fashion clothing" disabled={isLoading} /></div>
+                            <div className="space-y-2">
+                                <Label htmlFor="country">Country</Label>
+                                <Select value={country} onValueChange={setCountry} disabled={isLoading}>
+                                    <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Button onClick={handleAddCategory} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Category</Button>
                         </CardContent>
                     </Card>
@@ -160,10 +177,10 @@ export default function AdminCategoriesPage() {
                         <CardHeader><CardTitle>Existing Categories</CardTitle><CardDescription>View, edit, or delete marketplace categories.</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
-                                <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Country</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {isLoadingCategories ? (
-                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">Loading categories...</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading categories...</TableCell></TableRow>
                                     ) : sortedCategories && sortedCategories.length > 0 ? sortedCategories.map((cat) => (
                                         <TableRow key={cat.id}>
                                             <TableCell>
@@ -172,6 +189,7 @@ export default function AdminCategoriesPage() {
                                                     <span className="font-medium">{cat.name}</span>
                                                 </div>
                                             </TableCell>
+                                            <TableCell><Badge variant="outline">{cat.country || 'All'}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingCategory(cat)}><FileEdit className="h-4 w-4" /></Button>
                                                 <AlertDialog>
@@ -184,7 +202,7 @@ export default function AdminCategoriesPage() {
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={2} className="h-24 text-center">No categories found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">No categories found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -214,6 +232,16 @@ export default function AdminCategoriesPage() {
                                 <Input id="edit-image-upload" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setEditingCategory({...editingCategory!, imageUrl: val}))} className="hidden" disabled={isLoading} />
                             </div>
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingCategory.imageHint} onChange={(e) => setEditingCategory({ ...editingCategory, imageHint: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-country">Country</Label>
+                                <Select value={editingCategory.country} onValueChange={(val) => setEditingCategory({...editingCategory, country: val})} disabled={isLoading}>
+                                    <SelectTrigger id="edit-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>

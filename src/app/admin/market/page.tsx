@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp, doc, orderBy, where } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc, orderBy } from 'firebase/firestore';
 import { Loader2, Plus, FileEdit, Trash2, FileUp, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import imageCompression from 'browser-image-compression';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { markets } from '@/lib/currency';
 
 interface MarketBanner {
     id: string;
@@ -29,6 +30,7 @@ interface MarketBanner {
     buttonText?: string;
     className?: string;
     isActive: boolean;
+    country?: string;
     createdAt: any;
 }
 
@@ -37,6 +39,7 @@ interface MarketGifBanner {
     imageUrl: string;
     linkUrl: string;
     isActive: boolean;
+    country?: string;
     createdAt: any;
 }
 
@@ -51,6 +54,7 @@ export default function AdminMarketPage() {
     const [imageHint, setImageHint] = useState('');
     const [buttonText, setButtonText] = useState('');
     const [className, setClassName] = useState('bg-blue-500');
+    const [country, setCountry] = useState('');
     const [isActive, setIsActive] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [editingBanner, setEditingBanner] = useState<MarketBanner | null>(null);
@@ -58,6 +62,7 @@ export default function AdminMarketPage() {
     // State for GIF banners
     const [gifImageUrl, setGifImageUrl] = useState('');
     const [gifLinkUrl, setGifLinkUrl] = useState('');
+    const [gifCountry, setGifCountry] = useState('');
     const [gifIsActive, setGifIsActive] = useState(false);
     const [isLoadingGif, setIsLoadingGif] = useState(false);
     const [editingGifBanner, setEditingGifBanner] = useState<MarketGifBanner | null>(null);
@@ -65,7 +70,7 @@ export default function AdminMarketPage() {
     // Queries
     const bannersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
+        return query(collection(firestore, 'marketBanners'), orderBy('createdAt', 'desc'));
     }, [firestore]);
     const { data: banners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
 
@@ -84,6 +89,7 @@ export default function AdminMarketPage() {
         setImageHint('');
         setButtonText('');
         setClassName('bg-blue-500');
+        setCountry('');
         setIsActive(false);
     };
 
@@ -103,11 +109,9 @@ export default function AdminMarketPage() {
             });
         };
 
-        // For GIFs, read the file directly without compression to preserve animation
         if (file.type === 'image/gif') {
             reader.readAsDataURL(file);
         } else {
-            // For other images, apply compression
             const options = {
                 maxSizeMB: 0.5,
                 maxWidthOrHeight: 1280,
@@ -133,7 +137,7 @@ export default function AdminMarketPage() {
             return;
         }
         setIsLoading(true);
-        const newBanner = { title, subtitle, imageUrl, imageHint, buttonText, className, isActive, createdAt: serverTimestamp() };
+        const newBanner = { title, subtitle, imageUrl, imageHint, buttonText, className, isActive, country, createdAt: serverTimestamp() };
         await addDocumentNonBlocking(collection(firestore, 'marketBanners'), newBanner);
         toast({ title: 'Banner Added!', description: `A new banner has been created.` });
         resetForm();
@@ -144,7 +148,7 @@ export default function AdminMarketPage() {
         if (!editingBanner || !firestore) return;
         setIsLoading(true);
         const bannerRef = doc(firestore, 'marketBanners', editingBanner.id);
-        await updateDocumentNonBlocking(bannerRef, { ...editingBanner, isActive: editingBanner.isActive });
+        await updateDocumentNonBlocking(bannerRef, { ...editingBanner });
         toast({ title: 'Banner Updated', description: `"${editingBanner.title}" has been saved.` });
         setEditingBanner(null);
         setIsLoading(false);
@@ -164,11 +168,12 @@ export default function AdminMarketPage() {
             return;
         }
         setIsLoadingGif(true);
-        const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, createdAt: serverTimestamp() };
+        const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, country: gifCountry, createdAt: serverTimestamp() };
         await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
         toast({ title: 'GIF Banner Added' });
         setGifImageUrl('');
         setGifLinkUrl('');
+        setGifCountry('');
         setGifIsActive(false);
         setIsLoadingGif(false);
     };
@@ -220,6 +225,16 @@ export default function AdminMarketPage() {
                              <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., abstract background" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="buttonText">Button Text</Label><Input id="buttonText" value={buttonText} onChange={(e) => setButtonText(e.target.value)} placeholder="e.g., Shop Now" disabled={isLoading} /></div>
                              <div className="space-y-2"><Label htmlFor="className">Background Class</Label><Input id="className" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g., bg-orange-500" disabled={isLoading} /></div>
+                             <div className="space-y-2">
+                                <Label htmlFor="country">Country</Label>
+                                <Select value={country} onValueChange={setCountry} disabled={isLoading}>
+                                    <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="flex items-center space-x-2"><Switch id="isActive" checked={isActive} onCheckedChange={(val) => setIsActive(val)} disabled={isLoading} /><Label htmlFor="isActive">Activate banner</Label></div>
                             <Button onClick={handleAddBanner} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Main Banner</Button>
                         </CardContent>
@@ -244,6 +259,16 @@ export default function AdminMarketPage() {
                                 <p className="text-xs text-muted-foreground">Recommended size: 250x202px.</p>
                             </div>
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
+                             <div className="space-y-2">
+                                <Label htmlFor="gif-country">Country</Label>
+                                <Select value={gifCountry} onValueChange={setGifCountry} disabled={isLoadingGif}>
+                                    <SelectTrigger id="gif-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="flex items-center space-x-2"><Switch checked={gifIsActive} onCheckedChange={setGifIsActive} disabled={isLoadingGif} /><Label>Activate banner</Label></div>
                             <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add GIF Banner</Button>
                         </CardContent>
@@ -254,13 +279,14 @@ export default function AdminMarketPage() {
                         <CardHeader><CardTitle>Existing Main Banners</CardTitle><CardDescription>View, edit, or delete main carousel banners.</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
-                                <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Country</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {isLoadingBanners ? (
-                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading banners...</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading banners...</TableCell></TableRow>
                                     ) : banners && banners.length > 0 ? banners.map((banner) => (
                                         <TableRow key={banner.id}>
                                             <TableCell className="font-medium">{banner.title}</TableCell>
+                                            <TableCell><Badge variant="outline">{banner.country || 'All'}</Badge></TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingBanner(banner)}><FileEdit className="h-4 w-4" /></Button>
@@ -274,7 +300,7 @@ export default function AdminMarketPage() {
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">No main banners found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">No main banners found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -285,14 +311,15 @@ export default function AdminMarketPage() {
                         <CardHeader><CardTitle>Existing GIF Banners</CardTitle><CardDescription>Manage small promotional side banners.</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
-                                <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Country</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {isLoadingGifBanners ? (
-                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell></TableRow>
                                     ) : gifBanners && gifBanners.length > 0 ? gifBanners.map((banner) => (
                                         <TableRow key={banner.id}>
                                             <TableCell><img src={banner.imageUrl} alt="GIF banner" width={80} height={60} className="rounded-md object-cover bg-muted" /></TableCell>
                                             <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
+                                            <TableCell><Badge variant="outline">{banner.country || 'All'}</Badge></TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingGifBanner(banner)}><FileEdit className="h-4 w-4" /></Button>
@@ -306,7 +333,7 @@ export default function AdminMarketPage() {
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={4} className="h-24 text-center">No GIF banners found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No GIF banners found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -339,6 +366,16 @@ export default function AdminMarketPage() {
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingBanner.imageHint || ''} onChange={(e) => setEditingBanner({ ...editingBanner, imageHint: e.target.value })} /></div>
                             <div className="space-y-2"><Label htmlFor="edit-buttonText">Button Text</Label><Input id="edit-buttonText" value={editingBanner.buttonText || ''} onChange={(e) => setEditingBanner({ ...editingBanner, buttonText: e.target.value })} /></div>
                              <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className || ''} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-country">Country</Label>
+                                <Select value={editingBanner.country} onValueChange={(val) => setEditingBanner({...editingBanner, country: val})} disabled={isLoading}>
+                                    <SelectTrigger id="edit-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div className="flex items-center space-x-2"><Switch id="edit-isPublished" checked={editingBanner.isActive} onCheckedChange={(checked) => setEditingBanner({ ...editingBanner, isActive: checked })} /><Label htmlFor="edit-isPublished">Active</Label></div>
                         </div>
                     )}
@@ -373,6 +410,16 @@ export default function AdminMarketPage() {
                                 <Input id="edit-gif-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, (val) => setEditingGifBanner({ ...editingGifBanner!, imageUrl: val }))} className="hidden" disabled={isLoadingGif} />
                             </div>
                            <div className="space-y-2"><Label>Link URL</Label><Input value={editingGifBanner.linkUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, linkUrl: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-gif-country">Country</Label>
+                                <Select value={editingGifBanner.country} onValueChange={(val) => setEditingGifBanner({...editingGifBanner, country: val})} disabled={isLoadingGif}>
+                                    <SelectTrigger id="edit-gif-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                            <div className="flex items-center space-x-2"><Switch checked={editingGifBanner.isActive} onCheckedChange={(checked) => setEditingGifBanner({ ...editingGifBanner, isActive: checked })} /><Label>Active</Label></div>
                         </div>
                     )}

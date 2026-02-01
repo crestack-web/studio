@@ -318,9 +318,29 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "imageUrl": { "type": "string" },
-        "imageHint": { "type": "string" }
+        "imageHint": { "type": "string" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." }
       },
       "required": ["name", "imageUrl"]
+    },
+    "MarketBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketBanner",
+      "type": "object",
+      "description": "Represents a large hero banner for the marketplace homepage.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageHint": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "className": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
     },
     "MarketGifBanner": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -332,6 +352,7 @@
         "imageUrl": { "type": "string", "description": "Direct URL to the image or GIF." },
         "linkUrl": { "type": "string", "description": "The relative or absolute URL the banner links to." },
         "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["imageUrl", "isActive"]
@@ -766,6 +787,19 @@
               "name": "categoryId",
               "description": "The unique identifier of the category."
             }
+          ]
+        }
+      },
+       {
+        "path": "/marketBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketBanner"
+          },
+          "description": "Stores the large hero banners for the market homepage.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the banner." }
           ]
         }
       },
