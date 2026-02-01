@@ -47,15 +47,17 @@ export default function MarketLayout({
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const productsQuery = useMemoFirebase(() => {
-        if (!firestore || !searchQuery) return null;
-        return query(collection(firestore, 'marketProducts'), limit(50));
-    }, [firestore, searchQuery]);
+        if (!firestore) return null;
+        // Fetch a set of products to use for suggestions.
+        return query(collection(firestore, 'marketProducts'), limit(100));
+    }, [firestore]);
     const { data: allProducts } = useCollection<MarketProduct>(productsQuery);
 
     const categoriesQuery = useMemoFirebase(() => {
-        if (!firestore || !searchQuery) return null;
-        return query(collection(firestore, 'marketCategories'), limit(10));
-    }, [firestore, searchQuery]);
+        if (!firestore) return null;
+        // Fetch all categories for suggestions
+        return query(collection(firestore, 'marketCategories'));
+    }, [firestore]);
     const { data: allCategories } = useCollection<{id: string, name: string}>(categoriesQuery);
 
     const suggestions = useMemo(() => {
@@ -122,7 +124,7 @@ export default function MarketLayout({
                                         </div>
                                     </PopoverTrigger>
                                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                        {(suggestions.products.length === 0 && suggestions.categories.length === 0) ? (
+                                        {searchQuery && (suggestions.products.length === 0 && suggestions.categories.length === 0) ? (
                                             <div className="p-4 text-sm text-center text-muted-foreground">No results found for "{searchQuery}"</div>
                                         ) : (
                                             <div className="flex flex-col">
