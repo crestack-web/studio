@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 
-exports.helloWorld = functions.https.onRequest((req, res) => {
-  res.send("Functions are working 🚀");
+exports.helloWorld = functions.https.onRequest((request, response) => {
+  functions.logger.info("Hello logs!", {structuredData: true});
+  response.send("Functions are working 🚀");
 });
