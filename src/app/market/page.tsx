@@ -79,18 +79,16 @@ interface BusinessProfile {
 }
 
 
-const ProductCard = ({ product }: { product: MarketProduct }) => {
+const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct, isFlashDeal?: boolean }) => {
     const { addItem } = useCart();
     const { toast } = useToast();
     const router = useRouter();
 
     const oldPrice = product.oldPrice;
     const showDiscount = oldPrice && oldPrice > product.price;
-    const discount = showDiscount ? Math.round(((oldPrice - product.price) / oldPrice) * 100) : 0;
+    const discountAmount = showDiscount ? oldPrice - product.price : 0;
     const imageUrl = product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`;
-    
-    const rating = product.averageRating || 0;
-    const reviewCount = product.reviewCount || 0;
+    const stock = product.availableQuantity;
 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -128,18 +126,29 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
                         className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                         data-ai-hint={product.hint || (product.productName || '').split(' ').slice(0, 2).join(' ')}
                     />
-                    {showDiscount && <Badge variant="destructive" className="absolute top-2 right-2">-{discount}%</Badge>}
+                    {showDiscount && (
+                        <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-md shadow-lg">
+                            SAVE {formatCurrency(discountAmount)}
+                        </div>
+                    )}
                 </div>
                 <CardContent className="p-3 flex-1 flex flex-col">
                     <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
-                    <div className="mt-2">
-                        <p className="font-bold text-base">{formatCurrency(product.price)}</p>
-                        {showDiscount && <p className="text-xs text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>}
+                    
+                    <div className="mt-2 space-y-1">
+                        <div className="flex items-baseline gap-2">
+                            <p className="font-bold text-lg">{formatCurrency(product.price)}</p>
+                            {showDiscount && <p className="text-sm text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>}
+                        </div>
+
+                        {isFlashDeal && stock !== undefined && stock > 0 && stock <= 20 && (
+                            <div className="flex items-center gap-1.5 text-destructive text-xs font-semibold">
+                                <Zap className="w-3.5 h-3.5" />
+                                <span>Only {stock} left!</span>
+                            </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-0.5 mt-1">
-                        {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", rating > 0 && i < Math.round(rating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
-                        {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
-                    </div>
+                    
                     <Button size="sm" className="w-full mt-3 h-9" onClick={handleAddToCart}>
                         {product.hasVariants ? 'Select Options' : 'Add to Cart'}
                     </Button>
@@ -550,7 +559,7 @@ export default function MarketPage() {
                         flashDeals.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {flashDeals.map(product => (
-                                    <ProductCard key={product.id} product={product} />
+                                    <ProductCard key={product.id} product={product} isFlashDeal={true} />
                                 ))}
                             </div>
                         ) : (
@@ -680,6 +689,7 @@ export default function MarketPage() {
     );
 
     
+
 
 
 
