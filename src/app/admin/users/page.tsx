@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 interface User {
     id: string;
@@ -29,10 +30,14 @@ interface Business {
 
 interface AdminPermission {
     id?: string;
-    canManageUsers: boolean;
-    canManageProducts: boolean;
-    canManageBlog: boolean;
-    canManageMarket: boolean;
+    isSuperAdmin?: boolean;
+    canManageUsers?: boolean;
+    canManageVerifications?: boolean;
+    canManageOrders?: boolean;
+    canManageMarketplace?: boolean;
+    canManageBlog?: boolean;
+    canManageSupport?: boolean;
+    canManageCoupons?: boolean;
 }
 
 const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -53,17 +58,30 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
     const { data: initialPermissions, isLoading } = useDoc<AdminPermission>(permissionsRef);
     
     const [permissions, setPermissions] = useState<AdminPermission>({
+        isSuperAdmin: false,
         canManageUsers: false,
-        canManageProducts: false,
+        canManageVerifications: false,
+        canManageOrders: false,
+        canManageMarketplace: false,
         canManageBlog: false,
-        canManageMarket: false,
+        canManageSupport: false,
+        canManageCoupons: false,
     });
 
     React.useEffect(() => {
         if (initialPermissions) {
             setPermissions(initialPermissions);
         } else {
-             setPermissions({ canManageUsers: false, canManageProducts: false, canManageBlog: false, canManageMarket: false });
+             setPermissions({
+                isSuperAdmin: false,
+                canManageUsers: false,
+                canManageVerifications: false,
+                canManageOrders: false,
+                canManageMarketplace: false,
+                canManageBlog: false,
+                canManageSupport: false,
+                canManageCoupons: false,
+             });
         }
     }, [initialPermissions]);
 
@@ -84,12 +102,23 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     {isLoading ? <Loader2 className="mx-auto animate-spin" /> : (
-                        <>
-                            <div className="flex items-center space-x-2"><Checkbox id="perm-users" checked={permissions.canManageUsers} onCheckedChange={(c) => handlePermissionChange('canManageUsers', !!c)} /><Label htmlFor="perm-users">Manage Users & Roles</Label></div>
-                            <div className="flex items-center space-x-2"><Checkbox id="perm-products" checked={permissions.canManageProducts} onCheckedChange={(c) => handlePermissionChange('canManageProducts', !!c)} /><Label htmlFor="perm-products">Manage All Market Products</Label></div>
-                            <div className="flex items-center space-x-2"><Checkbox id="perm-blog" checked={permissions.canManageBlog} onCheckedChange={(c) => handlePermissionChange('canManageBlog', !!c)} /><Label htmlFor="perm-blog">Manage Blog Posts</Label></div>
-                            <div className="flex items-center space-x-2"><Checkbox id="perm-market" checked={permissions.canManageMarket} onCheckedChange={(c) => handlePermissionChange('canManageMarket', !!c)} /><Label htmlFor="perm-market">Manage Market Banners & Categories</Label></div>
-                        </>
+                        <div className="space-y-3">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="perm-super" checked={permissions.isSuperAdmin} onCheckedChange={(c) => handlePermissionChange('isSuperAdmin', !!c)} />
+                                <Label htmlFor="perm-super" className="font-semibold text-destructive">Super Admin (Full Access)</Label>
+                            </div>
+                            <Separator />
+                            <h4 className="font-semibold text-sm">Department Permissions</h4>
+                             <div className="grid grid-cols-2 gap-3">
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-users" checked={permissions.canManageUsers} onCheckedChange={(c) => handlePermissionChange('canManageUsers', !!c)} /><Label htmlFor="perm-users">User Management</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-verifications" checked={permissions.canManageVerifications} onCheckedChange={(c) => handlePermissionChange('canManageVerifications', !!c)} /><Label htmlFor="perm-verifications">Verifications</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-orders" checked={permissions.canManageOrders} onCheckedChange={(c) => handlePermissionChange('canManageOrders', !!c)} /><Label htmlFor="perm-orders">Orders</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-marketplace" checked={permissions.canManageMarketplace} onCheckedChange={(c) => handlePermissionChange('canManageMarketplace', !!c)} /><Label htmlFor="perm-marketplace">Marketplace</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-blog" checked={permissions.canManageBlog} onCheckedChange={(c) => handlePermissionChange('canManageBlog', !!c)} /><Label htmlFor="perm-blog">Blog</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-support" checked={permissions.canManageSupport} onCheckedChange={(c) => handlePermissionChange('canManageSupport', !!c)} /><Label htmlFor="perm-support">Support</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-coupons" checked={permissions.canManageCoupons} onCheckedChange={(c) => handlePermissionChange('canManageCoupons', !!c)} /><Label htmlFor="perm-coupons">Coupons</Label></div>
+                            </div>
+                        </div>
                     )}
                 </div>
                 <DialogFooter>

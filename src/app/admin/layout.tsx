@@ -11,10 +11,26 @@ import React, { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
-
 interface AppUser {
   role?: string;
 }
+
+interface AdminPermission {
+  isSuperAdmin?: boolean;
+  canManageUsers?: boolean;
+  canManageVerifications?: boolean;
+  canManageOrders?: boolean;
+  canManageMarketplace?: boolean;
+  canManageBlog?: boolean;
+  canManageSupport?: boolean;
+  canManageCoupons?: boolean;
+}
+
+const LoadingScreen = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 // This component is a wrapper to contain the auth logic.
 const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
@@ -26,64 +42,75 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
     if (!firestore || !user) return null;
     return doc(firestore, `users/${user.uid}`);
   }, [firestore, user]);
-
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
-  useEffect(() => {
-    // Don't redirect until we have all the user info.
-    if (isUserLoading || (user && isProfileLoading)) {
-      return;
-    }
+  const permissionsRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, `admin_permissions/${user.uid}`);
+  }, [firestore, user]);
+  const { data: permissions, isLoading: isLoadingPermissions } = useDoc<AdminPermission>(permissionsRef);
+  
+  const isLoading = isUserLoading || (user && (isProfileLoading || isLoadingPermissions));
 
-    // If user is not logged in, send them to the admin login page.
+  useEffect(() => {
+    if (isLoading) return;
+
     if (!user) {
       redirect('/admin/login');
       return;
     }
     
-    // If the user is logged in but is not an admin, they can't be here.
-    // Send them to the regular login page.
-    const isAdmin = userProfile?.role === 'Admin' || user.email === 'crestack@gmail.com';
+    const isSuperAdmin = user.email === 'crestack@gmail.com' || permissions?.isSuperAdmin;
+    const isAdmin = userProfile?.role === 'Admin' || isSuperAdmin;
+    
     if (!isAdmin) {
       redirect('/login');
     }
-  }, [user, isUserLoading, userProfile, isProfileLoading, pathname]);
+  }, [user, userProfile, permissions, isLoading, pathname]);
 
-  // While we're checking, show a loading state.
-  if ((isUserLoading || (user && isProfileLoading))) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingScreen />;
   }
 
-  // If the logic above passes, the user is an authorized admin. Render the children.
-  return <>{children}</>;
+  const isSuperAdmin = user?.email === 'crestack@gmail.com' || permissions?.isSuperAdmin;
+
+  return (
+    <AdminLayout permissions={permissions || {}} isSuperAdmin={!!isSuperAdmin}>
+      {children}
+    </AdminLayout>
+  );
 };
 
 
-export default function AdminLayout({
+function AdminLayout({
   children,
+  permissions,
+  isSuperAdmin,
 }: {
   children: React.ReactNode;
+  permissions: AdminPermission;
+  isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { id: 'users', label: 'Users', href: '/admin/users', icon: Users },
-    { id: 'verifications', label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck },
-    { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { id: 'market', label: 'Market', href: '/admin/market', icon: Store },
-    { id: 'products', label: 'Products', href: '/admin/products', icon: Package },
-    { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
-    { id: 'coupons', label: 'Coupons', href: '/admin/coupons', icon: Ticket },
-    { id: 'blog', label: 'Blog', href: '/admin/blog', icon: Newspaper },
-    { id: 'support', label: 'Support', href: '/admin/support', icon: Mail },
-    { id: 'agents', label: 'Agents', href: '/admin/agents', icon: Contact },
+    { id: 'users', label: 'Users', href: '/admin/users', permission: 'canManageUsers' },
+    { id: 'verifications', label: 'Verifications', href: '/admin/verifications', permission: 'canManageVerifications' },
+    { id: 'orders', label: 'Orders', href: '/admin/orders', permission: 'canManageOrders' },
+    { id: 'market', label: 'Market', href: '/admin/market', permission: 'canManageMarketplace' },
+    { id: 'products', label: 'Products', href: '/admin/products', permission: 'canManageMarketplace' },
+    { id: 'categories', label: 'Categories', href: '/admin/categories', permission: 'canManageMarketplace' },
+    { id: 'coupons', label: 'Coupons', href: '/admin/coupons', permission: 'canManageCoupons' },
+    { id: 'blog', label: 'Blog', href: '/admin/blog', permission: 'canManageBlog' },
+    { id: 'support', label: 'Support', href: '/admin/support', permission: 'canManageSupport' },
+    { id: 'agents', label: 'Agents', href: '/admin/agents', permission: 'canManageSupport' },
   ];
+  
+  const visibleMenuItems = menuItems.filter(item => 
+    isSuperAdmin || !item.permission || permissions[item.permission as keyof AdminPermission]
+  );
   
   // The login and finish-signin pages should not have the sidebar or be protected.
   if (pathname === '/admin/login' || pathname === '/admin/finish-signin') {
@@ -98,7 +125,7 @@ export default function AdminLayout({
         </div>
       </SidebarHeader>
       <SidebarMenu className="flex-1 px-2">
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
               <SidebarMenuItem key={item.id}>
                   <Link href={item.href}>
                       <SidebarMenuButton
@@ -117,33 +144,33 @@ export default function AdminLayout({
   )
 
   return (
-    <ProtectedAdminLayout>
-        <SidebarProvider>
-            <div className="flex min-h-screen bg-background text-foreground">
-                <Sidebar>
-                  <SidebarContent />
-                </Sidebar>
+    <SidebarProvider>
+        <div className="flex min-h-screen bg-background text-foreground">
+            <Sidebar>
+              <SidebarContent />
+            </Sidebar>
 
-                <SidebarInset>
-                    <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background px-4">
-                      <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-                          <SheetTrigger asChild>
-                              <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
-                          </SheetTrigger>
-                          <SheetContent side="left" className="w-full max-w-xs p-0">
-                                <Sidebar className="[&>div]:hidden">
-                                  <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-                                    <SidebarContent />
-                                  </div>
-                                </Sidebar>
-                          </SheetContent>
-                      </Sheet>
-                      <SidebarTrigger className="hidden md:flex" />
-                    </header>
-                    {children}
-                </SidebarInset>
-            </div>
-        </SidebarProvider>
-    </ProtectedAdminLayout>
+            <SidebarInset>
+                <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background px-4">
+                  <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                      <SheetTrigger asChild>
+                          <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5"/></Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-full max-w-xs p-0">
+                            <Sidebar className="[&>div]:hidden">
+                              <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+                                <SidebarContent />
+                              </div>
+                            </Sidebar>
+                      </SheetContent>
+                  </Sheet>
+                  <SidebarTrigger className="hidden md:flex" />
+                </header>
+                {children}
+            </SidebarInset>
+        </div>
+    </SidebarProvider>
   );
 }
+
+export default ProtectedAdminLayout;

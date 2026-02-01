@@ -106,15 +106,16 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminPermission",
       "type": "object",
-      "description": "Granular permissions for an Admin user.",
+      "description": "Granular, department-based permissions for an Admin user.",
       "properties": {
-        "canManageUsers": { "type": "boolean" },
-        "canManageProducts": { "type": "boolean" },
-        "canManageBlog": { "type": "boolean" },
-        "canManageMarket": { "type": "boolean" },
-        "canManageOrders": { "type": "boolean" },
-        "canManageDeliveries": { "type": "boolean" },
-        "canManageFinance": { "type": "boolean" }
+        "isSuperAdmin": { "type": "boolean", "description": "Grants access to all sections." },
+        "canManageUsers": { "type": "boolean", "description": "Access to the Users management section." },
+        "canManageVerifications": { "type": "boolean", "description": "Access to business verification requests." },
+        "canManageOrders": { "type": "boolean", "description": "Access to the Orders section." },
+        "canManageMarketplace": { "type": "boolean", "description": "Access to Market Banners, Products, and Categories." },
+        "canManageBlog": { "type": "boolean", "description": "Access to Blog management." },
+        "canManageSupport": { "type": "boolean", "description": "Access to Support chats, tickets, and agent management." },
+        "canManageCoupons": { "type": "boolean", "description": "Access to Coupon management." }
       }
     },
     "Product": {
