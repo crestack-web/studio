@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -405,28 +404,40 @@ export default function MarketPage() {
                                         <Skeleton className="h-full w-full rounded-lg" />
                                     </CarouselItem>
                                 ) : (heroBanners && heroBanners.length > 0) ? (
-                                    heroBanners.map((banner, index) => (
-                                        <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
-                                            <Image 
-                                                src={banner.imageUrl} 
-                                                alt={banner.title || 'Market banner'} 
-                                                fill 
-                                                className="object-cover" 
-                                                data-ai-hint={banner.imageHint || ''} 
-                                                priority={index === 0}
-                                            />
-                                            
-                                            {(banner.title || banner.subtitle || banner.buttonText) && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
-                                                    <div className="text-center text-white max-w-lg">
-                                                        {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
-                                                        {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
-                                                        {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                    heroBanners.map((banner, index) => {
+                                        const isGif = banner.imageUrl.includes('.gif') || banner.imageUrl.startsWith('data:image/gif');
+                                        return (
+                                            <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
+                                                {isGif ? (
+                                                    <img 
+                                                        src={banner.imageUrl} 
+                                                        alt={banner.title || 'Market banner'} 
+                                                        className="absolute inset-0 w-full h-full object-cover" 
+                                                        data-ai-hint={banner.imageHint || ''}
+                                                    />
+                                                ) : (
+                                                    <Image 
+                                                        src={banner.imageUrl} 
+                                                        alt={banner.title || 'Market banner'} 
+                                                        fill 
+                                                        className="object-cover" 
+                                                        data-ai-hint={banner.imageHint || ''} 
+                                                        priority={index === 0}
+                                                    />
+                                                )}
+                                                
+                                                {(banner.title || banner.subtitle || banner.buttonText) && (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
+                                                        <div className="text-center text-white max-w-lg">
+                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
+                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
+                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </CarouselItem>
-                                    ))
+                                                )}
+                                            </CarouselItem>
+                                        )
+                                    })
                                 ) : (
                                     <CarouselItem className="aspect-[16/7]">
                                         <div className="h-full w-full bg-muted rounded-lg flex items-center justify-center">
@@ -669,4 +680,5 @@ export default function MarketPage() {
     );
 
     
+
 
