@@ -13,6 +13,8 @@ interface MarketContextType {
   market: Market;
   setMarket: (market: Market) => void;
   availableMarkets: typeof markets;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
@@ -21,6 +23,7 @@ const defaultMarket: Market = { country: 'NG', city: 'Lagos' };
 
 export const MarketProvider = ({ children }: { children: ReactNode }) => {
   const [market, setMarket] = useState<Market>(defaultMarket);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     try {
@@ -40,11 +43,12 @@ export const MarketProvider = ({ children }: { children: ReactNode }) => {
 
   const handleSetMarket = (newMarket: Market) => {
     setMarket(newMarket);
+    setSearchQuery(''); // Reset search query on market change
     localStorage.setItem('busmo-market', JSON.stringify(newMarket));
   };
 
   return (
-    <MarketContext.Provider value={{ market, setMarket: handleSetMarket, availableMarkets: markets }}>
+    <MarketContext.Provider value={{ market, setMarket: handleSetMarket, availableMarkets: markets, searchQuery, setSearchQuery }}>
       {children}
     </MarketContext.Provider>
   );

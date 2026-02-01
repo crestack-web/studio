@@ -22,7 +22,7 @@ export default function MarketLayout({
 }) {
     const { t } = useLanguage();
     const { totalItems } = useCart();
-    const { market } = useMarket();
+    const { market, searchQuery, setSearchQuery } = useMarket();
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
@@ -73,6 +73,17 @@ export default function MarketLayout({
                                     </Sheet>
                                 </div>
                             </div>
+                            <div className="px-4 pb-3">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products..."
+                                        className="pl-9 h-10 text-sm"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Desktop Header */}
@@ -80,6 +91,17 @@ export default function MarketLayout({
                             <div className="flex items-center gap-6">
                                 <Link href="/market"><Logo className="h-8" /></Link>
                                 <MarketSwitcher />
+                            </div>
+                             <div className="flex-1 max-w-xl">
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products, stores, or categories"
+                                        className="pl-12 h-12 text-base rounded-md"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Link href="/market/cart" passHref>

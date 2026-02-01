@@ -162,9 +162,8 @@ const promoCategories = [
 
 export default function MarketPage() {
     const firestore = useFirestore();
-    const { market, setMarket, availableMarkets } = useMarket();
+    const { market, setMarket, availableMarkets, searchQuery } = useMarket();
     const [saleEndTime] = useState(new Date(new Date().getTime() + 10 * 60 * 60 * 1000));
-    const [searchQuery, setSearchQuery] = useState('');
     
     // State for the location modal
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -361,16 +360,6 @@ export default function MarketPage() {
         <MarketLayout>
             <div className="container mx-auto px-4 space-y-8">
                 
-                <div className="relative w-full max-w-lg mx-auto">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                        placeholder="Search products, stores, or categories"
-                        className="pl-12 h-14 text-base rounded-full shadow-md"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-
                  {/* 1. Hero Section */}
                  <section className="mb-8">
                      <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
@@ -691,6 +680,7 @@ export default function MarketPage() {
     );
 
     
+
 
 
 
