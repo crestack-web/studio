@@ -96,16 +96,16 @@ function AdminLayout({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { id: 'users', label: 'Users', href: '/admin/users', permission: 'canManageUsers' },
-    { id: 'verifications', label: 'Verifications', href: '/admin/verifications', permission: 'canManageVerifications' },
-    { id: 'orders', label: 'Orders', href: '/admin/orders', permission: 'canManageOrders' },
-    { id: 'market', label: 'Market', href: '/admin/market', permission: 'canManageMarketplace' },
-    { id: 'products', label: 'Products', href: '/admin/products', permission: 'canManageMarketplace' },
-    { id: 'categories', label: 'Categories', href: '/admin/categories', permission: 'canManageMarketplace' },
-    { id: 'coupons', label: 'Coupons', href: '/admin/coupons', permission: 'canManageCoupons' },
-    { id: 'blog', label: 'Blog', href: '/admin/blog', permission: 'canManageBlog' },
-    { id: 'support', label: 'Support', href: '/admin/support', permission: 'canManageSupport' },
-    { id: 'agents', label: 'Agents', href: '/admin/agents', permission: 'canManageSupport' },
+    { id: 'users', label: 'Users', href: '/admin/users', icon: Users, permission: 'canManageUsers' },
+    { id: 'verifications', label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck, permission: 'canManageVerifications' },
+    { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'canManageOrders' },
+    { id: 'market', label: 'Market', href: '/admin/market', icon: Store, permission: 'canManageMarketplace' },
+    { id: 'products', label: 'Products', href: '/admin/products', icon: Package, permission: 'canManageMarketplace' },
+    { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid, permission: 'canManageMarketplace' },
+    { id: 'coupons', label: 'Coupons', href: '/admin/coupons', icon: Ticket, permission: 'canManageCoupons' },
+    { id: 'blog', label: 'Blog', href: '/admin/blog', icon: Newspaper, permission: 'canManageBlog' },
+    { id: 'support', label: 'Support', href: '/admin/support', icon: Mail, permission: 'canManageSupport' },
+    { id: 'agents', label: 'Agents', href: '/admin/agents', icon: Contact, permission: 'canManageSupport' },
   ];
   
   const visibleMenuItems = menuItems.filter(item => 
