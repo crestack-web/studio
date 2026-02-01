@@ -1,7 +1,5 @@
-const { onRequest } = require("firebase-functions/v2/https");
-const logger = require("firebase-functions/logger");
+const functions = require("firebase-functions");
 
-exports.helloWorld = onRequest((req, res) => {
-  logger.info("Hello function called", { structuredData: true });
+exports.helloWorld = functions.https.onRequest((req, res) => {
   res.send("Functions are working 🚀");
 });
