@@ -71,7 +71,7 @@
         },
         "role": {
           "type": "string",
-          "description": "The user's role (Owner / Staff / Investor / Admin)."
+          "description": "The user's role (Owner / Staff / Investor / Admin / Delivery Agent)."
         },
         "businessId": {
           "type": "string",
@@ -108,18 +108,13 @@
       "type": "object",
       "description": "Granular permissions for an Admin user.",
       "properties": {
-        "canManageUsers": {
-          "type": "boolean"
-        },
-        "canManageProducts": {
-          "type": "boolean"
-        },
-        "canManageBlog": {
-          "type": "boolean"
-        },
-        "canManageMarket": {
-          "type": "boolean"
-        }
+        "canManageUsers": { "type": "boolean" },
+        "canManageProducts": { "type": "boolean" },
+        "canManageBlog": { "type": "boolean" },
+        "canManageMarket": { "type": "boolean" },
+        "canManageOrders": { "type": "boolean" },
+        "canManageDeliveries": { "type": "boolean" },
+        "canManageFinance": { "type": "boolean" }
       }
     },
     "Product": {
@@ -487,6 +482,42 @@
         "rejectionReason": { "type": "string" }
       },
       "required": ["businessId", "status"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer order from the marketplace.",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "sellerBusinessId": { "type": "string" },
+        "customer": { "type": "object", "properties": { "name": { "type": "string" }, "phone": { "type": "string" }, "address": { "type": "string" } } },
+        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "productName": { "type": "string" }, "variantId": { "type": "string" }, "variantName": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "in progress", "shipped", "delivered", "cancelled", "returned"] },
+        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
+        "payment": { "type": "string", "enum": ["busmopay", "transfer", "delivery"] },
+        "payoutStatus": { "type": "string", "enum": ["unpaid", "processing", "paid"] },
+        "deliveryAgentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "sellerBusinessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
+    },
+    "DeliveryAgent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DeliveryAgent",
+      "type": "object",
+      "description": "Represents a delivery agent.",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "on-delivery", "unavailable"] },
+        "currentOrderId": { "type": "string" }
+      },
+      "required": ["userId", "displayName", "status"]
     }
   },
   "auth": {
@@ -550,6 +581,18 @@
               "name": "saleId",
               "description": "The unique identifier of the sale."
             }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": { "$ref": "#/backend/entities/Order" },
+          "description": "Stores all customer orders for a specific business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "orderId", "description": "The unique identifier of the order." }
           ]
         }
       },
@@ -694,6 +737,17 @@
               "name": "userId",
               "description": "The admin user's ID."
             }
+          ]
+        }
+      },
+      {
+        "path": "/deliveryAgents/{agentId}",
+        "definition": {
+          "entityName": "DeliveryAgent",
+          "schema": { "$ref": "#/backend/entities/DeliveryAgent" },
+          "description": "Stores profiles for delivery agents.",
+          "params": [
+            { "name": "agentId", "description": "The user ID of the agent." }
           ]
         }
       },
