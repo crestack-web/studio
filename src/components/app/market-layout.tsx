@@ -90,7 +90,7 @@ export default function MarketLayout({
                                     </Button>
                                 </Link>
                                 <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                                <Button asChild><Link href="/signup">Sign Up</Button>
+                                <Button asChild><Link href="/signup">Sign Up</Link></Button>
                             </div>
                         </div>
                     </div>
