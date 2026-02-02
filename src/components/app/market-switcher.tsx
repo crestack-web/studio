@@ -1,6 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +15,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MapPin } from 'lucide-react';
 import { useMarket } from '@/context/market-provider';
 
 export function MarketSwitcher() {
@@ -51,8 +52,16 @@ export function MarketSwitcher() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 text-2xl">
-          <span>{currentMarketData?.flag}</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9">
+            {currentMarketData && (
+                <Image
+                    src={`https://flagcdn.com/w40/${market.country.toLowerCase()}.png`}
+                    alt={`${market.country} flag`}
+                    width={24}
+                    height={18}
+                    className="rounded-sm object-contain"
+                />
+            )}
           <span className="sr-only">Change market location</span>
         </Button>
       </DialogTrigger>
@@ -73,7 +82,16 @@ export function MarketSwitcher() {
               <SelectContent>
                 {availableMarkets.map(country => (
                   <SelectItem key={country.code} value={country.code}>
-                    <span className="mr-2">{country.flag}</span>{country.name}
+                     <div className="flex items-center gap-2">
+                        <Image
+                            src={`https://flagcdn.com/w20/${country.code.toLowerCase()}.png`}
+                            alt={`${country.name} flag`}
+                            width={20}
+                            height={15}
+                            className="rounded-sm object-contain"
+                        />
+                        <span>{country.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
