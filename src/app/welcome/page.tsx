@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, updateDocumentNonBlocking, useDoc } from '@/firebase';
-import { collection, query, where, serverTimestamp, doc, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, serverTimestamp, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import imageCompression from 'browser-image-compression';
 import { Badge } from '@/components/ui/badge';
@@ -87,12 +87,6 @@ interface ChatMessage {
     createdAt: { toDate: () => Date };
 }
 
-interface Announcement {
-    id: string;
-    text: string;
-    href: string;
-}
-
 // The new landing page component
 export default function LandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
@@ -120,13 +114,6 @@ export default function LandingPage() {
     return query(collection(firestore, 'supportAgents'));
   }, [firestore]);
   const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
-
-  const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'announcements'), where('isActive', '==', true), where('page', '==', 'welcome'), limit(1));
-  }, [firestore]);
-  const { data: announcements } = useCollection<Announcement>(announcementsQuery);
-  const announcement = announcements?.[0];
 
   const agentsMap = useMemo(() => {
     if (!allAgents) return new Map();
@@ -163,17 +150,6 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* Announcement Bar */}
-      {announcement && (
-        <div className="bg-primary text-primary-foreground">
-            <div className="container mx-auto text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2">
-                <Megaphone className="h-4 w-4 shrink-0" />
-                <Link href={announcement.href} className="hover:underline">
-                    {announcement.text}
-                </Link>
-            </div>
-        </div>
-      )}
       
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
