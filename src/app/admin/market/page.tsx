@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -137,11 +136,17 @@ export default function AdminMarketPage() {
             return;
         }
         setIsLoading(true);
-        const newBanner = { title, subtitle, imageUrl, imageHint, buttonText, className, isActive, country, createdAt: serverTimestamp() };
-        await addDocumentNonBlocking(collection(firestore, 'marketBanners'), newBanner);
-        toast({ title: 'Banner Added!', description: `A new banner has been created.` });
-        resetForm();
-        setIsLoading(false);
+        try {
+            const newBanner = { title, subtitle, imageUrl, imageHint, buttonText, className, isActive, country, createdAt: serverTimestamp() };
+            await addDocumentNonBlocking(collection(firestore, 'marketBanners'), newBanner);
+            toast({ title: 'Banner Added!', description: `A new banner has been created.` });
+            resetForm();
+        } catch (error) {
+            console.error("Failed to add banner:", error);
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not save the banner. The image might be too large.' });
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     const handleUpdateBanner = async () => {
@@ -168,14 +173,20 @@ export default function AdminMarketPage() {
             return;
         }
         setIsLoadingGif(true);
-        const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, country: gifCountry, createdAt: serverTimestamp() };
-        await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
-        toast({ title: 'GIF Banner Added' });
-        setGifImageUrl('');
-        setGifLinkUrl('');
-        setGifCountry('');
-        setGifIsActive(false);
-        setIsLoadingGif(false);
+        try {
+            const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, country: gifCountry, createdAt: serverTimestamp() };
+            await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
+            toast({ title: 'GIF Banner Added' });
+            setGifImageUrl('');
+            setGifLinkUrl('');
+            setGifCountry('');
+            setGifIsActive(false);
+        } catch (error) {
+            console.error("Failed to add GIF banner:", error);
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not save the GIF banner. The image might be too large.' });
+        } finally {
+            setIsLoadingGif(false);
+        }
     };
 
     const handleUpdateGifBanner = async () => {
@@ -435,5 +446,7 @@ export default function AdminMarketPage() {
         </main>
     );
 }
+
+    
 
     
