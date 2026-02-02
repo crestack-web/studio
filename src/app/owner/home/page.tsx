@@ -704,7 +704,7 @@ export default function OwnerHomePage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {presetQuestions.map((q, i) => (
-                        <Button key={i} variant="outline" size="sm" className={cn("h-auto py-2 justify-start text-left text-xs sm:text-sm", selectedQuestion === q && "bg-accent/80 text-accent-foreground")} onClick={() => handleQuestionClick(q)}>
+                        <Button key={i} variant="outline" size="sm" className={cn("h-auto py-2 justify-start text-left text-xs sm:text-sm truncate", selectedQuestion === q && "bg-accent/80 text-accent-foreground")} onClick={() => handleQuestionClick(q)}>
                            {q}
                         </Button>
                     ))}
