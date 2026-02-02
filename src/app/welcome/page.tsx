@@ -1,9 +1,10 @@
+
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -162,6 +163,26 @@ export default function LandingPage() {
     { value: 'item-3', question: t('welcome.faq_3_q'), answer: t('welcome.faq_3_a') },
     { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
   ];
+
+  const whoIsItFor = [
+    { name: t('welcome.who_1'), icon: Store },
+    { name: t('welcome.who_2'), icon: UtensilsCrossed },
+    { name: t('welcome.who_3'), icon: ShoppingCart },
+    { name: t('welcome.who_4'), icon: Building },
+  ];
+  
+  const whyBusmo = {
+    old: [
+      { title: t('welcome.why_old_1_title'), description: t('welcome.why_old_1_desc') },
+      { title: t('welcome.why_old_2_title'), description: t('welcome.why_old_2_desc') },
+      { title: t('welcome.why_old_3_title'), description: t('welcome.why_old_3_desc') },
+    ],
+    busmo: [
+      { title: t('welcome.why_busmo_1_title'), description: t('welcome.why_busmo_1_desc') },
+      { title: t('welcome.why_busmo_2_title'), description: t('welcome.why_busmo_2_desc') },
+      { title: t('welcome.why_busmo_3_title'), description: t('welcome.why_busmo_3_desc') },
+    ]
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -429,6 +450,62 @@ export default function LandingPage() {
                     </div>
                 </div>
             </div>
+        </section>
+
+        {/* Why Busmo Section */}
+        <section className="py-20 sm:py-32">
+            <div className="container mx-auto px-4">
+                <div className="mx-auto max-w-2xl lg:text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.why_title')}</h2>
+                    <p className="mt-4 text-lg text-muted-foreground">{t('welcome.why_subtitle')}</p>
+                </div>
+                <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    <Card className="bg-muted/30 border-destructive/20">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-destructive"><XCircle className="w-6 h-6"/> {t('welcome.why_old_way')}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {whyBusmo.old.map(item => (
+                                <div key={item.title}>
+                                    <h4 className="font-semibold">{item.title}</h4>
+                                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-card border-primary/20">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-primary"><CheckCircle className="w-6 h-6"/> {t('welcome.why_busmo_way')}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {whyBusmo.busmo.map(item => (
+                                <div key={item.title}>
+                                    <h4 className="font-semibold">{item.title}</h4>
+                                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </section>
+
+        {/* Who is it for Section */}
+        <section className="py-20 sm:py-32 bg-card border-y">
+             <div className="container mx-auto px-4">
+                <div className="mx-auto max-w-2xl lg:text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.who_title')}</h2>
+                    <p className="mt-4 text-lg text-muted-foreground">{t('welcome.who_subtitle')}</p>
+                </div>
+                <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                    {whoIsItFor.map(item => (
+                        <div key={item.name} className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                            <item.icon className="w-6 h-6 text-primary" />
+                            <span className="font-medium">{item.name}</span>
+                        </div>
+                    ))}
+                </div>
+             </div>
         </section>
 
         {/* FAQ */}
