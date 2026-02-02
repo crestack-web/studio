@@ -1,22 +1,35 @@
 
-import InvestorLayout from '@/components/app/investor-layout';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Building } from 'lucide-react';
+'use client';
 
-export default function BusinessProfilePage({ params }: { params: { businessId: string } }) {
-    const businessId = params.businessId;
+import { notFound, useParams } from 'next/navigation';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import StorePageContent from '@/app/[slug]/page'; // Re-using the content component
+
+export default function InvestBusinessProfilePage() {
+    const params = useParams();
+    const businessId = params.businessId as string;
+    const firestore = useFirestore();
+
+    const businessProfileRef = useMemoFirebase(() => {
+        if (!firestore || !businessId) return null;
+        return doc(firestore, 'businessProfiles', businessId);
+    }, [firestore, businessId]);
+
+    const { data: businessData, isLoading } = useDoc(businessProfileRef);
     
-    return (
-        <InvestorLayout>
-            <div className="container mx-auto px-4 py-16 text-center">
-                <Building className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h1 className="text-4xl font-bold font-headline">Business Not Found</h1>
-                <p className="text-lg text-muted-foreground mt-2">The requested business profile could not be located or is not yet available.</p>
-                <Link href="/invest">
-                    <Button className="mt-6">Back to Opportunities</Button>
-                </Link>
-            </div>
-        </InvestorLayout>
-    );
+    if (isLoading) {
+        // You can return a more specific loading skeleton for this page if desired
+        return <StorePageContent.Skeleton />;
+    }
+
+    if (!businessData) {
+        notFound();
+    }
+
+    // We pass the fetched businessId to the existing StorePageContent component.
+    // This re-uses the entire UI from the public slug page.
+    return <StorePageContent businessId={businessId} />;
 }
+
+    

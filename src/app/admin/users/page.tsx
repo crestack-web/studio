@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking } from '@/firebase';
@@ -6,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Shield, Edit } from 'lucide-react';
+import { MoreHorizontal, Shield, Edit, Truck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +20,7 @@ interface User {
     id: string;
     displayName: string;
     email: string;
-    role: 'Owner' | 'Staff' | 'Investor' | 'Admin';
+    role: 'Owner' | 'Staff' | 'Investor' | 'Admin' | 'Delivery Agent';
     businessId?: string;
 }
 
@@ -45,6 +46,7 @@ const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "o
     Owner: 'default',
     Staff: 'secondary',
     Investor: 'outline',
+    'Delivery Agent': 'secondary',
 };
 
 const plans: Business['plan'][] = ['shop', 'supermarket', 'multi-branch', 'company'];
@@ -168,6 +170,17 @@ export default function AdminUsersPage() {
                 const adminRef = doc(firestore, 'admins', user.id);
                 deleteDocumentNonBlocking(adminRef);
             }
+            // If making a delivery agent, add to the 'deliveryAgents' collection
+            if (newRole === 'Delivery Agent') {
+                const agentRef = doc(firestore, 'deliveryAgents', user.id);
+                setDocumentNonBlocking(agentRef, {
+                    userId: user.id,
+                    displayName: user.displayName,
+                    status: 'unavailable',
+                    currentOrderId: null,
+                }, { merge: true });
+            }
+
 
             toast({
                 title: 'Role Updated',
@@ -261,6 +274,7 @@ export default function AdminUsersPage() {
                                                     <DropdownMenuItem onClick={() => handleRoleChange(user, 'Owner')}>Make Owner</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleRoleChange(user, 'Staff')}>Make Staff</DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleRoleChange(user, 'Investor')}>Make Investor</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(user, 'Delivery Agent')}><Truck className="mr-2 h-4 w-4" />Make Delivery Agent</DropdownMenuItem>
                                                     
                                                     {user.role === 'Admin' && (
                                                         <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsPermissionsDialogOpen(true); }}>
@@ -305,3 +319,5 @@ export default function AdminUsersPage() {
         </main>
     );
 }
+
+    

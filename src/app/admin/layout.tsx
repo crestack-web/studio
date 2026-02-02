@@ -1,7 +1,8 @@
+
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
 import { usePathname, redirect } from 'next/navigation';
@@ -99,6 +100,7 @@ function AdminLayout({
     { id: 'users', label: 'Users', href: '/admin/users', icon: Users, permission: 'canManageUsers' },
     { id: 'verifications', label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck, permission: 'canManageVerifications' },
     { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'canManageOrders' },
+    { id: 'delivery-agents', label: 'Delivery Agents', href: '/admin/delivery-agents', icon: Truck, permission: 'canManageOrders' },
     { id: 'market', label: 'Market', href: '/admin/market', icon: Store, permission: 'canManageMarketplace' },
     { id: 'products', label: 'Products', href: '/admin/products', icon: Package, permission: 'canManageMarketplace' },
     { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid, permission: 'canManageMarketplace' },
@@ -113,7 +115,7 @@ function AdminLayout({
   );
   
   // The login and finish-signin pages should not have the sidebar or be protected.
-  if (pathname === '/admin/login' || pathname === '/admin/finish-signin') {
+  if (pathname === '/admin/login' || pathname === '/admin/finish-signin' || pathname.startsWith('/delivery-agent')) {
     return <>{children}</>;
   }
 
@@ -174,3 +176,5 @@ function AdminLayout({
 }
 
 export default ProtectedAdminLayout;
+
+    
