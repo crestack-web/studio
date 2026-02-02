@@ -33,6 +33,8 @@ import { collection, query, where, serverTimestamp, doc } from 'firebase/firesto
 import { Skeleton } from '@/components/ui/skeleton';
 import imageCompression from 'browser-image-compression';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 
 const testimonialsDataRaw = [
@@ -178,7 +180,28 @@ export default function LandingPage() {
            <div className="md:hidden flex items-center gap-2">
             <ThemeToggle />
             <LanguageSwitcher />
-            
+             <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full max-w-xs">
+                    <SheetHeader>
+                      <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                      <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                    </SheetHeader>
+                    <Logo className="h-8 mb-8" />
+                    <nav className="flex flex-col items-start gap-4">
+                        <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                        <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
+                        <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
+                        <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
+                        <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
+                    </nav>
+                </SheetContent>
+              </Sheet>
           </div>
         </div>
       </header>
@@ -186,11 +209,204 @@ export default function LandingPage() {
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
-        
-        
+        <section className="relative overflow-hidden py-20 sm:py-32">
+            <div className="container mx-auto px-4 text-center">
+                 <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.title') }}></h1>
+                <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
+                    {t('welcome.subtitle')}
+                </p>
+                <div className="mt-10 flex items-center justify-center gap-x-6">
+                    <Link href="/signup" passHref>
+                        <Button size="lg" className="h-14 text-lg">{t('welcome.cta')}</Button>
+                    </Link>
+                </div>
+            </div>
+        </section>
 
-        
-        
+        {/* Mockup Section */}
+        <section className="container mx-auto px-4 -mt-16 sm:-mt-24">
+            <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[2/1] max-w-6xl mx-auto">
+                <DashboardMockup />
+            </div>
+        </section>
+
+         {/* Features Section */}
+        <section className="py-20 sm:py-32">
+            <div className="container mx-auto px-4">
+                <div className="mx-auto max-w-2xl lg:text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.features_title')}</h2>
+                    <p className="mt-4 text-lg text-muted-foreground">
+                        {t('welcome.features_subtitle')}
+                    </p>
+                </div>
+                <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
+                    <div className="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-3">
+                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                <Package className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="mt-4 flex-auto">
+                                <h3 className="text-xl font-semibold">{t('welcome.feature_1_title')}</h3>
+                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_1_desc')}</p>
+                            </div>
+                        </div>
+                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                <BarChart className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="mt-4 flex-auto">
+                                <h3 className="text-xl font-semibold">{t('welcome.feature_2_title')}</h3>
+                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_2_desc')}</p>
+                            </div>
+                        </div>
+                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                <TrendingUp className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="mt-4 flex-auto">
+                                <h3 className="text-xl font-semibold">{t('welcome.feature_3_title')}</h3>
+                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_3_desc')}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+         {/* Market Section */}
+        <section className="py-20 sm:py-32 bg-card border-y">
+            <div className="container mx-auto px-4">
+                 <div className="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.market_title')}}></h2>
+                        <p className="mt-6 text-lg text-muted-foreground">{t('welcome.market_subtitle')}</p>
+                        <ul className="mt-8 space-y-4">
+                            {(t('welcome.market_features', { returnObjects: true }) as unknown as string[]).map(feature => (
+                                <li key={feature} className="flex items-start gap-3">
+                                    <CheckCircle className="w-6 h-6 text-primary mt-1 shrink-0"/>
+                                    <span className="text-muted-foreground">{feature}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="mt-10">
+                             <Link href="/market" passHref>
+                                <Button size="lg" variant="secondary">{t('welcome.market_cta')}</Button>
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[1/1] max-w-2xl mx-auto">
+                        <MarketMockup />
+                    </div>
+                </div>
+            </div>
+        </section>
+
+         {/* Testimonials */}
+        <section className="py-20 sm:py-32">
+            <div className="container mx-auto px-4 text-center">
+                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.testimonials_title')}</h2>
+                <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+                    {t('welcome.testimonials_subtitle')}
+                </p>
+            </div>
+            <div className="mt-16 w-full">
+                <Carousel 
+                    plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                    opts={{ align: "start", loop: true }}
+                >
+                    <CarouselContent>
+                        {testimonials.map(testimonial => (
+                            <CarouselItem key={testimonial.id} className="md:basis-1/2 lg:basis-1/3">
+                                 <div className="p-4 h-full">
+                                    <Card className="h-full flex flex-col p-6">
+                                        <CardContent className="p-0 flex-1">
+                                            <p className="text-muted-foreground">"{t(testimonial.quoteKey)}"</p>
+                                        </CardContent>
+                                        <div className="mt-6 flex items-center gap-4">
+                                             <div className="w-14 h-14 relative rounded-full overflow-hidden bg-muted">
+                                                {testimonial.imageUrl && (
+                                                    <Image
+                                                        src={testimonial.imageUrl}
+                                                        alt={t(testimonial.nameKey)}
+                                                        fill
+                                                        className="object-cover"
+                                                        data-ai-hint={testimonial.imageHint}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold">{t(testimonial.nameKey)}</p>
+                                                <p className="text-sm text-muted-foreground">{t(testimonial.businessKey)}</p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </div>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                </Carousel>
+            </div>
+        </section>
+
+         {/* AI Section */}
+        <section className="py-20 sm:py-32 bg-card border-y">
+            <div className="container mx-auto px-4">
+                 <div className="grid lg:grid-cols-2 gap-12 items-center">
+                    <div className="order-2 lg:order-1">
+                        <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[1/1] max-w-2xl mx-auto">
+                            <InvestorMockup />
+                        </div>
+                    </div>
+                    <div className="order-1 lg:order-2">
+                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.investor_title')}}></h2>
+                        <p className="mt-6 text-lg text-muted-foreground">{t('welcome.investor_subtitle')}</p>
+                        <ul className="mt-8 space-y-4">
+                            {(t('welcome.investor_features', { returnObjects: true }) as unknown as string[]).map(feature => (
+                                <li key={feature} className="flex items-start gap-3">
+                                    <CheckCircle className="w-6 h-6 text-primary mt-1 shrink-0"/>
+                                    <span className="text-muted-foreground">{feature}</span>
+                                </li>
+                            ))}
+                        </ul>
+                         <div className="mt-10">
+                             <Link href="/invest" passHref>
+                                <Button size="lg" variant="secondary">{t('welcome.investor_cta')}</Button>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* FAQ */}
+         <section className="py-20 sm:py-32">
+            <div className="container mx-auto px-4 max-w-3xl">
+                <h2 className="text-3xl font-bold tracking-tight text-center sm:text-4xl font-headline">{t('welcome.faq_title')}</h2>
+                <Accordion type="single" collapsible className="w-full mt-12">
+                     {faqItems.map(item => (
+                        <AccordionItem key={item.value} value={item.value}>
+                            <AccordionTrigger className="text-lg font-semibold text-left">{item.question}</AccordionTrigger>
+                            <AccordionContent className="text-base text-muted-foreground">
+                                {item.answer}
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+            </div>
+        </section>
+
+         {/* Final CTA */}
+        <section className="py-20 sm:py-32 bg-primary/5 border-t">
+            <div className="container mx-auto px-4 text-center">
+                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.final_cta_title')}</h2>
+                <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">{t('welcome.final_cta_subtitle')}</p>
+                 <div className="mt-10">
+                     <Link href="/signup" passHref>
+                        <Button size="lg" className="h-14 text-lg">{t('welcome.cta')}</Button>
+                    </Link>
+                </div>
+            </div>
+        </section>
       </main>
 
       {/* Footer */}
