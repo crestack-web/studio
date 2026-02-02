@@ -102,14 +102,17 @@ export default function MarketLayout({
                 </div>
                 <header className="bg-card border-b">
                     <div className="container mx-auto">
-                        <div className="flex h-16 items-center justify-between px-4 gap-6">
+                        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-3 md:h-16 md:flex-nowrap md:py-0">
+                            {/* Logo & Desktop Market Switcher */}
                             <div className="flex items-center gap-6">
                                 <Link href="/market"><Logo className="h-8" /></Link>
                                 <div className="hidden md:block">
                                     <MarketSwitcher />
                                 </div>
                             </div>
-                            <div className="flex-1 max-w-xl">
+                            
+                            {/* Search bar */}
+                            <div className="order-last w-full md:order-2 md:flex-1 md:max-w-xl">
                                 <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
                                     <PopoverTrigger asChild>
                                         <div className="relative">
@@ -164,7 +167,12 @@ export default function MarketLayout({
                                     </PopoverContent>
                                 </Popover>
                             </div>
-                            <div className="flex items-center gap-2">
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 order-2 md:order-3">
+                                <div className="md:hidden">
+                                    <MarketSwitcher />
+                                </div>
                                 <Link href="/market/cart" passHref>
                                     <Button variant="ghost" size="icon" className="relative">
                                         <ShoppingCart className="h-6 w-6" />
@@ -172,8 +180,33 @@ export default function MarketLayout({
                                         <span className="sr-only">Cart</span>
                                     </Button>
                                 </Link>
-                                <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
-                                <Button asChild><Link href="/signup">Sign Up</Link></Button>
+                                <div className="hidden sm:flex items-center gap-2">
+                                    <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+                                    <Button asChild><Link href="/signup">Sign Up</Link></Button>
+                                </div>
+                                <div className="sm:hidden">
+                                    <Sheet>
+                                        <SheetTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <Menu className="h-6 w-6" />
+                                            </Button>
+                                        </SheetTrigger>
+                                        <SheetContent>
+                                            <SheetHeader>
+                                                <SheetTitle className="sr-only">Menu</SheetTitle>
+                                                <SheetDescription className="sr-only">Login or sign up.</SheetDescription>
+                                            </SheetHeader>
+                                            <nav className="flex flex-col gap-4 mt-8">
+                                                <Link href="/login" passHref className="w-full">
+                                                    <Button variant="outline" className="w-full justify-center text-lg h-12">Log In</Button>
+                                                </Link>
+                                                <Link href="/signup" passHref className="w-full">
+                                                    <Button className="w-full justify-center text-lg h-12">Sign Up</Button>
+                                                </Link>
+                                            </nav>
+                                        </SheetContent>
+                                    </Sheet>
+                                </div>
                             </div>
                         </div>
                     </div>
