@@ -2,7 +2,7 @@
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Landmark, Percent, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Landmark, Percent, ShieldCheck, Briefcase } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
@@ -121,6 +121,69 @@ export default function OwnerInvestPage() {
                             </ul>
                         </CardContent>
                     </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> Equity Investment</CardTitle>
+                            <CardDescription>Sell a percentage of your business to investors for a larger capital injection.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="space-y-2 text-sm mb-4">
+                                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0"/> Raise significant capital for major expansion.</li>
+                                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0"/> Bring on partners with valuable experience.</li>
+                                <li className="flex items-start gap-2"><CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0"/> Suitable for high-growth potential businesses.</li>
+                            </ul>
+                             <Alert>
+                                <AlertTitle>Company Plan Required</AlertTitle>
+                                <AlertDescription>
+                                    This funding option is available exclusively for businesses on the Company plan.
+                                </AlertDescription>
+                            </Alert>
+                        </CardContent>
+                    </Card>
+                </div>
+                
+                 <div className="space-y-4 pt-4 border-t">
+                    <h3 className="text-xl font-semibold font-headline text-center">See What's Possible</h3>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Sample: Profit Sharing Offer</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Investment Amount</span>
+                                    <span className="font-bold">₦500,000</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Profit Share</span>
+                                    <span className="font-bold">15%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Duration</span>
+                                    <span className="font-bold">18 months</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Sample: Equity Offer</CardTitle>
+                            </CardHeader>
+                             <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Investment Amount</span>
+                                    <span className="font-bold">₦2,000,000</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Equity Offered</span>
+                                    <span className="font-bold">10%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Post-Money Valuation</span>
+                                    <span className="font-bold">₦20,000,000</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 {!isCompanyPlan && (
