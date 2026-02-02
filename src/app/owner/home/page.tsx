@@ -847,6 +847,18 @@ export default function OwnerHomePage() {
                 
                 {businessId && <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />}
 
+                {businessData?.country === 'NG' && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" /> BusmoPay</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Manage your online payments, payouts, and transactions.</p>
+                            <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">Go to BusmoPay</Link></Button>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> Sell Online</CardTitle>
