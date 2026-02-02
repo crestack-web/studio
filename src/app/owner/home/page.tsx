@@ -618,30 +618,34 @@ export default function OwnerHomePage() {
         </div>
       </header>
       
-      <main className="flex-1 p-4 sm:p-6 space-y-6">
         {announcements && announcements.length > 0 && (
-            <div className="w-full">
-                <Carousel
-                    plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
-                    opts={{ align: "start", loop: true }}
-                >
-                    <CarouselContent>
-                        {announcements.map((announcement) => (
-                            <CarouselItem key={announcement.id}>
-                                <Link href={announcement.href || '#'}>
-                                    <div className="relative p-4 bg-primary/10 border-l-4 border-primary text-primary-foreground rounded-r-lg">
-                                        <div className="flex items-center gap-2">
-                                            <Megaphone className="h-5 w-5 text-primary"/>
-                                            <p className="text-sm font-medium text-primary">{announcement.text}</p>
+            <div className="border-b bg-card">
+                <div className="container mx-auto px-4 sm:px-6">
+                    <Carousel
+                        plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
+                        opts={{ align: "start", loop: true }}
+                        className="w-full"
+                    >
+                        <CarouselContent>
+                            {announcements.map((announcement) => (
+                                <CarouselItem key={announcement.id}>
+                                    <Link href={announcement.href || '#'}>
+                                        <div className="relative p-3">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <Megaphone className="h-4 w-4 text-primary"/>
+                                                <p className="text-sm font-medium text-primary">{announcement.text}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Link>
-                            </CarouselItem>
-                        ))}
-                    </CarouselContent>
-                </Carousel>
+                                    </Link>
+                                </CarouselItem>
+                            ))}
+                        </CarouselContent>
+                    </Carousel>
+                </div>
             </div>
         )}
+
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
