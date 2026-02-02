@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -109,6 +110,17 @@ export default function AdminMarketPage() {
         };
 
         if (file.type === 'image/gif') {
+            if (file.size > 500 * 1024) { // 500KB limit for GIFs
+                toast({
+                    variant: 'destructive',
+                    title: 'GIF file is too large',
+                    description: 'Please upload a GIF smaller than 500KB, or use a JPG/PNG instead.',
+                });
+                if (e.target) {
+                    e.target.value = ''; // Reset file input
+                }
+                return;
+            }
             reader.readAsDataURL(file);
         } else {
             const options = {
