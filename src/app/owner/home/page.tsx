@@ -561,7 +561,7 @@ export default function OwnerHomePage() {
             <ThemeToggle />
              <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
+                    <Button variant="ghost" size="icon" className="relative hover:bg-transparent">
                         <Bell className="h-5 w-5" />
                         {lowStockNotifications.length > 0 && <span className="absolute top-1 right-1 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span></span>}
                     </Button>
@@ -593,7 +593,7 @@ export default function OwnerHomePage() {
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                     <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto">
+                     <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto hover:bg-transparent">
                         <Avatar className="h-8 w-8">
                             <AvatarFallback>{userProfile?.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                         </Avatar>
