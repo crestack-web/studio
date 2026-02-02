@@ -11,7 +11,7 @@ const LogoIcon = () => (
     className="h-[1em] w-[1.2em]"
   >
     {/* Back Coin */}
-    <circle cx="18" cy="18" r="16" className="fill-accent" />
+    <circle cx="18" cy="18" r="16" className="fill-foreground" />
     <text
       x="18"
       y="19"
@@ -19,7 +19,7 @@ const LogoIcon = () => (
       dominantBaseline="middle"
       fontWeight="600"
       fontSize="16"
-      className="fill-accent-foreground"
+      className="fill-background"
       fontFamily="sans-serif"
     >
       $
@@ -30,7 +30,7 @@ const LogoIcon = () => (
       cx="32"
       cy="24"
       r="13"
-      className="fill-card stroke-accent"
+      className="fill-card stroke-foreground"
       strokeWidth="2.5"
     />
     <text
@@ -40,7 +40,7 @@ const LogoIcon = () => (
       dominantBaseline="middle"
       fontWeight="600"
       fontSize="14"
-      className="fill-accent"
+      className="fill-foreground"
       fontFamily="sans-serif"
     >
       $
@@ -66,7 +66,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
       <LogoIcon />
       <div>
         <span className="text-primary">Bus</span>
-        <span className="text-accent">mo</span>
+        <span className="text-foreground">mo</span>
       </div>
     </div>
   );
