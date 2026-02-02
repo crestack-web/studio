@@ -737,6 +737,29 @@ export default function OwnerHomePage() {
                         <p className="text-sm text-muted-foreground font-medium">{topInsight}</p>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2"><ChevronsUp className="w-5 h-5 text-primary"/> Forecasts</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-3">
+                        {forecasts.weeklyProfit ? (
+                            <p><span className="font-semibold">Next Week's Profit:</span> ~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>
+                        ) : (
+                            <p className="text-muted-foreground">Not enough data for profit forecast.</p>
+                        )}
+                        {forecasts.busiestDay && (
+                            <p><span className="font-semibold">Busiest Day:</span> {forecasts.busiestDay}</p>
+                        )}
+                        {forecasts.inventoryOutlook && (
+                            <p><span className="font-semibold text-destructive">Inventory Alert:</span> <span className="text-destructive">{forecasts.inventoryOutlook}</span></p>
+                        )}
+                        {forecasts.cashRunway !== null && (
+                            <p><span className="font-semibold">Cash Runway:</span> ~{forecasts.cashRunway} days</p>
+                        )}
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> Sell Online</CardTitle>
