@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,6 +24,7 @@ export function MarketSwitcher() {
   const [selectedCity, setSelectedCity] = useState(market.city);
 
   const selectedCountryData = availableMarkets.find(c => c.code === selectedCountry);
+  const currentMarketData = availableMarkets.find(c => c.code === market.country);
 
   useEffect(() => {
     // When the dialog opens, sync its state with the global context
@@ -50,9 +52,8 @@ export function MarketSwitcher() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 text-muted-foreground p-2 md:px-3">
-          <MapPin className="h-5 w-5 md:h-4 md:w-4" />
-          <span className="hidden md:inline text-sm">{market.city}, {market.country}</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-2xl">
+          <span>{currentMarketData?.flag}</span>
           <span className="sr-only">Change market location</span>
         </Button>
       </DialogTrigger>
@@ -72,7 +73,9 @@ export function MarketSwitcher() {
               </SelectTrigger>
               <SelectContent>
                 {availableMarkets.map(country => (
-                  <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>
+                  <SelectItem key={country.code} value={country.code}>
+                    <span className="mr-2">{country.flag}</span>{country.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
