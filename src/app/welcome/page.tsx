@@ -358,6 +358,9 @@ export default function LandingPage() {
              <Link href="/welcome" passHref>
               <Button variant="ghost">{t('nav.home')}</Button>
             </Link>
+             <Link href="/market" passHref>
+              <Button variant="ghost">{t('nav.market')}</Button>
+            </Link>
              <Link href="/invest" passHref>
               <Button variant="ghost">{t('nav.investors')}</Button>
             </Link>
@@ -392,6 +395,7 @@ export default function LandingPage() {
                     <Logo className="h-8 mb-8" />
                     <nav className="flex flex-col items-start gap-4">
                         <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                        <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                         <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                         <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
                         <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
