@@ -9,6 +9,11 @@ import {
   PackagePlus,
   Plus,
   Store,
+  TrendingUp,
+  ChevronsUp,
+  Calendar,
+  PackageMinus,
+  CircleDollarSign,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -158,44 +163,44 @@ export function DashboardMockup() {
             Business Health
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 pt-0 space-y-2">
-          <div className="grid grid-cols-4 gap-2">
+        <CardContent className="p-4 pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="space-y-0.5 rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">Revenue</p>
+              <p className="text-xs text-muted-foreground">Today's Sales</p>
               <p className="text-sm font-bold">₦45,000</p>
             </div>
             <div className="space-y-0.5 rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">Profit</p>
+              <p className="text-xs text-muted-foreground">Today's Profit</p>
               <p className="text-sm font-bold text-success">₦13,000</p>
             </div>
             <div className="space-y-0.5 rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">Sales</p>
-              <p className="text-sm font-bold">18</p>
+              <p className="text-xs text-muted-foreground">Profit Margin</p>
+              <p className="text-sm font-bold text-success">29%</p>
             </div>
-            <div className="space-y-0.5 rounded-md border p-2">
-              <p className="text-xs text-muted-foreground">Expenses</p>
-              <p className="text-sm font-bold">₦5,200</p>
+             <div className="space-y-0.5 rounded-md border p-2">
+              <p className="text-xs text-muted-foreground">Cash Balance</p>
+              <p className="text-sm font-bold">₦150,000</p>
             </div>
           </div>
-          <Button variant="secondary" size="sm" className="w-full h-8 text-xs">
-            <Activity className="mr-2 h-3 w-3" />
-            View Full Statement
-          </Button>
         </CardContent>
       </Card>
 
-        <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <Button variant="default" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
           <Plus className="w-4 h-4" />
           <span>Record Sale</span>
         </Button>
         <Button variant="secondary" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
           <PackagePlus className="w-4 h-4" />
-          <span>Add Inventory</span>
+          <span>Add Stock</span>
         </Button>
         <Button variant="secondary" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
           <FilePlus className="w-4 h-4" />
-          <span>Record Expense</span>
+          <span>Add Expense</span>
+        </Button>
+        <Button variant="secondary" size="sm" className="h-auto p-2 flex-col gap-1 text-xs h-14">
+          <CircleDollarSign className="w-4 h-4" />
+          <span>Cashflow</span>
         </Button>
       </div>
     </div>
@@ -203,6 +208,51 @@ export function DashboardMockup() {
 
   const SidebarColumn = (
      <div className="lg:col-span-1 flex flex-col gap-4">
+        <Card>
+            <CardHeader className="p-3 pb-1">
+                <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4"/> Today's Top Insight</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+                <p className="text-xs text-muted-foreground font-medium">Your profit margin is healthy at 29%. Keep up the good work!</p>
+            </CardContent>
+        </Card>
+      <Card>
+        <CardHeader className="p-3 pb-1">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <ChevronsUp className="w-4 h-4 text-primary" /> Forecasts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 pt-0 grid grid-cols-2 gap-x-2 gap-y-3">
+            <div className="flex items-start gap-2">
+                <div className="p-1.5 bg-success/10 rounded-full"><TrendingUp className="w-3.5 h-3.5 text-success" /></div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Next Week's Profit</p>
+                    <p className="font-semibold text-xs">~₦91,000</p>
+                </div>
+            </div>
+            <div className="flex items-start gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-full"><Calendar className="w-3.5 h-3.5 text-primary" /></div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Busiest Day</p>
+                    <p className="font-semibold text-xs">Saturday</p>
+                </div>
+            </div>
+            <div className="flex items-start gap-2">
+                <div className="p-1.5 bg-accent/10 rounded-full"><Landmark className="w-3.5 h-3.5 text-accent" /></div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Cash Runway</p>
+                    <p className="font-semibold text-xs">~45 days</p>
+                </div>
+            </div>
+             <div className="flex items-start gap-2">
+                <div className="p-1.5 bg-destructive/10 rounded-full"><PackageMinus className="w-3.5 h-3.5 text-destructive" /></div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Stock Outlook</p>
+                    <p className="font-semibold text-destructive text-xs">Bottled Water may run out in 3 days.</p>
+                </div>
+            </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader className="p-3">
           <CardTitle className="flex items-center gap-2 text-sm">
