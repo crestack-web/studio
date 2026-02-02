@@ -2,7 +2,6 @@
 
 import React, { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import MarketLayout from '@/components/app/market-layout';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -269,45 +268,43 @@ function SearchResults() {
 
 export default function SearchPage() {
     return (
-        <MarketLayout>
-            <Suspense fallback={
-                 <div className="w-full max-w-7xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <Skeleton className="h-8 w-1/3" />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
-                        <aside className="hidden md:block">
-                            <div className="space-y-6 sticky top-24">
-                            <Skeleton className="h-6 w-24" />
-                            <div className="space-y-4">
-                                <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
-                                <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
-                                <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
-                            </div>
-                            </div>
-                        </aside>
-                        <main>
-                            <div className="flex justify-between items-center mb-4">
-                                <Skeleton className="h-5 w-24" />
-                                <Skeleton className="h-10 w-48" />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {[...Array(8)].map((_, i) => (
-                                    <Card key={i} className="overflow-hidden h-full flex flex-col">
-                                        <Skeleton className="aspect-square w-full" />
-                                        <CardContent className="p-3 flex-1 flex flex-col">
-                                            <Skeleton className="h-5 mt-2 w-3/4" />
-                                            <Skeleton className="h-6 mt-2 w-1/2" />
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </main>
-                    </div>
+        <Suspense fallback={
+             <div className="w-full max-w-7xl">
+                <div className="flex justify-between items-center mb-6">
+                    <Skeleton className="h-8 w-1/3" />
                 </div>
-            }>
-                <SearchResults />
-            </Suspense>
-        </MarketLayout>
+                <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
+                    <aside className="hidden md:block">
+                        <div className="space-y-6 sticky top-24">
+                        <Skeleton className="h-6 w-24" />
+                        <div className="space-y-4">
+                            <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
+                            <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
+                            <div className="space-y-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-10 w-full" /></div>
+                        </div>
+                        </div>
+                    </aside>
+                    <main>
+                        <div className="flex justify-between items-center mb-4">
+                            <Skeleton className="h-5 w-24" />
+                            <Skeleton className="h-10 w-48" />
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {[...Array(8)].map((_, i) => (
+                                <Card key={i} className="overflow-hidden h-full flex flex-col">
+                                    <Skeleton className="aspect-square w-full" />
+                                    <CardContent className="p-3 flex-1 flex flex-col">
+                                        <Skeleton className="h-5 mt-2 w-3/4" />
+                                        <Skeleton className="h-6 mt-2 w-1/2" />
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </main>
+                </div>
+            </div>
+        }>
+            <SearchResults />
+        </Suspense>
     );
 }

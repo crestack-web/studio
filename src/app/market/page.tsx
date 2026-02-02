@@ -16,7 +16,6 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import MarketLayout from '@/components/app/market-layout';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { useMarket } from '@/context/market-provider';
@@ -368,324 +367,324 @@ export default function MarketPage() {
     )
 
     return (
-        <MarketLayout>
-            <div className="container mx-auto px-4 space-y-8">
-                
-                 {/* 1. Hero Section */}
-                 <section className="mb-8">
-                     <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                        <div className="hidden lg:block h-full relative">
-                            {isLoadingGifBanners ? (
-                                <Skeleton className="h-full w-full rounded-lg" />
-                            ) : gifBanners && gifBanners.length > 0 ? (
-                                gifBanners.map((banner, index) => (
-                                    <Link
-                                        key={banner.id}
-                                        href={banner.linkUrl || '#'}
-                                        className={cn(
-                                            "absolute inset-0 block h-full transition-opacity duration-1000",
-                                            index === currentGifBannerIndex ? "opacity-100" : "opacity-0 pointer-events-none"
-                                        )}
-                                    >
-                                        <Card className="overflow-hidden h-full relative group rounded-lg">
-                                            <img 
-                                                src={banner.imageUrl}
-                                                alt="Promotional banner"
-                                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
-                                        </Card>
-                                    </Link>
-                                ))
-                            ) : (
-                                <Skeleton className="h-full w-full rounded-lg" />
-                            )}
-                        </div>
-                        <Carousel
-                            plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
-                            opts={{
-                                align: "start",
-                                loop: true,
-                            }}
-                            className="w-full"
-                        >
-                            <CarouselContent>
-                                {isLoadingBanners ? (
-                                    <CarouselItem className="aspect-[16/7]">
-                                        <Skeleton className="h-full w-full rounded-lg" />
-                                    </CarouselItem>
-                                ) : (heroBanners && heroBanners.length > 0) ? (
-                                    heroBanners.map((banner, index) => {
-                                        const isGif = banner.imageUrl.includes('.gif') || banner.imageUrl.startsWith('data:image/gif');
-                                        return (
-                                            <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
-                                                {isGif ? (
-                                                    <img 
-                                                        src={banner.imageUrl} 
-                                                        alt={banner.title || 'Market banner'} 
-                                                        className="absolute inset-0 w-full h-full object-cover" 
-                                                        data-ai-hint={banner.imageHint || ''}
-                                                    />
-                                                ) : (
-                                                    <Image 
-                                                        src={banner.imageUrl} 
-                                                        alt={banner.title || 'Market banner'} 
-                                                        fill 
-                                                        className="object-cover" 
-                                                        data-ai-hint={banner.imageHint || ''} 
-                                                        priority={index === 0}
-                                                    />
-                                                )}
-                                                
-                                                {(banner.title || banner.subtitle || banner.buttonText) && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
-                                                        <div className="text-center text-white max-w-lg">
-                                                            {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
-                                                            {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
-                                                            {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </CarouselItem>
-                                        )
-                                    })
-                                ) : (
-                                    <CarouselItem className="aspect-[16/7]">
-                                        <div className="h-full w-full bg-muted rounded-lg flex items-center justify-center">
-                                            <p className="text-muted-foreground">Banners will appear here</p>
-                                        </div>
-                                    </CarouselItem>
-                                )}
-                            </CarouselContent>
-                        </Carousel>
-                        <div className="hidden lg:flex flex-col h-full">
-                             <Card className="flex flex-col h-full">
-                                <CardHeader className="p-3 pb-1">
-                                    <CardTitle className="text-base">Categories</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-0 pb-2 flex-1">
-                                    <div className="space-y-1">
-                                        {promoCategories.map(category => (
-                                            <Link href={category.href} key={category.name} className="block">
-                                                <div className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-md transition-colors">
-                                                    <category.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    <span className="font-medium text-sm">{category.name}</span>
-                                                </div>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="p-4 pt-0 pb-3 mt-auto">
-                                    <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
-                                </CardFooter>
-                            </Card>
-                        </div>
+        <div className="container mx-auto px-4 space-y-8">
+            
+             {/* 1. Hero Section */}
+             <section className="mb-8">
+                 <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
+                    <div className="hidden lg:block h-full relative">
+                        {isLoadingGifBanners ? (
+                            <Skeleton className="h-full w-full rounded-lg" />
+                        ) : gifBanners && gifBanners.length > 0 ? (
+                            gifBanners.map((banner, index) => (
+                                <Link
+                                    key={banner.id}
+                                    href={banner.linkUrl || '#'}
+                                    className={cn(
+                                        "absolute inset-0 block h-full transition-opacity duration-1000",
+                                        index === currentGifBannerIndex ? "opacity-100" : "opacity-0 pointer-events-none"
+                                    )}
+                                >
+                                    <Card className="overflow-hidden h-full relative group rounded-lg">
+                                        <img 
+                                            src={banner.imageUrl}
+                                            alt="Promotional banner"
+                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
+                                    </Card>
+                                </Link>
+                            ))
+                        ) : (
+                            <Skeleton className="h-full w-full rounded-lg" />
+                        )}
                     </div>
-                </section>
-                
-                {/* 2. Quick Categories */}
-                 {isLoadingCategories ? (
-                     <section>
-                        <Card>
-                            <CardHeader className="p-4">
-                                <CardTitle className="text-lg">Shop by Category</CardTitle>
+                    <Carousel
+                        plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
+                        opts={{
+                            align: "start",
+                            loop: true,
+                        }}
+                        className="w-full"
+                    >
+                        <CarouselContent>
+                            {isLoadingBanners ? (
+                                <CarouselItem className="aspect-[16/7]">
+                                    <Skeleton className="h-full w-full rounded-lg" />
+                                </CarouselItem>
+                            ) : (heroBanners && heroBanners.length > 0) ? (
+                                heroBanners.map((banner, index) => {
+                                    const isGif = banner.imageUrl.includes('.gif') || banner.imageUrl.startsWith('data:image/gif');
+                                    return (
+                                        <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
+                                            {isGif ? (
+                                                <img 
+                                                    src={banner.imageUrl} 
+                                                    alt={banner.title || 'Market banner'} 
+                                                    className="absolute inset-0 w-full h-full object-cover" 
+                                                    data-ai-hint={banner.imageHint || ''}
+                                                />
+                                            ) : (
+                                                <Image 
+                                                    src={banner.imageUrl} 
+                                                    alt={banner.title || 'Market banner'} 
+                                                    fill 
+                                                    className="object-cover" 
+                                                    data-ai-hint={banner.imageHint || ''} 
+                                                    priority={index === 0}
+                                                />
+                                            )}
+                                            
+                                            {(banner.title || banner.subtitle || banner.buttonText) && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 p-4">
+                                                    <div className="text-center text-white max-w-lg">
+                                                        {banner.title && <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{banner.title}</h1>}
+                                                        {banner.subtitle && <p className="text-lg md:text-xl mt-2">{banner.subtitle}</p>}
+                                                        {banner.buttonText && <Button size="lg" variant="secondary" className="mt-6">{banner.buttonText}</Button>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </CarouselItem>
+                                    )
+                                })
+                            ) : (
+                                <CarouselItem className="aspect-[16/7]">
+                                    <div className="h-full w-full bg-muted rounded-lg flex items-center justify-center">
+                                        <p className="text-muted-foreground">Banners will appear here</p>
+                                    </div>
+                                </CarouselItem>
+                            )}
+                        </CarouselContent>
+                    </Carousel>
+                    <div className="hidden lg:flex flex-col h-full">
+                         <Card className="flex flex-col h-full">
+                            <CardHeader className="p-3 pb-1">
+                                <CardTitle className="text-base">Categories</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-4 pt-0">
-                                <div className="flex gap-4">
-                                    {[...Array(8)].map((_, i) => (
-                                        <div key={i} className="flex-shrink-0 w-24">
-                                            <Skeleton className="aspect-square rounded-lg mb-2" />
-                                            <Skeleton className="h-5 w-16 mx-auto" />
-                                        </div>
+                            <CardContent className="p-4 pt-0 pb-2 flex-1">
+                                <div className="space-y-1">
+                                    {promoCategories.map(category => (
+                                        <Link href={category.href} key={category.name} className="block">
+                                            <div className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-md transition-colors">
+                                                <category.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="font-medium text-sm">{category.name}</span>
+                                            </div>
+                                        </Link>
                                     ))}
                                 </div>
                             </CardContent>
+                            <CardFooter className="p-4 pt-0 pb-3 mt-auto">
+                                <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
+                            </CardFooter>
                         </Card>
-                    </section>
-                ) : (categories && categories.length > 0 &&
-                    <section>
-                        <Card>
-                             <CardHeader className="p-4">
-                                <CardTitle className="text-lg">Shop by Category</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0">
-                                <Carousel
-                                    opts={{
-                                        align: "start",
-                                        loop: false,
-                                    }}
-                                    className="w-full"
-                                >
-                                    <CarouselContent className="-ml-2">
-                                        {categories.map(category => (
-                                            <CarouselItem key={category.id} className="pl-2 basis-1/4 sm:basis-1/5 md:basis-1/8 lg:basis-[12%]">
-                                                <Link href="#" className="block group text-center">
-                                                    <div className="aspect-square relative overflow-hidden rounded-lg bg-card">
-                                                        <Image
-                                                            src={category.imageUrl}
-                                                            alt={category.name || ''}
-                                                            fill
-                                                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                                            data-ai-hint={category.imageHint}
-                                                        />
-                                                    </div>
-                                                    <p className="mt-2 text-sm font-semibold text-foreground truncate">{category.name}</p>
-                                                </Link>
-                                            </CarouselItem>
-                                        ))}
-                                    </CarouselContent>
-                                    <CarouselPrevious className="hidden sm:flex" />
-                                    <CarouselNext className="hidden sm:flex" />
-                                </Carousel>
-                            </CardContent>
-                        </Card>
-                    </section>
-                )}
-                
-                {/* 3. Deals & Promotions */}
-                <section>
-                        <div className="flex flex-wrap justify-between items-baseline gap-y-2 mb-6">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-2xl font-bold font-headline flex items-center gap-2"><Zap className="text-destructive" /> Flash Sales</h2>
-                            <div className="flex items-center gap-1.5 text-sm">
-                                <span className="text-muted-foreground hidden sm:inline">Ending in:</span>
-                                <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.hours}</span>
-                                <span className="font-semibold text-destructive">:</span>
-                                <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.minutes}</span>
-                                <span className="font-semibold text-destructive">:</span>
-                                <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.seconds}</span>
-                            </div>
-                        </div>
-                        <Button variant="link" asChild><Link href="#">See All</Link></Button>
                     </div>
-                    {isLoadingProducts ? renderProductSkeletons(6) : (
-                        flashDeals.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                {flashDeals.map(product => (
-                                    <ProductCard key={product.id} product={product} isFlashDeal={true} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-10 border rounded-lg bg-card">
-                                <h2 className="text-lg font-semibold">No Flash Deals</h2>
-                                <p className="text-muted-foreground mt-1 text-sm">Check back later for exciting offers!</p>
-                            </div>
-                        )
-                    )}
-                </section>
-                
-                {/* Trust Signals */}
+                </div>
+            </section>
+            
+            {/* 2. Quick Categories */}
+             {isLoadingCategories ? (
                  <section>
                     <Card>
-                        <CardContent className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                            {trustSignals.map((signal) => (
-                                <div key={signal.text} className="flex items-center justify-center gap-2">
-                                    <signal.icon className="w-5 h-5 text-muted-foreground" />
-                                    <span className="text-sm font-medium text-muted-foreground">{signal.text}</span>
-                                </div>
-                            ))}
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-lg">Shop by Category</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                            <div className="flex gap-4">
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="flex-shrink-0 w-24">
+                                        <Skeleton className="aspect-square rounded-lg mb-2" />
+                                        <Skeleton className="h-5 w-16 mx-auto" />
+                                    </div>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
                 </section>
-                
-                {/* Featured Sellers */}
-                 <section>
-                    <h2 className="text-2xl font-bold font-headline mb-6">Featured Local Businesses</h2>
-                    {isLoadingProfiles ? renderBusinessSkeletons() : (
-                        businessProfiles && businessProfiles.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                                {businessProfiles.map(profile => (
-                                    <Link href={profile.slug ? `/${profile.slug}` : '#'} key={profile.id}>
-                                    <Card className="overflow-hidden group cursor-pointer h-full flex flex-col items-center justify-center p-4 shadow-sm hover:shadow-lg transition-shadow duration-300">
-                                        <Avatar className="h-16 w-16 border mb-4">
-                                            <AvatarImage src={profile.marketSettings?.logoImageUrl} alt={profile.businessName} />
-                                            <AvatarFallback>{profile.businessName?.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <h3 className="font-semibold text-sm text-center line-clamp-1">{profile.businessName}</h3>
-                                        <p className="text-xs text-muted-foreground capitalize text-center">{profile.businessType}</p>
-                                    </Card>
-                                    </Link>
-                                ))}
-                            </div>
-                        ) : (
-                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                                {[...Array(6)].map((_, i) => (
-                                    <Card key={i} className="h-full flex flex-col items-center justify-center text-center p-4 border-dashed">
-                                        <Building className="w-8 h-8 text-muted-foreground mb-2"/>
-                                        <p className="text-xs text-muted-foreground">Your business could be featured here</p>
-                                    </Card>
-                                ))}
-                            </div>
-                        )
-                    )}
-                </section>
-
-                {/* 4. Product Grid (Core) */}
+            ) : (categories && categories.length > 0 &&
                 <section>
-                        <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
-                        {isLoadingProducts ? renderProductSkeletons(12) : (
+                    <Card>
+                         <CardHeader className="p-4">
+                            <CardTitle className="text-lg">Shop by Category</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                            <Carousel
+                                opts={{
+                                    align: "start",
+                                    loop: false,
+                                }}
+                                className="w-full"
+                            >
+                                <CarouselContent className="-ml-2">
+                                    {categories.map(category => (
+                                        <CarouselItem key={category.id} className="pl-2 basis-1/4 sm:basis-1/5 md:basis-1/8 lg:basis-[12%]">
+                                            <Link href="#" className="block group text-center">
+                                                <div className="aspect-square relative overflow-hidden rounded-lg bg-card">
+                                                    <Image
+                                                        src={category.imageUrl}
+                                                        alt={category.name || ''}
+                                                        fill
+                                                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        data-ai-hint={category.imageHint}
+                                                    />
+                                                </div>
+                                                <p className="mt-2 text-sm font-semibold text-foreground truncate">{category.name}</p>
+                                            </Link>
+                                        </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                <CarouselPrevious className="hidden sm:flex" />
+                                <CarouselNext className="hidden sm:flex" />
+                            </Carousel>
+                        </CardContent>
+                    </Card>
+                </section>
+            )}
+            
+            {/* 3. Deals & Promotions */}
+            <section>
+                    <div className="flex flex-wrap justify-between items-baseline gap-y-2 mb-6">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-2xl font-bold font-headline flex items-center gap-2"><Zap className="text-destructive" /> Flash Sales</h2>
+                        <div className="flex items-center gap-1.5 text-sm">
+                            <span className="text-muted-foreground hidden sm:inline">Ending in:</span>
+                            <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.hours}</span>
+                            <span className="font-semibold text-destructive">:</span>
+                            <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.minutes}</span>
+                            <span className="font-semibold text-destructive">:</span>
+                            <span className="font-mono font-semibold bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-2 py-1">{timeLeft.seconds}</span>
+                        </div>
+                    </div>
+                    <Button variant="link" asChild><Link href="#">See All</Link></Button>
+                </div>
+                {isLoadingProducts ? renderProductSkeletons(6) : (
+                    flashDeals.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {filteredProducts?.map(product => (
-                                <ProductCard key={product.id} product={product} />
+                            {flashDeals.map(product => (
+                                <ProductCard key={product.id} product={product} isFlashDeal={true} />
                             ))}
                         </div>
-                    )}
-                    {!isLoadingProducts && productsData?.length === 0 && (
-                        <Card className="text-center py-16 border-2 border-dashed">
-                            <CardHeader>
-                                <div className="mx-auto bg-secondary p-3 rounded-full inline-block">
-                                    <ShoppingBag className="h-8 w-8 text-muted-foreground" />
-                                </div>
-                                <CardTitle className="mt-4">No products in your area yet</CardTitle>
-                                <CardDescription>Businesses are joining daily. Check back soon or change your location.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex gap-4 justify-center">
-                                    <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button>Change Location</Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-md">
-                                            <DialogHeader>
-                                                <DialogTitle>Change Your Market</DialogTitle>
-                                                <DialogDescription>Select your location to see products available for delivery in your area.</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4 space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="country-select">Country</Label>
-                                                    <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                                                        <SelectTrigger id="country-select"><SelectValue placeholder="Select a country" /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {availableMarkets.map(country => (<SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="city-select">City</Label>
-                                                    <Select value={selectedCity} onValueChange={setSelectedCity} disabled={!selectedCountryData}>
-                                                        <SelectTrigger id="city-select"><SelectValue placeholder="Select a city" /></SelectTrigger>
-                                                        <SelectContent>{selectedCountryData?.cities.map(city => (<SelectItem key={city} value={city}>{city}</SelectItem>))}</SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <DialogFooter>
-                                                <Button type="button" variant="outline" onClick={() => setIsLocationModalOpen(false)}>Cancel</Button>
-                                                <Button type="button" onClick={handleUpdateMarket}>Update Market</Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                    <Button asChild variant="secondary"><Link href="/signup">Become a Seller</Link></Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
-                    {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
-                        <div className="text-center py-20 border rounded-lg bg-card flex flex-col items-center">
-                            <Search className="h-12 w-12 text-muted-foreground" />
-                            <h2 className="mt-6 text-xl font-semibold">No products found for "{searchQuery}"</h2>
-                            <p className="mt-2 text-sm text-muted-foreground">Try searching for something else, or check your spelling.</p>
+                    ) : (
+                        <div className="text-center py-10 border rounded-lg bg-card">
+                            <h2 className="text-lg font-semibold">No Flash Deals</h2>
+                            <p className="text-muted-foreground mt-1 text-sm">Check back later for exciting offers!</p>
                         </div>
-                    )}
-                </section>
-            </div>
-        </MarketLayout>
+                    )
+                )}
+            </section>
+            
+            {/* Trust Signals */}
+             <section>
+                <Card>
+                    <CardContent className="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        {trustSignals.map((signal) => (
+                            <div key={signal.text} className="flex items-center justify-center gap-2">
+                                <signal.icon className="w-5 h-5 text-muted-foreground" />
+                                <span className="text-sm font-medium text-muted-foreground">{signal.text}</span>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </section>
+            
+            {/* Featured Sellers */}
+             <section>
+                <h2 className="text-2xl font-bold font-headline mb-6">Featured Local Businesses</h2>
+                {isLoadingProfiles ? renderBusinessSkeletons() : (
+                    businessProfiles && businessProfiles.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                            {businessProfiles.map(profile => (
+                                <Link href={profile.slug ? `/${profile.slug}` : '#'} key={profile.id}>
+                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col items-center justify-center p-4 shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                    <Avatar className="h-16 w-16 border mb-4">
+                                        <AvatarImage src={profile.marketSettings?.logoImageUrl} alt={profile.businessName} />
+                                        <AvatarFallback>{profile.businessName?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <h3 className="font-semibold text-sm text-center line-clamp-1">{profile.businessName}</h3>
+                                    <p className="text-xs text-muted-foreground capitalize text-center">{profile.businessType}</p>
+                                </Card>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                            {[...Array(6)].map((_, i) => (
+                                <Card key={i} className="h-full flex flex-col items-center justify-center text-center p-4 border-dashed">
+                                    <Building className="w-8 h-8 text-muted-foreground mb-2"/>
+                                    <p className="text-xs text-muted-foreground">Your business could be featured here</p>
+                                </Card>
+                            ))}
+                        </div>
+                    )
+                )}
+            </section>
+
+            {/* 4. Product Grid (Core) */}
+            <section>
+                    <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
+                    {isLoadingProducts ? renderProductSkeletons(12) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {filteredProducts?.map(product => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                )}
+                {!isLoadingProducts && productsData?.length === 0 && (
+                    <Card className="text-center py-16 border-2 border-dashed">
+                        <CardHeader>
+                            <div className="mx-auto bg-secondary p-3 rounded-full inline-block">
+                                <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <CardTitle className="mt-4">No products in your area yet</CardTitle>
+                            <CardDescription>Businesses are joining daily. Check back soon or change your location.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex gap-4 justify-center">
+                                <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button>Change Location</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Change Your Market</DialogTitle>
+                                            <DialogDescription>Select your location to see products available for delivery in your area.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="py-4 space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="country-select">Country</Label>
+                                                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                                                    <SelectTrigger id="country-select"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {availableMarkets.map(country => (<SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="city-select">City</Label>
+                                                <Select value={selectedCity} onValueChange={setSelectedCity} disabled={!selectedCountryData}>
+                                                    <SelectTrigger id="city-select"><SelectValue placeholder="Select a city" /></SelectTrigger>
+                                                    <SelectContent>{selectedCountryData?.cities.map(city => (<SelectItem key={city} value={city}>{city}</SelectItem>))}</SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button type="button" variant="outline" onClick={() => setIsLocationModalOpen(false)}>Cancel</Button>
+                                            <Button type="button" onClick={handleUpdateMarket}>Update Market</Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button asChild variant="secondary"><Link href="/signup">Become a Seller</Link></Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
+                    <div className="text-center py-20 border rounded-lg bg-card flex flex-col items-center">
+                        <Search className="h-12 w-12 text-muted-foreground" />
+                        <h2 className="mt-6 text-xl font-semibold">No products found for "{searchQuery}"</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">Try searching for something else, or check your spelling.</p>
+                    </div>
+                )}
+            </section>
+        </div>
     );
+
+}

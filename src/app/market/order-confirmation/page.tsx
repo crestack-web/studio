@@ -10,7 +10,6 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
-import MarketLayout from '@/components/app/market-layout';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
@@ -91,10 +90,8 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
 
 export default function OrderConfirmationPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     return (
-        <MarketLayout>
-            <Suspense fallback={<div>Loading...</div>}>
-                <OrderConfirmationContent searchParams={searchParams} />
-            </Suspense>
-        </MarketLayout>
+        <Suspense fallback={<div>Loading...</div>}>
+            <OrderConfirmationContent searchParams={searchParams} />
+        </Suspense>
     );
 }

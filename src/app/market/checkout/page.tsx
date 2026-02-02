@@ -19,7 +19,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { useCart, CartItem } from '@/context/cart-provider';
-import MarketLayout from '@/components/app/market-layout';
 import { useMarket } from '@/context/market-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -329,10 +328,8 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
 
 export default function CheckoutPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     return (
-        <MarketLayout>
-            <Suspense fallback={<div>Loading...</div>}>
-                <CheckoutContent searchParams={searchParams} />
-            </Suspense>
-        </MarketLayout>
+        <Suspense fallback={<div>Loading...</div>}>
+            <CheckoutContent searchParams={searchParams} />
+        </Suspense>
     );
 }
