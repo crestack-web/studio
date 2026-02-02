@@ -1,9 +1,10 @@
 'use client';
 
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useMemoFirebase, useFirestore } from '@/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { collection, query, Timestamp } from 'firebase/firestore';
 
 const LoadingScreen = () => (
     <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -11,14 +12,30 @@ const LoadingScreen = () => (
     </div>
 );
 
+interface Subscription {
+  id: string;
+  planId: string;
+  status: 'active' | 'trialing' | 'cancelled' | 'past_due';
+  currentPeriodEnd: Timestamp;
+}
+
 const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-  
+  const firestore = useFirestore();
+
+  const subscriptionsQuery = useMemoFirebase(() => {
+      if (!firestore || !user) return null;
+      return query(collection(firestore, `users/${user.uid}/subscriptions`));
+  }, [firestore, user]);
+  const { data: subscriptions, isLoading: isLoadingSubscriptions } = useCollection<Subscription>(subscriptionsQuery);
+
+  const isLoading = isUserLoading || isLoadingSubscriptions;
+
   useEffect(() => {
     // Wait until auth state is resolved
-    if (isUserLoading) {
+    if (isLoading) {
       return;
     }
 
@@ -30,26 +47,30 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
         return;
     }
     
-    // 2. If user is authenticated, route them to home.
-    // Onboarding checks are temporarily disabled.
-    if (pathname !== '/owner/home') {
-        // Exception for pages that are part of the flow but temporarily lead home.
-        const onboardingPages = ['/business-info', '/owner/pricing'];
-        if (!onboardingPages.includes(pathname)) {
-            // Uncomment the line below to enforce home redirect.
-            // For now, we allow access to other pages to avoid breaking things.
-            // router.replace('/owner/home');
+    // 2. If user is authenticated, check subscription status
+    if (user) {
+        const activeSubscription = subscriptions?.[0];
+        if (activeSubscription) {
+             if (activeSubscription.status === 'trialing' || activeSubscription.status === 'past_due') {
+                const endDate = activeSubscription.currentPeriodEnd.toDate();
+                if (new Date() > endDate) {
+                    // Trial has expired
+                    if (pathname !== '/owner/subscribe') {
+                        router.replace('/owner/subscribe');
+                    }
+                    return;
+                }
+            }
         }
     }
 
-  }, [isUserLoading, user, pathname, router]);
+  }, [isLoading, user, subscriptions, pathname, router]);
 
-  if (isUserLoading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // If user is authenticated, render the children.
-  // The useEffect handles redirects away.
+  // If user is authenticated and trial is not expired, render children.
   if (user) {
     return <>{children}</>;
   }

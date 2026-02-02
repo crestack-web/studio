@@ -34,6 +34,7 @@ import { useLanguage } from '@/context/language-provider';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface AppUser {
     id: string;
@@ -136,6 +137,13 @@ interface Announcement {
     id: string;
     text: string;
     href: string;
+}
+
+interface Subscription {
+    id: string;
+    planId: string;
+    status: 'active' | 'trialing' | 'cancelled' | 'past_due';
+    currentPeriodEnd: Timestamp;
 }
 
 
@@ -311,6 +319,14 @@ export default function OwnerHomePage() {
     }, [firestore]);
     const { data: announcements } = useCollection<Announcement>(announcementsQuery);
     
+    const subscriptionsQuery = useMemoFirebase(() => {
+        if (!authUser || !firestore) return null;
+        return query(collection(firestore, `users/${authUser.uid}/subscriptions`));
+    }, [authUser, firestore]);
+    const { data: subscriptionsData } = useCollection<Subscription>(subscriptionsQuery);
+
+    const activeSubscription = subscriptionsData?.[0];
+
     const businessInsights = useMemo(() => {
         const defaultInsights = {
             totalSales: 0, totalProfit: 0, bestSellingProduct: undefined, worstSellingProduct: undefined,
@@ -673,6 +689,18 @@ export default function OwnerHomePage() {
         )}
 
       <main className="flex-1 p-4 sm:p-6 space-y-6">
+        {activeSubscription && activeSubscription.status === 'trialing' && new Date() < activeSubscription.currentPeriodEnd.toDate() && (
+            <Alert variant="default" className="bg-primary/10 border-primary/20">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <AlertTitle>Free Trial Active</AlertTitle>
+                <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center">
+                    <span>You have {Math.max(0, differenceInDays(activeSubscription.currentPeriodEnd.toDate(), new Date()))} days left in your trial.</span>
+                    <Button asChild size="sm" className="mt-2 sm:mt-0">
+                        <Link href="/owner/subscribe">Upgrade Now</Link>
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        )}
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
