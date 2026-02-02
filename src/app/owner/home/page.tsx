@@ -860,6 +860,18 @@ export default function OwnerHomePage() {
                     </CardContent>
                 </Card>
                 
+                {businessData?.country === 'NG' && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" /> BusmoPay</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="text-sm text-muted-foreground">Track online revenue and manage payouts.</p>
+                           <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">Go to Dashboard</Link></Button>
+                        </CardContent>
+                    </Card>
+                )}
+                
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>
