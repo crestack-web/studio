@@ -208,9 +208,6 @@ export default function MarketLayout({
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 order-2 md:order-3">
-                                <div className="md:hidden">
-                                    <MarketSwitcher />
-                                </div>
                                 <Link href="/market/cart" passHref>
                                     <Button variant="ghost" size="icon" className="relative">
                                         <ShoppingCart className="h-6 w-6" />
