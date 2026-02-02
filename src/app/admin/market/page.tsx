@@ -227,10 +227,10 @@ export default function AdminMarketPage() {
                              <div className="space-y-2"><Label htmlFor="className">Background Class</Label><Input id="className" value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g., bg-orange-500" disabled={isLoading} /></div>
                              <div className="space-y-2">
                                 <Label htmlFor="country">Country</Label>
-                                <Select value={country} onValueChange={setCountry} disabled={isLoading}>
+                                <Select value={country || 'global'} onValueChange={(val) => setCountry(val === 'global' ? '' : val)} disabled={isLoading}>
                                     <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -261,10 +261,10 @@ export default function AdminMarketPage() {
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
                              <div className="space-y-2">
                                 <Label htmlFor="gif-country">Country</Label>
-                                <Select value={gifCountry} onValueChange={setGifCountry} disabled={isLoadingGif}>
+                                <Select value={gifCountry || 'global'} onValueChange={(val) => setGifCountry(val === 'global' ? '' : val)} disabled={isLoadingGif}>
                                     <SelectTrigger id="gif-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -368,10 +368,10 @@ export default function AdminMarketPage() {
                              <div className="space-y-2"><Label htmlFor="edit-className">Background Class</Label><Input id="edit-className" value={editingBanner.className || ''} onChange={(e) => setEditingBanner({ ...editingBanner, className: e.target.value })} /></div>
                               <div className="space-y-2">
                                 <Label htmlFor="edit-country">Country</Label>
-                                <Select value={editingBanner.country} onValueChange={(val) => setEditingBanner({...editingBanner, country: val})} disabled={isLoading}>
+                                <Select value={editingBanner.country || 'global'} onValueChange={(val) => setEditingBanner({...editingBanner, country: val === 'global' ? '' : val})} disabled={isLoading}>
                                     <SelectTrigger id="edit-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -412,10 +412,10 @@ export default function AdminMarketPage() {
                            <div className="space-y-2"><Label>Link URL</Label><Input value={editingGifBanner.linkUrl} onChange={(e) => setEditingGifBanner({ ...editingGifBanner, linkUrl: e.target.value })} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-gif-country">Country</Label>
-                                <Select value={editingGifBanner.country} onValueChange={(val) => setEditingGifBanner({...editingGifBanner, country: val})} disabled={isLoadingGif}>
+                                <Select value={editingGifBanner.country || 'global'} onValueChange={(val) => setEditingGifBanner({...editingGifBanner, country: val === 'global' ? '' : val})} disabled={isLoadingGif}>
                                     <SelectTrigger id="edit-gif-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>

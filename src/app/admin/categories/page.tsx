@@ -160,10 +160,10 @@ export default function AdminCategoriesPage() {
                             <div className="space-y-2"><Label htmlFor="imageHint">Image Hint</Label><Input id="imageHint" value={imageHint} onChange={(e) => setImageHint(e.target.value)} placeholder="e.g., fashion clothing" disabled={isLoading} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="country">Country</Label>
-                                <Select value={country} onValueChange={setCountry} disabled={isLoading}>
+                                <Select value={country || 'global'} onValueChange={(val) => setCountry(val === 'global' ? '' : val)} disabled={isLoading}>
                                     <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -234,10 +234,10 @@ export default function AdminCategoriesPage() {
                             <div className="space-y-2"><Label htmlFor="edit-imageHint">Image Hint</Label><Input id="edit-imageHint" value={editingCategory.imageHint} onChange={(e) => setEditingCategory({ ...editingCategory, imageHint: e.target.value })} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-country">Country</Label>
-                                <Select value={editingCategory.country} onValueChange={(val) => setEditingCategory({...editingCategory, country: val})} disabled={isLoading}>
+                                <Select value={editingCategory.country || 'global'} onValueChange={(val) => setEditingCategory({...editingCategory, country: val === 'global' ? '' : val})} disabled={isLoading}>
                                     <SelectTrigger id="edit-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Countries</SelectItem>
+                                        <SelectItem value="global">All Countries</SelectItem>
                                         {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
