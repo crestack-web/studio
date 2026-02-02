@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -641,6 +642,12 @@ export default function OwnerHomePage() {
                 </Carousel>
             </div>
         )}
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
+                <p className="text-muted-foreground">Here's what's happening with your business today.</p>
+            </div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 flex flex-col gap-6">
             <Card>
