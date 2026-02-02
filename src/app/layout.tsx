@@ -6,6 +6,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { LanguageProvider } from '@/context/language-provider';
 import { CartProvider } from '@/context/cart-provider';
 import { MarketProvider } from '@/context/market-provider';
+import { ChatWidget } from '@/components/app/chat-widget';
 
 export const metadata: Metadata = {
   title: 'Busmo',
@@ -34,6 +35,7 @@ export default function RootLayout({
                 >
                   {children}
                   <Toaster />
+                  <ChatWidget />
                 </ThemeProvider>
               </CartProvider>
             </MarketProvider>
@@ -43,5 +45,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
