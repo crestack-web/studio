@@ -66,7 +66,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
       <LogoIcon />
       <div>
         <span className="text-primary">Bus</span>
-        <span className="text-foreground">mo</span>
+        <span className="text-accent">mo</span>
       </div>
     </div>
   );
