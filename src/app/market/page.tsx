@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -73,6 +74,7 @@ interface BusinessProfile {
     businessName: string;
     businessType: string;
     slug?: string;
+    isVerified?: boolean;
     marketSettings?: {
         logoImageUrl?: string;
     };
@@ -212,7 +214,7 @@ export default function MarketPage() {
 
     const businessProfilesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'businessProfiles'), limit(6));
+        return query(collection(firestore, 'businessProfiles'), where('isVerified', '==', true), limit(6));
     }, [firestore]);
     const { data: businessProfiles, isLoading: isLoadingProfiles } = useCollection<BusinessProfile>(businessProfilesQuery);
 
@@ -687,11 +689,3 @@ export default function MarketPage() {
             </div>
         </MarketLayout>
     );
-
-    
-
-
-
-
-
-

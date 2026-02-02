@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -29,6 +30,7 @@ interface BusinessProfile {
     marketDescription?: string;
     currency?: string;
     address?: string;
+    isVerified?: boolean;
     marketSettings?: {
         bannerImageUrl?: string;
         logoImageUrl?: string;

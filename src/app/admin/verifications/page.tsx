@@ -1,8 +1,9 @@
 
 'use client';
+
 import { useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, FileEdit, CheckCircle, XCircle, Loader2, Eye } from 'lucide-react';
@@ -55,18 +56,31 @@ export default function AdminVerificationsPage() {
         setIsUpdating(true);
 
         const verificationRef = doc(firestore, 'businessVerifications', verificationId);
+        const businessProfileRef = doc(firestore, 'businessProfiles', verificationId);
         
-        await updateDocumentNonBlocking(verificationRef, {
+        const batch = writeBatch(firestore);
+
+        batch.update(verificationRef, {
             status,
             rejectionReason: reason || null,
             reviewedAt: serverTimestamp()
         });
 
-        toast({ title: 'Verification Updated', description: `The application has been ${status}.` });
-        setSelectedVerification(null);
-        setIsRejecting(false);
-        setRejectionReason('');
-        setIsUpdating(false);
+        // Also update the public business profile
+        batch.update(businessProfileRef, { isVerified: status === 'verified' });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Verification Updated', description: `The application has been ${status}.` });
+        } catch (error) {
+            console.error("Failed to update verification status:", error);
+            toast({ title: 'Update failed', description: 'Could not update verification status.', variant: 'destructive'});
+        } finally {
+            setSelectedVerification(null);
+            setIsRejecting(false);
+            setRejectionReason('');
+            setIsUpdating(false);
+        }
     };
 
     return (
@@ -137,7 +151,8 @@ export default function AdminVerificationsPage() {
                                 <Button variant="outline" onClick={() => setSelectedVerification(null)}>Cancel</Button>
                                 <Button variant="destructive" onClick={() => setIsRejecting(true)}>Reject</Button>
                                 <Button onClick={() => handleUpdateStatus(selectedVerification.id, 'verified')}>
-                                    {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Approve
+                                    {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Approve
                                 </Button>
                             </div>
                         </>
