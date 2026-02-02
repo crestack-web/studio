@@ -1,10 +1,9 @@
-
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
@@ -90,6 +89,12 @@ interface ChatMessage {
     createdAt: { toDate: () => Date };
 }
 
+interface Announcement {
+    id: string;
+    text: string;
+    href: string;
+}
+
 // The new landing page component
 export default function LandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
@@ -117,6 +122,13 @@ export default function LandingPage() {
     return query(collection(firestore, 'supportAgents'));
   }, [firestore]);
   const { data: allAgents, isLoading: isLoadingAgents, error: agentsError } = useCollection<SupportAgent>(agentsQuery);
+  
+  const { data: announcements } = useCollection<Announcement>(
+    useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'announcements'), where('isActive', '==', true), where('page', '==', 'welcome'));
+    }, [firestore])
+  );
 
   const agentsMap = useMemo(() => {
     if (!allAgents) return new Map();
@@ -209,6 +221,30 @@ export default function LandingPage() {
 
       {/* Main Content */}
       <main className="flex-1">
+        {announcements && announcements.length > 0 && (
+            <div className="container mx-auto px-4 pt-8">
+                <Carousel
+                    plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
+                    opts={{ align: "start", loop: true }}
+                >
+                    <CarouselContent>
+                        {announcements.map((announcement) => (
+                            <CarouselItem key={announcement.id}>
+                                <Link href={announcement.href || '#'}>
+                                    <div className="relative p-4 bg-primary/10 border-l-4 border-primary text-primary-foreground rounded-r-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Megaphone className="h-5 w-5 text-primary"/>
+                                            <p className="text-sm font-medium text-primary">{announcement.text}</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                </Carousel>
+            </div>
+        )}
+        
         {/* Hero Section */}
         <section className="relative overflow-hidden py-20 sm:py-32">
             <div className="container mx-auto px-4 text-center">
@@ -298,6 +334,22 @@ export default function LandingPage() {
                     <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[1/1] max-w-2xl mx-auto">
                         <MarketMockup />
                     </div>
+                </div>
+            </div>
+        </section>
+
+        {/* BusmoPay Section */}
+        <section className="py-20 sm:py-32 bg-muted/20 border-y">
+            <div className="container mx-auto px-4 text-center">
+                <Logo variant="busmopay" className="text-5xl inline-block" />
+                <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl font-headline">Sell products & share profits with BusmoPay</h2>
+                <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
+                    The integrated payment solution for the Busmo marketplace. Accept payments and automatically distribute profits to your investors.
+                </p>
+                <div className="mt-10">
+                    <Link href="/busmopay">
+                        <Button size="lg" variant="secondary">Learn more about BusmoPay</Button>
+                    </Link>
                 </div>
             </div>
         </section>
