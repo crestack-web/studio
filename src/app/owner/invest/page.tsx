@@ -1,3 +1,4 @@
+
 'use client';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,7 +75,7 @@ export default function OwnerInvestPage() {
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">1</div>
                             <div>
                                 <h4 className="font-semibold">Build Your Track Record</h4>
-                                <p className="text-sm text-muted-foreground">Simply use Busmo to record sales and expenses. Your real-time data builds a verified financial history—no extra paperwork needed.</p>
+                                <p className="text-sm text-muted-foreground">Consistently record sales and expenses for at least 3 months. The quality and consistency of your data build a verified financial history that determines your eligibility and potential offer sizes.</p>
                             </div>
                         </div>
                         <div className="flex items-start gap-4">
