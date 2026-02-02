@@ -182,7 +182,7 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
 };
 
 
-function OwnerHomeContent() {
+export default function OwnerHomePage() {
     const router = useRouter();
     const { toast } = useToast();
     const searchParams = useSearchParams();
@@ -554,13 +554,240 @@ function OwnerHomeContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-card px-4">
+        <Logo className="h-8" />
+        <div className="flex items-center gap-2">
+            <ThemeToggle />
+             <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                        <Bell className="h-5 w-5" />
+                        {lowStockNotifications.length > 0 && <span className="absolute top-1 right-1 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span></span>}
+                    </Button>
+                </PopoverTrigger>
+                 <PopoverContent align="end" className="w-80">
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <h4 className="font-medium leading-none">Notifications</h4>
+                            <p className="text-sm text-muted-foreground">Your recent business alerts.</p>
+                        </div>
+                         <div className="grid gap-2">
+                            {lowStockNotifications.length > 0 ? (
+                                lowStockNotifications.slice(0, 3).map(product => (
+                                    <div key={product.id} className="grid grid-cols-[25px_1fr] items-start pb-2 last:pb-0">
+                                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                        <div className="grid gap-1">
+                                            <p className="text-sm font-medium leading-none">Low Stock Warning</p>
+                                            <p className="text-sm text-muted-foreground">{product.name} has only {product.quantity} units left.</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No new notifications.</p>
+                            )}
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
 
-      <main className="flex-1 p-4 sm:p-6">
-        
-      </main>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                     <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto">
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback>{userProfile?.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        </Avatar>
+                        <div className="hidden md:flex flex-col items-start">
+                             <span className="font-semibold text-sm">{userProfile?.displayName}</span>
+                             <span className="text-xs text-muted-foreground">{businessData?.businessName}</span>
+                        </div>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild><Link href="/owner/staff">Manage Staff</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/owner/pricing">Billing</Link></DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+      </header>
       
+      <main className="flex-1 p-4 sm:p-6 space-y-6">
+        {announcements && announcements.length > 0 && (
+            <div className="w-full">
+                <Carousel
+                    plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
+                    opts={{ align: "start", loop: true }}
+                >
+                    <CarouselContent>
+                        {announcements.map((announcement) => (
+                            <CarouselItem key={announcement.id}>
+                                <Link href={announcement.href || '#'}>
+                                    <div className="relative p-4 bg-primary/10 border-l-4 border-primary text-primary-foreground rounded-r-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Megaphone className="h-5 w-5 text-primary"/>
+                                            <p className="text-sm font-medium text-primary">{announcement.text}</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                </Carousel>
+            </div>
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> Ask Busmo</CardTitle>
+                    <CardDescription>Get quick answers about your business.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-2">
+                    {presetQuestions.map((q, i) => (
+                        <Button key={i} variant="outline" size="sm" className={cn("h-auto py-2 justify-start text-left text-xs sm:text-sm", selectedQuestion === q && "bg-accent/80 text-accent-foreground")} onClick={() => handleQuestionClick(q)}>
+                           {q}
+                        </Button>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {(isLoadingAi || answer) && (
+                 <Card className="bg-muted/50">
+                    <CardContent className="p-4">
+                        {isLoadingAi ? (
+                             <div className="flex items-center gap-3">
+                                <Skeleton className="h-8 w-8 rounded-full" />
+                                <div className="space-y-2 flex-1">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm font-medium">{answer}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-primary"/> Business Health</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-sm text-muted-foreground">Today's Sales</p>
+                        <p className="text-2xl font-bold">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
+                    </div>
+                    <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-sm text-muted-foreground">Today's Profit</p>
+                        <p className="text-2xl font-bold">{formatCurrency(businessInsights.profitToday, businessData?.currency)}</p>
+                    </div>
+                     <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-sm text-muted-foreground">Profit Margin</p>
+                        <p className={cn("text-2xl font-bold", profitMarginColor)}>{businessInsights.profitMargin.toFixed(0)}%</p>
+                    </div>
+                    <div className="space-y-1 rounded-md border p-3">
+                        <p className="text-sm text-muted-foreground">Cash Balance</p>
+                        <p className="text-2xl font-bold">{formatCurrency(businessInsights.cashBalance, businessData?.currency)}</p>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button variant="secondary" asChild><Link href={statementUrl}>View Full Statement</Link></Button>
+                </CardFooter>
+            </Card>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> Record Sale</Link></Button>
+              <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>Add Stock</Link></Button>
+              <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>Add Expense</Link></Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" className="h-24 flex-col gap-2"><CircleDollarSign/>Cashflow</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild><Link href="/owner/add-money">Add Money (Deposit)</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/owner/take-money">Take Money (Withdrawal)</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/owner/reduce-inventory">Reduce Stock (Damage/Loss)</Link></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+           <div className="lg:col-span-1 flex flex-col gap-6">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/> Today's Top Insight</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground font-medium">{topInsight}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> Sell Online</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {businessData?.marketSettings?.isStoreActive ? (
+                             <p className="text-sm text-muted-foreground">Your store is live! Manage products, orders, and settings.</p>
+                        ) : (
+                             <p className="text-sm text-muted-foreground">Set up your free online store on the Busmo Market.</p>
+                        )}
+                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">Manage My Market</Link></Button>
+                    </CardContent>
+                </Card>
+                
+                 {businessData?.plan === 'company' ? (
+                     <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="text-sm text-muted-foreground">View and manage investment offers for your business.</p>
+                           <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">View Investment Offers</Link></Button>
+                        </CardContent>
+                    </Card>
+                 ) : (
+                     <Card className="border-dashed">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2 text-muted-foreground"><Lock className="w-5 h-5"/> Access Capital</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="text-sm text-muted-foreground">Upgrade to the 'Company' plan to receive and manage investment offers.</p>
+                           <Button asChild variant="secondary" disabled className="mt-4 w-full">View Investment Offers</Button>
+                        </CardContent>
+                    </Card>
+                 )}
+          </div>
+        </div>
+      </main>
+      <Dialog open={showWelcome} onOpenChange={setShowWelcome}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Welcome to Busmo!</DialogTitle>
+                <DialogDescription>
+                    You're all set up. Here are a few things you can do to get started.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                 <Link href="/add-product" onClick={() => setShowWelcome(false)}>
+                    <div className="p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
+                        <p className="font-semibold">1. Add Your Products</p>
+                        <p className="text-sm text-muted-foreground">Start by adding your inventory to track stock levels.</p>
+                    </div>
+                </Link>
+                 <Link href="/record-sale" onClick={() => setShowWelcome(false)}>
+                    <div className="p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
+                        <p className="font-semibold">2. Record Your First Sale</p>
+                        <p className="text-sm text-muted-foreground">Record a sale to see how your dashboard comes to life.</p>
+                    </div>
+                </Link>
+            </div>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 }
-
