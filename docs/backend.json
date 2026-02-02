@@ -627,7 +627,7 @@
         "id": { "type": "string" },
         "text": { "type": "string" },
         "href": { "type": "string", "description": "The URL the announcement links to." },
-        "page": { "type": "string", "enum": ["welcome", "home"], "description": "The page where the announcement will be displayed." },
+        "page": { "type": "string", "enum": ["welcome", "home", "market"], "description": "The page where the announcement will be displayed." },
         "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

@@ -20,7 +20,7 @@ interface Announcement {
     id: string;
     text: string;
     href: string;
-    page: 'welcome' | 'home';
+    page: 'welcome' | 'home' | 'market';
     isActive: boolean;
     createdAt?: { toDate: () => Date };
 }
@@ -31,7 +31,7 @@ export default function AdminAnnouncementsPage() {
 
     const [text, setText] = useState('');
     const [href, setHref] = useState('');
-    const [page, setPage] = useState<'welcome' | 'home'>('home');
+    const [page, setPage] = useState<'welcome' | 'home' | 'market'>('market');
     const [isActive, setIsActive] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     
@@ -56,7 +56,7 @@ export default function AdminAnnouncementsPage() {
     const resetForm = () => {
         setText('');
         setHref('');
-        setPage('home');
+        setPage('market');
         setIsActive(true);
     };
 
@@ -116,11 +116,12 @@ export default function AdminAnnouncementsPage() {
                             <div className="space-y-2"><Label htmlFor="href">Link URL</Label><Input id="href" value={href} onChange={(e) => setHref(e.target.value)} placeholder="/pricing" disabled={isLoading} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="page-select">Display Page</Label>
-                                <Select value={page} onValueChange={(val: 'welcome' | 'home') => setPage(val)} disabled={isLoading}>
+                                <Select value={page} onValueChange={(val: 'welcome' | 'home' | 'market') => setPage(val)} disabled={isLoading}>
                                     <SelectTrigger id="page-select"><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="home">Owner Home</SelectItem>
                                         <SelectItem value="welcome">Welcome Page</SelectItem>
+                                        <SelectItem value="home">Owner Home</SelectItem>
+                                        <SelectItem value="market">Marketplace</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -172,11 +173,12 @@ export default function AdminAnnouncementsPage() {
                             <div className="space-y-2"><Label htmlFor="edit-href">Link URL</Label><Input id="edit-href" value={editingAnnouncement.href} onChange={(e) => setEditingAnnouncement({...editingAnnouncement, href: e.target.value})} /></div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-page-select">Display Page</Label>
-                                <Select value={editingAnnouncement.page} onValueChange={(val: 'welcome' | 'home') => setEditingAnnouncement({...editingAnnouncement, page: val})}>
+                                <Select value={editingAnnouncement.page} onValueChange={(val: 'welcome' | 'home' | 'market') => setEditingAnnouncement({...editingAnnouncement, page: val})}>
                                     <SelectTrigger id="edit-page-select"><SelectValue/></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="home">Owner Home</SelectItem>
                                         <SelectItem value="welcome">Welcome Page</SelectItem>
+                                        <SelectItem value="home">Owner Home</SelectItem>
+                                        <SelectItem value="market">Marketplace</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
