@@ -137,7 +137,9 @@ service cloud.firestore {
     match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if false; }
     match /users/{userId}/subscriptions/{subId} { allow read, write: if isUserOwner(userId); }
     
+    match /announcements/{announcementId} {
+      allow read: if resource.data.isActive == true;
+      allow write: if isAdmin();
+    }
   }
 }
-
-    

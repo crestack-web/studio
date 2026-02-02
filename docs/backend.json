@@ -115,7 +115,8 @@
         "canManageMarketplace": { "type": "boolean", "description": "Access to Market Banners, Products, and Categories." },
         "canManageBlog": { "type": "boolean", "description": "Access to Blog management." },
         "canManageSupport": { "type": "boolean", "description": "Access to Support chats, tickets, and agent management." },
-        "canManageCoupons": { "type": "boolean", "description": "Access to Coupon management." }
+        "canManageCoupons": { "type": "boolean", "description": "Access to Coupon management." },
+        "canManageAnnouncements": { "type": "boolean", "description": "Access to Announcement management." }
       }
     },
     "Product": {
@@ -541,6 +542,21 @@
         "currentOrderId": { "type": "string" }
       },
       "required": ["userId", "displayName", "status"]
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents a promotional announcement banner displayed on certain pages.",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "href": { "type": "string", "description": "The URL the announcement links to." },
+        "page": { "type": "string", "enum": ["welcome", "home"], "description": "The page where the announcement will be displayed." },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "page", "isActive"]
     }
   },
   "auth": {
@@ -884,6 +900,19 @@
           "description": "Stores verification documents for each business. ID is businessId.",
           "params": [
             { "name": "businessId", "description": "The unique identifier of the business." }
+          ]
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Stores site-wide announcements.",
+          "params": [
+            { "name": "announcementId", "description": "The unique ID for the announcement." }
           ]
         }
       }

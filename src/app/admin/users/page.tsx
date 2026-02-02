@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking } from '@/firebase';
@@ -39,6 +38,7 @@ interface AdminPermission {
     canManageBlog?: boolean;
     canManageSupport?: boolean;
     canManageCoupons?: boolean;
+    canManageAnnouncements?: boolean;
 }
 
 const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -68,6 +68,7 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
         canManageBlog: false,
         canManageSupport: false,
         canManageCoupons: false,
+        canManageAnnouncements: false,
     });
 
     React.useEffect(() => {
@@ -83,6 +84,7 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
                 canManageBlog: false,
                 canManageSupport: false,
                 canManageCoupons: false,
+                canManageAnnouncements: false,
              });
         }
     }, [initialPermissions]);
@@ -119,6 +121,7 @@ const AdminPermissionsDialog = ({ user, isOpen, onOpenChange, onSave }: { user: 
                                 <div className="flex items-center space-x-2"><Checkbox id="perm-blog" checked={permissions.canManageBlog} onCheckedChange={(c) => handlePermissionChange('canManageBlog', !!c)} /><Label htmlFor="perm-blog">Blog</Label></div>
                                 <div className="flex items-center space-x-2"><Checkbox id="perm-support" checked={permissions.canManageSupport} onCheckedChange={(c) => handlePermissionChange('canManageSupport', !!c)} /><Label htmlFor="perm-support">Support</Label></div>
                                 <div className="flex items-center space-x-2"><Checkbox id="perm-coupons" checked={permissions.canManageCoupons} onCheckedChange={(c) => handlePermissionChange('canManageCoupons', !!c)} /><Label htmlFor="perm-coupons">Coupons</Label></div>
+                                <div className="flex items-center space-x-2"><Checkbox id="perm-announcements" checked={permissions.canManageAnnouncements} onCheckedChange={(c) => handlePermissionChange('canManageAnnouncements', !!c)} /><Label htmlFor="perm-announcements">Announcements</Label></div>
                             </div>
                         </div>
                     )}
@@ -319,5 +322,3 @@ export default function AdminUsersPage() {
         </main>
     );
 }
-
-    
