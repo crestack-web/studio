@@ -48,7 +48,7 @@ interface Investment {
         equity?: number;
         valuation?: number;
     };
-    status: 'pending-acceptance' | 'active' | 'rejected' | 'completed';
+    status: 'pending-acceptance' | 'active' | 'rejected' | 'completed' | 'pending-funding' | 'rejected-by-business';
 }
 
 export default function AccessCapitalPage() {

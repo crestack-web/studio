@@ -6,13 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, DollarSign, Briefcase, Clock, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, DollarSign, Briefcase, Clock, ShieldCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, doc, updateDoc } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -20,19 +20,19 @@ interface Investment {
     id: string;
     businessName: string;
     businessId: string;
-    status: 'Active' | 'Pending Funding' | 'Completed' | 'Pending Acceptance' | 'Rejected' | 'Cancelled';
+    status: 'active' | 'pending-funding' | 'completed' | 'pending-acceptance' | 'rejected-by-business' | 'cancelled';
     amount: number;
     type: 'Profit Sharing' | 'Equity';
     createdAt: { toDate: () => Date }; // Firestore Timestamp
 }
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
-    'Active': 'default',
-    'Pending Funding': 'destructive',
-    'Completed': 'secondary',
-    'Pending Acceptance': 'outline',
-    'Rejected': 'destructive',
-    'Cancelled': 'destructive',
+    'active': 'success',
+    'pending-funding': 'default',
+    'completed': 'secondary',
+    'pending-acceptance': 'outline',
+    'rejected-by-business': 'destructive',
+    'cancelled': 'destructive',
 };
 
 const LoadingSkeleton = () => (
@@ -57,6 +57,7 @@ export default function InvestorDashboardPage() {
     const firestore = useFirestore();
 
     const [investmentToFund, setInvestmentToFund] = useState<Investment | null>(null);
+    const [isFunding, setIsFunding] = useState(false);
 
     const investmentsQuery = useMemoFirebase(() => {
         if (!firestore || !user?.uid) return null;
@@ -69,10 +70,10 @@ export default function InvestorDashboardPage() {
         if (!investments) return { totalInvested: 0, totalReturns: 0, activeInvestments: 0 };
         
         const totalInvested = investments
-            .filter(inv => inv.status === 'Active' || inv.status === 'Completed')
+            .filter(inv => inv.status === 'active' || inv.status === 'completed')
             .reduce((sum, inv) => sum + inv.amount, 0);
 
-        const activeInvestments = investments.filter(inv => inv.status === 'Active').length;
+        const activeInvestments = investments.filter(inv => inv.status === 'active').length;
 
         return {
             totalInvested,
@@ -89,10 +90,11 @@ export default function InvestorDashboardPage() {
     const handleFundInvestment = async () => {
         if (!firestore || !investmentToFund) return;
         
+        setIsFunding(true);
         const investmentRef = doc(firestore, 'investments', investmentToFund.id);
         
         try {
-            await updateDoc(investmentRef, { status: 'Active' });
+            await updateDocumentNonBlocking(investmentRef, { status: 'active' });
             toast({
                 title: 'Investment Funded!',
                 description: `The investment in ${investmentToFund.businessName} is now active.`,
@@ -105,6 +107,7 @@ export default function InvestorDashboardPage() {
             });
         } finally {
             setInvestmentToFund(null);
+            setIsFunding(false);
         }
     };
 
@@ -181,16 +184,16 @@ export default function InvestorDashboardPage() {
                                             <TableCell>{investment.type}</TableCell>
                                             <TableCell>₦{investment.amount.toLocaleString()}</TableCell>
                                             <TableCell>
-                                                <Badge variant={statusVariant[investment.status] || 'default'}>
-                                                    {investment.status}
+                                                <Badge variant={statusVariant[investment.status] || 'default'} className="capitalize">
+                                                    {investment.status.replace(/-/g, ' ')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{investment.createdAt.toDate().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</TableCell>
                                             <TableCell className="text-right">
-                                                {investment.status === 'Pending Funding' && (
+                                                {investment.status === 'pending-funding' && (
                                                     <Button size="sm" onClick={() => setInvestmentToFund(investment)}>Fund Investment</Button>
                                                 )}
-                                                {investment.status !== 'Pending Funding' && (
+                                                {investment.status !== 'pending-funding' && (
                                                      <Link href={`/investor/dashboard/portfolio/${investment.id}`}>
                                                         <Button size="sm" variant="outline">View Details</Button>
                                                     </Link>
@@ -214,7 +217,7 @@ export default function InvestorDashboardPage() {
                 </CardContent>
             </Card>
 
-            <Dialog open={!!investmentToFund} onOpenChange={() => setInvestmentToFund(null)}>
+            <Dialog open={!!investmentToFund} onOpenChange={(open) => !open && setInvestmentToFund(null)}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Confirm Funding</DialogTitle>
@@ -236,8 +239,11 @@ export default function InvestorDashboardPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setInvestmentToFund(null)}>Cancel</Button>
-                        <Button onClick={handleFundInvestment}>Confirm, I've Sent the Funds</Button>
+                        <Button variant="outline" onClick={() => setInvestmentToFund(null)} disabled={isFunding}>Cancel</Button>
+                        <Button onClick={handleFundInvestment} disabled={isFunding}>
+                            {isFunding && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Confirm, I've Sent the Funds
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -245,5 +251,3 @@ export default function InvestorDashboardPage() {
         </div>
     );
 }
-
-    
