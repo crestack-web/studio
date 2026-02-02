@@ -751,27 +751,15 @@ export default function OwnerHomePage() {
                     </CardContent>
                 </Card>
                 
-                 {businessData?.plan === 'company' ? (
-                     <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <p className="text-sm text-muted-foreground">View and manage investment offers for your business.</p>
-                           <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">View Investment Offers</Link></Button>
-                        </CardContent>
-                    </Card>
-                 ) : (
-                     <Card className="border-dashed">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2 text-muted-foreground"><Lock className="w-5 h-5"/> Access Capital</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <p className="text-sm text-muted-foreground">Upgrade to the 'Company' plan to receive and manage investment offers.</p>
-                           <Button asChild variant="secondary" disabled className="mt-4 w-full">View Investment Offers</Button>
-                        </CardContent>
-                    </Card>
-                 )}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                       <p className="text-sm text-muted-foreground">Turn your consistent business data into funding opportunities.</p>
+                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">Explore Funding Options</Link></Button>
+                    </CardContent>
+                </Card>
           </div>
         </div>
       </main>
