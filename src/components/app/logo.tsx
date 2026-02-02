@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { CreditCard } from "lucide-react";
 
 const LogoIcon = () => (
   <svg
@@ -51,14 +50,11 @@ const LogoIcon = () => (
 
 export function Logo({ className, variant }: { className?: string, variant?: 'default' | 'busmopay' }) {
   if (variant === 'busmopay') {
-      return (
-        <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
-          <CreditCard className="h-[1em] w-[1.2em]" />
-          <div>
-            <span className="text-primary">BusmoPay</span>
-          </div>
-        </div>
-      );
+    return (
+      <div className={cn('font-bold font-headline text-3xl', className)}>
+        <span>Busmo<span className="text-primary">Pay</span></span>
+      </div>
+    );
   }
 
   return (

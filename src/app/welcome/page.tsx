@@ -501,16 +501,38 @@ export default function LandingPage() {
 
         {/* BusmoPay Section */}
         <section className="py-20 sm:py-32 bg-muted/20 border-y">
-            <div className="container mx-auto px-4 text-center">
-                <Logo variant="busmopay" className="text-5xl inline-block" />
-                <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl font-headline">Sell products & share profits with BusmoPay</h2>
-                <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-                    The integrated payment solution for the Busmo marketplace. Accept payments and automatically distribute profits to your investors.
-                </p>
-                <div className="mt-10">
-                    <Link href="/busmopay">
-                        <Button size="lg" variant="secondary">Learn more about BusmoPay</Button>
-                    </Link>
+            <div className="container mx-auto px-4">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                    <div className="text-center lg:text-left">
+                        <Logo variant="busmopay" className="text-5xl inline-block lg:inline" />
+                        <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl font-headline">Sell products & share profits with BusmoPay</h2>
+                        <p className="mt-6 max-w-2xl mx-auto lg:mx-0 text-lg text-muted-foreground">
+                            The integrated payment solution for the Busmo marketplace. Accept payments and automatically distribute profits to your investors.
+                        </p>
+                        <div className="mt-10">
+                            <Link href="/busmopay">
+                                <Button size="lg" variant="secondary">Learn more about BusmoPay</Button>
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="relative h-full min-h-[250px] flex items-center justify-center">
+                        <Card className="p-4 w-60 shadow-xl rotate-[-8deg] absolute left-0 sm:left-10 lg:left-0">
+                            <p className="text-xs text-muted-foreground">Aisha's Crafts</p>
+                            <p className="font-bold text-xl">₦12,000</p>
+                            <div className="flex items-center gap-2 mt-2">
+                                <CreditCard className="w-5 h-5 text-primary" />
+                                <p className="font-semibold text-sm">**** **** **** 4242</p>
+                            </div>
+                        </Card>
+                         <Card className="p-4 w-60 shadow-xl rotate-[6deg] z-10 relative">
+                            <p className="text-xs text-muted-foreground">Tunde's Electronics</p>
+                            <p className="font-bold text-xl">₦25,000</p>
+                            <div className="flex items-center gap-2 mt-2">
+                                 <Landmark className="w-5 h-5 text-primary" />
+                                <p className="font-semibold text-sm">Bank Transfer</p>
+                            </div>
+                        </Card>
+                    </div>
                 </div>
             </div>
         </section>

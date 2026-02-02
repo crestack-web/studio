@@ -863,7 +863,7 @@ export default function OwnerHomePage() {
                 {businessData?.country === 'NG' && (
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" /> BusmoPay</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2"><Logo variant="busmopay" className="text-2xl" /></CardTitle>
                         </CardHeader>
                         <CardContent>
                            <p className="text-sm text-muted-foreground">Track online revenue and manage payouts.</p>
