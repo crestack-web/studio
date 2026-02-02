@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -741,22 +741,37 @@ export default function OwnerHomePage() {
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><ChevronsUp className="w-5 h-5 text-primary"/> Forecasts</CardTitle>
+                        <CardDescription className="text-xs">Based on your recent activity.</CardDescription>
                     </CardHeader>
-                    <CardContent className="text-sm space-y-3">
-                        {forecasts.weeklyProfit ? (
-                            <p><span className="font-semibold">Next Week's Profit:</span> ~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>
-                        ) : (
-                            <p className="text-muted-foreground">Not enough data for profit forecast.</p>
-                        )}
-                        {forecasts.busiestDay && (
-                            <p><span className="font-semibold">Busiest Day:</span> {forecasts.busiestDay}</p>
-                        )}
-                        {forecasts.inventoryOutlook && (
-                            <p><span className="font-semibold text-destructive">Inventory Alert:</span> <span className="text-destructive">{forecasts.inventoryOutlook}</span></p>
-                        )}
-                        {forecasts.cashRunway !== null && (
-                            <p><span className="font-semibold">Cash Runway:</span> ~{forecasts.cashRunway} days</p>
-                        )}
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 pt-4">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-success/10 rounded-full"><TrendingUp className="w-4 h-4 text-success" /></div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Next Week's Profit</p>
+                                {forecasts.weeklyProfit ? (<p className="font-semibold">~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-primary/10 rounded-full"><Calendar className="w-4 h-4 text-primary" /></div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Busiest Day</p>
+                                {forecasts.busiestDay ? (<p className="font-semibold">{forecasts.busiestDay}</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-accent/10 rounded-full"><Landmark className="w-4 h-4 text-accent" /></div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Cash Runway</p>
+                                {forecasts.cashRunway !== null ? (<p className="font-semibold">~{forecasts.cashRunway} days</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-destructive/10 rounded-full"><PackageMinus className="w-4 h-4 text-destructive" /></div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Inventory Outlook</p>
+                                {forecasts.inventoryOutlook ? (<p className="font-semibold text-destructive text-xs">{forecasts.inventoryOutlook}</p>) : (<p className="text-xs text-muted-foreground">Stock levels are healthy.</p>)}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
