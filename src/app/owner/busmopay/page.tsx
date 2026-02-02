@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocumentNonBlocking } from '@/firebase';
@@ -15,9 +15,13 @@ import { formatCurrency } from '@/lib/currency';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, toDate } from 'date-fns';
+import { format, subDays, eachDayOfInterval, toDate } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface AppUser {
     businessId?: string;
@@ -94,7 +98,7 @@ const RevenueChart = ({ data, currency }: { data: any[], currency?: string }) =>
 
     return (
         <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={data} margin={{ top: 20, right: 20, bottom: 5, left: -10 }}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(value) => format(value, 'MMM d')} />
@@ -114,6 +118,10 @@ export default function BusmoPayDashboard() {
     const firestore = useFirestore();
     const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
     const [isProcessingPayout, setIsProcessingPayout] = useState(false);
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: subDays(new Date(), 29),
+        to: new Date(),
+    });
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -175,17 +183,24 @@ export default function BusmoPayDashboard() {
             .filter(o => o.payoutStatus === 'unpaid' && o.status === 'confirmed')
             .reduce((sum, o) => sum + o.total * 0.9, 0);
 
-        const days = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() });
+        const startDate = date?.from || subDays(new Date(), 29);
+        const endDate = date?.to || new Date();
+        const days = eachDayOfInterval({ start: startDate, end: endDate });
         const dailyRevenue = new Map<string, number>(days.map(d => [format(d, 'yyyy-MM-dd'), 0]));
+
         successfulTxns.forEach(tx => {
             if (tx.createdAt) {
-                const dateStr = format(tx.createdAt.toDate(), 'yyyy-MM-dd');
-                if (dailyRevenue.has(dateStr)) {
-                    dailyRevenue.set(dateStr, dailyRevenue.get(dateStr)! + tx.amount);
+                const txDate = tx.createdAt.toDate();
+                if (txDate >= startDate && txDate <= endDate) {
+                    const dateStr = format(txDate, 'yyyy-MM-dd');
+                    if (dailyRevenue.has(dateStr)) {
+                        dailyRevenue.set(dateStr, dailyRevenue.get(dateStr)! + tx.amount);
+                    }
                 }
             }
         });
-        const _chartData = Array.from(dailyRevenue.entries()).map(([date, revenue]) => ({ date: toDate(date), revenue })).sort((a,b) => a.date.getTime() - b.date.getTime());
+        const _chartData = Array.from(dailyRevenue.entries()).map(([dateStr, revenue]) => ({ date: toDate(dateStr), revenue })).sort((a,b) => a.date.getTime() - b.date.getTime());
+
 
         return {
             totalRevenue: _totalRevenue,
@@ -194,7 +209,7 @@ export default function BusmoPayDashboard() {
             comingSoon: _comingSoon,
             chartData: _chartData,
         };
-    }, [transactions, payouts, orders]);
+    }, [transactions, payouts, orders, date]);
 
     const handleRequestPayout = () => {
         if (availableForPayout <= 0) {
@@ -245,11 +260,47 @@ export default function BusmoPayDashboard() {
                 </div>
                 
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Revenue Over Time (Last 30 Days)</CardTitle>
+                    <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <CardTitle>Revenue Over Time</CardTitle>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full sm:w-[260px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "LLL dd, y")} -{" "}
+                                                {format(date.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(date.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </CardHeader>
                     <CardContent>
-                        {isLoading ? <Skeleton className="h-[250px] w-full" /> : <RevenueChart data={chartData} currency={currency} />}
+                        {isLoading ? <Skeleton className="h-[200px] w-full" /> : <RevenueChart data={chartData} currency={currency} />}
                     </CardContent>
                 </Card>
 
