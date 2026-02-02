@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -649,7 +648,7 @@ export default function OwnerHomePage() {
                     <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> Ask Busmo</CardTitle>
                     <CardDescription>Get quick answers about your business.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {presetQuestions.map((q, i) => (
                         <Button key={i} variant="outline" size="sm" className={cn("h-auto py-2 justify-start text-left text-xs sm:text-sm", selectedQuestion === q && "bg-accent/80 text-accent-foreground")} onClick={() => handleQuestionClick(q)}>
                            {q}
