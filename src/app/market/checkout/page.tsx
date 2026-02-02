@@ -225,7 +225,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                 // could lead to race conditions. A more robust solution would use Firestore Transactions
                 // to read the current stock and update it in one atomic operation.
                 // For this prototype, we'll proceed with batched writes for simplicity.
-                const productSnap = await doc(firestore, `businesses/${businessId}/products`, item.productId).get();
+                const productSnap = await getDoc(doc(firestore, `businesses/${businessId}/products`, item.productId));
                  if (productSnap.exists()) {
                     const productData = productSnap.data() as any;
                     if (item.variantId && productData.hasVariants) {
@@ -311,15 +311,10 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                          )}
                     </CardContent>
                 </Card>
-                <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Next Step: Payments</AlertTitle>
-                    <AlertDescription>
-                        This is a prototype. A real payment gateway integration is required for this button to function.
-                    </AlertDescription>
-                </Alert>
-                <Button className="w-full h-14 text-lg" disabled>
-                    Payment Integration Coming Soon
+                
+                <Button className="w-full h-14 text-lg" onClick={handlePlaceOrder} disabled={!canPlaceOrder || isPlacingOrder}>
+                    {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Place Order
                 </Button>
             </div>
         </div>

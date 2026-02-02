@@ -34,39 +34,32 @@ service cloud.firestore {
     }
 
     function isBusinessMember(businessId) {
-      // This function was rewritten to be safer.
-      // It now checks for authentication before trying to read user data.
       if (!isSignedIn()) {
         return false;
       }
       let userData = getUserData();
       return userData != null && userData.businessId == businessId;
     }
+    
+    function isDeliveryAgent() {
+        return exists(/databases/$(database)/documents/deliveryAgents/$(request.auth.uid));
+    }
 
     // --- MAIN COLLECTIONS ---
     match /users/{userId} {
-      // Signup: A user can create their own profile document.
       allow create: if isUserOwner(userId) && request.resource.data.id == userId;
-      
-      // Read/Update: A user can only read and update their own profile. Admins can read any user.
       allow get: if isUserOwner(userId) || isAdmin();
       allow update: if isUserOwner(userId) 
                       && request.resource.data.role == resource.data.role
                       && request.resource.data.businessId == resource.data.businessId;
-      
-      // Allow users to list other users only if they are querying for their own business.
       allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /businesses/{businessId} {
-      // Signup: A user can create a business if they are the owner.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      
-      // Access: Business members can read, only owners can update.
       allow get: if isBusinessMember(businessId);
       allow update: if isOwner(businessId);
-      
       allow list, delete: if false;
 
       // Subcollections
@@ -74,21 +67,26 @@ service cloud.firestore {
       match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /inventoryAdjustments/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /invitations/{invitationId} { 
         allow read, write: if isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
       }
 
       match /orders/{orderId} {
         allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId);
-        allow update, list: if isBusinessMember(businessId);
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid);
+        allow update: if isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid); // Agent can update status
+        allow list: if isBusinessMember(businessId);
         allow delete: if false;
       }
     }
     
-    // --- MARKETPLACE & OTHER COLLECTIONS (PUBLIC ACCESS REVISED) ---
-    // The rules below have been simplified to 'allow read: if true' to ensure 
-    // public data is always accessible and avoid backend deployment issues.
+    // Rule for collection group queries on 'orders'
+    match /{path=**}/orders/{orderId} {
+      allow list: if isDeliveryAgent() || isAdmin();
+    }
+    
+    // --- MARKETPLACE & OTHER COLLECTIONS ---
     match /businessProfiles/{businessId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
@@ -103,37 +101,49 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.businessId) || isAdmin();
     }
     
-    match /marketBanners/{bannerId} {
-        allow read: if true;
-        allow write: if isAdmin();
+    match /marketBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /marketGifBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /marketCategories/{categoryId} { allow read: if true; allow write: if isAdmin(); }
+    match /reviews/{reviewId} { allow read: if true; allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update: if isSignedIn() && resource.data.userId == request.auth.uid; allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid); }
+    match /blogs/{blogId} { allow get: if resource.data.isPublished == true || isAdmin(); allow list: if true; allow write: if isAdmin(); }
+    match /supportTickets/{ticketId} { allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow read, write, list, delete: if isAdmin(); }
+    
+    match /supportAgents/{agentId} { allow read: if true; allow write: if isAdmin(); }
+    
+    match /deliveryAgents/{agentId} {
+        allow get: if isUserOwner(agentId) || isAdmin();
+        allow list, write: if isAdmin();
     }
-
-    match /marketGifBanners/{bannerId} {
-        allow read: if true;
-        allow write: if isAdmin();
-    }
-
-    match /marketCategories/{categoryId} {
-        allow read: if true;
-        allow write: if isAdmin();
-    }
-
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid);
-    }
-
-    match /blogs/{blogId} {
-        allow get: if resource.data.isPublished == true || isAdmin();
-        allow list: if true; 
-        allow write: if isAdmin(); 
-    }
-
-    match /supportTickets/{ticketId} {
+    
+    match /chatConversations/{conversationId} {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow read, write, list, delete: if isAdmin();
+        allow read, write: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid)) || isAdmin();
+    }
+    
+    match /chatConversations/{conversationId}/messages/{messageId} {
+        function isChatParticipant() {
+            let conversationData = get(/databases/$(database)/documents/chatConversations/$(conversationId)).data;
+            return conversationData.userId == request.auth.uid || conversationData.agentId == request.auth.uid;
+        }
+
+        allow read, write: if isChatParticipant() || isAdmin();
+    }
+    
+    match /investments/{investmentId} {
+      allow create: if isSignedIn() && request.resource.data.investorId == request.auth.uid;
+      allow get, list: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+      allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+    }
+    
+    match /businessVerifications/{businessId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+    match /coupons/{couponId} { allow read, write: if isAdmin(); }
+    
+    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if false; }
+    match /users/{userId}/subscriptions/{subId} { allow read, write: if isUserOwner(userId); }
+    
+    match /announcements/{announcementId} {
+      allow read: if resource.data.isActive == true;
+      allow write: if isAdmin();
     }
   }
 }

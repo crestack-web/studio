@@ -131,6 +131,7 @@ interface ChatMessage {
 interface MarketplaceOrder {
     id: string;
     total: number;
+    source?: string;
 }
 
 interface Announcement {
@@ -153,7 +154,7 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
     const marketOrdersQuery = useMemoFirebase(() => {
         return query(
             collection(firestore, `businesses/${businessId}/orders`), 
-            where('source', '==', 'market')
+            where('payment', '==', 'busmopay') // Assuming busmopay orders are from the market
         );
     }, [firestore, businessId]);
 
@@ -845,6 +846,8 @@ export default function OwnerHomePage() {
                         </div>
                     </CardContent>
                 </Card>
+                
+                {businessId && <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />}
 
                 <Card>
                     <CardHeader className="pb-2">
@@ -859,19 +862,7 @@ export default function OwnerHomePage() {
                        <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">Manage My Market</Link></Button>
                     </CardContent>
                 </Card>
-                
-                {businessData?.country === 'NG' && (
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2"><Logo variant="busmopay" className="text-2xl" /></CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                           <p className="text-sm text-muted-foreground">Track online revenue and manage payouts.</p>
-                           <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">Go to Dashboard</Link></Button>
-                        </CardContent>
-                    </Card>
-                )}
-                
+                                
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>

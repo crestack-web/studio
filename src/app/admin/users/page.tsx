@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking } from '@/firebase';
@@ -168,10 +169,12 @@ export default function AdminUsersPage() {
             const userRef = doc(firestore, 'users', user.id);
             updateDocumentNonBlocking(userRef, { role: newRole });
 
-            // If demoting from admin, remove from the 'admins' collection.
+            // If demoting from admin, remove from 'admins' and 'admin_permissions' collections.
             if (user.role === 'Admin') {
                 const adminRef = doc(firestore, 'admins', user.id);
                 deleteDocumentNonBlocking(adminRef);
+                const permissionsRef = doc(firestore, 'admin_permissions', user.id);
+                deleteDocumentNonBlocking(permissionsRef);
             }
             // If making a delivery agent, add to the 'deliveryAgents' collection
             if (newRole === 'Delivery Agent') {
