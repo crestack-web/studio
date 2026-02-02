@@ -2,16 +2,16 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Logo } from '@/components/ui/logo';
+import { Logo } from '@/components/app/logo';
 import { Menu, Search, ShoppingCart, Megaphone, Instagram, Facebook, Box, Tag } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
-import { LanguageSwitcher } from './language-switcher';
-import { ThemeToggle } from './theme-toggle';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useLanguage } from '@/context/language-provider';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/cart-provider';
-import { MarketSwitcher } from './market-switcher';
+import { MarketSwitcher } from '@/components/app/market-switcher';
 import { useMarket } from '@/context/market-provider';
 import { formatCurrency } from '@/lib/currency';
 import { useRouter } from 'next/navigation';
