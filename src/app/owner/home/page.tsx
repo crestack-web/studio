@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone, MapPin } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,12 +33,14 @@ import imageCompression from 'browser-image-compression';
 import { useLanguage } from '@/context/language-provider';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface AppUser {
     id: string;
     displayName: string;
     businessId: string;
     role: string;
+    branchId?: string;
 }
 
 interface Business {
@@ -53,7 +55,8 @@ interface Business {
     deliveryCities?: string[];
     marketSettings?: {
         isStoreActive?: boolean;
-    }
+    };
+    branches?: { id: string; name: string }[];
 }
 
 interface Sale {
@@ -65,6 +68,7 @@ interface Sale {
     productId?: string;
     variantId?: string;
     quantity: number;
+    branchId?: string;
 }
 
 interface Product {
@@ -72,14 +76,14 @@ interface Product {
     name: string;
     price: number;
     cost: number;
-    quantity: number;
+    stockByBranch?: Record<string, number>;
     hasVariants?: boolean;
     variants?: {
         id: string;
         name: string;
         price: number;
         cost?: number;
-        quantity: number;
+        stockByBranch?: Record<string, number>;
     }[];
 }
 
@@ -88,6 +92,7 @@ interface Transaction {
     type: 'deposit' | 'withdrawal';
     amount: number;
     createdAt: Timestamp;
+    branchId?: string;
 }
 
 interface Expense {
@@ -96,6 +101,7 @@ interface Expense {
     title: string;
     amount: number;
     createdAt: Timestamp;
+    branchId?: string;
 }
 
 interface SupportAgent {
@@ -209,6 +215,8 @@ export default function OwnerHomePage() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const chatMessagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    const [selectedBranchId, setSelectedBranchId] = useState('all');
 
 
     useEffect(() => {
@@ -310,8 +318,12 @@ export default function OwnerHomePage() {
             totalDeposits: 0, totalWithdrawals: 0, profitMargin: 0, totalExpenses: 0,
             cashBalance: 0, dailyAvgExpense: 0, salesDays: 0,
         };
+        
+        const filteredSales = selectedBranchId === 'all' ? salesData : salesData?.filter(s => s.branchId === selectedBranchId);
+        const filteredExpenses = selectedBranchId === 'all' ? expensesData : expensesData?.filter(e => e.branchId === selectedBranchId);
+        const filteredTransactions = selectedBranchId === 'all' ? transactionsData : transactionsData?.filter(t => t.branchId === selectedBranchId);
 
-        if (!salesData || !productsData || !businessData || !expensesData || !transactionsData) {
+        if (!filteredSales || !productsData || !businessData || !filteredExpenses || !filteredTransactions) {
             return defaultInsights;
         }
 
@@ -326,7 +338,7 @@ export default function OwnerHomePage() {
         
         const saleDates = new Set<string>();
 
-        for (const sale of salesData) {
+        for (const sale of filteredSales) {
             totalSales += sale.amount;
             saleDates.add(sale.timestamp.toDate().toDateString());
             const product = productsData.find(p => p.id === sale.productId);
@@ -361,8 +373,8 @@ export default function OwnerHomePage() {
         const grossProfit = totalSales - totalCogs;
         const grossProfitToday = salesTodayTotal - cogsToday;
 
-        const totalExpenses = expensesData.reduce((acc, exp) => acc + exp.amount, 0);
-        const expensesToday = expensesData
+        const totalExpenses = filteredExpenses.reduce((acc, exp) => acc + exp.amount, 0);
+        const expensesToday = filteredExpenses
             .filter(exp => exp.createdAt?.toDate && isWithinInterval(exp.createdAt.toDate(), todayInterval))
             .reduce((acc, exp) => acc + exp.amount, 0);
 
@@ -373,21 +385,33 @@ export default function OwnerHomePage() {
         const bestSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => b.sales - a.sales)[0] : undefined;
         const worstSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => a.sales - b.sales)[0] : undefined;
 
-        const lowStockProducts = productsData.filter(p => p.quantity <= 10);
+        const lowStockProducts = productsData.flatMap(p => {
+            if (p.hasVariants && p.variants) {
+                return p.variants.map(v => {
+                    const quantity = selectedBranchId === 'all' 
+                        ? Object.values(v.stockByBranch || {}).reduce((s, q) => s + q, 0)
+                        : v.stockByBranch?.[selectedBranchId] || 0;
+                    return { id: `${p.id}-${v.id}`, name: `${p.name} (${v.name})`, quantity };
+                });
+            } else {
+                const quantity = selectedBranchId === 'all'
+                    ? Object.values(p.stockByBranch || {}).reduce((s, q) => s + q, 0)
+                    : p.stockByBranch?.[selectedBranchId] || 0;
+                return [{ id: p.id, name: p.name, quantity }];
+            }
+        }).filter(p => p.quantity <= 10);
         
         let totalDeposits = 0;
         let totalWithdrawals = 0;
-        if (transactionsData) {
-            for (const transaction of transactionsData) {
-                if (transaction.type === 'deposit') totalDeposits += transaction.amount;
-                if (transaction.type === 'withdrawal') totalWithdrawals += transaction.amount;
-            }
+        for (const transaction of filteredTransactions) {
+            if (transaction.type === 'deposit') totalDeposits += transaction.amount;
+            if (transaction.type === 'withdrawal') totalWithdrawals += transaction.amount;
         }
         
         const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
         const cashBalance = totalDeposits - totalWithdrawals;
 
-        const daysWithExpenses = new Set(expensesData.map(e => e.createdAt.toDate().toDateString())).size;
+        const daysWithExpenses = new Set(filteredExpenses.map(e => e.createdAt.toDate().toDateString())).size;
         const dailyAvgExpense = daysWithExpenses > 0 ? totalExpenses / daysWithExpenses : 0;
 
         return { 
@@ -397,7 +421,7 @@ export default function OwnerHomePage() {
             dailyAvgExpense, salesDays: saleDates.size
         };
 
-    }, [salesData, productsData, businessData, transactionsData, expensesData]);
+    }, [salesData, productsData, businessData, transactionsData, expensesData, selectedBranchId]);
     
     const forecasts = useMemo(() => {
         const defaultForecasts = {
@@ -552,6 +576,9 @@ export default function OwnerHomePage() {
     const profitMargin = businessInsights.profitMargin;
     const profitMarginLabel = profitMargin >= 30 ? 'Healthy' : profitMargin >= 10 ? 'Fair' : 'Risky';
     const profitMarginColor = profitMargin >= 30 ? 'text-success' : profitMargin >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive';
+    
+    const branches = businessData?.branches || [];
+    const showBranchSelector = (businessData?.plan === 'multi-branch' || businessData?.plan === 'company') && branches.length > 0;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -651,6 +678,22 @@ export default function OwnerHomePage() {
                 <h1 className="text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
                 <p className="text-muted-foreground">Here's what's happening with your business today.</p>
             </div>
+             {showBranchSelector && (
+                <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Branches</SelectItem>
+                            {branches.map(branch => (
+                                <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 flex flex-col gap-6">

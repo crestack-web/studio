@@ -39,6 +39,18 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "A list of cities the business delivers to."
+        },
+        "branches": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" }
+                },
+                "required": ["id", "name"]
+            },
+            "description": "List of business branches for multi-branch plans."
         }
       },
       "required": [
@@ -76,6 +88,10 @@
         "businessId": {
           "type": "string",
           "description": "Reference to Business. (Relationship: Business 1:N User). Not applicable for all roles."
+        },
+        "branchId": {
+            "type": "string",
+            "description": "The ID of the branch the staff member is assigned to."
         }
       },
       "required": [
@@ -138,6 +154,11 @@
           "description": "The price of the product.",
           "format": "number"
         },
+        "stockByBranch": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Inventory count per branch, mapping branchId to quantity."
+        },
         "businessId": {
           "type": "string",
           "description": "Reference to Business. (Relationship: Business 1:N Product)"
@@ -178,6 +199,10 @@
           "type": "string",
           "description": "Reference to Business. (Relationship: Business 1:N Sale)"
         },
+        "branchId": {
+            "type": "string",
+            "description": "The ID of the branch where the sale was recorded."
+        },
         "userId": {
           "type": "string",
           "description": "Reference to User who recorded the sale. (Relationship: User 1:N Sale)"
@@ -195,6 +220,56 @@
         "businessId",
         "userId"
       ]
+    },
+    "Expense": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Expense",
+        "type": "object",
+        "description": "Represents a business expense.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "category": { "type": "string" },
+            "title": { "type": "string" },
+            "amount": { "type": "number" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "category", "title", "amount", "createdAt"]
+    },
+    "Transaction": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Transaction",
+        "type": "object",
+        "description": "Represents a cash deposit or withdrawal.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "type": { "type": "string", "enum": ["deposit", "withdrawal"] },
+            "amount": { "type": "number" },
+            "description": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "type", "amount", "createdAt"]
+    },
+    "InventoryAdjustment": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "InventoryAdjustment",
+        "type": "object",
+        "description": "Records changes to inventory outside of sales.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "productId": { "type": "string" },
+            "variantId": { "type": "string" },
+            "quantityChange": { "type": "number" },
+            "reason": { "type": "string" },
+            "notes": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "productId", "quantityChange", "reason", "createdAt"]
     },
     "AiQuestion": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -620,6 +695,42 @@
               "name": "saleId",
               "description": "The unique identifier of the sale."
             }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/expenses/{expenseId}",
+        "definition": {
+          "entityName": "Expense",
+          "schema": { "$ref": "#/backend/entities/Expense" },
+          "description": "Stores expense records for a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "expenseId", "description": "The unique identifier of the expense." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": { "$ref": "#/backend/entities/Transaction" },
+          "description": "Stores cashflow transactions (deposits/withdrawals) for a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "transactionId", "description": "The unique identifier of the transaction." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/inventoryAdjustments/{adjustmentId}",
+        "definition": {
+          "entityName": "InventoryAdjustment",
+          "schema": { "$ref": "#/backend/entities/InventoryAdjustment" },
+          "description": "Stores records of manual inventory changes.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "adjustmentId", "description": "The unique identifier of the adjustment." }
           ]
         }
       },
