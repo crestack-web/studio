@@ -663,8 +663,8 @@ export default function OwnerHomePage() {
       </header>
       
         {announcements && announcements.length > 0 && (
-            <div className="border-b bg-card">
-                <div className="container mx-auto px-4 sm:px-6">
+            <div className="bg-primary text-primary-foreground">
+                <div className="container mx-auto">
                     <Carousel
                         plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
                         opts={{ align: "start", loop: true }}
@@ -674,11 +674,9 @@ export default function OwnerHomePage() {
                             {announcements.map((announcement) => (
                                 <CarouselItem key={announcement.id}>
                                     <Link href={announcement.href || '#'}>
-                                        <div className="relative p-3">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Megaphone className="h-4 w-4 text-primary"/>
-                                                <p className="text-sm font-medium text-primary">{announcement.text}</p>
-                                            </div>
+                                        <div className="flex items-center justify-center gap-2 text-center py-2 px-4 text-sm font-medium">
+                                            <Megaphone className="h-4 w-4" />
+                                            <span>{announcement.text}</span>
                                         </div>
                                     </Link>
                                 </CarouselItem>
