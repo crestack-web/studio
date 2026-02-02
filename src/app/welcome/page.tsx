@@ -407,7 +407,7 @@ export default function LandingPage() {
       <main className="flex-1">
         
         {/* Hero Section */}
-        <section className="relative overflow-hidden py-20 sm:py-32">
+        <section className="relative overflow-hidden py-20 sm:py-32 bg-gradient-to-b from-background to-muted/20">
             <div className="container mx-auto px-4 text-center">
                  <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.title') }}></h1>
                 <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
