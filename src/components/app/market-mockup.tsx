@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search, ShoppingCart, MousePointer2, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
@@ -124,8 +124,8 @@ export function MarketMockup() {
             await changeView('product_detail');
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 2000)));
 
-            // 3. Move to checkout button and click
-            await moveCursorTo('checkoutBtn');
+            // 3. Move to buy now button and click
+            await moveCursorTo('buyNowBtn');
             await click();
             await new Promise(resolve => timeouts.push(setTimeout(resolve, 500)));
             await changeView('checkout');
@@ -181,6 +181,7 @@ export function MarketMockup() {
                                     </div>
                                     <CardContent className="p-2 flex-1 flex flex-col">
                                         <h3 className="font-semibold text-xs flex-1 leading-tight">{product.name}</h3>
+                                        <p className="text-xs text-muted-foreground">{product.business}</p>
                                         <p className="font-bold text-sm mt-1">₦{product.price.toLocaleString()}</p>
                                     </CardContent>
                                 </Card>
@@ -192,48 +193,61 @@ export function MarketMockup() {
 
             {/* Product Detail View */}
             {view === 'product_detail' && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                     <Card className="overflow-hidden">
                          <div className="aspect-video relative">
                             <Image src={mockProduct.image} alt={mockProduct.name} fill className="object-cover" data-ai-hint={mockProduct.hint} />
                         </div>
                     </Card>
-                    <h1 className="text-base font-bold">{mockProduct.name}</h1>
-                    <p className="text-xs text-muted-foreground -mt-2">by {mockProduct.business}</p>
+                    <div>
+                        <p className="text-xs font-medium text-primary">{mockProduct.business}</p>
+                        <h1 className="text-base font-bold leading-tight">{mockProduct.name}</h1>
+                    </div>
                     <p className="text-lg font-bold text-primary">₦{mockProduct.price.toLocaleString()}</p>
-                     <Button ref={el => elementsRef.current['checkoutBtn'] = el} className="w-full h-9 text-sm">
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Proceed to Checkout
-                    </Button>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                            <Label className="text-xs">Qty:</Label>
+                            <div className="flex items-center rounded-md border h-7">
+                                <Button variant="ghost" size="icon" className="h-full w-7 text-xs" disabled>-</Button>
+                                <span className="w-5 text-center font-bold text-xs">1</span>
+                                <Button variant="ghost" size="icon" className="h-full w-7 text-xs" disabled>+</Button>
+                            </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8 text-xs"><ShoppingCart className="mr-1 h-3 w-3" /> Add to Cart</Button>
+                    </div>
+                    <Button ref={el => elementsRef.current['buyNowBtn'] = el} className="w-full h-8 text-sm">Buy Now</Button>
                 </div>
             )}
             
             {/* Checkout View */}
             {view === 'checkout' && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                     <h1 className="text-base font-bold">Checkout</h1>
                     <Card>
-                        <CardContent className="p-2 space-y-2">
-                             <div className="flex justify-between items-center text-xs">
-                                <span>{mockProduct.name} (x1)</span>
-                                <span className="font-semibold">₦{mockProduct.price.toLocaleString()}</span>
+                        <CardHeader className="p-2"><CardTitle className="text-xs">Order Summary</CardTitle></CardHeader>
+                        <CardContent className="p-2">
+                            <div className="flex items-center gap-2">
+                                <div className="relative h-8 w-8 shrink-0 rounded-sm overflow-hidden bg-muted">
+                                    <Image src={mockProduct.image} alt={mockProduct.name} fill className="object-cover" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-medium line-clamp-1">{mockProduct.name}</p>
+                                    <p className="text-xs text-muted-foreground">Qty: 1</p>
+                                </div>
+                                <span className="font-bold text-xs">₦{mockProduct.price.toLocaleString()}</span>
                             </div>
-                            <Separator />
-                             <div className="flex justify-between items-center text-sm font-bold">
-                                <span>Total</span>
-                                <span>₦{mockProduct.price.toLocaleString()}</span>
-                            </div>
+                            <Separator className="my-2" />
+                            <div className="flex justify-between text-sm font-bold"><span>Total</span><span>₦{mockProduct.price.toLocaleString()}</span></div>
                         </CardContent>
                     </Card>
-                     <div className="space-y-1">
-                        <Label className="text-xs">Full Name</Label>
-                        <Input className="h-7 text-xs" value="Tunde Oladipo" readOnly />
-                    </div>
-                     <div className="space-y-1">
-                        <Label className="text-xs">Delivery Address</Label>
-                        <Input className="h-7 text-xs" value="123 Allen Avenue, Ikeja" readOnly />
-                    </div>
-                    <Button ref={el => elementsRef.current['placeOrderBtn'] = el} className="w-full h-9 text-sm">Place Order</Button>
+                    <Card>
+                        <CardHeader className="p-2"><CardTitle className="text-xs">Your Details</CardTitle></CardHeader>
+                        <CardContent className="p-2 space-y-1">
+                            <Input className="h-6 text-xs" value="Tunde Oladipo" readOnly />
+                            <Input className="h-6 text-xs" value="123 Allen Avenue, Ikeja" readOnly />
+                        </CardContent>
+                    </Card>
+                    <Button ref={el => elementsRef.current['placeOrderBtn'] = el} className="w-full h-8 text-sm">Place Order</Button>
                 </div>
             )}
 
