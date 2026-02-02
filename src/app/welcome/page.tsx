@@ -186,6 +186,29 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       
+      {announcements && announcements.length > 0 && (
+        <div className="bg-primary text-primary-foreground">
+            <Carousel
+                plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
+                opts={{ align: "start", loop: true }}
+                className="w-full"
+            >
+                <CarouselContent>
+                    {announcements.map((announcement) => (
+                        <CarouselItem key={announcement.id}>
+                            <Link href={announcement.href || '#'} className="block">
+                                <div className="flex items-center justify-center gap-2 text-center py-2 px-4 text-sm font-medium">
+                                    <Megaphone className="h-4 w-4" />
+                                    <span>{announcement.text}</span>
+                                </div>
+                            </Link>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+            </Carousel>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -241,29 +264,6 @@ export default function LandingPage() {
 
       {/* Main Content */}
       <main className="flex-1">
-        {announcements && announcements.length > 0 && (
-            <div className="container mx-auto px-4 pt-8">
-                <Carousel
-                    plugins={[ Autoplay({ delay: 8000, stopOnInteraction: true }) ]}
-                    opts={{ align: "start", loop: true }}
-                >
-                    <CarouselContent>
-                        {announcements.map((announcement) => (
-                            <CarouselItem key={announcement.id}>
-                                <Link href={announcement.href || '#'}>
-                                    <div className="relative p-4 bg-primary/10 border-l-4 border-primary text-primary-foreground rounded-r-lg">
-                                        <div className="flex items-center gap-2">
-                                            <Megaphone className="h-5 w-5 text-primary"/>
-                                            <p className="text-sm font-medium text-primary">{announcement.text}</p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </CarouselItem>
-                        ))}
-                    </CarouselContent>
-                </Carousel>
-            </div>
-        )}
         
         {/* Hero Section */}
         <section className="relative overflow-hidden py-20 sm:py-32">
