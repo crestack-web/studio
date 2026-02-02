@@ -1,3 +1,4 @@
+
 'use client';
 import { useMemo, useState } from 'react';
 import MainLayout from '@/components/app/main-layout';
@@ -12,7 +13,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocum
 import { collection, doc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, toDate } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -279,7 +280,7 @@ export default function BusmoPayDashboard() {
                             <TableBody>
                                 {isLoading ? [...Array(3)].map((_, i) => (
                                     <TableRow key={i}><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-6 w-16 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>
-                                )) : sortedPayouts && sortedPayouts.length > 0 ? sortedPayouts.slice(0, 5).map((payout) => (
+                                )) : payouts && payouts.length > 0 ? payouts.slice(0, 5).map((payout) => (
                                     <TableRow key={payout.id}><TableCell>{payout.createdAt.toDate().toLocaleDateString()}</TableCell><TableCell className="font-mono text-xs">#{payout.orderId.substring(0, 7)}</TableCell><TableCell><Badge variant={payoutStatusVariant[payout.status]} className="capitalize">{payout.status === 'paid' && <CheckCircle2 className="mr-1 h-3 w-3"/>}{payout.status}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(payout.amount, currency)}</TableCell></TableRow>
                                 )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No payouts yet.</TableCell></TableRow>)}
                             </TableBody>
