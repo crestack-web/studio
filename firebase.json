@@ -21,23 +21,23 @@
     ],
     "rewrites": [
       {
-        "source": "/initializePayment",
+        "source": "/api/initializePayment",
         "function": "initializePayment"
       },
       {
-        "source": "/verifyPayment",
+        "source": "/api/verifyPayment",
         "function": "verifyPayment"
       },
       {
-        "source": "/fetchBankList",
+        "source": "/api/fetchBankList",
         "function": "fetchBankList"
       },
       {
-        "source": "/verifyBankAccount",
+        "source": "/api/verifyBankAccount",
         "function": "verifyBankAccount"
       },
       {
-        "source": "/paystackWebhook",
+        "source": "/api/paystackWebhook",
         "function": "paystackWebhook"
       }
     ]

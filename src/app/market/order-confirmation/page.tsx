@@ -33,14 +33,12 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
             setVerificationStatus('verifying');
             const verify = async () => {
                 try {
-                    const verifyPaymentUrl = getFunctionUrl('/verifyPayment');
-                    if (!verifyPaymentUrl) {
-                        setVerificationStatus('failed');
-                        setVerificationMessage('Payment verification service is not configured.');
-                        return;
-                    }
+                    const verifyPaymentUrl = getFunctionUrl('verifyPayment');
 
                     const response = await fetch(`${verifyPaymentUrl}?reference=${paystackRef}`);
+                    if (!response.ok) {
+                         throw new Error('Payment verification service failed.');
+                    }
                     const result = await response.json();
                     if (result.success && result.data.status === 'success') {
                         setVerificationStatus('success');

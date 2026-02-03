@@ -205,10 +205,8 @@ const CheckoutContent = () => {
 
             // If it's a Paystack payment, initialize it.
             if (market.country === 'NG' && user.email) {
-                const initializePaymentUrl = getFunctionUrl('/initializePayment');
-                if (!initializePaymentUrl) {
-                    throw new Error('Payment gateway URL is not configured.');
-                }
+                const initializePaymentUrl = getFunctionUrl('initializePayment');
+                
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
@@ -225,20 +223,26 @@ const CheckoutContent = () => {
                     }),
                 });
 
-                const paymentData = await response.json();
-
-                if (!response.ok || !paymentData.success) {
-                    // If payment initialization fails, delete the order we just created.
-                    await deleteDoc(newOrderRef);
-                    throw new Error(paymentData.error || 'Failed to initialize payment.');
+                if (!response.ok) {
+                    // Try to get error from JSON response, otherwise use status text
+                    let errorBody;
+                    try {
+                        errorBody = await response.json();
+                    } catch (e) {
+                        // ignore
+                    }
+                    await deleteDoc(newOrderRef); // Clean up the failed order
+                    throw new Error(errorBody?.error || response.statusText || 'Failed to initialize payment.');
                 }
                 
-                if (paymentData.data?.authorization_url) {
+                const paymentData = await response.json();
+
+                if (paymentData.success && paymentData.data?.authorization_url) {
                     clearCart();
                     window.location.href = paymentData.data.authorization_url; // Redirect to Paystack
                 } else {
-                    await deleteDoc(newOrderRef);
-                    throw new Error('Invalid payment initialization response.');
+                    await deleteDoc(newOrderRef); // Clean up the failed order
+                    throw new Error(paymentData.error || 'Invalid payment initialization response.');
                 }
             } else {
                 // For other payment methods (e.g., Transfer), just confirm the order.
