@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -32,6 +31,7 @@ interface BusinessProfile {
     currency?: string;
     address?: string;
     isVerified?: boolean;
+    slug?: string;
     marketSettings?: {
         bannerImageUrl?: string;
         logoImageUrl?: string;
@@ -53,19 +53,39 @@ interface MarketProduct {
     reviewCount?: number;
 }
 
-// This component now fetches its own data, ensuring it's always fresh.
-const StorePageContent = ({ businessId }: { businessId: string }) => {
+
+// A list of reserved route names to prevent conflicts
+const RESERVED_PATHS = [
+    'add-inventory', 'add-product', 'admin', 'blog', 'business-info', 
+    'currency', 'invest', 'investor', 'login', 'market', 'owner', 'page', 
+    'plans', 'pricing', 'record-expense', 'record-sale', 'role', 
+    'signup', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
+];
+
+export default function StoreSlugPage() {
+    const params = useParams();
+    const slug = params.slug as string;
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isSubscribed, setIsSubscribed] = useState(false);
     const { market } = useMarket();
 
-    const businessProfileRef = useMemoFirebase(() => {
-        if (!firestore || !businessId) return null;
-        return doc(firestore, 'businessProfiles', businessId);
-    }, [firestore, businessId]);
-    const { data: businessProfile, isLoading: isLoadingProfile } = useDoc<BusinessProfile>(businessProfileRef);
+    // Prevent this page from matching reserved routes like /login, /admin, etc.
+    if (RESERVED_PATHS.includes(slug)) {
+        notFound();
+    }
 
+    // 1. Fetch business profile by slug
+    const businessProfileQuery = useMemoFirebase(() => {
+        if (!firestore || !slug) return null;
+        return query(collection(firestore, 'businessProfiles'), where('slug', '==', slug), limit(1));
+    }, [firestore, slug]);
+    
+    const { data: businessData, isLoading: isLoadingProfile } = useCollection<BusinessProfile>(businessProfileQuery);
+    const businessProfile = businessData?.[0];
+    const businessId = businessProfile?.id;
+
+    // 2. Fetch related data once businessId is available
     const verificationRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
         return doc(firestore, 'businessVerifications', businessId);
@@ -78,7 +98,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
         return query(collection(firestore, 'marketProducts'), where('businessId', '==', businessId));
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
-    
+
     const handleSubscribe = () => {
         if (!businessProfile) return;
         setIsSubscribed(true);
@@ -86,43 +106,44 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
             title: "Subscribed!",
             description: `You'll now hear about updates from ${businessProfile.businessName}.`,
         });
-        // In a real app, you would also make an API call here to save the subscription.
     };
 
-    if (isLoadingProfile || isLoadingVerification) {
+    if (isLoadingProfile) {
+        // Initial skeleton while fetching profile by slug
         return (
-             <div className="w-full max-w-6xl">
-                 <Card className="overflow-hidden mb-8">
-                    <Skeleton className="h-48 md:h-64 w-full" />
-                    <CardContent className="p-6 space-y-2">
-                        <Skeleton className="h-10 w-1/2" />
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-5 w-1/4" />
-                    </CardContent>
-                </Card>
-                 <Skeleton className="h-8 w-1/3 mb-6" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {[...Array(4)].map((_, i) => (
-                         <Card key={i} className="overflow-hidden h-full flex flex-col">
-                            <Skeleton className="aspect-video w-full" />
-                            <CardContent className="p-4 flex-1 flex flex-col">
-                                <Skeleton className="h-6 mt-4 w-3/4" />
-                                <Skeleton className="h-8 mt-2 w-1/2" />
-                            </CardContent>
-                        </Card>
-                    ))}
+            <MarketLayout>
+                <div className="w-full max-w-6xl">
+                     <Card className="overflow-hidden mb-8">
+                        <Skeleton className="h-48 md:h-64 w-full" />
+                        <CardContent className="p-6 space-y-2">
+                            <Skeleton className="h-10 w-1/2" />
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-5 w-1/4" />
+                        </CardContent>
+                    </Card>
+                     <Skeleton className="h-8 w-1/3 mb-6" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => (
+                             <Card key={i} className="overflow-hidden h-full flex flex-col">
+                                <Skeleton className="aspect-video w-full" />
+                                <CardContent className="p-4 flex-1 flex flex-col">
+                                    <Skeleton className="h-6 mt-4 w-3/4" />
+                                    <Skeleton className="h-8 mt-2 w-1/2" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
-            </div>
-        )
-    }
-
-    if (!businessProfile) {
-        // This can happen briefly or if the profile is deleted.
-        // The parent component should handle notFound for initial load.
-        notFound();
+            </MarketLayout>
+        );
     }
     
+    if (!businessProfile) {
+        notFound();
+    }
+
     const settings = businessProfile.marketSettings;
+    const isLoading = isLoadingVerification || isLoadingProducts;
 
     return (
         <MarketLayout>
@@ -180,7 +201,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
 
                 <h2 className="text-2xl font-bold font-headline mb-6">Products from {businessProfile.businessName}</h2>
                 
-                {isLoadingProducts && (
+                {isLoading ? ( // Show skeleton for products while loading
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         {[...Array(4)].map((_, i) => (
                              <Card key={i} className="overflow-hidden h-full flex flex-col">
@@ -193,9 +214,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                             </Card>
                         ))}
                     </div>
-                )}
-
-                {productsData && productsData.length > 0 && (
+                ) : productsData && productsData.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         {productsData.map(product => {
                             const rating = product.averageRating || 0;
@@ -231,9 +250,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                             </Link>
                         )})}
                     </div>
-                )}
-                
-                 {productsData && productsData.length === 0 && !isLoadingProducts && (
+                ) : (
                     <div className="text-center py-20 border rounded-lg bg-card">
                         <p className="text-muted-foreground">This store has not listed any products yet.</p>
                     </div>
@@ -256,67 +273,4 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
             </div>
         </MarketLayout>
     );
-};
-
-// A list of reserved route names to prevent conflicts
-const RESERVED_PATHS = [
-    'add-inventory', 'add-product', 'admin', 'blog', 'business-info', 
-    'currency', 'invest', 'investor', 'login', 'market', 'owner', 'page', 
-    'plans', 'pricing', 'record-expense', 'record-sale', 'role', 
-    'signup', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
-];
-
-export default function StoreSlugPage() {
-    const params = useParams();
-    const slug = params.slug as string;
-    const firestore = useFirestore();
-
-    // Prevent this page from matching reserved routes like /login, /admin, etc.
-    if (RESERVED_PATHS.includes(slug)) {
-        notFound();
-    }
-
-    const businessProfileQuery = useMemoFirebase(() => {
-        if (!firestore || !slug) return null;
-        return query(collection(firestore, 'businessProfiles'), where('slug', '==', slug), limit(1));
-    }, [firestore, slug]);
-    
-    const { data: businessData, isLoading } = useCollection<BusinessProfile>(businessProfileQuery);
-    
-    const businessProfile = businessData?.[0];
-
-    if (isLoading) {
-        return (
-            <MarketLayout>
-                <div className="w-full max-w-6xl">
-                     <Card className="overflow-hidden mb-8">
-                        <Skeleton className="h-48 md:h-64 w-full" />
-                        <CardContent className="p-6 space-y-2">
-                            <Skeleton className="h-10 w-1/2" />
-                            <Skeleton className="h-6 w-3/4" />
-                            <Skeleton className="h-5 w-1/4" />
-                        </CardContent>
-                    </Card>
-                     <Skeleton className="h-8 w-1/3 mb-6" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {[...Array(4)].map((_, i) => (
-                             <Card key={i} className="overflow-hidden h-full flex flex-col">
-                                <Skeleton className="aspect-video w-full" />
-                                <CardContent className="p-4 flex-1 flex flex-col">
-                                    <Skeleton className="h-6 mt-4 w-3/4" />
-                                    <Skeleton className="h-8 mt-2 w-1/2" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-            </MarketLayout>
-        );
-    }
-
-    if (!businessProfile) {
-        notFound();
-    }
-
-    return <StorePageContent businessId={businessProfile.id} />;
 }
