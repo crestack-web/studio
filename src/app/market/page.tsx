@@ -488,7 +488,7 @@ export default function MarketPage() {
                 </section>
             ) : (categories && categories.length > 0 &&
                 <section>
-                    <Card>
+                    <Card className="overflow-x-hidden">
                          <CardHeader className="p-4">
                             <CardTitle className="text-lg">Shop by Category</CardTitle>
                         </CardHeader>
@@ -692,5 +692,3 @@ export default function MarketPage() {
     );
 
 }
-
-    
