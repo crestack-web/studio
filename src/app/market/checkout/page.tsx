@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -150,8 +149,8 @@ const CheckoutContent = () => {
     if (isLoadingItems || isLoadingBusiness || isUserLoading) {
         return (
              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6"><Skeleton className="h-48 w-full" /></div>
-                <div className="space-y-8"><Skeleton className="h-32 w-full" /><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /><Skeleton className="h-14 w-full" /></div>
+                <div className="space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /></div>
+                <div className="space-y-8"><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /><Skeleton className="h-14 w-full" /></div>
             </div>
         );
     }
@@ -231,7 +230,7 @@ const CheckoutContent = () => {
 
                 if (paymentData && paymentData.success && paymentData.data?.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.data.authorization_url;
+                    window.location.replace(paymentData.data.authorization_url);
                 } else {
                     await deleteDoc(newOrderRef);
                     throw new Error(paymentData.error || 'Invalid payment initialization response.');
@@ -315,7 +314,10 @@ const CheckoutContent = () => {
 
 export default function CheckoutPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /></div>
+                <div className="space-y-8"><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /><Skeleton className="h-14 w-full" /></div>
+            </div>}>
             <CheckoutContent />
         </Suspense>
     );
