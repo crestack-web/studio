@@ -107,49 +107,65 @@ function SubscribePageContent() {
 
 
     const handlePayment = async () => {
-        if (!firestore || !authUser || !businessId || !planId || finalAmount === null) {
+        if (!firestore || !authUser || !businessData || !planId || finalAmount === null) {
             toast({ title: "Error", description: "Missing required information. Please try again.", variant: "destructive" });
             return;
         }
         setIsProcessing(true);
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const paystackReference = `mock_paystack_${Date.now()}`;
-
         try {
-            const batch = writeBatch(firestore);
-
-            const subscriptionId = `sub_${Date.now()}`;
-            const subscriptionRef = doc(firestore, `users/${authUser.uid}/subscriptions`, subscriptionId);
-            const periodEnd = billingCycle === 'monthly' ? addDays(new Date(), 30) : addDays(new Date(), 365);
-            batch.set(subscriptionRef, {
-                planId: planId,
-                status: 'active',
-                currentPeriodStart: serverTimestamp(),
-                currentPeriodEnd: periodEnd,
-                createdAt: serverTimestamp()
-            });
-
-            const transactionRef = doc(collection(firestore, 'subscriptionTransactions'));
-            batch.set(transactionRef, {
+            // 1. Create a pending subscription transaction document
+            const transactionRef = await addDocumentNonBlocking(collection(firestore, 'subscriptionTransactions'), {
                 userId: authUser.uid,
                 planId: planId,
                 amountPaid: finalAmount,
-                currency: businessData?.currency || 'NGN',
+                currency: businessData.currency || 'NGN',
                 couponUsed: appliedCoupon?.code || null,
-                paystackReference: paystackReference,
-                status: 'successful',
-                createdAt: serverTimestamp()
+                status: 'pending',
+                createdAt: serverTimestamp(),
+                billingCycle: billingCycle,
             });
+
+            if (!transactionRef?.id) {
+                throw new Error("Failed to create transaction record.");
+            }
             
-            await batch.commit();
+            // 2. Initialize payment with Paystack
+            const reference = `SUB-${transactionRef.id}`;
+            const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
-            toast({ title: "Payment Successful!", description: "Your subscription has been activated." });
-            router.push('/owner/home');
+            const response = await fetch('/initializePayment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: authUser.email,
+                    amount: finalAmount,
+                    reference: reference,
+                    metadata: {
+                        callback_url: callbackUrl,
+                    },
+                }),
+            });
 
-        } catch (error) {
+            const paymentData = await response.json();
+
+            if (!response.ok || !paymentData.success) {
+                // If initialization fails, delete the pending transaction
+                await deleteDoc(transactionRef);
+                throw new Error(paymentData.error || 'Failed to initialize payment.');
+            }
+            
+            // 3. Redirect to Paystack
+            if (paymentData.data?.authorization_url) {
+                window.location.href = paymentData.data.authorization_url;
+            } else {
+                 await deleteDoc(transactionRef);
+                throw new Error('Invalid payment initialization response.');
+            }
+
+        } catch (error: any) {
             console.error("Failed to process subscription:", error);
-            toast({ title: "An Error Occurred", description: "Could not activate your subscription. Please contact support.", variant: "destructive" });
+            toast({ title: "An Error Occurred", description: error.message || "Could not start your subscription payment. Please contact support.", variant: "destructive" });
             setIsProcessing(false);
         }
     };

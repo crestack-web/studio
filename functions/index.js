@@ -15,7 +15,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 /**
  * Initializes a Paystack transaction.
- * Expects { amount: number, email: string, metadata: { orderId: string, callback_url: string } } in the request body.
+ * Expects { amount: number, email: string, reference: string, metadata: { callback_url: string } } in the request body.
  */
 exports.initializePayment = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
@@ -23,10 +23,10 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             return res.status(405).send('Method Not Allowed');
         }
 
-        const { amount, email, metadata } = req.body;
+        const { amount, email, reference, metadata } = req.body;
         
-        if (!metadata || !metadata.orderId || !amount || !email) {
-            return res.status(400).json({ success: false, error: 'Missing required fields in body or metadata: orderId, amount, email.' });
+        if (!reference || !amount || !email) {
+            return res.status(400).json({ success: false, error: 'Missing required fields: reference, amount, email.' });
         }
         
         if (!PAYSTACK_SECRET) {
@@ -43,10 +43,16 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                 {
                     email: email,
                     amount: amountInKobo,
-                    reference: metadata.orderId, // Use orderId from metadata as reference
-                    callback_url: metadata.callback_url,
+                    reference: reference,
+                    callback_url: metadata?.callback_url,
                     metadata: {
-                        order_id: metadata.orderId,
+                        custom_fields: [
+                            {
+                                display_name: "Order Reference",
+                                variable_name: "order_reference",
+                                value: reference
+                            }
+                        ]
                     },
                 },
                 {
@@ -73,7 +79,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
 
 
 /**
- * Paystack Webhook to confirm payment and update order.
+ * Paystack Webhook to confirm payment and update order or subscription.
  */
 exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     // Verify webhook signature to ensure the request is from Paystack
@@ -96,91 +102,143 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
 
     if (event.event === 'charge.success') {
         const { reference } = event.data;
-        const orderId = reference;
-
-        const ordersCollectionGroup = db.collectionGroup('orders');
-        const query = ordersCollectionGroup.where(admin.firestore.FieldPath.documentId(), '==', orderId);
         
-        try {
-            const orderSnapshots = await query.get();
-            if (orderSnapshots.empty) {
-                console.warn(`Webhook for non-existent or already processed order ID: ${orderId}`);
-                return res.sendStatus(200);
+        // Handle Subscription Payments
+        if (reference && reference.startsWith('SUB-')) {
+            const transactionId = reference.substring(4);
+            try {
+                const subTxRef = db.collection('subscriptionTransactions').doc(transactionId);
+                
+                await db.runTransaction(async (transaction) => {
+                    const subTxDoc = await transaction.get(subTxRef);
+                    if (!subTxDoc.exists || subTxDoc.data().status === 'successful') {
+                        console.log(`Subscription transaction ${transactionId} already processed or does not exist.`);
+                        return;
+                    }
+
+                    const subTxData = subTxDoc.data();
+                    const userId = subTxData.userId;
+
+                    const subscriptionsRef = db.collection('users').doc(userId).collection('subscriptions');
+                    const subscriptionSnapshot = await subscriptionsRef.limit(1).get();
+
+                    if (subscriptionSnapshot.empty) {
+                        throw new Error(`No subscription found for user ${userId} to activate.`);
+                    }
+
+                    const subscriptionDoc = subscriptionSnapshot.docs[0];
+                    const billingCycle = subTxData.billingCycle || 'monthly';
+                    
+                    const newPeriodEnd = new Date();
+                    if (billingCycle === 'yearly') {
+                        newPeriodEnd.setFullYear(newPeriodEnd.getFullYear() + 1);
+                    } else {
+                        newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
+                    }
+
+                    // Update subscription transaction
+                    transaction.update(subTxRef, { status: 'successful', paystackReference: reference });
+                    // Update user's subscription
+                    transaction.update(subscriptionDoc.ref, {
+                        status: 'active',
+                        currentPeriodEnd: admin.firestore.Timestamp.fromDate(newPeriodEnd)
+                    });
+                });
+                
+                console.log(`Successfully processed subscription payment for user associated with transaction: ${transactionId}`);
+
+            } catch (error) {
+                console.error(`Error processing subscription webhook for reference ${reference}:`, error);
+                return res.sendStatus(500); // Tell Paystack to retry
             }
-
-            const orderDoc = orderSnapshots.docs[0];
-            const orderData = orderDoc.data();
-            const businessId = orderData.sellerBusinessId;
-            const orderRef = orderDoc.ref;
+        
+        // Handle Order Payments
+        } else {
+            const orderId = reference.startsWith('ORD-') ? reference.substring(4) : reference;
+            const ordersCollectionGroup = db.collectionGroup('orders');
+            const query = ordersCollectionGroup.where(admin.firestore.FieldPath.documentId(), '==', orderId);
             
-            await db.runTransaction(async (transaction) => {
-                const freshOrderSnap = await transaction.get(orderRef);
-                const freshOrderData = freshOrderSnap.data();
-
-                if (freshOrderData.status !== 'pending') {
-                    console.log(`Order ${orderId} not pending, skipping webhook update.`);
-                    return;
+            try {
+                const orderSnapshots = await query.get();
+                if (orderSnapshots.empty) {
+                    console.warn(`Webhook for non-existent or already processed order ID: ${orderId}`);
+                    return res.sendStatus(200);
                 }
 
-                transaction.update(orderRef, { status: 'confirmed' });
+                const orderDoc = orderSnapshots.docs[0];
+                const orderData = orderDoc.data();
+                const businessId = orderData.sellerBusinessId;
+                const orderRef = orderDoc.ref;
                 
-                const paymentTxRef = db.collection('businesses').doc(businessId).collection('paymentTransactions').doc();
-                transaction.set(paymentTxRef, {
-                    orderId: orderId,
-                    amount: event.data.amount / 100,
-                    currency: freshOrderData.currency || 'NGN',
-                    status: 'successful',
-                    gateway: 'paystack',
-                    reference: orderId,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp()
-                });
+                await db.runTransaction(async (transaction) => {
+                    const freshOrderSnap = await transaction.get(orderRef);
+                    const freshOrderData = freshOrderSnap.data();
 
-                for (const item of freshOrderData.items) {
-                    const productRef = db.collection('businesses').doc(businessId).collection('products').doc(item.productId);
-                    const marketProductRef = db.collection('marketProducts').doc(item.productId);
-
-                    const productSnap = await transaction.get(productRef);
-                    if (!productSnap.exists()) {
-                        console.warn(`Product ${item.productId} not found for stock deduction.`);
-                        continue;
+                    if (freshOrderData.status !== 'pending') {
+                        console.log(`Order ${orderId} not pending, skipping webhook update.`);
+                        return;
                     }
-                    
-                    const productData = productSnap.data();
-                    let newTotalStock;
 
-                    if (item.variantId && productData.hasVariants && Array.isArray(productData.variants)) {
-                        let variantFound = false;
-                        const newVariants = productData.variants.map((v) => {
-                            if (v.id === item.variantId) {
-                                variantFound = true;
-                                return { ...v, quantity: (v.quantity || 0) - item.quantity };
-                            }
-                            return v;
-                        });
-                        
-                        if (!variantFound) {
-                             console.warn(`Variant ${item.variantId} not found in product ${item.productId}. Skipping stock deduction for this item.`);
-                             continue;
+                    transaction.update(orderRef, { status: 'confirmed' });
+                    
+                    const paymentTxRef = db.collection('businesses').doc(businessId).collection('paymentTransactions').doc();
+                    transaction.set(paymentTxRef, {
+                        orderId: orderId,
+                        amount: event.data.amount / 100,
+                        currency: freshOrderData.currency || 'NGN',
+                        status: 'successful',
+                        gateway: 'paystack',
+                        reference: reference,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    for (const item of freshOrderData.items) {
+                        const productRef = db.collection('businesses').doc(businessId).collection('products').doc(item.productId);
+                        const marketProductRef = db.collection('marketProducts').doc(item.productId);
+
+                        const productSnap = await transaction.get(productRef);
+                        if (!productSnap.exists()) {
+                            console.warn(`Product ${item.productId} not found for stock deduction.`);
+                            continue;
                         }
                         
-                        newTotalStock = newVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
-                        transaction.update(productRef, { variants: newVariants });
-                        transaction.update(marketProductRef, { 
-                            'variants': newVariants.map(v => ({ id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity })), 
-                            'availableQuantity': newTotalStock 
-                        });
-                    } else {
-                        newTotalStock = (productData.quantity || 0) - item.quantity;
-                        transaction.update(productRef, { quantity: newTotalStock });
-                        transaction.update(marketProductRef, { availableQuantity: newTotalStock });
-                    }
-                }
-            });
+                        const productData = productSnap.data();
+                        let newTotalStock;
 
-            console.log(`Successfully processed payment and updated stock for order: ${orderId}`);
-        } catch (error) {
-            console.error(`Error processing webhook for order ${orderId}:`, error);
-            return res.sendStatus(500); // Tell Paystack to retry
+                        if (item.variantId && productData.hasVariants && Array.isArray(productData.variants)) {
+                            let variantFound = false;
+                            const newVariants = productData.variants.map((v) => {
+                                if (v.id === item.variantId) {
+                                    variantFound = true;
+                                    return { ...v, quantity: (v.quantity || 0) - item.quantity };
+                                }
+                                return v;
+                            });
+                            
+                            if (!variantFound) {
+                                 console.warn(`Variant ${item.variantId} not found in product ${item.productId}. Skipping stock deduction for this item.`);
+                                 continue;
+                            }
+                            
+                            newTotalStock = newVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+                            transaction.update(productRef, { variants: newVariants });
+                            transaction.update(marketProductRef, { 
+                                'variants': newVariants.map(v => ({ id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity })), 
+                                'availableQuantity': newTotalStock 
+                            });
+                        } else {
+                            newTotalStock = (productData.quantity || 0) - item.quantity;
+                            transaction.update(productRef, { quantity: newTotalStock });
+                            transaction.update(marketProductRef, { availableQuantity: newTotalStock });
+                        }
+                    }
+                });
+
+                console.log(`Successfully processed payment and updated stock for order: ${orderId}`);
+            } catch (error) {
+                console.error(`Error processing order webhook for reference ${reference}:`, error);
+                return res.sendStatus(500); // Tell Paystack to retry
+            }
         }
     }
 

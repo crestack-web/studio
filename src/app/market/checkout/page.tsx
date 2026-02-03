@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser, deleteDocumentNonBlocking } from '@/firebase';
+import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -171,6 +171,9 @@ const CheckoutContent = () => {
         
         setIsPlacingOrder(true);
         
+        // Use a temporary reference for the new order doc
+        const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
+
         try {
             const orderData = {
                 buyerId: user.uid,
@@ -195,25 +198,21 @@ const CheckoutContent = () => {
                 currency: businessProfile?.currency || 'NGN',
             };
 
-            const newOrderRef = await addDoc(collection(firestore, `businesses/${businessId}/orders`), orderData);
+            // Set the order data first
+            await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG' && user.email) {
-                const functionUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
-                if (!functionUrl) {
-                    await deleteDoc(newOrderRef);
-                    throw new Error('Payment service is not configured.');
-                }
-                
+                const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
-                const response = await fetch(functionUrl, {
+                const response = await fetch('/initializePayment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: user.email,
                         amount: total,
+                        reference: reference,
                         metadata: {
-                            orderId: newOrderRef.id,
                             callback_url: callbackUrl,
                         },
                     }),
@@ -240,6 +239,8 @@ const CheckoutContent = () => {
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
+            // If anything fails after creating the order doc, delete it.
+            await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);
         }
