@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { useLanguage } from '@/context/language-provider';
-import { LanguageSwitcher } from '@/components/app/theme-toggle';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -148,30 +148,30 @@ export default function PricingPage() {
            <div className="md:hidden flex items-center gap-2">
             <ThemeToggle />
             <LanguageSwitcher />
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full max-w-xs">
-                  <SheetHeader>
-                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                    <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
-                  </SheetHeader>
-                  <Logo className="h-8 mb-8" />
-                  <nav className="flex flex-col items-start gap-4">
-                      <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
-                      <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
-                      <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
-                      <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
-                      <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
-                      <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
-                      <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
-                  </nav>
-              </SheetContent>
-            </Sheet>
+             <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full max-w-xs">
+                    <SheetHeader>
+                      <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                      <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
+                    </SheetHeader>
+                    <Logo className="h-8 mb-8" />
+                    <nav className="flex flex-col items-start gap-4">
+                        <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
+                        <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
+                        <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
+                        <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
+                        <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
+                        <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
+                        <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
+                    </nav>
+                </SheetContent>
+              </Sheet>
           </div>
         </div>
       </header>
