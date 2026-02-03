@@ -793,6 +793,17 @@ export default function OwnerHomePage() {
                     <Button variant="secondary" asChild><Link href={statementUrl}>View Full Statement</Link></Button>
                 </CardFooter>
             </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Business Services</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">Get expert help with store setup, product listing, and advertising.</p>
+                    <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">Explore Services</Link></Button>
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> Record Sale</Link></Button>
               <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>Add Stock</Link></Button>
@@ -891,15 +902,6 @@ export default function OwnerHomePage() {
                     <CardContent>
                        <p className="text-sm text-muted-foreground">Turn your consistent business data into funding opportunities.</p>
                        <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">Explore Funding Options</Link></Button>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Business Services</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                       <p className="text-sm text-muted-foreground">Get expert help with store setup, product listing, and advertising.</p>
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">Explore Services</Link></Button>
                     </CardContent>
                 </Card>
           </div>
