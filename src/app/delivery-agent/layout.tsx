@@ -29,13 +29,13 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
-  const isLoading = isUserLoading || isProfileLoading;
+  const isLoading = isUserLoading || (user && isProfileLoading);
 
   useEffect(() => {
     if (isLoading) return;
 
     if (!user) {
-        if (!pathname.startsWith('/delivery-agent/login')) {
+        if (!pathname.startsWith('/delivery-agent/login') && pathname !== '/delivery-agent/finish-signin') {
             router.replace('/delivery-agent/login');
         }
         return;
@@ -46,6 +46,11 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
     }
 
   }, [isLoading, user, userProfile, pathname, router]);
+
+  // Allow access to login/finish-signin pages even while loading or if not an agent yet
+  if (pathname.startsWith('/delivery-agent/login') || pathname === '/delivery-agent/finish-signin') {
+      return <>{children}</>;
+  }
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -65,5 +70,7 @@ export default function DeliveryAgentLayout({
 }) {
   return <ProtectedDeliveryLayout>{children}</ProtectedDeliveryLayout>;
 }
+
+    
 
     

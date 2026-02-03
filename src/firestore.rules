@@ -49,9 +49,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isUserOwner(userId) && request.resource.data.id == userId;
       allow get: if isUserOwner(userId) || isAdmin();
-      allow update: if isUserOwner(userId) 
-                      && request.resource.data.role == resource.data.role
-                      && request.resource.data.businessId == resource.data.businessId;
+      allow update: if isUserOwner(userId) || isAdmin();
       allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -77,7 +75,7 @@ service cloud.firestore {
         allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid);
         allow update: if isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid); // Agent can update status
         allow list: if isBusinessMember(businessId);
-        allow delete: if false;
+        allow delete: if isBusinessMember(businessId) || isAdmin();
       }
     }
     
@@ -138,7 +136,7 @@ service cloud.firestore {
     match /businessVerifications/{businessId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
     match /coupons/{couponId} { allow read, write: if isAdmin(); }
     
-    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if false; }
+    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if true; }
     match /users/{userId}/subscriptions/{subId} { allow read, write: if isUserOwner(userId); }
     
     match /announcements/{announcementId} {
@@ -147,3 +145,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

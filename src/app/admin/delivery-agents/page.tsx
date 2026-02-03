@@ -104,11 +104,9 @@ export default function AdminDeliveryAgentsPage() {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading users...</TableCell></TableRow>
-                                ) : users && users.length > 0 ? users.map((user) => {
+                                ) : users && users.length > 0 ? users.filter(user => user.role === 'Delivery Agent' || agentsMap.has(user.id)).map((user) => {
                                     const agentDetails = agentsMap.get(user.id);
-                                    const isDeliveryAgent = user.role === 'Delivery Agent';
-                                    if (!isDeliveryAgent && !agentDetails) return null; // Only show relevant users
-
+                                    
                                     return (
                                         <TableRow key={user.id}>
                                             <TableCell>
@@ -155,7 +153,7 @@ export default function AdminDeliveryAgentsPage() {
                                             </TableCell>
                                         </TableRow>
                                     )
-                                }).filter(Boolean) : (
+                                }) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No delivery agents found.</TableCell></TableRow>
                                 )}
                             </TableBody>
@@ -189,5 +187,7 @@ export default function AdminDeliveryAgentsPage() {
         </main>
     );
 }
+
+    
 
     

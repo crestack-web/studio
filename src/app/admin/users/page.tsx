@@ -20,7 +20,7 @@ interface User {
     id: string;
     displayName: string;
     email: string;
-    role: 'Owner' | 'Staff' | 'Investor' | 'Admin' | 'Delivery Agent';
+    role: 'Owner' | 'Staff' | 'Investor' | 'Admin' | 'Delivery Agent' | 'User';
     businessId?: string;
 }
 
@@ -48,6 +48,7 @@ const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "o
     Staff: 'secondary',
     Investor: 'outline',
     'Delivery Agent': 'secondary',
+    'User': 'secondary',
 };
 
 const plans: Business['plan'][] = ['shop', 'supermarket', 'multi-branch', 'company'];
@@ -325,3 +326,5 @@ export default function AdminUsersPage() {
         </main>
     );
 }
+
+    

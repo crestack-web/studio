@@ -1,10 +1,11 @@
+
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck, Megaphone } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
-import { usePathname, redirect } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -38,6 +39,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const pathname = usePathname();
+  const router = useRouter();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -57,7 +59,9 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
     if (isLoading) return;
 
     if (!user) {
-      redirect('/admin/login');
+      if (!pathname.startsWith('/admin/login') && !pathname.startsWith('/admin/finish-signin')) {
+        router.replace('/admin/login');
+      }
       return;
     }
     
@@ -68,36 +72,44 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
       // If the user is authenticated but not an admin, redirect them to their correct dashboard.
       switch (userProfile?.role) {
         case 'Owner':
-          redirect('/owner/home');
+          router.replace('/owner/home');
           break;
         case 'Staff':
-          redirect('/staff/home');
+          router.replace('/staff/home');
           break;
         case 'Investor':
-          redirect('/investor/dashboard');
+          router.replace('/investor/dashboard');
           break;
         case 'Delivery Agent':
-          redirect('/delivery-agent/dashboard');
+          router.replace('/delivery-agent/dashboard');
           break;
         default:
           // If role is unknown or not set, redirect to the general login page.
-          redirect('/login');
+          router.replace('/login');
           break;
       }
     }
-  }, [user, userProfile, permissions, isLoading, pathname]);
+  }, [user, userProfile, permissions, isLoading, pathname, router]);
+  
+  // These pages don't need the protected layout
+  if (pathname.startsWith('/admin/login') || pathname.startsWith('/admin/finish-signin')) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return <LoadingScreen />;
   }
-
+  
   const isSuperAdmin = user?.email === 'crestack@gmail.com' || permissions?.isSuperAdmin;
+  if(user && (userProfile?.role === 'Admin' || isSuperAdmin)) {
+    return (
+      <AdminLayout permissions={permissions || {}} isSuperAdmin={!!isSuperAdmin}>
+        {children}
+      </AdminLayout>
+    );
+  }
 
-  return (
-    <AdminLayout permissions={permissions || {}} isSuperAdmin={!!isSuperAdmin}>
-      {children}
-    </AdminLayout>
-  );
+  return <LoadingScreen />;
 };
 
 
@@ -133,11 +145,6 @@ function AdminLayout({
     isSuperAdmin || !item.permission || permissions[item.permission as keyof AdminPermission]
   );
   
-  // The login and finish-signin pages should not have the sidebar or be protected.
-  if (pathname === '/admin/login' || pathname === '/admin/finish-signin' || pathname.startsWith('/delivery-agent')) {
-    return <>{children}</>;
-  }
-
   const SidebarContent = () => (
     <>
       <SidebarHeader>
@@ -195,3 +202,5 @@ function AdminLayout({
 }
 
 export default ProtectedAdminLayout;
+
+    

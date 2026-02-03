@@ -374,7 +374,7 @@ export default function MarketPage() {
                                 >
                                     <Card className="overflow-hidden h-full relative group rounded-lg">
                                         <img 
-                                            src={banner.imageUrl}
+                                            src={banner.imageUrl} 
                                             alt="Promotional banner"
                                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                         />
@@ -604,6 +604,23 @@ export default function MarketPage() {
                 )}
             </section>
 
+             <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 border-blue-200 dark:border-blue-800/50">
+                <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white dark:bg-card rounded-full border shadow-sm">
+                            <Logo variant="busmogo" className="text-3xl"/>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold font-headline">Fast, Reliable Delivery with BusmoGo</h3>
+                            <p className="text-muted-foreground">Get your orders delivered to your doorstep, or earn by becoming a rider.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-4">
+                        <Button asChild><Link href="/market/delivery">Learn More</Link></Button>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* 4. Product Grid (Core) */}
             <section>
                     <h2 className="text-2xl font-bold font-headline mb-6">Recommended For You</h2>
@@ -675,3 +692,5 @@ export default function MarketPage() {
     );
 
 }
+
+    
