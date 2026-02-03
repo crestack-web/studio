@@ -65,7 +65,25 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
     const isAdmin = userProfile?.role === 'Admin' || isSuperAdmin;
     
     if (!isAdmin) {
-      redirect('/login');
+      // If the user is authenticated but not an admin, redirect them to their correct dashboard.
+      switch (userProfile?.role) {
+        case 'Owner':
+          redirect('/owner/home');
+          break;
+        case 'Staff':
+          redirect('/staff/home');
+          break;
+        case 'Investor':
+          redirect('/investor/dashboard');
+          break;
+        case 'Delivery Agent':
+          redirect('/delivery-agent/dashboard');
+          break;
+        default:
+          // If role is unknown or not set, redirect to the general login page.
+          redirect('/login');
+          break;
+      }
     }
   }, [user, userProfile, permissions, isLoading, pathname]);
 
