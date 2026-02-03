@@ -14,7 +14,7 @@ import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -68,7 +68,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
             if (!firestore) return;
             setIsLoadingItems(true);
             const productRef = doc(firestore, 'marketProducts', pId);
-            const productSnap = await runTransaction(firestore, async (transaction) => transaction.get(productRef));
+            const productSnap = await getDoc(productRef);
             if (productSnap.exists()) {
                 const productData = productSnap.data() as MarketProduct;
                 const variant = vId ? productData.variants?.find(v => v.id === vId) : undefined;
@@ -87,7 +87,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
         };
         
         if (productId && quantityStr) { // "Buy Now" flow
-            fetchProductData(productId, variantId, parseInt(quantityStr, 10));
+            fetchProductData(productId, variantId || null, parseInt(quantityStr, 10));
         } else if (cartItems.length > 0) { // "Cart Checkout" flow
             const items: CheckoutItem[] = cartItems.map(item => ({
                 productId: item.id,
@@ -105,7 +105,7 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                  const fetchBusinessId = async () => {
                      if (!firestore) return;
                      const productRef = doc(firestore, 'marketProducts', items[0].productId);
-                     const productSnap = await runTransaction(firestore, async (transaction) => transaction.get(productRef));
+                     const productSnap = await getDoc(productRef);
                      if (productSnap.exists()) {
                         const businessId = (productSnap.data() as MarketProduct).businessId;
                         setCheckoutItems(items.map(it => ({ ...it, businessId })));
@@ -172,12 +172,6 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
         setIsPlacingOrder(true);
         
         try {
-            // Using a batched write for atomicity
-            const batch = writeBatch(firestore);
-
-            const orderCollectionRef = collection(firestore, `businesses/${businessId}/orders`);
-            const newOrderRef = doc(orderCollectionRef);
-            
             const orderData = {
                 buyerId: user.uid,
                 sellerBusinessId: businessId,
@@ -193,62 +187,47 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                 subtotal, 
                 deliveryFee, 
                 total,
-                status: market.country === 'NG' ? 'confirmed' : 'pending',
+                status: 'pending' as const,
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
-                payoutStatus: 'unpaid',
+                payoutStatus: 'unpaid' as const,
                 createdAt: serverTimestamp()
             };
 
-            batch.set(newOrderRef, orderData);
+            const newOrderRef = await addDoc(collection(firestore, `businesses/${businessId}/orders`), orderData);
 
-             // Create a transaction record only for BusmoPay (Nigerian) orders
-            if (market.country === 'NG') {
-                const transactionRef = doc(collection(firestore, `businesses/${businessId}/paymentTransactions`));
-                batch.set(transactionRef, {
-                    orderId: newOrderRef.id,
-                    amount: total,
-                    currency: businessProfile.currency,
-                    status: 'successful',
-                    gateway: 'paystack',
-                    reference: `mock_ref_${Date.now()}`,
-                    createdAt: serverTimestamp()
+            if (market.country === 'NG' && user.email) {
+                const functionUrl = 'https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment';
+                
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orderId: newOrderRef.id,
+                        amount: total,
+                        email: user.email,
+                    }),
                 });
-            }
 
-            // Deduct stock for each item in the order
-            for (const item of checkoutItems) {
-                const productRef = doc(firestore, `businesses/${businessId}/products`, item.productId);
-                const marketProductRef = doc(firestore, 'marketProducts', item.productId);
-
-                // Note: In a real-world scenario with high traffic, this simple read-then-write
-                // could lead to race conditions. A more robust solution would use Firestore Transactions
-                // to read the current stock and update it in one atomic operation.
-                // For this prototype, we'll proceed with batched writes for simplicity.
-                const productSnap = await getDoc(doc(firestore, `businesses/${businessId}/products`, item.productId));
-                 if (productSnap.exists()) {
-                    const productData = productSnap.data() as any;
-                    if (item.variantId && productData.hasVariants) {
-                        const newVariants = productData.variants.map((v: any) => 
-                            v.id === item.variantId ? { ...v, quantity: v.quantity - item.quantity } : v
-                        );
-                        const newTotalStock = newVariants.reduce((sum: number, v: any) => sum + v.quantity, 0);
-                        batch.update(productRef, { variants: newVariants });
-                        batch.update(marketProductRef, { availableQuantity: newTotalStock });
-                    } else {
-                        const newQuantity = productData.quantity - item.quantity;
-                        batch.update(productRef, { quantity: newQuantity });
-                        batch.update(marketProductRef, { availableQuantity: newQuantity });
-                    }
+                if (!response.ok) {
+                    await deleteDoc(newOrderRef);
+                    throw new Error('Failed to initialize payment.');
                 }
-            }
-            
-            await batch.commit();
-            
-            clearCart(); // Clear cart after successful order
 
-            router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
-            
+                const paymentData = await response.json();
+
+                if (paymentData && paymentData.authorization_url) {
+                    clearCart();
+                    window.location.href = paymentData.authorization_url;
+                } else {
+                    await deleteDoc(newOrderRef);
+                    throw new Error('Invalid payment initialization response.');
+                }
+            } else {
+                clearCart();
+                router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
+            }
+
         } catch (error) {
             console.error("Error placing order: ", error);
             toast({ variant: 'destructive', title: 'Error placing order', description: 'There was an issue placing your order. Please try again.' });
