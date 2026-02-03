@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -41,6 +42,7 @@ interface MarketProduct {
     hasVariants: boolean;
     averageRating?: number;
     reviewCount?: number;
+    deliveryTargets?: string[];
 }
 
 interface MarketBanner {
@@ -221,45 +223,26 @@ export default function MarketPage() {
     }, [firestore]);
     const { data: businessProfiles, isLoading: isLoadingProfiles } = useCollection<BusinessProfile>(businessProfilesQuery);
 
-    // Query for products available only in the specific city
-    const cityProductsQuery = useMemoFirebase(() => {
+    // Efficiently query for products available in the user's market
+    const productsQuery = useMemoFirebase(() => {
         if (!firestore || !market.country || !market.city) return null;
+        const deliveryTargets = [
+            `COUNTRY_${market.country}`,
+            `CITY_${market.country}_${market.city}`
+        ];
         return query(
             collection(firestore, 'marketProducts'), 
-            where('country', '==', market.country),
-            where('deliveryCities', 'array-contains', market.city)
+            where('deliveryTargets', 'array-contains-any', deliveryTargets)
         );
     }, [firestore, market]);
-    const { data: cityProducts, isLoading: isLoadingCity } = useCollection<MarketProduct>(cityProductsQuery);
+    const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
 
-    // Query for products available nationwide in the same country
-    const nationwideProductsQuery = useMemoFirebase(() => {
-        if (!firestore || !market.country) return null;
-        return query(
-            collection(firestore, 'marketProducts'),
-            where('country', '==', market.country),
-            where('deliveryType', '==', 'nationwide')
-        );
-    }, [firestore, market.country]);
-    const { data: nationwideProducts, isLoading: isLoadingNationwide } = useCollection<MarketProduct>(nationwideProductsQuery);
-
-    const isLoadingProducts = isLoadingCity || isLoadingNationwide;
-
-    // Merge and deduplicate products
-    const productsData = useMemo(() => {
-        if (!cityProducts && !nationwideProducts) return [];
-        const allProducts = new Map<string, MarketProduct>();
-        (cityProducts || []).forEach(p => allProducts.set(p.id, p));
-        (nationwideProducts || []).forEach(p => allProducts.set(p.id, p));
-        return Array.from(allProducts.values());
-    }, [cityProducts, nationwideProducts]);
-    
     const filteredProducts = useMemo(() => {
         if (!searchQuery) {
-            return productsData;
+            return productsData || [];
         }
         const lowercasedQuery = searchQuery.toLowerCase();
-        return productsData.filter(product => 
+        return (productsData || []).filter(product => 
             (product.productName?.toLowerCase().includes(lowercasedQuery)) ||
             (product.businessName?.toLowerCase().includes(lowercasedQuery)) ||
             (product.category?.toLowerCase().includes(lowercasedQuery))
@@ -680,7 +663,7 @@ export default function MarketPage() {
                         </CardContent>
                     </Card>
                 )}
-                {!isLoadingProducts && productsData.length > 0 && filteredProducts.length === 0 && (
+                {!isLoadingProducts && productsData && productsData.length > 0 && filteredProducts.length === 0 && (
                     <div className="text-center py-20 border rounded-lg bg-card flex flex-col items-center">
                         <Search className="h-12 w-12 text-muted-foreground" />
                         <h2 className="mt-6 text-xl font-semibold">No products found for "{searchQuery}"</h2>

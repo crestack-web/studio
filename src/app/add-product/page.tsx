@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import MainLayout from '@/components/app/main-layout';
@@ -63,8 +64,7 @@ interface Business {
     plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
     currency?: string;
     country?: string;
-    deliveryType?: 'nationwide' | 'cities';
-    deliveryCities?: string[];
+    deliveryTargets?: string[];
 }
 
 interface MarketCategory {
@@ -147,7 +147,7 @@ export default function AddProductPage() {
     const { data: categoriesData, isLoading: isLoadingCategories } = useCollection<MarketCategory>(categoriesQuery);
 
     const canManufacture = true;
-    const deliverySettingsConfigured = !!businessData?.deliveryType;
+    const deliverySettingsConfigured = !!businessData?.deliveryTargets && businessData.deliveryTargets.length > 0;
 
     useEffect(() => {
         if (isEditMode && productData) {
@@ -371,8 +371,7 @@ export default function AddProductPage() {
                         })),
                         country: businessData.country,
                         currency: businessData.currency,
-                        deliveryType: businessData.deliveryType,
-                        deliveryCities: businessData.deliveryCities || [],
+                        deliveryTargets: businessData.deliveryTargets || [],
                     }, { merge: true });
                 } else {
                     deleteDocumentNonBlocking(marketProductRef);
@@ -402,8 +401,7 @@ export default function AddProductPage() {
                         })),
                         country: businessData.country,
                         currency: businessData.currency,
-                        deliveryType: businessData.deliveryType,
-                        deliveryCities: businessData.deliveryCities || [],
+                        deliveryTargets: businessData.deliveryTargets || [],
                     };
                     setDocumentNonBlocking(doc(collection(firestore, 'marketProducts'), newProductRef.id), marketProductData, {});
                 }

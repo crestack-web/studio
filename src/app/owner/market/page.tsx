@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -39,9 +39,9 @@ const createSlug = (name: string) => {
     return name
         .toLowerCase()
         .replace(/&/g, 'and')
-        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '') // remove special chars
         .trim()
-        .replace(/\s+/g, '-')
+        .replace(/\s+/g, '-') // replace spaces with -
         .replace(/-+/g, '-');
 };
 
@@ -59,8 +59,7 @@ interface Business {
     marketDescription?: string; 
     marketSettings?: MarketSettings; 
     country?: string;
-    deliveryType?: 'nationwide' | 'cities';
-    deliveryCities?: string[];
+    deliveryTargets?: string[];
 }
 interface SellerBankAccount {
     bankName: string;
@@ -88,12 +87,13 @@ const SettingsContent = () => {
     const [settings, setSettings] = useState<MarketSettings | undefined>(undefined);
     const [description, setDescription] = useState('');
     const [slug, setSlug] = useState('');
-    const [deliveryType, setDeliveryType] = useState<'nationwide' | 'cities' | undefined>();
-    const [deliveryCities, setDeliveryCities] = useState<string[]>([]);
+    type DeliveryType = 'none' | 'nationwide' | 'cities';
+    const [deliveryConfig, setDeliveryConfig] = useState<Record<string, { type: DeliveryType; cities: string[] }>>({});
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (businessData) {
+            // General settings
             const defaultSettings: MarketSettings = {
                 isStoreActive: false,
                 bannerImageUrl: '',
@@ -103,27 +103,33 @@ const SettingsContent = () => {
                 payment: { allowBankTransfer: true, allowPayOnDelivery: true, bankName: '', accountNumber: '', paymentInstructions: 'Please use your Order ID as the payment reference.' },
                 delivery: { allowDelivery: true, allowPickup: true, deliveryFee: 1500, deliveryDays: ['Monday', 'Wednesday', 'Friday'] }
             };
-            
             const currentSettings = businessData.marketSettings || {};
-
             const mergedSettings: MarketSettings = {
-                ...defaultSettings,
-                ...currentSettings,
-                payment: {
-                    ...defaultSettings.payment,
-                    ...(currentSettings.payment || {})
-                },
-                delivery: {
-                    ...defaultSettings.delivery,
-                    ...(currentSettings.delivery || {})
-                }
+                ...defaultSettings, ...currentSettings,
+                payment: { ...defaultSettings.payment, ...(currentSettings.payment || {}) },
+                delivery: { ...defaultSettings.delivery, ...(currentSettings.delivery || {}) }
             };
-
             setSettings(mergedSettings);
             setDescription(businessData.marketDescription ?? `Welcome to ${businessData.businessName} on Busmo! We sell quality ${businessData.businessType} products.`);
             setSlug(businessData.slug || createSlug(businessData.businessName));
-            setDeliveryType(businessData.deliveryType);
-            setDeliveryCities(businessData.deliveryCities || []);
+
+            // Delivery settings
+            const initialConfig: Record<string, { type: DeliveryType; cities: string[] }> = {};
+            const targets = businessData.deliveryTargets || [];
+            markets.forEach(market => {
+                const countryCode = market.code;
+                const nationwideTarget = `COUNTRY_${countryCode}`;
+                const cityTargets = targets.filter(t => t.startsWith(`CITY_${countryCode}_`)).map(t => t.split('_')[2]);
+                
+                if (targets.includes(nationwideTarget)) {
+                    initialConfig[countryCode] = { type: 'nationwide', cities: [] };
+                } else if (cityTargets.length > 0) {
+                    initialConfig[countryCode] = { type: 'cities', cities: cityTargets };
+                } else {
+                    initialConfig[countryCode] = { type: 'none', cities: [] };
+                }
+            });
+            setDeliveryConfig(initialConfig);
         }
     }, [businessData]);
     
@@ -148,29 +154,35 @@ const SettingsContent = () => {
         handleSettingsChange('delivery.deliveryDays', newDays);
     };
 
+    const handleDeliveryConfigChange = (countryCode: string, type: DeliveryType, cities?: string[]) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            [countryCode]: { type, cities: cities || (type === 'cities' ? prev[countryCode]?.cities || [] : []) }
+        }));
+    };
+
+    const handleCityToggle = (countryCode: string, city: string) => {
+        setDeliveryConfig(prev => {
+            const currentCities = prev[countryCode]?.cities || [];
+            const newCities = currentCities.includes(city) ? currentCities.filter(c => c !== city) : [...currentCities, city];
+            return {
+                ...prev,
+                [countryCode]: { ...prev[countryCode], type: 'cities', cities: newCities }
+            }
+        });
+    };
+
     const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        const options = {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1280,
-            useWebWorker: true
-        };
-
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
         try {
             const compressedFile = await imageCompression(file, options);
             const reader = new FileReader();
-            reader.onloadend = () => {
-                handleSettingsChange(imageType, reader.result as string);
-            };
+            reader.onloadend = () => handleSettingsChange(imageType, reader.result as string);
             reader.readAsDataURL(compressedFile);
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Image compression failed',
-                description: 'Please try again with a different image.',
-            });
+            toast({ variant: 'destructive', title: 'Image compression failed', description: 'Please try again with a different image.' });
         }
     };
 
@@ -182,19 +194,32 @@ const SettingsContent = () => {
             const businessDocRef = doc(firestore, 'businesses', businessId);
             const businessProfileDocRef = doc(firestore, 'businessProfiles', businessId);
 
+            // Process delivery config into deliveryTargets
+            const deliveryTargets: string[] = [];
+            Object.entries(deliveryConfig).forEach(([countryCode, config]) => {
+                if (config.type === 'nationwide') {
+                    deliveryTargets.push(`COUNTRY_${countryCode}`);
+                } else if (config.type === 'cities' && config.cities.length > 0) {
+                    config.cities.forEach(city => deliveryTargets.push(`CITY_${countryCode}_${city}`));
+                }
+            });
+
             // Use non-blocking updates for a faster UI response.
             updateDocumentNonBlocking(businessProfileDocRef, {
                 marketDescription: description,
                 slug: businessSlug,
                 marketSettings: settings,
+                deliveryTargets: deliveryTargets,
+                deliveryType: deleteField(),
+                deliveryCities: deleteField(),
             });
 
             updateDocumentNonBlocking(businessDocRef, {
                 slug: businessSlug,
-                deliveryType: deliveryType,
-                deliveryCities: deliveryCities || [],
+                deliveryTargets: deliveryTargets,
+                deliveryType: deleteField(),
+                deliveryCities: deleteField(),
             });
-
 
             toast({ title: "Settings Saved", description: "Your market settings have been updated." });
         } catch (error) {
@@ -203,18 +228,6 @@ const SettingsContent = () => {
         } finally {
             setIsSaving(false);
         }
-    };
-
-    const availableCities = useMemo(() => {
-        if (!businessData?.country) return [];
-        const marketData = markets.find(m => m.code === businessData.country);
-        return marketData?.cities || [];
-    }, [businessData?.country]);
-
-    const handleCityChange = (city: string) => {
-        setDeliveryCities(prev => 
-            prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
-        );
     };
     
     if (isLoadingBusiness || !settings) {
@@ -336,36 +349,36 @@ const SettingsContent = () => {
                     <CardTitle>Delivery Area</CardTitle>
                     <CardDescription>Define where you can deliver products to. This is required to list items on the market.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <RadioGroup value={deliveryType} onValueChange={(val) => setDeliveryType(val as 'nationwide' | 'cities')} className="space-y-4">
-                         <Label htmlFor="delivery-nationwide" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <RadioGroupItem value="nationwide" id="delivery-nationwide" className="peer mt-1" />
-                            <div className="ml-4">
-                                <p className="font-semibold flex items-center gap-2"><Globe className="h-4 w-4"/> Nationwide Delivery</p>
-                                <p className="text-sm text-muted-foreground">You can deliver to any city in {businessData?.country}.</p>
-                            </div>
-                        </Label>
-                        <Label htmlFor="delivery-cities" className="flex items-start rounded-md border-2 p-4 cursor-pointer peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <RadioGroupItem value="cities" id="delivery-cities" className="peer mt-1" />
-                            <div className="ml-4">
-                                <p className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4"/> Deliver to Specific Cities</p>
-                                <p className="text-sm text-muted-foreground">Select the cities you can deliver to.</p>
-                            </div>
-                        </Label>
-                    </RadioGroup>
-                    {deliveryType === 'cities' && (
-                        <div className="space-y-2 pt-4 border-t mt-4">
-                            <Label>Available Cities</Label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
-                                {availableCities.map(city => (
-                                    <div key={city} className="flex items-center space-x-2">
-                                        <Checkbox id={`city-${city}`} checked={deliveryCities.includes(city)} onCheckedChange={() => handleCityChange(city)} disabled={isSaving} />
-                                        <Label htmlFor={`city-${city}`} className="font-normal">{city}</Label>
+                <CardContent className="space-y-6">
+                    {markets.map(market => (
+                        <div key={market.code} className="space-y-4 rounded-lg border p-4">
+                            <Label className="text-base font-semibold flex items-center gap-2">
+                                <Image src={`https://flagcdn.com/w20/${market.code.toLowerCase()}.png`} alt={`${market.name} flag`} width={20} height={15} className="rounded-sm" />
+                                {market.name}
+                            </Label>
+                            <Select value={deliveryConfig[market.code]?.type || 'none'} onValueChange={(val: DeliveryType) => handleDeliveryConfigChange(market.code, val)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Don't deliver to this country</SelectItem>
+                                    <SelectItem value="nationwide">Nationwide Delivery</SelectItem>
+                                    <SelectItem value="cities">Deliver to Specific Cities</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {deliveryConfig[market.code]?.type === 'cities' && (
+                                <div className="space-y-2 pt-2">
+                                    <Label>Available Cities in {market.name}</Label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                                        {market.cities.map(city => (
+                                            <div key={city} className="flex items-center space-x-2">
+                                                <Checkbox id={`${market.code}-${city}`} checked={deliveryConfig[market.code]?.cities.includes(city)} onCheckedChange={() => handleCityToggle(market.code, city)} disabled={isSaving} />
+                                                <Label htmlFor={`${market.code}-${city}`} className="font-normal">{city}</Label>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    ))}
                 </CardContent>
             </Card>
 
@@ -577,6 +590,7 @@ const ProductsContent = ({ setActiveSection }: { setActiveSection: (section: str
                     image: v.image || null,
                     availableQuantity: v.quantity
                 })) : [],
+                deliveryTargets: businessData.deliveryTargets || [],
                 createdAt: new Date(), // Using client-side date for consistency,
             };
             setDocumentNonBlocking(marketProductDocRef, marketProductData, { merge: true });
