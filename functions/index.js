@@ -1,7 +1,9 @@
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const cors = require("cors")({ origin: true });
+const crypto = require("crypto");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -73,8 +75,22 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
  * Paystack Webhook to confirm payment and update order.
  */
 exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
-    // SECURITY: It's crucial to verify the webhook signature in a production environment
-    // to ensure the request is genuinely from Paystack.
+    // Verify webhook signature to ensure the request is from Paystack
+    if (!PAYSTACK_SECRET) {
+        console.error("Paystack secret key is not configured for webhook verification.");
+        return res.status(500).send('Webhook not configured.');
+    }
+
+    const signature = req.headers["x-paystack-signature"];
+    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET)
+                       .update(req.rawBody)
+                       .digest('hex');
+
+    if (hash !== signature) {
+        console.warn('Invalid webhook signature received.');
+        return res.status(401).send('Invalid signature');
+    }
+
     const event = req.body;
 
     if (event.event === 'charge.success') {
@@ -131,18 +147,29 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
                     const productData = productSnap.data();
                     let newTotalStock;
 
-                    if (item.variantId && productData.hasVariants) {
+                    if (item.variantId && productData.hasVariants && Array.isArray(productData.variants)) {
+                        let variantFound = false;
                         const newVariants = productData.variants.map((v) => {
                             if (v.id === item.variantId) {
-                                return { ...v, quantity: v.quantity - item.quantity };
+                                variantFound = true;
+                                return { ...v, quantity: (v.quantity || 0) - item.quantity };
                             }
                             return v;
                         });
-                        newTotalStock = newVariants.reduce((sum, v) => sum + v.quantity, 0);
+                        
+                        if (!variantFound) {
+                             console.warn(`Variant ${item.variantId} not found in product ${item.productId}. Skipping stock deduction for this item.`);
+                             continue;
+                        }
+                        
+                        newTotalStock = newVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
                         transaction.update(productRef, { variants: newVariants });
-                        transaction.update(marketProductRef, { 'variants': newVariants.map(v => ({ id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity, image: v.image || null })), 'availableQuantity': newTotalStock });
+                        transaction.update(marketProductRef, { 
+                            'variants': newVariants.map(v => ({ id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity })), 
+                            'availableQuantity': newTotalStock 
+                        });
                     } else {
-                        newTotalStock = productData.quantity - item.quantity;
+                        newTotalStock = (productData.quantity || 0) - item.quantity;
                         transaction.update(productRef, { quantity: newTotalStock });
                         transaction.update(marketProductRef, { availableQuantity: newTotalStock });
                     }

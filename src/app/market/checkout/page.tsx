@@ -191,13 +191,19 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
                 payoutStatus: 'unpaid' as const,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
+                currency: businessProfile?.currency || 'NGN',
             };
 
             const newOrderRef = await addDoc(collection(firestore, `businesses/${businessId}/orders`), orderData);
 
             if (market.country === 'NG' && user.email) {
-                const functionUrl = 'https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment';
+                const functionUrl = process.env.NEXT_PUBLIC_PAYMENT_FUNCTION_URL;
+
+                if (!functionUrl) {
+                    await deleteDoc(newOrderRef);
+                    throw new Error('Payment function URL is not configured.');
+                }
                 
                 const response = await fetch(functionUrl, {
                     method: 'POST',
