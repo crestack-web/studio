@@ -719,13 +719,13 @@ export default function OwnerHomePage() {
                 </AlertDescription>
             </Alert>
         )}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <div>
-                <h1 className="text-xl md:text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
-                <p className="text-muted-foreground">Here's what's happening with your business today.</p>
+                <h1 className="text-lg md:text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
+                <p className="text-muted-foreground text-sm md:text-base">Here's what's happening with your business today.</p>
             </div>
              {showBranchSelector && (
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
                         <SelectTrigger className="w-full sm:w-[180px]">
