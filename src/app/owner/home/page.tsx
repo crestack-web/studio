@@ -132,6 +132,7 @@ interface MarketplaceOrder {
     id: string;
     total: number;
     source?: string;
+    status: 'pending' | 'confirmed' | 'in progress' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
 }
 
 interface Announcement {
@@ -160,9 +161,16 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
 
     const { data: marketOrders, isLoading } = useCollection<MarketplaceOrder>(marketOrdersQuery);
 
-    const marketRevenue = useMemo(() => {
-        if (!marketOrders) return 0;
-        return marketOrders.reduce((acc, order) => acc + order.total, 0);
+    const { successfulOrders, marketRevenue } = useMemo(() => {
+        if (!marketOrders) return { successfulOrders: [], marketRevenue: 0 };
+        
+        const successful = marketOrders.filter(order => 
+            !['pending', 'cancelled', 'returned'].includes(order.status)
+        );
+        
+        const revenue = successful.reduce((acc, order) => acc + order.total, 0);
+
+        return { successfulOrders: successful, marketRevenue: revenue };
     }, [marketOrders]);
 
     if (isLoading) {
@@ -178,10 +186,10 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                {marketOrders && marketOrders.length > 0 ? (
+                {successfulOrders && successfulOrders.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4">
                         <div className="text-center">
-                            <p className="text-2xl font-bold">{marketOrders.length}</p>
+                            <p className="text-2xl font-bold">{successfulOrders.length}</p>
                             <p className="text-xs text-muted-foreground">Orders</p>
                         </div>
                         <div className="text-center">
@@ -190,7 +198,7 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-center text-muted-foreground py-4">No marketplace orders yet.</p>
+                    <p className="text-sm text-center text-muted-foreground py-4">No successful marketplace orders yet.</p>
                 )}
             </CardContent>
         </Card>
@@ -860,7 +868,7 @@ export default function OwnerHomePage() {
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-destructive/10 rounded-full"><PackageMinus className="w-4 h-4 text-destructive" /></div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Inventory Outlook</p>
+                                <p className="text-xs text-muted-foreground">Stock Outlook</p>
                                 {forecasts.inventoryOutlook ? (<p className="font-semibold text-destructive text-xs">{forecasts.inventoryOutlook}</p>) : (<p className="text-xs text-muted-foreground">Stock levels are healthy.</p>)}
                             </div>
                         </div>
