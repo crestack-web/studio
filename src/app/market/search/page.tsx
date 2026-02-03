@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useState } from 'react';
@@ -8,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
 import { Search } from 'lucide-react';
 import { useMarket } from '@/context/market-provider';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,7 @@ interface MarketProduct {
     category: string;
     images?: string[];
     hint?: string;
+    currency?: string;
 }
 
 interface MarketCategory {
@@ -32,6 +34,8 @@ interface MarketCategory {
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
     const { market } = useMarket();
+    const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+
     return (
         <Link href={`/market/product/${product.id}`} className="block group">
             <Card className="h-full flex flex-col overflow-hidden hover:border-primary transition-colors duration-200">
@@ -46,7 +50,7 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
                 </div>
                 <CardContent className="p-3 flex-1 flex flex-col">
                     <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName}</h3>
-                    <p className="font-bold text-base mt-2">{formatCurrency(product.price, market.country)}</p>
+                    <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
                     <p className="text-xs text-muted-foreground">{product.businessName}</p>
                 </CardContent>
             </Card>

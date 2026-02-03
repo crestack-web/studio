@@ -36,30 +36,12 @@ export const markets = [
 // Rates are how many units of the target currency you get for 1 NGN.
 const exchangeRates: { [key: string]: number } = {
     NGN: 1,
-    GHS: 1 / 100, // Example: 1 GHS = 100 NGN
-    XOF: 1 / 2.5, // Example: 1 CFA = 2.5 NGN
-    XAF: 1 / 2.5, // Example: 1 CFA = 2.5 NGN
+    GHS: 0.09, // ~1 GHS = 11 NGN
+    XOF: 0.4,  // ~1 NGN = 0.4 XOF
+    XAF: 0.4,  // ~1 NGN = 0.4 XAF
 };
 
-function getCountryCode(currencyOrCountryCode?: string): string {
-    if (!currencyOrCountryCode) return 'NG';
-
-    // Check if it's a country code (e.g., 'NG', 'GH')
-    const marketByCountry = markets.find(m => m.code === currencyOrCountryCode);
-    if (marketByCountry) {
-        return marketByCountry.code;
-    }
-    
-    // Check if it's a currency name (e.g., 'NGN', 'GHS')
-    const marketByCurrency = markets.find(m => m.currency === currencyOrCountryCode);
-    if (marketByCurrency) {
-      return marketByCurrency.code;
-    }
-    
-    return 'NG'; // Default to Nigeria
-}
-
-function getCurrencyName(currencyOrCountryCode?: string): string {
+export function getCurrencyName(currencyOrCountryCode?: string): string {
     if (!currencyOrCountryCode) return 'NGN';
      // Check if it's a currency name (e.g., 'NGN', 'GHS')
     const marketByCurrency = markets.find(m => m.currency === currencyOrCountryCode);
@@ -72,6 +54,35 @@ function getCurrencyName(currencyOrCountryCode?: string): string {
     }
     
     return 'NGN'; // Default to Nigeria
+}
+
+/**
+ * Converts a value from a source currency to a target currency.
+ * @param value The amount to convert.
+ * @param fromCurrencyName The source currency code (e.g., 'NGN').
+ * @param toCurrencyName The target currency code (e.g., 'GHS').
+ * @returns The converted value.
+ */
+export function convertCurrency(value: number, fromCurrencyName?: string, toCurrencyName?: string): number {
+    if (!fromCurrencyName || !toCurrencyName || fromCurrencyName === toCurrencyName) {
+        return value;
+    }
+
+    const fromRate = exchangeRates[fromCurrencyName];
+    const toRate = exchangeRates[toCurrencyName];
+
+    if (fromRate === undefined || toRate === undefined) {
+        // console.warn(`Cannot convert from ${fromCurrencyName} to ${toCurrencyName}. Missing exchange rate.`);
+        return value; // Return original value if conversion is not possible
+    }
+
+    // Convert 'from' currency to base currency (NGN)
+    const valueInNgn = value / fromRate;
+
+    // Convert from base currency (NGN) to 'to' currency
+    const convertedValue = valueInNgn * toRate;
+
+    return convertedValue;
 }
 
 
@@ -88,6 +99,25 @@ export function convertFromNgn(ngnValue: number, targetCurrencyOrCountryCode?: s
         return ngnValue;
     }
     return ngnValue * rate;
+}
+
+
+export function getCountryCode(currencyOrCountryCode?: string): string {
+    if (!currencyOrCountryCode) return 'NG';
+
+    // Check if it's a country code (e.g., 'NG', 'GH')
+    const marketByCountry = markets.find(m => m.code === currencyOrCountryCode);
+    if (marketByCountry) {
+        return marketByCountry.code;
+    }
+    
+    // Check if it's a currency name (e.g., 'NGN', 'GHS')
+    const marketByCurrency = markets.find(m => m.currency === currencyOrCountryCode);
+    if (marketByCurrency) {
+      return marketByCurrency.code;
+    }
+    
+    return 'NG'; // Default to Nigeria
 }
 
 

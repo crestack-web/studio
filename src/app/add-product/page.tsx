@@ -370,6 +370,7 @@ export default function AddProductPage() {
                             id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity
                         })),
                         country: businessData.country,
+                        currency: businessData.currency,
                         deliveryType: businessData.deliveryType,
                         deliveryCities: businessData.deliveryCities || [],
                     }, { merge: true });
@@ -400,6 +401,7 @@ export default function AddProductPage() {
                             id: v.id, name: v.name, price: v.price, availableQuantity: v.quantity
                         })),
                         country: businessData.country,
+                        currency: businessData.currency,
                         deliveryType: businessData.deliveryType,
                         deliveryCities: businessData.deliveryCities || [],
                     };

@@ -11,7 +11,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ interface MarketProduct {
     businessName: string;
     price: number;
     oldPrice?: number;
+    currency: string;
     category: string;
     description?: string;
     availableQuantity?: number;
@@ -84,10 +85,13 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
     const { addItem } = useCart();
     const { toast } = useToast();
     const router = useRouter();
+    const { market } = useMarket();
 
-    const oldPrice = product.oldPrice;
-    const showDiscount = oldPrice && oldPrice > product.price;
-    const discountAmount = showDiscount ? oldPrice - product.price : 0;
+    const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+    const oldPrice = product.oldPrice ? convertCurrency(product.oldPrice, product.currency, getCurrencyName(market.country)) : undefined;
+
+    const showDiscount = oldPrice && oldPrice > displayPrice;
+    const discountAmount = showDiscount ? oldPrice - displayPrice : 0;
     const imageUrl = product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`;
     const stock = product.availableQuantity;
 
@@ -103,7 +107,7 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
         addItem({
             id: product.id,
             name: product.productName,
-            price: product.price,
+            price: displayPrice,
             quantity: 1,
             image: imageUrl,
             variantId: undefined,
@@ -129,7 +133,7 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
                     />
                     {showDiscount && (
                         <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded-md shadow-lg">
-                            SAVE {formatCurrency(discountAmount)}
+                            SAVE {formatCurrency(discountAmount, market.country)}
                         </div>
                     )}
                 </div>
@@ -138,8 +142,8 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
                     
                     <div className="mt-2 space-y-1">
                         <div className="flex items-baseline gap-2">
-                            <p className="font-bold text-lg">{formatCurrency(product.price)}</p>
-                            {showDiscount && <p className="text-sm text-muted-foreground line-through">{formatCurrency(oldPrice)}</p>}
+                            <p className="font-bold text-lg">{formatCurrency(displayPrice, market.country)}</p>
+                            {showDiscount && <p className="text-sm text-muted-foreground line-through">{formatCurrency(oldPrice, market.country)}</p>}
                         </div>
 
                         {isFlashDeal && stock !== undefined && stock > 0 && stock <= 20 && (

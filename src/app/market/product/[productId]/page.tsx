@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw, L
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, limit, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,7 @@ import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useMarket } from '@/context/market-provider';
 
 const createSlug = (name: string) => {
     if (!name) return '';
@@ -47,7 +49,8 @@ interface Variant {
 interface MarketProduct { 
     id: string; 
     productName: string; 
-    price: number; 
+    price: number;
+    currency?: string;
     description?: string;
     images?: string[];
     hint?: string;
@@ -77,25 +80,30 @@ interface Review {
 }
 
 
-const ProductCard = ({ product, currency }: { product: MarketProduct, currency?: string }) => (
-    <Link href={`/market/product/${product.id}`} className="block group">
-        <Card className="h-full flex flex-col overflow-hidden hover:border-primary transition-colors duration-200">
-            <div className="aspect-square relative overflow-hidden">
-                <Image
-                    src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/400`}
-                    alt={product.productName || 'Product image'}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    data-ai-hint={product.hint || product.category}
-                />
-            </div>
-            <CardContent className="p-3 flex-1 flex flex-col">
-                <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName}</h3>
-                <p className="font-bold text-base mt-2">{formatCurrency(product.price, currency)}</p>
-            </CardContent>
-        </Card>
-    </Link>
-);
+const ProductCard = ({ product }: { product: MarketProduct }) => {
+    const { market } = useMarket();
+    const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+
+    return (
+        <Link href={`/market/product/${product.id}`} className="block group">
+            <Card className="h-full flex flex-col overflow-hidden hover:border-primary transition-colors duration-200">
+                <div className="aspect-square relative overflow-hidden">
+                    <Image
+                        src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/400`}
+                        alt={product.productName || 'Product image'}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-ai-hint={product.hint || product.category}
+                    />
+                </div>
+                <CardContent className="p-3 flex-1 flex flex-col">
+                    <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName}</h3>
+                    <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                </CardContent>
+            </Card>
+        </Link>
+    );
+};
 
 
 export default function ProductDetailPage() {
@@ -107,6 +115,7 @@ export default function ProductDetailPage() {
     const { addItem } = useCart();
     const { toast } = useToast();
     const { user } = useUser();
+    const { market } = useMarket();
 
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
     const [selectedImage, setSelectedImage] = useState<string | undefined>();
@@ -170,7 +179,8 @@ export default function ProductDetailPage() {
     }, [selectedVariant, imageGallery]);
 
 
-    const displayPrice = selectedVariant ? selectedVariant.price : productData?.price;
+    const originalPrice = selectedVariant ? selectedVariant.price : productData?.price;
+    const displayPrice = convertCurrency(originalPrice || 0, productData?.currency, getCurrencyName(market.country));
     const stockAvailable = selectedVariant ? selectedVariant.availableQuantity : productData?.availableQuantity;
     const isInStock = stockAvailable !== undefined && stockAvailable > 0;
     
@@ -379,7 +389,7 @@ export default function ProductDetailPage() {
                     <Separator />
                     
                     <div>
-                        <p className="text-3xl lg:text-4xl font-bold text-primary">{formatCurrency(displayPrice || 0, businessData?.currency)}</p>
+                        <p className="text-3xl lg:text-4xl font-bold text-primary">{formatCurrency(displayPrice || 0, market.country)}</p>
                     </div>
                     
                     {productData.hasVariants && productData.variants && productData.variants.length > 0 && (
@@ -391,7 +401,7 @@ export default function ProductDetailPage() {
                                         <RadioGroupItem value={variant.id} id={variant.id} className="peer sr-only" disabled={variant.availableQuantity <= 0} />
                                         <Label htmlFor={variant.id} className={cn("flex flex-col items-center justify-center rounded-md border-2 p-3 text-sm font-medium cursor-pointer transition-colors hover:bg-accent/50", "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 peer-data-[state=checked]:text-primary", "peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-disabled:hover:bg-transparent")}>
                                             <span>{variant.name}</span>
-                                            <span className="text-xs text-muted-foreground">{formatCurrency(variant.price, businessData?.currency)}</span>
+                                            <span className="text-xs text-muted-foreground">{formatCurrency(convertCurrency(variant.price, productData.currency, getCurrencyName(market.country)), market.country)}</span>
                                         </Label>
                                     </div>
                                 ))}
@@ -522,7 +532,7 @@ export default function ProductDetailPage() {
                 ) : similarProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                         {similarProducts.map(product => (
-                            <ProductCard key={product.id} product={product} currency={businessData?.currency} />
+                            <ProductCard key={product.id} product={product} />
                         ))}
                     </div>
                 ) : (

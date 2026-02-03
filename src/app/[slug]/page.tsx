@@ -11,7 +11,7 @@ import { Star, MapPin, Mail, Phone, ShieldCheck, Check } from 'lucide-react';
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
 import MarketLayout from '@/components/app/market-layout';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,7 @@ import { Logo } from '@/components/app/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useMarket } from '@/context/market-provider';
 
 
 // Interfaces
@@ -43,6 +44,7 @@ interface MarketProduct {
     id: string;
     productName: string;
     price: number;
+    currency?: string;
     images?: string[]; 
     hint?: string;
     category?: string;
@@ -56,6 +58,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isSubscribed, setIsSubscribed] = useState(false);
+    const { market } = useMarket();
 
     const businessProfileRef = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
@@ -197,6 +200,8 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                         {productsData.map(product => {
                             const rating = product.averageRating || 0;
                             const reviewCount = product.reviewCount || 0;
+                            const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+
                             return (
                             <Link href={`/market/product/${product.id}`} key={product.id}>
                                 <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
@@ -212,7 +217,7 @@ const StorePageContent = ({ businessId }: { businessId: string }) => {
                                     <CardContent className="p-3 flex-1 flex flex-col">
                                         <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
                                         <div className="mt-2">
-                                            <p className="font-bold text-base">{formatCurrency(product.price, businessProfile?.currency)}</p>
+                                            <p className="font-bold text-base">{formatCurrency(displayPrice, market.country)}</p>
                                         </div>
                                         <div className="flex items-center gap-0.5 mt-1">
                                             {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", rating > 0 && i < Math.round(rating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
