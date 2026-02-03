@@ -8,7 +8,7 @@ import MainLayout from '@/components/app/main-layout';
 import { formatCurrency } from '@/lib/currency';
 import { Briefcase, FileText, ImagePlus, Megaphone, Loader2 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useCollection } from '@/firebase';
-import { doc, serverTimestamp, collection, query, where } from 'firebase/firestore';
+import { doc, serverTimestamp, collection, query, where, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getFunctionUrl } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -86,7 +86,7 @@ export default function ServicesPage() {
                 throw new Error("Failed to create service request document.");
             }
 
-            const initializePaymentUrl = getFunctionUrl('initializePayment');
+            const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
             if (!initializePaymentUrl) {
                 throw new Error('Payment gateway is not configured.');
             }
@@ -105,14 +105,21 @@ export default function ServicesPage() {
                 }),
             });
 
+            if (!response.ok) {
+                // If response is not ok, it might be HTML, so don't parse as JSON directly
+                const errorText = await response.text();
+                console.error("Payment init error response:", errorText);
+                throw new Error('Failed to initialize payment. The server responded with an error.');
+            }
+
             const paymentData = await response.json();
 
-            if (!response.ok || !paymentData.success) {
+            if (!paymentData.success) {
                 throw new Error(paymentData.error || 'Failed to initialize payment.');
             }
             
-            if (paymentData.data?.authorization_url) {
-                window.location.href = paymentData.data.authorization_url;
+            if (paymentData.authorization_url) {
+                window.location.href = paymentData.authorization_url;
             } else {
                 throw new Error('Invalid payment initialization response.');
             }
