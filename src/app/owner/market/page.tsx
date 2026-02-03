@@ -923,9 +923,7 @@ const BusmoPaySettings = () => {
             };
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
             
-            const bankListUrl = process.env.NODE_ENV === 'development'
-                ? process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL
-                : '/fetchBankList';
+            const bankListUrl = process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL;
             
             if (!bankListUrl) {
                 console.error('Bank list URL is not configured.');
@@ -971,9 +969,7 @@ const BusmoPaySettings = () => {
             return;
         }
         
-        const verifyUrl = process.env.NODE_ENV === 'development'
-            ? process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL
-            : '/verifyBankAccount';
+        const verifyUrl = process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL;
 
         if (!verifyUrl) {
             console.error('Bank verification URL is not configured.');

@@ -170,9 +170,7 @@ const CheckoutContent = () => {
     const handlePlaceOrder = async () => {
         if (!canPlaceOrder || !businessId || !firestore || !user) return;
         
-        const initializePaymentUrl = process.env.NODE_ENV === 'development'
-            ? process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL
-            : '/initializePayment';
+        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
 
         if (market.country === 'NG' && !initializePaymentUrl) {
             console.error('Payment initialization URL is not configured.');

@@ -113,9 +113,7 @@ function SubscribePageContent() {
             return;
         }
         
-        const initializePaymentUrl = process.env.NODE_ENV === 'development'
-            ? process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL
-            : '/initializePayment';
+        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
 
         if (!initializePaymentUrl) {
             console.error('Payment initialization URL is not configured.');

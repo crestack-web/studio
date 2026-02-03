@@ -28,9 +28,7 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     const [verificationMessage, setVerificationMessage] = useState('');
 
     useEffect(() => {
-        const verifyPaymentUrl = process.env.NODE_ENV === 'development'
-            ? process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL
-            : '/verifyPayment';
+        const verifyPaymentUrl = process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL;
 
         if (paystackRef && verifyPaymentUrl) {
             setVerificationStatus('verifying');
