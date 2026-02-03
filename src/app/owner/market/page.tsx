@@ -1074,7 +1074,7 @@ const BusmoPaySettings = () => {
                 <CreditCard className="h-4 w-4" />
                 <AlertTitle>How Payouts Work</AlertTitle>
                 <AlertDescription>
-                    Busmo collects payments from buyers on your behalf. After you fulfill an order, the earnings (minus a small commission) are automatically sent to your verified bank account within 24-48 hours.
+                    Busmo collects payments from buyers on your behalf. After you fulfill an order, the earnings (minus a 10% commission) are automatically sent to your verified bank account within 24-48 hours.
                 </AlertDescription>
             </Alert>
         </div>
