@@ -919,7 +919,12 @@ const BusmoPaySettings = () => {
             if (!businessData?.country) return;
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
             
-            const getBankListUrl = `/getBankList`;
+            const getBankListUrl = process.env.NEXT_PUBLIC_GET_BANK_LIST_URL;
+            if (!getBankListUrl) {
+                console.error('Bank list URL is not configured.');
+                setIsLoadingBanks(false);
+                return;
+            }
 
             try {
                 const response = await fetch(`${getBankListUrl}?country=${countryName}`);
@@ -960,7 +965,13 @@ const BusmoPaySettings = () => {
         }
     
         setIsVerifying(true);
-        const resolveBankAccountUrl = `/resolveBankAccount`;
+        const resolveBankAccountUrl = process.env.NEXT_PUBLIC_RESOLVE_BANK_ACCOUNT_URL;
+        if (!resolveBankAccountUrl) {
+            console.error('Resolve bank account URL is not configured.');
+            toast({ title: 'Error', description: 'Verification service is not configured.', variant: 'destructive' });
+            setIsVerifying(false);
+            return;
+        }
         
         try {
             const response = await fetch(`${resolveBankAccountUrl}?accountNumber=${accountNumber}&bankCode=${bankCode}`);

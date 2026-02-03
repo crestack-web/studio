@@ -198,7 +198,11 @@ const CheckoutContent = () => {
             const newOrderRef = await addDoc(collection(firestore, `businesses/${businessId}/orders`), orderData);
 
             if (market.country === 'NG' && user.email) {
-                const functionUrl = `/initializePayment`;
+                const functionUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+                if (!functionUrl) {
+                    await deleteDoc(newOrderRef);
+                    throw new Error('Payment service is not configured.');
+                }
                 
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
