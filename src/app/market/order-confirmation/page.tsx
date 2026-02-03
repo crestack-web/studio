@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
@@ -12,18 +11,20 @@ import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
 interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; }
 
-const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) => {
+const OrderConfirmationContent = () => {
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const firestore = useFirestore();
     
-    const orderId = searchParams?.orderId as string;
-    const businessId = searchParams?.businessId as string;
-    const paystackRef = searchParams?.reference as string;
+    const orderId = searchParams.get('orderId');
+    const businessId = searchParams.get('businessId');
+    const paystackRef = searchParams.get('reference');
     
     const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -154,10 +155,10 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     );
 };
 
-export default function OrderConfirmationPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+export default function OrderConfirmationPage() {
     return (
         <Suspense fallback={<div className="flex h-screen items-center justify-center"><Skeleton className="h-64 w-full max-w-lg"/></div>}>
-            <OrderConfirmationContent searchParams={searchParams} />
+            <OrderConfirmationContent />
         </Suspense>
     );
 }
