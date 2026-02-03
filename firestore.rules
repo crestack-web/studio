@@ -153,6 +153,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // --- EMAIL SYSTEM ---
     // Admins can read and write branding settings and templates
     match /settings/emailBranding { allow read, write: if isAdmin(); }
@@ -164,5 +169,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

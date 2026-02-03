@@ -1,22 +1,24 @@
+
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MainLayout from '@/components/app/main-layout';
 import { formatCurrency } from '@/lib/currency';
 import { Briefcase, FileText, ImagePlus, Megaphone, Loader2 } from 'lucide-react';
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { doc, serverTimestamp, collection } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useCollection } from '@/firebase';
+import { doc, serverTimestamp, collection, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getFunctionUrl } from '@/lib/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Service {
     id: string;
     title: string;
     description: string;
     fee: number;
-    icon: React.ElementType;
+    icon: string;
 }
 
 interface AppUser {
@@ -29,36 +31,12 @@ interface Business {
     currency?: string;
 }
 
-const services: Service[] = [
-    {
-        id: 'setup',
-        title: 'Store Setup & Onboarding',
-        description: "Let our experts set up your entire market store, from branding to your first 10 product listings.",
-        fee: 15000,
-        icon: ImagePlus,
-    },
-    {
-        id: 'listing',
-        title: 'Bulk Product Listing',
-        description: "Have a lot of products? We'll save you time by professionally listing up to 50 of your products for you.",
-        fee: 10000,
-        icon: FileText,
-    },
-    {
-        id: 'ads',
-        title: 'Featured Product Ad Campaign',
-        description: "Boost a product's visibility. We'll feature it on the market homepage and in our newsletter for one week.",
-        fee: 5000,
-        icon: Megaphone,
-    },
-    {
-        id: 'consultation',
-        title: 'Delivery Logistics Consultation',
-        description: "Get 1-on-1 expert advice on setting up your delivery zones and pricing for optimal efficiency and profit.",
-        fee: 7500,
-        icon: Briefcase,
-    }
-];
+const serviceIcons: { [key: string]: React.ElementType } = {
+    Briefcase,
+    FileText,
+    ImagePlus,
+    Megaphone,
+};
 
 export default function ServicesPage() {
     const { toast } = useToast();
@@ -68,6 +46,12 @@ export default function ServicesPage() {
     const [selectedService, setSelectedService] = useState<Service | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    const servicesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'services'), where('isActive', '==', true));
+    }, [firestore]);
+    const { data: services, isLoading: isLoadingServices } = useCollection<Service>(servicesQuery);
     
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
@@ -165,29 +149,38 @@ export default function ServicesPage() {
                         Leverage our team of experts to handle time-consuming tasks so you can focus on what you do best.
                     </p>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-6">
-                    {services.map((service) => (
-                        <Card key={service.id} className="flex flex-col">
-                            <CardHeader>
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-primary/10 rounded-lg">
-                                        <service.icon className="h-6 w-6 text-primary" />
+                {isLoadingServices ? (
+                    <div className="grid sm:grid-cols-2 gap-6">
+                        <Skeleton className="h-64" />
+                        <Skeleton className="h-64" />
+                    </div>
+                ) : (
+                    <div className="grid sm:grid-cols-2 gap-6">
+                        {services?.map((service) => {
+                            const Icon = serviceIcons[service.icon] || Briefcase;
+                            return (
+                            <Card key={service.id} className="flex flex-col">
+                                <CardHeader>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-primary/10 rounded-lg">
+                                            <Icon className="h-6 w-6 text-primary" />
+                                        </div>
+                                        <CardTitle>{service.title}</CardTitle>
                                     </div>
-                                    <CardTitle>{service.title}</CardTitle>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                                <p className="text-muted-foreground">{service.description}</p>
-                            </CardContent>
-                            <CardFooter className="flex-col items-start gap-4">
-                                <p className="text-2xl font-bold">{formatCurrency(service.fee, currency)} <span className="text-sm font-normal text-muted-foreground">/ one-time</span></p>
-                                <Button className="w-full" onClick={() => openDialogForService(service)}>
-                                    Request Service
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <p className="text-muted-foreground">{service.description}</p>
+                                </CardContent>
+                                <CardFooter className="flex-col items-start gap-4">
+                                    <p className="text-2xl font-bold">{formatCurrency(service.fee, currency)} <span className="text-sm font-normal text-muted-foreground">/ one-time</span></p>
+                                    <Button className="w-full" onClick={() => openDialogForService(service)}>
+                                        Request Service
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        )})}
+                    </div>
+                )}
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={handleDialogStateChange}>
