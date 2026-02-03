@@ -575,9 +575,22 @@ export default function OwnerHomePage() {
         setSelectedQuestion(question);
         setAnswer(null);
         try {
+            const insightsForAI = {
+                totalSales: businessInsights.totalSales,
+                totalProfit: businessInsights.totalProfit,
+                bestSellingProduct: businessInsights.bestSellingProduct,
+                worstSellingProduct: businessInsights.worstSellingProduct,
+                lowStockProducts: businessInsights.lowStockProducts,
+                salesTodayCount: businessInsights.salesTodayCount,
+                salesTodayTotal: businessInsights.salesTodayTotal,
+                profitToday: businessInsights.profitToday,
+                totalDeposits: businessInsights.totalDeposits,
+                totalWithdrawals: businessInsights.totalWithdrawals,
+            };
+
             const response = await getBusinessInsights({ 
                 query: question,
-                insights: businessInsights,
+                insights: insightsForAI,
                 currency: getCurrencySymbol(businessData?.currency || businessData?.country),
             });
             if (response.answer) {
