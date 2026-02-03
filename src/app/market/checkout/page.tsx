@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -201,7 +202,7 @@ const CheckoutContent = () => {
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG' && user.email) {
-                const initializePaymentUrl = getFunctionUrl('initializePayment');
+                const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
                 
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;

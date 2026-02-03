@@ -4,7 +4,7 @@
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addDays } from 'date-fns';
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, deleteDoc } from '@/firebase';
 import { doc, getDoc, writeBatch, serverTimestamp, collection } from 'firebase/firestore';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,7 +136,7 @@ function SubscribePageContent() {
             }
             
             // 2. Initialize payment with Paystack
-            const initializePaymentUrl = getFunctionUrl('/initializePayment');
+            const initializePaymentUrl = getFunctionUrl('initializeSubscription');
             if (!initializePaymentUrl) {
                 throw new Error('Payment gateway URL is not configured.');
             }

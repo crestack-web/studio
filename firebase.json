@@ -21,8 +21,12 @@
     ],
     "rewrites": [
       {
-        "source": "/api/initializePayment",
-        "function": "initializePayment"
+        "source": "/api/initializeOneTimePayment",
+        "function": "initializeOneTimePayment"
+      },
+      {
+        "source": "/api/initializeSubscription",
+        "function": "initializeSubscription"
       },
       {
         "source": "/api/verifyPayment",
