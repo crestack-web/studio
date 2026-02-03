@@ -15,7 +15,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
 /**
  * Initializes a Paystack transaction.
- * Expects { orderId: string, amount: number, email: string } in the request body.
+ * Expects { amount: number, email: string, metadata: { orderId: string, callback_url: string } } in the request body.
  */
 exports.initializePayment = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
@@ -23,10 +23,11 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             return res.status(405).send('Method Not Allowed');
         }
 
-        const { orderId, amount, email } = req.body;
+        const { amount, email, metadata } = req.body;
+        const { orderId, callback_url } = metadata || {};
 
         if (!orderId || !amount || !email) {
-            return res.status(400).json({ error: 'Missing required fields: orderId, amount, email.' });
+            return res.status(400).json({ error: 'Missing required fields in body or metadata: orderId, amount, email.' });
         }
         
         if (!PAYSTACK_SECRET) {
@@ -44,6 +45,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     email: email,
                     amount: amountInKobo,
                     reference: orderId,
+                    callback_url: callback_url,
                     metadata: {
                         order_id: orderId,
                     },

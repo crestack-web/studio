@@ -205,13 +205,18 @@ const CheckoutContent = () => {
                     throw new Error('Payment function URL is not configured.');
                 }
                 
+                const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
+
                 const response = await fetch(functionUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        orderId: newOrderRef.id,
-                        amount: total,
                         email: user.email,
+                        amount: total,
+                        metadata: {
+                            orderId: newOrderRef.id,
+                            callback_url: callbackUrl,
+                        },
                     }),
                 });
 
