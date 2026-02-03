@@ -920,7 +920,7 @@ const BusmoPaySettings = () => {
         const fetchBanks = async () => {
             if (!businessData?.country) return;
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
-            const getBankListUrl = `${process.env.NEXT_PUBLIC_GET_BANK_LIST_URL}?country=${countryName}`;
+            const getBankListUrl = `/getBankList?country=${countryName}`;
 
             try {
                 const response = await fetch(getBankListUrl);
