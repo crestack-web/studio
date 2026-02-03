@@ -13,7 +13,10 @@
   },
   "footer": {
     "privacy": "Privacy",
-    "terms": "Terms"
+    "terms": "Terms",
+    "about": "About Us",
+    "help": "Help",
+    "contact": "Contact"
   },
   "main_layout": {
     "back": "Back"

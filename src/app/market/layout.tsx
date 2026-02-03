@@ -10,8 +10,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useLanguage } from '@/context/language-provider';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { MarketSwitcher } from '@/components/app/market-switcher';
 import { useMarket } from '@/context/market-provider';
@@ -274,7 +274,10 @@ export default function MarketLayout({
             <footer className="bg-card border-t">
                 <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
                     <Logo className="h-7 mx-auto md:mx-0" />
-                    <div className="flex items-center gap-4 justify-center text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                        <Link href="/about" className="hover:underline">{t('footer.about')}</Link>
+                        <Link href="/help" className="hover:underline">{t('footer.help')}</Link>
+                        <a href="mailto:support@busmo.io" className="hover:underline">{t('footer.contact')}</a>
                         <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
                         <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
                     </div>

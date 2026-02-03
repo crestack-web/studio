@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { useLanguage } from '@/context/language-provider';
-import { LanguageSwitcher } from '@/components/app/language-switcher';
+import { LanguageSwitcher } from '@/components/app/theme-toggle';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { convertFromNgn, formatCurrency } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -316,9 +315,12 @@ export default function PricingPage() {
       <footer className="bg-card border-t">
         <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
           <Logo className="h-7 mx-auto md:mx-0" />
-          <div className="flex items-center gap-4 justify-center text-sm text-muted-foreground">
-             <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
-             <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <Link href="/about" className="hover:underline">{t('footer.about')}</Link>
+              <Link href="/help" className="hover:underline">{t('footer.help')}</Link>
+              <a href="mailto:support@busmo.io" className="hover:underline">{t('footer.contact')}</a>
+              <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
+              <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
           </div>
           <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
              <a href="https://x.com/busmo_io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">

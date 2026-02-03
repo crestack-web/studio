@@ -13,7 +13,10 @@
   },
   "footer": {
     "privacy": "Confidentialité",
-    "terms": "Conditions"
+    "terms": "Conditions",
+    "about": "À propos",
+    "help": "Aide",
+    "contact": "Contactez-nous"
   },
   "main_layout": {
     "back": "Retour"

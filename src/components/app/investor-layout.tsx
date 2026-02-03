@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -29,6 +28,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                     <nav className="hidden md:flex items-center gap-2">
                         <Link href="/welcome" passHref><Button variant="ghost">{t('nav.home')}</Button></Link>
                         <Link href="/invest" passHref><Button variant="ghost">{t('nav.explore')}</Button></Link>
+                        <Link href="/market/delivery" passHref><Button variant="ghost">{t('nav.busmogo')}</Button></Link>
                         <Link href="/blog" passHref><Button variant="ghost">Blog</Button></Link>
                         <Link href="/pricing" passHref><Button variant="ghost">{t('nav.for_businesses')}</Button></Link>
                         <ThemeToggle />
@@ -56,6 +56,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                                 <nav className="flex flex-col items-start gap-4">
                                     <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                                     <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.explore')}</Button></Link>
+                                    <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
                                     <Link href="/blog" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Blog</Button></Link>
                                     <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.for_businesses')}</Button></Link>
                                     <Link href="/investor/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
@@ -76,7 +77,10 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
             <footer className="bg-card border-t">
                 <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
                     <Logo className="h-7 mx-auto md:mx-0" />
-                    <div className="flex items-center gap-4 justify-center text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                        <Link href="/about" className="hover:underline">{t('footer.about')}</Link>
+                        <Link href="/help" className="hover:underline">{t('footer.help')}</Link>
+                        <a href="mailto:support@busmo.io" className="hover:underline">{t('footer.contact')}</a>
                         <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
                         <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
                     </div>

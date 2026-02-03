@@ -10,6 +10,13 @@
     "explore": "Explore",
     "for_businesses": "For Businesses"
   },
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "about": "About Us",
+    "help": "Help",
+    "contact": "Contact"
+  },
   "welcome": {
     "title": "You sell every day. <br /> <span class='text-accent'>Do you know if you're making money?</span>",
     "subtitle": "Stop guessing with notebooks and calculators. Busmo turns your daily activity into understanding—and understanding into growth.",
@@ -72,9 +79,5 @@
     "custom_needs": "Custom Needs?",
     "custom_desc": "For custom integrations and dedicated support, contact our sales team.",
     "contact_sales": "Contact Sales"
-  },
-  "investor_layout": {
-    "footer_privacy": "Privacy",
-    "footer_terms": "Terms"
   }
 }
