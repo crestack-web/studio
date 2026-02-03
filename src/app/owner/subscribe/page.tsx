@@ -115,10 +115,12 @@ function SubscribePageContent() {
         }
         
         setIsProcessing(true);
+        const transactionCollectionRef = collection(firestore, 'subscriptionTransactions');
+        let transactionDocRef;
 
         try {
             // 1. Create a pending subscription transaction document
-            const transactionRef = await addDocumentNonBlocking(collection(firestore, 'subscriptionTransactions'), {
+            transactionDocRef = await addDoc(transactionCollectionRef, {
                 userId: authUser.uid,
                 planId: planId,
                 amountPaid: finalAmount,
@@ -129,17 +131,16 @@ function SubscribePageContent() {
                 billingCycle: billingCycle,
             });
 
-            if (!transactionRef?.id) {
+            if (!transactionDocRef?.id) {
                 throw new Error("Failed to create transaction record.");
             }
             
             // 2. Initialize payment with Paystack
             const initializePaymentUrl = getFunctionUrl('/initializePayment');
             if (!initializePaymentUrl) {
-                toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway URL is not configured for local development. Please check your .env file.' });
-                throw new Error('Payment gateway is not configured.');
+                throw new Error('Payment gateway URL is not configured.');
             }
-            const reference = `SUB-${transactionRef.id}`;
+            const reference = `SUB-${transactionDocRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
             const response = await fetch(initializePaymentUrl, {
@@ -158,9 +159,6 @@ function SubscribePageContent() {
             const paymentData = await response.json();
 
             if (!response.ok || !paymentData.success) {
-                // If initialization fails, delete the pending transaction
-                const subTransactionDocRef = doc(firestore, 'subscriptionTransactions', transactionRef.id);
-                await deleteDocumentNonBlocking(subTransactionDocRef);
                 throw new Error(paymentData.error || 'Failed to initialize payment.');
             }
             
@@ -168,14 +166,16 @@ function SubscribePageContent() {
             if (paymentData.data?.authorization_url) {
                 window.location.href = paymentData.data.authorization_url;
             } else {
-                 const subTransactionDocRef = doc(firestore, 'subscriptionTransactions', transactionRef.id);
-                await deleteDocumentNonBlocking(subTransactionDocRef);
                 throw new Error('Invalid payment initialization response.');
             }
 
         } catch (error: any) {
             console.error("Failed to process subscription:", error);
             toast({ title: "An Error Occurred", description: error.message || "Could not start your subscription payment. Please contact support.", variant: "destructive" });
+            // Clean up the pending transaction if it was created
+            if (transactionDocRef) {
+                await deleteDoc(transactionDocRef).catch(delErr => console.error("Failed to clean up subscription transaction:", delErr));
+            }
             setIsProcessing(false);
         }
     };

@@ -203,6 +203,7 @@ export default function OwnerHomePage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const onboardingComplete = searchParams.get('onboarding') === 'complete';
+    const subscriptionSuccess = searchParams.get('subscription') === 'success';
 
     const [answer, setAnswer] = useState<string | null>(null);
     const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -235,7 +236,17 @@ export default function OwnerHomePage() {
             currentUrl.searchParams.delete('onboarding');
             window.history.replaceState({}, '', currentUrl.toString());
         }
-    }, [onboardingComplete]);
+        if (subscriptionSuccess) {
+            toast({
+                title: "Subscription Activated!",
+                description: "Thank you for your payment. Your plan is now active.",
+                className: "bg-success text-success-foreground",
+            });
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.delete('subscription');
+            window.history.replaceState({}, '', currentUrl.toString());
+        }
+    }, [onboardingComplete, subscriptionSuccess, toast]);
     
     useEffect(() => {
         const allQuestions = [

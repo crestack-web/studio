@@ -102,7 +102,7 @@ const CheckoutContent = () => {
                 businessId: '' // Will be fetched later or assumed to be the same
             }));
             // For now, assuming all items are from the same business for simplicity.
-            // A more robust solution would fetch businessId for each item or group them.
+            // A more robust solution would group them by businessId.
             if (items.length > 0) {
                  const fetchBusinessId = async () => {
                      if (!firestore) return;
@@ -173,6 +173,7 @@ const CheckoutContent = () => {
         
         setIsPlacingOrder(true);
         
+        // This is a temporary reference until we successfully initiate payment.
         const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
 
         try {
@@ -199,13 +200,14 @@ const CheckoutContent = () => {
                 currency: businessProfile?.currency || 'NGN',
             };
 
+            // First, create the order document.
             await setDoc(newOrderRef, orderData);
 
+            // If it's a Paystack payment, initialize it.
             if (market.country === 'NG' && user.email) {
                 const initializePaymentUrl = getFunctionUrl('/initializePayment');
                 if (!initializePaymentUrl) {
-                    toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway URL is not configured for local development. Please check your .env file.' });
-                    throw new Error('Payment gateway is not configured.');
+                    throw new Error('Payment gateway URL is not configured.');
                 }
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
@@ -226,24 +228,27 @@ const CheckoutContent = () => {
                 const paymentData = await response.json();
 
                 if (!response.ok || !paymentData.success) {
+                    // If payment initialization fails, delete the order we just created.
                     await deleteDoc(newOrderRef);
                     throw new Error(paymentData.error || 'Failed to initialize payment.');
                 }
                 
                 if (paymentData.data?.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.data.authorization_url;
+                    window.location.href = paymentData.data.authorization_url; // Redirect to Paystack
                 } else {
                     await deleteDoc(newOrderRef);
                     throw new Error('Invalid payment initialization response.');
                 }
             } else {
+                // For other payment methods (e.g., Transfer), just confirm the order.
                 clearCart();
                 router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
             }
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
+            // Attempt to clean up the order doc if it exists and something failed
             await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);
