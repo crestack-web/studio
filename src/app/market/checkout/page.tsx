@@ -198,12 +198,7 @@ const CheckoutContent = () => {
             const newOrderRef = await addDoc(collection(firestore, `businesses/${businessId}/orders`), orderData);
 
             if (market.country === 'NG' && user.email) {
-                const functionUrl = process.env.NEXT_PUBLIC_PAYMENT_FUNCTION_URL;
-
-                if (!functionUrl) {
-                    await deleteDoc(newOrderRef);
-                    throw new Error('Payment function URL is not configured.');
-                }
+                const functionUrl = `/initializePayment`;
                 
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
@@ -220,20 +215,19 @@ const CheckoutContent = () => {
                     }),
                 });
 
-                if (!response.ok) {
-                    await deleteDoc(newOrderRef);
-                    const errorBody = await response.json().catch(() => ({}));
-                    throw new Error(errorBody.error || 'Failed to initialize payment.');
-                }
-
                 const paymentData = await response.json();
 
-                if (paymentData && paymentData.success && paymentData.data?.authorization_url) {
+                if (!response.ok || !paymentData.success) {
+                    await deleteDoc(newOrderRef);
+                    throw new Error(paymentData.error || 'Failed to initialize payment.');
+                }
+                
+                if (paymentData.data?.authorization_url) {
                     clearCart();
-                    window.location.replace(paymentData.data.authorization_url);
+                    window.location.href = paymentData.data.authorization_url;
                 } else {
                     await deleteDoc(newOrderRef);
-                    throw new Error(paymentData.error || 'Invalid payment initialization response.');
+                    throw new Error('Invalid payment initialization response.');
                 }
             } else {
                 clearCart();

@@ -10,5 +10,31 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/getBankList",
+        "function": "getBankList"
+      },
+      {
+        "source": "/resolveBankAccount",
+        "function": "resolveBankAccount"
+      },
+      {
+        "source": "/initializePayment",
+        "function": "initializePayment"
+      },
+      {
+        "source": "/paystackWebhook",
+        "function": "paystackWebhook"
+      }
+    ]
+  }
 }

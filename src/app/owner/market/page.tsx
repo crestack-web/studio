@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -921,12 +919,7 @@ const BusmoPaySettings = () => {
             if (!businessData?.country) return;
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
             
-            const getBankListUrl = process.env.NEXT_PUBLIC_GET_BANK_LIST_URL;
-            if (!getBankListUrl) {
-                console.error('Bank list URL is not configured.');
-                setIsLoadingBanks(false);
-                return;
-            }
+            const getBankListUrl = `/getBankList`;
 
             try {
                 const response = await fetch(`${getBankListUrl}?country=${countryName}`);
@@ -967,26 +960,37 @@ const BusmoPaySettings = () => {
         }
     
         setIsVerifying(true);
+        const resolveBankAccountUrl = `/resolveBankAccount`;
         
         try {
-          if (typeof (window as any).verifyBankAccount !== 'function') {
-            throw new Error("Verification function is not available. Please refresh the page.");
-          }
-    
-          const result = await (window as any).verifyBankAccount(accountNumber, bankCode);
-          
-          if (result.success) {
-            toast({
-              title: 'Verification Successful',
-              description: `Account holder: ${result.data.account_name}`,
-            });
-          } else {
-            toast({
-              title: 'Verification Failed',
-              description: result.message || 'The bank details could not be verified.',
-              variant: 'destructive',
-            });
-          }
+            const response = await fetch(`${resolveBankAccountUrl}?accountNumber=${accountNumber}&bankCode=${bankCode}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                toast({
+                  title: 'Verification Successful',
+                  description: `Account holder: ${result.data.account_name}`,
+                });
+                 if(bankAccountRef) {
+                    const selectedBank = banks.find(b => b.code === bankCode);
+                    await setDocumentNonBlocking(bankAccountRef, {
+                        bankName: selectedBank?.name,
+                        bankCode: bankCode,
+                        accountNumber: accountNumber,
+                        accountName: result.data.account_name,
+                        status: 'verified'
+                    }, { merge: true });
+                }
+            } else {
+                toast({
+                  title: 'Verification Failed',
+                  description: result.error || 'The bank details could not be verified.',
+                  variant: 'destructive',
+                });
+                if(bankAccountRef) {
+                    await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
+                }
+            }
         } catch (error: any) {
           console.error("Client-side verification error:", error);
           toast({
