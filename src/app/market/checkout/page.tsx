@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -222,26 +223,27 @@ const CheckoutContent = () => {
 
                 if (!response.ok) {
                     await deleteDoc(newOrderRef);
-                    throw new Error('Failed to initialize payment.');
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(errorBody.error || 'Failed to initialize payment.');
                 }
 
                 const paymentData = await response.json();
 
-                if (paymentData && paymentData.authorization_url) {
+                if (paymentData && paymentData.success && paymentData.data?.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.authorization_url;
+                    window.location.href = paymentData.data.authorization_url;
                 } else {
                     await deleteDoc(newOrderRef);
-                    throw new Error('Invalid payment initialization response.');
+                    throw new Error(paymentData.error || 'Invalid payment initialization response.');
                 }
             } else {
                 clearCart();
                 router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error placing order: ", error);
-            toast({ variant: 'destructive', title: 'Error placing order', description: 'There was an issue placing your order. Please try again.' });
+            toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);
         }
     };

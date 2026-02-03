@@ -27,12 +27,12 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
         const { orderId, callback_url } = metadata || {};
 
         if (!orderId || !amount || !email) {
-            return res.status(400).json({ error: 'Missing required fields in body or metadata: orderId, amount, email.' });
+            return res.status(400).json({ success: false, error: 'Missing required fields in body or metadata: orderId, amount, email.' });
         }
         
         if (!PAYSTACK_SECRET) {
             console.error("Paystack secret key is not configured.");
-            return res.status(500).json({ error: 'Payment gateway not configured.' });
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
         }
         
         // Amount should be in kobo (lowest currency unit)
@@ -60,14 +60,14 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
 
             if (paystackResponse.data && paystackResponse.data.status) {
                 // Return the authorization URL to the client
-                return res.status(200).json(paystackResponse.data.data);
+                return res.status(200).json({ success: true, data: paystackResponse.data.data });
             } else {
-                return res.status(500).json({ error: 'Failed to initialize payment with Paystack.' });
+                return res.status(500).json({ success: false, error: 'Failed to initialize payment with Paystack.' });
             }
 
         } catch (error) {
             console.error("Paystack initialization error:", error.response ? error.response.data : error.message);
-            return res.status(500).json({ error: 'An error occurred while initializing payment.' });
+            return res.status(500).json({ success: false, error: 'An error occurred while initializing payment.' });
         }
     });
 });
