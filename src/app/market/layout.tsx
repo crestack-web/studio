@@ -55,6 +55,12 @@ export default function MarketLayout({
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
     
+    // This state will help us avoid hydration errors
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
+
     useEffect(() => {
         setCurrentYear(new Date().getFullYear());
     }, []);
@@ -151,59 +157,70 @@ export default function MarketLayout({
                             
                             {/* Search bar */}
                             <div className="order-last w-full md:order-2 md:flex-1 md:max-w-xl">
-                                <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                                    <PopoverTrigger asChild>
-                                        <div className="relative">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                            <Input
-                                                placeholder="Search products, stores, or categories"
-                                                className="pl-12 h-12 text-base rounded-md"
-                                                value={searchQuery}
-                                                onChange={handleSearchChange}
-                                                onKeyDown={handleKeyDown}
-                                            />
-                                        </div>
-                                    </PopoverTrigger>
-                                     <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-[var(--radix-popover-trigger-width)] p-0">
-                                        {searchQuery && (suggestions.products.length === 0 && suggestions.categories.length === 0) ? (
-                                            <div className="p-4 text-sm text-center text-muted-foreground">No results found for "{searchQuery}"</div>
-                                        ) : (
-                                            <div className="flex flex-col">
-                                                {suggestions.categories.length > 0 && (
-                                                    <div className="p-2">
-                                                        <h4 className="px-2 text-xs font-semibold text-muted-foreground">Categories</h4>
-                                                        <div className="mt-1">
-                                                            {suggestions.categories.map(cat => (
-                                                                <Link key={cat.id} href={`/market/search?q=${cat.name}`} onClick={closeAndClear} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent">
-                                                                    <Tag className="h-4 w-4 text-muted-foreground"/>
-                                                                    <span className="text-sm font-medium">{cat.name}</span>
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                 {suggestions.products.length > 0 && (
-                                                    <div className="p-2">
-                                                        <h4 className="px-2 text-xs font-semibold text-muted-foreground">Products</h4>
-                                                         <div className="mt-1">
-                                                            {suggestions.products.map(prod => (
-                                                                <Link key={prod.id} href={`/market/product/${prod.id}`} onClick={closeAndClear} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent">
-                                                                    <div className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden bg-muted">
-                                                                        <Image src={prod.images?.[0] || `https://picsum.photos/seed/${prod.id}/100`} alt={prod.productName} fill className="object-cover" />
-                                                                    </div>
-                                                                    <div className="flex-1">
-                                                                        <p className="text-sm font-medium line-clamp-1">{prod.productName}</p>
-                                                                        <p className="text-xs text-muted-foreground">{formatCurrency(prod.price, market.country)}</p>
-                                                                    </div>
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                {hasMounted ? (
+                                    <Popover open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+                                        <PopoverTrigger asChild>
+                                            <div className="relative">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="Search products, stores, or categories"
+                                                    className="pl-12 h-12 text-base rounded-md"
+                                                    value={searchQuery}
+                                                    onChange={handleSearchChange}
+                                                    onKeyDown={handleKeyDown}
+                                                />
                                             </div>
-                                        )}
-                                    </PopoverContent>
-                                </Popover>
+                                        </PopoverTrigger>
+                                        <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-[var(--radix-popover-trigger-width)] p-0">
+                                            {searchQuery && (suggestions.products.length === 0 && suggestions.categories.length === 0) ? (
+                                                <div className="p-4 text-sm text-center text-muted-foreground">No results found for "{searchQuery}"</div>
+                                            ) : (
+                                                <div className="flex flex-col">
+                                                    {suggestions.categories.length > 0 && (
+                                                        <div className="p-2">
+                                                            <h4 className="px-2 text-xs font-semibold text-muted-foreground">Categories</h4>
+                                                            <div className="mt-1">
+                                                                {suggestions.categories.map(cat => (
+                                                                    <Link key={cat.id} href={`/market/search?q=${cat.name}`} onClick={closeAndClear} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent">
+                                                                        <Tag className="h-4 w-4 text-muted-foreground"/>
+                                                                        <span className="text-sm font-medium">{cat.name}</span>
+                                                                    </Link>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {suggestions.products.length > 0 && (
+                                                        <div className="p-2">
+                                                            <h4 className="px-2 text-xs font-semibold text-muted-foreground">Products</h4>
+                                                            <div className="mt-1">
+                                                                {suggestions.products.map(prod => (
+                                                                    <Link key={prod.id} href={`/market/product/${prod.id}`} onClick={closeAndClear} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent">
+                                                                        <div className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden bg-muted">
+                                                                            <Image src={prod.images?.[0] || `https://picsum.photos/seed/${prod.id}/100`} alt={prod.productName} fill className="object-cover" />
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <p className="text-sm font-medium line-clamp-1">{prod.productName}</p>
+                                                                            <p className="text-xs text-muted-foreground">{formatCurrency(prod.price, market.country)}</p>
+                                                                        </div>
+                                                                    </Link>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </PopoverContent>
+                                    </Popover>
+                                ) : (
+                                    <div className="relative">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search products, stores, or categories"
+                                            className="pl-12 h-12 text-base rounded-md"
+                                            disabled
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Actions */}
@@ -220,27 +237,33 @@ export default function MarketLayout({
                                     <Button asChild><Link href="/signup">Sign Up</Link></Button>
                                 </div>
                                 <div className="sm:hidden">
-                                    <Sheet>
-                                        <SheetTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <Menu className="h-6 w-6" />
-                                            </Button>
-                                        </SheetTrigger>
-                                        <SheetContent>
-                                            <SheetHeader>
-                                                <SheetTitle className="sr-only">Menu</SheetTitle>
-                                                <SheetDescription className="sr-only">Login or sign up.</SheetDescription>
-                                            </SheetHeader>
-                                            <nav className="flex flex-col gap-4 mt-8">
-                                                <Link href="/login" passHref className="w-full">
-                                                    <Button variant="outline" className="w-full justify-center text-lg h-12">Log In</Button>
-                                                </Link>
-                                                <Link href="/signup" passHref className="w-full">
-                                                    <Button className="w-full justify-center text-lg h-12">Sign Up</Button>
-                                                </Link>
-                                            </nav>
-                                        </SheetContent>
-                                    </Sheet>
+                                     {hasMounted ? (
+                                        <Sheet>
+                                            <SheetTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <Menu className="h-6 w-6" />
+                                                </Button>
+                                            </SheetTrigger>
+                                            <SheetContent>
+                                                <SheetHeader>
+                                                    <SheetTitle className="sr-only">Menu</SheetTitle>
+                                                    <SheetDescription className="sr-only">Login or sign up.</SheetDescription>
+                                                </SheetHeader>
+                                                <nav className="flex flex-col gap-4 mt-8">
+                                                    <Link href="/login" passHref className="w-full">
+                                                        <Button variant="outline" className="w-full justify-center text-lg h-12">Log In</Button>
+                                                    </Link>
+                                                    <Link href="/signup" passHref className="w-full">
+                                                        <Button className="w-full justify-center text-lg h-12">Sign Up</Button>
+                                                    </Link>
+                                                </nav>
+                                            </SheetContent>
+                                        </Sheet>
+                                     ) : (
+                                        <Button variant="ghost" size="icon" disabled>
+                                            <Menu className="h-6 w-6" />
+                                        </Button>
+                                     )}
                                 </div>
                             </div>
                         </div>

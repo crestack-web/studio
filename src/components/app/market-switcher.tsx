@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,6 +21,12 @@ export function MarketSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(market.country);
   const [selectedCity, setSelectedCity] = useState(market.city);
+
+  // State to check if component has mounted on the client
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const selectedCountryData = availableMarkets.find(c => c.code === selectedCountry);
   const currentMarketData = availableMarkets.find(c => c.code === market.country);
@@ -48,6 +53,22 @@ export function MarketSwitcher() {
     setMarket({ country: selectedCountry, city: selectedCity });
     setIsOpen(false);
   };
+
+  if (!hasMounted) {
+    return (
+      <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
+        {currentMarketData && (
+            <Image
+                src={`https://flagcdn.com/w40/${market.country.toLowerCase()}.png`}
+                alt={`${market.country} flag`}
+                width={24}
+                height={18}
+                className="rounded-sm object-contain"
+            />
+        )}
+      </Button>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
