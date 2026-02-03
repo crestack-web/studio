@@ -922,8 +922,8 @@ const BusmoPaySettings = () => {
                 setIsLoadingBanks(false);
                 return;
             };
-            const fetchBankListUrl = getFunctionUrl('/fetchBankList');
-            if (!fetchBankListUrl) {
+            const fetchBankListUrl = getFunctionUrl('fetchBankList');
+            if (!fetchBankListUrl || fetchBankListUrl.includes('undefined')) {
                 console.error('Bank list URL is not configured.');
                 setIsLoadingBanks(false);
                 return;
@@ -968,8 +968,8 @@ const BusmoPaySettings = () => {
             return;
         }
         
-        const verifyBankAccountUrl = getFunctionUrl('/verifyBankAccount');
-        if (!verifyBankAccountUrl) {
+        const verifyBankAccountUrl = getFunctionUrl('verifyBankAccount');
+        if (!verifyBankAccountUrl || verifyBankAccountUrl.includes('undefined')) {
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Bank verification service is not set up.' });
             return;
         }
