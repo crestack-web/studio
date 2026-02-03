@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
@@ -55,7 +54,7 @@ function SubscribePageContent() {
     const [isProcessing, setIsProcessing] = useState(false);
     
     const userProfileRef = useMemoFirebase(() => authUser ? doc(firestore, 'users', authUser.uid) : null, [firestore, authUser]);
-    const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
+    const { data: userProfile } = useDoc<{ businessId?: string, email?: string }>(userProfileRef);
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => businessId ? doc(firestore, `businesses/${businessId}`) : null, [firestore, businessId]);
@@ -109,7 +108,7 @@ function SubscribePageContent() {
 
 
     const handlePayment = async () => {
-        if (!firestore || !authUser || !businessData || !planId || finalAmount === null) {
+        if (!firestore || !authUser || !userProfile?.email || !businessData || !planId || finalAmount === null) {
             toast({ title: "Error", description: "Missing required information. Please try again.", variant: "destructive" });
             return;
         }
@@ -140,6 +139,7 @@ function SubscribePageContent() {
             if (!initializePaymentUrl) {
                 throw new Error('Payment gateway URL is not configured.');
             }
+            
             const reference = `SUB-${transactionDocRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
@@ -147,11 +147,13 @@ function SubscribePageContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: authUser.email,
-                    amount: finalAmount,
-                    reference: reference,
+                    email: userProfile.email,
+                    planId: planId,
+                    billingCycle: billingCycle,
                     metadata: {
                         callback_url: callbackUrl,
+                        transaction_id: transactionDocRef.id,
+                        user_id: authUser.uid,
                     },
                 }),
             });
@@ -163,8 +165,8 @@ function SubscribePageContent() {
             }
             
             // 3. Redirect to Paystack
-            if (paymentData.data?.authorization_url) {
-                window.location.href = paymentData.data.authorization_url;
+            if (paymentData.authorization_url) {
+                window.location.href = paymentData.authorization_url;
             } else {
                 throw new Error('Invalid payment initialization response.');
             }

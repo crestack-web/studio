@@ -1,4 +1,3 @@
-
 // functions/payments.js
 /**
  * @fileoverview This file contains Paystack payment-related Cloud Functions.
@@ -16,6 +15,28 @@ if (!PAYSTACK_SECRET_KEY) {
   // Log an error during function initialization if the key is missing.
   console.error("FATAL ERROR: PAYSTACK_SECRET_KEY environment variable is not set.");
 }
+
+// This mapping should correspond to the plan codes created in your Paystack dashboard.
+// IMPORTANT: You MUST replace 'PLN_xxxxxxxx' with your actual Paystack plan codes.
+const paystackPlanMap = {
+    shop: {
+        monthly: 'PLN_xxxxxxxx', 
+        yearly: 'PLN_xxxxxxxx'
+    },
+    supermarket: {
+        monthly: 'PLN_xxxxxxxx',
+        yearly: 'PLN_xxxxxxxx'
+    },
+    'multi-branch': {
+        monthly: 'PLN_xxxxxxxx',
+        yearly: 'PLN_xxxxxxxx'
+    },
+    company: {
+        monthly: 'PLN_xxxxxxxx',
+        yearly: 'PLN_xxxxxxxx'
+    }
+};
+
 
 /**
  * Initializes a one-time payment with Paystack.
@@ -71,14 +92,62 @@ exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
 });
 
 /**
- * Placeholder for initializing a subscription payment.
- * This function is intentionally disabled and returns a 501 Not Implemented error.
+ * Initializes a subscription payment with Paystack.
+ * Accepts: { email, planId, billingCycle, metadata }
+ * Returns: { success, authorization_url, reference }
  */
 exports.initializeSubscription = functions.https.onRequest((req, res) => {
-  cors(req, res, () => {
-    res.status(501).json({ error: "Subscription feature is temporarily disabled." });
-  });
+    cors(req, res, async () => {
+        if (!PAYSTACK_SECRET_KEY) {
+            console.error("Subscription function called, but PAYSTACK_SECRET_KEY is not set.");
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
+
+        const { email, planId, billingCycle, metadata } = req.body;
+        if (!email || !planId || !billingCycle) {
+            return res.status(400).json({ success: false, error: 'Email, planId, and billingCycle are required.' });
+        }
+        
+        const planCode = paystackPlanMap[planId]?.[billingCycle];
+
+        if (!planCode || planCode === 'PLN_xxxxxxxx') {
+             console.error(`Paystack plan code not found or not configured for planId: ${planId}, cycle: ${billingCycle}`);
+             return res.status(400).json({ success: false, error: 'The selected plan is not configured for payment. Please contact support.' });
+        }
+        
+        try {
+            const response = await axios.post(
+                'https://api.paystack.co/transaction/initialize',
+                {
+                    email,
+                    plan: planCode, // Paystack plan code
+                    metadata,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (response.data && response.data.status) {
+                return res.status(200).json({
+                    success: true,
+                    authorization_url: response.data.data.authorization_url,
+                    reference: response.data.data.reference,
+                });
+            } else {
+                return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize subscription.' });
+            }
+        } catch (error) {
+            console.error("Paystack initializeSubscription error:", error.response ? error.response.data : error.message);
+            const errorMessage = error.response?.data?.message || 'An error occurred while initializing subscription.';
+            return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
 });
+
 
 /**
  * Verifies a payment transaction with Paystack.
