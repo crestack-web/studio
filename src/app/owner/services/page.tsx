@@ -1,9 +1,8 @@
-
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MainLayout from '@/components/app/main-layout';
 import { formatCurrency } from '@/lib/currency';
 import { Briefcase, FileText, ImagePlus, Megaphone, Loader2 } from 'lucide-react';
@@ -67,6 +66,7 @@ export default function ServicesPage() {
     const { user } = useUser();
     
     const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
@@ -140,6 +140,19 @@ export default function ServicesPage() {
             }
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not process your request.' });
             setIsProcessing(false);
+            setIsDialogOpen(false);
+        }
+    };
+    
+    const openDialogForService = (service: Service) => {
+        setSelectedService(service);
+        setIsDialogOpen(true);
+    };
+
+    const handleDialogStateChange = (open: boolean) => {
+        setIsDialogOpen(open);
+        if (!open) {
+            setSelectedService(null);
         }
     };
 
@@ -168,18 +181,16 @@ export default function ServicesPage() {
                             </CardContent>
                             <CardFooter className="flex-col items-start gap-4">
                                 <p className="text-2xl font-bold">{formatCurrency(service.fee, currency)} <span className="text-sm font-normal text-muted-foreground">/ one-time</span></p>
-                                <DialogTrigger asChild>
-                                    <Button className="w-full" onClick={() => setSelectedService(service)}>
-                                        Request Service
-                                    </Button>
-                                </DialogTrigger>
+                                <Button className="w-full" onClick={() => openDialogForService(service)}>
+                                    Request Service
+                                </Button>
                             </CardFooter>
                         </Card>
                     ))}
                 </div>
             </div>
 
-            <Dialog onOpenChange={(open) => !open && setSelectedService(null)}>
+            <Dialog open={isDialogOpen} onOpenChange={handleDialogStateChange}>
                 <DialogContent>
                     {selectedService && (
                         <>
@@ -197,7 +208,7 @@ export default function ServicesPage() {
                                 </p>
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setSelectedService(null)}>Cancel</Button>
+                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                                 <Button onClick={handleRequestService} disabled={isProcessing}>
                                     {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Proceed to Payment
