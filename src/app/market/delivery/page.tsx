@@ -6,7 +6,7 @@ import MarketLayout from '@/components/app/market-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck, Loader2 } from 'lucide-react';
+import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck, Loader2, Award, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -15,23 +15,30 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore, addDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
+import { Logo } from '@/components/app/logo';
+
+const packageSizes = [
+    { size: 'Envelope / Small Satchel', dimensions: 'Up to 25cm, 1kg', example: 'Documents, phone accessories' },
+    { size: 'Small Box', dimensions: 'Up to 35cm, 5kg', example: 'Shoes, small electronics, books' },
+    { size: 'Medium Box', dimensions: 'Up to 50cm, 10kg', example: 'Laptops, small appliances, clothing' },
+    { size: 'Large Box', dimensions: 'Up to 70cm, 20kg', example: 'Multiple items, larger goods' },
+];
 
 const deliveryRates = [
-    { city: 'Lagos', rate: '₦2,000 - ₦3,500' },
-    { city: 'Abuja', rate: '₦2,500 - ₦4,000' },
-    { city: 'Accra', rate: 'GH₵30 - GH₵50' },
-    { city: 'Niamey', rate: '1,500 CFA - 2,500 CFA' },
-    { city: 'Douala', rate: '1,500 CFA - 2,500 CFA' },
+    { zone: 'Intra-City (Lagos)', rate: '₦2,500 - ₦4,000' },
+    { zone: 'Intra-City (Abuja)', rate: '₦3,000 - ₦4,500' },
+    { zone: 'Intra-City (Accra)', rate: 'GH₵35 - GH₵55' },
+    { zone: 'Nationwide (Nigeria)', rate: 'Starting from ₦5,000' },
 ];
 
 const howItWorksSteps = [
-    { icon: PackageSearch, title: 'Order is Placed', description: "A customer buys your product from the Busmo Market and selects Home Delivery." },
-    { icon: Bike, title: 'Rider Dispatched', description: "Our system automatically finds and dispatches the nearest verified delivery partner to your location for pickup." },
-    { icon: Box, title: 'Secure Handover', description: "Our rider securely packages the item and begins the delivery journey." },
-    { icon: MapPin, title: 'Real-Time Tracking', description: "You and your customer can track the delivery in real-time until it's safely delivered." },
+    { icon: PackageSearch, title: 'Order is Placed', description: "A customer buys a product and selects BusmoGo delivery at checkout." },
+    { icon: Bike, title: 'Rider is Dispatched', description: "Our system assigns the nearest available delivery agent to pick up the order from the merchant." },
+    { icon: Box, title: 'Secure Pickup & Transit', description: "The agent securely packages the item and starts the delivery, with real-time status updates." },
+    { icon: CheckCircle, title: 'Order Delivered', description: "The customer receives their order, and the delivery is marked as complete in the system." },
 ];
 
-export default function DeliveryPage() {
+export default function BusmoGoPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
 
@@ -123,24 +130,22 @@ export default function DeliveryPage() {
                 {/* Hero Section */}
                 <section className="text-center">
                     <div className="flex justify-center">
-                        <div className="p-4 bg-primary/10 rounded-full inline-block">
-                             <Bike className="w-12 h-12 text-primary" />
-                        </div>
+                        <Logo variant="busmogo" className="text-5xl"/>
                     </div>
                     <h1 className="mt-4 text-4xl font-bold tracking-tight font-headline sm:text-5xl">
-                        Fast, Affordable, and Reliable Delivery
+                        BusmoGo: Fast, Local, Reliable.
                     </h1>
                     <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-                        Busmo partners with a network of local delivery riders to get your products to customers quickly and safely, so you can focus on selling.
+                        Get your products to your customers' doorsteps. BusmoGo is our integrated delivery network designed for speed and peace of mind.
                     </p>
                     <Button asChild size="lg" className="mt-8">
-                        <Link href="/signup">Start Selling with Busmo Delivery</Link>
+                        <Link href="/signup">Start Selling with BusmoGo</Link>
                     </Button>
                 </section>
 
                 {/* How It Works Section */}
                 <section>
-                    <h2 className="text-3xl font-bold font-headline text-center mb-12">How It Works</h2>
+                    <h2 className="text-3xl font-bold font-headline text-center mb-12">How It Works for Merchants</h2>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                         {howItWorksSteps.map((step, index) => (
                              <div key={index} className="flex flex-col items-center text-center">
@@ -155,51 +160,48 @@ export default function DeliveryPage() {
                 </section>
 
                 {/* Rate Card & Coverage Section */}
-                <section className="grid md:grid-cols-2 gap-8">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Delivery Rate Card</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground text-sm mb-4">Sample rates for intra-city delivery. Final rates are based on distance.</p>
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>City</TableHead>
-                                        <TableHead className="text-right">Average Rate</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {deliveryRates.map(item => (
-                                        <TableRow key={item.city}>
-                                            <TableCell className="font-medium">{item.city}</TableCell>
-                                            <TableCell className="text-right">{item.rate}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Our Coverage</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground text-sm mb-4">We're constantly expanding. Currently, our delivery network is active in:</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <ul className="space-y-2">
-                                     <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary"/>Lagos, NG</li>
-                                     <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary"/>Abuja, NG</li>
-                                     <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary"/>Accra, GH</li>
-                                </ul>
-                                <ul className="space-y-2">
-                                     <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary"/>Niamey, NE</li>
-                                     <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary"/>Douala, CM</li>
-                                     <li className="flex items-center gap-2 text-muted-foreground">More cities soon!</li>
-                                </ul>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <section>
+                    <h2 className="text-3xl font-bold font-headline text-center mb-12">Simple, Transparent Pricing</h2>
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Package Sizes</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Size</TableHead><TableHead>Example</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {packageSizes.map(item => (
+                                            <TableRow key={item.size}>
+                                                <TableCell><p className="font-medium">{item.size}</p><p className="text-xs text-muted-foreground">{item.dimensions}</p></TableCell>
+                                                <TableCell>{item.example}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Delivery Rates</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-muted-foreground text-sm mb-4">Our competitive rates. Final price is based on exact distance.</p>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Zone</TableHead><TableHead className="text-right">Average Rate</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {deliveryRates.map(item => (
+                                            <TableRow key={item.zone}>
+                                                <TableCell className="font-medium">{item.zone}</TableCell>
+                                                <TableCell className="text-right">{item.rate}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                     <p className="text-center text-sm text-muted-foreground mt-8">BusmoGo adds a small handling fee to each delivery to ensure quality and insurance.</p>
                 </section>
                 
                 {/* Benefits Section */}
@@ -232,7 +234,7 @@ export default function DeliveryPage() {
                     <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                         <Card className="flex flex-col">
                             <CardHeader>
-                                <CardTitle>For Riders</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Award className="w-5 h-5 text-primary"/> Become a Rider</CardTitle>
                                 <CardDescription>Turn your bike into a business. Earn competitive fees delivering for stores in your area.</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-1">
@@ -249,7 +251,7 @@ export default function DeliveryPage() {
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
-                                            <DialogTitle>Apply to be a Busmo Rider</DialogTitle>
+                                            <DialogTitle>Apply to be a BusmoGo Rider</DialogTitle>
                                             <DialogDescription>Fill in your details below. We'll contact you for the next steps.</DialogDescription>
                                         </DialogHeader>
                                         <form onSubmit={handleApplyForRider} className="space-y-4 pt-4">
@@ -269,7 +271,7 @@ export default function DeliveryPage() {
                         </Card>
                         <Card className="flex flex-col">
                             <CardHeader>
-                                <CardTitle>For Guarantors</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary"/> Become a Guarantor</CardTitle>
                                 <CardDescription>Vouch for a rider you trust and earn a commission on every successful delivery they make.</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-1">
@@ -311,6 +313,12 @@ export default function DeliveryPage() {
                                 </Dialog>
                              </CardFooter>
                         </Card>
+                    </div>
+                     <div className="text-center mt-12 border-t pt-8">
+                        <p className="font-semibold">Already a BusmoGo Delivery Agent?</p>
+                        <Button asChild variant="link" className="text-base">
+                            <Link href="/delivery-agent/login">Sign In to Your Dashboard &rarr;</Link>
+                        </Button>
                     </div>
                 </section>
                 

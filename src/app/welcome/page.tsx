@@ -1,9 +1,10 @@
+
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, Image as ImageIcon, Instagram, Facebook, Megaphone, Check } from 'lucide-react';
+import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, ImageIcon, Instagram, Facebook, Megaphone, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState, useEffect, useRef, FormEvent, useMemo, ChangeEvent } from 'react';
@@ -142,6 +143,9 @@ export default function LandingPage() {
              <Link href="/market" passHref>
               <Button variant="ghost">{t('nav.market')}</Button>
             </Link>
+            <Link href="/market/delivery" passHref>
+              <Button variant="ghost">{t('nav.busmogo')}</Button>
+            </Link>
              <Link href="/invest" passHref>
               <Button variant="ghost">{t('nav.investors')}</Button>
             </Link>
@@ -177,6 +181,7 @@ export default function LandingPage() {
                     <nav className="flex flex-col items-start gap-4">
                         <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                         <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
+                        <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
                         <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                         <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
                         <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
