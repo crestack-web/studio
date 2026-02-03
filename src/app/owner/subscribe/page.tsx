@@ -113,14 +113,6 @@ function SubscribePageContent() {
             return;
         }
         
-        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
-
-        if (!initializePaymentUrl) {
-            console.error('Payment initialization URL is not configured.');
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
-            return;
-        }
-
         setIsProcessing(true);
 
         try {
@@ -144,7 +136,7 @@ function SubscribePageContent() {
             const reference = `SUB-${transactionRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
-            const response = await fetch(initializePaymentUrl, {
+            const response = await fetch('/initializePayment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

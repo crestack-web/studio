@@ -28,13 +28,11 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     const [verificationMessage, setVerificationMessage] = useState('');
 
     useEffect(() => {
-        const verifyPaymentUrl = process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL;
-
-        if (paystackRef && verifyPaymentUrl) {
+        if (paystackRef) {
             setVerificationStatus('verifying');
             const verify = async () => {
                 try {
-                    const response = await fetch(`${verifyPaymentUrl}?reference=${paystackRef}`);
+                    const response = await fetch(`/verifyPayment?reference=${paystackRef}`);
                     const result = await response.json();
                     if (result.success && result.data.status === 'success') {
                         setVerificationStatus('success');
@@ -49,8 +47,6 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
                 }
             };
             verify();
-        } else if (paystackRef) {
-            console.error("Payment verification URL is not configured.");
         } else {
             setVerificationStatus('idle');
         }

@@ -923,16 +923,8 @@ const BusmoPaySettings = () => {
             };
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
             
-            const bankListUrl = process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL;
-            
-            if (!bankListUrl) {
-                console.error('Bank list URL is not configured.');
-                setIsLoadingBanks(false);
-                return;
-            }
-
             try {
-                const response = await fetch(`${bankListUrl}?country=${countryName}`);
+                const response = await fetch(`/fetchBankList?country=${countryName}`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 const result = await response.json();
                 if (result.success) {
@@ -968,19 +960,11 @@ const BusmoPaySettings = () => {
             toast({ title: 'Invalid Account Number', description: 'Please enter a valid account number.', variant: 'destructive' });
             return;
         }
-        
-        const verifyUrl = process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL;
-
-        if (!verifyUrl) {
-            console.error('Bank verification URL is not configured.');
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Bank verification service is not set up.' });
-            return;
-        }
     
         setIsVerifying(true);
         
         try {
-            const response = await fetch(verifyUrl, {
+            const response = await fetch('/verifyBankAccount', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ account_number: accountNumber, bank_code: bankCode }),

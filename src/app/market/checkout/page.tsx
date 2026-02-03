@@ -170,14 +170,6 @@ const CheckoutContent = () => {
     const handlePlaceOrder = async () => {
         if (!canPlaceOrder || !businessId || !firestore || !user) return;
         
-        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
-
-        if (market.country === 'NG' && !initializePaymentUrl) {
-            console.error('Payment initialization URL is not configured.');
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
-            return;
-        }
-        
         setIsPlacingOrder(true);
         
         const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
@@ -212,7 +204,7 @@ const CheckoutContent = () => {
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
-                const response = await fetch(initializePaymentUrl, {
+                const response = await fetch('/initializePayment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
