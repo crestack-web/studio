@@ -169,7 +169,10 @@ const CheckoutContent = () => {
     const canPlaceOrder = user && customerName && customerPhone && (fulfillmentMethod === 'pickup' || (fulfillmentMethod === 'delivery' && customerAddress));
 
     const handlePlaceOrder = async () => {
-        if (!canPlaceOrder || !businessId || !firestore || !user) return;
+        if (!canPlaceOrder || !businessId || !firestore || !user || !user.email) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Please ensure you are logged in and all fields are filled.' });
+            return;
+        }
         
         setIsPlacingOrder(true);
         
@@ -199,11 +202,13 @@ const CheckoutContent = () => {
                 currency: businessProfile?.currency || 'NGN',
             };
 
+            // Set the order first to get an ID.
             await setDoc(newOrderRef, orderData);
 
-            if (market.country === 'NG' && user.email) {
+            if (market.country === 'NG') {
                 const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
                 
+                // The reference must be unique for each transaction. We use the Firestore order ID.
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
@@ -213,8 +218,10 @@ const CheckoutContent = () => {
                     body: JSON.stringify({
                         email: user.email,
                         amount: total,
-                        reference: reference,
+                        reference: reference, // Pass our unique reference to Paystack
                         metadata: {
+                            businessId: businessId, // Pass businessId for the webhook
+                            orderId: newOrderRef.id,  // Pass orderId for the webhook
                             callback_url: callbackUrl,
                         },
                     }),
@@ -224,29 +231,31 @@ const CheckoutContent = () => {
                     let errorBody;
                     try {
                         errorBody = await response.json();
-                    } catch (e) {
-                        // ignore
-                    }
+                    } catch (e) { /* ignore json parsing errors */ }
+                    // If payment init fails, delete the pending order.
                     await deleteDoc(newOrderRef);
-                    throw new Error(errorBody?.error || response.statusText || 'Failed to initialize payment.');
+                    throw new Error(errorBody?.error || 'Failed to initialize payment.');
                 }
                 
                 const paymentData = await response.json();
 
-                if (paymentData.success && paymentData.data?.authorization_url) {
+                if (paymentData.success && paymentData.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.data.authorization_url;
+                    window.location.href = paymentData.authorization_url;
                 } else {
+                    // If payment init response is invalid, delete the pending order.
                     await deleteDoc(newOrderRef);
                     throw new Error(paymentData.error || 'Invalid payment initialization response.');
                 }
             } else {
+                // For other countries, go directly to confirmation page.
                 clearCart();
                 router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
             }
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
+            // Ensure cleanup happens on any error.
             await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);

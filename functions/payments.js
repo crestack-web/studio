@@ -9,6 +9,14 @@ const functions = require("firebase-functions");
 const axios = require("axios");
 const crypto = require("crypto");
 const cors = require("cors")({ origin: true });
+const admin = require("firebase-admin");
+
+// Initialize Firestore if not already done
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+
 
 // It's critical to set PAYSTACK_SECRET_KEY in your Firebase environment configuration.
 // `firebase functions:config:set paystack.secret_key="sk_..."`
@@ -28,7 +36,7 @@ exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
       return res.status(405).send({ success: false, error: 'Method Not Allowed' });
     }
 
-    const { email, amount, metadata } = req.body;
+    const { email, amount, metadata, reference } = req.body;
 
     if (!email || !amount) {
       return res.status(400).json({ success: false, error: 'Email and amount are required.' });
@@ -43,6 +51,7 @@ exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
         {
           email,
           amount: amountInKobo,
+          reference: reference || undefined, // Pass reference if provided
           metadata: metadata || {},
         },
         {
@@ -80,10 +89,10 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
       return res.status(405).send({ success: false, error: 'Method Not Allowed' });
     }
     
-    const { email, plan_code } = req.body;
+    const { email, plan, reference, metadata } = req.body;
 
-    if (!email || !plan_code) {
-      return res.status(400).json({ success: false, error: 'Email and plan_code are required.' });
+    if (!email || !plan) {
+      return res.status(400).json({ success: false, error: 'Email and plan are required.' });
     }
 
     try {
@@ -91,7 +100,9 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
         'https://api.paystack.co/transaction/initialize',
         {
           email,
-          plan: plan_code,
+          plan,
+          reference: reference || undefined,
+          metadata: metadata || {},
           // Amount is ignored by Paystack when a plan is provided, but it's required.
           amount: 0, 
         },
@@ -148,21 +159,21 @@ exports.verifyPayment = functions.https.onRequest((req, res) => {
             const isSubscription = !!data.data.plan;
             // Return a simple, clear status to the frontend.
             return res.status(200).json({
-                status: 'success',
+                success: true,
                 paid: true,
                 type: isSubscription ? 'subscription' : 'one_time',
                 data: data.data, // Pass the full data payload for client-side use if needed.
             });
         } else {
-             return res.status(400).json({
-                status: 'failed',
+             return res.status(200).json({
+                success: false,
                 paid: false,
                 message: data.data.gateway_response || 'Payment not successful.',
             });
         }
     } catch (error) {
         console.error("verifyPayment error:", error.response ? error.response.data : error.message);
-        return res.status(500).json({ status: 'failed', error: 'An internal error occurred during verification.' });
+        return res.status(500).json({ success: false, error: 'An internal error occurred during verification.' });
     }
   });
 });
@@ -171,7 +182,7 @@ exports.verifyPayment = functions.https.onRequest((req, res) => {
  * Handles incoming webhook events from Paystack.
  * It cryptographically verifies the request signature to ensure it's from Paystack.
  */
-exports.paystackWebhook = functions.https.onRequest((req, res) => {
+exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     // 1. Verify the webhook signature.
     const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY)
                        .update(JSON.stringify(req.body))
@@ -184,34 +195,60 @@ exports.paystackWebhook = functions.https.onRequest((req, res) => {
 
     // 2. Log the authentic event.
     const event = req.body;
-    console.log(`Received verified Paystack event: ${event.event}`);
+    console.log(`Received verified Paystack event: ${event.event}`, event.data);
 
     // 3. Process the event based on its type.
-    // For now, we just log the event. In the future, this is where you would
-    // write to Firestore to update an order or subscription status.
-    switch (event.event) {
-        case 'charge.success':
-            console.log(`Charge successful for reference: ${event.data.reference}. Amount: ${event.data.amount / 100}`);
-            // TODO: Fulfill order or grant access for one-time payments.
-            break;
-        case 'subscription.create':
-            console.log(`Subscription created for customer: ${event.data.customer.email}. Plan: ${event.data.plan.name}`);
-            // TODO: Provision subscription service for the customer.
-            break;
-        case 'invoice.payment_failed':
-             console.log(`Recurring payment FAILED for invoice: ${event.data.invoice_code}`);
-             // TODO: Notify customer and start dunning process.
-             break;
-        case 'invoice.payment_succeeded': // Deprecated, but good to handle
-        case 'charge.success': // Recommended event for recurring payments
-            if (event.data.plan) { // Check if it's part of a plan
-                console.log(`Recurring payment successful for subscription: ${event.data.plan.plan_code}`);
-                // TODO: Extend subscription validity.
-            }
-            break;
-        default:
-            console.log(`Unhandled Paystack event type: ${event.event}`);
+    try {
+        switch (event.event) {
+            case 'charge.success':
+                const { reference, metadata, amount, currency } = event.data;
+                const { businessId, orderId } = metadata;
+                
+                // Only process if we have the IDs we need
+                if (businessId && orderId) {
+                    const batch = db.batch();
+
+                    // Update order status
+                    const orderRef = db.doc(`businesses/${businessId}/orders/${orderId}`);
+                    batch.update(orderRef, { status: 'confirmed', paymentStatus: 'paid' });
+                    
+                    // Create payment transaction log
+                    const transactionRef = db.collection(`businesses/${businessId}/paymentTransactions`).doc(reference);
+                    batch.set(transactionRef, {
+                        orderId: orderId,
+                        amount: amount / 100, // Convert from kobo
+                        currency: currency,
+                        status: 'successful',
+                        gateway: 'paystack',
+                        reference: reference,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    await batch.commit();
+                    console.log(`Successfully processed order ${orderId} for business ${businessId}.`);
+                } else {
+                     console.warn(`Webhook received for charge.success without businessId or orderId in metadata. Reference: ${reference}`);
+                }
+                break;
+            case 'subscription.create':
+                // TODO: Handle new subscription creation
+                console.log(`Subscription created for customer: ${event.data.customer.email}. Plan: ${event.data.plan.name}`);
+                break;
+            case 'invoice.payment_succeeded':
+            case 'charge.success': // This case is now duplicated, but fine for handling recurring payments.
+                if (event.data.plan) { // Check if it's part of a plan
+                    console.log(`Recurring payment successful for subscription: ${event.data.plan.plan_code}`);
+                    // TODO: Extend subscription validity in Firestore.
+                }
+                break;
+            default:
+                console.log(`Unhandled Paystack event type: ${event.event}`);
+        }
+    } catch (error) {
+        console.error(`Error processing webhook event ${event.event}:`, error);
+        return res.status(500).send('Webhook processing error');
     }
+
 
     // 4. Acknowledge receipt of the event to Paystack.
     res.sendStatus(200);
