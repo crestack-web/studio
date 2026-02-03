@@ -1,10 +1,11 @@
+
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Landmark, Copy } from 'lucide-react';
+import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -21,7 +22,36 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     
     const orderId = searchParams?.orderId as string;
     const businessId = searchParams?.businessId as string;
+    const paystackRef = searchParams?.reference as string;
     
+    const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>('idle');
+    const [verificationMessage, setVerificationMessage] = useState('');
+
+    useEffect(() => {
+        if (paystackRef) {
+            setVerificationStatus('verifying');
+            const verify = async () => {
+                try {
+                    const response = await fetch(`/verifyPayment?reference=${paystackRef}`);
+                    const result = await response.json();
+                    if (result.success && result.data.status === 'success') {
+                        setVerificationStatus('success');
+                        setVerificationMessage('Your payment has been confirmed.');
+                    } else {
+                        setVerificationStatus('failed');
+                        setVerificationMessage(result.data.gateway_response || 'Payment could not be confirmed.');
+                    }
+                } catch (error) {
+                    setVerificationStatus('failed');
+                    setVerificationMessage('An error occurred while verifying your payment.');
+                }
+            };
+            verify();
+        } else {
+            setVerificationStatus('idle');
+        }
+    }, [paystackRef]);
+
     const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
 
@@ -52,6 +82,35 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     const paymentSettings = businessProfile?.marketSettings?.payment;
     const orderNumber = `#${orderId.substring(0,6).toUpperCase()}`;
     const currency = businessProfile?.currency;
+    
+    const renderVerificationStatus = () => {
+        switch (verificationStatus) {
+            case 'verifying':
+                return (
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Verifying payment...</span>
+                    </div>
+                );
+            case 'success':
+                return (
+                    <div className="flex items-center justify-center gap-2 text-success">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Payment Confirmed</span>
+                    </div>
+                );
+            case 'failed':
+                return (
+                     <div className="flex items-center justify-center gap-2 text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>Payment Failed: {verificationMessage}</span>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    }
+
 
     return (
         <div className="w-full max-w-lg space-y-6">
@@ -63,6 +122,7 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">{order.fulfillment === 'delivery' ? 'Your order will be delivered soon.' : 'Your order is ready for pickup.'}</p>
+                    <div className="mt-4 text-sm">{renderVerificationStatus()}</div>
                 </CardContent>
             </Card>
 
@@ -90,7 +150,7 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
 
 export default function OrderConfirmationPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Skeleton className="h-64 w-full max-w-lg"/></div>}>
             <OrderConfirmationContent searchParams={searchParams} />
         </Suspense>
     );

@@ -1,3 +1,4 @@
+
 {
   "functions": [
     {
@@ -20,16 +21,20 @@
     ],
     "rewrites": [
       {
-        "source": "/getBankList",
-        "function": "getBankList"
+        "source": "/fetchBankList",
+        "function": "fetchBankList"
       },
       {
-        "source": "/resolveBankAccount",
-        "function": "resolveBankAccount"
+        "source": "/verifyBankAccount",
+        "function": "verifyBankAccount"
       },
       {
         "source": "/initializePayment",
         "function": "initializePayment"
+      },
+      {
+        "source": "/verifyPayment",
+        "function": "verifyPayment"
       },
       {
         "source": "/paystackWebhook",

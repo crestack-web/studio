@@ -24,9 +24,8 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
         }
 
         const { amount, email, metadata } = req.body;
-        const { orderId, callback_url } = metadata || {};
-
-        if (!orderId || !amount || !email) {
+        
+        if (!metadata || !metadata.orderId || !amount || !email) {
             return res.status(400).json({ success: false, error: 'Missing required fields in body or metadata: orderId, amount, email.' });
         }
         
@@ -44,10 +43,10 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                 {
                     email: email,
                     amount: amountInKobo,
-                    reference: orderId,
-                    callback_url: callback_url,
+                    reference: metadata.orderId, // Use orderId from metadata as reference
+                    callback_url: metadata.callback_url,
                     metadata: {
-                        order_id: orderId,
+                        order_id: metadata.orderId,
                     },
                 },
                 {
@@ -85,7 +84,7 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
 
     const signature = req.headers["x-paystack-signature"];
     const hash = crypto.createHmac('sha512', PAYSTACK_SECRET)
-                       .update(req.rawBody)
+                       .update(JSON.stringify(req.body))
                        .digest('hex');
 
     if (hash !== signature) {
@@ -188,7 +187,7 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     res.sendStatus(200);
 });
 
-exports.getBankList = functions.https.onRequest((req, res) => {
+exports.fetchBankList = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         const country = req.query.country || 'nigeria';
 
@@ -208,18 +207,18 @@ exports.getBankList = functions.https.onRequest((req, res) => {
                 return res.status(500).json({ success: false, error: 'Failed to fetch bank list.' });
             }
         } catch (error) {
-            console.error("Paystack getBankList error:", error.response ? error.response.data : error.message);
+            console.error("Paystack fetchBankList error:", error.response ? error.response.data : error.message);
             return res.status(500).json({ success: false, error: 'An error occurred while fetching bank list.' });
         }
     });
 });
 
-exports.resolveBankAccount = functions.https.onRequest((req, res) => {
+exports.verifyBankAccount = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        const { accountNumber, bankCode } = req.query;
+        const { account_number, bank_code } = req.body;
 
-        if (!accountNumber || !bankCode) {
-            return res.status(400).json({ success: false, error: 'Missing accountNumber or bankCode.' });
+        if (!account_number || !bank_code) {
+            return res.status(400).json({ success: false, error: 'Missing account_number or bank_code.' });
         }
 
         if (!PAYSTACK_SECRET) {
@@ -228,7 +227,7 @@ exports.resolveBankAccount = functions.https.onRequest((req, res) => {
         }
         
         try {
-            const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
+            const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${account_number}&bank_code=${bank_code}`, {
                 headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
             });
             
@@ -238,9 +237,39 @@ exports.resolveBankAccount = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: response.data.message || 'Could not resolve account.' });
             }
         } catch (error) {
-            console.error("Paystack resolveBankAccount error:", error.response ? error.response.data : error.message);
+            console.error("Paystack verifyBankAccount error:", error.response ? error.response.data : error.message);
             const errorMessage = error.response?.data?.message || 'An error occurred while resolving the bank account.';
             return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
+});
+
+exports.verifyPayment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        const { reference } = req.query;
+
+        if (!reference) {
+            return res.status(400).json({ success: false, error: 'Payment reference is missing.' });
+        }
+
+        if (!PAYSTACK_SECRET) {
+            console.error("Paystack secret key is not configured.");
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
+
+        try {
+            const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+                headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            });
+
+            if (response.data && response.data.status) {
+                return res.status(200).json({ success: true, data: response.data.data });
+            } else {
+                return res.status(404).json({ success: false, error: 'Transaction not found or failed.' });
+            }
+        } catch (error) {
+            console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
+            return res.status(500).json({ success: false, error: 'An error occurred while verifying the payment.' });
         }
     });
 });

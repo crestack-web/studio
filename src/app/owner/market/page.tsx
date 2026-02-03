@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -916,18 +917,14 @@ const BusmoPaySettings = () => {
 
     useEffect(() => {
         const fetchBanks = async () => {
-            if (!businessData?.country) return;
-            const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
-            
-            const getBankListUrl = process.env.NEXT_PUBLIC_GET_BANK_LIST_URL;
-            if (!getBankListUrl) {
-                console.error('Bank list URL is not configured.');
+            if (!businessData?.country) {
                 setIsLoadingBanks(false);
                 return;
-            }
+            };
+            const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
 
             try {
-                const response = await fetch(`${getBankListUrl}?country=${countryName}`);
+                const response = await fetch(`/fetchBankList?country=${countryName}`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 const result = await response.json();
                 if (result.success) {
@@ -965,16 +962,13 @@ const BusmoPaySettings = () => {
         }
     
         setIsVerifying(true);
-        const resolveBankAccountUrl = process.env.NEXT_PUBLIC_RESOLVE_BANK_ACCOUNT_URL;
-        if (!resolveBankAccountUrl) {
-            console.error('Resolve bank account URL is not configured.');
-            toast({ title: 'Error', description: 'Verification service is not configured.', variant: 'destructive' });
-            setIsVerifying(false);
-            return;
-        }
         
         try {
-            const response = await fetch(`${resolveBankAccountUrl}?accountNumber=${accountNumber}&bankCode=${bankCode}`);
+            const response = await fetch('/verifyBankAccount', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account_number: accountNumber, bank_code: bankCode }),
+            });
             const result = await response.json();
             
             if (result.success) {
