@@ -152,5 +152,17 @@ service cloud.firestore {
       allow read: if resource.data.isActive == true;
       allow write: if isAdmin();
     }
+
+    // --- EMAIL SYSTEM ---
+    // Admins can read and write branding settings and templates
+    match /settings/emailBranding { allow read, write: if isAdmin(); }
+    match /emailTemplates/{templateId} { allow read, write: if isAdmin(); }
+    // Only backend functions can write to email logs, admins can read for debugging.
+    match /emailLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Block all client writes
+    }
   }
 }
+
+    

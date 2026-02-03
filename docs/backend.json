@@ -651,6 +651,52 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["businessId", "userId", "serviceName", "serviceFee", "status", "paymentStatus", "createdAt"]
+    },
+    "EmailBranding": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailBranding",
+        "type": "object",
+        "description": "Global branding settings for all transactional emails.",
+        "properties": {
+            "logoUrl": { "type": "string" },
+            "brandColor": { "type": "string" },
+            "accentColor": { "type": "string" },
+            "footerText": { "type": "string" },
+            "senderName": { "type": "string" },
+            "senderEmail": { "type": "string", "format": "email" },
+            "facebookUrl": { "type": "string" },
+            "twitterUrl": { "type": "string" },
+            "instagramUrl": { "type": "string" },
+            "appStoreUrl": { "type": "string" },
+            "playStoreUrl": { "type": "string" }
+        },
+        "required": ["logoUrl", "brandColor", "footerText", "senderName", "senderEmail"]
+    },
+    "EmailTemplate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailTemplate",
+        "type": "object",
+        "description": "A template for a specific transactional email.",
+        "properties": {
+            "subject": { "type": "string", "description": "Subject line, can contain Handlebars variables." },
+            "htmlBody": { "type": "string", "description": "The main content of the email in HTML, can contain Handlebars variables." },
+            "preheader": { "type": "string", "description": "Short summary text that follows the subject line." }
+        },
+        "required": ["subject", "htmlBody"]
+    },
+    "EmailLog": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailLog",
+        "type": "object",
+        "description": "A log entry for an email that has been sent or attempted.",
+        "properties": {
+            "to": { "type": "string", "format": "email" },
+            "templateId": { "type": "string" },
+            "status": { "type": "string", "enum": ["sent", "failed", "queued"] },
+            "error": { "type": "string" },
+            "sentAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["to", "templateId", "status", "sentAt"]
     }
   },
   "auth": {
@@ -1057,8 +1103,37 @@
             { "name": "announcementId", "description": "The unique ID for the announcement." }
           ]
         }
+      },
+      {
+        "path": "/settings/emailBranding",
+        "definition": {
+            "entityName": "EmailBranding",
+            "schema": { "$ref": "#/backend/entities/EmailBranding" },
+            "description": "A single document containing global branding settings for emails.",
+            "params": []
+        }
+      },
+      {
+          "path": "/emailTemplates/{templateId}",
+          "definition": {
+              "entityName": "EmailTemplate",
+              "schema": { "$ref": "#/backend/entities/EmailTemplate" },
+              "description": "Stores individual email templates (e.g., 'welcome-email').",
+              "params": [{ "name": "templateId", "description": "The unique name of the template." }]
+          }
+      },
+      {
+          "path": "/emailLogs/{logId}",
+          "definition": {
+              "entityName": "EmailLog",
+              "schema": { "$ref": "#/backend/entities/EmailLog" },
+              "description": "Logs all outgoing emails for tracking and debugging.",
+              "params": [{ "name": "logId", "description": "The unique ID of the log entry." }]
+          }
       }
     ],
-    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents."
+    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents.\n\n5. **Email System Data:** New collections for the email system (`settings/emailBranding`, `emailTemplates`, `emailLogs`) are added. These are generally managed by admins or the system itself, with strict rules to prevent unauthorized access."
   }
 }
+
+    

@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 const cors = require("cors")({ origin: true });
 const crypto = require("crypto");
+const { onUserCreate } = require("./triggers/auth");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -12,6 +13,9 @@ const db = admin.firestore();
 // In Firebase console: functions > configuration > environment variables
 // PAYSTACK_SECRET_KEY=your_live_or_test_secret_key
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+
+// Expose the auth trigger for the welcome email
+exports.onUserCreate = onUserCreate;
 
 /**
  * Initializes a Paystack transaction.
@@ -370,3 +374,5 @@ exports.verifyPayment = functions.https.onRequest((req, res) => {
         }
     });
 });
+
+    
