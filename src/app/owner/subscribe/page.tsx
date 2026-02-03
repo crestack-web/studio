@@ -3,7 +3,7 @@
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addDays } from 'date-fns';
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, getDoc, writeBatch, serverTimestamp, collection } from 'firebase/firestore';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,6 +111,14 @@ function SubscribePageContent() {
             toast({ title: "Error", description: "Missing required information. Please try again.", variant: "destructive" });
             return;
         }
+        
+        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+        if (!initializePaymentUrl) {
+            console.error('Payment initialization URL is not configured.');
+            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
+            return;
+        }
+
         setIsProcessing(true);
 
         try {
@@ -134,7 +142,7 @@ function SubscribePageContent() {
             const reference = `SUB-${transactionRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
-            const response = await fetch('/initializePayment', {
+            const response = await fetch(initializePaymentUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -151,7 +159,8 @@ function SubscribePageContent() {
 
             if (!response.ok || !paymentData.success) {
                 // If initialization fails, delete the pending transaction
-                await deleteDoc(transactionRef);
+                const subTransactionDocRef = doc(firestore, 'subscriptionTransactions', transactionRef.id);
+                await deleteDocumentNonBlocking(subTransactionDocRef);
                 throw new Error(paymentData.error || 'Failed to initialize payment.');
             }
             
@@ -159,7 +168,8 @@ function SubscribePageContent() {
             if (paymentData.data?.authorization_url) {
                 window.location.href = paymentData.data.authorization_url;
             } else {
-                 await deleteDoc(transactionRef);
+                 const subTransactionDocRef = doc(firestore, 'subscriptionTransactions', transactionRef.id);
+                await deleteDocumentNonBlocking(subTransactionDocRef);
                 throw new Error('Invalid payment initialization response.');
             }
 

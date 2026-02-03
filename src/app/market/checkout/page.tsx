@@ -13,7 +13,7 @@ import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser, deleteDocumentNonBlocking } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -169,6 +169,13 @@ const CheckoutContent = () => {
     const handlePlaceOrder = async () => {
         if (!canPlaceOrder || !businessId || !firestore || !user) return;
         
+        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+        if (market.country === 'NG' && !initializePaymentUrl) {
+            console.error('Payment initialization URL is not configured.');
+            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
+            return;
+        }
+        
         setIsPlacingOrder(true);
         
         // Use a temporary reference for the new order doc
@@ -205,7 +212,7 @@ const CheckoutContent = () => {
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
-                const response = await fetch('/initializePayment', {
+                const response = await fetch(initializePaymentUrl!, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
