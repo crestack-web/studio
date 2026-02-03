@@ -15,14 +15,26 @@ const db = admin.firestore();
 // EMAIL_USER=apikey
 // EMAIL_PASS=YOUR_SENDGRID_API_KEY
 
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || "587", 10),
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
+const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
+
+let transporter;
+if (missingEnvVars.length === 0) {
+    transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: parseInt(process.env.EMAIL_PORT || "587", 10),
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    });
+} else {
+    // This log will appear when the function instance starts up.
+    console.warn(
+      'Email service is not configured. Missing environment variables:', 
+      missingEnvVars.join(', ')
+    );
+}
 
 // --- Default Data ---
 // This data is used if no branding is found in Firestore.
@@ -63,6 +75,13 @@ const mainTemplate = handlebars.compile(mainTemplateHtml, { strict: true });
  * @param {Object} params.data The dynamic data to inject into the template.
  */
 async function sendTransactionalEmail({ to, templateId, data }) {
+    if (!transporter) {
+        const errorMsg = `Email service is not configured due to missing environment variables: ${missingEnvVars.join(', ')}. Please set them in your Firebase Functions environment.`;
+        console.error(errorMsg);
+        // We throw the error so the calling function's catch block can log it with full context.
+        throw new Error(errorMsg);
+    }
+    
     const logRef = db.collection('emailLogs').doc();
     
     try {
