@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
@@ -27,7 +28,10 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
     const [verificationMessage, setVerificationMessage] = useState('');
 
     useEffect(() => {
-        const verifyPaymentUrl = process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL;
+        const verifyPaymentUrl = process.env.NODE_ENV === 'development'
+            ? process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL
+            : '/verifyPayment';
+
         if (paystackRef && verifyPaymentUrl) {
             setVerificationStatus('verifying');
             const verify = async () => {

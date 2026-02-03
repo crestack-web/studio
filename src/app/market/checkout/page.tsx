@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -169,7 +170,10 @@ const CheckoutContent = () => {
     const handlePlaceOrder = async () => {
         if (!canPlaceOrder || !businessId || !firestore || !user) return;
         
-        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+        const initializePaymentUrl = process.env.NODE_ENV === 'development'
+            ? process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL
+            : '/initializePayment';
+
         if (market.country === 'NG' && !initializePaymentUrl) {
             console.error('Payment initialization URL is not configured.');
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
@@ -178,7 +182,6 @@ const CheckoutContent = () => {
         
         setIsPlacingOrder(true);
         
-        // Use a temporary reference for the new order doc
         const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
 
         try {
@@ -205,14 +208,13 @@ const CheckoutContent = () => {
                 currency: businessProfile?.currency || 'NGN',
             };
 
-            // Set the order data first
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG' && user.email) {
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
-                const response = await fetch(initializePaymentUrl!, {
+                const response = await fetch(initializePaymentUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -246,7 +248,6 @@ const CheckoutContent = () => {
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
-            // If anything fails after creating the order doc, delete it.
             await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);

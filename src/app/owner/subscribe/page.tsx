@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
@@ -112,7 +113,10 @@ function SubscribePageContent() {
             return;
         }
         
-        const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+        const initializePaymentUrl = process.env.NODE_ENV === 'development'
+            ? process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL
+            : '/initializePayment';
+
         if (!initializePaymentUrl) {
             console.error('Payment initialization URL is not configured.');
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
