@@ -201,10 +201,14 @@ const CheckoutContent = () => {
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG' && user.email) {
+                const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+                if (!initializePaymentUrl) {
+                    throw new Error('Payment gateway is not configured.');
+                }
                 const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
-                const response = await fetch('/initializePayment', {
+                const response = await fetch(initializePaymentUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

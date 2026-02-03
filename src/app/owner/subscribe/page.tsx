@@ -133,10 +133,17 @@ function SubscribePageContent() {
             }
             
             // 2. Initialize payment with Paystack
+            const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+            if (!initializePaymentUrl) {
+                console.error('Payment initialization URL is not configured.');
+                toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
+                setIsProcessing(false);
+                return;
+            }
             const reference = `SUB-${transactionRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
 
-            const response = await fetch('/initializePayment', {
+            const response = await fetch(initializePaymentUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

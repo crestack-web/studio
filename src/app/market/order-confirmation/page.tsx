@@ -32,7 +32,14 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
             setVerificationStatus('verifying');
             const verify = async () => {
                 try {
-                    const response = await fetch(`/verifyPayment?reference=${paystackRef}`);
+                    const verifyPaymentUrl = process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL;
+                    if (!verifyPaymentUrl) {
+                        setVerificationStatus('failed');
+                        setVerificationMessage('Payment verification service is not configured.');
+                        return;
+                    }
+
+                    const response = await fetch(`${verifyPaymentUrl}?reference=${paystackRef}`);
                     const result = await response.json();
                     if (result.success && result.data.status === 'success') {
                         setVerificationStatus('success');
