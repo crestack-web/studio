@@ -382,42 +382,6 @@ const SettingsContent = () => {
                 </CardContent>
             </Card>
 
-            {businessData?.country === 'NG' ? (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary"/> BusmoPay is Active</CardTitle>
-                        <CardDescription>For Nigerian businesses, BusmoPay is the exclusive payment gateway to ensure secure transactions and automated payouts.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">Customers will be able to pay securely using Card, Bank Transfer, or USSD at checkout. You do not need to configure anything here.</p>
-                        <Button asChild variant="link" className="px-0"><Link href="/owner/busmopay">Go to BusmoPay Dashboard &rarr;</Link></Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <Card>
-                    <CardHeader><CardTitle>Payment Methods</CardTitle><CardDescription>Choose how you want to accept payments for online orders.</CardDescription></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                            <Label htmlFor="pay-on-delivery" className="flex-1 space-y-0.5"><p className="text-base">Accept Pay on Delivery</p><p className="text-sm text-muted-foreground">Customers can pay with cash or POS upon order arrival.</p></Label>
-                            <Switch id="pay-on-delivery" checked={settings.payment.allowPayOnDelivery} onCheckedChange={(val) => handleSettingsChange('payment.allowPayOnDelivery', val)} disabled={isSaving} />
-                        </div>
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                            <Label htmlFor="bank-transfer" className="flex-1 space-y-0.5"><p className="text-base">Accept Bank Transfer</p><p className="text-sm text-muted-foreground">Customers will see your bank details to pay upfront.</p></Label>
-                            <Switch id="bank-transfer" checked={settings.payment.allowBankTransfer} onCheckedChange={(val) => handleSettingsChange('payment.allowBankTransfer', val)} disabled={isSaving} />
-                        </div>
-                        {settings.payment.allowBankTransfer && (
-                            <div className="space-y-4 pt-4 border-t">
-                                <div className="grid sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2"><Label htmlFor="bank-name">Bank Name</Label><Input id="bank-name" placeholder="e.g., Guaranty Trust Bank" value={settings.payment.bankName} onChange={(e) => handleSettingsChange('payment.bankName', e.target.value)} disabled={isSaving} /></div>
-                                    <div className="space-y-2"><Label htmlFor="account-number">Account Number</Label><Input id="account-number" placeholder="0123456789" value={settings.payment.accountNumber} onChange={(e) => handleSettingsChange('payment.accountNumber', e.target.value)} disabled={isSaving} /></div>
-                                </div>
-                                <div className="space-y-2"><Label htmlFor="payment-instructions">Payment Instructions</Label><Textarea id="payment-instructions" placeholder="e.g., Please use your order ID as reference." value={settings.payment.paymentInstructions} onChange={(e) => handleSettingsChange('payment.paymentInstructions', e.target.value)} disabled={isSaving} /></div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-
             <Card>
                 <CardHeader><CardTitle>Order Fulfillment</CardTitle><CardDescription>Set up how customers can receive their orders.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
@@ -987,7 +951,7 @@ const BusmoPaySettings = () => {
     }, [bankAccountData]);
 
     const handleVerifyAccount = async () => {
-        if (!bankCode || !accountNumber || !businessId || !bankAccountRef) {
+        if (!bankCode || !accountNumber) {
             toast({ title: 'Missing Details', description: 'Please select a bank and enter your account number.', variant: 'destructive' });
             return;
         }
@@ -995,38 +959,37 @@ const BusmoPaySettings = () => {
             toast({ title: 'Invalid Account Number', description: 'Please enter a valid account number.', variant: 'destructive' });
             return;
         }
-
+    
         setIsVerifying(true);
-        updateDocumentNonBlocking(bankAccountRef, { status: 'pending', bankCode, accountNumber });
-
-        const resolveAccountUrl = `${process.env.NEXT_PUBLIC_RESOLVE_BANK_ACCOUNT_URL}?accountNumber=${accountNumber}&bankCode=${bankCode}`;
-
+        
         try {
-            const response = await fetch(resolveAccountUrl);
-            const result = await response.json();
-
-            if (result.success) {
-                const { account_name, account_number } = result.data;
-                const selectedBank = banks.find((b) => b.code === bankCode);
-
-                await setDocumentNonBlocking(bankAccountRef, {
-                    bankName: selectedBank?.name,
-                    bankCode: bankCode,
-                    accountNumber: account_number,
-                    accountName: account_name,
-                    status: 'verified',
-                }, { merge: true });
-
-                toast({ title: 'Account Verified!', description: `Successfully verified: ${account_name}` });
-            } else {
-                await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
-                toast({ title: 'Verification Failed', description: result.error || 'Could not verify account details.', variant: 'destructive' });
-            }
-        } catch (error) {
-            await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
-            toast({ title: 'Verification Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+          if (typeof (window as any).verifyBankAccount !== 'function') {
+            throw new Error("Verification function is not available. Please refresh the page.");
+          }
+    
+          const result = await (window as any).verifyBankAccount(accountNumber, bankCode);
+          
+          if (result.success) {
+            toast({
+              title: 'Verification Successful',
+              description: `Account holder: ${result.data.account_name}`,
+            });
+          } else {
+            toast({
+              title: 'Verification Failed',
+              description: result.message || 'The bank details could not be verified.',
+              variant: 'destructive',
+            });
+          }
+        } catch (error: any) {
+          console.error("Client-side verification error:", error);
+          toast({
+            title: 'Error',
+            description: error.message || 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
         } finally {
-            setIsVerifying(false);
+          setIsVerifying(false);
         }
     };
     
