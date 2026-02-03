@@ -915,61 +915,108 @@ const CustomersContent = () => {
 // #region --- BusmoPaySettings ---
 const BusmoPaySettings = () => {
     const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+
+    const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => (businessId ? doc(firestore, 'businesses', businessId) : null), [firestore, businessId]);
+    const { data: businessData } = useDoc<{ country?: string }>(businessRef);
+
+    const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+    const [isLoadingBanks, setIsLoadingBanks] = useState(true);
+
     const [bankCode, setBankCode] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
-    const [accountStatus, setAccountStatus] = useState<'unverified' | 'pending' | 'verified' | 'failed'>('unverified');
-    const [verifiedAccount, setVerifiedAccount] = useState<{name: string, number: string, bank: string} | null>(null);
 
-    const nigerianBanks = [
-        { name: 'Access Bank', code: '044' }, { name: 'First Bank', code: '011' }, { name: 'Guaranty Trust Bank', code: '058' },
-        { name: 'United Bank for Africa', code: '033' }, { name: 'Zenith Bank', code: '057' }, { name: 'Opay', code: '999992'},
-        { name: 'Kuda Bank', code: '50211'}, { name: 'PalmPay', code: '999991'}
-    ];
+    const bankAccountRef = useMemoFirebase(() => {
+        if (!businessId) return null;
+        return doc(firestore, `businesses/${businessId}/bankAccount/primary`);
+    }, [businessId]);
+    const { data: bankAccountData, isLoading: isLoadingAccount } = useDoc<SellerBankAccount>(bankAccountRef);
 
-    const handleSaveAndVerify = async () => {
-        if (!bankCode || !accountNumber) {
-            toast({ title: 'Missing Details', description: 'Please select a bank and enter your account number.', variant: 'destructive'});
+    useEffect(() => {
+        const fetchBanks = async () => {
+            if (!businessData?.country) return;
+            const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
+            const getBankListUrl = `${process.env.NEXT_PUBLIC_GET_BANK_LIST_URL}?country=${countryName}`;
+
+            try {
+                const response = await fetch(getBankListUrl);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const result = await response.json();
+                if (result.success) {
+                    setBanks(result.data);
+                } else {
+                    toast({ title: 'Error fetching banks', description: result.error, variant: 'destructive' });
+                }
+            } catch (error) {
+                toast({ title: 'Error', description: 'Could not fetch bank list.', variant: 'destructive' });
+            } finally {
+                setIsLoadingBanks(false);
+            }
+        };
+
+        if (businessData?.country) {
+            fetchBanks();
+        }
+    }, [businessData?.country, toast]);
+
+    useEffect(() => {
+        if (bankAccountData) {
+            setBankCode(bankAccountData.bankCode || '');
+            setAccountNumber(bankAccountData.accountNumber || '');
+        }
+    }, [bankAccountData]);
+
+    const handleVerifyAccount = async () => {
+        if (!bankCode || !accountNumber || !businessId || !bankAccountRef) {
+            toast({ title: 'Missing Details', description: 'Please select a bank and enter your account number.', variant: 'destructive' });
             return;
         }
-        if (accountNumber.length !== 10) {
-            toast({ title: 'Invalid Account Number', description: 'Please enter a valid 10-digit NUBAN.', variant: 'destructive'});
+        if (accountNumber.length < 8) {
+            toast({ title: 'Invalid Account Number', description: 'Please enter a valid account number.', variant: 'destructive' });
             return;
         }
 
         setIsVerifying(true);
-        setAccountStatus('pending');
+        updateDocumentNonBlocking(bankAccountRef, { status: 'pending', bankCode, accountNumber });
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const resolveAccountUrl = `${process.env.NEXT_PUBLIC_RESOLVE_BANK_ACCOUNT_URL}?accountNumber=${accountNumber}&bankCode=${bankCode}`;
 
-        const success = Math.random() > 0.2; // 80% chance of success for demo
+        try {
+            const response = await fetch(resolveAccountUrl);
+            const result = await response.json();
 
-        if (success) {
-            const selectedBank = nigerianBanks.find(b => b.code === bankCode);
-            const accountName = 'John Doe'; 
-            setVerifiedAccount({
-                name: accountName,
-                number: accountNumber,
-                bank: selectedBank?.name || ''
-            });
-            setAccountStatus('verified');
-            toast({ title: 'Account Verified!', description: `Your account for ${accountName} has been verified.` });
-        } else {
-            setAccountStatus('failed');
-            toast({ title: 'Verification Failed', description: 'Could not verify account details. Please check and try again.', variant: 'destructive'});
+            if (result.success) {
+                const { account_name, account_number } = result.data;
+                const selectedBank = banks.find((b) => b.code === bankCode);
+
+                await setDocumentNonBlocking(bankAccountRef, {
+                    bankName: selectedBank?.name,
+                    bankCode: bankCode,
+                    accountNumber: account_number,
+                    accountName: account_name,
+                    status: 'verified',
+                }, { merge: true });
+
+                toast({ title: 'Account Verified!', description: `Successfully verified: ${account_name}` });
+            } else {
+                await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
+                toast({ title: 'Verification Failed', description: result.error || 'Could not verify account details.', variant: 'destructive' });
+            }
+        } catch (error) {
+            await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
+            toast({ title: 'Verification Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+        } finally {
+            setIsVerifying(false);
         }
-
-        setIsVerifying(false);
     };
-
-    const hasChanges = verifiedAccount?.bank !== nigerianBanks.find(b => b.code === bankCode)?.name || verifiedAccount?.number !== accountNumber;
-
-    const effectiveStatus = useMemo(() => {
-        if (isVerifying) return 'pending';
-        if (accountStatus === 'verified' && hasChanges) return 'unverified';
-        return accountStatus;
-    }, [isVerifying, accountStatus, hasChanges]);
-
+    
+    const isLoading = isLoadingAccount || isLoadingBanks;
 
     return (
         <div className="space-y-6">
@@ -982,42 +1029,42 @@ const BusmoPaySettings = () => {
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="bank-select">Bank</Label>
-                            <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying}>
-                                <SelectTrigger id="bank-select"><SelectValue placeholder="Select your bank" /></SelectTrigger>
-                                <SelectContent>{nigerianBanks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
+                            <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying || isLoading}>
+                                <SelectTrigger id="bank-select"><SelectValue placeholder={isLoadingBanks ? 'Loading banks...' : 'Select your bank'} /></SelectTrigger>
+                                <SelectContent>{banks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="account-number">Account Number</Label>
-                            <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying} />
+                            <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying || isLoading} />
                         </div>
                     </div>
                     
-                    {effectiveStatus !== 'unverified' && verifiedAccount && (
+                    {!isLoading && bankAccountData && (
                         <Card className="bg-muted/50">
                             <CardHeader className="p-4 flex-row items-start justify-between">
                                 <div>
                                     <CardTitle className="text-base">Current Payout Account</CardTitle>
                                     <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
                                 </div>
-                                    <Badge variant={effectiveStatus === 'verified' ? 'default' : effectiveStatus === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{effectiveStatus}</Badge>
+                                <Badge variant={bankAccountData.status === 'verified' ? 'default' : bankAccountData.status === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{bankAccountData.status}</Badge>
                             </CardHeader>
-                            {effectiveStatus === 'verified' && (
+                            {bankAccountData.status === 'verified' && (
                                 <CardContent className="p-4 pt-0 text-sm space-y-1">
-                                    <p className="font-semibold">{verifiedAccount.name}</p>
-                                    <p className="text-muted-foreground">{verifiedAccount.number} - {verifiedAccount.bank}</p>
+                                    <p className="font-semibold">{bankAccountData.accountName}</p>
+                                    <p className="text-muted-foreground">{bankAccountData.accountNumber} - {bankAccountData.bankName}</p>
+                                </CardContent>
+                            )}
+                             {bankAccountData.status === 'failed' && (
+                                <CardContent className="p-4 pt-0 text-sm">
+                                    <p className="text-destructive">Verification failed. Please check your details and try again.</p>
                                 </CardContent>
                             )}
                         </Card>
                     )}
-                     {(effectiveStatus === 'unverified' && hasChanges && accountStatus === 'verified') && (
-                        <CardFooter className="p-4 pt-0">
-                            <p className="text-xs text-yellow-800 dark:text-yellow-200 bg-yellow-500/10 p-2 rounded-md">You have unsaved changes. Please re-verify your account to receive payouts.</p>
-                        </CardFooter>
-                    )}
                 </CardContent>
                 <CardFooter>
-                     <Button onClick={handleSaveAndVerify} disabled={isVerifying || !bankCode || !accountNumber || (effectiveStatus === 'verified' && !hasChanges)}>
+                     <Button onClick={handleVerifyAccount} disabled={isVerifying || isLoading || !bankCode || !accountNumber}>
                         {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isVerifying ? 'Verifying...' : 'Save & Verify Account'}
                     </Button>

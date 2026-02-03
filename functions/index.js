@@ -187,3 +187,60 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
 
     res.sendStatus(200);
 });
+
+exports.getBankList = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        const country = req.query.country || 'nigeria';
+
+        if (!PAYSTACK_SECRET) {
+            console.error("Paystack secret key is not configured.");
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
+
+        try {
+            const response = await axios.get(`https://api.paystack.co/bank?country=${country}&currency=NGN`, {
+                headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            });
+
+            if (response.data && response.data.status) {
+                return res.status(200).json({ success: true, data: response.data.data });
+            } else {
+                return res.status(500).json({ success: false, error: 'Failed to fetch bank list.' });
+            }
+        } catch (error) {
+            console.error("Paystack getBankList error:", error.response ? error.response.data : error.message);
+            return res.status(500).json({ success: false, error: 'An error occurred while fetching bank list.' });
+        }
+    });
+});
+
+exports.resolveBankAccount = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        const { accountNumber, bankCode } = req.query;
+
+        if (!accountNumber || !bankCode) {
+            return res.status(400).json({ success: false, error: 'Missing accountNumber or bankCode.' });
+        }
+
+        if (!PAYSTACK_SECRET) {
+            console.error("Paystack secret key is not configured.");
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
+        
+        try {
+            const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
+                headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            });
+            
+            if (response.data && response.data.status) {
+                return res.status(200).json({ success: true, data: response.data.data });
+            } else {
+                return res.status(400).json({ success: false, error: response.data.message || 'Could not resolve account.' });
+            }
+        } catch (error) {
+            console.error("Paystack resolveBankAccount error:", error.response ? error.response.data : error.message);
+            const errorMessage = error.response?.data?.message || 'An error occurred while resolving the bank account.';
+            return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
+});
