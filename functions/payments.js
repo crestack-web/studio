@@ -1,13 +1,13 @@
 
 // functions/payments.js
 /**
- * @fileoverview This file contains placeholder Paystack payment-related Cloud Functions.
- * This is a clean reset to establish a stable base for future development.
+ * @fileoverview This file contains Paystack payment-related Cloud Functions.
  */
 
 const functions = require("firebase-functions");
 const crypto = require("crypto");
 const cors = require("cors")({ origin: true });
+const axios = require("axios");
 
 // It's critical to set PAYSTACK_SECRET_KEY in your Firebase environment configuration.
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -18,12 +18,55 @@ if (!PAYSTACK_SECRET_KEY) {
 }
 
 /**
- * Placeholder for initializing a one-time payment.
- * This function is intentionally disabled and returns a 501 Not Implemented error.
+ * Initializes a one-time payment with Paystack.
+ * Accepts: { email, amount, metadata }
+ * Returns: { success, authorization_url, reference }
  */
 exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
-  cors(req, res, () => {
-    res.status(501).json({ error: "Payment feature is temporarily disabled." });
+  cors(req, res, async () => {
+    if (!PAYSTACK_SECRET_KEY) {
+      console.error("Payment function called, but PAYSTACK_SECRET_KEY is not set.");
+      return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+    }
+
+    const { email, amount, metadata } = req.body;
+    if (!email || !amount) {
+      return res.status(400).json({ success: false, error: 'Email and amount are required.' });
+    }
+
+    try {
+      // Paystack expects the amount in the lowest currency unit (kobo for NGN).
+      const amountInKobo = Math.round(amount * 100);
+
+      const response = await axios.post(
+        'https://api.paystack.co/transaction/initialize',
+        {
+          email,
+          amount: amountInKobo,
+          metadata,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.data && response.data.status) {
+        return res.status(200).json({
+          success: true,
+          authorization_url: response.data.data.authorization_url,
+          reference: response.data.data.reference,
+        });
+      } else {
+        return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize payment.' });
+      }
+    } catch (error) {
+      console.error("Paystack initializeOneTimePayment error:", error.response ? error.response.data : error.message);
+      const errorMessage = error.response?.data?.message || 'An error occurred while initializing payment.';
+      return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+    }
   });
 });
 
@@ -38,14 +81,49 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
 });
 
 /**
- * Placeholder for verifying a payment.
- * This function is intentionally disabled and returns a 501 Not Implemented error.
+ * Verifies a payment transaction with Paystack.
+ * Accepts: { reference }
+ * Returns: { success, data: { ...paystack transaction data } }
  */
 exports.verifyPayment = functions.https.onRequest((req, res) => {
-  cors(req, res, () => {
-    res.status(501).json({ error: "Payment verification is temporarily disabled." });
+  cors(req, res, async () => {
+    if (!PAYSTACK_SECRET_KEY) {
+      console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
+      return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+    }
+
+    // Use req.query for GET requests to make it easy to test in browser.
+    // In production, frontend should use POST with a body.
+    const reference = req.body.reference || req.query.reference;
+
+    if (!reference) {
+      return res.status(400).json({ success: false, error: 'Payment reference is required.' });
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          },
+        }
+      );
+
+      if (response.data && response.data.status) {
+        // Return the full data object from Paystack
+        return res.status(200).json({ success: true, data: response.data.data });
+      } else {
+        return res.status(400).json({ success: false, error: response.data.message || 'Could not verify payment.' });
+      }
+    } catch (error) {
+      console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
+      const errorMessage = error.response?.data?.message || 'An error occurred while verifying the payment.';
+      return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+    }
   });
 });
+
 
 /**
  * Handles incoming webhook events from Paystack.
