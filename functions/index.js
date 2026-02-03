@@ -152,7 +152,46 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
                 return res.sendStatus(500); // Tell Paystack to retry
             }
         
-        // Handle Order Payments
+        // Handle Service Request Payments
+        } else if (reference && reference.startsWith('SRV-')) {
+            const requestId = reference.substring(4);
+            const requestsCollectionGroup = db.collectionGroup('serviceRequests');
+            const query = requestsCollectionGroup.where(admin.firestore.FieldPath.documentId(), '==', requestId);
+            
+            try {
+                const requestSnapshots = await query.get();
+                if (requestSnapshots.empty) {
+                    console.warn(`Webhook for non-existent service request ID: ${requestId}`);
+                    return res.sendStatus(200);
+                }
+
+                const requestDoc = requestSnapshots.docs[0];
+                const requestRef = requestDoc.ref;
+                
+                await db.runTransaction(async (transaction) => {
+                    const freshRequestSnap = await transaction.get(requestRef);
+                    if (!freshRequestSnap.exists) return;
+                    const freshRequestData = freshRequestSnap.data();
+                    
+                    if (freshRequestData.paymentStatus !== 'unpaid') {
+                         console.log(`Service request ${requestId} payment already processed.`);
+                         return;
+                    }
+                    
+                    transaction.update(requestRef, {
+                        paymentStatus: 'paid',
+                        status: 'pending', // Set to pending for admin to pick up
+                        paystackReference: reference
+                    });
+                });
+
+                console.log(`Successfully processed payment for service request: ${requestId}`);
+            } catch (error) {
+                console.error(`Error processing service request webhook for reference ${reference}:`, error);
+                return res.sendStatus(500);
+            }
+        
+        // Handle Order Payments (default)
         } else {
             const orderId = reference.startsWith('ORD-') ? reference.substring(4) : reference;
             const ordersCollectionGroup = db.collectionGroup('orders');

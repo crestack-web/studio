@@ -132,7 +132,8 @@
         "canManageBlog": { "type": "boolean", "description": "Access to Blog management." },
         "canManageSupport": { "type": "boolean", "description": "Access to Support chats, tickets, and agent management." },
         "canManageCoupons": { "type": "boolean", "description": "Access to Coupon management." },
-        "canManageAnnouncements": { "type": "boolean", "description": "Access to Announcement management." }
+        "canManageAnnouncements": { "type": "boolean", "description": "Access to Announcement management." },
+        "canManageServices": { "type": "boolean", "description": "Access to manage paid service requests." }
       }
     },
     "Product": {
@@ -632,6 +633,24 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "page", "isActive"]
+    },
+    "ServiceRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServiceRequest",
+      "type": "object",
+      "description": "Represents a request for a paid business service from a merchant.",
+      "properties": {
+        "id": { "type": "string" },
+        "businessId": { "type": "string" },
+        "userId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "serviceFee": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "completed", "cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"] },
+        "paystackReference": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessId", "userId", "serviceName", "serviceFee", "status", "paymentStatus", "createdAt"]
     }
   },
   "auth": {
@@ -819,6 +838,18 @@
           "params": [
             { "name": "businessId", "description": "The unique identifier of the business." },
             { "name": "payoutId", "description": "The unique identifier for the payout record." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/serviceRequests/{requestId}",
+        "definition": {
+          "entityName": "ServiceRequest",
+          "schema": { "$ref": "#/backend/entities/ServiceRequest" },
+          "description": "Stores requests for paid services from a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "requestId", "description": "The unique identifier of the service request." }
           ]
         }
       },

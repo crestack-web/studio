@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone, MapPin } from 'lucide-react';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone, MapPin, Briefcase } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -891,6 +891,15 @@ export default function OwnerHomePage() {
                     <CardContent>
                        <p className="text-sm text-muted-foreground">Turn your consistent business data into funding opportunities.</p>
                        <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">Explore Funding Options</Link></Button>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Business Services</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                       <p className="text-sm text-muted-foreground">Get expert help with store setup, product listing, and advertising.</p>
+                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">Explore Services</Link></Button>
                     </CardContent>
                 </Card>
           </div>

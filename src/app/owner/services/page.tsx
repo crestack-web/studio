@@ -1,0 +1,212 @@
+
+'use client';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import MainLayout from '@/components/app/main-layout';
+import { formatCurrency } from '@/lib/currency';
+import { Briefcase, FileText, ImagePlus, Megaphone, Loader2 } from 'lucide-react';
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { doc, serverTimestamp, collection } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { getFunctionUrl } from '@/lib/api';
+
+interface Service {
+    id: string;
+    title: string;
+    description: string;
+    fee: number;
+    icon: React.ElementType;
+}
+
+interface AppUser {
+    businessId?: string;
+    displayName?: string;
+    email?: string;
+}
+
+interface Business {
+    currency?: string;
+}
+
+const services: Service[] = [
+    {
+        id: 'setup',
+        title: 'Store Setup & Onboarding',
+        description: "Let our experts set up your entire market store, from branding to your first 10 product listings.",
+        fee: 15000,
+        icon: ImagePlus,
+    },
+    {
+        id: 'listing',
+        title: 'Bulk Product Listing',
+        description: "Have a lot of products? We'll save you time by professionally listing up to 50 of your products for you.",
+        fee: 10000,
+        icon: FileText,
+    },
+    {
+        id: 'ads',
+        title: 'Featured Product Ad Campaign',
+        description: "Boost a product's visibility. We'll feature it on the market homepage and in our newsletter for one week.",
+        fee: 5000,
+        icon: Megaphone,
+    },
+    {
+        id: 'consultation',
+        title: 'Delivery Logistics Consultation',
+        description: "Get 1-on-1 expert advice on setting up your delivery zones and pricing for optimal efficiency and profit.",
+        fee: 7500,
+        icon: Briefcase,
+    }
+];
+
+export default function ServicesPage() {
+    const { toast } = useToast();
+    const firestore = useFirestore();
+    const { user } = useUser();
+    
+    const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    
+    const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const businessId = userProfile?.businessId;
+
+    const businessRef = useMemoFirebase(() => businessId ? doc(firestore, 'businesses', businessId) : null, [firestore, businessId]);
+    const { data: businessData } = useDoc<Business>(businessRef);
+    const currency = businessData?.currency;
+
+    const handleRequestService = async () => {
+        if (!selectedService || !user || !userProfile || !businessId || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not process request. Please try again.' });
+            return;
+        }
+        setIsProcessing(true);
+        
+        let serviceRequestRef;
+
+        try {
+            const newRequest = {
+                businessId,
+                userId: user.uid,
+                serviceName: selectedService.title,
+                serviceFee: selectedService.fee,
+                status: 'unpaid' as const,
+                paymentStatus: 'unpaid' as const,
+                createdAt: serverTimestamp(),
+            };
+            serviceRequestRef = await addDocumentNonBlocking(collection(firestore, `businesses/${businessId}/serviceRequests`), newRequest);
+
+            if (!serviceRequestRef) {
+                throw new Error("Failed to create service request document.");
+            }
+
+            const initializePaymentUrl = getFunctionUrl('initializePayment');
+            if (!initializePaymentUrl) {
+                throw new Error('Payment gateway is not configured.');
+            }
+
+            const reference = `SRV-${serviceRequestRef.id}`;
+            const callbackUrl = window.location.href; // Refresh current page
+
+            const response = await fetch(initializePaymentUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: userProfile.email,
+                    amount: selectedService.fee,
+                    reference: reference,
+                    metadata: { callback_url: callbackUrl },
+                }),
+            });
+
+            const paymentData = await response.json();
+
+            if (!response.ok || !paymentData.success) {
+                throw new Error(paymentData.error || 'Failed to initialize payment.');
+            }
+            
+            if (paymentData.data?.authorization_url) {
+                window.location.href = paymentData.data.authorization_url;
+            } else {
+                throw new Error('Invalid payment initialization response.');
+            }
+
+        } catch (error: any) {
+            console.error("Error requesting service:", error);
+            if (serviceRequestRef) {
+                await deleteDocumentNonBlocking(doc(firestore, `businesses/${businessId}/serviceRequests`, serviceRequestRef.id));
+            }
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not process your request.' });
+            setIsProcessing(false);
+        }
+    };
+
+    return (
+        <MainLayout title="Business Services" backHref="/owner/home">
+            <div className="w-full max-w-4xl space-y-6">
+                <div className="text-center">
+                    <h1 className="text-3xl font-bold font-headline">Grow Your Business Faster</h1>
+                    <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                        Leverage our team of experts to handle time-consuming tasks so you can focus on what you do best.
+                    </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-6">
+                    {services.map((service) => (
+                        <Card key={service.id} className="flex flex-col">
+                            <CardHeader>
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-primary/10 rounded-lg">
+                                        <service.icon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <CardTitle>{service.title}</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1">
+                                <p className="text-muted-foreground">{service.description}</p>
+                            </CardContent>
+                            <CardFooter className="flex-col items-start gap-4">
+                                <p className="text-2xl font-bold">{formatCurrency(service.fee, currency)} <span className="text-sm font-normal text-muted-foreground">/ one-time</span></p>
+                                <DialogTrigger asChild>
+                                    <Button className="w-full" onClick={() => setSelectedService(service)}>
+                                        Request Service
+                                    </Button>
+                                </DialogTrigger>
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+
+            <Dialog onOpenChange={(open) => !open && setSelectedService(null)}>
+                <DialogContent>
+                    {selectedService && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Confirm Service Request</DialogTitle>
+                                <DialogDescription>You are about to request the "{selectedService.title}" service.</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <div className="flex justify-between items-center rounded-lg border p-4">
+                                    <span className="font-medium">Total Fee</span>
+                                    <span className="text-2xl font-bold">{formatCurrency(selectedService.fee, currency)}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2 px-1">
+                                    You will be redirected to our secure payment gateway to complete this request.
+                                </p>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setSelectedService(null)}>Cancel</Button>
+                                <Button onClick={handleRequestService} disabled={isProcessing}>
+                                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Proceed to Payment
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </MainLayout>
+    );
+}

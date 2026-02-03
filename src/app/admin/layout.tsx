@@ -2,7 +2,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck, Megaphone, Briefcase } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -26,6 +26,7 @@ interface AdminPermission {
   canManageSupport?: boolean;
   canManageCoupons?: boolean;
   canManageAnnouncements?: boolean;
+  canManageServices?: boolean;
 }
 
 const LoadingScreen = () => (
@@ -136,6 +137,7 @@ function AdminLayout({
     { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid, permission: 'canManageMarketplace' },
     { id: 'announcements', label: 'Announcements', href: '/admin/announcements', icon: Megaphone, permission: 'canManageAnnouncements' },
     { id: 'coupons', label: 'Coupons', href: '/admin/coupons', icon: Ticket, permission: 'canManageCoupons' },
+    { id: 'services', label: 'Services', href: '/admin/services', icon: Briefcase, permission: 'canManageServices' },
     { id: 'blog', label: 'Blog', href: '/admin/blog', icon: Newspaper, permission: 'canManageBlog' },
     { id: 'support', label: 'Support', href: '/admin/support', icon: Mail, permission: 'canManageSupport' },
     { id: 'agents', label: 'Agents', href: '/admin/agents', icon: Contact, permission: 'canManageSupport' },
@@ -202,5 +204,3 @@ function AdminLayout({
 }
 
 export default ProtectedAdminLayout;
-
-    
