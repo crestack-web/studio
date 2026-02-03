@@ -16,6 +16,7 @@ import { formatCurrency, convertFromNgn } from '@/lib/currency';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getFunctionUrl } from '@/lib/api';
 
 const plans = [
     { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000 },
@@ -133,12 +134,10 @@ function SubscribePageContent() {
             }
             
             // 2. Initialize payment with Paystack
-            const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+            const initializePaymentUrl = getFunctionUrl('/initializePayment');
             if (!initializePaymentUrl) {
-                console.error('Payment initialization URL is not configured.');
-                toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway is not set up correctly.' });
-                setIsProcessing(false);
-                return;
+                toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway URL is not configured for local development. Please check your .env file.' });
+                throw new Error('Payment gateway is not configured.');
             }
             const reference = `SUB-${transactionRef.id}`;
             const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;

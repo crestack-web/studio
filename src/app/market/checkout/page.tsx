@@ -21,6 +21,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useCart, CartItem } from '@/context/cart-provider';
 import { useMarket } from '@/context/market-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getFunctionUrl } from '@/lib/api';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
 interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; currency?: string; }
@@ -201,8 +202,9 @@ const CheckoutContent = () => {
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG' && user.email) {
-                const initializePaymentUrl = process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL;
+                const initializePaymentUrl = getFunctionUrl('/initializePayment');
                 if (!initializePaymentUrl) {
+                    toast({ variant: 'destructive', title: 'Configuration Error', description: 'Payment gateway URL is not configured for local development. Please check your .env file.' });
                     throw new Error('Payment gateway is not configured.');
                 }
                 const reference = `ORD-${newOrderRef.id}`;

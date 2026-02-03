@@ -31,6 +31,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import imageCompression from 'browser-image-compression';
+import { getFunctionUrl } from '@/lib/api';
 
 
 const createSlug = (name: string) => {
@@ -921,7 +922,7 @@ const BusmoPaySettings = () => {
                 setIsLoadingBanks(false);
                 return;
             };
-            const fetchBankListUrl = process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL;
+            const fetchBankListUrl = getFunctionUrl('/fetchBankList');
             if (!fetchBankListUrl) {
                 console.error('Bank list URL is not configured.');
                 setIsLoadingBanks(false);
@@ -967,9 +968,8 @@ const BusmoPaySettings = () => {
             return;
         }
         
-        const verifyBankAccountUrl = process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL;
+        const verifyBankAccountUrl = getFunctionUrl('/verifyBankAccount');
         if (!verifyBankAccountUrl) {
-            console.error('Bank account verification URL is not configured.');
             toast({ variant: 'destructive', title: 'Configuration Error', description: 'Bank verification service is not set up.' });
             return;
         }

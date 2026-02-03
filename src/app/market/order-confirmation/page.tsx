@@ -11,6 +11,7 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
+import { getFunctionUrl } from '@/lib/api';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
@@ -32,7 +33,7 @@ const OrderConfirmationContent = ({ searchParams }: { searchParams: { [key: stri
             setVerificationStatus('verifying');
             const verify = async () => {
                 try {
-                    const verifyPaymentUrl = process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL;
+                    const verifyPaymentUrl = getFunctionUrl('/verifyPayment');
                     if (!verifyPaymentUrl) {
                         setVerificationStatus('failed');
                         setVerificationMessage('Payment verification service is not configured.');
