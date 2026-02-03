@@ -1,7 +1,6 @@
 
-
 'use client';
-import { useState, useMemo, useEffect, ChangeEvent } from 'react';
+import { useState, useMemo, useEffect, ChangeEvent, Suspense } from 'react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -76,7 +75,7 @@ interface BusinessVerification {
     status: 'unverified' | 'pending' | 'verified' | 'rejected';
 }
 
-export default function AddProductPage() {
+function AddProductPageContent() {
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -670,4 +669,20 @@ export default function AddProductPage() {
             </div>
         </MainLayout>
     );
+}
+
+const AddProductPageSkeleton = () => (
+    <MainLayout title="Loading..." backHref="/owner/market">
+        <div className="w-full max-w-md space-y-6">
+            <Card><CardContent className="p-6 flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>
+        </div>
+    </MainLayout>
+);
+
+export default function AddProductPage() {
+  return (
+    <Suspense fallback={<AddProductPageSkeleton />}>
+      <AddProductPageContent />
+    </Suspense>
+  )
 }
