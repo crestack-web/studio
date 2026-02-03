@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ import { useMarket } from '@/context/market-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Variant { id: string; name: string; price: number; availableQuantity: number; }
-interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; }
+interface MarketProduct { businessId: string; productName: string; price: number; images?: string[]; hint?: string; availableQuantity: number; hasVariants?: boolean; variants?: Variant[]; currency?: string; }
 type MarketSettings = { isStoreActive: boolean; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
 interface BusinessProfile { businessName: string; marketSettings?: MarketSettings; currency?: string; }
 
@@ -39,8 +38,9 @@ type CheckoutItem = {
 };
 
 
-const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) => {
+const CheckoutContent = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
@@ -60,9 +60,9 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
 
     // This effect determines what's in the checkout. It can be a single item ("Buy Now") or the whole cart.
     useEffect(() => {
-        const productId = searchParams?.productId as string | undefined;
-        const variantId = searchParams?.variantId as string | undefined;
-        const quantityStr = searchParams?.quantity as string | undefined;
+        const productId = searchParams.get('productId');
+        const variantId = searchParams.get('variantId');
+        const quantityStr = searchParams.get('quantity');
 
         const fetchProductData = async (pId: string, vId: string | null, qty: number) => {
             if (!firestore) return;
@@ -306,10 +306,10 @@ const CheckoutContent = ({ searchParams }: { searchParams: { [key: string]: stri
     );
 }
 
-export default function CheckoutPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+export default function CheckoutPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <CheckoutContent searchParams={searchParams} />
+            <CheckoutContent />
         </Suspense>
     );
 }
