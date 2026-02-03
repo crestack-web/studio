@@ -920,10 +920,16 @@ const BusmoPaySettings = () => {
         const fetchBanks = async () => {
             if (!businessData?.country) return;
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
-            const getBankListUrl = `/getBankList?country=${countryName}`;
+            
+            const getBankListUrl = process.env.NEXT_PUBLIC_GET_BANK_LIST_URL;
+            if (!getBankListUrl) {
+                console.error('Bank list URL is not configured.');
+                setIsLoadingBanks(false);
+                return;
+            }
 
             try {
-                const response = await fetch(getBankListUrl);
+                const response = await fetch(`${getBankListUrl}?country=${countryName}`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 const result = await response.json();
                 if (result.success) {
