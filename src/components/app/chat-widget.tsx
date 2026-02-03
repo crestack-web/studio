@@ -177,13 +177,24 @@ export function ChatWidget() {
       const messagesColRef = collection(firestore, `chatConversations/${conversationId}/messages`);
       const conversationRef = doc(firestore, 'chatConversations', conversationId);
       
-      const newMessage = {
+      const newMessage: {
+          senderId: string;
+          senderName: string;
+          createdAt: any;
+          text?: string;
+          imageUrl?: string;
+      } = {
           senderId: user.uid,
           senderName: user.displayName || 'User',
-          text: text ? text.trim() : undefined,
-          imageUrl: imageUrl || undefined,
           createdAt: serverTimestamp(),
       };
+
+      if (text.trim()) {
+          newMessage.text = text.trim();
+      }
+      if (imageUrl) {
+          newMessage.imageUrl = imageUrl;
+      }
 
       const lastMessageText = text ? text.trim() : 'Sent an image';
 
