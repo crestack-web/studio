@@ -161,10 +161,10 @@ export function ChatWidget() {
 
       try {
           const newDocRef = await addDocumentNonBlocking(collection(firestore, 'chatConversations'), newConversation);
-          newDocRef.then(ref => {
-               setConversationId(ref.id);
-               setChatView('chat');
-          });
+          if (newDocRef) {
+              setConversationId(newDocRef.id);
+              setChatView('chat');
+          }
       } catch (error) {
           toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat. Please try again.' });
       }
@@ -261,24 +261,43 @@ export function ChatWidget() {
                     </SheetHeader>
                     <div className="p-6 flex-1 space-y-4">
                         {isLoadingAgents ? (
-                            <Skeleton className="h-10 w-full" />
-                        ) : canChat ? (
-                            <div>
-                                <h3 className="font-semibold mb-2">Our agents are online</h3>
-                                <div className="flex -space-x-2 overflow-hidden mb-4">
-                                    {allAgents?.filter(a => a.status === 'online').map(agent => (
-                                        <Avatar key={agent.userId} className="inline-block h-10 w-10 rounded-full ring-2 ring-background">
-                                            <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                    ))}
-                                </div>
-                                <Button className="w-full" onClick={handleStartChat}>Start Live Chat</Button>
-                            </div>
+                            <Skeleton className="h-24 w-full" />
                         ) : (
-                            <div>
-                                <h3 className="font-semibold mb-2">We're currently offline</h3>
-                                <p className="text-sm text-muted-foreground mb-4">Please leave a message and we'll get back to you as soon as possible.</p>
-                                <Button className="w-full" variant="outline" onClick={() => setChatView('ticket')}>Leave a Message</Button>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="font-semibold mb-2">
+                                        {canChat ? "Our agents are online" : "We're currently offline"}
+                                    </h3>
+                                    {canChat && (
+                                        <div className="flex -space-x-2 overflow-hidden mb-4">
+                                            {allAgents?.filter(a => a.status === 'online').map(agent => (
+                                                <Avatar key={agent.userId} className="inline-block h-10 w-10 rounded-full ring-2 ring-background">
+                                                    <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <Button className="w-full" onClick={handleStartChat} disabled={!canChat}>
+                                        Start Live Chat
+                                    </Button>
+                                    {!canChat && <p className="text-xs text-muted-foreground mt-1 text-center">No agents available right now.</p>}
+                                </div>
+                                
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t" />
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-sm text-muted-foreground mb-2 text-center">Leave us a message and we'll get back to you via email.</p>
+                                    <Button className="w-full" variant="outline" onClick={() => setChatView('ticket')}>
+                                        Submit a Ticket
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
