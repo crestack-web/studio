@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -215,7 +214,7 @@ const CheckoutContent = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: user.email,
-                        amount: total,
+                        amount: Math.round(total * 100),
                         metadata: {
                             businessId: businessId,
                             orderId: newOrderRef.id,
