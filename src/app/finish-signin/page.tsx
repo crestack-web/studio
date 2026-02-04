@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,8 +7,10 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+
 
 export default function FinishSignInPage() {
     const router = useRouter();
@@ -15,9 +18,12 @@ export default function FinishSignInPage() {
     const [message, setMessage] = useState('Verifying your login link...');
     const [error, setError] = useState<string | null>(null);
     const auth = useAuth();
+    const firestore = useFirestore();
 
     useEffect(() => {
         const finishSignIn = async () => {
+            if (!auth || !firestore) return;
+
             if (isSignInWithEmailLink(auth, window.location.href)) {
                 let email = window.localStorage.getItem('emailForSignIn');
                 if (!email) {
@@ -26,13 +32,47 @@ export default function FinishSignInPage() {
                 }
 
                 try {
-                    await signInWithEmailLink(auth, email, window.location.href);
+                    const userCredential = await signInWithEmailLink(auth, email, window.location.href);
+                    const user = userCredential.user;
+                    
+                    if (user && user.email) {
+                        const invitationRef = doc(firestore, 'invitations', user.email);
+                        const invitationSnap = await getDoc(invitationRef);
+
+                        if (invitationSnap.exists() && invitationSnap.data().status === 'pending') {
+                            const invitationData = invitationSnap.data();
+                            const { businessId, businessName } = invitationData;
+                            
+                            const batch = writeBatch(firestore);
+                            
+                            const userRef = doc(firestore, 'users', user.uid);
+                            batch.set(userRef, {
+                                id: user.uid,
+                                displayName: user.displayName || user.email.split('@')[0],
+                                email: user.email,
+                                role: 'Staff',
+                                businessId: businessId,
+                                branchId: invitationData.branchId || null,
+                                createdAt: serverTimestamp()
+                            }, { merge: true });
+
+                            const businessInvitationRef = doc(firestore, `businesses/${businessId}/invitations`, user.email);
+                            batch.delete(invitationRef);
+                            batch.delete(businessInvitationRef);
+
+                            await batch.commit();
+
+                            toast({ title: `Welcome to ${businessName}!`, description: 'You have successfully joined the business.' });
+                        }
+                    }
+                    
                     window.localStorage.removeItem('emailForSignIn');
                     toast({ title: "Sign-in successful!" });
                     router.replace('/staff/home');
+
                 } catch (e: any) {
                     console.error(e);
-                    setError("Failed to sign in. The link may be expired or invalid.");
+                    setError("Failed to sign in. The link may be expired or invalid, or there was an issue joining the business.");
                     toast({ variant: 'destructive', title: 'Sign-in Failed', description: 'The link may be expired or invalid.' });
                 }
             } else {
@@ -40,10 +80,10 @@ export default function FinishSignInPage() {
             }
         };
 
-        if (auth) {
+        if (auth && firestore) {
             finishSignIn();
         }
-    }, [auth, router, toast]);
+    }, [auth, firestore, router, toast]);
 
     if (error) {
          return (

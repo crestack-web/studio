@@ -16,8 +16,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { doc, collection, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -137,15 +137,25 @@ export default function ManageStaffPage() {
 
         setIsInviting(true);
         try {
-            const invitationRef = doc(firestore, `businesses/${businessId}/invitations`, email);
-            await setDocumentNonBlocking(invitationRef, {
+            const batch = writeBatch(firestore);
+
+            const topLevelInvitationRef = doc(firestore, 'invitations', email);
+            const businessInvitationRef = doc(firestore, `businesses/${businessId}/invitations`, email);
+
+            const payload = {
                 email: email,
                 businessId: businessId,
                 businessName: businessData.businessName,
-                branchId: inviteBranchId,
-                status: 'pending',
+                branchId: inviteBranchId || null,
+                status: 'pending' as const,
                 createdAt: serverTimestamp(),
-            }, {});
+            };
+
+            batch.set(topLevelInvitationRef, payload);
+            batch.set(businessInvitationRef, payload);
+
+            await batch.commit();
+
             toast({ title: 'Invite Sent', description: `An invitation has been sent to ${email}.` });
             setEmail('');
             setInviteBranchId(undefined);
@@ -159,8 +169,16 @@ export default function ManageStaffPage() {
 
     const handleRevokeInvite = async (invitationId: string) => {
         if (!firestore || !businessId) return;
-        const invitationRef = doc(firestore, `businesses/${businessId}/invitations`, invitationId);
-        await deleteDocumentNonBlocking(invitationRef);
+        
+        const batch = writeBatch(firestore);
+        const topLevelInvitationRef = doc(firestore, 'invitations', invitationId);
+        const businessInvitationRef = doc(firestore, `businesses/${businessId}/invitations`, invitationId);
+
+        batch.delete(topLevelInvitationRef);
+        batch.delete(businessInvitationRef);
+
+        await batch.commit();
+        
         toast({ title: 'Invitation Revoked', description: `The invitation for ${invitationId} has been revoked.` });
     };
 

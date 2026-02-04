@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,10 @@ export default function StaffHomePage() {
     
     const isLoading = isUserLoading || isProfileLoading || isBusinessLoading;
 
+    // For now, we only show "Record Sale" until a permissions system is built
+    const canAddInventory = false;
+    const canRecordExpense = false;
+
     return (
         <div className="flex flex-col min-h-screen bg-background">
         <header className="flex items-center justify-between p-4 border-b bg-card">
@@ -71,18 +76,22 @@ export default function StaffHomePage() {
                         Record a Sale
                     </Button>
                 </Link>
-                 <Link href="/add-inventory">
-                    <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
-                        <PackagePlus className="w-8 h-8" />
-                        Add Inventory
-                    </Button>
-                </Link>
-                 <Link href="/record-expense">
-                    <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
-                        <FilePlus className="w-8 h-8" />
-                        Record Expense
-                    </Button>
-                </Link>
+                 {canAddInventory && (
+                    <Link href="/add-inventory">
+                        <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                            <PackagePlus className="w-8 h-8" />
+                            Add Inventory
+                        </Button>
+                    </Link>
+                 )}
+                 {canRecordExpense && (
+                    <Link href="/record-expense">
+                        <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                            <FilePlus className="w-8 h-8" />
+                            Record Expense
+                        </Button>
+                    </Link>
+                 )}
             </div>
         </main>
         </div>

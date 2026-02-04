@@ -50,8 +50,18 @@ service cloud.firestore {
       allow create: if isUserOwner(userId) && request.resource.data.id == userId;
       allow get: if isUserOwner(userId) || isAdmin();
       allow update: if isUserOwner(userId) || isAdmin();
+      allow write: if isSignedIn(); // Allow creating/updating user doc on first sign in
       allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
       allow delete: if isAdmin();
+    }
+    
+    match /invitations/{email} {
+      // An owner can create an invitation for their business
+      allow create: if isOwner(request.resource.data.businessId);
+      // A user can read their own invitation after signing in
+      allow read: if request.auth.token.email == email;
+      // The user can delete their own invitation upon accepting it. The owner can also delete it.
+      allow delete: if request.auth.token.email == email || isOwner(resource.data.businessId);
     }
 
     match /businesses/{businessId} {
