@@ -42,15 +42,19 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             switch (type) {
                 case 'product': {
                     const { items } = payload;
+                    if (!items || items.length === 0) {
+                        throw new Error('No items provided for product payment.');
+                    }
                     let totalAmount = 0;
                     for (const item of items) {
                         const productRef = db.collection('marketProducts').doc(item.productId);
                         const productSnap = await productRef.get();
-                        if (!productSnap.exists()) throw new Error(`Product with ID ${item.productId} not found.`);
+                        if (!productSnap.exists) {
+                            throw new Error(`Product with ID ${item.productId} not found.`);
+                        }
                         
                         const productData = productSnap.data();
                         
-                        // All payments are in NGN for now.
                         if ((productData.currency || 'NGN') !== 'NGN') {
                             throw new Error('Payments are currently only supported in NGN.');
                         }
@@ -58,21 +62,31 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                         let itemPrice = 0;
                         if (item.variantId && productData.hasVariants) {
                             const variant = productData.variants.find(v => v.id === item.variantId);
-                            if (!variant) throw new Error(`Variant ${item.variantId} not found.`);
+                            if (!variant) {
+                                throw new Error(`Variant ${item.variantId} for product ${item.productId} not found.`);
+                            }
                             itemPrice = variant.price;
                         } else {
                             itemPrice = productData.price;
                         }
+
+                        // Robustness Check: Ensure price is a valid number.
+                        if (typeof itemPrice !== 'number' || isNaN(itemPrice)) {
+                            throw new Error(`Invalid price for product ${item.productId}. Please check product settings.`);
+                        }
+                        if (typeof item.quantity !== 'number' || isNaN(item.quantity) || item.quantity <= 0) {
+                            throw new Error(`Invalid quantity for product ${item.productId}.`);
+                        }
+
                         totalAmount += itemPrice * item.quantity;
                     }
-                    amountInNaira = totalAmount; // This value is in Naira
+                    amountInNaira = totalAmount;
                     break;
                 }
                 case 'subscription': {
                     const { planId, billingCycle } = payload;
                     let finalPlanId = planId;
                     
-                    // FIX: Handle both 'multi-branch' and 'multibranch' to fix inconsistency
                     if (planId === 'multibranch') {
                         finalPlanId = 'multi-branch';
                     }
@@ -84,10 +98,10 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     }
                     const planData = planSnap.data();
 
-                    // All plan prices in DB are now assumed to be in Naira.
                     const priceInNaira = billingCycle === 'monthly' ? planData.monthlyPrice : planData.yearlyPrice;
-                    if (!priceInNaira) {
-                        throw new Error(`Price for plan '${planId}' and cycle '${billingCycle}' is not configured.`);
+                    if (typeof priceInNaira !== 'number' || isNaN(priceInNaira)) {
+                        throw new Error(`Price for plan '${planId}' and cycle '${billingCycle}' is not configured correctly.`);
+    
                     }
                     amountInNaira = priceInNaira;
                     
@@ -103,9 +117,14 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     const { serviceId } = payload;
                     const serviceRef = db.collection('services').doc(serviceId);
                     const serviceSnap = await serviceRef.get();
-                    if (!serviceSnap.exists()) throw new Error('Service not found.');
-                    // Assuming service fee is stored in Naira
-                    amountInNaira = serviceSnap.data().fee;
+                    if (!serviceSnap.exists()) {
+                         throw new Error('Service not found.');
+                    }
+                    const serviceFee = serviceSnap.data().fee;
+                    if (typeof serviceFee !== 'number' || isNaN(serviceFee)) {
+                        throw new Error(`Invalid fee for service ${serviceId}.`);
+                    }
+                    amountInNaira = serviceFee;
                     break;
                 }
                 default:
@@ -114,7 +133,10 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             
             // Final conversion and validation before sending to Paystack
             const amountInKobo = Math.round(amountInNaira * 100);
-            if (!amountInKobo || amountInKobo < 5000) { // Minimum 50 NGN
+            
+            // Stricter check for a valid, positive integer amount.
+            if (!Number.isInteger(amountInKobo) || amountInKobo < 50) { // Paystack minimum is 50 kobo
+                console.error(`Invalid final amount calculated. Naira: ${amountInNaira}, Kobo: ${amountInKobo}`);
                 throw new Error(`Calculated final amount is invalid or below minimum. Amount: ${amountInNaira} Naira.`);
             }
 
