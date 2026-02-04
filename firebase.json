@@ -18,32 +18,6 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/api/initializeOneTimePayment",
-        "function": "initializeOneTimePayment"
-      },
-      {
-        "source": "/api/initializeSubscription",
-        "function": "initializeSubscription"
-      },
-      {
-        "source": "/api/verifyPayment",
-        "function": "verifyPayment"
-      },
-      {
-        "source": "/api/fetchBankList",
-        "function": "fetchBankList"
-      },
-      {
-        "source": "/api/verifyBankAccount",
-        "function": "verifyBankAccount"
-      },
-      {
-        "source": "/api/paystackWebhook",
-        "function": "paystackWebhook"
-      }
     ]
   }
 }

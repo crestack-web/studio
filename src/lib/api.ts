@@ -1,29 +1,29 @@
+
 'use client';
 
-// A mapping of our internal function names to their environment variable keys.
-const functionUrlMap: { [key: string]: string | undefined } = {
-  initializePayment: process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL,
-  verifyPayment: process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL,
-  fetchBankList: process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL,
-  verifyBankAccount: process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL,
+// A mapping of our internal function names to their proxied API paths.
+const functionPathMap: { [key: string]: string } = {
+  initializeOneTimePayment: '/api/initializeOneTimePayment',
+  initializeSubscription: '/api/initializeSubscription',
+  verifyPayment: '/api/verifyPayment',
+  fetchBankList: '/api/fetchBankList',
+  verifyBankAccount: '/api/verifyBankAccount',
 };
 
 /**
- * Returns the correct, absolute URL for a Cloud Function endpoint.
- * This function reads from environment variables, which should be configured
- * in a .env file.
+ * Returns the correct, relative API path for a Cloud Function endpoint.
+ * This path will be intercepted by the Next.js rewrites configuration.
  *
  * @param functionName The camelCase name of the function (e.g., 'initializePayment').
- * @returns The absolute URL for the function.
+ * @returns The relative API path for the function.
  */
-export function getFunctionUrl(functionName: keyof typeof functionUrlMap): string {
-  const url = functionUrlMap[functionName];
+export function getFunctionUrl(functionName: keyof typeof functionPathMap): string {
+  const path = functionPathMap[functionName];
 
-  if (!url) {
-    console.error(`Function URL for '${functionName}' is not defined in environment variables. Please check your .env file.`);
-    // Return a path that will fail loudly, making it easier to debug.
+  if (!path) {
+    console.error(`Function path for '${functionName}' is not defined.`);
     return `/api/undefined_function/${functionName}`;
   }
 
-  return url;
+  return path;
 }

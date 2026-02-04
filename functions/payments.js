@@ -1,3 +1,4 @@
+
 // functions/payments.js
 /**
  * @fileoverview This file contains the reset and rebuilt Paystack payment-related Cloud Functions.
@@ -7,6 +8,8 @@
 const functions = require("firebase-functions");
 const crypto = require("crypto");
 const axios = require("axios");
+const cors = require('cors')({origin: true});
+
 
 // It's critical to set PAYSTACK_SECRET_KEY in your Firebase environment configuration.
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -21,65 +24,56 @@ if (!PAYSTACK_SECRET_KEY) {
  * Accepts: { email, amount, metadata }
  * Returns: { success, authorization_url, reference }
  */
-exports.initializeOneTimePayment = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS to ensure reliability.
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
-        res.set('Access-Control-Max-Age', '3600');
-        res.status(204).send('');
-        return;
-    }
-    
-    if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
-        return;
-    }
-    
-    if (!PAYSTACK_SECRET_KEY) {
-      console.error("Payment function called, but PAYSTACK_SECRET_KEY is not set.");
-      return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
-    }
-
-    const { email, amount, metadata } = req.body;
-    if (!email || !amount) {
-      return res.status(400).json({ success: false, error: 'Email and amount are required.' });
-    }
-
-    try {
-      // Paystack expects the amount in the lowest currency unit (kobo for NGN).
-      const amountInKobo = Math.round(amount * 100);
-
-      const response = await axios.post(
-        'https://api.paystack.co/transaction/initialize',
-        {
-          email,
-          amount: amountInKobo,
-          metadata,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-            'Content-Type': 'application/json',
-          },
+exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send('Method Not Allowed');
         }
-      );
+        
+        if (!PAYSTACK_SECRET_KEY) {
+          console.error("Payment function called, but PAYSTACK_SECRET_KEY is not set.");
+          return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
 
-      if (response.data && response.data.status) {
-        return res.status(200).json({
-          success: true,
-          authorization_url: response.data.data.authorization_url,
-          reference: response.data.data.reference,
-        });
-      } else {
-        return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize payment.' });
-      }
-    } catch (error) {
-      console.error("Paystack initializeOneTimePayment error:", error.response ? error.response.data : error.message);
-      const errorMessage = error.response?.data?.message || 'An error occurred while initializing payment.';
-      return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
-    }
+        const { email, amount, metadata } = req.body;
+        if (!email || !amount) {
+          return res.status(400).json({ success: false, error: 'Email and amount are required.' });
+        }
+
+        try {
+          // Paystack expects the amount in the lowest currency unit (kobo for NGN).
+          const amountInKobo = Math.round(amount * 100);
+
+          const response = await axios.post(
+            'https://api.paystack.co/transaction/initialize',
+            {
+              email,
+              amount: amountInKobo,
+              metadata,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (response.data && response.data.status) {
+            return res.status(200).json({
+              success: true,
+              authorization_url: response.data.data.authorization_url,
+              reference: response.data.data.reference,
+            });
+          } else {
+            return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize payment.' });
+          }
+        } catch (error) {
+          console.error("Paystack initializeOneTimePayment error:", error.response ? error.response.data : error.message);
+          const errorMessage = error.response?.data?.message || 'An error occurred while initializing payment.';
+          return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
 });
 
 /**
@@ -87,62 +81,53 @@ exports.initializeOneTimePayment = functions.https.onRequest(async (req, res) =>
  * Accepts: { email, plan_code, metadata }
  * Returns: { success, authorization_url, reference }
  */
-exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS.
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'POST');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
-        res.set('Access-Control-Max-Age', '3600');
-        res.status(204).send('');
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
-        return;
-    }
-
-    if (!PAYSTACK_SECRET_KEY) {
-        console.error("Subscription function called, but PAYSTACK_SECRET_KEY is not set.");
-        return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
-    }
-
-    const { email, plan_code, metadata } = req.body;
-    if (!email || !plan_code) {
-        return res.status(400).json({ success: false, error: 'Email and plan_code are required.' });
-    }
-    
-    try {
-        const response = await axios.post(
-            'https://api.paystack.co/transaction/initialize',
-            {
-                email,
-                plan: plan_code,
-                metadata,
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-
-        if (response.data && response.data.status) {
-            return res.status(200).json({
-                success: true,
-                authorization_url: response.data.data.authorization_url,
-                reference: response.data.data.reference,
-            });
-        } else {
-            return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize subscription.' });
+exports.initializeSubscription = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send('Method Not Allowed');
         }
-    } catch (error) {
-        console.error("Paystack initializeSubscription error:", error.response ? error.response.data : error.message);
-        const errorMessage = error.response?.data?.message || 'An error occurred while initializing subscription.';
-        return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
-    }
+
+        if (!PAYSTACK_SECRET_KEY) {
+            console.error("Subscription function called, but PAYSTACK_SECRET_KEY is not set.");
+            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
+
+        const { email, plan_code, metadata } = req.body;
+        if (!email || !plan_code) {
+            return res.status(400).json({ success: false, error: 'Email and plan_code are required.' });
+        }
+        
+        try {
+            const response = await axios.post(
+                'https://api.paystack.co/transaction/initialize',
+                {
+                    email,
+                    plan: plan_code,
+                    metadata,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (response.data && response.data.status) {
+                return res.status(200).json({
+                    success: true,
+                    authorization_url: response.data.data.authorization_url,
+                    reference: response.data.data.reference,
+                });
+            } else {
+                return res.status(500).json({ success: false, error: response.data.message || 'Failed to initialize subscription.' });
+            }
+        } catch (error) {
+            console.error("Paystack initializeSubscription error:", error.response ? error.response.data : error.message);
+            const errorMessage = error.response?.data?.message || 'An error occurred while initializing subscription.';
+            return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
 });
 
 
@@ -151,53 +136,44 @@ exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
  * Accepts: { reference }
  * Returns: { success, data: { ...paystack transaction data } }
  */
-exports.verifyPayment = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS.
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'GET');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
-        res.set('Access-Control-Max-Age', '3600');
-        res.status(204).send('');
-        return;
-    }
-
-    if (req.method !== 'GET') {
-        res.status(405).send('Method Not Allowed');
-        return;
-    }
-    if (!PAYSTACK_SECRET_KEY) {
-      console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
-      return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
-    }
-
-    const reference = req.query.reference;
-
-    if (!reference) {
-      return res.status(400).json({ success: false, error: 'Payment reference is required.' });
-    }
-
-    try {
-      const response = await axios.get(
-        `https://api.paystack.co/transaction/verify/${reference}`,
-        {
-          headers: {
-            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-          },
+exports.verifyPayment = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'GET') {
+            return res.status(405).send('Method Not Allowed');
         }
-      );
+        if (!PAYSTACK_SECRET_KEY) {
+          console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
+          return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+        }
 
-      if (response.data && response.data.status) {
-        // Return the full data object from Paystack
-        return res.status(200).json({ success: true, data: response.data.data });
-      } else {
-        return res.status(400).json({ success: false, error: response.data.message || 'Could not verify payment.' });
-      }
-    } catch (error) {
-      console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
-      const errorMessage = error.response?.data?.message || 'An error occurred while verifying the payment.';
-      return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
-    }
+        const reference = req.query.reference;
+
+        if (!reference) {
+          return res.status(400).json({ success: false, error: 'Payment reference is required.' });
+        }
+
+        try {
+          const response = await axios.get(
+            `https://api.paystack.co/transaction/verify/${reference}`,
+            {
+              headers: {
+                Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+              },
+            }
+          );
+
+          if (response.data && response.data.status) {
+            // Return the full data object from Paystack
+            return res.status(200).json({ success: true, data: response.data.data });
+          } else {
+            return res.status(400).json({ success: false, error: response.data.message || 'Could not verify payment.' });
+          }
+        } catch (error) {
+          console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
+          const errorMessage = error.response?.data?.message || 'An error occurred while verifying the payment.';
+          return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        }
+    });
 });
 
 

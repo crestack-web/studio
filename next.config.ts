@@ -2,7 +2,30 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: '/api/initializeOneTimePayment',
+        destination: process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL || '',
+      },
+       {
+        source: '/api/initializeSubscription',
+        destination: process.env.NEXT_PUBLIC_INITIALIZE_SUBSCRIPTION_URL || '',
+      },
+      {
+        source: '/api/verifyPayment',
+        destination: process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL || '',
+      },
+      {
+        source: '/api/fetchBankList',
+        destination: process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL || '',
+      },
+      {
+        source: '/api/verifyBankAccount',
+        destination: process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL || '',
+      },
+    ];
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
