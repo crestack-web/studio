@@ -214,7 +214,7 @@ const CheckoutContent = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: user.email,
-                        amount: Math.round(total * 100),
+                        amount: total,
                         metadata: {
                             businessId: businessId,
                             orderId: newOrderRef.id,
@@ -223,23 +223,14 @@ const CheckoutContent = () => {
                     }),
                 });
 
-                if (!response.ok) {
-                    let errorBody;
-                    try {
-                        errorBody = await response.json();
-                    } catch (e) { /* ignore json parsing errors */ }
-                    await deleteDoc(newOrderRef);
-                    throw new Error(errorBody?.error || 'Failed to initialize payment.');
-                }
-                
                 const paymentData = await response.json();
 
-                if (paymentData.success && paymentData.authorization_url) {
+                if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.authorization_url;
+                    window.location.href = paymentData.data.authorization_url;
                 } else {
                     await deleteDoc(newOrderRef);
-                    throw new Error(paymentData.message || 'Invalid payment initialization response.');
+                    throw new Error(paymentData.message || 'Payment initialization failed.');
                 }
             } else {
                 // For other countries, go directly to confirmation page.

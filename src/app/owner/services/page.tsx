@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -76,7 +75,7 @@ export default function ServicesPage() {
                 userId: user.uid,
                 serviceName: selectedService.title,
                 serviceFee: selectedService.fee,
-                status: 'unpaid' as const,
+                status: 'pending' as const, // Changed from 'unpaid' to match schema
                 paymentStatus: 'unpaid' as const,
                 createdAt: serverTimestamp(),
             };
@@ -86,12 +85,11 @@ export default function ServicesPage() {
                 throw new Error("Failed to create service request document.");
             }
 
-            const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
+            const initializePaymentUrl = getFunctionUrl('initializePayment');
             if (!initializePaymentUrl) {
                 throw new Error('Payment gateway is not configured.');
             }
 
-            const reference = `SRV-${serviceRequestRef.id}`;
             const callbackUrl = window.location.href; // Refresh current page
 
             const response = await fetch(initializePaymentUrl, {
@@ -100,34 +98,27 @@ export default function ServicesPage() {
                 body: JSON.stringify({
                     email: userProfile.email,
                     amount: selectedService.fee,
-                    reference: reference,
-                    metadata: { callback_url: callbackUrl },
+                    metadata: { 
+                        callback_url: callbackUrl,
+                        serviceRequestId: serviceRequestRef.id,
+                        businessId,
+                        userId: user.uid,
+                    },
                 }),
             });
 
-            if (!response.ok) {
-                // If response is not ok, it might be HTML, so don't parse as JSON directly
-                const errorText = await response.text();
-                console.error("Payment init error response:", errorText);
-                throw new Error('Failed to initialize payment. The server responded with an error.');
-            }
-
             const paymentData = await response.json();
-
-            if (!paymentData.success) {
-                throw new Error(paymentData.error || 'Failed to initialize payment.');
-            }
             
-            if (paymentData.authorization_url) {
-                window.location.href = paymentData.authorization_url;
+            if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
+                window.location.href = paymentData.data.authorization_url;
             } else {
-                throw new Error('Invalid payment initialization response.');
+                throw new Error(paymentData.message || 'Failed to initialize payment.');
             }
 
         } catch (error: any) {
             console.error("Error requesting service:", error);
             if (serviceRequestRef) {
-                await deleteDocumentNonBlocking(doc(firestore, `businesses/${businessId}/serviceRequests`, serviceRequestRef.id));
+                await deleteDoc(doc(firestore, `businesses/${businessId}/serviceRequests`, serviceRequestRef.id));
             }
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not process your request.' });
             setIsProcessing(false);

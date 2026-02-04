@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
@@ -148,20 +147,12 @@ function SubscribePageContent() {
                 }),
             });
 
-            if (!response.ok) {
-                let errorBody;
-                try {
-                    errorBody = await response.json();
-                } catch (e) { /* ignore json parsing errors */ }
-                throw new Error(errorBody?.error || 'Failed to initialize payment.');
-            }
-            
             const paymentData = await response.json();
-
-            if (paymentData.success && paymentData.authorization_url) {
-                window.location.href = paymentData.authorization_url;
+            
+            if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
+                window.location.href = paymentData.data.authorization_url;
             } else {
-                throw new Error(paymentData.message || 'Invalid payment initialization response.');
+                throw new Error(paymentData.message || 'Failed to initialize subscription.');
             }
 
         } catch (error: any) {
