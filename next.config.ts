@@ -6,19 +6,19 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/initializePayment',
-        destination: process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL || '',
+        destination: 'https://initializepayment-6kxikgkcjq-uc.a.run.app',
       },
       {
         source: '/api/verifyPayment',
-        destination: process.env.NEXT_PUBLIC_VERIFY_PAYMENT_URL || '',
+        destination: 'https://verifypayment-6kxikgkcjq-uc.a.run.app',
       },
       {
         source: '/api/fetchBankList',
-        destination: process.env.NEXT_PUBLIC_FETCH_BANK_LIST_URL || '',
+        destination: 'https://fetchbanklist-6kxikgkcjq-uc.a.run.app',
       },
       {
         source: '/api/verifyBankAccount',
-        destination: process.env.NEXT_PUBLIC_VERIFY_BANK_ACCOUNT_URL || '',
+        destination: 'https://verifybankaccount-6kxikgkcjq-uc.a.run.app',
       },
     ];
   },
