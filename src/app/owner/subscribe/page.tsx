@@ -116,7 +116,7 @@ function SubscribePageContent() {
         setIsProcessing(true);
         
         try {
-            const initializePaymentUrl = getFunctionUrl('initializePayment');
+            const initializePaymentUrl = getFunctionUrl('initializeSubscription');
             
             const reference = `BUSMO-SUB-${authUser.uid}-${Date.now()}`;
             const callbackUrl = `${window.location.origin}/market/order-confirmation?source=subscription`;
@@ -150,8 +150,8 @@ function SubscribePageContent() {
             
             const paymentData = await response.json();
 
-            if (paymentData.status && paymentData.data.authorization_url) {
-                window.location.href = paymentData.data.authorization_url;
+            if (paymentData.success && paymentData.authorization_url) {
+                window.location.href = paymentData.authorization_url;
             } else {
                 throw new Error(paymentData.message || 'Invalid payment initialization response.');
             }

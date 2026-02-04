@@ -205,7 +205,7 @@ const CheckoutContent = () => {
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG') {
-                const initializePaymentUrl = getFunctionUrl('initializePayment');
+                const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
                 
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
@@ -234,9 +234,9 @@ const CheckoutContent = () => {
                 
                 const paymentData = await response.json();
 
-                if (paymentData.status && paymentData.data.authorization_url) {
+                if (paymentData.success && paymentData.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.data.authorization_url;
+                    window.location.href = paymentData.authorization_url;
                 } else {
                     await deleteDoc(newOrderRef);
                     throw new Error(paymentData.message || 'Invalid payment initialization response.');
