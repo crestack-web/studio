@@ -3,8 +3,7 @@
 
 // A mapping of our internal function names to their proxied API paths.
 const functionPathMap: { [key: string]: string } = {
-  initializeOneTimePayment: '/api/initializeOneTimePayment',
-  initializeSubscription: '/api/initializeSubscription',
+  initializePayment: '/api/initializePayment',
   verifyPayment: '/api/verifyPayment',
   fetchBankList: '/api/fetchBankList',
   verifyBankAccount: '/api/verifyBankAccount',

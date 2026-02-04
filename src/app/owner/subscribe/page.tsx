@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
@@ -18,10 +19,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getFunctionUrl } from '@/lib/api';
 
 const plans = [
-    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000, paystack_plan_code: 'PLN_xxxxxxxx' },
-    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000, paystack_plan_code: 'PLN_yyyyyyyy' },
-    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000, paystack_plan_code: 'PLN_zzzzzzzz' },
-    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000, paystack_plan_code: 'PLN_aaaaaaaa' }
+    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000, paystack_plan_code_monthly: 'PLN_xxxxxxxx', paystack_plan_code_yearly: 'PLN_yyyyyyyy' },
+    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000, paystack_plan_code_monthly: 'PLN_zzzzzzzz', paystack_plan_code_yearly: 'PLN_aaaaaaaa' },
+    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000, paystack_plan_code_monthly: 'PLN_bbbbbbbb', paystack_plan_code_yearly: 'PLN_cccccccc' },
+    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000, paystack_plan_code_monthly: 'PLN_dddddddd', paystack_plan_code_yearly: 'PLN_eeeeeeee' }
 ];
 
 interface Coupon {
@@ -116,9 +117,18 @@ function SubscribePageContent() {
         setIsProcessing(true);
         
         try {
-            const initializePaymentUrl = getFunctionUrl('initializeSubscription');
+            const initializePaymentUrl = getFunctionUrl('initializePayment');
             
-            const reference = `BUSMO-SUB-${authUser.uid}-${Date.now()}`;
+            const paystackPlanCode = billingCycle === 'monthly' ? selectedPlan.paystack_plan_code_monthly : selectedPlan.paystack_plan_code_yearly;
+            
+            if (!paystackPlanCode || paystackPlanCode.startsWith('PLN_xx')) {
+                console.error("Paystack plan code is not configured for this plan and billing cycle.");
+                toast({ title: "Configuration Error", description: "This subscription plan is not yet active. Please contact support.", variant: "destructive" });
+                setIsProcessing(false);
+                return;
+            }
+
+
             const callbackUrl = `${window.location.origin}/market/order-confirmation?source=subscription`;
 
             const response = await fetch(initializePaymentUrl, {
@@ -126,16 +136,14 @@ function SubscribePageContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: userProfile.email,
-                    amount: finalAmount,
-                    // Although the new contract doesn't explicitly use plan code for init,
-                    // sending it in metadata is good practice for the backend webhook.
+                    amount: finalAmount, // For coupon calculations, Paystack will use the plan amount
+                    plan: paystackPlanCode,
                     metadata: {
                         user_id: authUser.uid,
                         plan_id: planId,
                         billing_cycle: billingCycle,
-                        paystack_plan_code: selectedPlan.paystack_plan_code,
                         coupon: appliedCoupon?.code,
-                        callback_url: callbackUrl // Pass callback for Paystack to use
+                        callback_url: callbackUrl
                     },
                 }),
             });

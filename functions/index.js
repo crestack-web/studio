@@ -13,8 +13,7 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // --- NEW PAYMENT FUNCTIONS ---
 // All new payment logic is imported from the dedicated payments.js file.
 const paymentFunctions = require('./payments');
-exports.initializeOneTimePayment = paymentFunctions.initializeOneTimePayment;
-exports.initializeSubscription = paymentFunctions.initializeSubscription;
+exports.initializePayment = paymentFunctions.initializePayment;
 exports.verifyPayment = paymentFunctions.verifyPayment;
 exports.paystackWebhook = paymentFunctions.paystackWebhook;
 

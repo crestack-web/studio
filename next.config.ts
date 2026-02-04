@@ -5,12 +5,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/initializeOneTimePayment',
+        source: '/api/initializePayment',
         destination: process.env.NEXT_PUBLIC_INITIALIZE_PAYMENT_URL || '',
-      },
-       {
-        source: '/api/initializeSubscription',
-        destination: process.env.NEXT_PUBLIC_INITIALIZE_SUBSCRIPTION_URL || '',
       },
       {
         source: '/api/verifyPayment',
