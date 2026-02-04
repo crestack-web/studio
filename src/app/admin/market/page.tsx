@@ -97,48 +97,52 @@ export default function AdminMarketPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setter(reader.result as string);
-        };
-        reader.onerror = () => {
-             toast({
-                variant: 'destructive',
-                title: 'Image Read Failed',
-                description: 'Could not read the selected file.',
-            });
+        // Reset file input value to allow re-uploading the same file
+        e.target.value = '';
+
+        toast({ title: 'Processing image...', description: 'Compressing and preparing your image for upload.' });
+
+        const options = {
+            maxSizeMB: 0.9, // Target size of 0.9MB to be safe for Firestore's 1MB limit after base64 encoding.
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+            // For GIFs, this will convert to PNG if it needs to compress, preserving the first frame.
+            // If the GIF is already under maxSizeMB, it will be kept as is.
         };
 
-        if (file.type === 'image/gif') {
-            if (file.size > 500 * 1024) { // 500KB limit for GIFs
-                toast({
-                    variant: 'destructive',
-                    title: 'GIF file is too large',
-                    description: 'Please upload a GIF smaller than 500KB, or use a JPG/PNG instead.',
-                });
-                if (e.target) {
-                    e.target.value = ''; // Reset file input
+        try {
+            const compressedFile = await imageCompression(file, options);
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                // Double check size before setting state, as a final safeguard.
+                if (result.length > 1024 * 1024) { // Roughly 1MB
+                    toast({
+                        variant: 'destructive',
+                        title: 'Image is still too large',
+                        description: 'Even after compression, the file is too large to save. Please use a smaller image.',
+                    });
+                    return;
                 }
-                return;
-            }
-            reader.readAsDataURL(file);
-        } else {
-            const options = {
-                maxSizeMB: 0.5,
-                maxWidthOrHeight: 1280,
-                useWebWorker: true
+                setter(result);
+                toast({ title: 'Image ready!', description: 'Your image has been prepared.' });
             };
-
-            try {
-                const compressedFile = await imageCompression(file, options);
-                reader.readAsDataURL(compressedFile);
-            } catch (error) {
+            reader.onerror = () => {
                 toast({
                     variant: 'destructive',
-                    title: 'Image compression failed',
-                    description: 'Please try again with a different image.',
+                    title: 'Image Read Failed',
+                    description: 'Could not read the selected file.',
                 });
-            }
+            };
+            reader.readAsDataURL(compressedFile);
+
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Image compression failed',
+                description: 'There was an issue processing your image. Please try a different one.',
+            });
         }
     };
 
@@ -462,3 +466,4 @@ export default function AdminMarketPage() {
     
 
     
+
