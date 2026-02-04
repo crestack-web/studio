@@ -109,7 +109,7 @@ function SubscribePageContent() {
 
 
     const handlePayment = async () => {
-        if (!firestore || !authUser || !userProfile?.email || !businessData || !planId || finalAmount === null || !selectedPlan) {
+        if (!firestore || !authUser || !userProfile?.email || !businessId || !businessData || !planId || finalAmount === null || !selectedPlan) {
             toast({ title: "Error", description: "Missing required information. Please try again.", variant: "destructive" });
             return;
         }
@@ -131,6 +131,7 @@ function SubscribePageContent() {
                         couponCode: appliedCoupon?.code,
                     },
                     userId: authUser.uid,
+                    businessId: businessId,
                     email: userProfile.email,
                     callback_url: callbackUrl,
                 }),
@@ -244,4 +245,3 @@ export default function SubscribePage() {
     );
 }
 
-    
