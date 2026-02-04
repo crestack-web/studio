@@ -13,14 +13,6 @@ if (!PAYSTACK_SECRET_KEY) {
   console.error("FATAL ERROR: PAYSTACK_SECRET_KEY environment variable is not set.");
 }
 
-// Hardcoded plan details (in kobo) - Should be moved to Firestore /plans collection
-const plans = {
-    shop: { monthlyPrice: 150000, yearlyPrice: 1500000, paystack_plan_code_monthly: 'PLN_79p5yysj5q5z1qz', paystack_plan_code_yearly: 'PLN_k9c24tyc4g5x8v9' },
-    supermarket: { monthlyPrice: 1000000, yearlyPrice: 10000000, paystack_plan_code_monthly: 'PLN_x5vbs3rigk8g9q2', paystack_plan_code_yearly: 'PLN_0z6g4j3j6a59v04' },
-    'multi-branch': { monthlyPrice: 3000000, yearlyPrice: 30000000, paystack_plan_code_monthly: 'PLN_p0j2j9y6f7a6g9v', paystack_plan_code_yearly: 'PLN_2s4q2y0g1m1c8s7' },
-    company: { monthlyPrice: 5000000, yearlyPrice: 50000000, paystack_plan_code_monthly: 'PLN_w8t4c0j7d8f9a2s', paystack_plan_code_yearly: 'PLN_3d5f8g0h2k1l4m9' }
-};
-
 
 /**
  * Initializes a payment with Paystack after validating and calculating the amount on the backend.
@@ -43,8 +35,8 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                 return res.status(400).json({ success: false, error: 'Missing required parameters.' });
             }
 
-            let amount = 0; // Authoritative amount in kobo
-            let currency = 'NGN'; // Default currency
+            let amountInNaira = 0; // Authoritative amount in NAIRA.
+            let currency = 'NGN';
             let planCode;
 
             switch (type) {
@@ -57,8 +49,11 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                         if (!productSnap.exists()) throw new Error(`Product with ID ${item.productId} not found.`);
                         
                         const productData = productSnap.data();
-                        currency = productData.currency || 'NGN';
-                        if (currency !== 'NGN') throw new Error('Payments are currently only supported in NGN.');
+                        
+                        // All payments are in NGN for now.
+                        if ((productData.currency || 'NGN') !== 'NGN') {
+                            throw new Error('Payments are currently only supported in NGN.');
+                        }
 
                         let itemPrice = 0;
                         if (item.variantId && productData.hasVariants) {
@@ -70,26 +65,38 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                         }
                         totalAmount += itemPrice * item.quantity;
                     }
-                    amount = Math.round(totalAmount * 100);
+                    amountInNaira = totalAmount; // This value is in Naira
                     break;
                 }
                 case 'subscription': {
                     const { planId, billingCycle } = payload;
+                    let finalPlanId = planId;
                     
                     // FIX: Handle both 'multi-branch' and 'multibranch' to fix inconsistency
-                    let plan = plans[planId];
-                    if (!plan && planId === 'multibranch') {
-                        plan = plans['multi-branch'];
+                    if (planId === 'multibranch') {
+                        finalPlanId = 'multi-branch';
                     }
+                    
+                    const planRef = db.collection('plans').doc(finalPlanId);
+                    const planSnap = await planRef.get();
+                    if (!planSnap.exists()) {
+                        throw new Error(`Subscription plan with ID '${planId}' not found in database.`);
+                    }
+                    const planData = planSnap.data();
 
-                    if (!plan) {
-                         throw new Error(`Invalid subscription plan ID: '${planId}'.`);
+                    // All plan prices in DB are now assumed to be in Naira.
+                    const priceInNaira = billingCycle === 'monthly' ? planData.monthlyPrice : planData.yearlyPrice;
+                    if (!priceInNaira) {
+                        throw new Error(`Price for plan '${planId}' and cycle '${billingCycle}' is not configured.`);
                     }
+                    amountInNaira = priceInNaira;
                     
-                    planCode = billingCycle === 'monthly' ? plan.paystack_plan_code_monthly : plan.paystack_plan_code_yearly;
-                    if (!planCode || planCode.includes('PLN_xx')) throw new Error('Paystack plan code not configured for this plan.');
-                    
-                    amount = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                    planCode = billingCycle === 'monthly' ? planData.paystack_plan_code_monthly : planData.paystack_plan_code_yearly;
+                    if (!planCode || planCode.includes('PLN_xx')) {
+                        console.warn(`Paystack plan code not configured for plan '${planId}'. Proceeding with one-time charge.`);
+                        planCode = undefined;
+                    }
+                    currency = 'NGN';
                     break;
                 }
                 case 'service': {
@@ -97,19 +104,27 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     const serviceRef = db.collection('services').doc(serviceId);
                     const serviceSnap = await serviceRef.get();
                     if (!serviceSnap.exists()) throw new Error('Service not found.');
-                    amount = serviceSnap.data().fee * 100;
+                    // Assuming service fee is stored in Naira
+                    amountInNaira = serviceSnap.data().fee;
                     break;
                 }
                 default:
                     throw new Error('Invalid payment type.');
             }
             
+            // Final conversion and validation before sending to Paystack
+            const amountInKobo = Math.round(amountInNaira * 100);
+            if (!amountInKobo || amountInKobo < 5000) { // Minimum 50 NGN
+                throw new Error(`Calculated final amount is invalid or below minimum. Amount: ${amountInNaira} Naira.`);
+            }
+
             const paystackPayload = {
                 email,
-                amount,
+                amount: amountInKobo,
+                currency,
                 callback_url,
-                metadata: { userId, businessId, type, ...(payload.metadata || {}) },
-                ...(planCode && { plan: planCode }) // Conditionally add plan if it exists
+                metadata: { userId, businessId, type, ...(payload || {}) },
+                ...(planCode && { plan: planCode })
             };
 
             const response = await axios.post('https://api.paystack.co/transaction/initialize', paystackPayload, {
@@ -126,7 +141,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     businessId,
                     type,
                     payload,
-                    amount,
+                    amount: amountInKobo,
                     currency,
                     status: 'pending',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
