@@ -18,7 +18,7 @@ service cloud.firestore {
     
     function isAdmin() {
       // This is now safe and non-recursive
-      return isSignedIn() && request.auth.token.email == 'crestack@gmail.com';
+      return isSignedIn() && (request.auth.token.email == 'crestack@gmail.com' || request.auth.token.email == 'abduladallahusman@gmail.com');
     }
 
     function isOwner(businessId) {

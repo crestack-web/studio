@@ -66,7 +66,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    const isSuperAdmin = user.email === 'crestack@gmail.com' || permissions?.isSuperAdmin;
+    const isSuperAdmin = user.email === 'crestack@gmail.com' || user.email === 'abduladallahusman@gmail.com' || permissions?.isSuperAdmin;
     const isAdmin = userProfile?.role === 'Admin' || isSuperAdmin;
     
     if (!isAdmin) {
@@ -101,7 +101,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
     return <LoadingScreen />;
   }
   
-  const isSuperAdmin = user?.email === 'crestack@gmail.com' || permissions?.isSuperAdmin;
+  const isSuperAdmin = user?.email === 'crestack@gmail.com' || user?.email === 'abduladallahusman@gmail.com' || permissions?.isSuperAdmin;
   if(user && (userProfile?.role === 'Admin' || isSuperAdmin)) {
     return (
       <AdminLayout permissions={permissions || {}} isSuperAdmin={!!isSuperAdmin}>
