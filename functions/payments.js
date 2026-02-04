@@ -7,6 +7,7 @@
 const functions = require("firebase-functions");
 const crypto = require("crypto");
 const axios = require("axios");
+const cors = require('cors')({origin: true});
 
 // It's critical to set PAYSTACK_SECRET_KEY in your Firebase environment configuration.
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -37,26 +38,13 @@ const paystackPlanMap = {
     }
 };
 
-const handleCors = (req, res, handler) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Methods', 'GET, POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.set('Access-Control-Max-Age', '3600');
-    res.status(204).send('');
-  } else {
-    handler();
-  }
-};
-
-
 /**
  * Initializes a one-time payment with Paystack.
  * Accepts: { email, amount, metadata }
  * Returns: { success, authorization_url, reference }
  */
 exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
-  handleCors(req, res, async () => {
+  cors(req, res, async () => {
     if (!PAYSTACK_SECRET_KEY) {
       console.error("Payment function called, but PAYSTACK_SECRET_KEY is not set.");
       return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
@@ -109,7 +97,7 @@ exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
  * Returns: { success, authorization_url, reference }
  */
 exports.initializeSubscription = functions.https.onRequest((req, res) => {
-    handleCors(req, res, async () => {
+    cors(req, res, async () => {
         if (!PAYSTACK_SECRET_KEY) {
             console.error("Subscription function called, but PAYSTACK_SECRET_KEY is not set.");
             return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
@@ -167,7 +155,7 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
  * Returns: { success, data: { ...paystack transaction data } }
  */
 exports.verifyPayment = functions.https.onRequest((req, res) => {
-  handleCors(req, res, async () => {
+  cors(req, res, async () => {
     if (!PAYSTACK_SECRET_KEY) {
       console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
       return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
