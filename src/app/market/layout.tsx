@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Link from 'next/link';
@@ -12,8 +10,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useLanguage } from '@/context/language-provider';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { MarketSwitcher } from '@/components/app/market-switcher';
 import { useMarket } from '@/context/market-provider';
