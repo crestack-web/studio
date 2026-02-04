@@ -27,6 +27,9 @@ exports.onUserCreate = onUserCreate;
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
 exports.fetchBankList = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
+        if (req.method !== 'GET') {
+            return res.status(405).send('Method Not Allowed');
+        }
         const country = req.query.country || 'nigeria';
 
         if (!PAYSTACK_SECRET) {
@@ -53,6 +56,9 @@ exports.fetchBankList = functions.https.onRequest((req, res) => {
 
 exports.verifyBankAccount = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send('Method Not Allowed');
+        }
         const { account_number, bank_code } = req.body;
 
         if (!account_number || !bank_code) {

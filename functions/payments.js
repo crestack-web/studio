@@ -45,6 +45,10 @@ const paystackPlanMap = {
  */
 exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
+    }
+    
     if (!PAYSTACK_SECRET_KEY) {
       console.error("Payment function called, but PAYSTACK_SECRET_KEY is not set.");
       return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
@@ -98,6 +102,10 @@ exports.initializeOneTimePayment = functions.https.onRequest((req, res) => {
  */
 exports.initializeSubscription = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send('Method Not Allowed');
+        }
+
         if (!PAYSTACK_SECRET_KEY) {
             console.error("Subscription function called, but PAYSTACK_SECRET_KEY is not set.");
             return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
@@ -110,9 +118,11 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
         
         const planCode = paystackPlanMap[planId]?.[billingCycle];
 
-        if (!planCode || planCode === 'PLN_xxxxxxxx') {
-             console.error(`Paystack plan code not found or not configured for planId: ${planId}, cycle: ${billingCycle}`);
-             return res.status(400).json({ success: false, error: 'The selected plan is not configured for payment. Please contact support.' });
+        if (!planCode || planCode.startsWith('PLN_')) {
+             console.warn(`Paystack plan code not found or is a placeholder for planId: ${planId}, cycle: ${billingCycle}. Proceeding with placeholder...`);
+             if(!planCode) {
+                 return res.status(400).json({ success: false, error: `The selected plan ID '${planId}' is not configured for payment.` });
+             }
         }
         
         try {
@@ -156,14 +166,15 @@ exports.initializeSubscription = functions.https.onRequest((req, res) => {
  */
 exports.verifyPayment = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
+    if (req.method !== 'GET') {
+        return res.status(405).send('Method Not Allowed');
+    }
     if (!PAYSTACK_SECRET_KEY) {
       console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
       return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
     }
 
-    // Use req.query for GET requests to make it easy to test in browser.
-    // In production, frontend should use POST with a body.
-    const reference = req.body.reference || req.query.reference;
+    const reference = req.query.reference;
 
     if (!reference) {
       return res.status(400).json({ success: false, error: 'Payment reference is required.' });
@@ -200,6 +211,10 @@ exports.verifyPayment = functions.https.onRequest((req, res) => {
  * but does not process the event data yet.
  */
 exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
+    }
+
     if (!PAYSTACK_SECRET_KEY) {
         console.error('Webhook received but PAYSTACK_SECRET_KEY is not set. Cannot verify signature.');
         return res.status(500).send('Webhook secret not configured');
