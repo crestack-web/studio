@@ -192,14 +192,14 @@ export default function AdminMarketPage() {
         try {
             const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, country: gifCountry, createdAt: serverTimestamp() };
             await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
-            toast({ title: 'GIF Banner Added' });
+            toast({ title: 'Top Banner Added' });
             setGifImageUrl('');
             setGifLinkUrl('');
             setGifCountry('');
             setGifIsActive(false);
         } catch (error) {
             console.error("Failed to add GIF banner:", error);
-            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not save the GIF banner. The image might be too large.' });
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not save the banner. The image might be too large.' });
         } finally {
             setIsLoadingGif(false);
         }
@@ -210,7 +210,7 @@ export default function AdminMarketPage() {
         setIsLoadingGif(true);
         const bannerRef = doc(firestore, 'marketGifBanners', editingGifBanner.id);
         await updateDocumentNonBlocking(bannerRef, { ...editingGifBanner });
-        toast({ title: 'GIF Banner Updated' });
+        toast({ title: 'Top Banner Updated' });
         setEditingGifBanner(null);
         setIsLoadingGif(false);
     };
@@ -219,7 +219,7 @@ export default function AdminMarketPage() {
         if (!firestore) return;
         const bannerRef = doc(firestore, 'marketGifBanners', bannerId);
         await deleteDocumentNonBlocking(bannerRef);
-        toast({ title: 'GIF Banner Deleted' });
+        toast({ title: 'Top Banner Deleted' });
     };
 
     return (
@@ -267,23 +267,26 @@ export default function AdminMarketPage() {
                         </CardContent>
                     </Card>
                      <Card>
-                        <CardHeader><CardTitle>Add New GIF Banner</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>Top Advertisement Banner</CardTitle>
+                            <CardDescription>Add a small ad banner (GIF or image) to display at the top of the market page.</CardDescription>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                            <div className="space-y-2">
-                                <Label>Image / GIF</Label>
+                                <Label>Banner Image / GIF</Label>
                                 {gifImageUrl ? (
-                                    <div className="relative aspect-[250/202]">
-                                        <img src={gifImageUrl} alt="GIF banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                    <div className="relative aspect-[15/1]">
+                                        <img src={gifImageUrl} alt="Ad banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setGifImageUrl('')} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
-                                    <Label htmlFor="gif-image-upload" className={cn("flex aspect-[250/202] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                    <Label htmlFor="gif-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
                                         <FileUp className="h-8 w-8" />
                                         <span>Upload</span>
                                     </Label>
                                 )}
                                 <Input id="gif-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, setGifImageUrl)} className="hidden" disabled={isLoadingGif} />
-                                <p className="text-xs text-muted-foreground">Recommended size: 250x202px.</p>
+                                <p className="text-xs text-muted-foreground">Recommended size: full-width, short height (e.g., 1200x80px).</p>
                             </div>
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
                              <div className="space-y-2">
@@ -297,7 +300,7 @@ export default function AdminMarketPage() {
                                 </Select>
                             </div>
                             <div className="flex items-center space-x-2"><Switch checked={gifIsActive} onCheckedChange={setGifIsActive} disabled={isLoadingGif} /><Label>Activate banner</Label></div>
-                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add GIF Banner</Button>
+                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Top Banner</Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -335,7 +338,7 @@ export default function AdminMarketPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle>Existing GIF Banners</CardTitle><CardDescription>Manage small promotional side banners.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle>Existing Top Banners</CardTitle><CardDescription>Manage advertisement banners shown at the top of the page.</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Country</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -344,7 +347,7 @@ export default function AdminMarketPage() {
                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell></TableRow>
                                     ) : gifBanners && gifBanners.length > 0 ? gifBanners.map((banner) => (
                                         <TableRow key={banner.id}>
-                                            <TableCell><img src={banner.imageUrl} alt="GIF banner" width={80} height={60} className="rounded-md object-cover bg-muted" /></TableCell>
+                                            <TableCell><img src={banner.imageUrl} alt="Top banner" width={100} height={40} className="rounded-md object-cover bg-muted" /></TableCell>
                                             <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
                                             <TableCell><Badge variant="outline">{banner.country || 'All'}</Badge></TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
@@ -353,14 +356,14 @@ export default function AdminMarketPage() {
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                                     <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the GIF banner.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the top banner.</AlertDialogDescription></AlertDialogHeader>
                                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteGifBanner(banner.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No GIF banners found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No top banners found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -418,18 +421,18 @@ export default function AdminMarketPage() {
 
              <Dialog open={!!editingGifBanner} onOpenChange={(open) => !open && setEditingGifBanner(null)}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Edit GIF Banner</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Edit Top Banner</DialogTitle></DialogHeader>
                     {editingGifBanner && (
                         <div className="grid gap-4 py-4">
                             <div className="space-y-2">
                                 <Label>Image / GIF</Label>
                                 {editingGifBanner.imageUrl ? (
-                                    <div className="relative aspect-[250/202]">
-                                        <img src={editingGifBanner.imageUrl} alt="GIF banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                    <div className="relative aspect-[15/1]">
+                                        <img src={editingGifBanner.imageUrl} alt="Top banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingGifBanner({ ...editingGifBanner, imageUrl: '' })} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
-                                    <Label htmlFor="edit-gif-image-upload" className={cn("flex aspect-[250/202] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                    <Label htmlFor="edit-gif-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
                                         <FileUp className="h-8 w-8" />
                                         <span>Upload</span>
                                     </Label>
@@ -466,4 +469,5 @@ export default function AdminMarketPage() {
     
 
     
+
 

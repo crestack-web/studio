@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -11,14 +12,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { useLanguage } from '@/context/language-provider';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { MarketSwitcher } from '@/components/app/market-switcher';
 import { useMarket } from '@/context/market-provider';
 import { formatCurrency } from '@/lib/currency';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, limit, where } from 'firebase/firestore';
+import { collection, query, limit, where, orderBy } from 'firebase/firestore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
@@ -39,6 +40,14 @@ interface Announcement {
     id: string;
     text: string;
     href: string;
+}
+
+interface MarketGifBanner {
+    id: string;
+    imageUrl: string;
+    linkUrl?: string;
+    isActive?: boolean;
+    createdAt: any;
 }
 
 
@@ -86,6 +95,14 @@ export default function MarketLayout({
             return query(collection(firestore, 'announcements'), where('isActive', '==', true), where('page', '==', 'market'));
         }, [firestore])
     );
+    
+    const { data: adBanners } = useCollection<MarketGifBanner>(
+        useMemoFirebase(() => {
+            if (!firestore) return null;
+            return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
+        }, [firestore])
+    );
+    const adBanner = adBanners?.[0];
 
     const suggestions = useMemo(() => {
         if (!searchQuery) {
@@ -123,6 +140,13 @@ export default function MarketLayout({
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
             <div className="sticky top-0 z-40">
+                {adBanner && (
+                    <div className="bg-black text-white">
+                        <Link href={adBanner.linkUrl || '#'} target="_blank" rel="noopener noreferrer">
+                            <Image src={adBanner.imageUrl} alt="Advertisement" width={1200} height={80} className="w-full h-auto" style={{ maxHeight: '60px', objectFit: 'cover' }} />
+                        </Link>
+                    </div>
+                )}
                  {announcements && announcements.length > 0 && (
                     <div className="bg-primary text-primary-foreground">
                         <Carousel

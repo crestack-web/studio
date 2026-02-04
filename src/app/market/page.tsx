@@ -56,14 +56,6 @@ interface MarketBanner {
     isActive?: boolean;
 }
 
-interface MarketGifBanner {
-    id: string;
-    imageUrl: string;
-    linkUrl?: string;
-    isActive?: boolean;
-}
-
-
 interface MarketCategory {
     id: string;
     name: string;
@@ -192,24 +184,6 @@ export default function MarketPage() {
         return query(collection(firestore, 'marketBanners'), where('isActive', '==', true));
     }, [firestore]);
     const { data: heroBanners, isLoading: isLoadingBanners } = useCollection<MarketBanner>(bannersQuery);
-    
-    // Query for GIF banners
-    const gifBannersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true));
-    }, [firestore]);
-    const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
-
-    const [currentGifBannerIndex, setCurrentGifBannerIndex] = useState(0);
-
-    useEffect(() => {
-        if (gifBanners && gifBanners.length > 1) {
-            const timer = setInterval(() => {
-                setCurrentGifBannerIndex(prevIndex => (prevIndex + 1) % gifBanners.length);
-            }, 5000); // Change every 5 seconds
-            return () => clearInterval(timer);
-        }
-    }, [gifBanners]);
     
     const categoriesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -358,33 +332,7 @@ export default function MarketPage() {
             
              {/* 1. Hero Section */}
              <section className="mb-8">
-                 <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-stretch">
-                    <div className="hidden lg:block h-full relative">
-                        {isLoadingGifBanners ? (
-                            <Skeleton className="h-full w-full rounded-lg" />
-                        ) : gifBanners && gifBanners.length > 0 ? (
-                            gifBanners.map((banner, index) => (
-                                <Link
-                                    key={banner.id}
-                                    href={banner.linkUrl || '#'}
-                                    className={cn(
-                                        "absolute inset-0 block h-full transition-opacity duration-1000",
-                                        index === currentGifBannerIndex ? "opacity-100" : "opacity-0 pointer-events-none"
-                                    )}
-                                >
-                                    <Card className="overflow-hidden h-full relative group rounded-lg">
-                                        <img 
-                                            src={banner.imageUrl} 
-                                            alt="Promotional banner"
-                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                        />
-                                    </Card>
-                                </Link>
-                            ))
-                        ) : (
-                            <Skeleton className="h-full w-full rounded-lg" />
-                        )}
-                    </div>
+                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-6 items-stretch">
                     <Carousel
                         plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                         opts={{
