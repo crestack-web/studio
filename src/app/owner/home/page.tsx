@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -235,6 +234,7 @@ export default function OwnerHomePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     const [selectedBranchId, setSelectedBranchId] = useState('all');
+    const [isTrialAlertHidden, setIsTrialAlertHidden] = useState(false);
 
 
     useEffect(() => {
@@ -253,6 +253,9 @@ export default function OwnerHomePage() {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.delete('subscription');
             window.history.replaceState({}, '', currentUrl.toString());
+        }
+         if (typeof window !== 'undefined' && window.localStorage.getItem('isTrialAlertHidden') === 'true') {
+            setIsTrialAlertHidden(true);
         }
     }, [onboardingComplete, subscriptionSuccess, toast]);
     
@@ -544,7 +547,7 @@ export default function OwnerHomePage() {
         const margin = businessInsights.profitMargin;
         if(margin >= 30) score += 40;
         else if (margin >= 10) score += 20 + ((margin - 10) / 20) * 20; // Pro-rata score for 10-29%
-        else score += (margin / 10) * 20; // Pro-rata for &lt;10%
+        else score += (margin / 10) * 20; // Pro-rata for <10%
 
         const salesConsistency = Math.min(1, businessInsights.salesDays / 30);
         score += salesConsistency * 30;
@@ -720,8 +723,8 @@ export default function OwnerHomePage() {
         )}
 
       <main className="flex-1 p-4 sm:p-6 space-y-6">
-        {activeSubscription && activeSubscription.status === 'trialing' && new Date() < activeSubscription.currentPeriodEnd.toDate() && (
-            <Alert variant="default" className="bg-primary/10 border-primary/20">
+        {!isTrialAlertHidden && activeSubscription && activeSubscription.status === 'trialing' && new Date() < activeSubscription.currentPeriodEnd.toDate() && (
+            <Alert variant="default" className="bg-primary/10 border-primary/20 relative pr-12">
                 <AlertTriangle className="h-4 w-4 text-primary" />
                 <AlertTitle>Free Trial Active</AlertTitle>
                 <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center">
@@ -730,6 +733,18 @@ export default function OwnerHomePage() {
                         <Link href="/owner/subscribe">Upgrade Now</Link>
                     </Button>
                 </AlertDescription>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6 text-primary/70 hover:text-primary hover:bg-primary/10"
+                    onClick={() => {
+                        setIsTrialAlertHidden(true);
+                        localStorage.setItem('isTrialAlertHidden', 'true');
+                    }}
+                >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Dismiss</span>
+                </Button>
             </Alert>
         )}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
