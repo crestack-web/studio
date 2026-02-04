@@ -1,6 +1,7 @@
 // functions/payments.js
 /**
- * @fileoverview This file contains Paystack payment-related Cloud Functions.
+ * @fileoverview This file contains the reset and rebuilt Paystack payment-related Cloud Functions.
+ * It provides a clean, minimal, and stable implementation for handling payments.
  */
 
 const functions = require("firebase-functions");
@@ -15,34 +16,13 @@ if (!PAYSTACK_SECRET_KEY) {
   console.error("FATAL ERROR: PAYSTACK_SECRET_KEY environment variable is not set.");
 }
 
-// This mapping should correspond to the plan codes created in your Paystack dashboard.
-// IMPORTANT: You MUST replace 'PLN_xxxxxxxx' with your actual Paystack plan codes.
-const paystackPlanMap = {
-    shop: {
-        monthly: 'PLN_xxxxxxxx', 
-        yearly: 'PLN_xxxxxxxx'
-    },
-    supermarket: {
-        monthly: 'PLN_xxxxxxxx',
-        yearly: 'PLN_xxxxxxxx'
-    },
-    'multi-branch': {
-        monthly: 'PLN_xxxxxxxx',
-        yearly: 'PLN_xxxxxxxx'
-    },
-    company: {
-        monthly: 'PLN_xxxxxxxx',
-        yearly: 'PLN_xxxxxxxx'
-    }
-};
-
 /**
  * Initializes a one-time payment with Paystack.
  * Accepts: { email, amount, metadata }
  * Returns: { success, authorization_url, reference }
  */
 exports.initializeOneTimePayment = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS
+    // Manually handle CORS to ensure reliability.
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
@@ -104,11 +84,11 @@ exports.initializeOneTimePayment = functions.https.onRequest(async (req, res) =>
 
 /**
  * Initializes a subscription payment with Paystack.
- * Accepts: { email, planId, billingCycle, metadata }
+ * Accepts: { email, plan_code, metadata }
  * Returns: { success, authorization_url, reference }
  */
 exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS
+    // Manually handle CORS.
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'POST');
@@ -128,18 +108,9 @@ exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
         return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
     }
 
-    const { email, planId, billingCycle, metadata } = req.body;
-    if (!email || !planId || !billingCycle) {
-        return res.status(400).json({ success: false, error: 'Email, planId, and billingCycle are required.' });
-    }
-    
-    const planCode = paystackPlanMap[planId]?.[billingCycle];
-
-    if (!planCode || planCode.startsWith('PLN_')) {
-            console.warn(`Paystack plan code not found or is a placeholder for planId: ${planId}, cycle: ${billingCycle}. Proceeding with placeholder...`);
-            if(!planCode) {
-                return res.status(400).json({ success: false, error: `The selected plan ID '${planId}' is not configured for payment.` });
-            }
+    const { email, plan_code, metadata } = req.body;
+    if (!email || !plan_code) {
+        return res.status(400).json({ success: false, error: 'Email and plan_code are required.' });
     }
     
     try {
@@ -147,7 +118,7 @@ exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
             'https://api.paystack.co/transaction/initialize',
             {
                 email,
-                plan: planCode, // Paystack plan code
+                plan: plan_code,
                 metadata,
             },
             {
@@ -181,7 +152,7 @@ exports.initializeSubscription = functions.https.onRequest(async (req, res) => {
  * Returns: { success, data: { ...paystack transaction data } }
  */
 exports.verifyPayment = functions.https.onRequest(async (req, res) => {
-    // Manually handle CORS
+    // Manually handle CORS.
     res.set('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'GET');
@@ -232,8 +203,7 @@ exports.verifyPayment = functions.https.onRequest(async (req, res) => {
 
 /**
  * Handles incoming webhook events from Paystack.
- * It cryptographically verifies the request signature to ensure it's from Paystack
- * but does not process the event data yet.
+ * It cryptographically verifies the request signature and logs the event.
  */
 exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
@@ -258,6 +228,24 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     // 2. Log the event for debugging.
     const event = req.body;
     console.log(`Received verified Paystack event: ${event.event}`);
+
+    // Handle specific events
+    switch (event.event) {
+        case 'charge.success':
+            console.log('Charge success for reference:', event.data.reference);
+            // Future logic to update order status would go here.
+            break;
+        case 'subscription.create':
+            console.log('Subscription created:', event.data.subscription_code);
+            // Future logic to create subscription record would go here.
+            break;
+        case 'invoice.payment_succeeded':
+            console.log('Invoice payment succeeded for:', event.data.customer.email);
+            // Future logic to update subscription period would go here.
+            break;
+        default:
+            console.log(`Unhandled event type: ${event.event}`);
+    }
 
     // 3. Acknowledge receipt of the event to Paystack.
     res.status(200).send("Webhook received");
