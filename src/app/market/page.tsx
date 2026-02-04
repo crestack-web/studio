@@ -605,18 +605,18 @@ export default function MarketPage() {
             </section>
 
              <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 border-blue-200 dark:border-blue-800/50">
-                <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="p-2 md:p-3 bg-white dark:bg-card rounded-full border shadow-sm">
-                            <Logo variant="busmogo" className="text-2xl md:text-3xl"/>
+                <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="p-2 bg-white dark:bg-card rounded-full border shadow-sm shrink-0">
+                            <Logo variant="busmogo" className="text-2xl"/>
                         </div>
                         <div>
-                            <h3 className="text-lg md:text-xl font-bold font-headline">Fast, Reliable Delivery with BusmoGo</h3>
-                            <p className="text-sm text-muted-foreground">Get your orders delivered to your doorstep, or earn by becoming a rider.</p>
+                            <h3 className="text-base md:text-lg font-bold font-headline">Fast, Reliable Delivery with BusmoGo</h3>
+                            <p className="text-xs md:text-sm text-muted-foreground max-w-md">Get your orders delivered to your doorstep, or earn by becoming a rider.</p>
                         </div>
                     </div>
-                    <div className="flex gap-4">
-                        <Button asChild><Link href="/market/delivery">Learn More</Link></Button>
+                    <div className="shrink-0 mt-4 md:mt-0">
+                        <Button asChild size="sm" className="md:h-auto md:px-4 md:py-2"><Link href="/market/delivery">Learn More</Link></Button>
                     </div>
                 </CardContent>
             </Card>
