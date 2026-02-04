@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -58,6 +59,17 @@ const CheckoutContent = () => {
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [customerAddress, setCustomerAddress] = useState('');
+
+    useEffect(() => {
+        if (!isUserLoading && !user) {
+            toast({
+                title: 'Please Log In',
+                description: 'You need to be logged in to check out.',
+                variant: 'destructive',
+            });
+            router.replace('/login?redirect=/market/checkout');
+        }
+    }, [isUserLoading, user, router, toast]);
 
     // This effect determines what's in the checkout. It can be a single item ("Buy Now") or the whole cart.
     useEffect(() => {
@@ -211,10 +223,20 @@ const CheckoutContent = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: user.email,
-                        amount: total * 100, // Send amount in kobo
+                        amount: total,
                         metadata: {
-                            businessId: businessId,
-                            userId: user.uid,
+                            custom_fields: [
+                                {
+                                    display_name: 'Business ID',
+                                    variable_name: 'businessId',
+                                    value: businessId
+                                },
+                                {
+                                    display_name: 'User ID',
+                                    variable_name: 'userId',
+                                    value: user.uid
+                                }
+                            ],
                             callback_url: callbackUrl,
                         },
                     }),
@@ -222,7 +244,7 @@ const CheckoutContent = () => {
 
                 const paymentData = await response.json();
                 
-                if (response.ok && paymentData.status && paymentData.data?.authorization_url) {
+                if (paymentData.status && paymentData.data?.authorization_url) {
                     window.location.href = paymentData.data.authorization_url;
                 } else {
                     localStorage.removeItem('pendingOrder');

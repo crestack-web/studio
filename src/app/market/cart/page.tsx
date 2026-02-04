@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -9,15 +10,24 @@ import { Separator } from '@/components/ui/separator';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/context/cart-provider';
 import { formatCurrency } from '@/lib/currency';
+import { useUser } from '@/firebase';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState } from 'react';
 
 export default function CartPage() {
     const { items, updateQuantity, removeItem, totalItems } = useCart();
     const router = useRouter();
+    const { user, isUserLoading } = useUser();
+    const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
 
     const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     const handleCheckout = () => {
-        router.push('/market/checkout');
+        if (!user && !isUserLoading) {
+            setIsLoginPromptOpen(true);
+        } else {
+            router.push('/market/checkout');
+        }
     };
 
     return (
@@ -80,7 +90,7 @@ export default function CartPage() {
                                     <span>{formatCurrency(subtotal)}</span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">Delivery fees will be calculated at checkout.</p>
-                                <Button className="w-full h-12 text-lg" onClick={handleCheckout}>
+                                <Button className="w-full h-12 text-lg" onClick={handleCheckout} disabled={isUserLoading}>
                                     Proceed to Checkout
                                 </Button>
                             </CardContent>
@@ -88,6 +98,20 @@ export default function CartPage() {
                     </div>
                 </div>
             )}
+             <Dialog open={isLoginPromptOpen} onOpenChange={setIsLoginPromptOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Log In to Continue</DialogTitle>
+                        <DialogDescription>
+                            Please log in or create an account to proceed with your purchase.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        <Button asChild size="lg"><Link href={`/login?redirect=/market/checkout`}>Log In</Link></Button>
+                        <Button asChild variant="outline" size="lg"><Link href={`/signup?redirect=/market/checkout`}>Create Account</Link></Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -22,6 +22,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useMarket } from '@/context/market-provider';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const createSlug = (name: string) => {
     if (!name) return '';
@@ -67,6 +70,7 @@ interface BusinessProfile {
     businessName: string;
     currency: string;
     slug?: string;
+    isVerified?: boolean;
 }
 
 interface Review {
@@ -114,7 +118,7 @@ export default function ProductDetailPage() {
     const firestore = useFirestore();
     const { addItem } = useCart();
     const { toast } = useToast();
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const { market } = useMarket();
 
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
@@ -124,6 +128,7 @@ export default function ProductDetailPage() {
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState('');
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
 
     const productRef = useMemoFirebase(() => {
         if (!firestore || !productId) return null;
@@ -163,13 +168,12 @@ export default function ProductDetailPage() {
     }, [productData, selectedVariantId]);
     
     const averageRating = useMemo(() => {
-        if (!reviewsData || reviewsData.length === 0) return 0;
+        if (!reviewsData || reviewsData.length === 0) return productData?.averageRating || 0;
         return reviewsData.reduce((acc, review) => acc + review.rating, 0) / reviewsData.length;
-    }, [reviewsData]);
+    }, [reviewsData, productData]);
 
-    const reviewCount = reviewsData?.length || 0;
+    const reviewCount = reviewsData?.length || productData?.reviewCount || 0;
 
-    // Update selected image when variant changes
     useEffect(() => {
         if (selectedVariant?.image) {
             setSelectedImage(selectedVariant.image);
@@ -192,27 +196,31 @@ export default function ProductDetailPage() {
         return url;
     }, [productId, quantity, selectedVariantId]);
 
-    const handleAddToCart = () => {
-        if (!productData) return;
-        
-        addItem({
-            id: productData.id,
-            name: productData.productName,
-            price: displayPrice || 0,
-            quantity: quantity,
-            image: selectedImage || imageGallery[0],
-            variantId: selectedVariant?.id,
-            variantName: selectedVariant?.name,
-        });
+    const handlePurchaseAction = (action: 'addToCart' | 'buyNow') => {
+        if (!user && !isUserLoading) {
+            setIsLoginPromptOpen(true);
+            return;
+        }
+        if (isUserLoading) return; // Don't do anything while auth is loading
 
-        toast({
-            title: "Added to Cart",
-            description: `${productData.productName} ${selectedVariant ? `(${selectedVariant.name})` : ''} has been added to your cart.`,
-        });
-    };
-
-    const handleBuyNow = () => {
-        router.push(buyNowUrl);
+        if (action === 'addToCart') {
+            if (!productData) return;
+            addItem({
+                id: productData.id,
+                name: productData.productName,
+                price: displayPrice || 0,
+                quantity: quantity,
+                image: selectedImage || imageGallery[0],
+                variantId: selectedVariant?.id,
+                variantName: selectedVariant?.name,
+            });
+            toast({
+                title: "Added to Cart",
+                description: `${productData.productName} ${selectedVariant ? `(${selectedVariant.name})` : ''} has been added to your cart.`,
+            });
+        } else if (action === 'buyNow') {
+            router.push(buyNowUrl);
+        }
     };
 
     const handleSubmitReview = async () => {
@@ -240,7 +248,6 @@ export default function ProductDetailPage() {
         try {
             await addDocumentNonBlocking(collection(firestore, 'reviews'), newReview);
 
-            // Denormalize: Update average rating on the market product
             const newReviewCount = (productData.reviewCount || 0) + 1;
             const newAverageRating = ((productData.averageRating || 0) * (productData.reviewCount || 0) + reviewRating) / newReviewCount;
             const marketProductRef = doc(firestore, 'marketProducts', productData.id);
@@ -292,36 +299,26 @@ export default function ProductDetailPage() {
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
-           <div className="w-full max-w-5xl">
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* Image Skeleton */}
+           <div className="w-full max-w-6xl">
+                <div className="grid lg:grid-cols-2 gap-12">
                     <div>
                         <Skeleton className="aspect-square w-full rounded-lg" />
-                        <div className="grid grid-cols-4 gap-2 mt-2">
-                            <Skeleton className="aspect-square w-full rounded-md" />
-                            <Skeleton className="aspect-square w-full rounded-md" />
-                            <Skeleton className="aspect-square w-full rounded-md" />
-                            <Skeleton className="aspect-square w-full rounded-md" />
+                        <div className="mt-4 grid grid-cols-5 gap-4">
+                           {[...Array(5)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-md" />)}
                         </div>
                     </div>
-                    {/* Details Skeleton */}
-                    <div className="flex flex-col gap-4">
-                        <Skeleton className="h-5 w-1/3" />
-                        <Skeleton className="h-8 w-3/4" />
-                        <Skeleton className="h-10 w-1/2" />
+                    <div className="space-y-6">
+                        <Skeleton className="h-6 w-1/4" />
+                        <Skeleton className="h-10 w-3/4" />
+                        <Skeleton className="h-12 w-1/2" />
                         <Separator />
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             <Skeleton className="h-5 w-24" />
-                            <div className="grid grid-cols-3 gap-2">
-                                <Skeleton className="h-12 w-full" />
-                                <Skeleton className="h-12 w-full" />
-                            </div>
+                            <div className="flex gap-2"><Skeleton className="h-12 w-20" /><Skeleton className="h-12 w-20" /></div>
                         </div>
                         <Separator />
-                        <div className="flex items-center gap-4">
-                            <Skeleton className="h-14 w-32" />
-                            <Skeleton className="h-14 flex-1" />
-                        </div>
+                        <Skeleton className="h-14 w-full" />
+                         <Skeleton className="h-14 w-full" />
                     </div>
                 </div>
            </div>
@@ -339,39 +336,52 @@ export default function ProductDetailPage() {
     const productName = productData.productName || "Unnamed Product";
 
     return (
-       <div className="w-full max-w-5xl">
-            <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-                {/* --- Image Column --- */}
-                <div className="space-y-4">
-                    <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
-                        <Image 
-                            src={selectedImage || 'https://picsum.photos/seed/placeholder/800/600'}
+       <div className="w-full max-w-6xl">
+            <div className="grid lg:grid-cols-2 gap-12">
+                {/* --- Image Gallery --- */}
+                <div>
+                     <Card className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
+                         <Image 
+                            src={selectedImage || 'https://picsum.photos/seed/placeholder/800/800'}
                             alt={productName}
                             fill
-                            className="object-contain transition-opacity duration-300"
+                            className="object-contain transition-opacity duration-300 p-4"
                             data-ai-hint={productData.hint || productData.category || productName}
                             key={selectedImage}
                         />
-                    </div>
-                    {imageGallery.length > 1 && (
-                        <div className="grid grid-cols-4 gap-2">
-                            {imageGallery.map((img, i) => (
-                                <button key={i} onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
-                                    <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
-                                </button>
-                            ))}
+                    </Card>
+                     {imageGallery.length > 1 && (
+                        <div className="mt-4">
+                             <Carousel
+                                opts={{ align: "start", loop: false }}
+                                className="w-full"
+                            >
+                                <CarouselContent className="-ml-2">
+                                    {imageGallery.map((img, i) => (
+                                        <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-2">
+                                             <button onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all block w-full", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
+                                                <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
+                                            </button>
+                                        </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                <CarouselPrevious className="hidden sm:flex" />
+                                <CarouselNext className="hidden sm:flex" />
+                            </Carousel>
                         </div>
                     )}
                 </div>
+                
                 {/* --- Details Column --- */}
                 <div className="flex flex-col gap-4">
                     <div>
                          {businessData && (
-                            <Link href={businessLink} className="text-sm font-medium text-primary hover:underline">
+                            <Link href={businessLink} className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
                                 {businessData.businessName}
+                                {businessData.isVerified && <ShieldCheck className="h-4 w-4 text-success fill-success/20" />}
                             </Link>
                          )}
-                        <h1 className="text-2xl lg:text-3xl font-bold font-headline mt-1">{productName}</h1>
+                        <h1 className="text-3xl lg:text-4xl font-bold font-headline mt-1">{productName}</h1>
                         <div className="flex items-center gap-2 mt-2">
                             <div className="flex items-center gap-0.5">
                                 {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", averageRating > 0 && i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
@@ -389,7 +399,7 @@ export default function ProductDetailPage() {
                     <Separator />
                     
                     <div>
-                        <p className="text-3xl lg:text-4xl font-bold text-primary">{formatCurrency(displayPrice || 0, market.country)}</p>
+                        <p className="text-4xl lg:text-5xl font-bold text-foreground">{formatCurrency(displayPrice || 0, market.country)}</p>
                     </div>
                     
                     {productData.hasVariants && productData.variants && productData.variants.length > 0 && (
@@ -419,36 +429,61 @@ export default function ProductDetailPage() {
                     </div>
 
                     
-                    {/* --- Sticky CTA for Mobile --- */}
-                    <div className="mt-auto pt-4 md:pt-0 sticky bottom-0 md:static bg-background md:bg-transparent py-4 md:p-0 border-t md:border-none -mx-4 px-4 md:mx-0">
+                    <div className="mt-auto pt-4 space-y-3">
                          <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <Button className="w-full h-12 text-lg" disabled={!isInStock} onClick={handleBuyNow}>
+                            <Button className="w-full h-12 text-lg" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('buyNow')}>
+                                {isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 Buy Now
                             </Button>
-                            <Button variant="outline" className="w-full h-12 text-lg" disabled={!isInStock} onClick={handleAddToCart}>
+                            <Button variant="outline" className="w-full h-12 text-lg" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('addToCart')}>
+                                {isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 <ShoppingCart className="mr-2 h-5 w-5"/>
                                 Add to Cart
                             </Button>
                         </div>
-                        {!isInStock && <p className="text-destructive text-sm text-center mt-2">This item is currently unavailable.</p>}
+                        {!isInStock && <p className="text-destructive text-sm text-center">This item is currently unavailable.</p>}
                     </div>
-
-                    <Card className="bg-muted/30">
-                        <CardContent className="p-4 grid grid-cols-3 gap-4 text-center">
-                            {trustSignals.map(signal => (
-                                <div key={signal.text} className="flex flex-col items-center gap-2">
-                                    <signal.icon className="w-6 h-6 text-muted-foreground"/>
-                                    <p className="text-xs text-muted-foreground">{signal.text}</p>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
             <div className="mt-16 pt-8 border-t">
-                <h2 className="text-2xl font-bold font-headline mb-6">Product Details</h2>
-                <p className="text-muted-foreground max-w-2xl">{productData.description || 'No description available for this product.'}</p>
+                <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="text-xl font-bold font-headline">Product Details</AccordionTrigger>
+                        <AccordionContent>
+                           <div className="prose dark:prose-invert text-muted-foreground">
+                             <p>{productData.description || 'No description available for this product.'}</p>
+                           </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                     <AccordionItem value="item-2">
+                        <AccordionTrigger className="text-xl font-bold font-headline">Delivery & Returns</AccordionTrigger>
+                        <AccordionContent className="space-y-4 text-muted-foreground">
+                           <p>Standard delivery takes 3-5 business days. Express options are available at checkout. Returns are accepted within 7 days of delivery for a full refund, provided the item is in its original condition.</p>
+                           <p>For more details, please visit our <Link href="/help" className="text-primary underline">Help Center</Link>.</p>
+                        </AccordionContent>
+                    </AccordionItem>
+                     <AccordionItem value="item-3">
+                        <AccordionTrigger className="text-xl font-bold font-headline">Seller Information</AccordionTrigger>
+                        <AccordionContent>
+                            <Card className="bg-muted/30">
+                                <CardContent className="p-4 flex justify-between items-center">
+                                    {businessData ? (
+                                        <>
+                                            <div className="space-y-1">
+                                                <p className="font-bold text-lg">{businessData.businessName}</p>
+                                                <p className="text-sm text-muted-foreground flex items-center gap-1">{businessData.isVerified ? <ShieldCheck className="h-4 w-4 text-success"/> : null} Verified Seller</p>
+                                            </div>
+                                            <Button asChild variant="secondary"><Link href={businessLink}>Visit Store</Link></Button>
+                                        </>
+                                    ) : (
+                                        <Skeleton className="h-16 w-full" />
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </div>
             
              <div className="mt-16 pt-8 border-t">
@@ -539,6 +574,21 @@ export default function ProductDetailPage() {
                     <p className="text-muted-foreground">No similar products found.</p>
                 )}
             </div>
+            
+            <Dialog open={isLoginPromptOpen} onOpenChange={setIsLoginPromptOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Log In to Continue</DialogTitle>
+                        <DialogDescription>
+                            Please log in or create an account to purchase items or add them to your cart.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        <Button asChild size="lg"><Link href={`/login?redirect=/market/product/${productId}`}>Log In</Link></Button>
+                        <Button asChild variant="outline" size="lg"><Link href={`/signup?redirect=/market/product/${productId}`}>Create Account</Link></Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
        </div>
     );
 }
