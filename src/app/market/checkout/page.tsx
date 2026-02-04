@@ -190,13 +190,21 @@ const CheckoutContent = () => {
             });
 
             const paymentData = await response.json();
-            
-            if (response.ok && paymentData.success && paymentData.authorization_url) {
+            const authorizationUrl =
+                paymentData?.authorization_url || paymentData?.data?.authorization_url;
+            const isSuccess =
+                paymentData?.success === true || paymentData?.status === true;
+
+            if (response.ok && isSuccess && authorizationUrl) {
                 // Redirect to Paystack for payment
                 clearCart();
-                window.location.href = paymentData.authorization_url;
+                window.location.href = authorizationUrl;
             } else {
-                throw new Error(paymentData.error || 'Payment initialization failed.');
+                throw new Error(
+                    paymentData?.error ||
+                    paymentData?.message ||
+                    'Payment initialization failed.'
+                );
             }
 
         } catch (error: any) {
