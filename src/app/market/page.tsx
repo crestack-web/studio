@@ -355,14 +355,15 @@ export default function MarketPage() {
             
              {/* 1. Hero Section */}
              <section className="mb-8">
-                 <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6 items-stretch">
-                    <div className="hidden lg:flex flex-col h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr_250px] gap-6 items-start">
+                    {/* Left GIF Banner */}
+                    <div className="hidden lg:block">
                         {isLoadingGifBanners ? (
-                            <Skeleton className="h-full w-full rounded-lg" />
+                            <Skeleton className="aspect-[3/4] w-full rounded-lg" />
                         ) : sideBanner ? (
                             <Link href={sideBanner.linkUrl || '#'} className="block h-full">
-                                <Card className="h-full overflow-hidden group">
-                                    <div className="relative w-full h-full">
+                                <Card className="overflow-hidden group">
+                                    <div className="relative w-full aspect-[3/4]">
                                         <Image
                                             src={sideBanner.imageUrl}
                                             alt="Promo banner"
@@ -373,28 +374,13 @@ export default function MarketPage() {
                                 </Card>
                             </Link>
                         ) : (
-                             <Card className="flex flex-col h-full">
-                                <CardHeader className="p-3 pb-1">
-                                    <CardTitle className="text-base">Categories</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-0 pb-2 flex-1">
-                                    <div className="space-y-1">
-                                        {promoCategories.map(category => (
-                                            <Link href={category.href} key={category.name} className="block">
-                                                <div className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-md transition-colors">
-                                                    <category.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    <span className="font-medium text-sm">{category.name}</span>
-                                                </div>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="p-4 pt-0 pb-3 mt-auto">
-                                    <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
-                                </CardFooter>
+                             <Card className="aspect-[3/4] flex items-center justify-center border-dashed">
+                                <p className="text-xs text-muted-foreground">Ad Space</p>
                             </Card>
                         )}
                     </div>
+
+                    {/* Middle Main Carousel */}
                     <Carousel
                         plugins={[ Autoplay({ delay: 5000, stopOnInteraction: true }) ]}
                         opts={{
@@ -452,6 +438,30 @@ export default function MarketPage() {
                             )}
                         </CarouselContent>
                     </Carousel>
+                    
+                     {/* Right Categories Card */}
+                    <div className="hidden lg:block">
+                        <Card className="flex flex-col h-full">
+                            <CardHeader className="p-3 pb-1">
+                                <CardTitle className="text-base">Categories</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0 pb-2 flex-1">
+                                <div className="space-y-1">
+                                    {promoCategories.map(category => (
+                                        <Link href={category.href} key={category.name} className="block">
+                                            <div className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-md transition-colors">
+                                                <category.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <span className="font-medium text-sm">{category.name}</span>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </CardContent>
+                            <CardFooter className="p-4 pt-0 pb-3 mt-auto">
+                                <Button variant="secondary" size="sm" className="w-full">See all categories</Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
                 </div>
             </section>
             
