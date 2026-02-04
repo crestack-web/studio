@@ -13,7 +13,7 @@ if (!PAYSTACK_SECRET_KEY) {
   console.error("FATAL ERROR: PAYSTACK_SECRET_KEY environment variable is not set.");
 }
 
-// Hardcoded plan details (in kobo)
+// Hardcoded plan details (in kobo) - Should be moved to Firestore /plans collection
 const plans = {
     shop: { monthlyPrice: 150000, yearlyPrice: 1500000, paystack_plan_code_monthly: 'PLN_79p5yysj5q5z1qz', paystack_plan_code_yearly: 'PLN_k9c24tyc4g5x8v9' },
     supermarket: { monthlyPrice: 1000000, yearlyPrice: 10000000, paystack_plan_code_monthly: 'PLN_x5vbs3rigk8g9q2', paystack_plan_code_yearly: 'PLN_0z6g4j3j6a59v04' },
@@ -39,7 +39,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
         try {
             const { type, payload, userId, businessId, email, callback_url } = req.body;
 
-            if (!type || !payload || !userId || !email) {
+            if (!type || !payload || !userId || !email || !businessId) {
                 return res.status(400).json({ success: false, error: 'Missing required parameters.' });
             }
 
@@ -75,11 +75,19 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                 }
                 case 'subscription': {
                     const { planId, billingCycle } = payload;
-                    const plan = plans[planId];
-                    if (!plan) throw new Error('Invalid subscription plan.');
+                    
+                    // FIX: Handle both 'multi-branch' and 'multibranch' to fix inconsistency
+                    let plan = plans[planId];
+                    if (!plan && planId === 'multibranch') {
+                        plan = plans['multi-branch'];
+                    }
+
+                    if (!plan) {
+                         throw new Error(`Invalid subscription plan ID: '${planId}'.`);
+                    }
                     
                     planCode = billingCycle === 'monthly' ? plan.paystack_plan_code_monthly : plan.paystack_plan_code_yearly;
-                    if (!planCode || planCode.includes('PLN_xx')) throw new Error('Paystack plan code not configured.');
+                    if (!planCode || planCode.includes('PLN_xx')) throw new Error('Paystack plan code not configured for this plan.');
                     
                     amount = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
                     break;
@@ -303,5 +311,3 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
         res.status(500).send("Error processing webhook");
     }
 });
-
-    

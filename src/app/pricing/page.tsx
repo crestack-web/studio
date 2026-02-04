@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ const plans = [
     },
     {
         name: 'Multiple Branches',
-        id: 'multibranch',
+        id: 'multi-branch',
         description: 'For chains & franchises',
         monthlyPrice: 30000,
         yearlyPrice: 300000,
