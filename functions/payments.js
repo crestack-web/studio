@@ -45,7 +45,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
 
             let amount = 0; // Authoritative amount in kobo
             let currency = 'NGN'; // Default currency
-            let paystackPayload = { email, metadata: { userId, businessId, type, ...payload.metadata }};
+            let planCode;
 
             switch (type) {
                 case 'product': {
@@ -54,7 +54,7 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     for (const item of items) {
                         const productRef = db.collection('marketProducts').doc(item.productId);
                         const productSnap = await productRef.get();
-                        if (!productSnap.exists) throw new Error(`Product with ID ${item.productId} not found.`);
+                        if (!productSnap.exists()) throw new Error(`Product with ID ${item.productId} not found.`);
                         
                         const productData = productSnap.data();
                         currency = productData.currency || 'NGN';
@@ -71,7 +71,6 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                         totalAmount += itemPrice * item.quantity;
                     }
                     amount = Math.round(totalAmount * 100);
-                    paystackPayload.amount = amount;
                     break;
                 }
                 case 'subscription': {
@@ -79,29 +78,31 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     const plan = plans[planId];
                     if (!plan) throw new Error('Invalid subscription plan.');
                     
-                    const paystackPlanCode = billingCycle === 'monthly' ? plan.paystack_plan_code_monthly : plan.paystack_plan_code_yearly;
-                    if (!paystackPlanCode || paystackPlanCode.includes('PLN_xx')) throw new Error('Paystack plan code not configured.');
+                    planCode = billingCycle === 'monthly' ? plan.paystack_plan_code_monthly : plan.paystack_plan_code_yearly;
+                    if (!planCode || planCode.includes('PLN_xx')) throw new Error('Paystack plan code not configured.');
                     
-                    // Amount is determined by the plan on Paystack, but we calculate it for our records.
                     amount = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-                    paystackPayload.plan = paystackPlanCode;
-                    paystackPayload.amount = amount; // Paystack requires amount even with plan for first payment
                     break;
                 }
                 case 'service': {
                     const { serviceId } = payload;
                     const serviceRef = db.collection('services').doc(serviceId);
                     const serviceSnap = await serviceRef.get();
-                    if (!serviceSnap.exists) throw new Error('Service not found.');
+                    if (!serviceSnap.exists()) throw new Error('Service not found.');
                     amount = serviceSnap.data().fee * 100;
-                    paystackPayload.amount = amount;
                     break;
                 }
                 default:
                     throw new Error('Invalid payment type.');
             }
             
-            paystackPayload.callback_url = callback_url;
+            const paystackPayload = {
+                email,
+                amount,
+                callback_url,
+                metadata: { userId, businessId, type, ...(payload.metadata || {}) },
+                ...(planCode && { plan: planCode }) // Conditionally add plan if it exists
+            };
 
             const response = await axios.post('https://api.paystack.co/transaction/initialize', paystackPayload, {
                 headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
@@ -110,14 +111,13 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             if (response.data && response.data.status) {
                 const reference = response.data.data.reference;
                 
-                // Create a payment intent document
                 const intentRef = db.collection('paymentIntents').doc(reference);
                 await intentRef.set({
                     reference,
                     userId,
                     businessId,
                     type,
-                    payload, // Store the original payload for webhook processing
+                    payload,
                     amount,
                     currency,
                     status: 'pending',
