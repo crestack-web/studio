@@ -265,11 +265,19 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
                          const subRef = db.collection('users').doc(intentData.userId).collection('subscriptions').doc(); // Auto-gen ID
                          const subTxRef = db.collection('subscriptionTransactions').doc(reference);
 
+                         const paidAtDate = new Date(event.data.paid_at);
+                         let endDate = new Date(paidAtDate);
+                         if (billingCycle === 'monthly') {
+                            endDate.setMonth(paidAtDate.getMonth() + 1);
+                         } else {
+                            endDate.setFullYear(paidAtDate.getFullYear() + 1);
+                         }
+
                          transaction.set(subRef, {
                              planId,
                              status: 'active',
-                             currentPeriodStart: admin.firestore.FieldValue.serverTimestamp(),
-                             currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date(event.data.paid_at)), // Use Paystack's date
+                             currentPeriodStart: admin.firestore.Timestamp.fromDate(paidAtDate),
+                             currentPeriodEnd: admin.firestore.Timestamp.fromDate(endDate),
                              createdAt: admin.firestore.FieldValue.serverTimestamp(),
                          });
 

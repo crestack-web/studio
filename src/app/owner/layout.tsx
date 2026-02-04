@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useCollection, useMemoFirebase, useFirestore } from '@/firebase';
@@ -49,17 +50,26 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     
     // 2. If user is authenticated, check subscription status
     if (user) {
-        const activeSubscription = subscriptions?.[0];
-        if (activeSubscription) {
-             if (activeSubscription.status === 'trialing' || activeSubscription.status === 'past_due') {
-                const endDate = activeSubscription.currentPeriodEnd.toDate();
-                if (new Date() > endDate) {
-                    // Trial has expired
-                    if (pathname !== '/owner/subscribe') {
-                        router.replace('/owner/subscribe');
-                    }
-                    return;
-                }
+        const subscription = subscriptions?.[0];
+        
+        // Allow access to onboarding/payment pages even without a full subscription
+        const isBillingRoute = pathname.startsWith('/owner/pricing') || pathname.startsWith('/owner/subscribe');
+        
+        if (!subscription && !isBillingRoute) {
+            router.replace('/owner/pricing');
+            return;
+        }
+
+        if (subscription) {
+            const isExpired = new Date() > subscription.currentPeriodEnd.toDate();
+            const isActiveOrTrialing = subscription.status === 'active' || subscription.status === 'trialing';
+
+            // If subscription is cancelled, or if it's an expired active/trialing plan, block access
+            if (subscription.status === 'cancelled' || (isActiveOrTrialing && isExpired)) {
+              if (pathname !== '/owner/subscribe') {
+                router.replace('/owner/subscribe');
+              }
+              return;
             }
         }
     }
@@ -70,7 +80,7 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     return <LoadingScreen />;
   }
 
-  // If user is authenticated and trial is not expired, render children.
+  // If user is authenticated and subscription is valid, render children.
   if (user) {
     return <>{children}</>;
   }
