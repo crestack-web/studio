@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
@@ -206,10 +205,8 @@ const CheckoutContent = () => {
             await setDoc(newOrderRef, orderData);
 
             if (market.country === 'NG') {
-                const initializePaymentUrl = getFunctionUrl('initializeOneTimePayment');
+                const initializePaymentUrl = getFunctionUrl('initializePayment');
                 
-                // The reference must be unique for each transaction. We use the Firestore order ID.
-                const reference = `ORD-${newOrderRef.id}`;
                 const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
 
                 const response = await fetch(initializePaymentUrl, {
@@ -218,10 +215,9 @@ const CheckoutContent = () => {
                     body: JSON.stringify({
                         email: user.email,
                         amount: total,
-                        reference: reference, // Pass our unique reference to Paystack
                         metadata: {
-                            businessId: businessId, // Pass businessId for the webhook
-                            orderId: newOrderRef.id,  // Pass orderId for the webhook
+                            businessId: businessId,
+                            orderId: newOrderRef.id,
                             callback_url: callbackUrl,
                         },
                     }),
@@ -232,20 +228,18 @@ const CheckoutContent = () => {
                     try {
                         errorBody = await response.json();
                     } catch (e) { /* ignore json parsing errors */ }
-                    // If payment init fails, delete the pending order.
                     await deleteDoc(newOrderRef);
                     throw new Error(errorBody?.error || 'Failed to initialize payment.');
                 }
                 
                 const paymentData = await response.json();
 
-                if (paymentData.success && paymentData.authorization_url) {
+                if (paymentData.status && paymentData.data.authorization_url) {
                     clearCart();
-                    window.location.href = paymentData.authorization_url;
+                    window.location.href = paymentData.data.authorization_url;
                 } else {
-                    // If payment init response is invalid, delete the pending order.
                     await deleteDoc(newOrderRef);
-                    throw new Error(paymentData.error || 'Invalid payment initialization response.');
+                    throw new Error(paymentData.message || 'Invalid payment initialization response.');
                 }
             } else {
                 // For other countries, go directly to confirmation page.
@@ -255,7 +249,6 @@ const CheckoutContent = () => {
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
-            // Ensure cleanup happens on any error.
             await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
             setIsPlacingOrder(false);

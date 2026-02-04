@@ -3,7 +3,7 @@
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { addDays } from 'date-fns';
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, getDoc, writeBatch, serverTimestamp, collection, deleteDoc, addDoc } from 'firebase/firestore';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,10 +18,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getFunctionUrl } from '@/lib/api';
 
 const plans = [
-    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000 },
-    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000 },
-    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000 },
-    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000 }
+    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000, paystack_plan_code: 'PLN_xxxxxxxx' },
+    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000, paystack_plan_code: 'PLN_yyyyyyyy' },
+    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000, paystack_plan_code: 'PLN_zzzzzzzz' },
+    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000, paystack_plan_code: 'PLN_aaaaaaaa' }
 ];
 
 interface Coupon {
@@ -108,76 +108,57 @@ function SubscribePageContent() {
 
 
     const handlePayment = async () => {
-        if (!firestore || !authUser || !userProfile?.email || !businessData || !planId || finalAmount === null) {
+        if (!firestore || !authUser || !userProfile?.email || !businessData || !planId || finalAmount === null || !selectedPlan) {
             toast({ title: "Error", description: "Missing required information. Please try again.", variant: "destructive" });
             return;
         }
         
         setIsProcessing(true);
-        const transactionCollectionRef = collection(firestore, 'subscriptionTransactions');
-        let transactionDocRef;
-
+        
         try {
-            // 1. Create a pending subscription transaction document
-            transactionDocRef = await addDoc(transactionCollectionRef, {
-                userId: authUser.uid,
-                planId: planId,
-                amountPaid: finalAmount,
-                currency: businessData.currency || 'NGN',
-                couponUsed: appliedCoupon?.code || null,
-                status: 'pending',
-                createdAt: serverTimestamp(),
-                billingCycle: billingCycle,
-            });
-
-            if (!transactionDocRef?.id) {
-                throw new Error("Failed to create transaction record.");
-            }
+            const initializePaymentUrl = getFunctionUrl('initializePayment');
             
-            // 2. Initialize payment with Paystack
-            const initializePaymentUrl = getFunctionUrl('initializeSubscription');
-            if (!initializePaymentUrl) {
-                throw new Error('Payment gateway URL is not configured.');
-            }
-            
-            const reference = `SUB-${transactionDocRef.id}`;
-            const callbackUrl = `${window.location.origin}/owner/home?subscription=success`;
+            const reference = `BUSMO-SUB-${authUser.uid}-${Date.now()}`;
+            const callbackUrl = `${window.location.origin}/market/order-confirmation?source=subscription`;
 
             const response = await fetch(initializePaymentUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: userProfile.email,
-                    planId: planId,
-                    billingCycle: billingCycle,
+                    amount: finalAmount,
+                    // Although the new contract doesn't explicitly use plan code for init,
+                    // sending it in metadata is good practice for the backend webhook.
                     metadata: {
-                        callback_url: callbackUrl,
-                        transaction_id: transactionDocRef.id,
                         user_id: authUser.uid,
+                        plan_id: planId,
+                        billing_cycle: billingCycle,
+                        paystack_plan_code: selectedPlan.paystack_plan_code,
+                        coupon: appliedCoupon?.code,
+                        callback_url: callbackUrl // Pass callback for Paystack to use
                     },
                 }),
             });
 
-            const paymentData = await response.json();
-
-            if (!response.ok || !paymentData.success) {
-                throw new Error(paymentData.error || 'Failed to initialize payment.');
+            if (!response.ok) {
+                let errorBody;
+                try {
+                    errorBody = await response.json();
+                } catch (e) { /* ignore json parsing errors */ }
+                throw new Error(errorBody?.error || 'Failed to initialize payment.');
             }
             
-            // 3. Redirect to Paystack
-            if (paymentData.authorization_url) {
-                window.location.href = paymentData.authorization_url;
+            const paymentData = await response.json();
+
+            if (paymentData.status && paymentData.data.authorization_url) {
+                window.location.href = paymentData.data.authorization_url;
             } else {
-                throw new Error('Invalid payment initialization response.');
+                throw new Error(paymentData.message || 'Invalid payment initialization response.');
             }
 
         } catch (error: any) {
             console.error("Failed to process subscription:", error);
             toast({ title: "An Error Occurred", description: error.message || "Could not start your subscription payment. Please contact support.", variant: "destructive" });
-            // Clean up the pending transaction if it was created
-            if (transactionDocRef) {
-                await deleteDoc(transactionDocRef).catch(delErr => console.error("Failed to clean up subscription transaction:", delErr));
-            }
             setIsProcessing(false);
         }
     };

@@ -4,14 +4,14 @@ import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
@@ -19,12 +19,14 @@ interface Order { id: string; total: number; payment: string; fulfillment: strin
 
 const OrderConfirmationContent = () => {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { toast } = useToast();
     const firestore = useFirestore();
     
     const orderId = searchParams.get('orderId');
     const businessId = searchParams.get('businessId');
     const paystackRef = searchParams.get('reference');
+    const source = searchParams.get('source'); // e.g., 'subscription'
     
     const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -41,9 +43,21 @@ const OrderConfirmationContent = () => {
                          throw new Error('Payment verification service failed.');
                     }
                     const result = await response.json();
+                    
                     if (result.success && result.data.status === 'success') {
                         setVerificationStatus('success');
                         setVerificationMessage('Your payment has been confirmed.');
+                        
+                        if(source === 'subscription') {
+                             toast({
+                                title: "Subscription Active!",
+                                description: "Your payment was successful. Welcome aboard!",
+                                className: "bg-success text-success-foreground",
+                             });
+                             // Redirect home after a short delay to allow user to read the message
+                             setTimeout(() => router.replace('/owner/home'), 2000);
+                        }
+
                     } else {
                         setVerificationStatus('failed');
                         setVerificationMessage(result.data.gateway_response || 'Payment could not be confirmed.');
@@ -54,10 +68,10 @@ const OrderConfirmationContent = () => {
                 }
             };
             verify();
-        } else {
-            setVerificationStatus('idle');
+        } else if (orderId) { // Payment not via Paystack (e.g., Pay on Delivery)
+             setVerificationStatus('success');
         }
-    }, [paystackRef]);
+    }, [paystackRef, orderId, source, toast, router]);
 
     const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
@@ -72,7 +86,7 @@ const OrderConfirmationContent = () => {
         toast({ title: "Copied to clipboard!" });
     };
 
-    if (isLoading) {
+    if (isLoading && (orderId || businessId)) {
         return (
             <div className="w-full max-w-lg space-y-6">
                 <Skeleton className="h-48 w-full" />
@@ -82,8 +96,45 @@ const OrderConfirmationContent = () => {
         );
     }
     
+    if (source === 'subscription' && verificationStatus !== 'verifying') {
+         return (
+            <div className="w-full max-w-lg space-y-6 text-center">
+                <Card>
+                    <CardHeader>
+                        <div className="flex justify-center">
+                            {verificationStatus === 'success' && <CheckCircle2 className="w-16 h-16 text-success" />}
+                            {verificationStatus === 'failed' && <AlertCircle className="w-16 h-16 text-destructive" />}
+                        </div>
+                        <CardTitle className="text-2xl pt-4">
+                            {verificationStatus === 'success' ? 'Payment Successful!' : 'Payment Failed'}
+                        </CardTitle>
+                        <CardDescription>
+                            {verificationStatus === 'success' ? "Your subscription is now active. You'll be redirected shortly." : verificationMessage}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <Button asChild><Link href="/owner/home">Go to Dashboard</Link></Button>
+                    </CardContent>
+                </Card>
+            </div>
+         );
+    }
+    
     if (!orderId || !order) {
-        return <div>Invalid Order</div>;
+        return (
+            <div className="w-full max-w-lg space-y-6 text-center">
+                 <Card>
+                    <CardHeader>
+                        <div className="flex justify-center"><ShoppingCart className="w-16 h-16 text-muted-foreground" /></div>
+                        <CardTitle className="text-2xl pt-4">Looking for an order?</CardTitle>
+                        <CardDescription>We couldn't find any order details on this page.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <Button asChild><Link href="/market">Continue Shopping</Link></Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
     }
     
     const paymentSettings = businessProfile?.marketSettings?.payment;
@@ -100,12 +151,15 @@ const OrderConfirmationContent = () => {
                     </div>
                 );
             case 'success':
-                return (
-                    <div className="flex items-center justify-center gap-2 text-success">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Payment Confirmed</span>
-                    </div>
-                );
+                 if (paystackRef) { // Only show if it was an online payment
+                    return (
+                        <div className="flex items-center justify-center gap-2 text-success">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>Payment Confirmed</span>
+                        </div>
+                    );
+                 }
+                 return null;
             case 'failed':
                 return (
                      <div className="flex items-center justify-center gap-2 text-destructive">
