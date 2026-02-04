@@ -9,38 +9,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw, Loader2, User } from 'lucide-react';
+import { ShoppingCart, Store, Star, Minus, Plus, ShieldCheck, Truck, RotateCw, Loader2, User, ChevronRight, Tags, Info, Package } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, where, limit, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/context/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMarket } from '@/context/market-provider';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-const createSlug = (name: string) => {
-    if (!name) return '';
-    const slug = name
-        .toLowerCase()
-        .replace(/&/g, 'and')
-        .replace(/[^a-z0-9\s-]/g, '') // remove special chars
-        .trim()
-        .replace(/\s+/g, '-') // replace spaces with -
-        .replace(/-+/g, '-');
-    
-    if (!slug) {
-        return Math.random().toString(36).substring(2, 10);
-    }
-    return slug;
-};
+// --- INTERFACES & HELPER COMPONENTS ---
 
 interface Variant { 
     id: string; 
@@ -53,6 +38,7 @@ interface MarketProduct {
     id: string; 
     productName: string; 
     price: number;
+    oldPrice?: number;
     currency?: string;
     description?: string;
     images?: string[];
@@ -65,24 +51,19 @@ interface MarketProduct {
     reviewCount?: number;
     averageRating?: number;
 }
-
 interface BusinessProfile {
     businessName: string;
     currency: string;
     slug?: string;
     isVerified?: boolean;
 }
-
 interface Review {
     id: string;
     userName: string;
     rating: number;
     comment: string;
-    createdAt: {
-        toDate: () => Date;
-    } | null;
+    createdAt: { toDate: () => Date; } | null;
 }
-
 
 const ProductCard = ({ product }: { product: MarketProduct }) => {
     const { market } = useMarket();
@@ -109,6 +90,7 @@ const ProductCard = ({ product }: { product: MarketProduct }) => {
     );
 };
 
+// --- MAIN PAGE COMPONENT ---
 
 export default function ProductDetailPage() {
     const router = useRouter();
@@ -124,7 +106,6 @@ export default function ProductDetailPage() {
     const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
     const [selectedImage, setSelectedImage] = useState<string | undefined>();
     
-    // State for review form
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState('');
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -147,61 +128,66 @@ export default function ProductDetailPage() {
         return query(collection(firestore, 'reviews'), where('productId', '==', productId));
     }, [firestore, productId]);
     const { data: reviewsData, isLoading: isLoadingReviews } = useCollection<Review>(reviewsQuery);
-    
+
     const imageGallery = useMemo(() => {
-        return productData?.images || [];
+        const images = new Set<string>();
+        if (productData?.images) {
+            productData.images.forEach(img => images.add(img));
+        }
+        if (productData?.variants) {
+            productData.variants.forEach(v => {
+                if (v.image) images.add(v.image);
+            });
+        }
+        return Array.from(images);
     }, [productData]);
 
     useEffect(() => {
         if (productData) {
             if (productData.hasVariants && productData.variants && productData.variants.length > 0) {
-                const firstAvailableVariant = productData.variants.find(v => v.availableQuantity > 0);
+                const firstAvailableVariant = productData.variants.find(v => (v.availableQuantity || 0) > 0);
                 setSelectedVariantId(firstAvailableVariant?.id || productData.variants[0].id);
             }
-            setSelectedImage(imageGallery[0]);
+            if (!selectedImage && imageGallery.length > 0) {
+                setSelectedImage(imageGallery[0]);
+            }
         }
-    }, [productData, imageGallery]);
+    }, [productData, imageGallery, selectedImage]);
     
     const selectedVariant = useMemo(() => {
         if (!productData?.hasVariants || !selectedVariantId) return null;
         return productData.variants?.find(v => v.id === selectedVariantId);
     }, [productData, selectedVariantId]);
     
-    const averageRating = useMemo(() => {
-        if (!reviewsData || reviewsData.length === 0) return productData?.averageRating || 0;
-        return reviewsData.reduce((acc, review) => acc + review.rating, 0) / reviewsData.length;
-    }, [reviewsData, productData]);
-
-    const reviewCount = reviewsData?.length || productData?.reviewCount || 0;
+    const averageRating = productData?.averageRating || 0;
+    const reviewCount = productData?.reviewCount || 0;
 
     useEffect(() => {
         if (selectedVariant?.image) {
             setSelectedImage(selectedVariant.image);
-        } else if (imageGallery.length > 0) {
+        } else if (!selectedImage && imageGallery.length > 0) {
             setSelectedImage(imageGallery[0]);
         }
-    }, [selectedVariant, imageGallery]);
+    }, [selectedVariant, imageGallery, selectedImage]);
 
-
-    const originalPrice = selectedVariant ? selectedVariant.price : productData?.price;
+    const originalPrice = selectedVariant?.price ?? productData?.price;
+    const oldPrice = productData?.oldPrice;
+    
     const displayPrice = convertCurrency(originalPrice || 0, productData?.currency, getCurrencyName(market.country));
+    const displayOldPrice = oldPrice ? convertCurrency(oldPrice, productData?.currency, getCurrencyName(market.country)) : undefined;
+
     const stockAvailable = selectedVariant ? selectedVariant.availableQuantity : productData?.availableQuantity;
     const isInStock = stockAvailable !== undefined && stockAvailable > 0;
     
     const buyNowUrl = useMemo(() => {
         let url = `/market/checkout?productId=${productId}&quantity=${quantity}`;
-        if (selectedVariantId) {
-            url += `&variantId=${selectedVariantId}`;
-        }
+        if (selectedVariantId) url += `&variantId=${selectedVariantId}`;
         return url;
     }, [productId, quantity, selectedVariantId]);
 
     const handlePurchaseAction = (action: 'addToCart' | 'buyNow') => {
-        if (!user && !isUserLoading) {
-            setIsLoginPromptOpen(true);
-            return;
-        }
-        if (isUserLoading) return; // Don't do anything while auth is loading
+        if (!user && !isUserLoading) { setIsLoginPromptOpen(true); return; }
+        if (isUserLoading) return;
 
         if (action === 'addToCart') {
             if (!productData) return;
@@ -214,375 +200,218 @@ export default function ProductDetailPage() {
                 variantId: selectedVariant?.id,
                 variantName: selectedVariant?.name,
             });
-            toast({
-                title: "Added to Cart",
-                description: `${productData.productName} ${selectedVariant ? `(${selectedVariant.name})` : ''} has been added to your cart.`,
-            });
+            toast({ title: "Added to Cart", description: `${productData.productName} has been added.` });
         } else if (action === 'buyNow') {
             router.push(buyNowUrl);
         }
     };
 
     const handleSubmitReview = async () => {
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Please log in', description: 'You must be logged in to leave a review.' });
-            return;
-        }
-        if (reviewRating === 0 || !reviewComment.trim()) {
-            toast({ variant: 'destructive', title: 'Missing information', description: 'Please provide a rating and a comment.' });
-            return;
-        }
+        if (!user) { setIsLoginPromptOpen(true); return; }
+        if (reviewRating === 0 || !reviewComment.trim()) { toast({ variant: 'destructive', title: 'Missing information' }); return; }
         if (!firestore || !productData) return;
 
         setIsSubmittingReview(true);
         const newReview = {
-            productId: productData.id,
-            businessId: productData.businessId,
-            userId: user.uid,
-            userName: user.displayName || 'Anonymous User',
-            rating: reviewRating,
-            comment: reviewComment.trim(),
+            productId: productData.id, businessId: productData.businessId, userId: user.uid,
+            userName: user.displayName || 'Anonymous User', rating: reviewRating, comment: reviewComment.trim(),
             createdAt: serverTimestamp(),
         };
 
         try {
             await addDocumentNonBlocking(collection(firestore, 'reviews'), newReview);
-
-            const newReviewCount = (productData.reviewCount || 0) + 1;
-            const newAverageRating = ((productData.averageRating || 0) * (productData.reviewCount || 0) + reviewRating) / newReviewCount;
-            const marketProductRef = doc(firestore, 'marketProducts', productData.id);
-            await updateDocumentNonBlocking(marketProductRef, {
-                reviewCount: newReviewCount,
-                averageRating: newAverageRating
+            await runTransaction(firestore, async (transaction) => {
+                const productDocRef = doc(firestore, "marketProducts", productData.id);
+                const productSnap = await transaction.get(productDocRef);
+                if (!productSnap.exists()) throw new Error("Product not found.");
+                
+                const currentData = productSnap.data();
+                const newCount = (currentData.reviewCount || 0) + 1;
+                const newAvg = ((currentData.averageRating || 0) * (currentData.reviewCount || 0) + reviewRating) / newCount;
+                
+                transaction.update(productDocRef, { reviewCount: newCount, averageRating: newAvg });
             });
 
             toast({ title: 'Review Submitted', description: 'Thank you for your feedback!' });
-            setReviewRating(0);
-            setReviewComment('');
+            setReviewRating(0); setReviewComment('');
         } catch (error) {
-            console.error("Error submitting review:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your review.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit review.' });
         } finally {
             setIsSubmittingReview(false);
         }
     };
 
-
     const similarProductsQuery = useMemoFirebase(() => {
         if (!firestore || !productData?.category) return null;
-        return query(
-            collection(firestore, 'marketProducts'),
-            where('category', '==', productData.category),
-            limit(5)
-        );
+        return query(collection(firestore, 'marketProducts'), where('category', '==', productData.category), limit(5));
     }, [firestore, productData?.category]);
-
-    const { data: similarProductsData, isLoading: isLoadingSimilar } = useCollection<MarketProduct>(similarProductsQuery);
-
-    const similarProducts = useMemo(() => {
-        if (!similarProductsData) return [];
-        return similarProductsData.filter(p => p.id !== productId).slice(0, 4);
-    }, [similarProductsData, productId]);
+    const { data: similarProductsData } = useCollection<MarketProduct>(similarProductsQuery);
+    const similarProducts = useMemo(() => similarProductsData?.filter(p => p.id !== productId).slice(0, 4) || [], [similarProductsData, productId]);
     
-    const handleQuantityChange = (change: number) => {
-        setQuantity(prev => Math.max(1, Math.min(prev + change, stockAvailable || 1)));
-    }
-    
-    const trustSignals = [
-        { icon: Truck, text: 'Reliable Delivery' },
-        { icon: ShieldCheck, text: 'Secure Payments' },
-        { icon: RotateCw, text: 'Easy Returns' },
-    ];
-    
-    const businessLink = businessData?.slug ? `/${businessData.slug}` : (businessData?.businessName ? `/${createSlug(businessData.businessName)}` : '#');
-
+    const handleQuantityChange = (change: number) => setQuantity(prev => Math.max(1, Math.min(prev + change, stockAvailable || 1)));
 
     if (isLoadingProduct || (productData && isLoadingBusiness)) {
         return (
-           <div className="w-full max-w-6xl">
-                <div className="grid lg:grid-cols-2 gap-12">
-                    <div>
-                        <Skeleton className="aspect-square w-full rounded-lg" />
-                        <div className="mt-4 grid grid-cols-5 gap-4">
-                           {[...Array(5)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-md" />)}
-                        </div>
-                    </div>
-                    <div className="space-y-6">
-                        <Skeleton className="h-6 w-1/4" />
-                        <Skeleton className="h-10 w-3/4" />
-                        <Skeleton className="h-12 w-1/2" />
-                        <Separator />
-                        <div className="space-y-4">
-                            <Skeleton className="h-5 w-24" />
-                            <div className="flex gap-2"><Skeleton className="h-12 w-20" /><Skeleton className="h-12 w-20" /></div>
-                        </div>
-                        <Separator />
-                        <Skeleton className="h-14 w-full" />
-                         <Skeleton className="h-14 w-full" />
-                    </div>
-                </div>
-           </div>
+           <div className="w-full max-w-6xl"><div className="grid md:grid-cols-2 gap-12"><Skeleton className="aspect-square w-full rounded-lg" /><div className="space-y-6"><Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-3/4" /><Skeleton className="h-12 w-1/2" /><Skeleton className="h-14 w-full" /></div></div></div>
         );
     }
     
     if (!productData) {
-         return <div className="text-center py-20">
-            <h1 className="text-2xl font-bold">Product not found</h1>
-            <p className="text-muted-foreground">The product you are looking for is not available in the market.</p>
-            <Link href="/market"><Button variant="link" className="mt-4">Back to Market</Button></Link>
-        </div>;
+        return <div className="text-center py-20"><h1 className="text-2xl font-bold">Product not found</h1><Link href="/market"><Button variant="link" className="mt-4">Back to Market</Button></Link></div>;
     }
     
     const productName = productData.productName || "Unnamed Product";
+    const discountPercent = displayOldPrice && displayPrice ? Math.round(((displayOldPrice - displayPrice) / displayOldPrice) * 100) : 0;
 
     return (
-       <div className="w-full max-w-6xl">
-            <div className="grid lg:grid-cols-2 gap-12">
-                {/* --- Image Gallery --- */}
-                <div>
-                     <Card className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
-                         <Image 
-                            src={selectedImage || 'https://picsum.photos/seed/placeholder/800/800'}
-                            alt={productName}
-                            fill
-                            className="object-contain transition-opacity duration-300 p-4"
-                            data-ai-hint={productData.hint || productData.category || productName}
-                            key={selectedImage}
-                        />
-                    </Card>
-                     {imageGallery.length > 1 && (
-                        <div className="mt-4">
-                             <Carousel
-                                opts={{ align: "start", loop: false }}
-                                className="w-full"
-                            >
-                                <CarouselContent className="-ml-2">
-                                    {imageGallery.map((img, i) => (
-                                        <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-2">
-                                             <button onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all block w-full", selectedImage === img ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
-                                                <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/>
-                                            </button>
-                                        </CarouselItem>
-                                    ))}
-                                </CarouselContent>
-                                <CarouselPrevious className="hidden sm:flex" />
-                                <CarouselNext className="hidden sm:flex" />
-                            </Carousel>
+       <div className="w-full max-w-7xl">
+            <div className="text-sm text-muted-foreground flex items-center gap-2 mb-4">
+                <Link href="/market" className="hover:text-primary">Market</Link>
+                <ChevronRight className="w-4 h-4" />
+                <Link href={`/market/search?q=${productData.category}`} className="capitalize hover:text-primary">{productData.category}</Link>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 xl:gap-12 items-start">
+                <div className="w-full">
+                    <div className="grid md:grid-cols-2 gap-8">
+                        {/* --- Image Gallery --- */}
+                        <div>
+                             <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
+                                <Image src={selectedImage || 'https://picsum.photos/seed/placeholder/800/800'} alt={productName} fill className="object-contain transition-opacity duration-300 p-4" data-ai-hint={productData.hint || productName} key={selectedImage} />
+                            </div>
+                             {imageGallery.length > 1 && (
+                                <div className="mt-4 hidden md:block">
+                                    <Carousel opts={{ align: "start", loop: false }} className="w-full">
+                                        <CarouselContent className="-ml-2">{imageGallery.map((img, i) => (<CarouselItem key={i} className="basis-1/4 pl-2"><button onClick={() => setSelectedImage(img)} className={cn("aspect-square relative rounded-md overflow-hidden border-2 transition-all block w-full", selectedImage === img ? "border-primary" : "border-transparent hover:border-primary/50")}><Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover"/></button></CarouselItem>))}</CarouselContent>
+                                        {imageGallery.length > 4 && <> <CarouselPrevious/> <CarouselNext/> </>}
+                                    </Carousel>
+                                </div>
+                            )}
                         </div>
-                    )}
+                        
+                        {/* --- Main Info (Mobile/Tablet) --- */}
+                        <div className="lg:hidden">
+                            <h1 className="text-2xl font-bold font-headline">{productName}</h1>
+                             <div className="mt-2 text-sm">
+                                {businessData?.businessName && <span className="text-muted-foreground">Sold by <Link href={`/${businessData.slug || '#'}`} className="text-primary hover:underline font-medium">{businessData.businessName}</Link></span>}
+                             </div>
+                             <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", averageRating > 0 && i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}</div>
+                                <span className="text-sm text-muted-foreground">({reviewCount} ratings)</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                {/* --- Details Column --- */}
-                <div className="flex flex-col gap-4">
-                    <div>
-                         {businessData && (
-                            <Link href={businessLink} className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-                                {businessData.businessName}
-                                {businessData.isVerified && <ShieldCheck className="h-4 w-4 text-success fill-success/20" />}
-                            </Link>
-                         )}
-                        <h1 className="text-3xl lg:text-4xl font-bold font-headline mt-1">{productName}</h1>
-                        <div className="flex items-center gap-2 mt-2">
-                            <div className="flex items-center gap-0.5">
-                                {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", averageRating > 0 && i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
-                            </div>
+                {/* --- Sticky Purchase Column (Desktop) --- */}
+                <div className="row-start-1 lg:col-start-2 space-y-6 sticky top-24">
+                     <div className="hidden lg:block">
+                        <h1 className="text-3xl font-bold font-headline">{productName}</h1>
+                        <div className="mt-2 text-sm">
+                            {businessData?.businessName && <span className="text-muted-foreground">Sold by <Link href={`/${businessData.slug || '#'}`} className="text-primary hover:underline font-medium">{businessData.businessName}</Link></span>}
+                        </div>
+                         <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} className={cn("w-4 h-4", averageRating > 0 && i < Math.round(averageRating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}</div>
                             <span className="text-sm text-muted-foreground">({reviewCount} ratings)</span>
-                            <Separator orientation="vertical" className="h-4"/>
-                            {isInStock ? (
-                                <Badge variant="secondary" className="bg-success/10 text-success border-success/20">In Stock</Badge>
-                            ) : (
-                                <Badge variant="destructive">Out of Stock</Badge>
-                            )}
                         </div>
                     </div>
                     
                     <Separator />
                     
-                    <div>
-                        <p className="text-4xl lg:text-5xl font-bold text-foreground">{formatCurrency(displayPrice || 0, market.country)}</p>
+                    <div className="space-y-2">
+                        <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-foreground">{formatCurrency(displayPrice, market.country)}</p>
+                            {displayOldPrice && displayOldPrice > displayPrice && <p className="text-lg text-muted-foreground line-through">{formatCurrency(displayOldPrice, market.country)}</p>}
+                        </div>
+                        {discountPercent > 0 && <Badge className="bg-destructive/10 text-destructive border-destructive/20">{discountPercent}% OFF</Badge>}
+                        {isInStock ? <Badge variant="success" className="ml-2">In Stock</Badge> : <Badge variant="destructive">Out of Stock</Badge>}
+                        {stockAvailable && stockAvailable <= 10 && isInStock && <p className="text-sm text-destructive font-semibold mt-1">Only {stockAvailable} left in stock!</p>}
                     </div>
                     
-                    {productData.hasVariants && productData.variants && productData.variants.length > 0 && (
-                        <div>
-                            <Label className="font-semibold text-base">Select {productData.variants[0].name.match(/\d/)? 'Size' : 'Option'}</Label>
-                            <RadioGroup value={selectedVariantId} onValueChange={setSelectedVariantId} className="mt-2 grid grid-cols-3 lg:grid-cols-4 gap-2">
-                                {productData.variants.map(variant => (
-                                    <div key={variant.id}>
-                                        <RadioGroupItem value={variant.id} id={variant.id} className="peer sr-only" disabled={variant.availableQuantity <= 0} />
-                                        <Label htmlFor={variant.id} className={cn("flex flex-col items-center justify-center rounded-md border-2 p-3 text-sm font-medium cursor-pointer transition-colors hover:bg-accent/50", "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 peer-data-[state=checked]:text-primary", "peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-disabled:hover:bg-transparent")}>
-                                            <span>{variant.name}</span>
-                                            <span className="text-xs text-muted-foreground">{formatCurrency(convertCurrency(variant.price, productData.currency, getCurrencyName(market.country)), market.country)}</span>
-                                        </Label>
-                                    </div>
-                                ))}
-                            </RadioGroup>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-4 pt-2">
+                    <div className="flex items-center gap-4">
                         <Label>Quantity</Label>
-                        <div className="flex items-center rounded-md border">
-                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}><Minus className="w-4 h-4"/></Button>
+                        <div className="flex items-center rounded-md border h-10">
+                            <Button variant="ghost" size="icon" className="h-full" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}><Minus className="w-4 h-4"/></Button>
                             <span className="w-8 text-center font-bold">{quantity}</span>
-                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => handleQuantityChange(1)} disabled={quantity >= (stockAvailable || 0)}><Plus className="w-4 h-4"/></Button>
+                            <Button variant="ghost" size="icon" className="h-full" onClick={() => handleQuantityChange(1)} disabled={quantity >= (stockAvailable || 0) || !isInStock}><Plus className="w-4 h-4"/></Button>
                         </div>
                     </div>
 
-                    
-                    <div className="mt-auto pt-4 space-y-3">
-                         <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <Button className="w-full h-12 text-lg" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('buyNow')}>
-                                {isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                Buy Now
-                            </Button>
-                            <Button variant="outline" className="w-full h-12 text-lg" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('addToCart')}>
-                                {isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                <ShoppingCart className="mr-2 h-5 w-5"/>
-                                Add to Cart
-                            </Button>
-                        </div>
-                        {!isInStock && <p className="text-destructive text-sm text-center">This item is currently unavailable.</p>}
+                    <div className="flex flex-col gap-3">
+                        <Button className="w-full h-12 text-base" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('buyNow')}>{isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Buy Now</Button>
+                        <Button variant="outline" className="w-full h-12 text-base" disabled={!isInStock || isUserLoading} onClick={() => handlePurchaseAction('addToCart')}>{isUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}<ShoppingCart className="mr-2 h-5 w-5"/>Add to Cart</Button>
+                    </div>
+
+                    <Card>
+                        <CardHeader className="p-3"><CardTitle className="text-base flex items-center gap-2"><Truck className="h-4 w-4"/>Delivery & Returns</CardTitle></CardHeader>
+                        <CardContent className="p-3 pt-0 text-sm text-muted-foreground space-y-1">
+                            <p>Standard delivery: 2-4 business days.</p>
+                            <p>7-day return policy for this item.</p>
+                             <Link href="/help" className="text-primary underline">Learn more</Link>
+                        </CardContent>
+                    </Card>
+                </div>
+                
+                {/* --- Details Section (Main Column) --- */}
+                <div className="lg:col-start-1 row-start-2 space-y-12">
+                    <Accordion type="multiple" defaultValue={['details', 'reviews']} className="w-full">
+                        <AccordionItem value="details"><AccordionTrigger className="text-lg font-bold">Product Details</AccordionTrigger><AccordionContent className="pt-4 space-y-4 text-muted-foreground"><div className="prose dark:prose-invert max-w-none"><p>{productData.description || 'No description available.'}</p></div></AccordionContent></AccordionItem>
+                        
+                        <AccordionItem value="seller"><AccordionTrigger className="text-lg font-bold">Seller Information</AccordionTrigger>
+                            <AccordionContent>
+                                <Card className="bg-muted/50">
+                                    <CardContent className="p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                        {businessData ? (
+                                            <>
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-lg">{businessData.businessName}</p>
+                                                    <p className="text-sm text-muted-foreground flex items-center gap-1">{businessData.isVerified && <ShieldCheck className="h-4 w-4 text-success"/>} Verified Seller</p>
+                                                </div>
+                                                <Button asChild variant="secondary"><Link href={`/${businessData.slug || '#'}`}>Visit Store</Link></Button>
+                                            </>
+                                        ) : <Skeleton className="h-16 w-full" />}
+                                    </CardContent>
+                                </Card>
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="reviews"><AccordionTrigger className="text-lg font-bold">Reviews & Ratings ({reviewCount})</AccordionTrigger>
+                            <AccordionContent className="pt-4 space-y-8">
+                                {user && (
+                                    <Card><CardHeader><CardTitle className="text-base">Write a Review</CardTitle></CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="space-y-2"><Label>Your Rating</Label><div className="flex items-center gap-1">{[...Array(5)].map((_, i) => (<button key={i} onClick={() => setReviewRating(i + 1)}><Star className={cn("w-6 h-6 transition-colors", i < reviewRating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} /></button>))}</div></div>
+                                            <div className="space-y-2"><Label htmlFor="review-comment">Your Review</Label><Textarea id="review-comment" placeholder="What did you like or dislike?" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} /></div>
+                                            <Button onClick={handleSubmitReview} disabled={isSubmittingReview}>{isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit Review</Button>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                                {isLoadingReviews ? <Skeleton className="h-40 w-full"/> : reviewCount > 0 ? (
+                                    reviewsData?.map(review => (
+                                        <div key={review.id} className="flex gap-4"><Avatar><AvatarFallback><User /></AvatarFallback></Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between"><p className="font-semibold">{review.userName}</p><span className="text-xs text-muted-foreground">{review.createdAt?.toDate().toLocaleDateString()}</span></div>
+                                                <div className="flex items-center gap-0.5 mt-1">{[...Array(5)].map((_, i) => (<Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />))}</div>
+                                                <p className="mt-2 text-muted-foreground text-sm">{review.comment}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (<p className="text-muted-foreground text-sm py-8 text-center">No reviews yet. Be the first to leave one!</p>)}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+
+                    {/* Similar Products */}
+                    <div className="pt-8 border-t"><h2 className="text-2xl font-bold font-headline mb-6">You Might Also Like</h2>
+                         {isLoadingReviews ? ( <div className="grid grid-cols-2 md:grid-cols-4 gap-6">{[...Array(4)].map((_, i) => ( <Card key={i}><Skeleton className="aspect-square w-full" /><CardContent className="p-3"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-6 w-1/2 mt-2" /></CardContent></Card>))}</div>) 
+                         : similarProducts.length > 0 ? (<div className="grid grid-cols-2 md:grid-cols-4 gap-6">{similarProducts.map(p => (<ProductCard key={p.id} product={p} />))}</div>) 
+                         : (<p className="text-muted-foreground">No similar products found.</p>)}
                     </div>
                 </div>
-            </div>
-
-            <div className="mt-16 pt-8 border-t">
-                <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
-                    <AccordionItem value="item-1">
-                        <AccordionTrigger className="text-xl font-bold font-headline">Product Details</AccordionTrigger>
-                        <AccordionContent>
-                           <div className="prose dark:prose-invert text-muted-foreground">
-                             <p>{productData.description || 'No description available for this product.'}</p>
-                           </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                     <AccordionItem value="item-2">
-                        <AccordionTrigger className="text-xl font-bold font-headline">Delivery & Returns</AccordionTrigger>
-                        <AccordionContent className="space-y-4 text-muted-foreground">
-                           <p>Standard delivery takes 3-5 business days. Express options are available at checkout. Returns are accepted within 7 days of delivery for a full refund, provided the item is in its original condition.</p>
-                           <p>For more details, please visit our <Link href="/help" className="text-primary underline">Help Center</Link>.</p>
-                        </AccordionContent>
-                    </AccordionItem>
-                     <AccordionItem value="item-3">
-                        <AccordionTrigger className="text-xl font-bold font-headline">Seller Information</AccordionTrigger>
-                        <AccordionContent>
-                            <Card className="bg-muted/30">
-                                <CardContent className="p-4 flex justify-between items-center">
-                                    {businessData ? (
-                                        <>
-                                            <div className="space-y-1">
-                                                <p className="font-bold text-lg">{businessData.businessName}</p>
-                                                <p className="text-sm text-muted-foreground flex items-center gap-1">{businessData.isVerified ? <ShieldCheck className="h-4 w-4 text-success"/> : null} Verified Seller</p>
-                                            </div>
-                                            <Button asChild variant="secondary"><Link href={businessLink}>Visit Store</Link></Button>
-                                        </>
-                                    ) : (
-                                        <Skeleton className="h-16 w-full" />
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            </div>
-            
-             <div className="mt-16 pt-8 border-t">
-                <h2 className="text-2xl font-bold font-headline mb-6">Customer Reviews ({reviewCount})</h2>
-                {isLoadingReviews ? (
-                    <div className="space-y-4">
-                        <Skeleton className="h-24 w-full" />
-                        <Skeleton className="h-24 w-full" />
-                    </div>
-                ) : (
-                    <div className="space-y-8">
-                         {user && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Write a Review</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label>Your Rating</Label>
-                                        <div className="flex items-center gap-1">
-                                            {[...Array(5)].map((_, i) => (
-                                                <button key={i} onClick={() => setReviewRating(i + 1)}>
-                                                    <Star className={cn("w-6 h-6 transition-colors", i < reviewRating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="review-comment">Your Review</Label>
-                                        <Textarea id="review-comment" placeholder="What did you like or dislike?" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
-                                    </div>
-                                    <Button onClick={handleSubmitReview} disabled={isSubmittingReview}>
-                                        {isSubmittingReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Submit Review
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {reviewCount > 0 ? (
-                            reviewsData?.map(review => (
-                                <div key={review.id} className="flex gap-4">
-                                    <Avatar>
-                                        <AvatarFallback><User /></AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-semibold">{review.userName}</p>
-                                            <span className="text-xs text-muted-foreground">{review.createdAt?.toDate().toLocaleDateString()}</span>
-                                        </div>
-                                        <div className="flex items-center gap-0.5 mt-1">
-                                            {[...Array(5)].map((_, i) => (
-                                                <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />
-                                            ))}
-                                        </div>
-                                        <p className="mt-2 text-muted-foreground">{review.comment}</p>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-muted-foreground">No reviews yet. Be the first to leave one!</p>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div className="mt-16 pt-8 border-t">
-                <h2 className="text-2xl font-bold font-headline mb-6">You Might Also Like</h2>
-                {isLoadingSimilar ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        {[...Array(4)].map((_, i) => (
-                            <Card key={i}>
-                                <Skeleton className="aspect-square w-full" />
-                                <CardContent className="p-3">
-                                    <Skeleton className="h-5 w-3/4" />
-                                    <Skeleton className="h-6 w-1/2 mt-2" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : similarProducts.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        {similarProducts.map(product => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-muted-foreground">No similar products found.</p>
-                )}
             </div>
             
             <Dialog open={isLoginPromptOpen} onOpenChange={setIsLoginPromptOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Log In to Continue</DialogTitle>
-                        <DialogDescription>
-                            Please log in or create an account to purchase items or add them to your cart.
-                        </DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Log In to Continue</DialogTitle><DialogDescription>Please log in or create an account to purchase items.</DialogDescription></DialogHeader>
                     <div className="flex flex-col gap-4 py-4">
                         <Button asChild size="lg"><Link href={`/login?redirect=/market/product/${productId}`}>Log In</Link></Button>
                         <Button asChild variant="outline" size="lg"><Link href={`/signup?redirect=/market/product/${productId}`}>Create Account</Link></Button>

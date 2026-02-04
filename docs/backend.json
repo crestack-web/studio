@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Business": {
@@ -163,6 +164,14 @@
         "businessId": {
           "type": "string",
           "description": "Reference to Business. (Relationship: Business 1:N Product)"
+        },
+        "averageRating": {
+          "type": "number",
+          "description": "The average customer rating for the product, from 1 to 5."
+        },
+        "reviewCount": {
+          "type": "number",
+          "description": "The total number of reviews for the product."
         }
       },
       "required": [
@@ -1261,5 +1270,3 @@
     "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents.\n\n5. **Email System Data:** New collections for the email system (`settings/emailBranding`, `emailTemplates`, `emailLogs`) are added. These are generally managed by admins or the system itself, with strict rules to prevent unauthorized access."
   }
 }
-
-    
