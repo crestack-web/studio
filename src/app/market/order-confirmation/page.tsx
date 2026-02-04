@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
@@ -6,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, runTransaction, collection, serverTimestamp, getDoc } from 'firebase/firestore';
+import { useDoc, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, runTransaction, collection, serverTimestamp, getDoc, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
@@ -16,8 +17,7 @@ import { useCart } from '@/context/cart-provider';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
-interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; }
-interface Product { id: string; name: string; cost: number; price: number; quantity: number; hasVariants?: boolean; variants?: { id: string; name: string; price: number; cost?: number, quantity: number }[]; }
+interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; paymentReference: string; }
 
 const OrderConfirmationContent = () => {
     const searchParams = useSearchParams();
@@ -26,114 +26,76 @@ const OrderConfirmationContent = () => {
     const firestore = useFirestore();
     const { clearCart } = useCart();
     
-    const initialOrderId = searchParams.get('orderId');
-    const businessId = searchParams.get('businessId');
     const paystackRef = searchParams.get('reference');
     const source = searchParams.get('source');
-    
-    const [orderId, setOrderId] = useState<string | null>(initialOrderId);
-    const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>('idle');
-    const [isProcessingOrder, setIsProcessingOrder] = useState(false);
-    const [verificationMessage, setVerificationMessage] = useState('');
 
-    useEffect(() => {
-        if (paystackRef && !initialOrderId) { // Ensure this runs only for new Paystack orders
-            setVerificationStatus('verifying');
-            setIsProcessingOrder(true);
+    const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>(paystackRef ? 'verifying' : 'idle');
+    const [verificationMessage, setVerificationMessage] = useState(paystackRef ? 'Verifying your payment...' : '');
 
-            const verifyAndCreateOrder = async () => {
-                if (!firestore) {
-                    setVerificationStatus('failed');
-                    setVerificationMessage('Database connection failed.');
-                    setIsProcessingOrder(false);
-                    return;
-                }
-                try {
-                    const verifyPaymentUrl = getFunctionUrl('verifyPayment');
-                    const response = await fetch(`${verifyPaymentUrl}?reference=${paystackRef}`);
-                    if (!response.ok) throw new Error('Payment verification service failed.');
-                    const result = await response.json();
-                    
-                    if (result.success && result.data.status === 'success') {
-                        setVerificationStatus('success');
-                        setVerificationMessage('Your payment has been confirmed.');
+    // Query for the order using the Paystack reference
+    const orderQuery = useMemoFirebase(() => {
+        if (!firestore || !paystackRef) return null;
+        return query(
+            collection(firestore, 'orders'), // Assuming orders are in a top-level collection for this query
+            where('paymentReference', '==', paystackRef),
+            limit(1)
+        );
+    }, [firestore, paystackRef]);
 
-                        const pendingOrderJSON = localStorage.getItem('pendingOrder');
-                        if (!pendingOrderJSON) {
-                            throw new Error(`Payment confirmed, but order data was lost. Please contact support with transaction reference: ${paystackRef}`);
-                        }
-
-                        const pendingOrder = JSON.parse(pendingOrderJSON);
-                        
-                        await runTransaction(firestore, async (transaction) => {
-                            const newOrderRef = doc(collection(firestore, `businesses/${pendingOrder.sellerBusinessId}/orders`));
-                            const orderData = {
-                                ...pendingOrder,
-                                paymentReference: paystackRef,
-                                createdAt: serverTimestamp(),
-                            };
-                            transaction.set(newOrderRef, orderData);
-
-                            for (const item of pendingOrder.items) {
-                                const productRef = doc(firestore, `businesses/${pendingOrder.sellerBusinessId}/products`, item.productId);
-                                const productSnap = await transaction.get(productRef);
-                                
-                                if (productSnap.exists()) {
-                                    const productData = productSnap.data() as Product;
-                                    if (item.variantId && productData.hasVariants) {
-                                        const newVariants = productData.variants?.map(v => 
-                                            v.id === item.variantId ? { ...v, quantity: v.quantity - item.quantity } : v
-                                        );
-                                        transaction.update(productRef, { variants: newVariants });
-                                    } else {
-                                        const newQuantity = productData.quantity - item.quantity;
-                                        transaction.update(productRef, { quantity: newQuantity });
-                                    }
-                                }
-                            }
-                            setOrderId(newOrderRef.id);
-                        });
-
-                        localStorage.removeItem('pendingOrder');
-                        clearCart();
-                        
-                    } else {
-                        localStorage.removeItem('pendingOrder');
-                        throw new Error(result.data?.gateway_response || 'Payment could not be confirmed.');
-                    }
-                } catch (error: any) {
-                    console.error("Verification/Order Creation Error:", error);
-                    setVerificationStatus('failed');
-                    setVerificationMessage(error.message);
-                } finally {
-                    setIsProcessingOrder(false);
-                }
-            };
-            verifyAndCreateOrder();
-        } else if (initialOrderId) {
-             setVerificationStatus('success');
-        }
-    }, [paystackRef, initialOrderId, source, toast, router, firestore, clearCart]);
-
-    const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
-    const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
+    // Use useCollection because we're querying. We expect 0 or 1 result.
+    const { data: ordersData, isLoading: isLoadingOrder } = useCollection<Order>(orderQuery);
+    const order = ordersData?.[0];
+    const orderId = order?.id;
+    const businessId = order?.sellerBusinessId;
 
     const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
     const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
-    
-    const isLoading = isLoadingOrder || isLoadingBusiness || isProcessingOrder;
+
+    useEffect(() => {
+        if (paystackRef) {
+            // If the webhook has already created the order, we'll find it immediately.
+            if (!isLoadingOrder && order) {
+                setVerificationStatus('success');
+                setVerificationMessage('Payment confirmed. Your order has been placed!');
+                clearCart();
+            } else if (!isLoadingOrder && !order) {
+                // If the component loads and there's no order yet, we wait.
+                // A timeout is a fallback in case the webhook is delayed or fails.
+                const timer = setTimeout(() => {
+                    if (verificationStatus === 'verifying') {
+                        setVerificationStatus('failed');
+                        setVerificationMessage('We are still confirming your payment. Please check back in a few minutes or contact support if this persists.');
+                        toast({
+                            title: 'Payment Processing Delayed',
+                            description: 'We are still waiting for confirmation from the payment provider.',
+                            variant: 'default',
+                        });
+                    }
+                }, 45000); // 45 seconds timeout
+
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [paystackRef, order, isLoadingOrder, verificationStatus, clearCart, toast]);
+
+
+    const isLoading = (paystackRef && isLoadingOrder) || (order && isLoadingBusiness);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({ title: "Copied to clipboard!" });
     };
 
-    if (isLoading) {
+    if (isLoading || verificationStatus === 'verifying') {
         return (
-            <div className="w-full max-w-lg space-y-6">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-12 w-full" />
+            <div className="w-full max-w-lg space-y-6 text-center">
+                <Card>
+                    <CardHeader>
+                        <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
+                        <CardTitle className="text-2xl pt-4">Processing Your Order</CardTitle>
+                        <CardDescription>{verificationMessage}</CardDescription>
+                    </CardHeader>
+                </Card>
             </div>
         );
     }
@@ -144,18 +106,15 @@ const OrderConfirmationContent = () => {
                 <Card>
                     <CardHeader>
                         <div className="flex justify-center">
-                            {verificationStatus === 'success' && <CheckCircle2 className="w-16 h-16 text-success" />}
-                            {verificationStatus === 'failed' && <AlertCircle className="w-16 h-16 text-destructive" />}
+                            <CheckCircle2 className="w-16 h-16 text-success" />
                         </div>
-                        <CardTitle className="text-2xl pt-4">
-                            {verificationStatus === 'success' ? 'Payment Successful!' : 'Payment Failed'}
-                        </CardTitle>
+                        <CardTitle className="text-2xl pt-4">Payment Successful!</CardTitle>
                         <CardDescription>
-                            {verificationStatus === 'success' ? "Your subscription is now active. You'll be redirected shortly." : verificationMessage}
+                            Your subscription is now active. You will be redirected to your dashboard.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                       <Button asChild><Link href="/owner/home">Go to Dashboard</Link></Button>
+                       <Button asChild onClick={() => router.push('/owner/home')}>Go to Dashboard</Button>
                     </CardContent>
                 </Card>
             </div>
@@ -169,7 +128,7 @@ const OrderConfirmationContent = () => {
                     <CardHeader>
                         <div className="flex justify-center"><ShoppingCart className="w-16 h-16 text-muted-foreground" /></div>
                         <CardTitle className="text-2xl pt-4">Looking for an order?</CardTitle>
-                        <CardDescription>We couldn't find any order details on this page.</CardDescription>
+                        <CardDescription>We couldn't find any order details for this transaction.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <Button asChild><Link href="/market">Continue Shopping</Link></Button>
@@ -184,34 +143,23 @@ const OrderConfirmationContent = () => {
     const currency = businessProfile?.currency;
     
     const renderVerificationStatus = () => {
-        switch (verificationStatus) {
-            case 'verifying':
-                return (
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Verifying payment...</span>
-                    </div>
-                );
-            case 'success':
-                 if (paystackRef) { // Only show if it was an online payment
-                    return (
-                        <div className="flex items-center justify-center gap-2 text-success">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span>Payment Confirmed</span>
-                        </div>
-                    );
-                 }
-                 return null;
-            case 'failed':
-                return (
-                     <div className="flex items-center justify-center gap-2 text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>Payment Failed: {verificationMessage}</span>
-                    </div>
-                );
-            default:
-                return null;
+        if (verificationStatus === 'success') {
+            return (
+                <div className="flex items-center justify-center gap-2 text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Payment Confirmed</span>
+                </div>
+            );
         }
+        if (verificationStatus === 'failed') {
+            return (
+                <div className="flex items-center justify-center gap-2 text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Payment Failed: {verificationMessage}</span>
+                </div>
+            );
+        }
+        return null;
     }
 
 
@@ -258,3 +206,5 @@ export default function OrderConfirmationPage() {
         </Suspense>
     );
 }
+
+    

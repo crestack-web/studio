@@ -510,20 +510,63 @@
       "required": ["bankCode", "accountNumber", "status"]
     },
     "PaymentTransaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PaymentTransaction",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PaymentTransaction",
+        "type": "object",
+        "description": "Logs a payment attempt for an order.",
+        "properties": {
+            "orderId": { "type": "string" },
+            "amount": { "type": "number" },
+            "currency": { "type": "string" },
+            "status": { "type": "string", "enum": ["pending", "successful", "failed"] },
+            "gateway": { "type": "string", "enum": ["paystack"] },
+            "reference": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["orderId", "amount", "currency", "status", "gateway", "createdAt"]
+    },
+    "PaymentIntent": {
+      "title": "PaymentIntent",
       "type": "object",
-      "description": "Logs a payment attempt for an order.",
+      "description": "Tracks a payment attempt from initiation to completion.",
       "properties": {
-        "orderId": { "type": "string" },
-        "amount": { "type": "number" },
+        "id": { "type": "string", "description": "Paystack reference, used as document ID." },
+        "userId": { "type": "string" },
+        "businessId": { "type": "string" },
+        "type": { "type": "string", "enum": ["product", "subscription", "service"] },
+        "items": { "type": "array", "items": { "type": "object" }, "description": "For multi-item product orders." },
+        "itemId": { "type": "string", "description": "For single-item types like subscription or service." },
+        "amount": { "type": "number", "description": "Authoritative amount in kobo." },
         "currency": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "successful", "failed"] },
-        "gateway": { "type": "string", "enum": ["paystack"] },
-        "reference": { "type": "string" },
+        "orderId": { "type": "string", "description": "The ID of the final Order document, if applicable." },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["orderId", "amount", "currency", "status", "gateway", "createdAt"]
+      "required": ["userId", "type", "amount", "currency", "status", "createdAt"]
+    },
+    "ProcessedWebhookEvent": {
+      "title": "ProcessedWebhookEvent",
+      "type": "object",
+      "description": "Stores IDs of processed Paystack webhooks to ensure idempotency.",
+      "properties": {
+        "id": { "type": "string", "description": "The Paystack event ID." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdAt"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "type": "object",
+      "description": "Defines a subscription plan.",
+      "properties": {
+        "id": { "type": "string", "description": "Plan ID, e.g., 'supermarket'." },
+        "name": { "type": "string" },
+        "monthlyPrice": { "type": "number", "description": "Price in NGN kobo." },
+        "yearlyPrice": { "type": "number", "description": "Price in NGN kobo." },
+        "paystack_plan_code_monthly": { "type": "string" },
+        "paystack_plan_code_yearly": { "type": "string" }
+      },
+      "required": ["name", "monthlyPrice", "yearlyPrice"]
     },
     "Payout": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -545,7 +588,7 @@
       "description": "Represents a user's subscription to a Busmo plan.",
       "properties": {
         "planId": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "cancelled", "past_due"] },
+        "status": { "type": "string", "enum": ["active", "cancelled", "past_due", "trialing"] },
         "currentPeriodStart": { "type": "string", "format": "date-time" },
         "currentPeriodEnd": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -614,6 +657,7 @@
         "status": { "type": "string", "enum": ["pending", "confirmed", "in progress", "shipped", "delivered", "cancelled", "returned"] },
         "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
         "payment": { "type": "string", "enum": ["busmopay", "transfer", "delivery"] },
+        "paymentReference": { "type": "string", "description": "The reference ID from the payment gateway." },
         "payoutStatus": { "type": "string", "enum": ["unpaid", "processing", "paid"] },
         "deliveryAgentId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
@@ -1185,8 +1229,37 @@
               "description": "Logs all outgoing emails for tracking and debugging.",
               "params": [{ "name": "logId", "description": "The unique ID of the log entry." }]
           }
+      },
+      {
+        "path": "/paymentIntents/{intentId}",
+        "definition": {
+          "entityName": "PaymentIntent",
+          "schema": { "$ref": "#/backend/entities/PaymentIntent" },
+          "description": "Stores all payment intents before they are fulfilled. `intentId` is the Paystack reference.",
+          "params": [{ "name": "intentId", "description": "The Paystack transaction reference." }]
+        }
+      },
+      {
+        "path": "/processedWebhookEvents/{eventId}",
+        "definition": {
+          "entityName": "ProcessedWebhookEvent",
+          "schema": { "$ref": "#/backend/entities/ProcessedWebhookEvent" },
+          "description": "Logs processed webhook events to prevent duplicates.",
+          "params": [{ "name": "eventId", "description": "The Paystack event ID." }]
+        }
+      },
+      {
+          "path": "/plans/{planId}",
+          "definition": {
+              "entityName": "Plan",
+              "schema": { "$ref": "#/backend/entities/Plan" },
+              "description": "Stores details for subscription plans.",
+              "params": [{ "name": "planId", "description": "The unique ID of the plan (e.g., 'supermarket')." }]
+          }
       }
     ],
     "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents.\n\n5. **Email System Data:** New collections for the email system (`settings/emailBranding`, `emailTemplates`, `emailLogs`) are added. These are generally managed by admins or the system itself, with strict rules to prevent unauthorized access."
   }
 }
+
+    

@@ -81,7 +81,7 @@ service cloud.firestore {
       }
 
       match /orders/{orderId} {
-        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+        allow create: if false; // Only backend can create orders
         allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid);
         allow update: if isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid); // Agent can update status
         allow list: if isBusinessMember(businessId);
@@ -90,7 +90,8 @@ service cloud.firestore {
       
       match /serviceRequests/{requestId} {
         allow create: if isBusinessMember(businessId);
-        allow read, update, list: if isBusinessMember(businessId) || isAdmin();
+        allow read, list: if isBusinessMember(businessId) || isAdmin();
+        allow update: if isAdmin(); // Only backend/admin can update status
       }
     }
     
@@ -101,6 +102,26 @@ service cloud.firestore {
     
     match /{path=**}/serviceRequests/{requestId} {
       allow list: if isAdmin();
+    }
+    
+    // --- PAYMENT & SYSTEM COLLECTIONS ---
+    match /paymentIntents/{intentId} {
+      allow create, update, delete: if false; // Only backend can manage
+      allow read: if isUserOwner(resource.data.userId);
+    }
+    
+    match /preOrders/{preOrderId} {
+      allow create: if isUserOwner(request.resource.data.userId);
+      allow read, delete: if false; // Only backend
+    }
+    
+    match /processedWebhookEvents/{eventId} {
+      allow read, write: if false; // Backend only
+    }
+
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
     
     // --- MARKETPLACE & OTHER COLLECTIONS ---
@@ -161,8 +182,8 @@ service cloud.firestore {
     match /businessVerifications/{businessId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
     match /coupons/{couponId} { allow read, write: if isAdmin(); }
     
-    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if true; }
-    match /users/{userId}/subscriptions/{subId} { allow read, write: if isUserOwner(userId); }
+    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if false; } // Backend only write
+    match /users/{userId}/subscriptions/{subId} { allow read: if isUserOwner(userId); allow write: if false; } // Backend only write
     
     match /announcements/{announcementId} {
       allow read: if resource.data.isActive == true;
@@ -185,3 +206,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

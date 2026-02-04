@@ -14,7 +14,7 @@ import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, getDoc, setDoc, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -188,80 +188,44 @@ const CheckoutContent = () => {
         setIsPlacingOrder(true);
         
         try {
-            const orderData = {
-                buyerId: user.uid,
-                sellerBusinessId: businessId,
-                customer: { name: customerName, phone: customerPhone, address: fulfillmentMethod === 'delivery' ? customerAddress : '' },
-                items: checkoutItems.map(item => ({ 
-                    productId: item.productId, 
-                    productName: item.productName,
-                    variantId: item.variantId || null,
-                    variantName: item.variantName || null,
-                    quantity: item.quantity, 
-                    price: item.price 
-                })),
-                subtotal, 
-                deliveryFee, 
-                total,
-                status: 'pending' as const,
-                fulfillment: fulfillmentMethod,
-                payment: paymentMethod,
-                payoutStatus: 'unpaid' as const,
-                createdAt: new Date().toISOString(), // Use ISO string for serialization
-                currency: businessProfile?.currency || 'NGN',
+            const initializePaymentUrl = getFunctionUrl('initializePayment');
+            
+            // The frontend only describes the intent to pay. The backend calculates the final amount.
+            const paymentPayload = {
+                type: 'product',
+                payload: {
+                    items: checkoutItems.map(item => ({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        quantity: item.quantity,
+                    })),
+                    customer: { name: customerName, phone: customerPhone, address: customerAddress },
+                    fulfillmentMethod,
+                },
+                userId: user.uid,
+                businessId: businessId,
+                email: user.email,
+                callback_url: `${window.location.origin}/market/order-confirmation`
             };
 
-            if (market.country === 'NG') { // Paystack flow
-                localStorage.setItem('pendingOrder', JSON.stringify(orderData));
+            const response = await fetch(initializePaymentUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentPayload),
+            });
 
-                const initializePaymentUrl = getFunctionUrl('initializePayment');
-                
-                const callbackUrl = `${window.location.origin}/market/order-confirmation?businessId=${businessId}`;
-
-                const response = await fetch(initializePaymentUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: user.email,
-                        amount: total,
-                        metadata: {
-                            custom_fields: [
-                                {
-                                    display_name: 'Business ID',
-                                    variable_name: 'businessId',
-                                    value: businessId
-                                },
-                                {
-                                    display_name: 'User ID',
-                                    variable_name: 'userId',
-                                    value: user.uid
-                                }
-                            ],
-                            callback_url: callbackUrl,
-                        },
-                    }),
-                });
-
-                const paymentData = await response.json();
-                
-                if (paymentData.status && paymentData.data?.authorization_url) {
-                    window.location.href = paymentData.data.authorization_url;
-                } else {
-                    localStorage.removeItem('pendingOrder');
-                    throw new Error(paymentData.message || 'Payment initialization failed.');
-                }
-            } else {
-                // For other countries (non-Paystack), create order immediately
-                const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
-                const finalOrderData = { ...orderData, createdAt: serverTimestamp() };
-                await setDoc(newOrderRef, finalOrderData);
+            const paymentData = await response.json();
+            
+            if (response.ok && paymentData.success && paymentData.authorization_url) {
+                // Redirect to Paystack for payment
                 clearCart();
-                router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
+                window.location.href = paymentData.authorization_url;
+            } else {
+                throw new Error(paymentData.error || 'Payment initialization failed.');
             }
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
-            localStorage.removeItem('pendingOrder');
             toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue initiating your order. Please try again.' });
             setIsPlacingOrder(false);
         }
@@ -342,3 +306,5 @@ export default function CheckoutPage() {
         </Suspense>
     );
 }
+
+    

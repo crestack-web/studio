@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -75,7 +76,7 @@ export default function ServicesPage() {
                 userId: user.uid,
                 serviceName: selectedService.title,
                 serviceFee: selectedService.fee,
-                status: 'pending' as const, // Changed from 'unpaid' to match schema
+                status: 'pending' as const,
                 paymentStatus: 'unpaid' as const,
                 createdAt: serverTimestamp(),
             };
@@ -86,9 +87,6 @@ export default function ServicesPage() {
             }
 
             const initializePaymentUrl = getFunctionUrl('initializePayment');
-            if (!initializePaymentUrl) {
-                throw new Error('Payment gateway is not configured.');
-            }
 
             const callbackUrl = window.location.href; // Refresh current page
 
@@ -96,23 +94,24 @@ export default function ServicesPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: userProfile.email,
-                    amount: selectedService.fee,
-                    metadata: { 
-                        callback_url: callbackUrl,
-                        serviceRequestId: serviceRequestRef.id,
-                        businessId,
-                        userId: user.uid,
+                    type: 'service',
+                    payload: { 
+                        serviceId: selectedService.id,
+                        serviceRequestId: serviceRequestRef.id
                     },
+                    userId: user.uid,
+                    businessId: businessId,
+                    email: userProfile.email,
+                    callback_url: callbackUrl,
                 }),
             });
 
             const paymentData = await response.json();
             
-            if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
-                window.location.href = paymentData.data.authorization_url;
+            if (response.ok && paymentData.success && paymentData.authorization_url) {
+                window.location.href = paymentData.authorization_url;
             } else {
-                throw new Error(paymentData.message || 'Failed to initialize payment.');
+                throw new Error(paymentData.error || 'Failed to initialize payment.');
             }
 
         } catch (error: any) {
@@ -212,3 +211,5 @@ export default function ServicesPage() {
         </MainLayout>
     );
 }
+
+    

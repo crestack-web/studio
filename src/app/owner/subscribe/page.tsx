@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect } from 'react';
@@ -18,10 +19,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getFunctionUrl } from '@/lib/api';
 
 const plans = [
-    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000, paystack_plan_code_monthly: 'PLN_xxxxxxxx', paystack_plan_code_yearly: 'PLN_yyyyyyyy' },
-    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000, paystack_plan_code_monthly: 'PLN_zzzzzzzz', paystack_plan_code_yearly: 'PLN_aaaaaaaa' },
-    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000, paystack_plan_code_monthly: 'PLN_bbbbbbbb', paystack_plan_code_yearly: 'PLN_cccccccc' },
-    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000, paystack_plan_code_monthly: 'PLN_dddddddd', paystack_plan_code_yearly: 'PLN_eeeeeeee' }
+    { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000, paystack_plan_code_monthly: 'PLN_79p5yysj5q5z1qz', paystack_plan_code_yearly: 'PLN_k9c24tyc4g5x8v9' },
+    { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000, paystack_plan_code_monthly: 'PLN_x5vbs3rigk8g9q2', paystack_plan_code_yearly: 'PLN_0z6g4j3j6a59v04' },
+    { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000, paystack_plan_code_monthly: 'PLN_p0j2j9y6f7a6g9v', paystack_plan_code_yearly: 'PLN_2s4q2y0g1m1c8s7' },
+    { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000, paystack_plan_code_monthly: 'PLN_w8t4c0j7d8f9a2s', paystack_plan_code_yearly: 'PLN_3d5f8g0h2k1l4m9' }
 ];
 
 interface Coupon {
@@ -117,42 +118,30 @@ function SubscribePageContent() {
         
         try {
             const initializePaymentUrl = getFunctionUrl('initializePayment');
-            
-            const paystackPlanCode = billingCycle === 'monthly' ? selectedPlan.paystack_plan_code_monthly : selectedPlan.paystack_plan_code_yearly;
-            
-            if (!paystackPlanCode || paystackPlanCode.startsWith('PLN_xx')) {
-                console.error("Paystack plan code is not configured for this plan and billing cycle.");
-                toast({ title: "Configuration Error", description: "This subscription plan is not yet active. Please contact support.", variant: "destructive" });
-                setIsProcessing(false);
-                return;
-            }
-
-
             const callbackUrl = `${window.location.origin}/market/order-confirmation?source=subscription`;
 
             const response = await fetch(initializePaymentUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: userProfile.email,
-                    amount: finalAmount, // For coupon calculations, Paystack will use the plan amount
-                    plan: paystackPlanCode,
-                    metadata: {
-                        user_id: authUser.uid,
-                        plan_id: planId,
-                        billing_cycle: billingCycle,
-                        coupon: appliedCoupon?.code,
-                        callback_url: callbackUrl
+                    type: 'subscription',
+                    payload: {
+                        planId: planId,
+                        billingCycle: billingCycle,
+                        couponCode: appliedCoupon?.code,
                     },
+                    userId: authUser.uid,
+                    email: userProfile.email,
+                    callback_url: callbackUrl,
                 }),
             });
 
             const paymentData = await response.json();
             
-            if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
-                window.location.href = paymentData.data.authorization_url;
+            if (response.ok && paymentData.success && paymentData.authorization_url) {
+                window.location.href = paymentData.authorization_url;
             } else {
-                throw new Error(paymentData.message || 'Failed to initialize subscription.');
+                throw new Error(paymentData.error || 'Failed to initialize subscription.');
             }
 
         } catch (error: any) {
@@ -254,3 +243,5 @@ export default function SubscribePage() {
         </Suspense>
     );
 }
+
+    
