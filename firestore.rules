@@ -142,6 +142,11 @@ service cloud.firestore {
       allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
     }
     
+    match /admin_permissions/{userId} {
+      allow read: if isUserOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+    
     match /businessVerifications/{businessId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
     match /coupons/{couponId} { allow read, write: if isAdmin(); }
     

@@ -66,7 +66,13 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    const isSuperAdmin = user.email === 'crestack@gmail.com' || user.email === 'abduladallahusman@gmail.com' || permissions?.isSuperAdmin;
+    // If the user is one of the hardcoded super admins, grant access immediately.
+    // This prevents redirects even if their user profile doc doesn't exist yet.
+    if (user.email === 'crestack@gmail.com' || user.email === 'abduladallahusman@gmail.com') {
+      return;
+    }
+    
+    const isSuperAdmin = permissions?.isSuperAdmin;
     const isAdmin = userProfile?.role === 'Admin' || isSuperAdmin;
     
     if (!isAdmin) {
