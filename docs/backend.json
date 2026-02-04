@@ -434,6 +434,21 @@
       },
       "required": ["imageUrl", "isActive"]
     },
+    "MarketTopBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketTopBanner",
+      "type": "object",
+      "description": "Represents a small, full-width advertisement banner for the top of the market page.",
+      "properties": {
+        "id": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Direct URL to the image or GIF." },
+        "linkUrl": { "type": "string", "description": "The relative or absolute URL the banner links to." },
+        "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
+    },
     "SupportAgent": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "SupportAgent",
@@ -1033,6 +1048,19 @@
           "description": "Stores the small, animated-style banners for the market homepage.",
           "params": [
             { "name": "bannerId", "description": "The unique ID for the GIF banner." }
+          ]
+        }
+      },
+      {
+        "path": "/marketTopBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketTopBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketTopBanner"
+          },
+          "description": "Stores the small, full-width advertisement banners for the top of the market page.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the top ad banner." }
           ]
         }
       },

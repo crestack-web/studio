@@ -120,6 +120,7 @@ service cloud.firestore {
     
     match /marketBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
     match /marketGifBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /marketTopBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
     match /marketCategories/{categoryId} { allow read: if true; allow write: if isAdmin(); }
     match /reviews/{reviewId} { allow read: if true; allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update: if isSignedIn() && resource.data.userId == request.auth.uid; allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid); }
     match /blogs/{blogId} { allow get: if resource.data.isPublished == true || isAdmin(); allow list: if true; allow write: if isAdmin(); }

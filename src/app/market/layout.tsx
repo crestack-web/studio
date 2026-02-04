@@ -42,7 +42,7 @@ interface Announcement {
     href: string;
 }
 
-interface MarketGifBanner {
+interface MarketTopBanner {
     id: string;
     imageUrl: string;
     linkUrl?: string;
@@ -96,13 +96,13 @@ export default function MarketLayout({
         }, [firestore])
     );
     
-    const { data: adBanners } = useCollection<MarketGifBanner>(
+    const { data: topAdBanners } = useCollection<MarketTopBanner>(
         useMemoFirebase(() => {
             if (!firestore) return null;
-            return query(collection(firestore, 'marketGifBanners'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
+            return query(collection(firestore, 'marketTopBanners'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
         }, [firestore])
     );
-    const adBanner = adBanners?.[0];
+    const topAdBanner = topAdBanners?.[0];
 
     const suggestions = useMemo(() => {
         if (!searchQuery) {
@@ -140,10 +140,10 @@ export default function MarketLayout({
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
             <div className="sticky top-0 z-40">
-                {adBanner && (
+                {topAdBanner && (
                     <div className="bg-black text-white">
-                        <Link href={adBanner.linkUrl || '#'} target="_blank" rel="noopener noreferrer">
-                            <Image src={adBanner.imageUrl} alt="Advertisement" width={1200} height={80} className="w-full h-auto" style={{ maxHeight: '60px', objectFit: 'cover' }} />
+                        <Link href={topAdBanner.linkUrl || '#'} target="_blank" rel="noopener noreferrer">
+                            <Image src={topAdBanner.imageUrl} alt="Advertisement" width={1200} height={80} className="w-full h-auto" style={{ maxHeight: '60px', objectFit: 'cover' }} />
                         </Link>
                     </div>
                 )}

@@ -43,6 +43,15 @@ interface MarketGifBanner {
     createdAt: any;
 }
 
+interface MarketTopBanner {
+    id: string;
+    imageUrl: string;
+    linkUrl: string;
+    isActive: boolean;
+    country?: string;
+    createdAt: any;
+}
+
 export default function AdminMarketPage() {
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -59,13 +68,22 @@ export default function AdminMarketPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [editingBanner, setEditingBanner] = useState<MarketBanner | null>(null);
 
-    // State for GIF banners
+    // State for Small Promo (GIF) banners
     const [gifImageUrl, setGifImageUrl] = useState('');
     const [gifLinkUrl, setGifLinkUrl] = useState('');
     const [gifCountry, setGifCountry] = useState('');
     const [gifIsActive, setGifIsActive] = useState(false);
     const [isLoadingGif, setIsLoadingGif] = useState(false);
     const [editingGifBanner, setEditingGifBanner] = useState<MarketGifBanner | null>(null);
+
+    // State for Top Ad banners
+    const [topAdImageUrl, setTopAdImageUrl] = useState('');
+    const [topAdLinkUrl, setTopAdLinkUrl] = useState('');
+    const [topAdCountry, setTopAdCountry] = useState('');
+    const [topAdIsActive, setTopAdIsActive] = useState(false);
+    const [isLoadingTopAd, setIsLoadingTopAd] = useState(false);
+    const [editingTopAdBanner, setEditingTopAdBanner] = useState<MarketTopBanner | null>(null);
+
 
     // Queries
     const bannersQuery = useMemoFirebase(() => {
@@ -79,6 +97,12 @@ export default function AdminMarketPage() {
         return query(collection(firestore, 'marketGifBanners'), orderBy('createdAt', 'desc'));
     }, [firestore]);
     const { data: gifBanners, isLoading: isLoadingGifBanners } = useCollection<MarketGifBanner>(gifBannersQuery);
+
+    const topAdBannersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'marketTopBanners'), orderBy('createdAt', 'desc'));
+    }, [firestore]);
+    const { data: topAdBanners, isLoading: isLoadingTopAdBanners } = useCollection<MarketTopBanner>(topAdBannersQuery);
 
     
     // Handlers for main banners
@@ -97,27 +121,22 @@ export default function AdminMarketPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Reset file input value to allow re-uploading the same file
         e.target.value = '';
 
         toast({ title: 'Processing image...', description: 'Compressing and preparing your image for upload.' });
 
         const options = {
-            maxSizeMB: 0.9, // Target size of 0.9MB to be safe for Firestore's 1MB limit after base64 encoding.
+            maxSizeMB: 0.9,
             maxWidthOrHeight: 1920,
             useWebWorker: true,
-            // For GIFs, this will convert to PNG if it needs to compress, preserving the first frame.
-            // If the GIF is already under maxSizeMB, it will be kept as is.
         };
 
         try {
             const compressedFile = await imageCompression(file, options);
-
             const reader = new FileReader();
             reader.onloadend = () => {
                 const result = reader.result as string;
-                // Double check size before setting state, as a final safeguard.
-                if (result.length > 1024 * 1024) { // Roughly 1MB
+                if (result.length > 1024 * 1024) {
                     toast({
                         variant: 'destructive',
                         title: 'Image is still too large',
@@ -129,11 +148,7 @@ export default function AdminMarketPage() {
                 toast({ title: 'Image ready!', description: 'Your image has been prepared.' });
             };
             reader.onerror = () => {
-                toast({
-                    variant: 'destructive',
-                    title: 'Image Read Failed',
-                    description: 'Could not read the selected file.',
-                });
+                toast({ variant: 'destructive', title: 'Image Read Failed', description: 'Could not read the selected file.' });
             };
             reader.readAsDataURL(compressedFile);
 
@@ -182,7 +197,7 @@ export default function AdminMarketPage() {
         toast({ title: 'Banner Deleted', description: 'The banner has been permanently removed.' });
     };
     
-    // Handlers for GIF banners
+    // Handlers for Small Promo (GIF) banners
     const handleAddGifBanner = async () => {
         if (!gifImageUrl) {
             toast({ variant: 'destructive', title: 'Missing Image', description: 'Please provide an image or GIF.' });
@@ -192,7 +207,7 @@ export default function AdminMarketPage() {
         try {
             const newBanner = { imageUrl: gifImageUrl, linkUrl: gifLinkUrl, isActive: gifIsActive, country: gifCountry, createdAt: serverTimestamp() };
             await addDocumentNonBlocking(collection(firestore, 'marketGifBanners'), newBanner);
-            toast({ title: 'Top Banner Added' });
+            toast({ title: 'Small Promo Banner Added' });
             setGifImageUrl('');
             setGifLinkUrl('');
             setGifCountry('');
@@ -210,7 +225,7 @@ export default function AdminMarketPage() {
         setIsLoadingGif(true);
         const bannerRef = doc(firestore, 'marketGifBanners', editingGifBanner.id);
         await updateDocumentNonBlocking(bannerRef, { ...editingGifBanner });
-        toast({ title: 'Top Banner Updated' });
+        toast({ title: 'Small Promo Banner Updated' });
         setEditingGifBanner(null);
         setIsLoadingGif(false);
     };
@@ -219,15 +234,56 @@ export default function AdminMarketPage() {
         if (!firestore) return;
         const bannerRef = doc(firestore, 'marketGifBanners', bannerId);
         await deleteDocumentNonBlocking(bannerRef);
-        toast({ title: 'Top Banner Deleted' });
+        toast({ title: 'Small Promo Banner Deleted' });
     };
+
+    // Handlers for Top Ad Banners
+    const handleAddTopAdBanner = async () => {
+        if (!topAdImageUrl) {
+            toast({ variant: 'destructive', title: 'Missing Image', description: 'Please provide an image or GIF.' });
+            return;
+        }
+        setIsLoadingTopAd(true);
+        try {
+            const newBanner = { imageUrl: topAdImageUrl, linkUrl: topAdLinkUrl, isActive: topAdIsActive, country: topAdCountry, createdAt: serverTimestamp() };
+            await addDocumentNonBlocking(collection(firestore, 'marketTopBanners'), newBanner);
+            toast({ title: 'Top Ad Banner Added' });
+            setTopAdImageUrl('');
+            setTopAdLinkUrl('');
+            setTopAdCountry('');
+            setTopAdIsActive(false);
+        } catch (error) {
+            console.error("Failed to add top ad banner:", error);
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not save the banner. The image might be too large.' });
+        } finally {
+            setIsLoadingTopAd(false);
+        }
+    };
+
+    const handleUpdateTopAdBanner = async () => {
+        if (!editingTopAdBanner || !firestore) return;
+        setIsLoadingTopAd(true);
+        const bannerRef = doc(firestore, 'marketTopBanners', editingTopAdBanner.id);
+        await updateDocumentNonBlocking(bannerRef, { ...editingTopAdBanner });
+        toast({ title: 'Top Ad Banner Updated' });
+        setEditingTopAdBanner(null);
+        setIsLoadingTopAd(false);
+    };
+
+    const handleDeleteTopAdBanner = async (bannerId: string) => {
+        if (!firestore) return;
+        const bannerRef = doc(firestore, 'marketTopBanners', bannerId);
+        await deleteDocumentNonBlocking(bannerRef);
+        toast({ title: 'Top Ad Banner Deleted' });
+    };
+
 
     return (
         <main className="flex-1 p-4 sm:p-6 space-y-6">
             <h1 className="text-2xl font-bold font-headline">Manage Market Homepage</h1>
             
-            <div className="grid gap-6 lg:grid-cols-2">
-                <div className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-1 space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Add New Main Banner</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
@@ -266,7 +322,7 @@ export default function AdminMarketPage() {
                             <Button onClick={handleAddBanner} disabled={isLoading} className="w-full">{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Main Banner</Button>
                         </CardContent>
                     </Card>
-                     <Card>
+                    <Card>
                         <CardHeader>
                             <CardTitle>Top Advertisement Banner</CardTitle>
                             <CardDescription>Add a small ad banner (GIF or image) to display at the top of the market page.</CardDescription>
@@ -274,19 +330,56 @@ export default function AdminMarketPage() {
                         <CardContent className="space-y-4">
                            <div className="space-y-2">
                                 <Label>Banner Image / GIF</Label>
-                                {gifImageUrl ? (
+                                {topAdImageUrl ? (
                                     <div className="relative aspect-[15/1]">
-                                        <img src={gifImageUrl} alt="Ad banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                        <img src={topAdImageUrl} alt="Top Ad banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setTopAdImageUrl('')} disabled={isLoadingTopAd}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="top-ad-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingTopAd && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload</span>
+                                    </Label>
+                                )}
+                                <Input id="top-ad-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, setTopAdImageUrl)} className="hidden" disabled={isLoadingTopAd} />
+                                <p className="text-xs text-muted-foreground">Recommended size: full-width, short height (e.g., 1200x80px).</p>
+                            </div>
+                            <div className="space-y-2"><Label>Link URL</Label><Input value={topAdLinkUrl} onChange={(e) => setTopAdLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingTopAd} /></div>
+                             <div className="space-y-2">
+                                <Label htmlFor="top-ad-country">Country</Label>
+                                <Select value={topAdCountry || 'global'} onValueChange={(val) => setTopAdCountry(val === 'global' ? '' : val)} disabled={isLoadingTopAd}>
+                                    <SelectTrigger id="top-ad-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="global">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center space-x-2"><Switch checked={topAdIsActive} onCheckedChange={setTopAdIsActive} disabled={isLoadingTopAd} /><Label>Activate banner</Label></div>
+                            <Button onClick={handleAddTopAdBanner} disabled={isLoadingTopAd || !topAdImageUrl} className="w-full">{isLoadingTopAd ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Top Ad Banner</Button>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Small Promo Banners</CardTitle>
+                            <CardDescription>Add small promotional banners (e.g., GIFs, images) for use on various pages.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                           <div className="space-y-2">
+                                <Label>Banner Image / GIF</Label>
+                                {gifImageUrl ? (
+                                    <div className="relative aspect-video">
+                                        <img src={gifImageUrl} alt="Promo banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setGifImageUrl('')} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
-                                    <Label htmlFor="gif-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                    <Label htmlFor="gif-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
                                         <FileUp className="h-8 w-8" />
                                         <span>Upload</span>
                                     </Label>
                                 )}
                                 <Input id="gif-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, setGifImageUrl)} className="hidden" disabled={isLoadingGif} />
-                                <p className="text-xs text-muted-foreground">Recommended size: full-width, short height (e.g., 1200x80px).</p>
+                                <p className="text-xs text-muted-foreground">Recommended size: 400x300px.</p>
                             </div>
                             <div className="space-y-2"><Label>Link URL</Label><Input value={gifLinkUrl} onChange={(e) => setGifLinkUrl(e.target.value)} placeholder="/market/category/fashion" disabled={isLoadingGif} /></div>
                              <div className="space-y-2">
@@ -300,11 +393,11 @@ export default function AdminMarketPage() {
                                 </Select>
                             </div>
                             <div className="flex items-center space-x-2"><Switch checked={gifIsActive} onCheckedChange={setGifIsActive} disabled={isLoadingGif} /><Label>Activate banner</Label></div>
-                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Top Banner</Button>
+                            <Button onClick={handleAddGifBanner} disabled={isLoadingGif || !gifImageUrl} className="w-full">{isLoadingGif ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Add Small Banner</Button>
                         </CardContent>
                     </Card>
                 </div>
-                <div className="space-y-6">
+                <div className="lg:col-span-2 space-y-6">
                      <Card>
                         <CardHeader><CardTitle>Existing Main Banners</CardTitle><CardDescription>View, edit, or delete main carousel banners.</CardDescription></CardHeader>
                         <CardContent>
@@ -336,9 +429,40 @@ export default function AdminMarketPage() {
                             </Table>
                         </CardContent>
                     </Card>
-
                     <Card>
-                        <CardHeader><CardTitle>Existing Top Banners</CardTitle><CardDescription>Manage advertisement banners shown at the top of the page.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle>Existing Top Advertisement Banners</CardTitle><CardDescription>Manage banners shown at the top of the page.</CardDescription></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Country</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoadingTopAdBanners ? (
+                                        <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell></TableRow>
+                                    ) : topAdBanners && topAdBanners.length > 0 ? topAdBanners.map((banner) => (
+                                        <TableRow key={banner.id}>
+                                            <TableCell><img src={banner.imageUrl} alt="Top banner" width={100} height={40} className="rounded-md object-cover bg-muted" /></TableCell>
+                                            <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
+                                            <TableCell><Badge variant="outline">{banner.country || 'All'}</Badge></TableCell>
+                                            <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingTopAdBanner(banner)}><FileEdit className="h-4 w-4" /></Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this banner.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTopAdBanner(banner.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No top ad banners found.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Existing Small Promo Banners</CardTitle><CardDescription>Manage small promo banners (e.g., GIFs).</CardDescription></CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Link</TableHead><TableHead>Country</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -347,7 +471,7 @@ export default function AdminMarketPage() {
                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell></TableRow>
                                     ) : gifBanners && gifBanners.length > 0 ? gifBanners.map((banner) => (
                                         <TableRow key={banner.id}>
-                                            <TableCell><img src={banner.imageUrl} alt="Top banner" width={100} height={40} className="rounded-md object-cover bg-muted" /></TableCell>
+                                            <TableCell><img src={banner.imageUrl} alt="Promo banner" width={100} height={40} className="rounded-md object-cover bg-muted" /></TableCell>
                                             <TableCell className="font-mono text-xs truncate max-w-[150px]">{banner.linkUrl}</TableCell>
                                             <TableCell><Badge variant="outline">{banner.country || 'All'}</Badge></TableCell>
                                             <TableCell><Badge variant={banner.isActive ? 'default' : 'secondary'}>{banner.isActive ? 'Active' : 'Draft'}</Badge></TableCell>
@@ -356,14 +480,14 @@ export default function AdminMarketPage() {
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                                     <AlertDialogContent>
-                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the top banner.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this small banner.</AlertDialogDescription></AlertDialogHeader>
                                                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteGifBanner(banner.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No top banners found.</TableCell></TableRow>
+                                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No small promo banners found.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -371,6 +495,7 @@ export default function AdminMarketPage() {
                     </Card>
                 </div>
             </div>
+            
              <Dialog open={!!editingBanner} onOpenChange={(open) => !open && setEditingBanner(null)}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader><DialogTitle>Edit Banner</DialogTitle><DialogDescription>Make changes to your banner here. Click save when you're done.</DialogDescription></DialogHeader>
@@ -419,20 +544,64 @@ export default function AdminMarketPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={!!editingTopAdBanner} onOpenChange={(open) => !open && setEditingTopAdBanner(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Edit Top Ad Banner</DialogTitle></DialogHeader>
+                    {editingTopAdBanner && (
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Image / GIF</Label>
+                                {editingTopAdBanner.imageUrl ? (
+                                    <div className="relative aspect-[15/1]">
+                                        <img src={editingTopAdBanner.imageUrl} alt="Top banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                        <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingTopAdBanner({ ...editingTopAdBanner, imageUrl: '' })} disabled={isLoadingTopAd}><X className="h-4 w-4" /></Button>
+                                    </div>
+                                ) : (
+                                    <Label htmlFor="edit-top-ad-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingTopAd && "cursor-not-allowed opacity-50")}>
+                                        <FileUp className="h-8 w-8" />
+                                        <span>Upload</span>
+                                    </Label>
+                                )}
+                                <Input id="edit-top-ad-image-upload" type="file" accept="image/*,image/gif" onChange={(e) => handleImageUpload(e, (val) => setEditingTopAdBanner({ ...editingTopAdBanner!, imageUrl: val }))} className="hidden" disabled={isLoadingTopAd} />
+                            </div>
+                           <div className="space-y-2"><Label>Link URL</Label><Input value={editingTopAdBanner.linkUrl} onChange={(e) => setEditingTopAdBanner({ ...editingTopAdBanner, linkUrl: e.target.value })} /></div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-top-ad-country">Country</Label>
+                                <Select value={editingTopAdBanner.country || 'global'} onValueChange={(val) => setEditingTopAdBanner({...editingTopAdBanner, country: val === 'global' ? '' : val})} disabled={isLoadingTopAd}>
+                                    <SelectTrigger id="edit-top-ad-country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="global">All Countries</SelectItem>
+                                        {markets.map(m => <SelectItem key={m.code} value={m.code}>{m.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                           <div className="flex items-center space-x-2"><Switch checked={editingTopAdBanner.isActive} onCheckedChange={(checked) => setEditingTopAdBanner({ ...editingTopAdBanner, isActive: checked })} /><Label>Active</Label></div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingTopAdBanner(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateTopAdBanner} disabled={isLoadingTopAd || !editingTopAdBanner?.imageUrl}>
+                            {isLoadingTopAd && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
              <Dialog open={!!editingGifBanner} onOpenChange={(open) => !open && setEditingGifBanner(null)}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Edit Top Banner</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Edit Small Promo Banner</DialogTitle></DialogHeader>
                     {editingGifBanner && (
                         <div className="grid gap-4 py-4">
                             <div className="space-y-2">
                                 <Label>Image / GIF</Label>
                                 {editingGifBanner.imageUrl ? (
-                                    <div className="relative aspect-[15/1]">
-                                        <img src={editingGifBanner.imageUrl} alt="Top banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
+                                    <div className="relative aspect-video">
+                                        <img src={editingGifBanner.imageUrl} alt="Promo banner" className="absolute inset-0 w-full h-full object-cover rounded-md border" />
                                         <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => setEditingGifBanner({ ...editingGifBanner, imageUrl: '' })} disabled={isLoadingGif}><X className="h-4 w-4" /></Button>
                                     </div>
                                 ) : (
-                                    <Label htmlFor="edit-gif-image-upload" className={cn("flex aspect-[15/1] w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
+                                    <Label htmlFor="edit-gif-image-upload" className={cn("flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-input bg-background text-muted-foreground hover:border-primary hover:text-primary", isLoadingGif && "cursor-not-allowed opacity-50")}>
                                         <FileUp className="h-8 w-8" />
                                         <span>Upload</span>
                                     </Label>
@@ -465,9 +634,3 @@ export default function AdminMarketPage() {
         </main>
     );
 }
-
-    
-
-    
-
-
