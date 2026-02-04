@@ -11,6 +11,9 @@ import { ChatWidget } from '@/components/app/chat-widget';
 export const metadata: Metadata = {
   title: 'Busmo',
   description: 'Your AI partner for managing your business money.',
+  icons: {
+    icon: '/icon.png',
+  },
 };
 
 export default function RootLayout({
