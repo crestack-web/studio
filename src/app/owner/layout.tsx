@@ -64,12 +64,14 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
             const isExpired = new Date() > subscription.currentPeriodEnd.toDate();
             const isActiveOrTrialing = subscription.status === 'active' || subscription.status === 'trialing';
 
-            // If subscription is cancelled, or if it's an expired active/trialing plan, block access
-            if (subscription.status === 'cancelled' || (isActiveOrTrialing && isExpired)) {
-              if (pathname !== '/owner/subscribe') {
+            // A subscription is invalid if it's cancelled, past_due, or expired.
+            const isInvalid = subscription.status === 'cancelled' 
+              || subscription.status === 'past_due' 
+              || (isActiveOrTrialing && isExpired);
+
+            if (isInvalid && !isBillingRoute) {
                 router.replace('/owner/subscribe');
-              }
-              return;
+                return;
             }
         }
     }
@@ -80,7 +82,7 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     return <LoadingScreen />;
   }
 
-  // If user is authenticated and subscription is valid, render children.
+  // If user is authenticated and subscription is valid (or on a billing route), render children.
   if (user) {
     return <>{children}</>;
   }
