@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, type FormEvent } from 'react';
@@ -130,7 +131,7 @@ export default function BusmoGoPage() {
                     <Logo variant="busmogo" className="text-5xl"/>
                 </div>
                 <h1 className="mt-4 text-4xl font-bold tracking-tight font-headline sm:text-5xl">
-                    BusmoGo: Fast, Local, Reliable.
+                    Your Business, Delivered. Fast.
                 </h1>
                 <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
                     Get your products to your customers' doorsteps. BusmoGo is our integrated delivery network designed for speed and peace of mind.
