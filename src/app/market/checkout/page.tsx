@@ -102,33 +102,8 @@ const CheckoutContent = () => {
         if (productId && quantityStr) { // "Buy Now" flow
             fetchProductData(productId, variantId || null, parseInt(quantityStr, 10));
         } else if (cartItems.length > 0) { // "Cart Checkout" flow
-            const items: CheckoutItem[] = cartItems.map(item => ({
-                productId: item.id,
-                productName: item.name,
-                variantId: item.variantId,
-                variantName: item.variantName,
-                quantity: item.quantity,
-                price: item.price,
-                image: item.image,
-                businessId: '' // Will be fetched later or assumed to be the same
-            }));
-            // For now, assuming all items are from the same business for simplicity.
-            // A more robust solution would group them by businessId.
-            if (items.length > 0) {
-                 const fetchBusinessId = async () => {
-                     if (!firestore) return;
-                     const productRef = doc(firestore, 'marketProducts', items[0].productId);
-                     const productSnap = await getDoc(productRef);
-                     if (productSnap.exists()) {
-                        const businessId = (productSnap.data() as MarketProduct).businessId;
-                        setCheckoutItems(items.map(it => ({ ...it, businessId })));
-                     }
-                     setIsLoadingItems(false);
-                 }
-                 fetchBusinessId();
-            } else {
-                 setIsLoadingItems(false);
-            }
+            setCheckoutItems(cartItems.map(item => ({ ...item, productId: item.id })));
+            setIsLoadingItems(false);
         } else {
              setIsLoadingItems(false);
         }
@@ -306,5 +281,3 @@ export default function CheckoutPage() {
         </Suspense>
     );
 }
-
-    

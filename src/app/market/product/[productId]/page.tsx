@@ -199,6 +199,7 @@ export default function ProductDetailPage() {
                 image: selectedImage || imageGallery[0],
                 variantId: selectedVariant?.id,
                 variantName: selectedVariant?.name,
+                businessId: productData.businessId,
             });
             toast({ title: "Added to Cart", description: `${productData.productName} has been added.` });
         } else if (action === 'buyNow') {

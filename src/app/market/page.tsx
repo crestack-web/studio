@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -31,6 +30,7 @@ interface MarketProduct {
     id: string; // Document ID, which is the same as productId
     productName: string;
     businessName: string;
+    businessId: string;
     price: number;
     oldPrice?: number;
     currency: string;
@@ -115,6 +115,7 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
             image: imageUrl,
             variantId: undefined,
             variantName: undefined,
+            businessId: product.businessId,
         });
 
         toast({
