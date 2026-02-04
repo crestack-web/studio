@@ -7,71 +7,113 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, runTransaction, collection, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useCart } from '@/context/cart-provider';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
 interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; }
+interface Product { id: string; name: string; cost: number; price: number; quantity: number; hasVariants?: boolean; variants?: { id: string; name: string; price: number; cost?: number, quantity: number }[]; }
 
 const OrderConfirmationContent = () => {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { toast } = useToast();
     const firestore = useFirestore();
+    const { clearCart } = useCart();
     
-    const orderId = searchParams.get('orderId');
+    const initialOrderId = searchParams.get('orderId');
     const businessId = searchParams.get('businessId');
     const paystackRef = searchParams.get('reference');
-    const source = searchParams.get('source'); // e.g., 'subscription'
+    const source = searchParams.get('source');
     
+    const [orderId, setOrderId] = useState<string | null>(initialOrderId);
     const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>('idle');
+    const [isProcessingOrder, setIsProcessingOrder] = useState(false);
     const [verificationMessage, setVerificationMessage] = useState('');
 
     useEffect(() => {
-        if (paystackRef) {
+        if (paystackRef && !initialOrderId) { // Ensure this runs only for new Paystack orders
             setVerificationStatus('verifying');
-            const verify = async () => {
+            setIsProcessingOrder(true);
+
+            const verifyAndCreateOrder = async () => {
+                if (!firestore) {
+                    setVerificationStatus('failed');
+                    setVerificationMessage('Database connection failed.');
+                    setIsProcessingOrder(false);
+                    return;
+                }
                 try {
                     const verifyPaymentUrl = getFunctionUrl('verifyPayment');
-
                     const response = await fetch(`${verifyPaymentUrl}?reference=${paystackRef}`);
-                    if (!response.ok) {
-                         throw new Error('Payment verification service failed.');
-                    }
+                    if (!response.ok) throw new Error('Payment verification service failed.');
                     const result = await response.json();
                     
                     if (result.success && result.data.status === 'success') {
                         setVerificationStatus('success');
                         setVerificationMessage('Your payment has been confirmed.');
-                        
-                        if(source === 'subscription') {
-                             toast({
-                                title: "Subscription Active!",
-                                description: "Your payment was successful. Welcome aboard!",
-                                className: "bg-success text-success-foreground",
-                             });
-                             // Redirect home after a short delay to allow user to read the message
-                             setTimeout(() => router.replace('/owner/home'), 2000);
+
+                        const pendingOrderJSON = localStorage.getItem('pendingOrder');
+                        if (!pendingOrderJSON) {
+                            throw new Error(`Payment confirmed, but order data was lost. Please contact support with transaction reference: ${paystackRef}`);
                         }
 
+                        const pendingOrder = JSON.parse(pendingOrderJSON);
+                        
+                        await runTransaction(firestore, async (transaction) => {
+                            const newOrderRef = doc(collection(firestore, `businesses/${pendingOrder.sellerBusinessId}/orders`));
+                            const orderData = {
+                                ...pendingOrder,
+                                paymentReference: paystackRef,
+                                createdAt: serverTimestamp(),
+                            };
+                            transaction.set(newOrderRef, orderData);
+
+                            for (const item of pendingOrder.items) {
+                                const productRef = doc(firestore, `businesses/${pendingOrder.sellerBusinessId}/products`, item.productId);
+                                const productSnap = await transaction.get(productRef);
+                                
+                                if (productSnap.exists()) {
+                                    const productData = productSnap.data() as Product;
+                                    if (item.variantId && productData.hasVariants) {
+                                        const newVariants = productData.variants?.map(v => 
+                                            v.id === item.variantId ? { ...v, quantity: v.quantity - item.quantity } : v
+                                        );
+                                        transaction.update(productRef, { variants: newVariants });
+                                    } else {
+                                        const newQuantity = productData.quantity - item.quantity;
+                                        transaction.update(productRef, { quantity: newQuantity });
+                                    }
+                                }
+                            }
+                            setOrderId(newOrderRef.id);
+                        });
+
+                        localStorage.removeItem('pendingOrder');
+                        clearCart();
+                        
                     } else {
-                        setVerificationStatus('failed');
-                        setVerificationMessage(result.data.gateway_response || 'Payment could not be confirmed.');
+                        localStorage.removeItem('pendingOrder');
+                        throw new Error(result.data?.gateway_response || 'Payment could not be confirmed.');
                     }
-                } catch (error) {
+                } catch (error: any) {
+                    console.error("Verification/Order Creation Error:", error);
                     setVerificationStatus('failed');
-                    setVerificationMessage('An error occurred while verifying your payment.');
+                    setVerificationMessage(error.message);
+                } finally {
+                    setIsProcessingOrder(false);
                 }
             };
-            verify();
-        } else if (orderId) { // Payment not via Paystack (e.g., Pay on Delivery)
+            verifyAndCreateOrder();
+        } else if (initialOrderId) {
              setVerificationStatus('success');
         }
-    }, [paystackRef, orderId, source, toast, router]);
+    }, [paystackRef, initialOrderId, source, toast, router, firestore, clearCart]);
 
     const orderRef = useMemoFirebase(() => (orderId && businessId) ? doc(firestore, `businesses/${businessId}/orders/${orderId}`) : null, [firestore, orderId, businessId]);
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
@@ -79,14 +121,14 @@ const OrderConfirmationContent = () => {
     const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
     const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
     
-    const isLoading = isLoadingOrder || isLoadingBusiness;
+    const isLoading = isLoadingOrder || isLoadingBusiness || isProcessingOrder;
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({ title: "Copied to clipboard!" });
     };
 
-    if (isLoading && (orderId || businessId)) {
+    if (isLoading) {
         return (
             <div className="w-full max-w-lg space-y-6">
                 <Skeleton className="h-48 w-full" />

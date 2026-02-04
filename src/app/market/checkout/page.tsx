@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Banknote, Package, Truck, Landmark, Loader2, CreditCard, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirestore, useDoc, useMemoFirebase, useUser, deleteDocumentNonBlocking } from '@/firebase';
-import { doc, collection, serverTimestamp, runTransaction, addDoc, writeBatch, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { doc, collection, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
@@ -175,8 +175,6 @@ const CheckoutContent = () => {
         
         setIsPlacingOrder(true);
         
-        const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
-
         try {
             const orderData = {
                 buyerId: user.uid,
@@ -197,51 +195,52 @@ const CheckoutContent = () => {
                 fulfillment: fulfillmentMethod,
                 payment: paymentMethod,
                 payoutStatus: 'unpaid' as const,
-                createdAt: serverTimestamp(),
+                createdAt: new Date().toISOString(), // Use ISO string for serialization
                 currency: businessProfile?.currency || 'NGN',
             };
 
-            // Set the order first to get an ID.
-            await setDoc(newOrderRef, orderData);
+            if (market.country === 'NG') { // Paystack flow
+                localStorage.setItem('pendingOrder', JSON.stringify(orderData));
 
-            if (market.country === 'NG') {
                 const initializePaymentUrl = getFunctionUrl('initializePayment');
                 
-                const callbackUrl = `${window.location.origin}/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`;
+                const callbackUrl = `${window.location.origin}/market/order-confirmation?businessId=${businessId}`;
 
                 const response = await fetch(initializePaymentUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         email: user.email,
-                        amount: total,
+                        amount: total * 100, // Send amount in kobo
                         metadata: {
                             businessId: businessId,
-                            orderId: newOrderRef.id,
+                            userId: user.uid,
                             callback_url: callbackUrl,
                         },
                     }),
                 });
 
                 const paymentData = await response.json();
-
-                if (response.ok && paymentData.status === true && paymentData.data?.authorization_url) {
-                    clearCart();
+                
+                if (response.ok && paymentData.status && paymentData.data?.authorization_url) {
                     window.location.href = paymentData.data.authorization_url;
                 } else {
-                    await deleteDoc(newOrderRef);
+                    localStorage.removeItem('pendingOrder');
                     throw new Error(paymentData.message || 'Payment initialization failed.');
                 }
             } else {
-                // For other countries, go directly to confirmation page.
+                // For other countries (non-Paystack), create order immediately
+                const newOrderRef = doc(collection(firestore, `businesses/${businessId}/orders`));
+                const finalOrderData = { ...orderData, createdAt: serverTimestamp() };
+                await setDoc(newOrderRef, finalOrderData);
                 clearCart();
                 router.push(`/market/order-confirmation?orderId=${newOrderRef.id}&businessId=${businessId}`);
             }
 
         } catch (error: any) {
             console.error("Error placing order: ", error);
-            await deleteDoc(newOrderRef).catch(delErr => console.error("Failed to clean up order doc:", delErr));
-            toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue placing your order. Please try again.' });
+            localStorage.removeItem('pendingOrder');
+            toast({ variant: 'destructive', title: 'Error placing order', description: error.message || 'There was an issue initiating your order. Please try again.' });
             setIsPlacingOrder(false);
         }
     };
