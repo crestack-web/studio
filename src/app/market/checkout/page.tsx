@@ -180,6 +180,7 @@ const CheckoutContent = () => {
                 userId: user.uid,
                 businessId: businessId,
                 email: user.email,
+                amount: total,
                 callback_url: `${window.location.origin}/market/order-confirmation`
             };
 
