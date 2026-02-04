@@ -359,11 +359,11 @@ export default function MarketPage() {
                     {/* Left GIF Banner */}
                     <div className="hidden lg:block">
                         {isLoadingGifBanners ? (
-                            <Skeleton className="h-full w-full rounded-lg" />
+                            <Skeleton className="aspect-[3/4] w-full rounded-lg" />
                         ) : sideBanner ? (
-                            <Link href={sideBanner.linkUrl || '#'} className="block h-full">
-                                <Card className="overflow-hidden group h-full">
-                                    <div className="relative w-full h-full">
+                            <Link href={sideBanner.linkUrl || '#'}>
+                                <Card className="overflow-hidden group">
+                                    <div className="relative w-full aspect-[3/4]">
                                         <Image
                                             src={sideBanner.imageUrl}
                                             alt="Promo banner"
@@ -374,7 +374,7 @@ export default function MarketPage() {
                                 </Card>
                             </Link>
                         ) : (
-                             <Card className="h-full flex items-center justify-center border-dashed">
+                            <Card className="aspect-[3/4] flex items-center justify-center border-dashed">
                                 <p className="text-xs text-muted-foreground">Ad Space</p>
                             </Card>
                         )}
