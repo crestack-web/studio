@@ -359,11 +359,11 @@ export default function MarketPage() {
                     {/* Left GIF Banner */}
                     <div className="hidden lg:block">
                         {isLoadingGifBanners ? (
-                            <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+                            <Skeleton className="h-full w-full rounded-lg" />
                         ) : sideBanner ? (
                             <Link href={sideBanner.linkUrl || '#'} className="block h-full">
-                                <Card className="overflow-hidden group">
-                                    <div className="relative w-full aspect-[3/4]">
+                                <Card className="overflow-hidden group h-full">
+                                    <div className="relative w-full h-full">
                                         <Image
                                             src={sideBanner.imageUrl}
                                             alt="Promo banner"
@@ -374,7 +374,7 @@ export default function MarketPage() {
                                 </Card>
                             </Link>
                         ) : (
-                             <Card className="aspect-[3/4] flex items-center justify-center border-dashed">
+                             <Card className="h-full flex items-center justify-center border-dashed">
                                 <p className="text-xs text-muted-foreground">Ad Space</p>
                             </Card>
                         )}
@@ -602,7 +602,7 @@ export default function MarketPage() {
                 )}
             </section>
 
-             <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 border-blue-200 dark:border-blue-800/50">
+             <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-800/50 border-blue-200 dark:border-blue-800/50">
                 <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
                     <div className="flex flex-col md:flex-row items-center gap-4">
                         <div className="p-2 bg-white dark:bg-card rounded-full border shadow-sm shrink-0">
