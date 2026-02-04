@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
@@ -32,6 +33,7 @@ import { collection, query, doc, orderBy, serverTimestamp, where, type Timestamp
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import imageCompression from 'browser-image-compression';
+import { usePathname } from 'next/navigation';
 
 
 // Interfaces
@@ -62,6 +64,7 @@ interface ChatMessage {
 }
 
 export function ChatWidget() {
+  const pathname = usePathname();
   const { toast } = useToast();
   
   const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
@@ -255,6 +258,10 @@ export function ChatWidget() {
            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your ticket. Please try again.' });
       }
   };
+
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <Sheet>
