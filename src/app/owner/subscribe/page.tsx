@@ -133,16 +133,26 @@ function SubscribePageContent() {
                     userId: authUser.uid,
                     businessId: businessId,
                     email: userProfile.email,
+                    amount: finalAmount,
                     callback_url: callbackUrl,
                 }),
             });
 
             const paymentData = await response.json();
-            
-            if (response.ok && paymentData.success && paymentData.authorization_url) {
-                window.location.href = paymentData.authorization_url;
+
+            const authorizationUrl =
+                paymentData?.authorization_url || paymentData?.data?.authorization_url;
+            const isSuccess =
+                paymentData?.success === true || paymentData?.status === true;
+
+            if (response.ok && isSuccess && authorizationUrl) {
+                window.location.href = authorizationUrl;
             } else {
-                throw new Error(paymentData.error || 'Failed to initialize subscription.');
+                throw new Error(
+                    paymentData?.error ||
+                    paymentData?.message ||
+                    'Failed to initialize subscription.'
+                );
             }
 
         } catch (error: any) {
