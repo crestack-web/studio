@@ -109,6 +109,14 @@ export default function PricingPage() {
     
     const currencyCode = selectedCountry;
 
+    const getTranslationArray = (
+        key: string,
+        fallback: string[]
+    ): string[] => {
+        const value = t(key, { returnObjects: true }) as unknown;
+        return Array.isArray(value) ? value : fallback;
+    };
+
 
     useEffect(() => {
         setCurrentYear(new Date().getFullYear());
@@ -234,13 +242,19 @@ export default function PricingPage() {
                                         <span className="text-muted-foreground">/ {t('pricing.monthly').toLowerCase()}</span>
                                     </div>
                                      <ul className="mt-6 space-y-3 text-sm">
-                                        {(t(`pricing.${plan.id}_features`, { returnObjects: true }) as unknown as string[]).map(feature => (
+                                        {getTranslationArray(
+                                            `pricing.${plan.id}_features`,
+                                            plan.features
+                                        ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
-                                        {(t(`pricing.${plan.id}_not_included`, { returnObjects: true }) as unknown as string[]).map(feature => (
+                                        {getTranslationArray(
+                                            `pricing.${plan.id}_not_included`,
+                                            plan.notIncluded
+                                        ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
@@ -281,13 +295,19 @@ export default function PricingPage() {
                                         {t('pricing.save_prefix')} ~17%!
                                     </p>
                                      <ul className="mt-6 space-y-3 text-sm">
-                                        {(t(`pricing.${plan.id}_features`, { returnObjects: true }) as unknown as string[]).map(feature => (
+                                        {getTranslationArray(
+                                            `pricing.${plan.id}_features`,
+                                            plan.features
+                                        ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground">{feature}</span>
                                             </li>
                                         ))}
-                                        {(t(`pricing.${plan.id}_not_included`, { returnObjects: true }) as unknown as string[]).map(feature => (
+                                        {getTranslationArray(
+                                            `pricing.${plan.id}_not_included`,
+                                            plan.notIncluded
+                                        ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
                                                 <span className="text-muted-foreground/50">{feature}</span>
