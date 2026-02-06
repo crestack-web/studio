@@ -263,21 +263,23 @@ export function ChatWidget() {
     return null;
   }
 
+  const onlineAgents = allAgents?.filter(a => a.status === 'online') || [];
+
   return (
     <Sheet>
         <SheetTrigger asChild>
-            <Button className="fixed bottom-4 right-4 h-16 w-16 rounded-full shadow-lg">
-                <MessageSquare className="h-8 w-8" />
+            <Button className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-xl bg-primary text-primary-foreground hover:bg-primary/90">
+                <MessageSquare className="h-7 w-7" />
             </Button>
         </SheetTrigger>
-        <SheetContent className="flex flex-col p-0">
+        <SheetContent className="flex flex-col p-0 w-full sm:max-w-md">
             {chatView === 'initial' && (
                 <>
-                    <SheetHeader className="p-4 border-b">
-                        <SheetTitle>Busmo Support</SheetTitle>
-                        <SheetDescription>How can we help you today?</SheetDescription>
+                    <SheetHeader className="p-5 border-b bg-card/80 backdrop-blur-sm">
+                        <SheetTitle className="text-lg">Busmo Support</SheetTitle>
+                        <SheetDescription>Get quick help from our team.</SheetDescription>
                     </SheetHeader>
-                    <div className="p-6 flex-1 space-y-4">
+                    <div className="p-5 flex-1 space-y-5">
                         {isLoadingAgents ? (
                             <Skeleton className="h-24 w-full" />
                         ) : (
@@ -288,14 +290,15 @@ export function ChatWidget() {
                                     </h3>
                                     {canChat && (
                                         <div className="flex -space-x-2 overflow-hidden mb-4">
-                                            {allAgents?.filter(a => a.status === 'online').map(agent => (
+                                            {onlineAgents.map(agent => (
                                                 <Avatar key={agent.userId} className="inline-block h-10 w-10 rounded-full ring-2 ring-background">
                                                     <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
                                                 </Avatar>
                                             ))}
+                                            <span className="ml-3 text-xs text-muted-foreground self-center">{onlineAgents.length} available</span>
                                         </div>
                                     )}
-                                    <Button className="w-full" onClick={handleStartChat} disabled={!canChat}>
+                                    <Button className="w-full h-11" onClick={handleStartChat} disabled={!canChat}>
                                         Start Live Chat
                                     </Button>
                                     {!canChat && <p className="text-xs text-muted-foreground mt-1 text-center">No agents available right now.</p>}
@@ -312,7 +315,7 @@ export function ChatWidget() {
 
                                 <div>
                                     <p className="text-sm text-muted-foreground mb-2 text-center">Leave us a message and we'll get back to you via email.</p>
-                                    <Button className="w-full" variant="outline" onClick={() => setChatView('ticket')}>
+                                    <Button className="w-full h-11" variant="outline" onClick={() => setChatView('ticket')}>
                                         Submit a Ticket
                                     </Button>
                                 </div>
@@ -324,21 +327,24 @@ export function ChatWidget() {
 
             {chatView === 'chat' && (
                 <>
-                    <SheetHeader className="p-4 border-b flex-row items-center gap-2">
+                    <SheetHeader className="p-4 border-b flex-row items-center gap-3 bg-card/80 backdrop-blur-sm">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatView('initial')}><ArrowLeft className="h-5 w-5" /></Button>
                         {assignedAgent ? (
                             <>
                                 <Avatar className="h-9 w-9"><AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback></Avatar>
-                                <div>
-                                    <SheetTitle className="text-base">{assignedAgent.displayName}</SheetTitle>
-                                    <SheetDescription className="text-xs">Support Agent</SheetDescription>
+                                <div className="min-w-0">
+                                    <SheetTitle className="text-base truncate">{assignedAgent.displayName}</SheetTitle>
+                                    <SheetDescription className="text-xs flex items-center gap-2">
+                                        <span className="inline-flex h-2 w-2 rounded-full bg-success" />
+                                        Support Agent
+                                    </SheetDescription>
                                 </div>
                             </>
                         ) : (
                             <SheetTitle>Live Chat</SheetTitle>
                         )}
                     </SheetHeader>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
                         {isLoadingMessages ? (
                             <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>
                         ) : messages && messages.length > 0 ? (
@@ -347,28 +353,32 @@ export function ChatWidget() {
                                     {msg.senderId !== user?.uid && (
                                         <Avatar className="h-8 w-8"><AvatarFallback>{agentsMap.get(msg.senderId)?.displayName.charAt(0) || 'A'}</AvatarFallback></Avatar>
                                     )}
-                                    <div className={cn("max-w-xs rounded-2xl p-3 text-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted rounded-bl-none")}>
+                                    <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card border rounded-bl-none")}> 
                                         {msg.text && <p>{msg.text}</p>}
                                         {msg.imageUrl && (
                                             <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-                                                <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg mt-2 cursor-pointer" />
+                                                <Image src={msg.imageUrl} alt="User upload" width={240} height={240} className="rounded-lg mt-2 cursor-pointer" />
                                             </a>
                                         )}
-                                        {msg.createdAt && <p className="text-xs opacity-70 mt-1">{formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true })}</p>}
+                                        {msg.createdAt && <p className="text-[11px] opacity-70 mt-1">{formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true })}</p>}
                                     </div>
                                 </div>
                             ))
                         ) : (
-                        <div className="text-center text-sm text-muted-foreground pt-10">Start the conversation...</div>
+                        <div className="text-center text-sm text-muted-foreground pt-10">
+                          Start the conversation by saying hello.
+                        </div>
                         )}
                         <div ref={chatMessagesEndRef} />
                     </div>
-                    <SheetFooter className="p-4 border-t">
+                    <SheetFooter className="p-4 border-t bg-card">
                         <form onSubmit={(e) => handleSendMessage(e, chatInput)} className="flex items-center gap-2 w-full">
                             <Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type your message..." className="h-11" />
                             <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></Button>
                             <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                            <Button type="submit" size="icon" className="h-11 w-11 shrink-0"><Send className="h-5 w-5" /></Button>
+                            <Button type="submit" size="icon" className="h-11 w-11 shrink-0" disabled={!chatInput.trim()}>
+                              <Send className="h-5 w-5" />
+                            </Button>
                         </form>
                     </SheetFooter>
                 </>
@@ -376,11 +386,11 @@ export function ChatWidget() {
 
             {chatView === 'ticket' && (
                 <>
-                    <SheetHeader className="p-4 border-b flex-row items-center gap-2">
+                    <SheetHeader className="p-4 border-b flex-row items-center gap-2 bg-card/80 backdrop-blur-sm">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatView('initial')}><ArrowLeft className="h-5 w-5" /></Button>
                         <SheetTitle>Leave a Message</SheetTitle>
                     </SheetHeader>
-                    <form onSubmit={handleSubmitTicket} className="p-6 flex-1 space-y-4">
+                    <form onSubmit={handleSubmitTicket} className="p-5 flex-1 space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="ticket-subject">Subject</Label>
                             <Input id="ticket-subject" value={ticketSubject} onChange={(e) => setTicketSubject(e.target.value)} placeholder="e.g., Issue with my subscription" />
@@ -389,7 +399,7 @@ export function ChatWidget() {
                             <Label htmlFor="ticket-message">How can we help?</Label>
                             <Textarea id="ticket-message" value={ticketMessage} onChange={(e) => setTicketMessage(e.target.value)} placeholder="Please describe your issue in detail..." rows={6}/>
                         </div>
-                        <Button type="submit" className="w-full">Submit Ticket</Button>
+                        <Button type="submit" className="w-full h-11">Submit Ticket</Button>
                     </form>
                 </>
             )}
