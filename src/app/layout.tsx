@@ -7,10 +7,13 @@ import { LanguageProvider } from '@/context/language-provider';
 import { CartProvider } from '@/context/cart-provider';
 import { MarketProvider } from '@/context/market-provider';
 import { ChatWidget } from '@/components/app/chat-widget';
+import { PwaRegister } from '@/components/app/pwa-register';
 
 export const metadata: Metadata = {
   title: 'Busmo',
   description: 'Your AI partner for managing your business money.',
+  manifest: '/manifest.json',
+  themeColor: '#5717ee',
   icons: {
     icon: '/icon.png',
   },
@@ -37,6 +40,7 @@ export default function RootLayout({
                   disableTransitionOnChange
                 >
                   {children}
+                  <PwaRegister />
                   <Toaster />
                   <ChatWidget />
                 </ThemeProvider>
