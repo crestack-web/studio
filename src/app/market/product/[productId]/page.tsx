@@ -266,14 +266,14 @@ export default function ProductDetailPage() {
 
     return (
        <div className="w-full max-w-7xl">
-            <div className="text-sm text-muted-foreground flex items-center gap-2 mb-4">
+            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-2 mb-4">
                 <Link href="/market" className="hover:text-primary">Market</Link>
                 <ChevronRight className="w-4 h-4" />
                 <Link href={`/market/search?q=${productData.category}`} className="capitalize hover:text-primary">{productData.category}</Link>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 xl:gap-12 items-start">
-                <div className="w-full">
-                    <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px] gap-6 lg:gap-8 xl:gap-12 items-start">
+                <div className="w-full min-w-0 order-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6 md:gap-8">
                         {/* --- Image Gallery --- */}
                         <div>
                              <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
@@ -304,7 +304,7 @@ export default function ProductDetailPage() {
                 </div>
                 
                 {/* --- Sticky Purchase Column (Desktop) --- */}
-                <div className="row-start-1 lg:col-start-2 space-y-6 sticky top-24">
+                <div className="order-2 lg:order-none lg:col-start-2 space-y-6 lg:sticky lg:top-24 self-start min-w-0">
                      <div className="hidden lg:block">
                         <h1 className="text-3xl font-bold font-headline">{productName}</h1>
                         <div className="mt-2 text-sm">
@@ -353,7 +353,7 @@ export default function ProductDetailPage() {
                 </div>
                 
                 {/* --- Details Section (Main Column) --- */}
-                <div className="lg:col-start-1 row-start-2 space-y-12">
+                <div className="lg:col-start-1 row-start-2 space-y-12 min-w-0">
                     <Accordion type="multiple" defaultValue={['details', 'reviews']} className="w-full">
                         <AccordionItem value="details"><AccordionTrigger className="text-lg font-bold">Product Details</AccordionTrigger><AccordionContent className="pt-4 space-y-4 text-muted-foreground"><div className="prose dark:prose-invert max-w-none"><p>{productData.description || 'No description available.'}</p></div></AccordionContent></AccordionItem>
                         
