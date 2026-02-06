@@ -224,6 +224,7 @@ export default function PricingPage() {
                 <TabsContent value="monthly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => {
+                            const translationId = plan.id === 'multi-branch' ? 'multibranch' : plan.id;
                             const price = convertFromNgn(plan.monthlyPrice, currencyCode);
                             return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
@@ -233,8 +234,8 @@ export default function PricingPage() {
                                     </div>
                                 )}
                                 <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{t(`pricing.${plan.id}_name`)}</CardTitle>
-                                    <CardDescription>{t(`pricing.${plan.id}_desc`)}</CardDescription>
+                                    <CardTitle className="font-headline">{t(`pricing.${translationId}_name`)}</CardTitle>
+                                    <CardDescription>{t(`pricing.${translationId}_desc`)}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
@@ -243,7 +244,7 @@ export default function PricingPage() {
                                     </div>
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {getTranslationArray(
-                                            `pricing.${plan.id}_features`,
+                                            `pricing.${translationId}_features`,
                                             plan.features
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
@@ -252,7 +253,7 @@ export default function PricingPage() {
                                             </li>
                                         ))}
                                         {getTranslationArray(
-                                            `pricing.${plan.id}_not_included`,
+                                            `pricing.${translationId}_not_included`,
                                             plan.notIncluded
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
@@ -274,6 +275,7 @@ export default function PricingPage() {
                 <TabsContent value="yearly" className="mt-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {plans.map((plan) => {
+                            const translationId = plan.id === 'multi-branch' ? 'multibranch' : plan.id;
                             const price = convertFromNgn(plan.yearlyPrice, currencyCode);
                             return (
                              <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
@@ -283,8 +285,8 @@ export default function PricingPage() {
                                     </div>
                                 )}
                                 <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{t(`pricing.${plan.id}_name`)}</CardTitle>
-                                    <CardDescription>{t(`pricing.${plan.id}_desc`)}</CardDescription>
+                                    <CardTitle className="font-headline">{t(`pricing.${translationId}_name`)}</CardTitle>
+                                    <CardDescription>{t(`pricing.${translationId}_desc`)}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">
                                     <div className="flex items-baseline gap-2">
@@ -296,7 +298,7 @@ export default function PricingPage() {
                                     </p>
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {getTranslationArray(
-                                            `pricing.${plan.id}_features`,
+                                            `pricing.${translationId}_features`,
                                             plan.features
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
@@ -305,7 +307,7 @@ export default function PricingPage() {
                                             </li>
                                         ))}
                                         {getTranslationArray(
-                                            `pricing.${plan.id}_not_included`,
+                                            `pricing.${translationId}_not_included`,
                                             plan.notIncluded
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
