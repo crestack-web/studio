@@ -30,6 +30,11 @@ const BusinessInsightsDataSchema = z.object({
     profitToday: z.number().describe("The net profit from sales made today."),
     totalDeposits: z.number().describe("Total cash deposited into the business."),
     totalWithdrawals: z.number().describe("Total cash withdrawn from the business."),
+    totalExpenses: z.number().optional().describe("Total expenses for the period."),
+    profitMargin: z.number().optional().describe("Net profit margin for the period, as a percentage."),
+    cashBalance: z.number().optional().describe("Cash balance (total deposits minus total withdrawals)."),
+    dailyAvgExpense: z.number().optional().describe("Average daily expenses for the period."),
+    salesDays: z.number().optional().describe("Number of days with sales in the period."),
 });
 
 const GetBusinessInsightsInputSchema = z.object({
@@ -62,8 +67,8 @@ const prompt = ai.definePrompt({
   3.  When formatting monetary values, ALWAYS include thousands separators (e.g., 45,000 not 45000). Use the provided currency symbol. If the symbol is "CFA", place it AFTER the number with a space (e.g., 600 CFA). For all other symbols, place them BEFORE the number with no space (e.g., ₦600, $100).
   4.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
   5.  Do NOT guess or invent numbers.
-  6.  Do NOT give advice unless explicitly asked.
-  7.  Keep answers concise and to the point.
+  6.  If the user explicitly asks for advice, provide 1–3 practical, data-backed suggestions using only the provided data.
+  7.  Keep answers concise and to the point. Use short paragraphs or bullets when helpful.
 
   Data:
   - Currency: {{{currency}}}
@@ -71,6 +76,11 @@ const prompt = ai.definePrompt({
   - Total Profit: {{{insights.totalProfit}}}
   - Total Cash Deposits: {{{insights.totalDeposits}}}
   - Total Cash Withdrawals: {{{insights.totalWithdrawals}}}
+  - Total Expenses: {{{insights.totalExpenses}}}
+  - Profit Margin (%): {{{insights.profitMargin}}}
+  - Cash Balance: {{{insights.cashBalance}}}
+  - Avg Daily Expense: {{{insights.dailyAvgExpense}}}
+  - Sales Days: {{{insights.salesDays}}}
   - Number of Sales Today: {{{insights.salesTodayCount}}}
   - Total Revenue Today: {{{insights.salesTodayTotal}}}
   - Profit Today: {{{insights.profitToday}}}
