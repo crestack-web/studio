@@ -114,7 +114,9 @@ export default function PricingPage() {
         fallback: string[]
     ): string[] => {
         const value = t(key, { returnObjects: true }) as unknown;
-        return Array.isArray(value) ? value : fallback;
+        if (Array.isArray(value)) return value;
+        if (Array.isArray(fallback)) return fallback;
+        return [];
     };
 
 
@@ -245,7 +247,7 @@ export default function PricingPage() {
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {getTranslationArray(
                                             `pricing.${translationId}_features`,
-                                            plan.features
+                                            plan.features ?? []
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
@@ -254,7 +256,7 @@ export default function PricingPage() {
                                         ))}
                                         {getTranslationArray(
                                             `pricing.${translationId}_not_included`,
-                                            plan.notIncluded
+                                            plan.notIncluded ?? []
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
@@ -299,7 +301,7 @@ export default function PricingPage() {
                                      <ul className="mt-6 space-y-3 text-sm">
                                         {getTranslationArray(
                                             `pricing.${translationId}_features`,
-                                            plan.features
+                                            plan.features ?? []
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
@@ -308,7 +310,7 @@ export default function PricingPage() {
                                         ))}
                                         {getTranslationArray(
                                             `pricing.${translationId}_not_included`,
-                                            plan.notIncluded
+                                            plan.notIncluded ?? []
                                         ).map(feature => (
                                             <li key={feature} className="flex items-start gap-2">
                                                 <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
