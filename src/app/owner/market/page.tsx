@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, type FormEvent, type ChangeEvent 
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -33,7 +33,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import imageCompression from 'browser-image-compression';
 import { getFunctionUrl } from '@/lib/api';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 const createSlug = (name: string) => {
@@ -114,6 +113,7 @@ const SettingsContent = () => {
     const [newCollectionName, setNewCollectionName] = useState('');
     const [newCollectionProducts, setNewCollectionProducts] = useState<string[]>([]);
     const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+    const [productSearch, setProductSearch] = useState('');
 
     const productsQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/products`)) : null, [firestore, businessId]);
     const { data: ownerProducts } = useCollection<Product>(productsQuery);
@@ -510,30 +510,36 @@ const SettingsContent = () => {
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[340px] p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Search products..." />
-                                        <CommandList>
-                                            <CommandEmpty>No products found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {(ownerProducts || []).map((p) => {
-                                                    const isSelected = newCollectionProducts.includes(p.id);
-                                                    return (
-                                                        <CommandItem key={`coll-${p.id}`} onSelect={() => toggleNewCollectionProduct(p.id)} className="flex items-center gap-3 py-2">
-                                                            <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted border">
-                                                                <Image src={p.images?.[0] || `https://picsum.photos/seed/${p.id}/100/100`} alt={p.name} fill className="object-cover" />
-                                                            </div>
-                                                            <div className="flex-1 text-sm">
-                                                                <p className="font-medium line-clamp-1">{p.name}</p>
-                                                                <p className="text-xs text-muted-foreground">{formatCurrency(p.price, businessData?.currency)}</p>
-                                                            </div>
-                                                            <Checkbox checked={isSelected} onCheckedChange={() => toggleNewCollectionProduct(p.id)} className="pointer-events-none" />
-                                                        </CommandItem>
-                                                    );
-                                                })}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
+                                <PopoverContent className="w-[360px] p-3 space-y-3" align="start">
+                                    <Input placeholder="Search products..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="h-9" />
+                                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                        {(ownerProducts || [])
+                                            .filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                                            .map((p) => {
+                                                const isSelected = newCollectionProducts.includes(p.id);
+                                                return (
+                                                    <button
+                                                        key={`coll-${p.id}`}
+                                                        type="button"
+                                                        onClick={() => toggleNewCollectionProduct(p.id)}
+                                                        className={cn("w-full flex items-center gap-3 rounded-md border p-2 text-left transition hover:border-primary", isSelected && "border-primary bg-primary/5")}
+                                                    >
+                                                        <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted border">
+                                                            <Image src={p.images?.[0] || `https://picsum.photos/seed/${p.id}/100/100`} alt={p.name} fill className="object-cover" />
+                                                        </div>
+                                                        <div className="flex-1 text-sm">
+                                                            <p className="font-medium line-clamp-1">{p.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{formatCurrency(p.price, businessData?.currency)}</p>
+                                                        </div>
+                                                        <Checkbox checked={isSelected} onCheckedChange={() => toggleNewCollectionProduct(p.id)} className="pointer-events-none" />
+                                                    </button>
+                                                );
+                                            })}
+                                        {(ownerProducts || []).length === 0 && <p className="text-sm text-muted-foreground px-1">No products yet.</p>}
+                                        {(ownerProducts || []).length > 0 && (ownerProducts || []).filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                                            <p className="text-sm text-muted-foreground px-1">No products match your search.</p>
+                                        )}
+                                    </div>
                                 </PopoverContent>
                             </Popover>
 
