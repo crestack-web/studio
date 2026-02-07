@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -49,7 +49,26 @@ const createSlug = (name: string) => {
 interface AppUser { businessId?: string, displayName?: string; }
 interface Variant { id: string; name: string; price: number; cost?: number; quantity: number; image?: string; }
 interface Product { id: string; name: string; price: number; quantity: number; hasVariants: boolean; variants: Variant[]; isPublishedToMarket: boolean; images: string[]; description: string; category: string; hint?: string; oldPrice?: number; }
-type MarketSettings = { isStoreActive: boolean; bannerImageUrl: string; logoImageUrl: string; contactPhone: string; contactEmail: string; payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; }; };
+type StoreTheme = { primary: string; background: string; text: string; }; 
+type StoreHero = { title: string; subtitle: string; ctaText: string; ctaUrl: string; backgroundUrl: string; }; 
+type StoreAnnouncement = { enabled: boolean; text: string; link?: string; }; 
+type StoreSocials = { instagram?: string; facebook?: string; twitter?: string; whatsapp?: string; }; 
+type StoreCollection = { id: string; name: string; productIds: string[] }; 
+type MarketSettings = { 
+    isStoreActive: boolean; 
+    bannerImageUrl: string; 
+    logoImageUrl: string; 
+    contactPhone: string; 
+    contactEmail: string; 
+    payment: { allowBankTransfer: boolean; allowPayOnDelivery: boolean; bankName: string; accountNumber: string; paymentInstructions: string; }; 
+    delivery: { allowDelivery: boolean; allowPickup: boolean; deliveryFee: number; deliveryDays: string[]; useBusmoGo: boolean; }; 
+    announcement?: StoreAnnouncement;
+    hero?: StoreHero;
+    theme?: StoreTheme;
+    socials?: StoreSocials;
+    featuredProductIds?: string[];
+    collections?: StoreCollection[];
+};
 interface Business { 
     businessName: string; 
     currency: string; 
@@ -69,7 +88,7 @@ interface SellerBankAccount {
     status: 'unverified' | 'pending' | 'verified' | 'failed';
 }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
-interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid' }
+interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid'; pickupRequested?: boolean; pickupRequestedAt?: { toDate: () => Date }; }
 // #endregion
 
 // #region --- SETTINGS COMPONENT ---
@@ -90,6 +109,11 @@ const SettingsContent = () => {
     type DeliveryType = 'none' | 'nationwide' | 'cities';
     const [deliveryConfig, setDeliveryConfig] = useState<Record<string, { type: DeliveryType; cities: string[] }>>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [newCollectionName, setNewCollectionName] = useState('');
+    const [newCollectionProducts, setNewCollectionProducts] = useState<string[]>([]);
+
+    const productsQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/products`)) : null, [firestore, businessId]);
+    const { data: ownerProducts } = useCollection<Product>(productsQuery);
 
     useEffect(() => {
         if (businessData) {
@@ -101,7 +125,13 @@ const SettingsContent = () => {
                 contactPhone: '',
                 contactEmail: '',
                 payment: { allowBankTransfer: true, allowPayOnDelivery: true, bankName: '', accountNumber: '', paymentInstructions: 'Please use your Order ID as the payment reference.' },
-                delivery: { allowDelivery: true, allowPickup: true, deliveryFee: 1500, deliveryDays: ['Monday', 'Wednesday', 'Friday'] }
+                delivery: { allowDelivery: true, allowPickup: true, deliveryFee: 1500, deliveryDays: ['Monday', 'Wednesday', 'Friday'], useBusmoGo: true },
+                announcement: { enabled: false, text: '', link: '' },
+                hero: { title: '', subtitle: '', ctaText: '', ctaUrl: '', backgroundUrl: '' },
+                theme: { primary: '#5717ee', background: '#f7f7fb', text: '#0f172a' },
+                socials: { instagram: '', facebook: '', twitter: '', whatsapp: '' },
+                featuredProductIds: [],
+                collections: [],
             };
             const currentSettings = businessData.marketSettings || {};
             const mergedSettings: MarketSettings = {
@@ -170,6 +200,36 @@ const SettingsContent = () => {
                 [countryCode]: { ...prev[countryCode], type: 'cities', cities: newCities }
             }
         });
+    };
+
+    const toggleFeaturedProduct = (productId: string) => {
+        if (!settings) return;
+        const current = new Set(settings.featuredProductIds || []);
+        if (current.has(productId)) current.delete(productId); else current.add(productId);
+        handleSettingsChange('featuredProductIds', Array.from(current));
+    };
+
+    const toggleNewCollectionProduct = (productId: string) => {
+        setNewCollectionProducts(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+    };
+
+    const addCollection = () => {
+        if (!settings) return;
+        if (!newCollectionName.trim() || newCollectionProducts.length === 0) {
+            toast({ title: 'Add products and a name', description: 'Select products and provide a collection name.', variant: 'destructive' });
+            return;
+        }
+        const collections = settings.collections || [];
+        const newCollection: StoreCollection = { id: createSlug(newCollectionName), name: newCollectionName.trim(), productIds: newCollectionProducts };
+        handleSettingsChange('collections', [...collections, newCollection]);
+        setNewCollectionName('');
+        setNewCollectionProducts([]);
+    };
+
+    const removeCollection = (collectionId: string) => {
+        if (!settings) return;
+        const collections = settings.collections || [];
+        handleSettingsChange('collections', collections.filter(c => c.id !== collectionId));
     };
 
     const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
@@ -346,6 +406,115 @@ const SettingsContent = () => {
 
             <Card>
                 <CardHeader>
+                    <CardTitle>Storefront Customization</CardTitle>
+                    <CardDescription>Create a branded, Shopify-like storefront with your own hero, announcement bar, theme colors, and social links.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Announcement Bar</Label>
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-1"><p className="text-base">Show announcement bar</p><p className="text-sm text-muted-foreground">Great for promos, shipping notices, or policy updates.</p></div>
+                            <Switch checked={settings.announcement?.enabled} onCheckedChange={(val) => handleSettingsChange('announcement.enabled', val)} disabled={isSaving} />
+                        </div>
+                        {settings.announcement?.enabled && (
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2"><Label htmlFor="announcement-text">Message</Label><Input id="announcement-text" value={settings.announcement?.text || ''} onChange={(e) => handleSettingsChange('announcement.text', e.target.value)} placeholder="e.g., Free delivery over ₦50,000" disabled={isSaving} /></div>
+                                <div className="space-y-2"><Label htmlFor="announcement-link">Link (optional)</Label><Input id="announcement-link" value={settings.announcement?.link || ''} onChange={(e) => handleSettingsChange('announcement.link', e.target.value)} placeholder="https://..." disabled={isSaving} /></div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Hero Section</Label>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label htmlFor="hero-title">Title</Label><Input id="hero-title" value={settings.hero?.title || ''} onChange={(e) => handleSettingsChange('hero.title', e.target.value)} placeholder="e.g., Fresh drops every Friday" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="hero-subtitle">Subtitle</Label><Input id="hero-subtitle" value={settings.hero?.subtitle || ''} onChange={(e) => handleSettingsChange('hero.subtitle', e.target.value)} placeholder="Short supporting line" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="hero-cta-text">CTA Text</Label><Input id="hero-cta-text" value={settings.hero?.ctaText || ''} onChange={(e) => handleSettingsChange('hero.ctaText', e.target.value)} placeholder="Shop now" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="hero-cta-url">CTA Link</Label><Input id="hero-cta-url" value={settings.hero?.ctaUrl || ''} onChange={(e) => handleSettingsChange('hero.ctaUrl', e.target.value)} placeholder="/market/search?" disabled={isSaving} /></div>
+                            <div className="space-y-2 md:col-span-2"><Label htmlFor="hero-bg">Background Image URL</Label><Input id="hero-bg" value={settings.hero?.backgroundUrl || ''} onChange={(e) => handleSettingsChange('hero.backgroundUrl', e.target.value)} placeholder="https://..." disabled={isSaving} /></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Theme Colors</Label>
+                        <div className="grid md:grid-cols-3 gap-4">
+                            <div className="space-y-2"><Label htmlFor="color-primary">Primary</Label><Input id="color-primary" type="color" value={settings.theme?.primary || '#5717ee'} onChange={(e) => handleSettingsChange('theme.primary', e.target.value)} disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="color-bg">Background</Label><Input id="color-bg" type="color" value={settings.theme?.background || '#f7f7fb'} onChange={(e) => handleSettingsChange('theme.background', e.target.value)} disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="color-text">Text</Label><Input id="color-text" type="color" value={settings.theme?.text || '#0f172a'} onChange={(e) => handleSettingsChange('theme.text', e.target.value)} disabled={isSaving} /></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Social Links</Label>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label htmlFor="social-ig">Instagram</Label><Input id="social-ig" value={settings.socials?.instagram || ''} onChange={(e) => handleSettingsChange('socials.instagram', e.target.value)} placeholder="https://instagram.com/" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="social-fb">Facebook</Label><Input id="social-fb" value={settings.socials?.facebook || ''} onChange={(e) => handleSettingsChange('socials.facebook', e.target.value)} placeholder="https://facebook.com/" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="social-x">X / Twitter</Label><Input id="social-x" value={settings.socials?.twitter || ''} onChange={(e) => handleSettingsChange('socials.twitter', e.target.value)} placeholder="https://x.com/" disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="social-wa">WhatsApp</Label><Input id="social-wa" value={settings.socials?.whatsapp || ''} onChange={(e) => handleSettingsChange('socials.whatsapp', e.target.value)} placeholder="https://wa.me/" disabled={isSaving} /></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <Label className="font-semibold">Featured & Collections</Label>
+                        <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">Pick featured products to spotlight on your storefront.</p>
+                            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {(ownerProducts || []).map((p) => (
+                                    <label key={p.id} className="flex items-center gap-2 rounded-md border p-2">
+                                        <Checkbox checked={settings.featuredProductIds?.includes(p.id)} onCheckedChange={() => toggleFeaturedProduct(p.id)} />
+                                        <span className="text-sm line-clamp-2">{p.name}</span>
+                                    </label>
+                                ))}
+                                {(!ownerProducts || ownerProducts.length === 0) && <p className="text-sm text-muted-foreground">Add products first to feature them.</p>}
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">Create collections from your products (e.g., "New Arrivals", "Best Sellers").</p>
+                            <div className="grid md:grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="collection-name">Collection name</Label>
+                                    <Input id="collection-name" value={newCollectionName} onChange={(e) => setNewCollectionName(e.target.value)} placeholder="New Arrivals" disabled={isSaving} />
+                                    <p className="text-xs text-muted-foreground">Select products below and click Add Collection.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Selected products</Label>
+                                    <div className="text-xs text-muted-foreground">{newCollectionProducts.length} selected</div>
+                                    <Button type="button" variant="outline" onClick={addCollection} disabled={isSaving || newCollectionProducts.length === 0 || !newCollectionName.trim()}>Add Collection</Button>
+                                </div>
+                            </div>
+                            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto border rounded-md p-2">
+                                {(ownerProducts || []).map((p) => (
+                                    <label key={`coll-${p.id}`} className="flex items-center gap-2 rounded-md border p-2">
+                                        <Checkbox checked={newCollectionProducts.includes(p.id)} onCheckedChange={() => toggleNewCollectionProduct(p.id)} />
+                                        <span className="text-sm line-clamp-2">{p.name}</span>
+                                    </label>
+                                ))}
+                                {(!ownerProducts || ownerProducts.length === 0) && <p className="text-sm text-muted-foreground">No products yet.</p>}
+                            </div>
+                            {(settings.collections || []).length > 0 && (
+                                <div className="space-y-2">
+                                    <Label>Existing collections</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {settings.collections?.map((c) => (
+                                            <Badge key={c.id} variant="secondary" className="flex items-center gap-2 py-1">
+                                                <span>{c.name}</span>
+                                                <span className="text-[11px] text-muted-foreground">{c.productIds.length} items</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCollection(c.id)} disabled={isSaving}>
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
                     <CardTitle>Delivery Area</CardTitle>
                     <CardDescription>Define where you can deliver products to. This is required to list items on the market.</CardDescription>
                 </CardHeader>
@@ -388,6 +557,13 @@ const SettingsContent = () => {
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <Label htmlFor="allow-delivery" className="flex-1 space-y-0.5"><p className="text-base">Offer Delivery</p><p className="text-sm text-muted-foreground">Deliver orders directly to your customers.</p></Label>
                         <Switch id="allow-delivery" checked={settings.delivery.allowDelivery} onCheckedChange={(val) => handleSettingsChange('delivery.allowDelivery', val)} disabled={isSaving} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <Label htmlFor="use-busmogo" className="flex-1 space-y-0.5">
+                            <p className="text-base">Use BusmoGo Delivery Network</p>
+                            <p className="text-sm text-muted-foreground">Let BusmoGo handle dispatch shops, pickups, and partner drivers for your deliveries.</p>
+                        </Label>
+                        <Switch id="use-busmogo" checked={settings.delivery.useBusmoGo} onCheckedChange={(val) => handleSettingsChange('delivery.useBusmoGo', val)} disabled={isSaving || !settings.delivery.allowDelivery} />
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <Label htmlFor="allow-pickup" className="flex-1 space-y-0.5"><p className="text-base">Offer In-Store Pickup</p><p className="text-sm text-muted-foreground">Customers can pick up their order from your location.</p></Label>
@@ -630,6 +806,9 @@ const OrdersContent = () => {
     const { data: businessData } = useDoc<Business>(businessRef);
 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [orderForSlip, setOrderForSlip] = useState<Order | null>(null);
+    const [pickupLoadingId, setPickupLoadingId] = useState<string | null>(null);
+    const printSlipRef = useRef<HTMLDivElement>(null);
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !businessId) return null;
@@ -645,6 +824,28 @@ const OrdersContent = () => {
             return dateB - dateA;
         });
     }, [orders]);
+
+    const handleRequestPickup = async (order: Order) => {
+        if (!firestore || !businessId) return;
+        setPickupLoadingId(order.id);
+        const orderRef = doc(firestore, `businesses/${businessId}/orders`, order.id);
+        try {
+            await updateDocumentNonBlocking(orderRef, { pickupRequested: true, pickupRequestedAt: serverTimestamp() });
+            toast({ title: 'Pickup Requested', description: 'BusmoGo will coordinate pickup with your nearest dispatch shop.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Request failed', description: error?.message || 'Could not request pickup.' });
+        } finally {
+            setPickupLoadingId(null);
+        }
+    };
+
+    const handlePrintSlip = (order: Order) => {
+        setOrderForSlip(order);
+        setTimeout(() => {
+            window.print();
+            setTimeout(() => setOrderForSlip(null), 200);
+        }, 50);
+    };
 
     const handleUpdateStatus = async (order: Order, status: Order['status']) => {
         if (!firestore || !businessId || !businessData) return;
@@ -759,6 +960,14 @@ const OrdersContent = () => {
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => setSelectedOrder(order)}>View Details</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handlePrintSlip(order)}>Print Order Slip</DropdownMenuItem>
+                                                    <DropdownMenuItem 
+                                                        disabled={order.pickupRequested || ['shipped','fulfilled','cancelled'].includes(order.status)}
+                                                        onClick={() => handleRequestPickup(order)}
+                                                    >
+                                                        {pickupLoadingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        {order.pickupRequested ? 'Pickup Requested' : 'Request BusmoGo Pickup'}
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuSub>
                                                         <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
                                                         <DropdownMenuPortal>
@@ -820,6 +1029,72 @@ const OrdersContent = () => {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {orderForSlip && (
+                <>
+                    <style jsx global>{`
+                        @media print {
+                            body * { visibility: hidden; }
+                            #print-slip, #print-slip * { visibility: visible; }
+                            #print-slip { position: absolute; inset: 0; padding: 24px; }
+                        }
+                    `}</style>
+                    <div id="print-slip" ref={printSlipRef} className="bg-white text-black max-w-3xl mx-auto my-4 rounded-lg border shadow-sm">
+                        <div className="flex items-start justify-between border-b px-6 py-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground">BusmoGo Dispatch Slip</p>
+                                <h2 className="text-xl font-bold">{businessData?.businessName || 'Your Store'}</h2>
+                                <p className="text-sm text-muted-foreground">Order #{orderForSlip.id.substring(0,6).toUpperCase()}</p>
+                            </div>
+                            <div className="text-right text-sm">
+                                <p>{new Date(orderForSlip.createdAt.toDate()).toLocaleDateString()}</p>
+                                <p className="text-muted-foreground">Attach this slip to the package.</p>
+                            </div>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4 px-6 py-4 text-sm">
+                            <div className="space-y-1">
+                                <p className="font-semibold">Ship To</p>
+                                <p>{orderForSlip.customer.name}</p>
+                                <p>{orderForSlip.customer.phone}</p>
+                                {orderForSlip.customer.address && <p className="text-muted-foreground whitespace-pre-line">{orderForSlip.customer.address}</p>}
+                            </div>
+                            <div className="space-y-1">
+                                <p className="font-semibold">Dispatch Instructions</p>
+                                <p className="text-muted-foreground">Assigned to nearest BusmoGo dispatch shop. Include this slip; partner driver will scan on pickup.</p>
+                                <p className="text-muted-foreground">If pickup requested: we will collect and deliver to dispatch shop.</p>
+                            </div>
+                        </div>
+                        <div className="px-6 pb-4">
+                            <table className="w-full text-sm border">
+                                <thead className="bg-muted/40">
+                                    <tr>
+                                        <th className="text-left px-3 py-2 border">Item</th>
+                                        <th className="text-right px-3 py-2 border">Qty</th>
+                                        <th className="text-right px-3 py-2 border">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orderForSlip.items.map((item, idx) => (
+                                        <tr key={idx}>
+                                            <td className="px-3 py-2 border">{item.productName}{item.variantName ? ` (${item.variantName})` : ''}</td>
+                                            <td className="px-3 py-2 border text-right">{item.quantity}</td>
+                                            <td className="px-3 py-2 border text-right">{formatCurrency(item.price * item.quantity, businessData?.currency)}</td>
+                                        </tr>
+                                    ))}
+                                    <tr>
+                                        <td className="px-3 py-2 border font-semibold" colSpan={2}>Total</td>
+                                        <td className="px-3 py-2 border text-right font-semibold">{formatCurrency(orderForSlip.total, businessData?.currency)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div className="mt-4 text-xs text-muted-foreground space-y-1">
+                                <p>Attach this slip securely to the package. Drop-off at your assigned dispatch shop or await pickup.</p>
+                                <p>Maintenance fee covers dispatch shop handling; pickup fee applies when BusmoGo collects from your store.</p>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
         </>
     );
 };

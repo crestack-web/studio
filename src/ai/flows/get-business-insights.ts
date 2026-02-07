@@ -53,6 +53,53 @@ export async function getBusinessInsights(input: GetBusinessInsightsInput): Prom
   return getBusinessInsightsFlow(input);
 }
 
+function formatMoney(value: number | undefined, currencySymbol: string) {
+  const safeValue = Number.isFinite(value) ? Number(value) : 0;
+  const formatted = Math.round(safeValue).toLocaleString();
+  return currencySymbol === 'CFA' ? `${formatted} ${currencySymbol}` : `${currencySymbol}${formatted}`;
+}
+
+function buildFallbackAnswer(input: GetBusinessInsightsInput, prefix?: string): GetBusinessInsightsOutput {
+  const {insights} = input;
+  const currencySymbol = input.currency || '₦';
+
+  const lacksData = insights.totalSales === 0 && insights.salesTodayCount === 0 && insights.totalDeposits === 0 && insights.totalWithdrawals === 0;
+  if (lacksData) {
+    return {answer: 'I don’t have enough data yet. Please record more sales or add your products.'};
+  }
+
+  const parts: string[] = [];
+  if (prefix) parts.push(prefix);
+
+  parts.push(
+    `Based on recent activity, your total sales are ${formatMoney(insights.totalSales, currencySymbol)} and net profit is ${formatMoney(insights.totalProfit, currencySymbol)}.`
+  );
+
+  parts.push(
+    `Today you have ${insights.salesTodayCount || 0} sale${(insights.salesTodayCount || 0) === 1 ? '' : 's'} totaling ${formatMoney(insights.salesTodayTotal, currencySymbol)} with profit ${formatMoney(insights.profitToday, currencySymbol)}.`
+  );
+
+  const cashBalance = insights.cashBalance ?? (insights.totalDeposits - insights.totalWithdrawals);
+  parts.push(
+    `Cash balance is ${formatMoney(cashBalance, currencySymbol)} after ${formatMoney(insights.totalDeposits, currencySymbol)} deposited and ${formatMoney(insights.totalWithdrawals, currencySymbol)} withdrawn.`
+  );
+
+  if (insights.bestSellingProduct) {
+    parts.push(`Top product: ${insights.bestSellingProduct.name} (${insights.bestSellingProduct.quantity} units).`);
+  }
+
+  if (insights.worstSellingProduct) {
+    parts.push(`Slowest product: ${insights.worstSellingProduct.name} (${insights.worstSellingProduct.quantity} units).`);
+  }
+
+  if (insights.lowStockProducts?.length) {
+    const lowStockList = insights.lowStockProducts.slice(0, 3).map(p => `${p.name} (${p.quantity} left)`).join(', ');
+    parts.push(`Low stock to restock: ${lowStockList}.`);
+  }
+
+  return {answer: parts.join(' ')};
+}
+
 const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
@@ -106,21 +153,30 @@ const getBusinessInsightsFlow = ai.defineFlow(
     outputSchema: GetBusinessInsightsOutputSchema,
   },
   async input => {
-    // If there's no data at all, return the standard message.
-    if (input.insights.totalSales === 0 && input.insights.salesTodayCount === 0 && input.insights.totalDeposits === 0 && input.insights.totalWithdrawals === 0) {
-        return { answer: "I don’t have enough data yet. Please record more sales to get insights." };
+    const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY);
+    const lacksData = input.insights.totalSales === 0 && input.insights.salesTodayCount === 0 && input.insights.totalDeposits === 0 && input.insights.totalWithdrawals === 0;
+
+    if (lacksData) {
+      return {answer: "I don’t have enough data yet. Please record more sales to get insights."};
+    }
+
+    if (!hasApiKey) {
+      return buildFallbackAnswer(input, "I couldn’t reach the AI service right now. Here’s a quick summary instead:");
     }
 
     try {
-        const {output} = await prompt(input);
-        return output!;
+      const {output} = await prompt(input);
+      if (output?.answer) {
+        return output;
+      }
+      return buildFallbackAnswer(input, "Here’s a quick summary based on your recent activity:");
     } catch (error: any) {
-        if (error.message && error.message.includes('429 Too Many Requests')) {
-            return { answer: "I'm experiencing high demand right now. Please try again in a minute." };
-        }
-        // For other errors, you might want to re-throw or handle them differently.
-        console.error("An unexpected error occurred in getBusinessInsightsFlow:", error);
-        return { answer: "Sorry, an unexpected error occurred. Please try again later." };
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('429 Too Many Requests')) {
+        return buildFallbackAnswer(input, "I’m experiencing high demand. Here’s a quick summary instead:");
+      }
+      console.error("An unexpected error occurred in getBusinessInsightsFlow:", error);
+      return buildFallbackAnswer(input, "Sorry, I ran into a problem. Here’s a quick summary instead:");
     }
   }
 );

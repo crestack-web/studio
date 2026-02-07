@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck, Loader2, Award, Briefcase } from 'lucide-react';
+import { Bike, Box, CheckCircle, MapPin, PackageSearch, ShieldCheck, Loader2, Award, Briefcase, Store, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -200,6 +200,46 @@ export default function BusmoGoPage() {
                     </Card>
                 </div>
                  <p className="text-center text-sm text-muted-foreground mt-8">BusmoGo adds a small handling fee to each delivery to ensure quality and insurance.</p>
+            </section>
+
+            {/* Dispatch Network & Fees */}
+            <section>
+                <h2 className="text-3xl font-bold font-headline text-center mb-6">How BusmoGo Dispatch Works</h2>
+                <p className="text-muted-foreground text-center max-w-3xl mx-auto mb-10">
+                    We assign each store to a nearby dispatch shop. Drop packages there with an order slip, or request a pickup if you can’t drop off. Dispatch partners handle sorting, scanning, and handoff to the best-fit driver for the route.
+                </p>
+                <div className="grid md:grid-cols-3 gap-6">
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Store className="w-5 h-5 text-primary"/> Dispatch Shops</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm text-muted-foreground">
+                            <p>Assigned close to your store for quick drop-offs.</p>
+                            <p>Maintenance fee keeps handling, scanning, and storage running smoothly.</p>
+                            <p>Print and attach the BusmoGo order slip before drop-off.</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Truck className="w-5 h-5 text-primary"/> Pickups On-Demand</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm text-muted-foreground">
+                            <p>Can’t drop off? Request a pickup and we’ll collect to the dispatch shop.</p>
+                            <p>Pickup fee applies per collection; transparent before you confirm.</p>
+                            <p>Drivers scan your slip at pickup so tracking starts instantly.</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary"/> Partner Drivers</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm text-muted-foreground">
+                            <p>We match local riders and drivers to the shipment type: bikes, vans, or trucks.</p>
+                            <p>Coverage for same-city, intercity, and cross-border lanes where available.</p>
+                            <p>Insurance and proof-of-delivery built into every run.</p>
+                        </CardContent>
+                    </Card>
+                </div>
             </section>
             
             {/* Benefits Section */}

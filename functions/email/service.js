@@ -17,6 +17,7 @@ const db = admin.firestore();
 
 const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
 const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
+const publicBrandHost = process.env.PUBLIC_BRAND_HOST || 'https://busmo.web.app';
 
 let transporter;
 if (missingEnvVars.length === 0) {
@@ -39,7 +40,7 @@ if (missingEnvVars.length === 0) {
 // --- Default Data ---
 // This data is used if no branding is found in Firestore.
 const defaultBranding = {
-    logoUrl: "https://storage.googleapis.com/bizassistant2-62305643-adad7.appspot.com/busmo_logo.png",
+    logoUrl: `${publicBrandHost}/main-1.png`,
     brandColor: "#7953D2",
     accentColor: "#1A237E",
     footerText: `© ${new Date().getFullYear()} Busmo. All rights reserved.`,

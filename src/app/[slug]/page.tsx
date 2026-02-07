@@ -1,17 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, MapPin, Mail, Phone, ShieldCheck, Check } from 'lucide-react';
+import { Star, MapPin, Mail, Phone, ShieldCheck, Check, Instagram, Facebook, Twitter } from 'lucide-react';
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
-import MarketLayout from '@/components/app/market-layout';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { WithId } from '@/firebase';
@@ -62,6 +61,8 @@ const RESERVED_PATHS = [
     'signup', 'welcome', 'public', 'assets', 'api', 'favicon.ico'
 ];
 
+const FALLBACK_THEME = { primary: '#5717ee', background: '#f7f7fb', text: '#0f172a' };
+
 export default function StoreSlugPage() {
     const params = useParams();
     const slug = params.slug as string;
@@ -111,9 +112,9 @@ export default function StoreSlugPage() {
     if (isLoadingProfile) {
         // Initial skeleton while fetching profile by slug
         return (
-            <MarketLayout>
-                <div className="w-full max-w-6xl">
-                     <Card className="overflow-hidden mb-8">
+            <div className="min-h-screen" style={{ backgroundColor: FALLBACK_THEME.background }}>
+                <div className="mx-auto max-w-6xl px-4 py-10">
+                    <Card className="overflow-hidden mb-8">
                         <Skeleton className="h-48 md:h-64 w-full" />
                         <CardContent className="p-6 space-y-2">
                             <Skeleton className="h-10 w-1/2" />
@@ -121,10 +122,10 @@ export default function StoreSlugPage() {
                             <Skeleton className="h-5 w-1/4" />
                         </CardContent>
                     </Card>
-                     <Skeleton className="h-8 w-1/3 mb-6" />
+                    <Skeleton className="h-8 w-1/3 mb-6" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {[...Array(4)].map((_, i) => (
-                             <Card key={i} className="overflow-hidden h-full flex flex-col">
+                            <Card key={i} className="overflow-hidden h-full flex flex-col">
                                 <Skeleton className="aspect-video w-full" />
                                 <CardContent className="p-4 flex-1 flex flex-col">
                                     <Skeleton className="h-6 mt-4 w-3/4" />
@@ -134,7 +135,7 @@ export default function StoreSlugPage() {
                         ))}
                     </div>
                 </div>
-            </MarketLayout>
+            </div>
         );
     }
     
@@ -145,66 +146,86 @@ export default function StoreSlugPage() {
     const settings = businessProfile.marketSettings;
     const isLoading = isLoadingVerification || isLoadingProducts;
 
+    const theme = settings?.theme || FALLBACK_THEME;
+    const productMap = useMemo(() => {
+        const map: Record<string, MarketProduct> = {};
+        (productsData || []).forEach(p => { map[p.id] = p; });
+        return map;
+    }, [productsData]);
+
+    const featuredProducts = useMemo(() => {
+        const ids = settings?.featuredProductIds || [];
+        return ids.map(id => productMap[id]).filter(Boolean);
+    }, [settings?.featuredProductIds, productMap]);
+
+    const collectionsWithProducts = useMemo(() => {
+        const collections = settings?.collections || [];
+        return collections.map(c => ({ ...c, products: c.productIds.map(id => productMap[id]).filter(Boolean) }));
+    }, [settings?.collections, productMap]);
+
+    const featuredIdsSet = new Set(settings?.featuredProductIds || []);
+    const nonFeaturedProducts = useMemo(() => (productsData || []).filter(p => !featuredIdsSet.has(p.id)), [productsData, featuredIdsSet]);
+
     return (
-        <MarketLayout>
-            <div className="w-full max-w-6xl">
-                 <Card className="overflow-hidden mb-8 shadow-md">
-                    <div className="h-48 md:h-64 w-full relative bg-muted">
-                        <Image 
-                            src={settings?.bannerImageUrl || `https://picsum.photos/seed/${businessId}/1200/300`}
-                            alt={`${businessProfile.businessName} banner`}
-                            fill
-                            className="object-cover"
-                            data-ai-hint="business storefront"
-                        />
+        <div className="min-h-screen" style={{ backgroundColor: theme.background, color: theme.text }}>
+            {settings?.announcement?.enabled && settings.announcement.text && (
+                <div className="w-full" style={{ backgroundColor: theme.primary, color: '#fff' }}>
+                    <div className="mx-auto max-w-6xl px-4 py-2 text-sm flex justify-between gap-4">
+                        <span>{settings.announcement.text}</span>
+                        {settings.announcement.link && <Link href={settings.announcement.link} className="underline">Learn more</Link>}
                     </div>
-                    <div className="bg-card p-6">
-                        <div className="flex flex-col sm:flex-row items-center gap-6">
-                            <Avatar className="h-28 w-28 border-4 border-card bg-muted shadow-lg -mt-20 sm:-mt-0">
-                                <AvatarImage src={settings?.logoImageUrl} alt={`${businessProfile.businessName} logo`} />
-                                <AvatarFallback className="text-3xl">
-                                    {businessProfile.businessName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'B'}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-1 text-center sm:text-left">
-                                 <div className="flex items-center justify-center sm:justify-start gap-2">
-                                    <h1 className="text-3xl md:text-4xl font-bold font-headline">{businessProfile.businessName}</h1>
-                                    {isVerified && <ShieldCheck className="h-7 w-7 text-success fill-success/20 shrink-0" />}
-                                </div>
-                                <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground mt-1">
-                                    {businessProfile.address && <span className="flex items-center gap-2"><MapPin className="w-4 h-4 shrink-0"/>{businessProfile.address}</span>}
-                                    {businessProfile.businessType && (
-                                        <>
-                                            {businessProfile.address && <Separator orientation="vertical" className="h-4" />}
-                                            <Badge variant="outline" className="capitalize">{businessProfile.businessType}</Badge>
-                                        </>
-                                    )}
+                </div>
+            )}
+
+            <div className="mx-auto max-w-6xl px-4 py-10 space-y-12">
+                {/* Hero */}
+                <section className="relative overflow-hidden rounded-3xl border shadow-sm" style={{ backgroundColor: theme.background }}>
+                    {settings?.hero?.backgroundUrl && (
+                        <Image src={settings.hero.backgroundUrl} alt="Store hero" fill className="object-cover opacity-70" />
+                    )}
+                    <div className="relative p-8 sm:p-12 backdrop-blur-sm bg-black/30 text-white" style={{ color: '#fff' }}>
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-20 w-20 border-4 border-white/30 bg-white/10">
+                                    <AvatarImage src={settings?.logoImageUrl} alt={`${businessProfile.businessName} logo`} />
+                                    <AvatarFallback className="text-2xl">{businessProfile.businessName?.[0] || 'B'}</AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-3xl sm:text-4xl font-bold font-headline">{businessProfile.businessName}</h1>
+                                        {isVerified && <Badge className="flex items-center gap-1 bg-white/10 border-white/20 text-white"><ShieldCheck className="h-4 w-4" /> Verified</Badge>}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-sm text-white/80">
+                                        {businessProfile.businessType && <Badge variant="secondary" className="bg-white/10 border-white/20 text-white">{businessProfile.businessType}</Badge>}
+                                        {businessProfile.address && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {businessProfile.address}</span>}
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                 {settings?.contactEmail && <a href={`mailto:${settings.contactEmail}`}><Button variant="outline" size="icon"><Mail className="h-4 w-4" /><span className="sr-only">Email</span></Button></a>}
-                                 {settings?.contactPhone && <a href={`tel:${settings.contactPhone}`}><Button variant="outline" size="icon"><Phone className="h-4 w-4" /><span className="sr-only">Call</span></Button></a>}
-                                 {isSubscribed ? (
-                                    <Button variant="secondary" disabled className="cursor-default">
-                                        <Check className="mr-2 h-4 w-4" /> Subscribed
-                                    </Button>
-                                ) : (
-                                    <Button variant="outline" onClick={handleSubscribe}>
-                                        <Mail className="mr-2 h-4 w-4" /> Subscribe
-                                    </Button>
-                                )}
+                                {settings?.socials?.instagram && <Link href={settings.socials.instagram} target="_blank"><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Instagram className="h-4 w-4" /></Button></Link>}
+                                {settings?.socials?.facebook && <Link href={settings.socials.facebook} target="_blank"><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Facebook className="h-4 w-4" /></Button></Link>}
+                                {settings?.socials?.twitter && <Link href={settings.socials.twitter} target="_blank"><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Twitter className="h-4 w-4" /></Button></Link>}
+                                {settings?.contactEmail && <a href={`mailto:${settings.contactEmail}`}><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Mail className="h-4 w-4" /></Button></a>}
+                                {settings?.contactPhone && <a href={`tel:${settings.contactPhone}`}><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Phone className="h-4 w-4" /></Button></a>}
                             </div>
                         </div>
-                         <p className="text-muted-foreground mt-4 max-w-2xl mx-auto sm:mx-0">{businessProfile.marketDescription || `Welcome to our store on Busmo Market!`}</p>
+                        <div className="mt-8 max-w-3xl space-y-4">
+                            <h2 className="text-3xl sm:text-4xl font-bold">{settings?.hero?.title || 'Discover our latest collections'}</h2>
+                            <p className="text-lg text-white/85">{settings?.hero?.subtitle || businessProfile.marketDescription || 'Curated products from our store.'}</p>
+                            {settings?.hero?.ctaText && settings.hero.ctaUrl && (
+                                <Button asChild size="lg" style={{ backgroundColor: theme.primary, borderColor: theme.primary }}>
+                                    <Link href={settings.hero.ctaUrl}>{settings.hero.ctaText}</Link>
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                </Card>
+                </section>
 
-                <h2 className="text-2xl font-bold font-headline mb-6">Products from {businessProfile.businessName}</h2>
-                
-                {isLoading ? ( // Show skeleton for products while loading
+                {/* Featured products */}
+                {isLoading ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         {[...Array(4)].map((_, i) => (
-                             <Card key={i} className="overflow-hidden h-full flex flex-col">
+                            <Card key={`sk-${i}`} className="overflow-hidden h-full flex flex-col">
                                 <Skeleton className="aspect-square w-full" />
                                 <CardContent className="p-3 flex-1 flex flex-col">
                                     <Skeleton className="h-5 mt-4 w-3/4" />
@@ -214,63 +235,123 @@ export default function StoreSlugPage() {
                             </Card>
                         ))}
                     </div>
-                ) : productsData && productsData.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {productsData.map(product => {
-                            const rating = product.averageRating || 0;
-                            const reviewCount = product.reviewCount || 0;
-                            const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
-
-                            return (
-                            <Link href={`/market/product/${product.id}`} key={product.id}>
-                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
-                                    <div className="aspect-square overflow-hidden relative">
-                                        <Image 
-                                            src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`}
-                                            alt={product.productName || 'Product image'}
-                                            fill
-                                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                                            data-ai-hint={product.category || (product.productName || '').split(' ').slice(0,2).join(' ')}
-                                        />
-                                    </div>
-                                    <CardContent className="p-3 flex-1 flex flex-col">
-                                        <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
-                                        <div className="mt-2">
-                                            <p className="font-bold text-base">{formatCurrency(displayPrice, market.country)}</p>
-                                        </div>
-                                        <div className="flex items-center gap-0.5 mt-1">
-                                            {[...Array(5)].map((_, i) => <Star key={i} className={cn("w-3 h-3", rating > 0 && i < Math.round(rating) ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/30")} />)}
-                                            {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
-                                        </div>
-                                        <Button size="sm" variant="outline" className="w-full mt-3 h-9">
-                                           View Product
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )})}
-                    </div>
                 ) : (
-                    <div className="text-center py-20 border rounded-lg bg-card">
-                        <p className="text-muted-foreground">This store has not listed any products yet.</p>
+                    <div className="space-y-10">
+                        {featuredProducts.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-headline font-semibold">Featured</h2>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {featuredProducts.map(product => {
+                                        const rating = product.averageRating || 0;
+                                        const reviewCount = product.reviewCount || 0;
+                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        return (
+                                            <Link href={`/market/product/${product.id}`} key={`feat-${product.id}`}>
+                                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                                    <div className="aspect-square overflow-hidden relative">
+                                                        <Image src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`} alt={product.productName || 'Product image'} fill className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
+                                                    </div>
+                                                    <CardContent className="p-3 flex-1 flex flex-col">
+                                                        <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                        <div className="flex items-center gap-0.5 mt-1">
+                                                            {[...Array(5)].map((_, i) => <Star key={i} className={cn('w-3 h-3', rating > 0 && i < Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')} />)}
+                                                            {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
+                                                        </div>
+                                                        <Button size="sm" className="w-full mt-3 h-9" style={{ backgroundColor: theme.primary, borderColor: theme.primary }}>View Product</Button>
+                                                    </CardContent>
+                                                </Card>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {collectionsWithProducts.map((collection) => (
+                            <div key={collection.id} className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xl font-semibold">{collection.name}</h3>
+                                    <span className="text-sm text-muted-foreground">{collection.products.length} items</span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {collection.products.map(product => {
+                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        return (
+                                            <Link href={`/market/product/${product.id}`} key={`${collection.id}-${product.id}`}>
+                                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                                    <div className="aspect-square overflow-hidden relative">
+                                                        <Image src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`} alt={product.productName || 'Product image'} fill className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
+                                                    </div>
+                                                    <CardContent className="p-3 flex-1 flex flex-col">
+                                                        <h4 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h4>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                    </CardContent>
+                                                </Card>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-headline font-semibold">All Products</h2>
+                                <Badge variant="outline">{productsData?.length || 0} items</Badge>
+                            </div>
+                            {nonFeaturedProducts && nonFeaturedProducts.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {nonFeaturedProducts.map(product => {
+                                        const rating = product.averageRating || 0;
+                                        const reviewCount = product.reviewCount || 0;
+                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        return (
+                                            <Link href={`/market/product/${product.id}`} key={`all-${product.id}`}>
+                                                <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
+                                                    <div className="aspect-square overflow-hidden relative">
+                                                        <Image src={product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`} alt={product.productName || 'Product image'} fill className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
+                                                    </div>
+                                                    <CardContent className="p-3 flex-1 flex flex-col">
+                                                        <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                        <div className="flex items-center gap-0.5 mt-1">
+                                                            {[...Array(5)].map((_, i) => <Star key={i} className={cn('w-3 h-3', rating > 0 && i < Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')} />)}
+                                                            {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 border rounded-lg bg-card">
+                                    <p className="text-muted-foreground">No products listed yet.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
-             <div className="w-full max-w-4xl mx-auto mt-16">
-                <Card className="bg-muted/50">
-                    <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <p className="text-sm text-muted-foreground">Powered by</p>
-                            <Logo className="h-7" />
-                        </div>
-                        <Button asChild>
-                            <Link href="/signup">
-                                Start Selling on Busmo &rarr;
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        </MarketLayout>
+
+            <footer className="border-t" style={{ backgroundColor: '#fff' }}>
+                <div className="mx-auto max-w-6xl px-4 py-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h4 className="font-semibold">{businessProfile.businessName}</h4>
+                        <p className="text-sm text-muted-foreground">{businessProfile.marketDescription || 'Thanks for visiting our store.'}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {settings?.socials?.instagram && <Link href={settings.socials.instagram} target="_blank" className="text-muted-foreground hover:text-foreground"><Instagram className="h-5 w-5" /></Link>}
+                        {settings?.socials?.facebook && <Link href={settings.socials.facebook} target="_blank" className="text-muted-foreground hover:text-foreground"><Facebook className="h-5 w-5" /></Link>}
+                        {settings?.socials?.twitter && <Link href={settings.socials.twitter} target="_blank" className="text-muted-foreground hover:text-foreground"><Twitter className="h-5 w-5" /></Link>}
+                        {settings?.contactEmail && <a href={`mailto:${settings.contactEmail}`} className="text-muted-foreground hover:text-foreground"><Mail className="h-5 w-5" /></a>}
+                        {settings?.contactPhone && <a href={`tel:${settings.contactPhone}`} className="text-muted-foreground hover:text-foreground"><Phone className="h-5 w-5" /></a>}
+                    </div>
+                </div>
+            </footer>
+        </div>
     );
 }

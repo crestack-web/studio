@@ -271,14 +271,30 @@ export default function ProductDetailPage() {
                 <ChevronRight className="w-4 h-4" />
                 <Link href={`/market/search?q=${productData.category}`} className="capitalize hover:text-primary">{productData.category}</Link>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px] gap-6 lg:gap-8 xl:gap-12 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] gap-6 lg:gap-10 xl:gap-12 items-start">
                 <div className="w-full min-w-0 order-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6 md:gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(260px,0.95fr)] gap-5 md:gap-6">
                         {/* --- Image Gallery --- */}
                         <div>
-                             <div className="aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
+                             <div className="aspect-[4/5] sm:aspect-square w-full relative bg-card rounded-lg overflow-hidden border">
                                 <Image src={selectedImage || 'https://picsum.photos/seed/placeholder/800/800'} alt={productName} fill className="object-contain transition-opacity duration-300 p-4" data-ai-hint={productData.hint || productName} key={selectedImage} />
                             </div>
+                             {imageGallery.length > 1 && (
+                                <div className="mt-4 md:hidden flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                                    {imageGallery.map((img, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setSelectedImage(img)}
+                                            className={cn(
+                                                "relative h-20 w-20 flex-shrink-0 rounded-md overflow-hidden border-2 transition-all",
+                                                selectedImage === img ? "border-primary" : "border-transparent hover:border-primary/50"
+                                            )}
+                                        >
+                                            <Image src={img} alt={`Thumbnail ${i+1}`} fill className="object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                              {imageGallery.length > 1 && (
                                 <div className="mt-4 hidden md:block">
                                     <Carousel opts={{ align: "start", loop: false }} className="w-full">
