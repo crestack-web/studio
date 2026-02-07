@@ -2,45 +2,46 @@ import { cn } from "@/lib/utils";
 
 const LogoIcon = () => (
   <svg
-    width="1.2em"
-    height="1em"
-    viewBox="0 0 50 42"
+    width="1.4em"
+    height="1.2em"
+    viewBox="0 0 80 70"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className="h-[1em] w-[1.2em]"
+    className="h-[1.2em] w-[1.4em] text-primary"
   >
-    {/* Back Coin */}
-    <circle cx="18" cy="18" r="16" className="fill-accent" />
+    {/* Back coin */}
+    <circle cx="30" cy="30" r="28" fill="currentColor" />
     <text
-      x="18"
-      y="19"
+      x="30"
+      y="31"
       textAnchor="middle"
       dominantBaseline="middle"
-      fontWeight="600"
-      fontSize="16"
-      className="fill-background"
-      fontFamily="sans-serif"
+      fontWeight="700"
+      fontSize="26"
+      fill="white"
+      fontFamily="'Inter', 'Segoe UI', sans-serif"
     >
       $
     </text>
-    
-    {/* Front Coin */}
+
+    {/* Front coin */}
     <circle
-      cx="32"
-      cy="24"
-      r="13"
-      className="fill-card stroke-accent"
-      strokeWidth="2.5"
+      cx="52"
+      cy="42"
+      r="24"
+      fill="white"
+      stroke="currentColor"
+      strokeWidth="3"
     />
     <text
-      x="32"
-      y="25"
+      x="52"
+      y="43"
       textAnchor="middle"
       dominantBaseline="middle"
-      fontWeight="600"
-      fontSize="14"
-      className="fill-accent"
-      fontFamily="sans-serif"
+      fontWeight="700"
+      fontSize="24"
+      fill="currentColor"
+      fontFamily="'Inter', 'Segoe UI', sans-serif"
     >
       $
     </text>
