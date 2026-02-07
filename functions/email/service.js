@@ -46,7 +46,7 @@ const defaultBranding = {
     footerText: `© ${new Date().getFullYear()} Busmo. All rights reserved.`,
     senderName: "Busmo",
     senderEmail: "noreply@busmo.com",
-    twitterUrl: "https://x.com/busmo_io",
+    twitterUrl: "https://x.com/busmohq",
     instagramUrl: "https://instagram.com/busmo.io",
     facebookUrl: "https://facebook.com/busmo.io",
 };
@@ -61,6 +61,88 @@ const defaultTemplates = {
         `,
         preheader: "We're thrilled to have you join us.",
     },
+    staff_invite: {
+        subject: "You're invited to join {{businessName}} on Busmo",
+        htmlBody: `
+            <h1>Hi,</h1>
+            <p>You’ve been invited to join <strong>{{businessName}}</strong> as a staff member on Busmo.</p>
+            <p>To accept the invite, open the Staff Login page and request a login link using this email address.</p>
+            <p><a href="{{joinUrl}}" target="_blank" rel="noopener noreferrer">Join as Staff</a></p>
+            <p>If you didn’t expect this invitation, you can ignore this email.</p>
+        `,
+        preheader: "Join your business as staff on Busmo.",
+    },
+    staff_access_granted: {
+        subject: "Your staff access is ready for {{businessName}}",
+        htmlBody: `
+            <h1>You're all set!</h1>
+            <p>Your manager has assigned your staff permissions for <strong>{{businessName}}</strong>.</p>
+            {{#if permissionsSummary}}
+                <p><strong>Your access:</strong> {{permissionsSummary}}</p>
+            {{/if}}
+            <p><a href="{{dashboardUrl}}" target="_blank" rel="noopener noreferrer">Open Staff Dashboard</a></p>
+        `,
+        preheader: "Your staff permissions have been assigned.",
+    },
+        owner_daily_digest: {
+                subject: "Your Busmo daily digest — {{businessName}}",
+                htmlBody: `
+                        <h1>Daily digest</h1>
+                        <p><strong>{{businessName}}</strong> • {{dateLabel}}</p>
+
+                        <p>
+                            <strong>Cash balance:</strong> {{cashBalanceFormatted}}<br/>
+                            <strong>Sales (30d):</strong> {{sales30dFormatted}}<br/>
+                            <strong>Expenses (30d):</strong> {{expenses30dFormatted}}
+                        </p>
+
+                        {{#if hasRunway}}
+                            <p><strong>Estimated cash runway:</strong> ~{{runwayDays}} days</p>
+                        {{/if}}
+
+                        {{#if hasHighlights}}
+                            <h3>Key areas to improve</h3>
+                            <ul>
+                                {{#each highlights}}
+                                    <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        {{/if}}
+
+                        <p><a href="{{dashboardUrl}}" target="_blank" rel="noopener noreferrer">Open your dashboard</a></p>
+                `,
+                preheader: "Your daily business summary and action items.",
+        },
+        owner_new_order: {
+                subject: "New order received — {{businessName}}",
+                htmlBody: `
+                        <h1>New order received</h1>
+                        <p><strong>{{businessName}}</strong> • {{dateLabel}}</p>
+
+                        <p>
+                            <strong>Order ID:</strong> {{orderId}}<br/>
+                            <strong>Status:</strong> {{status}}<br/>
+                            <strong>Customer:</strong> {{customerName}} {{#if customerPhone}}({{customerPhone}}){{/if}}<br/>
+                            <strong>Items:</strong> {{itemsCount}}<br/>
+                            <strong>Total:</strong> {{totalFormatted}}
+                        </p>
+
+                        {{#if itemLines}}
+                            <h3>Items</h3>
+                            <ul>
+                                {{#each itemLines}}
+                                    <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                            {{#if hasMoreItems}}
+                                <p><em>Open the dashboard to see all items.</em></p>
+                            {{/if}}
+                        {{/if}}
+
+                        <p><a href="{{ordersUrl}}" target="_blank" rel="noopener noreferrer">Open orders</a></p>
+                `,
+                preheader: "A customer placed an order in your store.",
+        },
 };
 
 // --- Core Service ---

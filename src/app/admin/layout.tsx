@@ -91,8 +91,10 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
           router.replace('/delivery-agent/dashboard');
           break;
         default:
-          // If role is unknown or not set, redirect to the general login page.
-          router.replace('/login');
+          // If role is unknown or not set, keep them in the admin auth flow.
+          // This prevents bouncing to the owner login when the admin profile/permissions
+          // docs are missing or still provisioning.
+          router.replace('/admin/login');
           break;
       }
     }

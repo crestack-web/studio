@@ -2,10 +2,15 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
-const { onUserCreate } = require("./triggers/auth");
 const cors = require('cors')({origin: true});
 
+// IMPORTANT: Initialize admin BEFORE requiring any modules that call admin.firestore().
 admin.initializeApp();
+
+const { onUserCreate } = require("./triggers/auth");
+const { onStaffInvitationCreate, onStaffPermissionsAssigned } = require('./triggers/staff');
+const { onOrderCreate } = require('./triggers/orders');
+const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
 // IMPORTANT: Set your Paystack secret key in your environment variables
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
@@ -22,6 +27,16 @@ exports.paystackWebhook = paymentFunctions.paystackWebhook;
 
 // Expose the auth trigger for the welcome email
 exports.onUserCreate = onUserCreate;
+
+// Staff invitation + permissions emails
+exports.onStaffInvitationCreate = onStaffInvitationCreate;
+exports.onStaffPermissionsAssigned = onStaffPermissionsAssigned;
+
+// Market order notifications
+exports.onOrderCreate = onOrderCreate;
+
+// Daily owner email digest
+exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
 exports.fetchBankList = functions.https.onRequest((req, res) => {

@@ -248,13 +248,72 @@ export default function BusmoPayDashboard() {
     }
     
     return (
-        <MainLayout title="BusmoPay Dashboard" backHref="/owner/home">
+        <MainLayout title="BusmoPay" backHref="/owner/home">
             <div className="w-full max-w-5xl space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> BusmoPay: Payments & Payouts</CardTitle>
+                        <CardDescription>
+                            BusmoPay is Busmo’s payment gateway. We collect money from your customers, confirm the payment for the order, then pay out your earnings to you.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><CreditCard className="h-4 w-4 text-primary" /> Collect</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Customers pay online during checkout. The payment is recorded as a BusmoPay transaction.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><ShoppingCart className="h-4 w-4 text-primary" /> Confirm</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Successful payments move the order forward so you can prepare, ship, or deliver with confidence.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><Banknote className="h-4 w-4 text-primary" /> Settle</div>
+                                <p className="mt-1 text-sm text-muted-foreground">After you fulfill the order, your earnings are paid out to your verified bank account.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle className="text-base">How money flows</CardTitle>
+                                    <CardDescription>Simple, auditable movement of funds.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="text-sm text-muted-foreground space-y-2">
+                                    <p><span className="font-medium text-foreground">1)</span> Buyer pays via BusmoPay during checkout.</p>
+                                    <p><span className="font-medium text-foreground">2)</span> BusmoPay records the transaction and updates the order payment status.</p>
+                                    <p><span className="font-medium text-foreground">3)</span> When the order is fulfilled, BusmoPay triggers settlement.</p>
+                                    <p><span className="font-medium text-foreground">4)</span> Payout is sent to your verified bank account (minus Busmo commission).</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Where BusmoPay is used</CardTitle>
+                                    <CardDescription>Across Busmo commerce features that accept online payments.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="text-sm text-muted-foreground space-y-2">
+                                    <p><span className="font-medium text-foreground">•</span> Online checkout on your Busmo Storefront / Market orders.</p>
+                                    <p><span className="font-medium text-foreground">•</span> Transaction history for reconciliation and reporting.</p>
+                                    <p><span className="font-medium text-foreground">•</span> Payouts to your bank account after fulfillment.</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <Alert>
+                            <HelpCircle className="h-4 w-4" />
+                            <AlertTitle>Payout timeline & fees</AlertTitle>
+                            <AlertDescription>
+                                Busmo collects payments from buyers on your behalf. After you fulfill an order, earnings (minus a 10% commission) are settled to your verified bank account within 24–48 hours.
+                            </AlertDescription>
+                        </Alert>
+                    </CardContent>
+                </Card>
+
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard title="Available for Payout" value={availableForPayout} isLoading={isLoading} currency={currency}>
                         <Button size="sm" className="mt-2" onClick={handleRequestPayout}>Request Payout</Button>
                     </StatCard>
-                    <StatCard title="Coming Soon" value={comingSoon} isLoading={isLoading} currency={currency} note="From confirmed orders" />
+                    <StatCard title="Coming Soon" value={comingSoon} isLoading={isLoading} currency={currency} note="Estimated from confirmed orders" />
                     <StatCard title="Total Revenue" value={totalRevenue} isLoading={isLoading} currency={currency} note="All-time online sales" />
                     <StatCard title="Total Paid Out" value={totalPaidOut} isLoading={isLoading} currency={currency} note="Sent to your bank" />
                 </div>

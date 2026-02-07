@@ -317,14 +317,14 @@ const SettingsContent = () => {
                     <Label htmlFor="store-slug">Store URL</Label>
                     <div className="flex items-center gap-2">
                         <div className="flex h-10 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                            busmo.com/
+                            busmo.io/
                         </div>
                         <Input id="store-slug" value={slug} onChange={e => setSlug(e.target.value)} className="rounded-l-none" />
                     </div>
                 </CardContent>
                 <CardFooter className="gap-2">
                     <Button variant="outline" onClick={() => {
-                        navigator.clipboard.writeText(`https://your-domain.com/${slug}`);
+                        navigator.clipboard.writeText(`https://busmo.io/${slug}`);
                         toast({ title: "Copied to clipboard!" });
                     }}>
                         <Copy className="mr-2 h-4 w-4" />
@@ -1367,7 +1367,7 @@ const BusmoPaySettings = () => {
             <Card>
                 <CardHeader>
                     <CardTitle>Payout Settings (Nigeria)</CardTitle>
-                    <CardDescription>Set up your bank account to receive payouts from your sales on Busmo Market.</CardDescription>
+                    <CardDescription>Set up your bank account to receive BusmoPay payouts from your online sales.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid sm:grid-cols-2 gap-4">
@@ -1418,7 +1418,7 @@ const BusmoPaySettings = () => {
                 <CreditCard className="h-4 w-4" />
                 <AlertTitle>How Payouts Work</AlertTitle>
                 <AlertDescription>
-                    Busmo collects payments from buyers on your behalf. After you fulfill an order, the earnings (minus a 10% commission) are automatically sent to your verified bank account within 24-48 hours.
+                    Busmo collects payments from buyers on your behalf. After you fulfill an order, earnings (minus a 10% commission) are settled to your verified bank account within 24–48 hours.
                 </AlertDescription>
             </Alert>
         </div>

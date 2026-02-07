@@ -13,6 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface AppUser {
     displayName?: string;
     businessId?: string;
+    staffPermissions?: {
+        canRecordSale?: boolean;
+        canAddInventory?: boolean;
+        canRecordExpense?: boolean;
+    };
 }
 
 interface Business {
@@ -46,9 +51,13 @@ export default function StaffHomePage() {
     
     const isLoading = isUserLoading || isProfileLoading || isBusinessLoading;
 
-    // For now, we only show "Record Sale" until a permissions system is built
-    const canAddInventory = false;
-    const canRecordExpense = false;
+    const permissions = userProfile?.staffPermissions;
+    const hasDashboardAccess = Boolean(
+        permissions?.canRecordSale || permissions?.canAddInventory || permissions?.canRecordExpense
+    );
+
+    const canAddInventory = Boolean(permissions?.canAddInventory);
+    const canRecordExpense = Boolean(permissions?.canRecordExpense);
 
     return (
         <div className="flex flex-col min-h-screen bg-background">
@@ -70,28 +79,38 @@ export default function StaffHomePage() {
         <main className="flex-1 flex items-center justify-center p-4">
             <div className="w-full max-w-sm space-y-4">
                  <h1 className="text-center text-2xl font-bold font-headline">Staff Dashboard</h1>
-                <Link href="/record-sale">
-                    <Button className="w-full h-24 text-xl font-headline flex-col gap-2">
-                        <Plus className="w-8 h-8" />
-                        Record a Sale
-                    </Button>
-                </Link>
-                 {canAddInventory && (
-                    <Link href="/add-inventory">
-                        <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
-                            <PackagePlus className="w-8 h-8" />
-                            Add Inventory
-                        </Button>
-                    </Link>
-                 )}
-                 {canRecordExpense && (
-                    <Link href="/record-expense">
-                        <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
-                            <FilePlus className="w-8 h-8" />
-                            Record Expense
-                        </Button>
-                    </Link>
-                 )}
+
+                {!hasDashboardAccess ? (
+                    <div className="space-y-3 text-center">
+                        <p className="text-sm text-muted-foreground">Your account is ready, but your business owner still needs to assign your permissions.</p>
+                        <p className="text-xs text-muted-foreground">Check back later or contact your manager.</p>
+                    </div>
+                ) : (
+                    <>
+                        <Link href="/record-sale">
+                            <Button className="w-full h-24 text-xl font-headline flex-col gap-2">
+                                <Plus className="w-8 h-8" />
+                                Record a Sale
+                            </Button>
+                        </Link>
+                        {canAddInventory && (
+                            <Link href="/add-inventory">
+                                <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                                    <PackagePlus className="w-8 h-8" />
+                                    Add Inventory
+                                </Button>
+                            </Link>
+                        )}
+                        {canRecordExpense && (
+                            <Link href="/record-expense">
+                                <Button variant="secondary" className="w-full h-24 text-xl font-headline flex-col gap-2">
+                                    <FilePlus className="w-8 h-8" />
+                                    Record Expense
+                                </Button>
+                            </Link>
+                        )}
+                    </>
+                )}
             </div>
         </main>
         </div>

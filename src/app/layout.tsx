@@ -6,12 +6,12 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { LanguageProvider } from '@/context/language-provider';
 import { CartProvider } from '@/context/cart-provider';
 import { MarketProvider } from '@/context/market-provider';
-import { ChatWidget } from '@/components/app/chat-widget';
+import { ConditionalChatWidget } from '@/components/app/conditional-chat-widget';
 import { PwaRegister } from '@/components/app/pwa-register';
 
 export const metadata: Metadata = {
   title: 'Busmo',
-  description: 'Your AI partner for managing your business money.',
+  description: "The all-in-one workspace for African small businesses.",
   manifest: '/manifest.json',
   icons: {
     icon: '/icon.png',
@@ -45,7 +45,7 @@ export default function RootLayout({
                   {children}
                   <PwaRegister />
                   <Toaster />
-                  <ChatWidget />
+                  <ConditionalChatWidget />
                 </ThemeProvider>
               </CartProvider>
             </MarketProvider>

@@ -4,7 +4,7 @@ import { useUser, useCollection, useMemoFirebase, useFirestore, useDoc } from '@
 import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { collection, query, Timestamp, doc } from 'firebase/firestore';
+import { collection, query, Timestamp, doc, orderBy, limit } from 'firebase/firestore';
 
 const LoadingScreen = () => (
   <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -36,7 +36,11 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
 
   const subscriptionsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, `users/${user.uid}/subscriptions`));
+    return query(
+      collection(firestore, `users/${user.uid}/subscriptions`),
+      orderBy('currentPeriodEnd', 'desc'),
+      limit(1)
+    );
   }, [firestore, user]);
   const { data: subscriptions, isLoading: isLoadingSubscriptions } = useCollection<Subscription>(subscriptionsQuery);
 

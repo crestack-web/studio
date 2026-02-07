@@ -85,7 +85,7 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
                         <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
                     </div>
                     <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-                        <a href="https://x.com/busmo_io" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
+                        <a href="https://x.com/busmohq" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
                             <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
                         </a>
                         <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">

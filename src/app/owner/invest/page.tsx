@@ -2,8 +2,7 @@
 'use client';
 import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle, Landmark, Percent, ShieldCheck, Briefcase } from 'lucide-react';
+import { CheckCircle, Landmark, Percent, Briefcase, Sparkles, LineChart, ClipboardList, ShieldCheck } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
@@ -64,32 +63,62 @@ export default function OwnerInvestPage() {
 
     return (
         <MainLayout title="Access Capital" backHref="/owner/home">
-            <div className="w-full max-w-4xl space-y-8">
+            <div className="w-full max-w-5xl space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>How Investment Works on Busmo</CardTitle>
-                        <CardDescription>We help you turn your consistent business data into a track record that investors can trust.</CardDescription>
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-2">
+                                <CardTitle className="text-2xl sm:text-3xl">Access Capital with Verified Business Data</CardTitle>
+                                <CardDescription className="text-base">
+                                    Busmo helps you turn day‑to‑day operations into an investor‑ready track record — sales, expenses, inventory, and fulfillment.
+                                </CardDescription>
+                            </div>
+                            <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
+                                <Sparkles className="h-5 w-5" />
+                                <span className="text-sm">Data → Trust → Funding</span>
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-start gap-4">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">1</div>
-                            <div>
-                                <h4 className="font-semibold">Build Your Track Record</h4>
-                                <p className="text-sm text-muted-foreground">Consistently record sales and expenses for at least 3 months. The quality and consistency of your data build a verified financial history that determines your eligibility and potential offer sizes.</p>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><ClipboardList className="h-4 w-4 text-primary" /> Build a Track Record</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Keep your sales and expenses up to date. Consistency matters more than perfection.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><LineChart className="h-4 w-4 text-primary" /> Show Real Performance</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Investors look for stable revenue, healthy margins, and a clear operating rhythm.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-primary" /> Receive Offers Safely</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Only businesses that opt‑in are visible. You stay in control of your visibility.</p>
                             </div>
                         </div>
-                        <div className="flex items-start gap-4">
-                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">2</div>
-                            <div>
-                                <h4 className="font-semibold">Become Visible to Investors</h4>
-                                <p className="text-sm text-muted-foreground">Once you're ready, you can make your business profile visible on the Busmo investment marketplace for verified investors to discover.</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">3</div>
-                            <div>
-                                <h4 className="font-semibold">Receive & Accept Offers</h4>
-                                <p className="text-sm text-muted-foreground">Investors can make offers directly through the platform. You review and accept the terms that work for you.</p>
+
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold font-headline">How it works</h3>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <div className="flex items-start gap-3 rounded-lg border p-4">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">1</div>
+                                    <div>
+                                        <h4 className="font-semibold">Record your operations</h4>
+                                        <p className="text-sm text-muted-foreground">Track sales, expenses, inventory movement, and order fulfillment for at least 3 months.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 rounded-lg border p-4">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">2</div>
+                                    <div>
+                                        <h4 className="font-semibold">Opt‑in to investor visibility</h4>
+                                        <p className="text-sm text-muted-foreground">When you’re ready, you can make your profile discoverable in the investor marketplace.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 rounded-lg border p-4">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">3</div>
+                                    <div>
+                                        <h4 className="font-semibold">Review and accept offers</h4>
+                                        <p className="text-sm text-muted-foreground">Investors can submit offers. You choose what works for your business goals and timeline.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -99,7 +128,7 @@ export default function OwnerInvestPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5 text-primary" /> Profit Sharing</CardTitle>
-                            <CardDescription>Get capital now in exchange for a percentage of your future profits for a set period.</CardDescription>
+                            <CardDescription>Get capital now in exchange for a percentage of future profits for a defined period.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ul className="space-y-2 text-sm">
@@ -142,6 +171,33 @@ export default function OwnerInvestPage() {
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>What investors typically look at</CardTitle>
+                        <CardDescription>These are common signals of a well‑run business. Keep them updated in Busmo for a stronger profile.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded-lg border p-4">
+                                <div className="font-semibold">Revenue consistency</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Stable weekly/monthly sales and repeat customers show predictability.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="font-semibold">Profitability and margins</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Healthy gross margin and controlled operating expenses increase confidence.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="font-semibold">Cash discipline</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Clear expense categories and steady cash flow reduce risk.</p>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="font-semibold">Inventory and fulfillment</div>
+                                <p className="mt-1 text-sm text-muted-foreground">Fast turnover, low stockouts, and consistent fulfillment show operational strength.</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
                 
                  <div className="space-y-4 pt-4 border-t">
                     <h3 className="text-xl font-semibold font-headline text-center">See What's Possible</h3>
@@ -199,7 +255,7 @@ export default function OwnerInvestPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Investor Visibility</CardTitle>
-                        <CardDescription>Allow verified investors to see your business profile and performance metrics.</CardDescription>
+                        <CardDescription>When enabled, verified investors can discover your profile and key performance metrics.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center space-x-2">
@@ -218,6 +274,14 @@ export default function OwnerInvestPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                <Alert>
+                    <ShieldCheck className="h-4 w-4" />
+                    <AlertTitle>Important</AlertTitle>
+                    <AlertDescription>
+                        Busmo does not guarantee funding. Your visibility and the offers you receive depend on your data quality, business performance, and investor interest.
+                    </AlertDescription>
+                </Alert>
 
             </div>
         </MainLayout>

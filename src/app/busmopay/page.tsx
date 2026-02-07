@@ -8,16 +8,16 @@ import InvestorLayout from '@/components/app/investor-layout';
 export default function BusmoPayPage() {
   const howItWorks = [
     {
-      title: "Enable Payments",
-      description: "Activate your payment gateway and mobile money options in your Busmo Market settings to start accepting online payments.",
+      title: "Turn on BusmoPay",
+      description: "Connect your payout details in your Busmo Market settings so you can accept online payments and receive settlements.",
     },
     {
-      title: "Sell to Customers",
-      description: "Customers purchase your products through a unified and secure checkout experience, no matter their preferred payment method.",
+      title: "Collect customer payments",
+      description: "Customers pay during checkout. BusmoPay records the transaction and confirms the order payment so you can fulfill confidently.",
     },
     {
-      title: "Get Paid & Share Profits",
-      description: "Funds are settled to your account, and profit shares are automatically calculated and tracked for your investors.",
+      title: "Get paid out to your bank",
+      description: "After fulfillment, BusmoPay settles your earnings to your verified bank account and keeps a clear payout trail for reconciliation.",
     },
   ];
 
@@ -29,14 +29,14 @@ export default function BusmoPayPage() {
                 <Logo variant="busmopay" className="text-5xl" />
             </div>
           <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl font-headline">
-            Sell products & share profits with BusmoPay
+            Busmo’s payment gateway for your online sales
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-            The integrated payment solution for the Busmo marketplace. Accept payments via popular payment gateways and mobile money, and automatically distribute profits to your investors.
+            BusmoPay is the payment and payout layer that powers Busmo commerce. We collect payments from customers on your behalf, confirm transactions for orders, then pass your earnings to you through secure payouts.
           </p>
           <div className="mt-10">
             <Link href="/signup">
-              <Button size="lg" className="h-14 text-lg">Create a free BusmoPay account</Button>
+              <Button size="lg" className="h-14 text-lg">Start accepting payments</Button>
             </Link>
           </div>
         </section>
@@ -64,12 +64,12 @@ export default function BusmoPayPage() {
         <section className="mt-24 max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold font-headline">Built for Growth</h2>
              <p className="mt-4 text-lg text-muted-foreground">
-                BusmoPay isn't just a payment gateway. It's a growth engine that connects your sales directly to your business's financial health and investment potential.
+                BusmoPay isn’t just checkout — it connects payments to fulfillment, reporting, and payouts so you can grow with less manual work.
             </p>
              <ul className="mt-8 space-y-4 text-left inline-block">
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Unified Checkout:</strong> A seamless experience for your customers in Nigeria and beyond.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Automated Profit Sharing:</strong> Build investor confidence with transparent, automated profit distribution.</span></li>
-                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>One Dashboard:</strong> Track your POS sales and online payments all in one place.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Secure collection:</strong> Customer payments are captured and tracked as transactions.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Reliable payouts:</strong> Earnings are settled to your verified bank account with a clear payout history.</span></li>
+                <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Used across Busmo features:</strong> Online payments for Busmo Market / Storefront orders, with reporting that matches your sales and fulfillment.</span></li>
             </ul>
         </section>
       </div>

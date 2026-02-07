@@ -18,7 +18,11 @@ service cloud.firestore {
     
     function isAdmin() {
       // This is now safe and non-recursive
-      return isSignedIn() && (request.auth.token.email == 'crestack@gmail.com' || request.auth.token.email == 'abduladallahusman@gmail.com');
+      return isSignedIn() && (
+        request.auth.token.email == 'crestack@gmail.com'
+        || request.auth.token.email == 'abduladallahusman@gmail.com'
+        || exists(/databases/$(database)/documents/admin_permissions/$(request.auth.uid))
+      );
     }
 
     function isOwner(businessId) {
@@ -49,9 +53,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if isUserOwner(userId) && request.resource.data.id == userId;
       allow get: if isUserOwner(userId) || isAdmin();
-      allow update: if isUserOwner(userId) || isAdmin();
-      allow write: if isSignedIn(); // Allow creating/updating user doc on first sign in
-      allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
+      allow update: if isUserOwner(userId) || isAdmin() || (resource.data.businessId != null && isOwner(resource.data.businessId));
+      // Owners can list users for their own business (used for staff management).
+      allow list: if isAdmin() || (isSignedIn() && getUserData().businessId != null && isOwner(getUserData().businessId));
       allow delete: if isAdmin();
     }
     

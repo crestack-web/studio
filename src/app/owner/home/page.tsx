@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { startOfDay, endOfDay, isWithinInterval, differenceInDays } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, differenceInDays, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -260,7 +260,16 @@ export default function OwnerHomePage() {
     }, [onboardingComplete, subscriptionSuccess, toast]);
     
     useEffect(() => {
-        const allQuestions = [
+        const allQuestions = language === 'fr' ? [
+            "Pourquoi mon bénéfice a-t-il baissé cette semaine ?",
+            "Quel produit dois-je réapprovisionner en premier ?",
+            "Est-ce que je dépense trop en charges ?",
+            "Est-ce que je peux me permettre de grandir ce mois-ci ?",
+            "Comment se passent mes ventes aujourd’hui ?",
+            "Quel est mon bénéfice net aujourd’hui ?",
+            "Quel est mon chiffre d’affaires récent ?",
+            "Combien d’argent ai-je retiré récemment ?",
+        ] : [
             "Why did my profit drop this week?",
             "Which product should I restock first?",
             "Am I spending too much on expenses?",
@@ -271,9 +280,48 @@ export default function OwnerHomePage() {
             "How much money have I withdrawn recently?",
         ];
 
-        const shuffled = allQuestions.sort(() => 0.5 - Math.random());
+        const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
         setPresetQuestions(shuffled.slice(0, 4));
-    }, []);
+    }, [language]);
+
+    const getMissingDataFallback = (question: string) => {
+        const q = (question || '').toLowerCase();
+
+        const requiresSales = q.includes('sale') || q.includes('sales') || q.includes('revenue') || q.includes("chiffre") || q.includes('vent');
+        const requiresExpenses = q.includes('expense') || q.includes('expenses') || q.includes('charge') || q.includes('dépense') || q.includes('depense');
+        const requiresTransactions = q.includes('withdraw') || q.includes('withdrawn') || q.includes('deposit') || q.includes('cash') || q.includes('retir') || q.includes('dépôt') || q.includes('depot');
+        const requiresProducts = q.includes('product') || q.includes('restock') || q.includes('stock') || q.includes('produit') || q.includes('réappro');
+        const requiresProfit = q.includes('profit') || q.includes('margin') || q.includes('béné') || q.includes('benef') || q.includes('marge');
+        const requiresGrowth = q.includes('grow') || q.includes('afford') || q.includes('grandir') || q.includes('permettre');
+
+        const needed: Array<'sales' | 'expenses' | 'transactions' | 'products'> = [];
+        if (requiresProfit) {
+            needed.push('sales', 'products', 'expenses');
+        } else {
+            if (requiresSales) needed.push('sales');
+            if (requiresExpenses) needed.push('expenses');
+            if (requiresTransactions) needed.push('transactions');
+            if (requiresProducts) needed.push('products');
+        }
+        if (requiresGrowth) {
+            needed.push('sales', 'expenses', 'transactions');
+        }
+
+        const uniqueNeeded = Array.from(new Set(needed));
+        if (uniqueNeeded.length === 0) return null;
+
+        const missing: string[] = [];
+        if (uniqueNeeded.includes('sales') && (!salesData || salesData.length === 0)) missing.push(language === 'fr' ? 'enregistrer des ventes' : 'record sales');
+        if (uniqueNeeded.includes('expenses') && (!expensesData || expensesData.length === 0)) missing.push(language === 'fr' ? 'ajouter des dépenses' : 'add expenses');
+        if (uniqueNeeded.includes('transactions') && (!transactionsData || transactionsData.length === 0)) missing.push(language === 'fr' ? 'ajouter des dépôts/retraits' : 'add deposits/withdrawals');
+        if (uniqueNeeded.includes('products') && (!productsData || productsData.length === 0)) missing.push(language === 'fr' ? 'ajouter tes produits' : 'add your products');
+
+        if (missing.length === 0) return null;
+        if (language === 'fr') {
+            return `Je n’ai pas assez de données pour répondre. Pour ça, tu dois ${missing.join(', ')}.`;
+        }
+        return `I don’t have enough data to answer that. To get this, please ${missing.join(', ')}.`;
+    };
 
     const userProfileRef = useMemoFirebase(() => {
         if (!authUser || !firestore) return null;
@@ -355,7 +403,11 @@ export default function OwnerHomePage() {
             totalSales: 0, totalProfit: 0, bestSellingProduct: undefined, worstSellingProduct: undefined,
             lowStockProducts: [], salesTodayCount: 0, salesTodayTotal: 0, profitToday: 0,
             totalDeposits: 0, totalWithdrawals: 0, profitMargin: 0, totalExpenses: 0,
-            cashBalance: 0, dailyAvgExpense: 0, salesDays: 0,
+            cashBalance: 0,
+            dailyAvgExpense: 0,
+            dailyAvgBurn: 0,
+            recentActivityInWindow: false,
+            salesDays: 0,
         };
         
         const filteredSales = selectedBranchId === 'all' ? salesData : salesData?.filter(s => s.branchId === selectedBranchId);
@@ -424,21 +476,29 @@ export default function OwnerHomePage() {
         const bestSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => b.sales - a.sales)[0] : undefined;
         const worstSellingProduct = soldProducts.length > 0 ? [...soldProducts].sort((a,b) => a.sales - b.sales)[0] : undefined;
 
-        const lowStockProducts = productsData.flatMap(p => {
-            if (p.hasVariants && p.variants) {
-                return p.variants.map(v => {
-                    const quantity = selectedBranchId === 'all' 
-                        ? Object.values(v.stockByBranch || {}).reduce((s, q) => s + q, 0)
-                        : v.stockByBranch?.[selectedBranchId] || 0;
-                    return { id: `${p.id}-${v.id}`, name: `${p.name} (${v.name})`, quantity };
-                });
-            } else {
+        const lowStockProducts = productsData
+            .flatMap(p => {
+                if (p.hasVariants && p.variants) {
+                    return p.variants.map(v => {
+                        const quantity = selectedBranchId === 'all'
+                            ? Object.values(v.stockByBranch || {}).reduce((s, q) => s + q, 0)
+                            : v.stockByBranch?.[selectedBranchId] || 0;
+                        return {
+                            id: `${p.id}-${v.id}`,
+                            productId: p.id,
+                            variantId: v.id,
+                            name: `${p.name} (${v.name})`,
+                            quantity,
+                        };
+                    });
+                }
+
                 const quantity = selectedBranchId === 'all'
                     ? Object.values(p.stockByBranch || {}).reduce((s, q) => s + q, 0)
                     : p.stockByBranch?.[selectedBranchId] || 0;
-                return [{ id: p.id, name: p.name, quantity }];
-            }
-        }).filter(p => p.quantity <= 10);
+                return [{ id: p.id, productId: p.id, name: p.name, quantity }];
+            })
+            .filter(p => p.quantity <= 10);
         
         let totalDeposits = 0;
         let totalWithdrawals = 0;
@@ -450,14 +510,49 @@ export default function OwnerHomePage() {
         const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
         const cashBalance = totalDeposits - totalWithdrawals;
 
-        const daysWithExpenses = new Set(filteredExpenses.map(e => e.createdAt.toDate().toDateString())).size;
-        const dailyAvgExpense = daysWithExpenses > 0 ? totalExpenses / daysWithExpenses : 0;
+        // Use a fixed recent window so averages aren't distorted by sparse data.
+        // Cash runway should be based on net burn (profit - expenses), not just expenses.
+        const windowDays = 30;
+        const activityWindow = {
+            start: startOfDay(subDays(new Date(), windowDays - 1)),
+            end: endOfDay(new Date()),
+        };
+
+        const expensesInWindowTotal = filteredExpenses
+            .filter(e => e.createdAt?.toDate && isWithinInterval(e.createdAt.toDate(), activityWindow))
+            .reduce((acc, e) => acc + e.amount, 0);
+
+        let salesInWindowTotal = 0;
+        let cogsInWindowTotal = 0;
+        for (const sale of filteredSales) {
+            if (!isWithinInterval(sale.timestamp.toDate(), activityWindow)) continue;
+            salesInWindowTotal += sale.amount;
+            const product = productsData.find(p => p.id === sale.productId);
+            if (!product) continue;
+            let costOfItem = 0;
+            if (product.hasVariants && sale.variantId) {
+                const variant = product.variants?.find(v => v.id === sale.variantId);
+                costOfItem = variant?.cost || 0;
+            } else {
+                costOfItem = product.cost || 0;
+            }
+            cogsInWindowTotal += costOfItem * sale.quantity;
+        }
+
+        const windowGrossProfit = salesInWindowTotal - cogsInWindowTotal;
+        const windowNetProfit = windowGrossProfit - expensesInWindowTotal;
+        const dailyAvgBurn = windowNetProfit < 0 ? (-windowNetProfit) / windowDays : 0;
+        const dailyAvgExpense = expensesInWindowTotal > 0 ? expensesInWindowTotal / windowDays : 0;
+        const recentActivityInWindow = expensesInWindowTotal > 0 || salesInWindowTotal > 0;
 
         return { 
             totalSales, totalProfit: netProfit, bestSellingProduct, worstSellingProduct, 
             lowStockProducts, salesTodayCount, salesTodayTotal, profitToday: netProfitToday, 
             totalDeposits, totalWithdrawals, profitMargin, totalExpenses, cashBalance,
-            dailyAvgExpense, salesDays: saleDates.size
+            dailyAvgExpense,
+            dailyAvgBurn,
+            recentActivityInWindow,
+            salesDays: saleDates.size
         };
 
     }, [salesData, productsData, businessData, transactionsData, expensesData, selectedBranchId]);
@@ -470,8 +565,63 @@ export default function OwnerHomePage() {
             cashRunway: null,
         };
 
-        if (!salesData || salesData.length < 2 || !businessInsights.totalProfit) {
-            return defaultForecasts;
+        // Cash runway can be computed even when there isn't enough sales data for other forecasts.
+        const cashRunway = businessInsights.dailyAvgBurn > 0
+            ? Math.floor(businessInsights.cashBalance / businessInsights.dailyAvgBurn)
+            : null;
+
+        // Stock outlook: use a fixed recent window so depletion estimates don't get diluted by old sales.
+        const stockWindowDays = 30;
+        const stockWindow = {
+            start: startOfDay(subDays(new Date(), stockWindowDays - 1)),
+            end: endOfDay(new Date()),
+        };
+
+        let inventoryOutlook: string | null = null;
+        if (businessInsights.lowStockProducts.length > 0) {
+            const salesInWindow = (salesData || []).filter(s => isWithinInterval(s.timestamp.toDate(), stockWindow));
+
+            let mostAtRiskProduct: { name: string; days: number } | null = null;
+            let minDays = Infinity;
+            let sawAnySalesForLowStock = false;
+
+            for (const lowStockProduct of businessInsights.lowStockProducts as any[]) {
+                const productId = lowStockProduct.productId ?? lowStockProduct.id;
+                const variantId = lowStockProduct.variantId;
+                const totalSold = salesInWindow
+                    .filter(s => {
+                        if (s.productId !== productId) return false;
+                        if (variantId) return s.variantId === variantId;
+                        return true;
+                    })
+                    .reduce((acc, s) => acc + s.quantity, 0);
+
+                if (totalSold > 0) {
+                    sawAnySalesForLowStock = true;
+                    const dailyConsumption = totalSold / stockWindowDays;
+                    if (dailyConsumption > 0) {
+                        const daysToDepletion = lowStockProduct.quantity / dailyConsumption;
+                        if (daysToDepletion < minDays) {
+                            minDays = daysToDepletion;
+                            mostAtRiskProduct = { name: lowStockProduct.name, days: Math.floor(daysToDepletion) };
+                        }
+                    }
+                }
+            }
+
+            if (mostAtRiskProduct && mostAtRiskProduct.days !== Infinity && mostAtRiskProduct.days >= 0) {
+                inventoryOutlook = language === 'fr'
+                    ? `Tu risques de manquer de ${mostAtRiskProduct.name} dans ${mostAtRiskProduct.days} jours.`
+                    : `You are likely to run out of ${mostAtRiskProduct.name} in ${mostAtRiskProduct.days} days.`;
+            } else if (!sawAnySalesForLowStock) {
+                inventoryOutlook = language === 'fr'
+                    ? "Stock faible, mais aucune vente récente — impossible d’estimer l’épuisement."
+                    : "Low stock, but no recent sales — can't estimate depletion.";
+            }
+        }
+
+        if (!salesData || salesData.length < 2) {
+            return { ...defaultForecasts, cashRunway, inventoryOutlook };
         }
 
         const firstSaleDate = salesData[salesData.length - 1].timestamp.toDate();
@@ -492,53 +642,83 @@ export default function OwnerHomePage() {
         const busiestDayIndex = dayCounts.indexOf(Math.max(...dayCounts));
         const busiestDay = daysOfWeek[busiestDayIndex];
         
-        let inventoryOutlook = null;
-        if (businessInsights.lowStockProducts.length > 0 && periodInDays > 0) {
-            let mostAtRiskProduct: { name: string; days: number; } | null = null;
-            let minDays = Infinity;
-            for (const lowStockProduct of businessInsights.lowStockProducts) {
-                const salesOfProduct = salesData.filter(s => s.productId === lowStockProduct.id);
-                const totalSold = salesOfProduct.reduce((acc, s) => acc + s.quantity, 0);
-                if (totalSold > 0) {
-                    const dailyConsumption = totalSold / periodInDays;
-                    if (dailyConsumption > 0) {
-                        const daysToDepletion = lowStockProduct.quantity / dailyConsumption;
-                        if (daysToDepletion < minDays) {
-                            minDays = daysToDepletion;
-                            mostAtRiskProduct = { name: lowStockProduct.name, days: Math.floor(daysToDepletion) };
-                        }
-                    }
-                }
-            }
-            if (mostAtRiskProduct && mostAtRiskProduct.days !== Infinity && mostAtRiskProduct.days >= 0) {
-                inventoryOutlook = `You are likely to run out of ${mostAtRiskProduct.name} in ${mostAtRiskProduct.days} days.`;
-            }
-        }
-        
-        const cashRunway = businessInsights.dailyAvgExpense > 0 ? Math.floor(businessInsights.cashBalance / businessInsights.dailyAvgExpense) : null;
-
         return { weeklyProfit, busiestDay, inventoryOutlook, cashRunway };
 
-    }, [businessInsights, salesData]);
+    }, [businessInsights, salesData, language]);
 
-    const topInsight = useMemo(() => {
+    const topInsights = useMemo<string[]>(() => {
         if (!businessData || !salesData || salesData.length < 5) {
-            return "Record more activity to unlock today's key insight.";
+            return [
+                language === 'fr'
+                    ? "Enregistre plus d’activité pour débloquer des insights (ventes, dépenses, dépôts/retraits)."
+                    : "Record more activity to unlock insights (sales, expenses, deposits/withdrawals).",
+            ];
         }
-        if(forecasts.cashRunway !== null && forecasts.cashRunway < 14) {
-            return `Cash runway is low. You have an estimated ${forecasts.cashRunway} days of cash left based on current expenses.`;
+
+        const insights: string[] = [];
+
+        if (forecasts.cashRunway !== null && forecasts.cashRunway < 14) {
+            insights.push(
+                language === 'fr'
+                    ? `Trésorerie faible : ~${forecasts.cashRunway} jours de marge au rythme actuel.`
+                    : `Cash runway is low: ~${forecasts.cashRunway} days at the current burn rate.`
+            );
         }
-        if (businessInsights.profitMargin < 10 && businessInsights.totalSales > 0) {
-            return `Profit margin is risky at ${businessInsights.profitMargin.toFixed(0)}%. Review your product costs and expenses.`;
-        }
-        if(businessInsights.bestSellingProduct) {
-            const bestSellerRevenuePercentage = (businessInsights.bestSellingProduct.sales / businessInsights.totalSales) * 100;
-            if(bestSellerRevenuePercentage > 50) {
-                return `Your best seller, ${businessInsights.bestSellingProduct.name}, accounts for ${bestSellerRevenuePercentage.toFixed(0)}% of revenue. Consider promoting other products.`;
+
+        if (businessInsights.totalSales > 0) {
+            const margin = businessInsights.profitMargin;
+            if (margin < 10) {
+                insights.push(
+                    language === 'fr'
+                        ? `Marge faible (${margin.toFixed(0)}%). Revois les prix, les coûts et les dépenses.`
+                        : `Low margin (${margin.toFixed(0)}%). Review pricing, costs, and expenses.`
+                );
+            }
+
+            const expenseRatio = businessInsights.totalExpenses / businessInsights.totalSales;
+            if (Number.isFinite(expenseRatio) && expenseRatio > 0.6) {
+                insights.push(
+                    language === 'fr'
+                        ? `Dépenses élevées : ~${(expenseRatio * 100).toFixed(0)}% du chiffre d’affaires.`
+                        : `High expenses: ~${(expenseRatio * 100).toFixed(0)}% of sales.`
+                );
             }
         }
-        return "Your business is performing consistently. Keep up the great work!";
-    }, [businessData, salesData, businessInsights, forecasts]);
+
+        if (businessInsights.bestSellingProduct && businessInsights.totalSales > 0) {
+            const bestSellerSales = businessInsights.bestSellingProduct.sales || 0;
+            const bestSellerRevenuePercentage = (bestSellerSales / businessInsights.totalSales) * 100;
+            if (Number.isFinite(bestSellerRevenuePercentage) && bestSellerRevenuePercentage > 50) {
+                insights.push(
+                    language === 'fr'
+                        ? `Dépendance produit : ${businessInsights.bestSellingProduct.name} = ${bestSellerRevenuePercentage.toFixed(0)}% des revenus.`
+                        : `Product concentration: ${businessInsights.bestSellingProduct.name} is ${bestSellerRevenuePercentage.toFixed(0)}% of revenue.`
+                );
+            }
+        }
+
+        if (businessInsights.lowStockProducts.length > 0) {
+            const topLow = businessInsights.lowStockProducts
+                .slice(0, 2)
+                .map(p => `${p.name} (${p.quantity})`)
+                .join(', ');
+            insights.push(
+                language === 'fr'
+                    ? `Stock faible à surveiller : ${topLow}.`
+                    : `Low stock to watch: ${topLow}.`
+            );
+        }
+
+        if (insights.length === 0) {
+            insights.push(
+                language === 'fr'
+                    ? "Rien d’urgent détecté. Continue comme ça et enregistre tes données chaque jour."
+                    : "No urgent risks detected. Keep recording daily activity to improve insights."
+            );
+        }
+
+        return insights.slice(0, 4);
+    }, [businessData, salesData, businessInsights, forecasts, language]);
     
     const healthScore = useMemo(() => {
         if (!salesData || businessInsights.salesDays < 3) return { score: null, label: 'Needs Data' };
@@ -571,10 +751,19 @@ export default function OwnerHomePage() {
             ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
             : "Busmo isn’t available right now. Please try again.";
         
-        const cacheKey = JSON.stringify({ question, insights: businessInsights });
+        const currency = getCurrencySymbol(businessData?.currency || businessData?.country);
+        const cacheKey = JSON.stringify({ question, insights: businessInsights, language, currency, selectedBranchId });
         if (aiCache[cacheKey]) {
             setAnswer(aiCache[cacheKey]);
             setSelectedQuestion(question);
+            return;
+        }
+
+        const missingDataFallback = getMissingDataFallback(question);
+        if (missingDataFallback) {
+            setSelectedQuestion(question);
+            setAnswer(missingDataFallback);
+            setAiCache(prev => ({ ...prev, [cacheKey]: missingDataFallback }));
             return;
         }
 
@@ -593,12 +782,17 @@ export default function OwnerHomePage() {
                 profitToday: businessInsights.profitToday,
                 totalDeposits: businessInsights.totalDeposits,
                 totalWithdrawals: businessInsights.totalWithdrawals,
+                totalExpenses: businessInsights.totalExpenses,
+                profitMargin: businessInsights.profitMargin,
+                cashBalance: businessInsights.cashBalance,
+                dailyAvgExpense: businessInsights.dailyAvgExpense,
+                salesDays: businessInsights.salesDays,
             };
 
             const response = await getBusinessInsights({ 
                 query: question,
                 insights: insightsForAI,
-                currency: getCurrencySymbol(businessData?.currency || businessData?.country),
+                currency,
                 language,
             });
             if (response.answer) {
@@ -730,8 +924,18 @@ export default function OwnerHomePage() {
                 <AlertTitle>Free Trial Active</AlertTitle>
                 <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center">
                     <span>You have {Math.max(0, differenceInDays(activeSubscription.currentPeriodEnd.toDate(), new Date()))} days left in your trial.</span>
-                    <Button asChild size="sm" className="mt-2 sm:mt-0">
-                        <Link href="/owner/subscribe">Upgrade Now</Link>
+                    <Button
+                        size="sm"
+                        className="mt-2 sm:mt-0"
+                        onClick={() => {
+                            const trialEndsOn = activeSubscription.currentPeriodEnd.toDate().toLocaleDateString();
+                            toast({
+                                title: 'Trial not ended yet',
+                                description: `Your free trial is still active. You can upgrade after it ends on ${trialEndsOn}.`,
+                            });
+                        }}
+                    >
+                        Upgrade Now
                     </Button>
                 </AlertDescription>
                 <Button
@@ -863,7 +1067,13 @@ export default function OwnerHomePage() {
                         <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/> Today's Top Insight</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground font-medium">{topInsight}</p>
+                        <ul className="space-y-2">
+                            {topInsights.map((insight, idx) => (
+                                <li key={idx} className="text-sm text-muted-foreground font-medium">
+                                    {insight}
+                                </li>
+                            ))}
+                        </ul>
                     </CardContent>
                 </Card>
 
@@ -891,7 +1101,13 @@ export default function OwnerHomePage() {
                             <div className="p-2 bg-accent/10 rounded-full"><Landmark className="w-4 h-4 text-accent" /></div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Cash Runway</p>
-                                {forecasts.cashRunway !== null ? (<p className="font-semibold">~{forecasts.cashRunway} days</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                                {forecasts.cashRunway !== null ? (
+                                    <p className="font-semibold">~{forecasts.cashRunway} days</p>
+                                ) : businessInsights.recentActivityInWindow && businessInsights.dailyAvgBurn === 0 ? (
+                                    <p className="text-xs text-muted-foreground">Not burning cash</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Needs data</p>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-start gap-3">

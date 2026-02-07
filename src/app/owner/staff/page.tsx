@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MoreHorizontal, UserPlus, Network, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/app/main-layout';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, updateDo
 import { doc, collection, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AppUser {
     businessId?: string;
@@ -38,6 +39,11 @@ interface StaffMember {
     email: string;
     role: string;
     branchId?: string;
+    staffPermissions?: {
+        canRecordSale?: boolean;
+        canAddInventory?: boolean;
+        canRecordExpense?: boolean;
+    };
 }
 
 interface StaffInvitation {
@@ -90,6 +96,23 @@ export default function ManageStaffPage() {
 
     const canManageStaff = businessData?.plan !== 'shop';
     const canManageBranches = businessData?.plan === 'multi-branch' || businessData?.plan === 'company';
+
+    const [permissionsOpen, setPermissionsOpen] = useState(false);
+    const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+    const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+    const [staffPermissions, setStaffPermissions] = useState({
+        canRecordSale: true,
+        canAddInventory: false,
+        canRecordExpense: false,
+    });
+
+    const selectedStaffHasAccess = useMemo(() => {
+        return Boolean(
+            staffPermissions.canRecordSale
+            || staffPermissions.canAddInventory
+            || staffPermissions.canRecordExpense
+        );
+    }, [staffPermissions]);
 
     const handleAddBranch = async () => {
         if (!newBranchName.trim() || !firestore || !businessId || !businessData) return;
@@ -180,6 +203,39 @@ export default function ManageStaffPage() {
         await batch.commit();
         
         toast({ title: 'Invitation Revoked', description: `The invitation for ${invitationId} has been revoked.` });
+    };
+
+    const openPermissionsDialog = (staff: StaffMember) => {
+        setSelectedStaff(staff);
+        setStaffPermissions({
+            canRecordSale: staff.staffPermissions?.canRecordSale ?? true,
+            canAddInventory: staff.staffPermissions?.canAddInventory ?? false,
+            canRecordExpense: staff.staffPermissions?.canRecordExpense ?? false,
+        });
+        setPermissionsOpen(true);
+    };
+
+    const handleSavePermissions = async () => {
+        if (!firestore || !authUser || !selectedStaff) return;
+        setIsSavingPermissions(true);
+        try {
+            const staffRef = doc(firestore, 'users', selectedStaff.id);
+            await updateDocumentNonBlocking(staffRef, {
+                staffPermissions,
+                staffPermissionsAssignedAt: serverTimestamp(),
+                staffPermissionsAssignedBy: authUser.uid,
+            });
+            toast({
+                title: 'Permissions Assigned',
+                description: `Permissions updated for ${selectedStaff.displayName || selectedStaff.email}.`,
+            });
+            setPermissionsOpen(false);
+            setSelectedStaff(null);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not save permissions.' });
+        } finally {
+            setIsSavingPermissions(false);
+        }
     };
 
     const isLoading = isLoadingStaff || isLoadingInvitations;
@@ -286,6 +342,71 @@ export default function ManageStaffPage() {
                         </Dialog>
                     </CardHeader>
                     <CardContent>
+                        <Dialog open={permissionsOpen} onOpenChange={setPermissionsOpen}>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>Staff Permissions</DialogTitle>
+                                    <DialogDescription>
+                                        Assign what this staff member can access in the dashboard.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                {selectedStaff && (
+                                    <div className="space-y-4 py-2">
+                                        <div className="text-sm text-muted-foreground">
+                                            {selectedStaff.displayName || selectedStaff.email}
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id="perm-sale"
+                                                    checked={staffPermissions.canRecordSale}
+                                                    onCheckedChange={(v) => setStaffPermissions(prev => ({ ...prev, canRecordSale: !!v }))}
+                                                />
+                                                <Label htmlFor="perm-sale">Record sales</Label>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id="perm-inventory"
+                                                    checked={staffPermissions.canAddInventory}
+                                                    onCheckedChange={(v) => setStaffPermissions(prev => ({ ...prev, canAddInventory: !!v }))}
+                                                />
+                                                <Label htmlFor="perm-inventory">Add inventory</Label>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Checkbox
+                                                    id="perm-expense"
+                                                    checked={staffPermissions.canRecordExpense}
+                                                    onCheckedChange={(v) => setStaffPermissions(prev => ({ ...prev, canRecordExpense: !!v }))}
+                                                />
+                                                <Label htmlFor="perm-expense">Record expenses</Label>
+                                            </div>
+                                        </div>
+
+                                        {!selectedStaffHasAccess && (
+                                            <Alert>
+                                                <AlertTitle>Staff cannot access dashboard</AlertTitle>
+                                                <AlertDescription>
+                                                    Select at least one permission to grant access.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                    </div>
+                                )}
+
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setPermissionsOpen(false)} disabled={isSavingPermissions}>
+                                        Cancel
+                                    </Button>
+                                    <Button onClick={handleSavePermissions} disabled={isSavingPermissions || !selectedStaffHasAccess}>
+                                        {isSavingPermissions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Save
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -313,12 +434,14 @@ export default function ManageStaffPage() {
                                                 <TableCell>
                                                     {staff.branchId ? businessData?.branches?.find(b => b.id === staff.branchId)?.name : <span className="text-muted-foreground text-xs">Unassigned</span>}
                                                 </TableCell>
-                                                <TableCell><Badge variant="default">Active</Badge></TableCell>
+                                                <TableCell>
+                                                    {staff.staffPermissions ? <Badge variant="default">Active</Badge> : <Badge variant="secondary">Needs Access</Badge>}
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem disabled>Edit Permissions</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => openPermissionsDialog(staff)}>Edit Permissions</DropdownMenuItem>
                                                             <DropdownMenuItem className="text-destructive" disabled>Remove Staff</DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>

@@ -40,7 +40,10 @@ export default function HelpCenterPage() {
         <section className="mt-24 text-center">
              <h2 className="text-2xl font-bold font-headline">Still have questions?</h2>
              <p className="mt-2 text-muted-foreground">Our support team is ready to assist you.</p>
-             <p className="mt-4 font-semibold">Contact us at: support@busmo.com</p>
+             <p className="mt-4 font-semibold">
+               Contact us at:{' '}
+               <a href="mailto:support@busmo.io" className="hover:underline">support@busmo.io</a>
+             </p>
         </section>
       </div>
     </InvestorLayout>

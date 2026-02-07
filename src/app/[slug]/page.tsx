@@ -71,6 +71,9 @@ export default function StoreSlugPage() {
     const [isSubscribed, setIsSubscribed] = useState(false);
     const { market } = useMarket();
 
+    // Firestore is initialized client-side; avoid returning 404 before it's ready.
+    const isFirestoreReady = Boolean(firestore);
+
     // Prevent this page from matching reserved routes like /login, /admin, etc.
     if (RESERVED_PATHS.includes(slug)) {
         notFound();
@@ -82,7 +85,7 @@ export default function StoreSlugPage() {
         return query(collection(firestore, 'businessProfiles'), where('slug', '==', slug), limit(1));
     }, [firestore, slug]);
     
-    const { data: businessData, isLoading: isLoadingProfile } = useCollection<BusinessProfile>(businessProfileQuery);
+    const { data: businessData, isLoading: isLoadingProfile, error: businessProfileError } = useCollection<BusinessProfile>(businessProfileQuery);
     const businessProfile = businessData?.[0];
     const businessId = businessProfile?.id;
 
@@ -109,7 +112,7 @@ export default function StoreSlugPage() {
         });
     };
 
-    if (isLoadingProfile) {
+    if (!isFirestoreReady || isLoadingProfile) {
         // Initial skeleton while fetching profile by slug
         return (
             <div className="min-h-screen" style={{ backgroundColor: FALLBACK_THEME.background }}>
@@ -134,6 +137,18 @@ export default function StoreSlugPage() {
                             </Card>
                         ))}
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (businessProfileError) {
+        return (
+            <div className="min-h-screen" style={{ backgroundColor: FALLBACK_THEME.background, color: FALLBACK_THEME.text }}>
+                <div className="mx-auto max-w-3xl px-4 py-16 text-center space-y-4">
+                    <h1 className="text-2xl font-bold">Couldn't load this storefront</h1>
+                    <p className="text-muted-foreground">Please try again in a moment.</p>
+                    <Button asChild variant="outline"><Link href="/market">Back to Market</Link></Button>
                 </div>
             </div>
         );

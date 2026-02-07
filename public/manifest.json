@@ -1,7 +1,7 @@
 {
   "name": "Busmo",
   "short_name": "Busmo",
-  "description": "Your AI partner for managing your business money.",
+  "description": "The all-in-one workspace for African small businesses.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f4f7",
