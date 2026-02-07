@@ -144,6 +144,8 @@ export default function StoreSlugPage() {
     }
 
     const settings = businessProfile.marketSettings;
+    const currentCountry = market?.country || businessProfile?.currency || 'NG';
+    const currencyName = getCurrencyName(currentCountry);
     const isLoading = isLoadingVerification || isLoadingProducts;
 
     const theme = settings?.theme || FALLBACK_THEME;
@@ -246,7 +248,7 @@ export default function StoreSlugPage() {
                                     {featuredProducts.map(product => {
                                         const rating = product.averageRating || 0;
                                         const reviewCount = product.reviewCount || 0;
-                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        const displayPrice = convertCurrency(product.price, product.currency, currencyName);
                                         return (
                                             <Link href={`/market/product/${product.id}`} key={`feat-${product.id}`}>
                                                 <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
@@ -278,7 +280,7 @@ export default function StoreSlugPage() {
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                     {collection.products.map(product => {
-                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        const displayPrice = convertCurrency(product.price, product.currency, currencyName);
                                         return (
                                             <Link href={`/market/product/${product.id}`} key={`${collection.id}-${product.id}`}>
                                                 <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
@@ -307,7 +309,7 @@ export default function StoreSlugPage() {
                                     {nonFeaturedProducts.map(product => {
                                         const rating = product.averageRating || 0;
                                         const reviewCount = product.reviewCount || 0;
-                                        const displayPrice = convertCurrency(product.price, product.currency, getCurrencyName(market.country));
+                                        const displayPrice = convertCurrency(product.price, product.currency, currencyName);
                                         return (
                                             <Link href={`/market/product/${product.id}`} key={`all-${product.id}`}>
                                                 <Card className="overflow-hidden group cursor-pointer h-full flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">

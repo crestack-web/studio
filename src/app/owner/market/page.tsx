@@ -32,6 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import imageCompression from 'browser-image-compression';
 import { getFunctionUrl } from '@/lib/api';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 const createSlug = (name: string) => {
@@ -111,9 +113,11 @@ const SettingsContent = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [newCollectionName, setNewCollectionName] = useState('');
     const [newCollectionProducts, setNewCollectionProducts] = useState<string[]>([]);
+    const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
     const productsQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/products`)) : null, [firestore, businessId]);
     const { data: ownerProducts } = useCollection<Product>(productsQuery);
+    const selectedCollectionProducts = useMemo(() => (ownerProducts || []).filter(p => newCollectionProducts.includes(p.id)), [ownerProducts, newCollectionProducts]);
 
     useEffect(() => {
         if (businessData) {
@@ -232,7 +236,7 @@ const SettingsContent = () => {
         handleSettingsChange('collections', collections.filter(c => c.id !== collectionId));
     };
 
-    const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl') => {
+    const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl' | 'hero.backgroundUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
         const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
@@ -431,7 +435,23 @@ const SettingsContent = () => {
                             <div className="space-y-2"><Label htmlFor="hero-subtitle">Subtitle</Label><Input id="hero-subtitle" value={settings.hero?.subtitle || ''} onChange={(e) => handleSettingsChange('hero.subtitle', e.target.value)} placeholder="Short supporting line" disabled={isSaving} /></div>
                             <div className="space-y-2"><Label htmlFor="hero-cta-text">CTA Text</Label><Input id="hero-cta-text" value={settings.hero?.ctaText || ''} onChange={(e) => handleSettingsChange('hero.ctaText', e.target.value)} placeholder="Shop now" disabled={isSaving} /></div>
                             <div className="space-y-2"><Label htmlFor="hero-cta-url">CTA Link</Label><Input id="hero-cta-url" value={settings.hero?.ctaUrl || ''} onChange={(e) => handleSettingsChange('hero.ctaUrl', e.target.value)} placeholder="/market/search?" disabled={isSaving} /></div>
-                            <div className="space-y-2 md:col-span-2"><Label htmlFor="hero-bg">Background Image URL</Label><Input id="hero-bg" value={settings.hero?.backgroundUrl || ''} onChange={(e) => handleSettingsChange('hero.backgroundUrl', e.target.value)} placeholder="https://..." disabled={isSaving} /></div>
+                            <div className="space-y-3 md:col-span-2">
+                                <Label className="flex items-center gap-2"><ImageIcon className="w-4 h-4" /> Hero Background</Label>
+                                <Card className="aspect-[3/1] relative flex items-center justify-center border-2 border-dashed">
+                                    {settings.hero?.backgroundUrl ? (
+                                        <Image src={settings.hero.backgroundUrl} alt="Hero preview" fill className="object-cover rounded-md" />
+                                    ) : (
+                                        <div className="text-center text-muted-foreground">
+                                            <ImageIcon className="mx-auto h-8 w-8" />
+                                            <p>Upload a wide hero image.</p>
+                                        </div>
+                                    )}
+                                    <Label htmlFor="hero-upload" className="absolute inset-0 cursor-pointer bg-black/20 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                                        <FileUp className="h-8 w-8 text-white" />
+                                    </Label>
+                                    <Input id="hero-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'hero.backgroundUrl')} disabled={isSaving} />
+                                </Card>
+                            </div>
                         </div>
                     </div>
 
@@ -475,7 +495,6 @@ const SettingsContent = () => {
                                 <div className="space-y-2">
                                     <Label htmlFor="collection-name">Collection name</Label>
                                     <Input id="collection-name" value={newCollectionName} onChange={(e) => setNewCollectionName(e.target.value)} placeholder="New Arrivals" disabled={isSaving} />
-                                    <p className="text-xs text-muted-foreground">Select products below and click Add Collection.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Selected products</Label>
@@ -483,15 +502,54 @@ const SettingsContent = () => {
                                     <Button type="button" variant="outline" onClick={addCollection} disabled={isSaving || newCollectionProducts.length === 0 || !newCollectionName.trim()}>Add Collection</Button>
                                 </div>
                             </div>
-                            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto border rounded-md p-2">
-                                {(ownerProducts || []).map((p) => (
-                                    <label key={`coll-${p.id}`} className="flex items-center gap-2 rounded-md border p-2">
-                                        <Checkbox checked={newCollectionProducts.includes(p.id)} onCheckedChange={() => toggleNewCollectionProduct(p.id)} />
-                                        <span className="text-sm line-clamp-2">{p.name}</span>
-                                    </label>
-                                ))}
-                                {(!ownerProducts || ownerProducts.length === 0) && <p className="text-sm text-muted-foreground">No products yet.</p>}
-                            </div>
+
+                            <Popover open={collectionPickerOpen} onOpenChange={setCollectionPickerOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button type="button" variant="secondary" className="w-full sm:w-auto justify-between" disabled={isSaving}>
+                                        {newCollectionProducts.length > 0 ? `${newCollectionProducts.length} product${newCollectionProducts.length === 1 ? '' : 's'} selected` : 'Select products'}
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[340px] p-0" align="start">
+                                    <Command>
+                                        <CommandInput placeholder="Search products..." />
+                                        <CommandList>
+                                            <CommandEmpty>No products found.</CommandEmpty>
+                                            <CommandGroup>
+                                                {(ownerProducts || []).map((p) => {
+                                                    const isSelected = newCollectionProducts.includes(p.id);
+                                                    return (
+                                                        <CommandItem key={`coll-${p.id}`} onSelect={() => toggleNewCollectionProduct(p.id)} className="flex items-center gap-3 py-2">
+                                                            <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted border">
+                                                                <Image src={p.images?.[0] || `https://picsum.photos/seed/${p.id}/100/100`} alt={p.name} fill className="object-cover" />
+                                                            </div>
+                                                            <div className="flex-1 text-sm">
+                                                                <p className="font-medium line-clamp-1">{p.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{formatCurrency(p.price, businessData?.currency)}</p>
+                                                            </div>
+                                                            <Checkbox checked={isSelected} onCheckedChange={() => toggleNewCollectionProduct(p.id)} className="pointer-events-none" />
+                                                        </CommandItem>
+                                                    );
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+
+                            {selectedCollectionProducts.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedCollectionProducts.map((p) => (
+                                        <Badge key={`sel-${p.id}`} variant="secondary" className="flex items-center gap-2 py-1">
+                                            <span className="truncate max-w-[140px]">{p.name}</span>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleNewCollectionProduct(p.id)} disabled={isSaving}>
+                                                <X className="h-3 w-3" />
+                                            </Button>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+
                             {(settings.collections || []).length > 0 && (
                                 <div className="space-y-2">
                                     <Label>Existing collections</Label>

@@ -68,36 +68,21 @@ function buildFallbackAnswer(input: GetBusinessInsightsInput, prefix?: string): 
     return {answer: 'I don’t have enough data yet. Please record more sales or add your products.'};
   }
 
-  const parts: string[] = [];
-  if (prefix) parts.push(prefix);
-
-  parts.push(
-    `Based on recent activity, your total sales are ${formatMoney(insights.totalSales, currencySymbol)} and net profit is ${formatMoney(insights.totalProfit, currencySymbol)}.`
-  );
-
-  parts.push(
-    `Today you have ${insights.salesTodayCount || 0} sale${(insights.salesTodayCount || 0) === 1 ? '' : 's'} totaling ${formatMoney(insights.salesTodayTotal, currencySymbol)} with profit ${formatMoney(insights.profitToday, currencySymbol)}.`
-  );
-
   const cashBalance = insights.cashBalance ?? (insights.totalDeposits - insights.totalWithdrawals);
-  parts.push(
-    `Cash balance is ${formatMoney(cashBalance, currencySymbol)} after ${formatMoney(insights.totalDeposits, currencySymbol)} deposited and ${formatMoney(insights.totalWithdrawals, currencySymbol)} withdrawn.`
-  );
 
-  if (insights.bestSellingProduct) {
-    parts.push(`Top product: ${insights.bestSellingProduct.name} (${insights.bestSellingProduct.quantity} units).`);
-  }
-
-  if (insights.worstSellingProduct) {
-    parts.push(`Slowest product: ${insights.worstSellingProduct.name} (${insights.worstSellingProduct.quantity} units).`);
-  }
+  const lines = [
+    prefix ? prefix : undefined,
+    `Recent sales: ${formatMoney(insights.totalSales, currencySymbol)}, profit: ${formatMoney(insights.totalProfit, currencySymbol)}.`,
+    `Today: ${insights.salesTodayCount || 0} sale${(insights.salesTodayCount || 0) === 1 ? '' : 's'} / ${formatMoney(insights.salesTodayTotal, currencySymbol)} revenue.`,
+    `Cash balance: ${formatMoney(cashBalance, currencySymbol)} (in: ${formatMoney(insights.totalDeposits, currencySymbol)}, out: ${formatMoney(insights.totalWithdrawals, currencySymbol)}).`,
+  ].filter(Boolean);
 
   if (insights.lowStockProducts?.length) {
-    const lowStockList = insights.lowStockProducts.slice(0, 3).map(p => `${p.name} (${p.quantity} left)`).join(', ');
-    parts.push(`Low stock to restock: ${lowStockList}.`);
+    const lowStockList = insights.lowStockProducts.slice(0, 2).map(p => `${p.name} (${p.quantity} left)`).join(', ');
+    lines.push(`Low stock: ${lowStockList}.`);
   }
 
-  return {answer: parts.join(' ')};
+  return {answer: lines.join(' ')};
 }
 
 const prompt = ai.definePrompt({
@@ -161,7 +146,7 @@ const getBusinessInsightsFlow = ai.defineFlow(
     }
 
     if (!hasApiKey) {
-      return buildFallbackAnswer(input, "I couldn’t reach the AI service right now. Here’s a quick summary instead:");
+      return buildFallbackAnswer(input, "I couldn’t reach the AI service. Here’s a quick summary:");
     }
 
     try {
@@ -169,14 +154,14 @@ const getBusinessInsightsFlow = ai.defineFlow(
       if (output?.answer) {
         return output;
       }
-      return buildFallbackAnswer(input, "Here’s a quick summary based on your recent activity:");
+      return buildFallbackAnswer(input, "Here’s a quick summary:");
     } catch (error: any) {
       const errorMessage = error?.message || '';
       if (errorMessage.includes('429 Too Many Requests')) {
-        return buildFallbackAnswer(input, "I’m experiencing high demand. Here’s a quick summary instead:");
+        return buildFallbackAnswer(input, "I’m busy right now. Quick summary:");
       }
       console.error("An unexpected error occurred in getBusinessInsightsFlow:", error);
-      return buildFallbackAnswer(input, "Sorry, I ran into a problem. Here’s a quick summary instead:");
+      return buildFallbackAnswer(input, "Something went wrong. Quick summary:");
     }
   }
 );
