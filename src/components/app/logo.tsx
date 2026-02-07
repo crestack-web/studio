@@ -7,7 +7,7 @@ const LogoIcon = () => (
     viewBox="0 0 80 70"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className="h-[1.2em] w-[1.4em] text-primary"
+    className="h-[1.2em] w-[1.4em] text-accent"
   >
     {/* Back coin */}
     <circle cx="30" cy="30" r="28" fill="currentColor" />

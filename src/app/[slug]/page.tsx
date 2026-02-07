@@ -257,7 +257,7 @@ export default function StoreSlugPage() {
                                                     </div>
                                                     <CardContent className="p-3 flex-1 flex flex-col">
                                                         <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
-                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, currentCountry)}</p>
                                                         <div className="flex items-center gap-0.5 mt-1">
                                                             {[...Array(5)].map((_, i) => <Star key={i} className={cn('w-3 h-3', rating > 0 && i < Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')} />)}
                                                             {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
@@ -289,7 +289,7 @@ export default function StoreSlugPage() {
                                                     </div>
                                                     <CardContent className="p-3 flex-1 flex flex-col">
                                                         <h4 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h4>
-                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, currentCountry)}</p>
                                                     </CardContent>
                                                 </Card>
                                             </Link>
@@ -318,7 +318,7 @@ export default function StoreSlugPage() {
                                                     </div>
                                                     <CardContent className="p-3 flex-1 flex flex-col">
                                                         <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2">{product.productName || 'Unnamed Product'}</h3>
-                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, market.country)}</p>
+                                                        <p className="font-bold text-base mt-2">{formatCurrency(displayPrice, currentCountry)}</p>
                                                         <div className="flex items-center gap-0.5 mt-1">
                                                             {[...Array(5)].map((_, i) => <Star key={i} className={cn('w-3 h-3', rating > 0 && i < Math.round(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground/30')} />)}
                                                             {reviewCount > 0 && <span className="text-xs text-muted-foreground ml-1">({reviewCount})</span>}
