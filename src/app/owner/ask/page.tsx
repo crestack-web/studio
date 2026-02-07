@@ -12,6 +12,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { collection, doc, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currency';
+import { useLanguage } from '@/context/language-provider';
 
 interface AppUser {
   businessId: string;
@@ -67,6 +68,10 @@ interface Message {
 export default function AskPage() {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { language } = useLanguage();
+  const unavailableText = language === 'fr'
+    ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
+    : "Busmo isn’t available right now. Please try again.";
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'initial',
@@ -306,10 +311,11 @@ export default function AskPage() {
           salesDays: businessInsights.salesDays,
         },
         currency: getCurrencySymbol(businessData?.currency || businessData?.country),
+        language,
       });
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: response?.answer || "Sorry, I couldn't process that request. Please try again.",
+        text: response?.answer || unavailableText,
         sender: 'ai',
       };
       setMessages(prev => [...prev, aiMessage]);
@@ -317,7 +323,7 @@ export default function AskPage() {
       console.error("Error getting business insights:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, I couldn't process that request. Please try again.",
+        text: unavailableText,
         sender: 'ai',
       };
       setMessages(prev => [...prev, errorMessage]);

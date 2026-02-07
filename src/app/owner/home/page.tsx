@@ -566,6 +566,10 @@ export default function OwnerHomePage() {
 
     const handleQuestionClick = async (question: string) => {
         if (!businessData || !businessInsights) return;
+
+        const unavailableText = language === 'fr'
+            ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
+            : "Busmo isn’t available right now. Please try again.";
         
         const cacheKey = JSON.stringify({ question, insights: businessInsights });
         if (aiCache[cacheKey]) {
@@ -595,20 +599,17 @@ export default function OwnerHomePage() {
                 query: question,
                 insights: insightsForAI,
                 currency: getCurrencySymbol(businessData?.currency || businessData?.country),
+                language,
             });
             if (response.answer) {
               setAnswer(response.answer);
               setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
             } else {
-              setAnswer("Sorry, I couldn't process that request. Please try again.");
+                            setAnswer(unavailableText);
             }
         } catch (error: any) {
             console.error("Error getting business insights:", error);
-            if (error.message && error.message.includes('429 Too Many Requests')) {
-                setAnswer("I'm experiencing high demand right now. Please try again in a minute.");
-            } else {
-                setAnswer("Sorry, I couldn't process that request. Please try again.");
-            }
+                        setAnswer(unavailableText);
         } finally {
             setIsLoadingAi(false);
         }

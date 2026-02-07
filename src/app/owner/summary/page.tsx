@@ -73,7 +73,7 @@ const StatCard = ({ title, value, isLoading, currency = false, currencyCode, isP
         </CardHeader>
         <CardContent>
             {isLoading ? <Skeleton className="h-8 w-3/4" /> : (
-                <p className={cn("text-2xl font-bold", isProfit && (value >= 0 ? 'text-success' : 'text-destructive'))}>
+                <p className={cn("text-lg sm:text-2xl font-bold leading-tight break-all", isProfit && (value >= 0 ? 'text-success' : 'text-destructive'))}>
                     {currency ? formatCurrencyUtil(value, currencyCode) : value}
                 </p>
             )}

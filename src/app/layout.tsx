@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/app/theme-provider';
@@ -13,10 +13,13 @@ export const metadata: Metadata = {
   title: 'Busmo',
   description: 'Your AI partner for managing your business money.',
   manifest: '/manifest.json',
-  themeColor: '#5717ee',
   icons: {
     icon: '/icon.png',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#5717ee',
 };
 
 export default function RootLayout({

@@ -41,6 +41,7 @@ const GetBusinessInsightsInputSchema = z.object({
   query: z.string().describe('The question asked by the business owner.'),
   insights: BusinessInsightsDataSchema.describe("Pre-calculated insights about the business performance."),
   currency: z.string().describe('The currency symbol (e.g., ₦, $) for formatting monetary values.'),
+  language: z.string().optional().describe("UI language code (e.g., 'en', 'fr')."),
 });
 export type GetBusinessInsightsInput = z.infer<typeof GetBusinessInsightsInputSchema>;
 
@@ -53,36 +54,42 @@ export async function getBusinessInsights(input: GetBusinessInsightsInput): Prom
   return getBusinessInsightsFlow(input);
 }
 
+function normalizeLanguage(language?: string): 'en' | 'fr' {
+  return language === 'fr' ? 'fr' : 'en';
+}
+
+function notEnoughDataMessage(language: 'en' | 'fr') {
+  return language === 'fr'
+    ? "Je n’ai pas encore assez de données pour répondre. Enregistre plus de ventes ou ajoute tes produits."
+    : "I don’t have enough data yet to answer that. Please record more sales or add your products.";
+}
+
+function unavailableMessage(language: 'en' | 'fr') {
+  return language === 'fr'
+    ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
+    : "Busmo isn’t available right now. Please try again.";
+}
+
+function ensureConciseAnswer(answer: string) {
+  const trimmed = (answer || '').trim();
+  if (!trimmed) return '';
+
+  const maxChars = 360;
+  if (trimmed.length <= maxChars) return trimmed;
+
+  const sentences = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const short = sentences.slice(0, 2).join(' ');
+  return short.length <= maxChars ? short : trimmed.slice(0, maxChars).trimEnd();
+}
+
 function formatMoney(value: number | undefined, currencySymbol: string) {
   const safeValue = Number.isFinite(value) ? Number(value) : 0;
   const formatted = Math.round(safeValue).toLocaleString();
   return currencySymbol === 'CFA' ? `${formatted} ${currencySymbol}` : `${currencySymbol}${formatted}`;
-}
-
-function buildFallbackAnswer(input: GetBusinessInsightsInput, prefix?: string): GetBusinessInsightsOutput {
-  const {insights} = input;
-  const currencySymbol = input.currency || '₦';
-
-  const lacksData = insights.totalSales === 0 && insights.salesTodayCount === 0 && insights.totalDeposits === 0 && insights.totalWithdrawals === 0;
-  if (lacksData) {
-    return {answer: 'I don’t have enough data yet. Please record more sales or add your products.'};
-  }
-
-  const cashBalance = insights.cashBalance ?? (insights.totalDeposits - insights.totalWithdrawals);
-
-  const lines = [
-    prefix ? prefix : undefined,
-    `Recent sales: ${formatMoney(insights.totalSales, currencySymbol)}, profit: ${formatMoney(insights.totalProfit, currencySymbol)}.`,
-    `Today: ${insights.salesTodayCount || 0} sale${(insights.salesTodayCount || 0) === 1 ? '' : 's'} / ${formatMoney(insights.salesTodayTotal, currencySymbol)} revenue.`,
-    `Cash balance: ${formatMoney(cashBalance, currencySymbol)} (in: ${formatMoney(insights.totalDeposits, currencySymbol)}, out: ${formatMoney(insights.totalWithdrawals, currencySymbol)}).`,
-  ].filter(Boolean);
-
-  if (insights.lowStockProducts?.length) {
-    const lowStockList = insights.lowStockProducts.slice(0, 2).map(p => `${p.name} (${p.quantity} left)`).join(', ');
-    lines.push(`Low stock: ${lowStockList}.`);
-  }
-
-  return {answer: lines.join(' ')};
 }
 
 const prompt = ai.definePrompt({
@@ -94,15 +101,17 @@ const prompt = ai.definePrompt({
   Your goal is to provide factual, short, and calm answers by explaining the pre-calculated data provided in the 'Data' section.
   
   CRITICAL RULES:
+  0.  LANGUAGE: If Language is "fr", respond in French. Otherwise, respond in English. Always respond in that language.
   1.  The data provided represents RECENT activity and may not be the complete, all-time history of the business. When you mention totals (like total sales or profit), you MUST clarify that it is based on recent data (e.g., "Based on recent activity, your total sales are...").
   2.  You MUST NOT perform any calculations, forecasts, or generate numbers yourself. Your answers must be based *only* on the data provided below.
   3.  When formatting monetary values, ALWAYS include thousands separators (e.g., 45,000 not 45000). Use the provided currency symbol. If the symbol is "CFA", place it AFTER the number with a space (e.g., 600 CFA). For all other symbols, place them BEFORE the number with no space (e.g., ₦600, $100).
   4.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
   5.  Do NOT guess or invent numbers.
   6.  If the user explicitly asks for advice, provide 1–3 practical, data-backed suggestions using only the provided data.
-  7.  Keep answers concise and to the point. Use short paragraphs or bullets when helpful.
+  7.  Keep answers VERY concise: 1–3 short sentences maximum. Answer only the question (no greetings, no long summaries).
 
   Data:
+  - Language: {{{language}}}
   - Currency: {{{currency}}}
   - Total Sales Revenue: {{{insights.totalSales}}}
   - Total Profit: {{{insights.totalProfit}}}
@@ -138,30 +147,27 @@ const getBusinessInsightsFlow = ai.defineFlow(
     outputSchema: GetBusinessInsightsOutputSchema,
   },
   async input => {
+    const language = normalizeLanguage(input.language);
     const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY);
     const lacksData = input.insights.totalSales === 0 && input.insights.salesTodayCount === 0 && input.insights.totalDeposits === 0 && input.insights.totalWithdrawals === 0;
 
     if (lacksData) {
-      return {answer: "I don’t have enough data yet. Please record more sales to get insights."};
+      return {answer: notEnoughDataMessage(language)};
     }
 
     if (!hasApiKey) {
-      return buildFallbackAnswer(input, "I couldn’t reach the AI service. Here’s a quick summary:");
+      return {answer: unavailableMessage(language)};
     }
 
     try {
       const {output} = await prompt(input);
       if (output?.answer) {
-        return output;
+        return {answer: ensureConciseAnswer(output.answer)};
       }
-      return buildFallbackAnswer(input, "Here’s a quick summary:");
+      return {answer: unavailableMessage(language)};
     } catch (error: any) {
-      const errorMessage = error?.message || '';
-      if (errorMessage.includes('429 Too Many Requests')) {
-        return buildFallbackAnswer(input, "I’m busy right now. Quick summary:");
-      }
       console.error("An unexpected error occurred in getBusinessInsightsFlow:", error);
-      return buildFallbackAnswer(input, "Something went wrong. Quick summary:");
+      return {answer: unavailableMessage(language)};
     }
   }
 );

@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef, type FormEvent, type ChangeEvent 
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Settings, Package, ShoppingCart, Users, ExternalLink, ArrowLeft, MoreHorizontal, User, Phone, Mail, Loader2, FileUp, PackageCheck, Menu, Image as ImageIcon, Contact, MapPin, CreditCard, Globe, Copy, FileEdit, Trash2, AlertTriangle, CheckCircle, X, ChevronRight } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, runTransaction, serverTimestamp, getDoc, deleteField } from 'firebase/firestore';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -137,7 +137,7 @@ const SettingsContent = () => {
                 featuredProductIds: [],
                 collections: [],
             };
-            const currentSettings = businessData.marketSettings || {};
+            const currentSettings = (businessData.marketSettings || {}) as Partial<MarketSettings>;
             const mergedSettings: MarketSettings = {
                 ...defaultSettings, ...currentSettings,
                 payment: { ...defaultSettings.payment, ...(currentSettings.payment || {}) },
