@@ -329,7 +329,7 @@ export default function BusmoGoPage() {
                                 <DialogTrigger asChild>
                                     <Button className="w-full">Apply to be a Rider</Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="w-[calc(100%-2rem)] sm:w-full max-w-md max-h-[85vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle>Apply to be a BusmoGo Rider</DialogTitle>
                                         <DialogDescription>Fill in your details below. We'll contact you for the next steps.</DialogDescription>
@@ -337,7 +337,7 @@ export default function BusmoGoPage() {
                                     <form onSubmit={handleApplyForRider} className="space-y-4 pt-4">
                                         <div className="space-y-2"><Label htmlFor="rider-name">Full Name</Label><Input id="rider-name" value={riderName} onChange={(e) => setRiderName(e.target.value)} required /></div>
                                         <div className="space-y-2"><Label htmlFor="rider-phone">Phone Number</Label><Input id="rider-phone" type="tel" value={riderPhone} onChange={(e) => setRiderPhone(e.target.value)} required /></div>
-                                        <div className="space-y-2"><Label htmlFor="rider-address">Address / Main Area of Operation</Label><Textarea id="rider-address" value={riderAddress} onChange={(e) => setRiderAddress(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="rider-address">Address / Main Area of Operation</Label><Textarea id="rider-address" className="min-h-[96px]" value={riderAddress} onChange={(e) => setRiderAddress(e.target.value)} required /></div>
                                         <DialogFooter>
                                             <Button type="submit" disabled={isSubmittingRider} className="w-full">
                                                 {isSubmittingRider && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -366,7 +366,7 @@ export default function BusmoGoPage() {
                                 <DialogTrigger asChild>
                                     <Button variant="secondary" className="w-full">Become a Guarantor</Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-md">
+                                <DialogContent className="w-[calc(100%-2rem)] sm:w-full max-w-md max-h-[85vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle>Become a Rider Guarantor</DialogTitle>
                                         <DialogDescription>Fill out your details and the details of the rider you wish to guarantee.</DialogDescription>
@@ -375,12 +375,12 @@ export default function BusmoGoPage() {
                                         <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2">Your (Guarantor's) Information</h3>
                                         <div className="space-y-2"><Label htmlFor="guarantor-name">Your Full Name</Label><Input id="guarantor-name" value={guarantorName} onChange={(e) => setGuarantorName(e.target.value)} required /></div>
                                         <div className="space-y-2"><Label htmlFor="guarantor-phone">Your Phone Number</Label><Input id="guarantor-phone" type="tel" value={guarantorPhone} onChange={(e) => setGuarantorPhone(e.target.value)} required /></div>
-                                        <div className="space-y-2"><Label htmlFor="guarantor-address">Your Address</Label><Textarea id="guarantor-address" value={guarantorAddress} onChange={(e) => setGuarantorAddress(e.target.value)} /></div>
+                                        <div className="space-y-2"><Label htmlFor="guarantor-address">Your Address</Label><Textarea id="guarantor-address" className="min-h-[96px]" value={guarantorAddress} onChange={(e) => setGuarantorAddress(e.target.value)} /></div>
 
                                         <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2 pt-4">Rider's Information</h3>
                                         <div className="space-y-2"><Label htmlFor="guaranteed-rider-name">Rider's Full Name</Label><Input id="guaranteed-rider-name" value={guaranteedRiderName} onChange={(e) => setGuaranteedRiderName(e.target.value)} required /></div>
                                         <div className="space-y-2"><Label htmlFor="guaranteed-rider-phone">Rider's Phone Number</Label><Input id="guaranteed-rider-phone" type="tel" value={guaranteedRiderPhone} onChange={(e) => setGuaranteedRiderPhone(e.target.value)} required /></div>
-                                        <div className="space-y-2"><Label htmlFor="relationship">Your Relationship to the Rider</Label><Textarea id="relationship" placeholder="e.g., Uncle, family friend, mentor..." value={relationship} onChange={(e) => setRelationship(e.target.value)} /></div>
+                                        <div className="space-y-2"><Label htmlFor="relationship">Your Relationship to the Rider</Label><Textarea id="relationship" className="min-h-[96px]" placeholder="e.g., Uncle, family friend, mentor..." value={relationship} onChange={(e) => setRelationship(e.target.value)} /></div>
                                         
                                         <DialogFooter className="pt-4">
                                             <Button type="submit" disabled={isSubmittingGuarantor} className="w-full">
@@ -411,7 +411,7 @@ export default function BusmoGoPage() {
                                 <DialogTrigger asChild>
                                     <Button variant="secondary" className="w-full">Apply to be a Dispatch Shop</Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-md">
+                                <DialogContent className="w-[calc(100%-2rem)] sm:w-full max-w-md max-h-[85vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle>Apply to be a BusmoGo Dispatch Shop</DialogTitle>
                                         <DialogDescription>Tell us about your shop. We’ll contact you with the next steps.</DialogDescription>
@@ -420,8 +420,8 @@ export default function BusmoGoPage() {
                                         <div className="space-y-2"><Label htmlFor="dispatch-shop-name">Shop Name</Label><Input id="dispatch-shop-name" value={dispatchShopName} onChange={(e) => setDispatchShopName(e.target.value)} required /></div>
                                         <div className="space-y-2"><Label htmlFor="dispatch-contact-name">Contact Person (Full Name)</Label><Input id="dispatch-contact-name" value={dispatchContactName} onChange={(e) => setDispatchContactName(e.target.value)} required /></div>
                                         <div className="space-y-2"><Label htmlFor="dispatch-phone">Phone Number</Label><Input id="dispatch-phone" type="tel" value={dispatchPhone} onChange={(e) => setDispatchPhone(e.target.value)} required /></div>
-                                        <div className="space-y-2"><Label htmlFor="dispatch-address">Shop Address</Label><Textarea id="dispatch-address" value={dispatchAddress} onChange={(e) => setDispatchAddress(e.target.value)} required /></div>
-                                        <div className="space-y-2"><Label htmlFor="dispatch-coverage">Coverage Area (Optional)</Label><Textarea id="dispatch-coverage" placeholder="e.g., Yaba, Surulere, Ikeja" value={dispatchCoverageArea} onChange={(e) => setDispatchCoverageArea(e.target.value)} /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-address">Shop Address</Label><Textarea id="dispatch-address" className="min-h-[96px]" value={dispatchAddress} onChange={(e) => setDispatchAddress(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-coverage">Coverage Area (Optional)</Label><Textarea id="dispatch-coverage" className="min-h-[96px]" placeholder="e.g., Yaba, Surulere, Ikeja" value={dispatchCoverageArea} onChange={(e) => setDispatchCoverageArea(e.target.value)} /></div>
                                         <DialogFooter className="pt-2">
                                             <Button type="submit" disabled={isSubmittingDispatchShop} className="w-full">
                                                 {isSubmittingDispatchShop && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
