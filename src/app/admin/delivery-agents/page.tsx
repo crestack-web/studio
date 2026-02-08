@@ -51,6 +51,17 @@ interface GuarantorApplication {
     createdAt?: { toDate: () => Date };
 }
 
+interface DispatchShopApplication {
+    id: string;
+    shopName: string;
+    contactName: string;
+    phone: string;
+    address: string;
+    coverageArea?: string;
+    status?: 'pending' | 'approved' | 'rejected';
+    createdAt?: { toDate: () => Date };
+}
+
 export default function AdminDeliveryAgentsPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -81,6 +92,12 @@ export default function AdminDeliveryAgentsPage() {
         return query(collection(firestore, 'guarantorApplications'));
     }, [firestore]);
     const { data: guarantorApplications, isLoading: isLoadingGuarantors } = useCollection<GuarantorApplication>(guarantorApplicationsQuery);
+
+    const dispatchShopApplicationsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'dispatchShopApplications'));
+    }, [firestore]);
+    const { data: dispatchShopApplications, isLoading: isLoadingDispatchShops } = useCollection<DispatchShopApplication>(dispatchShopApplicationsQuery);
     
     const agentsMap = useMemo(() => {
         if (!agents) return new Map();
@@ -115,7 +132,7 @@ export default function AdminDeliveryAgentsPage() {
         toast({ title: 'Agent Removed', description: `${displayName} is no longer a delivery agent.` });
     };
 
-    const handleUpdateApplication = async (collectionName: 'riderApplications' | 'guarantorApplications', id: string, status: 'approved' | 'rejected') => {
+    const handleUpdateApplication = async (collectionName: 'riderApplications' | 'guarantorApplications' | 'dispatchShopApplications', id: string, status: 'approved' | 'rejected') => {
         if (!firestore) return;
         setIsUpdatingApplication(id);
         try {
@@ -208,7 +225,7 @@ export default function AdminDeliveryAgentsPage() {
         </Card>
     );
 
-    const renderApplicationsTable = (title: string, description: string, rows: any[], columns: { key: string; label: string; render?: (row: any) => JSX.Element | string }[], collectionName: 'riderApplications' | 'guarantorApplications') => (
+    const renderApplicationsTable = (title: string, description: string, rows: any[], columns: { key: string; label: string; render?: (row: any) => JSX.Element | string }[], collectionName: 'riderApplications' | 'guarantorApplications' | 'dispatchShopApplications') => (
         <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
@@ -264,10 +281,20 @@ export default function AdminDeliveryAgentsPage() {
             { key: 'createdAt', label: 'Applied', render: (g: GuarantorApplication) => g.createdAt?.toDate().toLocaleDateString() || '—' },
         ];
 
+        const dispatchShopCols = [
+            { key: 'shopName', label: 'Shop' },
+            { key: 'contactName', label: 'Contact' },
+            { key: 'phone', label: 'Phone' },
+            { key: 'coverageArea', label: 'Area', render: (d: DispatchShopApplication) => d.coverageArea || '—' },
+            { key: 'status', label: 'Status', render: (d: DispatchShopApplication) => <Badge variant={d.status === 'approved' ? 'default' : d.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">{d.status || 'pending'}</Badge> },
+            { key: 'createdAt', label: 'Applied', render: (d: DispatchShopApplication) => d.createdAt?.toDate().toLocaleDateString() || '—' },
+        ];
+
         return (
             <div className="grid grid-cols-1 gap-6">
                 {renderApplicationsTable('Rider Applications', 'Incoming BusmoGo rider applications', riderApplications || [], riderCols, 'riderApplications')}
                 {renderApplicationsTable('Guarantor Applications', 'Incoming guarantor applications', guarantorApplications || [], guarantorCols, 'guarantorApplications')}
+                {renderApplicationsTable('Dispatch Shop Applications', 'Incoming dispatch shop partner applications', dispatchShopApplications || [], dispatchShopCols, 'dispatchShopApplications')}
             </div>
         );
     };

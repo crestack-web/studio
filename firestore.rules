@@ -157,6 +157,34 @@ service cloud.firestore {
         allow get: if isUserOwner(agentId) || isAdmin();
         allow list, write: if isAdmin();
     }
+
+    // --- BUSMOGO APPLICATIONS ---
+    // Public can submit applications; only admins can review/update.
+    match /riderApplications/{applicationId} {
+      allow create: if request.resource.data.status == 'pending'
+        && request.resource.data.name is string
+        && request.resource.data.phone is string
+        && request.resource.data.address is string;
+      allow read, list, update, delete: if isAdmin();
+    }
+
+    match /guarantorApplications/{applicationId} {
+      allow create: if request.resource.data.status == 'pending'
+        && request.resource.data.guarantorName is string
+        && request.resource.data.guarantorPhone is string
+        && request.resource.data.riderName is string
+        && request.resource.data.riderPhone is string;
+      allow read, list, update, delete: if isAdmin();
+    }
+
+    match /dispatchShopApplications/{applicationId} {
+      allow create: if request.resource.data.status == 'pending'
+        && request.resource.data.shopName is string
+        && request.resource.data.contactName is string
+        && request.resource.data.phone is string
+        && request.resource.data.address is string;
+      allow read, list, update, delete: if isAdmin();
+    }
     
     match /chatConversations/{conversationId} {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;

@@ -58,6 +58,15 @@ export default function BusmoGoPage() {
     const [relationship, setRelationship] = useState('');
     const [isSubmittingGuarantor, setIsSubmittingGuarantor] = useState(false);
 
+    // Dispatch Shop Dialog State
+    const [isDispatchShopDialogOpen, setIsDispatchShopDialogOpen] = useState(false);
+    const [dispatchShopName, setDispatchShopName] = useState('');
+    const [dispatchContactName, setDispatchContactName] = useState('');
+    const [dispatchPhone, setDispatchPhone] = useState('');
+    const [dispatchAddress, setDispatchAddress] = useState('');
+    const [dispatchCoverageArea, setDispatchCoverageArea] = useState('');
+    const [isSubmittingDispatchShop, setIsSubmittingDispatchShop] = useState(false);
+
     const handleApplyForRider = async (e: FormEvent) => {
         e.preventDefault();
         if (!riderName || !riderPhone || !riderAddress) {
@@ -119,6 +128,39 @@ export default function BusmoGoPage() {
             toast({ title: 'Submission failed', description: 'Please try again.', variant: 'destructive' });
         } finally {
             setIsSubmittingGuarantor(false);
+        }
+    };
+
+    const handleApplyForDispatchShop = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!dispatchShopName || !dispatchContactName || !dispatchPhone || !dispatchAddress) {
+            toast({ title: 'Please fill all required fields', variant: 'destructive' });
+            return;
+        }
+        if (!firestore) return;
+
+        setIsSubmittingDispatchShop(true);
+        try {
+            await addDocumentNonBlocking(collection(firestore, 'dispatchShopApplications'), {
+                shopName: dispatchShopName,
+                contactName: dispatchContactName,
+                phone: dispatchPhone,
+                address: dispatchAddress,
+                coverageArea: dispatchCoverageArea,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+            });
+            toast({ title: 'Application Submitted!', description: 'Thank you. We will review and contact you soon.' });
+            setIsDispatchShopDialogOpen(false);
+            setDispatchShopName('');
+            setDispatchContactName('');
+            setDispatchPhone('');
+            setDispatchAddress('');
+            setDispatchCoverageArea('');
+        } catch (error) {
+            toast({ title: 'Submission failed', description: 'Please try again.', variant: 'destructive' });
+        } finally {
+            setIsSubmittingDispatchShop(false);
         }
     };
 
@@ -269,7 +311,7 @@ export default function BusmoGoPage() {
                 <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
                     We're empowering local entrepreneurs. If you're a reliable bike rider or want to guarantee one, you can partner with Busmo to earn more.
                 </p>
-                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
                     <Card className="flex flex-col">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Award className="w-5 h-5 text-primary"/> Become a Rider</CardTitle>
@@ -350,6 +392,46 @@ export default function BusmoGoPage() {
                                 </DialogContent>
                             </Dialog>
                          </CardFooter>
+                    </Card>
+
+                    <Card className="flex flex-col">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Store className="w-5 h-5 text-primary"/> Become a Dispatch Shop</CardTitle>
+                            <CardDescription>Earn by handling drop-offs, scanning, sorting, and handoff to partner drivers.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <ul className="space-y-2 text-sm text-muted-foreground">
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Receive packages from nearby stores.</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Scan slips so tracking starts instantly.</li>
+                                <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success"/> Coordinate handoff to the best-fit driver.</li>
+                            </ul>
+                        </CardContent>
+                        <CardFooter>
+                            <Dialog open={isDispatchShopDialogOpen} onOpenChange={setIsDispatchShopDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="secondary" className="w-full">Apply to be a Dispatch Shop</Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Apply to be a BusmoGo Dispatch Shop</DialogTitle>
+                                        <DialogDescription>Tell us about your shop. We’ll contact you with the next steps.</DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={handleApplyForDispatchShop} className="space-y-4 pt-4">
+                                        <div className="space-y-2"><Label htmlFor="dispatch-shop-name">Shop Name</Label><Input id="dispatch-shop-name" value={dispatchShopName} onChange={(e) => setDispatchShopName(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-contact-name">Contact Person (Full Name)</Label><Input id="dispatch-contact-name" value={dispatchContactName} onChange={(e) => setDispatchContactName(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-phone">Phone Number</Label><Input id="dispatch-phone" type="tel" value={dispatchPhone} onChange={(e) => setDispatchPhone(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-address">Shop Address</Label><Textarea id="dispatch-address" value={dispatchAddress} onChange={(e) => setDispatchAddress(e.target.value)} required /></div>
+                                        <div className="space-y-2"><Label htmlFor="dispatch-coverage">Coverage Area (Optional)</Label><Textarea id="dispatch-coverage" placeholder="e.g., Yaba, Surulere, Ikeja" value={dispatchCoverageArea} onChange={(e) => setDispatchCoverageArea(e.target.value)} /></div>
+                                        <DialogFooter className="pt-2">
+                                            <Button type="submit" disabled={isSubmittingDispatchShop} className="w-full">
+                                                {isSubmittingDispatchShop && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Submit Application
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </CardFooter>
                     </Card>
                 </div>
                  <div className="text-center mt-12 border-t pt-8">
