@@ -89,8 +89,27 @@ interface SellerBankAccount {
     status: 'unverified' | 'pending' | 'verified' | 'failed';
 }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
-interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; paymentStatus?: 'pending' | 'paid' | 'failed'; paymentReference?: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid'; pickupRequested?: boolean; pickupRequestedAt?: { toDate: () => Date }; }
+interface Order { id: string; customer?: { name?: string; phone?: string; address?: string }; createdAt?: { toDate?: () => Date }; total?: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment?: string; payment?: string; paymentStatus?: 'pending' | 'paid' | 'failed'; paymentReference?: string; items?: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid'; pickupRequested?: boolean; pickupRequestedAt?: { toDate?: () => Date }; }
 // #endregion
+
+const safeToDate = (value: any): Date | null => {
+    try {
+        if (value?.toDate) return value.toDate();
+        return null;
+    } catch {
+        return null;
+    }
+};
+
+const formatMaybeDate = (value: any, opts?: Intl.DateTimeFormatOptions) => {
+    const d = safeToDate(value);
+    if (!d) return '—';
+    try {
+        return opts ? d.toLocaleString(undefined, opts) : d.toLocaleString();
+    } catch {
+        return '—';
+    }
+};
 
 // #region --- SETTINGS COMPONENT ---
 const SettingsContent = () => {
@@ -883,8 +902,8 @@ const OrdersContent = () => {
     const sortedOrders = useMemo(() => {
         if (!orders) return [];
         return [...orders].sort((a, b) => {
-            const dateA = a.createdAt?.toDate()?.getTime() || 0;
-            const dateB = b.createdAt?.toDate()?.getTime() || 0;
+            const dateA = safeToDate(a.createdAt)?.getTime() || 0;
+            const dateB = safeToDate(b.createdAt)?.getTime() || 0;
             return dateB - dateA;
         });
     }, [orders]);
@@ -1036,9 +1055,9 @@ const OrdersContent = () => {
                             <tbody className="[&_tr:last-child]:border-0">
                                 {sortedOrders && sortedOrders.length > 0 ? sortedOrders.map((order) => (
                                     <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{order.customer.name}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{order.customer?.name || '—'}</td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
-                                            {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : '—'}
+                                            {formatMaybeDate(order.createdAt, { year: 'numeric', month: 'numeric', day: 'numeric' })}
                                         </td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
                                             <div className="flex flex-col gap-1">
@@ -1050,8 +1069,8 @@ const OrdersContent = () => {
                                                 ) : null}
                                             </div>
                                         </td>
-                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.items.reduce((acc, item) => acc + item.quantity, 0)}</td>
-                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">{formatCurrency(order.total, businessData?.currency)}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{(Array.isArray(order.items) ? order.items : []).reduce((acc, item) => acc + (item?.quantity || 0), 0)}</td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">{formatCurrency(Number(order.total || 0), businessData?.currency)}</td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -1094,8 +1113,8 @@ const OrdersContent = () => {
                     {selectedOrder && (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Order #{selectedOrder.id.substring(0,6).toUpperCase()}</DialogTitle>
-                                <DialogDescription>{selectedOrder.createdAt.toDate().toLocaleString()}</DialogDescription>
+                                                    <DialogTitle>Order #{selectedOrder.id.substring(0,6).toUpperCase()}</DialogTitle>
+                                                    <DialogDescription>{formatMaybeDate(selectedOrder.createdAt)}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <Card>
@@ -1124,23 +1143,23 @@ const OrdersContent = () => {
                                 <Card>
                                     <CardHeader className="p-4"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/>Customer Details</CardTitle></CardHeader>
                                     <CardContent className="p-4 pt-0 text-sm space-y-1">
-                                        <p className="flex items-center gap-2"><Phone className="h-3 w-3"/> {selectedOrder.customer.phone}</p>
-                                        {selectedOrder.fulfillment === 'delivery' && selectedOrder.customer.address && <p className="flex items-start gap-2"><MapPin className="h-3 w-3 mt-1"/> {selectedOrder.customer.address}</p>}
+                                        <p className="flex items-center gap-2"><Phone className="h-3 w-3"/> {selectedOrder.customer?.phone || '—'}</p>
+                                        {selectedOrder.fulfillment === 'delivery' && selectedOrder.customer?.address && <p className="flex items-start gap-2"><MapPin className="h-3 w-3 mt-1"/> {selectedOrder.customer.address}</p>}
                                     </CardContent>
                                 </Card>
                                 <Card>
                                      <CardHeader className="p-4"><CardTitle className="text-base flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-muted-foreground"/>Items Ordered</CardTitle></CardHeader>
                                      <CardContent className="p-4 pt-0 space-y-2">
-                                        {selectedOrder.items.map((item, index) => (
+                                        {(Array.isArray(selectedOrder.items) ? selectedOrder.items : []).map((item, index) => (
                                             <div key={index} className="text-sm flex justify-between">
                                                 <span>{item.quantity} x {item.productName} {item.variantName && `(${item.variantName})`}</span>
-                                                <span className="font-medium">{formatCurrency(item.quantity * item.price, businessData?.currency)}</span>
+                                                <span className="font-medium">{formatCurrency((item.quantity || 0) * (item.price || 0), businessData?.currency)}</span>
                                             </div>
                                         ))}
                                         <Separator />
                                         <div className="font-bold flex justify-between">
                                             <span>Total</span>
-                                            <span>{formatCurrency(selectedOrder.total, businessData?.currency)}</span>
+                                            <span>{formatCurrency(Number(selectedOrder.total || 0), businessData?.currency)}</span>
                                         </div>
                                      </CardContent>
                                 </Card>

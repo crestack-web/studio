@@ -1,8 +1,7 @@
 
-const functions = require("firebase-functions");
+const { onRequest } = require('firebase-functions/v2/https');
 const crypto = require("crypto");
 const axios = require("axios");
-const cors = require('cors')({origin: true});
 const admin = require("firebase-admin");
 
 const db = admin.firestore();
@@ -18,8 +17,7 @@ if (!PAYSTACK_SECRET_KEY) {
  * Initializes a payment with Paystack after validating and calculating the amount on the backend.
  * This is the single, authoritative entry point for all payments.
  */
-exports.initializePayment = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
+exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
         if (req.method !== 'POST') {
             return res.status(405).send('Method Not Allowed');
         }
@@ -248,7 +246,6 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             const errorMessage = error.response?.data?.message || error.message || 'An error occurred while initializing payment.';
             return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
         }
-    });
 });
 
 /**
@@ -256,44 +253,42 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
  * Accepts query param: ?reference=<tx_ref>
  * Returns: Full Paystack verification data object on success.
  */
-exports.verifyPayment = functions.https.onRequest((req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'GET') {
-            return res.status(405).send('Method Not Allowed');
-        }
-        if (!PAYSTACK_SECRET_KEY) {
-            console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
-            return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'GET') {
+        return res.status(405).send('Method Not Allowed');
+    }
+    if (!PAYSTACK_SECRET_KEY) {
+        console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
+        return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
+    }
+    
+    try {
+        const reference = req.query.reference;
+
+        if (!reference) {
+            return res.status(400).json({ success: false, error: 'Payment reference is required.' });
         }
         
-        try {
-            const reference = req.query.reference;
-
-            if (!reference) {
-                return res.status(400).json({ success: false, error: 'Payment reference is required.' });
+        const response = await axios.get(
+            `https://api.paystack.co/transaction/verify/${reference}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                },
             }
-            
-            const response = await axios.get(
-                `https://api.paystack.co/transaction/verify/${reference}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                    },
-                }
-            );
+        );
 
-            if (response.data && response.data.status) {
-                // Return the full data object from Paystack
-                return res.status(200).json({ success: true, data: response.data.data });
-            } else {
-                return res.status(400).json({ success: false, error: response.data.message || 'Could not verify payment.' });
-            }
-        } catch (error) {
-            console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
-            const errorMessage = error.response?.data?.message || 'An error occurred while verifying the payment.';
-            return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+        if (response.data && response.data.status) {
+            // Return the full data object from Paystack
+            return res.status(200).json({ success: true, data: response.data.data });
+        } else {
+            return res.status(400).json({ success: false, error: response.data.message || 'Could not verify payment.' });
         }
-    });
+    } catch (error) {
+        console.error("Paystack verifyPayment error:", error.response ? error.response.data : error.message);
+        const errorMessage = error.response?.data?.message || 'An error occurred while verifying the payment.';
+        return res.status(error.response?.status || 500).json({ success: false, error: errorMessage });
+    }
 });
 
 
@@ -301,7 +296,7 @@ exports.verifyPayment = functions.https.onRequest((req, res) => {
  * Handles incoming webhook events from Paystack.
  * It cryptographically verifies the request and processes the payment events.
  */
-exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
+exports.paystackWebhook = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }

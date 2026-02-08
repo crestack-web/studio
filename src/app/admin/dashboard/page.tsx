@@ -1,49 +1,73 @@
 'use client';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, collectionGroup, doc, getCountFromServer, query } from "firebase/firestore";
 import { Users, ShoppingCart, DollarSign, Eye } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useState } from "react";
+import { useDoc } from "@/firebase";
 
 interface User {
     id: string;
 }
 
-// Mock data for things I can't easily query across all businesses with the client SDK
-const MOCK_TOTAL_ORDERS = 1250;
-const MOCK_TOTAL_REVENUE = 7500000;
+interface PlatformRevenueStats {
+    totalNgn?: number;
+}
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
 
-    const usersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return collection(firestore, 'users');
-    }, [firestore]);
-    const { data: users, isLoading: isLoadingUsers } = useCollection<User>(usersQuery);
+    const [totalUsers, setTotalUsers] = useState<number | null>(null);
+    const [totalOrders, setTotalOrders] = useState<number | null>(null);
+    const [isLoadingCounts, setIsLoadingCounts] = useState(false);
 
-    const totalUsers = users?.length || 0;
+    const revenueRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return doc(firestore, 'platformStats', 'revenue');
+    }, [firestore]);
+    const { data: revenueStats, isLoading: isLoadingRevenue } = useDoc<PlatformRevenueStats>(revenueRef);
+
+    useEffect(() => {
+        const run = async () => {
+            if (!firestore) return;
+            setIsLoadingCounts(true);
+            try {
+                const usersCountSnap = await getCountFromServer(query(collection(firestore, 'users')));
+                setTotalUsers(usersCountSnap.data().count);
+
+                const ordersCountSnap = await getCountFromServer(query(collectionGroup(firestore, 'orders')));
+                setTotalOrders(ordersCountSnap.data().count);
+            } catch (error) {
+                console.error('Admin dashboard count queries failed', error);
+                setTotalUsers(null);
+                setTotalOrders(null);
+            } finally {
+                setIsLoadingCounts(false);
+            }
+        };
+
+        run();
+    }, [firestore]);
 
     const stats = [
         {
             title: "Total Users",
-            value: totalUsers,
+            value: totalUsers == null ? '—' : totalUsers.toLocaleString(),
             icon: Users,
-            isLoading: isLoadingUsers,
+            isLoading: isLoadingCounts,
         },
         {
             title: "Total Orders",
-            value: MOCK_TOTAL_ORDERS.toLocaleString(),
+            value: totalOrders == null ? '—' : totalOrders.toLocaleString(),
             icon: ShoppingCart,
-            isLoading: false, // Using mock data
-            note: "Mock data"
+            isLoading: isLoadingCounts,
         },
         {
             title: "Total Revenue",
-            value: `₦${MOCK_TOTAL_REVENUE.toLocaleString()}`,
+            value: `₦${Number(revenueStats?.totalNgn || 0).toLocaleString()}`,
             icon: DollarSign,
-            isLoading: false, // using mock data
-            note: "Mock data"
+            isLoading: isLoadingRevenue,
         },
         {
             title: "Real-time Visits",

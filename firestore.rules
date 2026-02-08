@@ -26,23 +26,16 @@ service cloud.firestore {
     }
 
     function isOwner(businessId) {
-      if (businessId == null || !isSignedIn()) {
-        return false;
-      }
-      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
-      if (!exists(businessDocPath)) {
-          return false;
-      }
-      let businessDoc = get(businessDocPath);
-      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
+      return isSignedIn()
+        && businessId != null
+        && exists(/databases/$(database)/documents/businesses/$(businessId))
+        && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
     }
 
     function isBusinessMember(businessId) {
-      if (!isSignedIn()) {
-        return false;
-      }
-      let userData = getUserData();
-      return userData != null && userData.businessId == businessId;
+      return isSignedIn()
+        && getUserData() != null
+        && getUserData().businessId == businessId;
     }
     
     function isDeliveryAgent() {
@@ -158,6 +151,11 @@ service cloud.firestore {
         allow list, write: if isAdmin();
     }
 
+    match /dispatchShops/{shopId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // --- BUSMOGO APPLICATIONS ---
     // Public can submit applications; only admins can review/update.
     match /riderApplications/{applicationId} {
@@ -220,6 +218,19 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if resource.data.isActive == true;
       allow write: if isAdmin();
+    }
+
+    // --- MAINTENANCE / ADMIN JOBS ---
+    match /maintenance/{doc=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- PLATFORM STATS ---
+    // Public read for the single revenue counter shown on /welcome.
+    // Client writes are blocked (Cloud Functions uses Admin SDK).
+    match /platformStats/{docId} {
+      allow get: if docId == 'revenue';
+      allow list, create, update, delete: if false;
     }
 
     match /services/{serviceId} {

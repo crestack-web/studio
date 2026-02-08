@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { markets } from '@/lib/currency';
 import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 
 export default function BusinessInfoPage() {
     const router = useRouter();
@@ -65,6 +65,33 @@ export default function BusinessInfoPage() {
             // Use non-blocking updates. Navigation will not wait for these to complete.
             updateDocumentNonBlocking(businessDocRef, businessUpdate);
             setDocumentNonBlocking(businessProfileRef, businessUpdate, { merge: true });
+
+            // Best-effort dispatch shop assignment based on onboarding location.
+            // We treat onboarding "Primary City" as the dispatch coverage "State".
+            try {
+              const shopsQ = query(
+                collection(firestore, 'dispatchShops'),
+                where('country', '==', country),
+                where('state', '==', city)
+              );
+              const snap = await getDocs(shopsQ);
+              const shopDoc = snap.docs[0];
+              if (shopDoc) {
+                const shop = shopDoc.data() as any;
+                const assignment = {
+                  dispatchShopId: shopDoc.id,
+                  dispatchShopName: shop?.name || null,
+                  dispatchShopLocation: shop?.location || null,
+                  dispatchShopPickupFeeNgn: typeof shop?.pickupFeeNgn === 'number' ? shop.pickupFeeNgn : null,
+                  dispatchShopMaintenanceFeeNgn: typeof shop?.maintenanceFeeNgn === 'number' ? shop.maintenanceFeeNgn : null,
+                  dispatchShopAssignedAt: serverTimestamp(),
+                };
+                updateDocumentNonBlocking(businessDocRef, assignment);
+                setDocumentNonBlocking(businessProfileRef, assignment, { merge: true });
+              }
+            } catch (e) {
+              console.warn('Dispatch shop auto-assignment failed', e);
+            }
         } else {
             console.warn("businessId not found, cannot save business info. Proceeding with navigation.");
         }

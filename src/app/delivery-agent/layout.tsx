@@ -17,6 +17,10 @@ interface AppUser {
   role?: string;
 }
 
+interface DeliveryAgentDoc {
+  status?: 'available' | 'on-delivery' | 'unavailable';
+}
+
 const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
@@ -29,7 +33,15 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
   }, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUser>(userProfileRef);
 
-  const isLoading = isUserLoading || (user && isProfileLoading);
+  const agentRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, `deliveryAgents/${user.uid}`);
+  }, [firestore, user]);
+  const { data: agentDoc, isLoading: isLoadingAgentDoc } = useDoc<DeliveryAgentDoc>(agentRef);
+
+  const isLoading = isUserLoading || (user && (isProfileLoading || isLoadingAgentDoc));
+
+  const isAgent = !!agentDoc || userProfile?.role === 'Delivery Agent';
 
   useEffect(() => {
     if (isLoading) return;
@@ -41,11 +53,12 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
         return;
     }
     
-    if (userProfile?.role !== 'Delivery Agent') {
+    if (!isAgent) {
       router.replace('/login');
+      return;
     }
 
-  }, [isLoading, user, userProfile, pathname, router]);
+  }, [isLoading, user, isAgent, pathname, router]);
 
   // Allow access to login/finish-signin pages even while loading or if not an agent yet
   if (pathname.startsWith('/delivery-agent/login') || pathname === '/delivery-agent/finish-signin') {
@@ -56,7 +69,7 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
     return <LoadingScreen />;
   }
   
-  if (user && userProfile?.role === 'Delivery Agent') {
+  if (user && isAgent) {
     return <>{children}</>;
   }
   

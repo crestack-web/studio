@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, MapPin, Mail, Phone, ShieldCheck, Check, Instagram, Facebook, Twitter } from 'lucide-react';
@@ -76,7 +76,15 @@ export default function StoreSlugPage() {
 
     // Prevent this page from matching reserved routes like /login, /admin, etc.
     if (RESERVED_PATHS.includes(slug)) {
-        notFound();
+        return (
+            <div className="min-h-screen" style={{ backgroundColor: FALLBACK_THEME.background, color: FALLBACK_THEME.text }}>
+                <div className="mx-auto max-w-3xl px-4 py-16 text-center space-y-4">
+                    <h1 className="text-2xl font-bold">Storefront not available</h1>
+                    <p className="text-muted-foreground">Please use the market to browse stores.</p>
+                    <Button asChild variant="outline"><Link href="/market">Back to Market</Link></Button>
+                </div>
+            </div>
+        );
     }
 
     // 1. Fetch business profile by slug
@@ -155,7 +163,15 @@ export default function StoreSlugPage() {
     }
     
     if (!businessProfile) {
-        notFound();
+        return (
+            <div className="min-h-screen" style={{ backgroundColor: FALLBACK_THEME.background, color: FALLBACK_THEME.text }}>
+                <div className="mx-auto max-w-3xl px-4 py-16 text-center space-y-4">
+                    <h1 className="text-2xl font-bold">Storefront not found</h1>
+                    <p className="text-muted-foreground">This store link may be incorrect or the store is offline.</p>
+                    <Button asChild variant="outline"><Link href="/market">Back to Market</Link></Button>
+                </div>
+            </div>
+        );
     }
 
     const settings = businessProfile.marketSettings;
@@ -163,7 +179,7 @@ export default function StoreSlugPage() {
     const currencyName = getCurrencyName(currentCountry);
     const isLoading = isLoadingVerification || isLoadingProducts;
 
-    const theme = settings?.theme || FALLBACK_THEME;
+    const theme = { ...FALLBACK_THEME, ...(settings?.theme || {}) };
     const productMap = useMemo(() => {
         const map: Record<string, MarketProduct> = {};
         (productsData || []).forEach(p => { map[p.id] = p; });

@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   description: "The all-in-one workspace for African small businesses.",
   manifest: '/manifest.json',
   icons: {
-     icon: '/favicon.svg',
+     icon: [
+       { url: '/favicon.ico' },
+       { url: '/favicon.svg', type: 'image/svg+xml' },
+     ],
   },
 };
 

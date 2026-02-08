@@ -2,7 +2,7 @@
 'use client';
 
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
-import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck, Megaphone, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Mail, Users, Loader2, Store, Package, LayoutGrid, Menu, Contact, Ticket, ShieldCheck, ShoppingCart, Truck, Megaphone, Briefcase, MapPin } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -140,6 +140,7 @@ function AdminLayout({
     { id: 'verifications', label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck, permission: 'canManageVerifications' },
     { id: 'orders', label: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'canManageOrders' },
     { id: 'delivery-agents', label: 'Delivery Agents', href: '/admin/delivery-agents', icon: Truck, permission: 'canManageOrders' },
+    { id: 'dispatch-shops', label: 'Dispatch Shops', href: '/admin/dispatch-shops', icon: MapPin, permission: 'canManageOrders' },
     { id: 'market', label: 'Market', href: '/admin/market', icon: Store, permission: 'canManageMarketplace' },
     { id: 'products', label: 'Products', href: '/admin/products', icon: Package, permission: 'canManageMarketplace' },
     { id: 'categories', label: 'Categories', href: '/admin/categories', icon: LayoutGrid, permission: 'canManageMarketplace' },
