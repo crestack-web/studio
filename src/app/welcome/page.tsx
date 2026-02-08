@@ -222,43 +222,43 @@ export default function LandingPage() {
             </div>
         </section>
 
-                {/* Revenue Counter */}
-                <section className="container mx-auto px-4 -mt-10 sm:-mt-14 relative z-20 mb-8 sm:mb-12">
-                    <Card className="max-w-5xl mx-auto overflow-hidden border bg-gradient-to-br from-primary/10 via-background to-muted/30">
-                        <CardContent className="p-6 sm:p-10">
-                            <div className="flex flex-col items-center text-center gap-3">
-                                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                                    <CheckCircle className="h-4 w-4" />
-                                    Verified revenue tracked by Busmo
-                                </div>
-
-                                <div className="mt-2">
-                                    {isLoadingRevenue ? (
-                                        <div className="flex flex-col items-center gap-3">
-                                            <Skeleton className="h-14 w-72 sm:w-96" />
-                                            <Skeleton className="h-5 w-80 sm:w-[28rem]" />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight">
-                                                ₦{new Intl.NumberFormat('en-NG').format(Math.max(0, Math.round(Number(revenueStats?.totalNgn || 0))))}
-                                            </div>
-                                            <p className="mt-3 text-base sm:text-lg text-muted-foreground max-w-2xl">
-                                                Total revenue recorded from in-app sales and successful BusmoPay marketplace payments.
-                                            </p>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </section>
-
         {/* Mockup Section */}
         <section className="container mx-auto px-4 -mt-4 sm:-mt-10 relative z-10">
             <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[2/1] max-w-6xl mx-auto">
                 <DashboardMockup />
             </div>
+        </section>
+
+        {/* Revenue Counter */}
+        <section className="container mx-auto px-4 mt-8 sm:mt-10 mb-8 sm:mb-12">
+            <Card className="max-w-5xl mx-auto overflow-hidden border bg-gradient-to-br from-primary/10 via-background to-muted/30">
+                <CardContent className="p-6 sm:p-10">
+                    <div className="flex flex-col items-center text-center gap-3">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                            <CheckCircle className="h-4 w-4" />
+                            Verified revenue tracked by Busmo
+                        </div>
+
+                        <div className="mt-2">
+                            {isLoadingRevenue ? (
+                                <div className="flex flex-col items-center gap-3">
+                                    <Skeleton className="h-14 w-72 sm:w-96" />
+                                    <Skeleton className="h-5 w-80 sm:w-[28rem]" />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight">
+                                        ₦{new Intl.NumberFormat('en-NG').format(Math.max(0, Math.round(Number(revenueStats?.totalNgn || 0))))}
+                                    </div>
+                                    <p className="mt-3 text-base sm:text-lg text-muted-foreground max-w-2xl">
+                                        Total revenue recorded from in-app sales and successful BusmoPay marketplace payments.
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </section>
 
          {/* Features Section */}
