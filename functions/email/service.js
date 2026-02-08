@@ -40,7 +40,7 @@ if (missingEnvVars.length === 0) {
 // --- Default Data ---
 // This data is used if no branding is found in Firestore.
 const defaultBranding = {
-    logoUrl: `${publicBrandHost}/main-1.png`,
+    logoUrl: `${publicBrandHost}/icon.svg`,
     brandColor: "#7953D2",
     accentColor: "#1A237E",
     footerText: `© ${new Date().getFullYear()} Busmo. All rights reserved.`,
