@@ -223,7 +223,7 @@ export default function LandingPage() {
         </section>
 
                 {/* Revenue Counter */}
-                <section className="container mx-auto px-4 -mt-10 sm:-mt-14">
+                <section className="container mx-auto px-4 -mt-10 sm:-mt-14 relative z-20 mb-8 sm:mb-12">
                     <Card className="max-w-5xl mx-auto overflow-hidden border bg-gradient-to-br from-primary/10 via-background to-muted/30">
                         <CardContent className="p-6 sm:p-10">
                             <div className="flex flex-col items-center text-center gap-3">
@@ -255,7 +255,7 @@ export default function LandingPage() {
                 </section>
 
         {/* Mockup Section */}
-        <section className="container mx-auto px-4 -mt-16 sm:-mt-24">
+        <section className="container mx-auto px-4 -mt-4 sm:-mt-10 relative z-10">
             <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[2/1] max-w-6xl mx-auto">
                 <DashboardMockup />
             </div>
