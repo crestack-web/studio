@@ -68,7 +68,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
   if (variant === 'busmopay') {
     return (
       <div className={cn('font-bold font-headline text-3xl', className)}>
-        <span>Busmo<span className="text-primary">Pay</span></span>
+        <span className="whitespace-nowrap">Busmo<span className="text-primary">Pay</span></span>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
       <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
         <BusmoGoLogoIcon />
         <div>
-            <span>Busmo<span className="text-primary">Go</span></span>
+            <span className="whitespace-nowrap">Busmo<span className="text-primary">Go</span></span>
         </div>
       </div>
     );
@@ -88,8 +88,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
     <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
       <LogoIcon />
       <div>
-        <span className="text-accent">Bus</span>
-        <span className="text-accent">mo</span>
+        <span className="text-accent whitespace-nowrap">Busmo</span>
       </div>
     </div>
   );
