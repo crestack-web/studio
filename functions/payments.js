@@ -38,14 +38,37 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
             let amountInNaira = 0; // Authoritative amount in NAIRA.
             let currency = 'NGN';
             let planCode;
+            let orderRef = null;
+            let orderDraft = null;
+            let orderId = null;
+            let orderPath = null;
 
             switch (type) {
                 case 'product': {
-                    const { items } = payload;
+                    const { items, customer, fulfillmentMethod } = payload;
                     if (!items || items.length === 0) {
                         throw new Error('No items provided for product payment.');
                     }
-                    let totalAmount = 0;
+                    let subtotalAmount = 0;
+                    const orderItems = [];
+
+                    // Optional: compute delivery fee from business profile settings (authoritative).
+                    let deliveryFee = 0;
+                    const requestedFulfillment = fulfillmentMethod || 'delivery';
+                    if (requestedFulfillment === 'delivery') {
+                        const businessProfileSnap = await db.collection('businessProfiles').doc(businessId).get().catch(() => null);
+                        const businessProfile = businessProfileSnap && businessProfileSnap.exists ? businessProfileSnap.data() : null;
+                        const configuredFee = businessProfile?.marketSettings?.delivery?.deliveryFee;
+                        if (typeof configuredFee === 'number' && Number.isFinite(configuredFee) && configuredFee >= 0) {
+                            deliveryFee = configuredFee;
+                        }
+                    }
+
+                    // Pre-generate a stable order ID so we can link Paystack metadata -> Firestore order.
+                    orderRef = db.collection('businesses').doc(businessId).collection('orders').doc();
+                    orderId = orderRef.id;
+                    orderPath = orderRef.path;
+
                     for (const item of items) {
                         const productRef = db.collection('marketProducts').doc(item.productId);
                         const productSnap = await productRef.get();
@@ -60,12 +83,14 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                         }
 
                         let itemPrice = 0;
+                        let variantName;
                         if (item.variantId && productData.hasVariants) {
                             const variant = productData.variants.find(v => v.id === item.variantId);
                             if (!variant) {
                                 throw new Error(`Variant ${item.variantId} for product ${item.productId} not found.`);
                             }
                             itemPrice = variant.price;
+                            variantName = variant.name;
                         } else {
                             itemPrice = productData.price;
                         }
@@ -78,9 +103,37 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                             throw new Error(`Invalid quantity for product ${item.productId}.`);
                         }
 
-                        totalAmount += itemPrice * item.quantity;
+                        subtotalAmount += itemPrice * item.quantity;
+                        orderItems.push({
+                            productId: item.productId,
+                            productName: productData.productName || productData.name || 'Product',
+                            variantId: item.variantId || null,
+                            variantName: variantName || null,
+                            quantity: item.quantity,
+                            price: itemPrice,
+                        });
                     }
-                    amountInNaira = totalAmount;
+
+                    amountInNaira = subtotalAmount + deliveryFee;
+
+                    orderDraft = {
+                        buyerId: userId,
+                        sellerBusinessId: businessId,
+                        customer: customer || {},
+                        items: orderItems,
+                        subtotal: subtotalAmount,
+                        deliveryFee,
+                        total: amountInNaira,
+                        status: 'pending',
+                        fulfillment: requestedFulfillment,
+                        payment: 'busmopay',
+                        paymentStatus: 'pending',
+                        paymentReference: null,
+                        paymentIntentReference: null,
+                        payoutStatus: 'unpaid',
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    };
                     break;
                 }
                 case 'subscription': {
@@ -145,7 +198,12 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                 amount: amountInKobo,
                 currency,
                 callback_url,
-                metadata: { userId, businessId, type, ...(payload || {}) },
+                metadata: {
+                    userId,
+                    businessId,
+                    type,
+                    ...(orderId ? { orderId, orderPath } : {}),
+                },
                 ...(planCode && { plan: planCode })
             };
 
@@ -163,11 +221,23 @@ exports.initializePayment = functions.https.onRequest((req, res) => {
                     businessId,
                     type,
                     payload,
+                    orderId: orderId || null,
+                    orderPath: orderPath || null,
                     amount: amountInKobo,
                     currency,
                     status: 'pending',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
+
+                // For product payments, create a pending order immediately so owners/admins can see
+                // payment status transition in realtime.
+                if (type === 'product' && orderRef && orderDraft) {
+                    await orderRef.set({
+                        ...orderDraft,
+                        paymentReference: reference,
+                        paymentIntentReference: reference,
+                    });
+                }
 
                 return res.status(200).json({ success: true, ...response.data.data });
             } else {
@@ -273,28 +343,62 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
             }
             const intentData = intentSnap.data();
 
+            const resolveOrderRef = () => {
+                if (intentData.orderPath && typeof intentData.orderPath === 'string') {
+                    return db.doc(intentData.orderPath);
+                }
+                if (intentData.orderId && intentData.businessId) {
+                    return db.collection('businesses').doc(intentData.businessId).collection('orders').doc(intentData.orderId);
+                }
+                return null;
+            };
+
             // 4. Handle event type
             if (event.event === 'charge.success') {
                 switch (intentData.type) {
                     case 'product': {
-                        const orderRef = db.collection('businesses').doc(intentData.businessId).collection('orders').doc();
-                        transaction.set(orderRef, {
-                            buyerId: intentData.userId,
-                            sellerBusinessId: intentData.businessId,
-                            customer: event.data.customer,
-                            items: intentData.payload.items,
-                            subtotal: intentData.amount / 100, // Convert back to Naira
-                            deliveryFee: 0, // TODO: Calculate this properly
-                            total: intentData.amount / 100,
-                            status: 'confirmed',
-                            fulfillment: intentData.payload.fulfillmentMethod,
-                            payment: 'busmopay',
-                            paymentReference: reference,
-                            payoutStatus: 'unpaid',
-                            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        });
-                        // TODO: Deduct stock from products
+                        const linkedOrderRef = resolveOrderRef();
+                        const paidAt = event.data?.paid_at ? new Date(event.data.paid_at) : new Date();
+
+                        if (linkedOrderRef) {
+                            transaction.set(
+                                linkedOrderRef,
+                                {
+                                    paymentStatus: 'paid',
+                                    status: 'confirmed',
+                                    payment: 'busmopay',
+                                    paymentReference: reference,
+                                    paidAt: admin.firestore.Timestamp.fromDate(paidAt),
+                                    gateway: {
+                                        channel: event.data?.channel || null,
+                                        gatewayResponse: event.data?.gateway_response || null,
+                                    },
+                                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                },
+                                { merge: true }
+                            );
+                        } else {
+                            // Backward-compat: create an order if none was pre-created.
+                            const newOrderRef = db.collection('businesses').doc(intentData.businessId).collection('orders').doc();
+                            transaction.set(newOrderRef, {
+                                buyerId: intentData.userId,
+                                sellerBusinessId: intentData.businessId,
+                                customer: event.data.customer,
+                                items: intentData.payload.items,
+                                subtotal: intentData.amount / 100, // Convert back to Naira
+                                deliveryFee: 0,
+                                total: intentData.amount / 100,
+                                status: 'confirmed',
+                                fulfillment: intentData.payload.fulfillmentMethod,
+                                payment: 'busmopay',
+                                paymentStatus: 'paid',
+                                paymentReference: reference,
+                                payoutStatus: 'unpaid',
+                                paidAt: admin.firestore.Timestamp.fromDate(paidAt),
+                                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            });
+                        }
                         break;
                     }
                     case 'subscription': {
@@ -341,6 +445,21 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
                 }
                  transaction.update(intentRef, { status: 'successful' });
             } else if (event.event === 'charge.failed') {
+                 const linkedOrderRef = resolveOrderRef();
+                 if (intentData.type === 'product' && linkedOrderRef) {
+                    transaction.set(
+                        linkedOrderRef,
+                        {
+                            paymentStatus: 'failed',
+                            paymentReference: reference,
+                            gateway: {
+                                gatewayResponse: event.data?.gateway_response || null,
+                            },
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        },
+                        { merge: true }
+                    );
+                 }
                  transaction.update(intentRef, { status: 'failed' });
             }
 

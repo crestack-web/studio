@@ -72,31 +72,6 @@ export default function MarketLayout({
     }, []);
 
     useEffect(() => {
-        if (!stickyHeaderRef.current) return;
-
-        const measure = () => {
-            const el = stickyHeaderRef.current;
-            if (!el) return;
-            const nextHeight = Math.max(0, Math.round(el.getBoundingClientRect().height));
-            if (nextHeight > 0) setStickyHeaderHeight(nextHeight);
-        };
-
-        measure();
-
-        let ro: ResizeObserver | null = null;
-        if (typeof ResizeObserver !== 'undefined') {
-            ro = new ResizeObserver(() => measure());
-            ro.observe(stickyHeaderRef.current);
-        }
-
-        window.addEventListener('resize', measure);
-        return () => {
-            window.removeEventListener('resize', measure);
-            ro?.disconnect();
-        };
-    }, [topAdBanner, announcements?.length]);
-
-    useEffect(() => {
         setCurrentYear(new Date().getFullYear());
     }, []);
 
@@ -128,6 +103,31 @@ export default function MarketLayout({
         }, [firestore])
     );
     const topAdBanner = topAdBanners?.[0];
+
+    useEffect(() => {
+        if (!stickyHeaderRef.current) return;
+
+        const measure = () => {
+            const el = stickyHeaderRef.current;
+            if (!el) return;
+            const nextHeight = Math.max(0, Math.round(el.getBoundingClientRect().height));
+            if (nextHeight > 0) setStickyHeaderHeight(nextHeight);
+        };
+
+        measure();
+
+        let ro: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => measure());
+            ro.observe(stickyHeaderRef.current);
+        }
+
+        window.addEventListener('resize', measure);
+        return () => {
+            window.removeEventListener('resize', measure);
+            ro?.disconnect();
+        };
+    }, [topAdBanner, announcements?.length]);
 
     const suggestions = useMemo(() => {
         if (!searchQuery) {

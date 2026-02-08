@@ -23,8 +23,9 @@ import { useLanguage } from '@/context/language-provider';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const testimonialsDataRaw = [
@@ -59,12 +60,23 @@ interface Announcement {
     href: string;
 }
 
+interface PlatformRevenueStats {
+    totalNgn?: number;
+    updatedAt?: any;
+}
+
 // The new landing page component
 export default function LandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const { t } = useLanguage();
   const firestore = useFirestore();
+
+    const revenueRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return doc(firestore, 'platformStats', 'revenue');
+    }, [firestore]);
+    const { data: revenueStats, isLoading: isLoadingRevenue } = useDoc<PlatformRevenueStats>(revenueRef);
 
   const { data: announcements } = useCollection<Announcement>(
     useMemoFirebase(() => {
@@ -209,6 +221,38 @@ export default function LandingPage() {
                 </div>
             </div>
         </section>
+
+                {/* Revenue Counter */}
+                <section className="container mx-auto px-4 -mt-10 sm:-mt-14">
+                    <Card className="max-w-5xl mx-auto overflow-hidden border bg-gradient-to-br from-primary/10 via-background to-muted/30">
+                        <CardContent className="p-6 sm:p-10">
+                            <div className="flex flex-col items-center text-center gap-3">
+                                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Verified revenue tracked by Busmo
+                                </div>
+
+                                <div className="mt-2">
+                                    {isLoadingRevenue ? (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <Skeleton className="h-14 w-72 sm:w-96" />
+                                            <Skeleton className="h-5 w-80 sm:w-[28rem]" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight">
+                                                ₦{new Intl.NumberFormat('en-NG').format(Math.max(0, Math.round(Number(revenueStats?.totalNgn || 0))))}
+                                            </div>
+                                            <p className="mt-3 text-base sm:text-lg text-muted-foreground max-w-2xl">
+                                                Total revenue recorded from in-app sales and successful BusmoPay marketplace payments.
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>
 
         {/* Mockup Section */}
         <section className="container mx-auto px-4 -mt-16 sm:-mt-24">

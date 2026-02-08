@@ -750,6 +750,126 @@ export default function OwnerHomePage() {
         const unavailableText = language === 'fr'
             ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
             : "Busmo isn’t available right now. Please try again.";
+
+        const formatLocalCurrency = (value: number) => formatCurrency(value, businessData?.currency);
+        const formatPercent = (value: number) => `${Math.round(value)}%`;
+
+        const generateLocalInsightAnswer = (q: string) => {
+            const text = (q || '').toLowerCase();
+            const hasSales = businessInsights.totalSales > 0 || businessInsights.salesTodayCount > 0;
+            const hasExpenses = businessInsights.totalExpenses > 0;
+            const hasTransactions = businessInsights.totalDeposits > 0 || businessInsights.totalWithdrawals > 0;
+
+            const isFrench = language === 'fr';
+            const basedOnRecent = isFrench ? "D’après l’activité récente" : "Based on recent activity";
+
+            if (text.includes('today') || text.includes("aujourd'hu") || text.includes('aujourd’hui')) {
+                if (text.includes('sale') || text.includes('vent')) {
+                    if (!hasSales) return null;
+                    return isFrench
+                        ? `Aujourd’hui, tu as ${businessInsights.salesTodayCount} ventes pour ${formatLocalCurrency(businessInsights.salesTodayTotal)}.`
+                        : `Today, you made ${businessInsights.salesTodayCount} sales totaling ${formatLocalCurrency(businessInsights.salesTodayTotal)}.`;
+                }
+                if (text.includes('profit') || text.includes('béné') || text.includes('benef')) {
+                    if (!hasSales) return null;
+                    return isFrench
+                        ? `Le bénéfice net d’aujourd’hui est ${formatLocalCurrency(businessInsights.profitToday)}.`
+                        : `Today’s net profit is ${formatLocalCurrency(businessInsights.profitToday)}.`;
+                }
+            }
+
+            if (text.includes('revenue') || text.includes('sales') || text.includes('chiffre') || text.includes('vent')) {
+                if (!hasSales) return null;
+                return isFrench
+                    ? `${basedOnRecent}, ton chiffre d’affaires total est ${formatLocalCurrency(businessInsights.totalSales)}.`
+                    : `${basedOnRecent}, your total sales are ${formatLocalCurrency(businessInsights.totalSales)}.`;
+            }
+
+            if (text.includes('profit') || text.includes('béné') || text.includes('benef')) {
+                if (!hasSales) return null;
+                return isFrench
+                    ? `${basedOnRecent}, ton bénéfice net est ${formatLocalCurrency(businessInsights.totalProfit)}.`
+                    : `${basedOnRecent}, your net profit is ${formatLocalCurrency(businessInsights.totalProfit)}.`;
+            }
+
+            if (text.includes('margin') || text.includes('marge')) {
+                if (!hasSales) return null;
+                return isFrench
+                    ? `${basedOnRecent}, ta marge nette est d’environ ${formatPercent(businessInsights.profitMargin)}.`
+                    : `${basedOnRecent}, your net profit margin is about ${formatPercent(businessInsights.profitMargin)}.`;
+            }
+
+            if (text.includes('expense') || text.includes('charge') || text.includes('dépense') || text.includes('depense')) {
+                if (!hasExpenses) return null;
+                return isFrench
+                    ? `${basedOnRecent}, tes dépenses totalisent ${formatLocalCurrency(businessInsights.totalExpenses)} (environ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} par jour).`
+                    : `${basedOnRecent}, your expenses total ${formatLocalCurrency(businessInsights.totalExpenses)} (about ${formatLocalCurrency(businessInsights.dailyAvgExpense)} per day).`;
+            }
+
+            if (text.includes('withdraw') || text.includes('retir')) {
+                if (!hasTransactions) return null;
+                return isFrench
+                    ? `${basedOnRecent}, tu as retiré ${formatLocalCurrency(businessInsights.totalWithdrawals)}.`
+                    : `${basedOnRecent}, you’ve withdrawn ${formatLocalCurrency(businessInsights.totalWithdrawals)}.`;
+            }
+
+            if (text.includes('deposit') || text.includes('dépôt') || text.includes('depot')) {
+                if (!hasTransactions) return null;
+                return isFrench
+                    ? `${basedOnRecent}, tu as déposé ${formatLocalCurrency(businessInsights.totalDeposits)}.`
+                    : `${basedOnRecent}, you’ve deposited ${formatLocalCurrency(businessInsights.totalDeposits)}.`;
+            }
+
+            if (text.includes('cash') || text.includes('balance') || text.includes('trésor') || text.includes('tresor')) {
+                if (!hasTransactions) return null;
+                return isFrench
+                    ? `${basedOnRecent}, ta trésorerie est ${formatLocalCurrency(businessInsights.cashBalance)}.`
+                    : `${basedOnRecent}, your cash balance is ${formatLocalCurrency(businessInsights.cashBalance)}.`;
+            }
+
+            if (text.includes('restock') || text.includes('stock') || text.includes('réappro') || text.includes('reappro')) {
+                if (businessInsights.lowStockProducts.length === 0) {
+                    return isFrench
+                        ? "Aucun produit en stock faible pour le moment."
+                        : "No low‑stock products right now.";
+                }
+                const top = [...businessInsights.lowStockProducts].sort((a, b) => a.quantity - b.quantity)[0];
+                return isFrench
+                    ? `Réapprovisionne ${top.name} en premier — il ne reste que ${top.quantity}.`
+                    : `Restock ${top.name} first — only ${top.quantity} left.`;
+            }
+
+            if (text.includes('best') || text.includes('meilleur')) {
+                const best = businessInsights.bestSellingProduct;
+                if (!best) return null;
+                return isFrench
+                    ? `${basedOnRecent}, ton meilleur produit est ${best.name} (${best.quantity} unités vendues).`
+                    : `${basedOnRecent}, your best seller is ${best.name} (${best.quantity} units sold).`;
+            }
+
+            if (text.includes('worst') || text.includes('moins') || text.includes('pire')) {
+                const worst = businessInsights.worstSellingProduct;
+                if (!worst) return null;
+                return isFrench
+                    ? `${basedOnRecent}, le produit le moins performant est ${worst.name} (${worst.quantity} unités vendues).`
+                    : `${basedOnRecent}, your weakest performer is ${worst.name} (${worst.quantity} units sold).`;
+            }
+
+            if (text.includes('grow') || text.includes('afford') || text.includes('grandir') || text.includes('permettre')) {
+                if (forecasts.cashRunway !== null) {
+                    return isFrench
+                        ? `${basedOnRecent}, tu as environ ${forecasts.cashRunway} jours de marge de trésorerie. Planifie ta croissance avec prudence.`
+                        : `${basedOnRecent}, you have about ${forecasts.cashRunway} days of cash runway. Plan growth cautiously.`;
+                }
+                if (businessInsights.recentActivityInWindow && businessInsights.dailyAvgBurn === 0) {
+                    return isFrench
+                        ? "Tu ne brûles pas de trésorerie actuellement. La croissance semble possible si tu gardes ce rythme."
+                        : "You’re not burning cash right now. Growth may be possible if you maintain this pace.";
+                }
+            }
+
+            return null;
+        };
         
         const currency = getCurrencySymbol(businessData?.currency || businessData?.country);
         const cacheKey = JSON.stringify({ question, insights: businessInsights, language, currency, selectedBranchId });
@@ -766,6 +886,8 @@ export default function OwnerHomePage() {
             setAiCache(prev => ({ ...prev, [cacheKey]: missingDataFallback }));
             return;
         }
+
+        const localAnswer = generateLocalInsightAnswer(question);
 
         setIsLoadingAi(true);
         setSelectedQuestion(question);
@@ -795,15 +917,26 @@ export default function OwnerHomePage() {
                 currency,
                 language,
             });
-            if (response.answer) {
-              setAnswer(response.answer);
-              setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
+            if (response.answer && response.answer !== unavailableText) {
+                setAnswer(response.answer);
+                setAiCache(prev => ({ ...prev, [cacheKey]: response.answer }));
+                return;
+            }
+
+            if (localAnswer) {
+                setAnswer(localAnswer);
+                setAiCache(prev => ({ ...prev, [cacheKey]: localAnswer }));
             } else {
-                            setAnswer(unavailableText);
+                setAnswer(unavailableText);
             }
         } catch (error: any) {
             console.error("Error getting business insights:", error);
-                        setAnswer(unavailableText);
+            if (localAnswer) {
+                setAnswer(localAnswer);
+                setAiCache(prev => ({ ...prev, [cacheKey]: localAnswer }));
+            } else {
+                setAnswer(unavailableText);
+            }
         } finally {
             setIsLoadingAi(false);
         }

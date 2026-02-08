@@ -89,7 +89,7 @@ interface SellerBankAccount {
     status: 'unverified' | 'pending' | 'verified' | 'failed';
 }
 interface Customer { id: string; name: string; phone: string; totalOrders: number; totalSpent: number; lastOrder: Date; }
-interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid'; pickupRequested?: boolean; pickupRequestedAt?: { toDate: () => Date }; }
+interface Order { id: string; customer: { name: string; phone: string; address?: string }; createdAt: { toDate: () => Date }; total: number; status: 'pending' | 'confirmed' | 'shipped' | 'fulfilled' | 'cancelled'; fulfillment: string; payment: string; paymentStatus?: 'pending' | 'paid' | 'failed'; paymentReference?: string; items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[]; payoutStatus?: 'unpaid' | 'processing' | 'paid'; pickupRequested?: boolean; pickupRequestedAt?: { toDate: () => Date }; }
 // #endregion
 
 // #region --- SETTINGS COMPONENT ---
@@ -891,6 +891,22 @@ const OrdersContent = () => {
 
     const handleRequestPickup = async (order: Order) => {
         if (!firestore || !businessId) return;
+        if (order.fulfillment !== 'delivery') {
+            toast({
+                variant: 'destructive',
+                title: 'Pickup not available',
+                description: 'BusmoGo pickup is only available for delivery orders.',
+            });
+            return;
+        }
+        if (!order.customer?.address) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing delivery address',
+                description: 'Add a customer delivery address before requesting pickup.',
+            });
+            return;
+        }
         setPickupLoadingId(order.id);
         const orderRef = doc(firestore, `businesses/${businessId}/orders`, order.id);
         try {
@@ -996,6 +1012,12 @@ const OrdersContent = () => {
         cancelled: 'secondary',
     };
 
+    const paymentStatusVariant: { [key in NonNullable<Order['paymentStatus']>]: "default" | "secondary" | "destructive" | "outline" } = {
+        pending: 'secondary',
+        paid: 'default',
+        failed: 'destructive',
+    };
+
     if (isLoading) {
         return <Card><CardHeader><CardTitle>Incoming Orders</CardTitle><CardDescription>View and manage orders from your market store.</CardDescription></CardHeader><CardContent className="p-0"><div className="relative w-full overflow-auto"><table className="w-full caption-bottom text-sm"><thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th></tr></thead><tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody></table></div></CardContent></Card>;
     }
@@ -1015,8 +1037,19 @@ const OrdersContent = () => {
                                 {sortedOrders && sortedOrders.length > 0 ? sortedOrders.map((order) => (
                                     <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 font-medium">{order.customer.name}</td>
-                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.createdAt.toDate().toLocaleDateString()}</td>
-                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Badge variant={statusVariant[order.status]}>{order.status}</Badge></td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                            {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : '—'}
+                                        </td>
+                                        <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                                                {order.payment === 'busmopay' && order.paymentStatus ? (
+                                                    <Badge variant={paymentStatusVariant[order.paymentStatus]}>
+                                                        {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
+                                                    </Badge>
+                                                ) : null}
+                                            </div>
+                                        </td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0">{order.items.reduce((acc, item) => acc + item.quantity, 0)}</td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">{formatCurrency(order.total, businessData?.currency)}</td>
                                         <td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right">
@@ -1065,6 +1098,29 @@ const OrdersContent = () => {
                                 <DialogDescription>{selectedOrder.createdAt.toDate().toLocaleString()}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
+                                <Card>
+                                    <CardHeader className="p-4"><CardTitle className="text-base">Payment</CardTitle></CardHeader>
+                                    <CardContent className="p-4 pt-0 text-sm space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">Method</span>
+                                            <span className="capitalize">{selectedOrder.payment || '—'}</span>
+                                        </div>
+                                        {selectedOrder.payment === 'busmopay' ? (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Status</span>
+                                                <Badge variant={selectedOrder.paymentStatus ? paymentStatusVariant[selectedOrder.paymentStatus] : 'secondary'}>
+                                                    {selectedOrder.paymentStatus ? (selectedOrder.paymentStatus === 'paid' ? 'Paid' : selectedOrder.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending') : 'Payment Pending'}
+                                                </Badge>
+                                            </div>
+                                        ) : null}
+                                        {selectedOrder.paymentReference ? (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">Reference</span>
+                                                <span className="font-mono text-xs">{selectedOrder.paymentReference}</span>
+                                            </div>
+                                        ) : null}
+                                    </CardContent>
+                                </Card>
                                 <Card>
                                     <CardHeader className="p-4"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground"/>Customer Details</CardTitle></CardHeader>
                                     <CardContent className="p-4 pt-0 text-sm space-y-1">

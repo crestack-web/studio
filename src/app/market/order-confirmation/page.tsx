@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckCircle2, Landmark, Copy, Loader2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, runTransaction, collection, serverTimestamp, getDoc, query, where } from 'firebase/firestore';
+import { doc, runTransaction, collection, serverTimestamp, getDoc, query, where, limit, collectionGroup } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
@@ -17,7 +17,7 @@ import { useCart } from '@/context/cart-provider';
 
 type MarketSettings = { payment: { bankName?: string; accountNumber?: string; paymentInstructions?: string; }; };
 interface BusinessProfile { marketSettings?: MarketSettings; currency?: string; }
-interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; paymentReference: string; }
+interface Order { id: string; total: number; payment: string; fulfillment: string; sellerBusinessId: string; paymentReference: string; paymentStatus?: 'pending' | 'paid' | 'failed'; }
 
 const OrderConfirmationContent = () => {
     const searchParams = useSearchParams();
@@ -36,7 +36,7 @@ const OrderConfirmationContent = () => {
     const orderQuery = useMemoFirebase(() => {
         if (!firestore || !paystackRef) return null;
         return query(
-            collection(firestore, 'orders'), // Assuming orders are in a top-level collection for this query
+            collectionGroup(firestore, 'orders'),
             where('paymentReference', '==', paystackRef),
             limit(1)
         );
@@ -53,11 +53,22 @@ const OrderConfirmationContent = () => {
 
     useEffect(() => {
         if (paystackRef) {
-            // If the webhook has already created the order, we'll find it immediately.
+            // If the order exists but payment isn't confirmed yet, keep waiting.
             if (!isLoadingOrder && order) {
-                setVerificationStatus('success');
-                setVerificationMessage('Payment confirmed. Your order has been placed!');
-                clearCart();
+                if (order.payment === 'busmopay' && order.paymentStatus === 'paid') {
+                    setVerificationStatus('success');
+                    setVerificationMessage('Payment confirmed. Your order has been placed!');
+                    clearCart();
+                    return;
+                }
+                if (order.payment === 'busmopay' && order.paymentStatus === 'failed') {
+                    setVerificationStatus('failed');
+                    setVerificationMessage('Your payment failed. Please try again.');
+                    return;
+                }
+
+                setVerificationStatus('verifying');
+                setVerificationMessage('Waiting for payment confirmation...');
             } else if (!isLoadingOrder && !order) {
                 // If the component loads and there's no order yet, we wait.
                 // A timeout is a fallback in case the webhook is delayed or fails.

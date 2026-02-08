@@ -9,7 +9,8 @@ admin.initializeApp();
 
 const { onUserCreate } = require("./triggers/auth");
 const { onStaffInvitationCreate, onStaffPermissionsAssigned } = require('./triggers/staff');
-const { onOrderCreate } = require('./triggers/orders');
+const { onOrderCreate, onOrderPaid } = require('./triggers/orders');
+const { onSaleWrite, onOrderWriteForRevenue } = require('./triggers/revenue');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
 // IMPORTANT: Set your Paystack secret key in your environment variables
@@ -34,6 +35,11 @@ exports.onStaffPermissionsAssigned = onStaffPermissionsAssigned;
 
 // Market order notifications
 exports.onOrderCreate = onOrderCreate;
+exports.onOrderPaid = onOrderPaid;
+
+// Platform revenue aggregation
+exports.onSaleWrite = onSaleWrite;
+exports.onOrderWriteForRevenue = onOrderWriteForRevenue;
 
 // Daily owner email digest
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;

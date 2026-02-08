@@ -23,6 +23,7 @@ interface Order {
     status: 'pending' | 'confirmed' | 'in progress' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
     fulfillment: string;
     payment: string;
+    paymentStatus?: 'pending' | 'paid' | 'failed';
     items: { productId: string; productName: string; variantId?: string; variantName?: string; quantity: number; price: number }[];
     sellerBusinessId: string;
     deliveryAgentId?: string;
@@ -48,6 +49,12 @@ const statusVariant: { [key in Order['status']]: "default" | "secondary" | "dest
     delivered: 'success',
     cancelled: 'destructive',
     returned: 'destructive',
+};
+
+const paymentVariant: { [key in NonNullable<Order['paymentStatus']>]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
+    pending: 'secondary',
+    paid: 'success',
+    failed: 'destructive',
 };
 
 export default function AdminOrdersPage() {
@@ -140,7 +147,16 @@ export default function AdminOrdersPage() {
                                             <TableCell>{format(order.createdAt.toDate(), 'PP')}</TableCell>
                                             <TableCell>{business?.businessName}</TableCell>
                                             <TableCell>{order.customer.name}</TableCell>
-                                            <TableCell><Badge variant={statusVariant[order.status]} className="capitalize">{order.status}</Badge></TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1">
+                                                    <Badge variant={statusVariant[order.status]} className="capitalize">{order.status}</Badge>
+                                                    {order.payment === 'busmopay' && order.paymentStatus ? (
+                                                        <Badge variant={paymentVariant[order.paymentStatus]}>
+                                                            {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{agent?.displayName || 'Unassigned'}</TableCell>
                                             <TableCell className="text-right font-medium">{formatCurrency(order.total, business?.currency)}</TableCell>
                                             <TableCell className="text-right">
@@ -178,6 +194,9 @@ export default function AdminOrdersPage() {
                                 {selectedOrder.customer.address && <p><strong>Address:</strong> {selectedOrder.customer.address}</p>}
                                 <p><strong>Fulfillment:</strong> <span className="capitalize">{selectedOrder.fulfillment}</span></p>
                                 <p><strong>Payment:</strong> <span className="capitalize">{selectedOrder.payment}</span></p>
+                                {selectedOrder.payment === 'busmopay' && (
+                                    <p><strong>Payment Status:</strong> <span className="capitalize">{selectedOrder.paymentStatus || 'pending'}</span></p>
+                                )}
                                 <h4 className="font-semibold pt-2 border-t">Items</h4>
                                 <ul className="text-sm space-y-1">
                                     {selectedOrder.items.map((item, i) => (
