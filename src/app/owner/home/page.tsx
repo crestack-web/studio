@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/app/theme-toggle';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
@@ -149,6 +150,7 @@ interface Subscription {
 
 
 const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: string; currency?: string; }) => {
+    const { t } = useLanguage();
     const firestore = useFirestore();
 
     const marketOrdersQuery = useMemoFirebase(() => {
@@ -181,7 +183,7 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-primary" />
-                    <span>Marketplace Performance</span>
+                    <span>{t('ownerHome.marketplacePerformanceTitle')}</span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -189,15 +191,15 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
                     <div className="grid grid-cols-2 gap-4">
                         <div className="text-center">
                             <p className="text-2xl font-bold">{successfulOrders.length}</p>
-                            <p className="text-xs text-muted-foreground">Orders</p>
+                            <p className="text-xs text-muted-foreground">{t('ownerHome.orders')}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-2xl font-bold">{formatCurrency(marketRevenue, currency)}</p>
-                            <p className="text-xs text-muted-foreground">Revenue</p>
+                            <p className="text-xs text-muted-foreground">{t('ownerHome.revenue')}</p>
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-center text-muted-foreground py-4">No successful marketplace orders yet.</p>
+                    <p className="text-sm text-center text-muted-foreground py-4">{t('ownerHome.noMarketplaceOrders')}</p>
                 )}
             </CardContent>
         </Card>
@@ -222,7 +224,7 @@ export default function OwnerHomePage() {
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
     const auth = useAuth();
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
     
     const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
     const [chatInput, setChatInput] = useState('');
@@ -246,8 +248,8 @@ export default function OwnerHomePage() {
         }
         if (subscriptionSuccess) {
             toast({
-                title: "Subscription Activated!",
-                description: "Thank you for your payment. Your plan is now active.",
+                title: t('ownerHome.subscriptionActivatedTitle'),
+                description: t('ownerHome.subscriptionActivatedDesc'),
                 className: "bg-success text-success-foreground",
             });
             const currentUrl = new URL(window.location.href);
@@ -257,32 +259,14 @@ export default function OwnerHomePage() {
          if (typeof window !== 'undefined' && window.localStorage.getItem('isTrialAlertHidden') === 'true') {
             setIsTrialAlertHidden(true);
         }
-    }, [onboardingComplete, subscriptionSuccess, toast]);
+    }, [onboardingComplete, subscriptionSuccess, t, toast]);
     
     useEffect(() => {
-        const allQuestions = language === 'fr' ? [
-            "Pourquoi mon bénéfice a-t-il baissé cette semaine ?",
-            "Quel produit dois-je réapprovisionner en premier ?",
-            "Est-ce que je dépense trop en charges ?",
-            "Est-ce que je peux me permettre de grandir ce mois-ci ?",
-            "Comment se passent mes ventes aujourd’hui ?",
-            "Quel est mon bénéfice net aujourd’hui ?",
-            "Quel est mon chiffre d’affaires récent ?",
-            "Combien d’argent ai-je retiré récemment ?",
-        ] : [
-            "Why did my profit drop this week?",
-            "Which product should I restock first?",
-            "Am I spending too much on expenses?",
-            "Can I afford to grow this month?",
-            "How are my sales today?",
-            "What's my net profit today?",
-            "What's my recent sales revenue?",
-            "How much money have I withdrawn recently?",
-        ];
+        const allQuestions = t('ownerHome.presetQuestions', { returnObjects: true }) as string[];
 
         const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
         setPresetQuestions(shuffled.slice(0, 4));
-    }, [language]);
+    }, [language, t]);
 
     const getMissingDataFallback = (question: string) => {
         const q = (question || '').toLowerCase();
@@ -646,6 +630,67 @@ export default function OwnerHomePage() {
 
     }, [businessInsights, salesData, language]);
 
+    type ForecastProductPerformanceRow = {
+        productId: string;
+        name: string;
+        units: number;
+        revenue: number;
+    };
+
+    type ForecastProductPerformanceSummary = {
+        totalUnits: number;
+        bestSeller?: ForecastProductPerformanceRow;
+        worstSeller?: ForecastProductPerformanceRow;
+    };
+
+    const forecastProductPerformanceSummary = useMemo<ForecastProductPerformanceSummary>(() => {
+        const windowDays = 30;
+        const window = {
+            start: startOfDay(subDays(new Date(), windowDays - 1)),
+            end: endOfDay(new Date()),
+        };
+
+        const filteredSales = selectedBranchId === 'all' ? salesData : salesData?.filter(s => s.branchId === selectedBranchId);
+        if (!filteredSales || filteredSales.length === 0) return { totalUnits: 0 };
+
+        const byProduct = new Map<string, ForecastProductPerformanceRow>();
+        let totalUnits = 0;
+
+        for (const sale of filteredSales) {
+            if (!sale?.timestamp?.toDate) continue;
+            const saleDate = sale.timestamp.toDate();
+            if (!isWithinInterval(saleDate, window)) continue;
+
+            const units = Number(sale.quantity || 0);
+            totalUnits += units;
+
+            if (!sale.productId) continue;
+            const productId = sale.productId;
+            const productName = productsData?.find(p => p.id === sale.productId)?.name || 'Product';
+
+            const existing = byProduct.get(productId) || { productId, name: productName, units: 0, revenue: 0 };
+            existing.units += units;
+            existing.revenue += Number(sale.amount || 0);
+            byProduct.set(productId, existing);
+        }
+
+        const rows = Array.from(byProduct.values()).filter(r => r.units > 0);
+
+        const bestSeller = rows.length > 0
+            ? [...rows].sort((a, b) => (b.units - a.units) || (b.revenue - a.revenue))[0]
+            : undefined;
+
+        const worstSellerCandidate = rows.length > 0
+            ? [...rows].sort((a, b) => (a.units - b.units) || (a.revenue - b.revenue))[0]
+            : undefined;
+
+        const worstSeller = rows.length >= 2 && worstSellerCandidate && bestSeller
+            ? (worstSellerCandidate.productId !== bestSeller.productId ? worstSellerCandidate : undefined)
+            : undefined;
+
+        return { totalUnits, bestSeller, worstSeller };
+    }, [productsData, salesData, selectedBranchId]);
+
     const topInsights = useMemo<string[]>(() => {
         if (!businessData || !salesData || salesData.length < 5) {
             return [
@@ -953,6 +998,26 @@ export default function OwnerHomePage() {
 
     const lowStockNotifications = businessInsights.lowStockProducts;
 
+    const displayAnswer = useMemo(() => {
+        const raw = (answer || '').trim();
+        if (!raw) return '';
+
+        const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+        if (!looksLikeHtml) return raw;
+
+        return raw
+            .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+            .replace(/<\s*\/\s*p\s*>/gi, '\n')
+            .replace(/<\s*p\b[^>]*>/gi, '')
+            .replace(/<\s*ul\b[^>]*>/gi, '\n')
+            .replace(/<\s*\/\s*ul\s*>/gi, '\n')
+            .replace(/<\s*li\b[^>]*>/gi, '\n- ')
+            .replace(/<\s*\/\s*li\s*>/gi, '')
+            .replace(/<[^>]*>/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }, [answer]);
+
     const profitMargin = businessInsights.profitMargin;
     const profitMarginLabel = profitMargin >= 30 ? 'Healthy' : profitMargin >= 10 ? 'Fair' : 'Risky';
     const profitMarginColor = profitMargin >= 30 ? 'text-success' : profitMargin >= 10 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive';
@@ -966,6 +1031,7 @@ export default function OwnerHomePage() {
         <Logo className="h-8" />
         <div className="flex items-center gap-2">
             <ThemeToggle />
+            <LanguageSwitcher />
              <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative hover:bg-transparent">
@@ -976,8 +1042,8 @@ export default function OwnerHomePage() {
                  <PopoverContent align="end" className="w-80">
                     <div className="grid gap-4">
                         <div className="space-y-2">
-                            <h4 className="font-medium leading-none">Notifications</h4>
-                            <p className="text-sm text-muted-foreground">Your recent business alerts.</p>
+                            <h4 className="font-medium leading-none">{t('ownerHome.notificationsTitle')}</h4>
+                            <p className="text-sm text-muted-foreground">{t('ownerHome.notificationsSubtitle')}</p>
                         </div>
                          <div className="grid gap-2">
                             {lowStockNotifications.length > 0 ? (
@@ -985,13 +1051,13 @@ export default function OwnerHomePage() {
                                     <div key={product.id} className="grid grid-cols-[25px_1fr] items-start pb-2 last:pb-0">
                                         <AlertTriangle className="h-4 w-4 text-yellow-600" />
                                         <div className="grid gap-1">
-                                            <p className="text-sm font-medium leading-none">Low Stock Warning</p>
-                                            <p className="text-sm text-muted-foreground">{product.name} has only {product.quantity} units left.</p>
+                                            <p className="text-sm font-medium leading-none">{t('ownerHome.lowStockTitle')}</p>
+                                            <p className="text-sm text-muted-foreground">{t('ownerHome.lowStockDesc')?.replace('{{name}}', product.name)?.replace('{{qty}}', String(product.quantity))}</p>
                                         </div>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-sm text-muted-foreground">No new notifications.</p>
+                                <p className="text-sm text-muted-foreground">{t('ownerHome.noNotifications')}</p>
                             )}
                         </div>
                     </div>
@@ -1011,14 +1077,14 @@ export default function OwnerHomePage() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuLabel>{t('ownerHome.myAccount')}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild><Link href="/owner/staff">Manage Staff</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/owner/pricing">Billing</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/owner/staff">{t('ownerHome.manageStaff')}</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/owner/pricing">{t('ownerHome.billing')}</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
+                        <span>{t('ownerHome.logout')}</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -1054,21 +1120,26 @@ export default function OwnerHomePage() {
         {!isTrialAlertHidden && activeSubscription && activeSubscription.status === 'trialing' && new Date() < activeSubscription.currentPeriodEnd.toDate() && (
             <Alert variant="default" className="bg-primary/10 border-primary/20 relative pr-12">
                 <AlertTriangle className="h-4 w-4 text-primary" />
-                <AlertTitle>Free Trial Active</AlertTitle>
+                <AlertTitle>{t('ownerHome.trialActiveTitle')}</AlertTitle>
                 <AlertDescription className="flex flex-col sm:flex-row justify-between sm:items-center">
-                    <span>You have {Math.max(0, differenceInDays(activeSubscription.currentPeriodEnd.toDate(), new Date()))} days left in your trial.</span>
+                    <span>
+                        {t('ownerHome.trialDaysLeft').replace(
+                            '{{days}}',
+                            String(Math.max(0, differenceInDays(activeSubscription.currentPeriodEnd.toDate(), new Date())))
+                        )}
+                    </span>
                     <Button
                         size="sm"
                         className="mt-2 sm:mt-0"
                         onClick={() => {
                             const trialEndsOn = activeSubscription.currentPeriodEnd.toDate().toLocaleDateString();
                             toast({
-                                title: 'Trial not ended yet',
-                                description: `Your free trial is still active. You can upgrade after it ends on ${trialEndsOn}.`,
+                                title: t('ownerHome.trialNotEndedTitle'),
+                                description: t('ownerHome.trialNotEndedDesc').replace('{{date}}', trialEndsOn),
                             });
                         }}
                     >
-                        Upgrade Now
+                        {t('ownerHome.upgradeNow')}
                     </Button>
                 </AlertDescription>
                 <Button
@@ -1081,24 +1152,26 @@ export default function OwnerHomePage() {
                     }}
                 >
                     <X className="h-4 w-4" />
-                    <span className="sr-only">Dismiss</span>
+                    <span className="sr-only">{t('ownerHome.dismiss')}</span>
                 </Button>
             </Alert>
         )}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <div>
-                <h1 className="text-lg md:text-2xl font-bold font-headline">Welcome back, {userProfile?.displayName}!</h1>
-                <p className="text-muted-foreground text-sm md:text-base">Here's what's happening with your business today.</p>
+                <h1 className="text-lg md:text-2xl font-bold font-headline">
+                    {t('ownerHome.welcomeBack').replace('{{name}}', userProfile?.displayName || '')}
+                </h1>
+                <p className="text-muted-foreground text-sm md:text-base">{t('ownerHome.todaySubtitle')}</p>
             </div>
              {showBranchSelector && (
                 <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
                         <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Select a branch" />
+                            <SelectValue placeholder={t('ownerHome.selectBranch')} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Branches</SelectItem>
+                            <SelectItem value="all">{t('ownerHome.allBranches')}</SelectItem>
                             {branches.map(branch => (
                                 <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
                             ))}
@@ -1111,8 +1184,8 @@ export default function OwnerHomePage() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> Ask Busmo</CardTitle>
-                    <CardDescription>Get quick answers about your business.</CardDescription>
+                    <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> {t('askBusmo.title')}</CardTitle>
+                    <CardDescription>{t('ownerHome.askBusmoDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {presetQuestions.map((q, i) => (
@@ -1135,7 +1208,7 @@ export default function OwnerHomePage() {
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm font-medium">{answer}</p>
+                            <p className="text-sm font-medium whitespace-pre-line">{displayAnswer}</p>
                         )}
                     </CardContent>
                 </Card>
@@ -1143,53 +1216,53 @@ export default function OwnerHomePage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-primary"/> Business Health</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-primary"/> {t('ownerHome.businessHealthTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-1 rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Today's Sales</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.todaysSales')}</p>
                         <p className="text-2xl font-bold">{formatCurrency(businessInsights.salesTodayTotal, businessData?.currency)}</p>
                     </div>
                     <div className="space-y-1 rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Today's Profit</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.todaysProfit')}</p>
                         <p className="text-2xl font-bold">{formatCurrency(businessInsights.profitToday, businessData?.currency)}</p>
                     </div>
                      <div className="space-y-1 rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Profit Margin</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.profitMargin')}</p>
                         <p className={cn("text-2xl font-bold", profitMarginColor)}>{businessInsights.profitMargin.toFixed(0)}%</p>
                     </div>
                     <div className="space-y-1 rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Cash Balance</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.cashBalance')}</p>
                         <p className="text-2xl font-bold">{formatCurrency(businessInsights.cashBalance, businessData?.currency)}</p>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button variant="secondary" asChild><Link href={statementUrl}>View Full Statement</Link></Button>
+                    <Button variant="secondary" asChild><Link href={statementUrl}>{t('ownerHome.viewStatement')}</Link></Button>
                 </CardFooter>
             </Card>
             
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Business Services</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> {t('ownerHome.businessServicesTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground">Get expert help with store setup, product listing, and advertising.</p>
-                    <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">Explore Services</Link></Button>
+                    <p className="text-sm text-muted-foreground">{t('ownerHome.businessServicesDesc')}</p>
+                    <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">{t('ownerHome.exploreServices')}</Link></Button>
                 </CardContent>
             </Card>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> Record Sale</Link></Button>
-              <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>Add Stock</Link></Button>
-              <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>Add Expense</Link></Button>
+                            <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> {t('ownerHome.recordSale')}</Link></Button>
+                            <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>{t('ownerHome.addStock')}</Link></Button>
+                            <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>{t('ownerHome.addExpense')}</Link></Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" className="h-24 flex-col gap-2"><CircleDollarSign/>Cashflow</Button>
+                                        <Button variant="secondary" className="h-24 flex-col gap-2"><CircleDollarSign/>{t('ownerHome.cashflow')}</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild><Link href="/owner/add-money">Add Money (Deposit)</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/owner/take-money">Take Money (Withdrawal)</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/owner/reduce-inventory">Reduce Stock (Damage/Loss)</Link></DropdownMenuItem>
+                                        <DropdownMenuItem asChild><Link href="/owner/add-money">{t('ownerHome.addMoneyDeposit')}</Link></DropdownMenuItem>
+                                        <DropdownMenuItem asChild><Link href="/owner/take-money">{t('ownerHome.takeMoneyWithdrawal')}</Link></DropdownMenuItem>
+                                        <DropdownMenuItem asChild><Link href="/owner/reduce-inventory">{t('ownerHome.reduceStockDamage')}</Link></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1197,7 +1270,7 @@ export default function OwnerHomePage() {
            <div className="lg:col-span-1 flex flex-col gap-6">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/> Today's Top Insight</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/> {t('ownerHome.topInsightTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <ul className="space-y-2">
@@ -1212,42 +1285,106 @@ export default function OwnerHomePage() {
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><ChevronsUp className="w-5 h-5 text-primary"/> Forecasts</CardTitle>
-                        <CardDescription className="text-xs">Based on your recent activity.</CardDescription>
+                        <CardTitle className="text-lg flex items-center gap-2"><ChevronsUp className="w-5 h-5 text-primary"/> {t('ownerHome.forecastsTitle')}</CardTitle>
+                        <CardDescription className="text-xs">{t('ownerHome.forecastsSubtitle')}</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 pt-4">
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-success/10 rounded-full"><TrendingUp className="w-4 h-4 text-success" /></div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Next Week's Profit</p>
-                                {forecasts.weeklyProfit ? (<p className="font-semibold">~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                                <p className="text-xs text-muted-foreground">{t('ownerHome.nextWeeksProfit')}</p>
+                                {forecasts.weeklyProfit ? (
+                                    <p className="font-semibold">~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-primary/10 rounded-full"><Calendar className="w-4 h-4 text-primary" /></div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Busiest Day</p>
-                                {forecasts.busiestDay ? (<p className="font-semibold">{forecasts.busiestDay}</p>) : (<p className="text-xs text-muted-foreground">Needs data</p>)}
+                                <p className="text-xs text-muted-foreground">{t('ownerHome.busiestDay')}</p>
+                                {forecasts.busiestDay ? (
+                                    <p className="font-semibold">{forecasts.busiestDay}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-accent/10 rounded-full"><Landmark className="w-4 h-4 text-accent" /></div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Cash Runway</p>
+                                <p className="text-xs text-muted-foreground">{t('ownerHome.cashRunway')}</p>
                                 {forecasts.cashRunway !== null ? (
-                                    <p className="font-semibold">~{forecasts.cashRunway} days</p>
+                                    <p className="font-semibold">{t('ownerHome.approxDays').replace('{{days}}', String(forecasts.cashRunway))}</p>
                                 ) : businessInsights.recentActivityInWindow && businessInsights.dailyAvgBurn === 0 ? (
-                                    <p className="text-xs text-muted-foreground">Not burning cash</p>
+                                    <p className="text-xs text-muted-foreground">{t('ownerHome.notBurningCash')}</p>
                                 ) : (
-                                    <p className="text-xs text-muted-foreground">Needs data</p>
+                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
                                 )}
                             </div>
                         </div>
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-destructive/10 rounded-full"><PackageMinus className="w-4 h-4 text-destructive" /></div>
                             <div>
-                                <p className="text-xs text-muted-foreground">Stock Outlook</p>
-                                {forecasts.inventoryOutlook ? (<p className="font-semibold text-destructive text-xs">{forecasts.inventoryOutlook}</p>) : (<p className="text-xs text-muted-foreground">Stock levels are healthy.</p>)}
+                                <p className="text-xs text-muted-foreground">{t('ownerHome.stockOutlook')}</p>
+                                {forecasts.inventoryOutlook ? (
+                                    <p className="font-semibold text-destructive text-xs">{forecasts.inventoryOutlook}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">{t('ownerHome.stockHealthy')}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="sm:col-span-2 border-t pt-4">
+                            <div className="flex items-start justify-between gap-4 mb-2">
+                                <p className="text-sm font-medium">{t('ownerHome.productPerformanceTitle')}</p>
+                                <p className="text-xs text-muted-foreground">{t('ownerHome.productPerformanceSubtitle')}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="rounded-md border bg-background p-3">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <TrendingUp className="h-4 w-4 text-success" />
+                                        <span>{t('ownerHome.bestSeller')}</span>
+                                    </div>
+                                    {forecastProductPerformanceSummary.bestSeller ? (
+                                        <div className="mt-2 space-y-1">
+                                            <p className="font-semibold leading-snug truncate">{forecastProductPerformanceSummary.bestSeller.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {forecastProductPerformanceSummary.bestSeller.units} {t('ownerHome.unitsSold')}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-md border bg-background p-3">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <TrendingDown className="h-4 w-4 text-destructive" />
+                                        <span>{t('ownerHome.worstSeller')}</span>
+                                    </div>
+                                    {forecastProductPerformanceSummary.worstSeller ? (
+                                        <div className="mt-2 space-y-1">
+                                            <p className="font-semibold leading-snug truncate">{forecastProductPerformanceSummary.worstSeller.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {forecastProductPerformanceSummary.worstSeller.units} {t('ownerHome.unitsSold')}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-md border bg-background p-3">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Package className="h-4 w-4 text-primary" />
+                                        <span>{t('ownerHome.totalUnitsSold')}</span>
+                                    </div>
+                                    <p className="mt-2 text-2xl font-bold leading-none">{forecastProductPerformanceSummary.totalUnits}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.unitsSold')}</p>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -1261,33 +1398,33 @@ export default function OwnerHomePage() {
                             <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" /> BusmoPay</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-sm text-muted-foreground">Manage your online payments, payouts, and transactions.</p>
-                            <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">Go to BusmoPay</Link></Button>
+                            <p className="text-sm text-muted-foreground">{t('ownerHome.busmopayDesc')}</p>
+                            <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">{t('ownerHome.goToBusmoPay')}</Link></Button>
                         </CardContent>
                     </Card>
                 )}
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> Sell Online</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> {t('ownerHome.sellOnlineTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {businessData?.marketSettings?.isStoreActive ? (
-                             <p className="text-sm text-muted-foreground">Your store is live! Manage products, orders, and settings.</p>
+                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeLiveDesc')}</p>
                         ) : (
-                             <p className="text-sm text-muted-foreground">Set up your free online store on the Busmo Market.</p>
+                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeSetupDesc')}</p>
                         )}
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">Manage My Market</Link></Button>
+                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">{t('ownerHome.manageMyMarket')}</Link></Button>
                     </CardContent>
                 </Card>
                                 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Access Capital</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> {t('ownerHome.accessCapitalTitle')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                       <p className="text-sm text-muted-foreground">Turn your consistent business data into funding opportunities.</p>
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">Explore Funding Options</Link></Button>
+                       <p className="text-sm text-muted-foreground">{t('ownerHome.accessCapitalDesc')}</p>
+                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">{t('ownerHome.exploreFunding')}</Link></Button>
                     </CardContent>
                 </Card>
           </div>
@@ -1296,22 +1433,22 @@ export default function OwnerHomePage() {
       <Dialog open={showWelcome} onOpenChange={setShowWelcome}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Welcome to Busmo!</DialogTitle>
+                <DialogTitle>{t('ownerHome.welcomeDialogTitle')}</DialogTitle>
                 <DialogDescription>
-                    You're all set up. Here are a few things you can do to get started.
+                    {t('ownerHome.welcomeDialogDesc')}
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
                  <Link href="/add-product" onClick={() => setShowWelcome(false)}>
                     <div className="p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                        <p className="font-semibold">1. Add Your Products</p>
-                        <p className="text-sm text-muted-foreground">Start by adding your inventory to track stock levels.</p>
+                        <p className="font-semibold">{t('ownerHome.welcomeStep1Title')}</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.welcomeStep1Desc')}</p>
                     </div>
                 </Link>
                  <Link href="/record-sale" onClick={() => setShowWelcome(false)}>
                     <div className="p-3 rounded-md border hover:bg-muted/50 cursor-pointer">
-                        <p className="font-semibold">2. Record Your First Sale</p>
-                        <p className="text-sm text-muted-foreground">Record a sale to see how your dashboard comes to life.</p>
+                        <p className="font-semibold">{t('ownerHome.welcomeStep2Title')}</p>
+                        <p className="text-sm text-muted-foreground">{t('ownerHome.welcomeStep2Desc')}</p>
                     </div>
                 </Link>
             </div>

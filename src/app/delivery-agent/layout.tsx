@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
+import { EmailVerificationRequired } from '@/components/auth/email-verification-required';
 
 const LoadingScreen = () => (
     <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -67,6 +68,10 @@ const ProtectedDeliveryLayout = ({ children }: { children: React.ReactNode }) =>
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  if (user && !user.emailVerified) {
+    return <EmailVerificationRequired dashboardLabel="Agent" />;
   }
   
   if (user && isAgent) {

@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { addDoc, collection, doc, serverTimestamp } from 'firebase/firestore';
+import { useLanguage } from '@/context/language-provider';
 
 interface AppUser {
     businessId?: string;
@@ -21,6 +22,7 @@ interface AppUser {
 export default function AddMoneyPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const { t } = useLanguage();
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +42,8 @@ export default function AddMoneyPage() {
         if (!amount) {
             toast({
                 variant: 'destructive',
-                title: 'Missing Amount',
-                description: 'Please enter an amount.',
+                title: t('transactions.missingAmountTitle'),
+                description: t('transactions.missingAmountDesc'),
             });
             return;
         }
@@ -49,8 +51,8 @@ export default function AddMoneyPage() {
         if (!businessId || !firestore) {
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: 'Could not find your business. Please try again.',
+                title: t('common.errorTitle'),
+                description: t('transactions.missingBusinessDesc'),
             });
             return;
         }
@@ -67,39 +69,51 @@ export default function AddMoneyPage() {
         };
 
         const transactionsColRef = collection(firestore, `businesses/${businessId}/transactions`);
-        
-        addDocumentNonBlocking(transactionsColRef, transactionData);
 
-        toast({
-            title: 'Deposit Saved',
-            description: `Successfully recorded a deposit of ${amount}.`,
-        });
-        router.back();
+        try {
+            await addDoc(transactionsColRef, transactionData);
+
+            const depositSavedDescTemplate = t('transactions.depositSavedDesc');
+            toast({
+                title: t('transactions.depositSavedTitle'),
+                description: typeof depositSavedDescTemplate === 'string'
+                  ? depositSavedDescTemplate.replace('{{amount}}', amount)
+                  : `Successfully recorded a deposit of ${amount}.`,
+            });
+            router.back();
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: t('transactions.saveFailedTitle'),
+                description: error?.message || t('transactions.saveFailedDesc'),
+            });
+            setIsLoading(false);
+        }
     };
 
 
     return (
-        <MainLayout title="Add Money" backHref="/owner/home">
+        <MainLayout title={t('transactions.addMoneyTitle')} backHref="/owner/home">
             <div className="w-full max-w-md space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Add Money</CardTitle>
-                        <CardDescription>Record a cash deposit into the business.</CardDescription>
+                        <CardTitle>{t('transactions.addMoneyTitle')}</CardTitle>
+                        <CardDescription>{t('transactions.addMoneyDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="amount">Amount</Label>
-                            <Input id="amount" type="number" placeholder="0.00" className="h-12 text-base" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
+                            <Label htmlFor="amount">{t('transactions.amountLabel')}</Label>
+                            <Input id="amount" type="number" placeholder={t('transactions.amountPlaceholder')} className="h-12 text-base" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isLoading} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="description">Note (Optional)</Label>
-                            <Textarea id="description" placeholder="e.g., Initial capital, loan repayment" value={description} onChange={(e) => setDescription(e.target.value)} disabled={isLoading} />
+                            <Label htmlFor="description">{t('transactions.noteOptionalLabel')}</Label>
+                            <Textarea id="description" placeholder={t('transactions.depositNotePlaceholder')} value={description} onChange={(e) => setDescription(e.target.value)} disabled={isLoading} />
                         </div>
                     </CardContent>
                 </Card>
                 <Button className="w-full h-14 text-lg" onClick={handleSaveDeposit} disabled={isLoading || !amount}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Deposit
+                    {t('transactions.saveDepositCta')}
                 </Button>
             </div>
         </MainLayout>

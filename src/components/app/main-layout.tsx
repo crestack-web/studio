@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from '@/context/language-provider';
+import { LanguageSwitcher } from '@/components/app/language-switcher';
 
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +33,10 @@ export default function MainLayout({ children, title, backHref }: MainLayoutProp
           <ArrowLeft className="h-5 w-5" />
           <span className="sr-only">{t('main_layout.back')}</span>
         </Button>
-        <h1 className="text-xl font-headline font-semibold flex-1 text-center truncate pr-12">{title}</h1>
+        <h1 className="text-xl font-headline font-semibold flex-1 text-center truncate">{title}</h1>
+        <div className="ml-2">
+          <LanguageSwitcher />
+        </div>
       </header>
       <main className="flex-1 flex flex-col items-center p-4 sm:p-6 print:p-0 print:m-0">{children}</main>
     </div>

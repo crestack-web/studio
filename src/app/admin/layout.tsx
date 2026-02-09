@@ -11,6 +11,7 @@ import { doc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { EmailVerificationRequired } from '@/components/auth/email-verification-required';
 
 interface AppUser {
   role?: string;
@@ -107,6 +108,10 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  if (user && !user.emailVerified) {
+    return <EmailVerificationRequired dashboardLabel="Admin" />;
   }
   
   const isSuperAdmin = user?.email === 'crestack@gmail.com' || user?.email === 'abduladallahusman@gmail.com' || permissions?.isSuperAdmin;

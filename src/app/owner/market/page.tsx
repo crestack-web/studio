@@ -33,6 +33,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import imageCompression from 'browser-image-compression';
 import { getFunctionUrl } from '@/lib/api';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useLanguage } from '@/context/language-provider';
 
 
 const createSlug = (name: string) => {
@@ -113,6 +114,7 @@ const formatMaybeDate = (value: any, opts?: Intl.DateTimeFormatOptions) => {
 
 // #region --- SETTINGS COMPONENT ---
 const SettingsContent = () => {
+    const { t } = useLanguage();
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user } = useUser();
@@ -265,7 +267,11 @@ const SettingsContent = () => {
             reader.onloadend = () => handleSettingsChange(imageType, reader.result as string);
             reader.readAsDataURL(compressedFile);
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Image compression failed', description: 'Please try again with a different image.' });
+            toast({
+                variant: 'destructive',
+                title: t('ownerMarket.imageCompressionFailedTitle'),
+                description: t('ownerMarket.imageCompressionFailedDesc'),
+            });
         }
     };
 
@@ -304,10 +310,14 @@ const SettingsContent = () => {
                 deliveryCities: deleteField(),
             });
 
-            toast({ title: "Settings Saved", description: "Your market settings have been updated." });
+            toast({ title: t('ownerMarket.settingsSavedTitle'), description: t('ownerMarket.settingsSavedDesc') });
         } catch (error) {
             console.error("Error saving market settings:", error);
-            toast({ variant: "destructive", title: "Save Failed", description: "There was an issue saving your settings." });
+            toast({
+                variant: "destructive",
+                title: t('ownerMarket.saveFailedTitle'),
+                description: t('ownerMarket.saveFailedDesc'),
+            });
         } finally {
             setIsSaving(false);
         }
@@ -323,7 +333,7 @@ const SettingsContent = () => {
         );
     }
     
-    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const daysOfWeek = t('ownerMarket.daysOfWeek', { returnObjects: true }) as string[];
 
     return (
         <div className="space-y-6">
@@ -342,10 +352,60 @@ const SettingsContent = () => {
                     </div>
                 </CardContent>
                 <CardFooter className="gap-2">
-                    <Button variant="outline" onClick={() => {
-                        navigator.clipboard.writeText(`https://busmo.io/${slug}`);
-                        toast({ title: "Copied to clipboard!" });
-                    }}>
+                    <Button
+                        variant="outline"
+                        onClick={async () => {
+                            const url = `https://busmo.io/${slug}`;
+                            let copied = false;
+
+                            // Try legacy copy first (works in more restricted environments).
+                            try {
+                                const textarea = document.createElement('textarea');
+                                textarea.value = url;
+                                textarea.setAttribute('readonly', '');
+                                textarea.style.position = 'fixed';
+                                textarea.style.top = '0';
+                                textarea.style.left = '0';
+                                textarea.style.opacity = '0';
+                                document.body.appendChild(textarea);
+                                textarea.focus();
+                                textarea.select();
+                                copied = document.execCommand('copy');
+                                document.body.removeChild(textarea);
+                            } catch {
+                                copied = false;
+                            }
+
+                            // Clipboard API can be blocked by Permissions Policy (e.g. embedded webviews)
+                            // and may still log errors even when caught; only attempt it when explicitly allowed.
+                            if (!copied) {
+                                try {
+                                    const policy = (document as any).permissionsPolicy;
+                                    const clipboardAllowed =
+                                        typeof policy?.allowsFeature === 'function'
+                                            ? Boolean(policy.allowsFeature('clipboard-write'))
+                                            : false;
+
+                                    if (clipboardAllowed && window.isSecureContext && navigator.clipboard?.writeText) {
+                                        await navigator.clipboard.writeText(url);
+                                        copied = true;
+                                    }
+                                } catch {
+                                    // ignore
+                                }
+                            }
+
+                            toast(
+                                copied
+                                    ? { title: 'Copied to clipboard!' }
+                                    : {
+                                          variant: 'destructive',
+                                          title: "Couldn't copy automatically",
+                                          description: url,
+                                      }
+                            );
+                        }}
+                    >
                         <Copy className="mr-2 h-4 w-4" />
                         Copy Link
                     </Button>
@@ -878,6 +938,7 @@ const ProductsContent = ({ setActiveSection }: { setActiveSection: (section: str
 
 // #region --- ORDERS COMPONENT ---
 const OrdersContent = () => {
+    const { t } = useLanguage();
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user } = useUser();
@@ -930,9 +991,13 @@ const OrdersContent = () => {
         const orderRef = doc(firestore, `businesses/${businessId}/orders`, order.id);
         try {
             await updateDocumentNonBlocking(orderRef, { pickupRequested: true, pickupRequestedAt: serverTimestamp() });
-            toast({ title: 'Pickup Requested', description: 'BusmoGo will coordinate pickup with your nearest dispatch shop.' });
+            toast({ title: t('ownerMarket.pickupRequestedTitle'), description: t('ownerMarket.pickupRequestedDesc') });
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Request failed', description: error?.message || 'Could not request pickup.' });
+            toast({
+                variant: 'destructive',
+                title: t('ownerMarket.requestFailedTitle'),
+                description: error?.message || t('ownerMarket.requestFailedDesc'),
+            });
         } finally {
             setPickupLoadingId(null);
         }
@@ -963,16 +1028,26 @@ const OrdersContent = () => {
                     const bankAccountSnap = await transaction.get(bankAccountRef);
 
                     if (!bankAccountSnap.exists() || bankAccountSnap.data()?.status !== 'verified') {
-                        throw new Error('Payout account is not verified. Please set up your bank account in the BusmoPay settings.');
+                        throw new Error(t('ownerMarket.payoutAccountNotVerifiedError'));
                     }
                     
                     // If verified, proceed to create payout record
-                    const payoutAmount = order.total * 0.90; // Deduct 10% commission
+                    const orderTotal = Number(order.total || 0);
+                    if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+                        throw new Error(t('ownerMarket.orderTotalInvalidError'));
+                    }
+                    const payoutAmount = Math.round(orderTotal * 0.90 * 100) / 100; // Deduct 10% commission
                     const payoutRef = doc(collection(firestore, `businesses/${businessId}/payouts`));
+
+                    const bankAccountData = bankAccountSnap.data() as SellerBankAccount;
                     
                     transaction.set(payoutRef, {
                         orderId: order.id,
                         amount: payoutAmount,
+                        bankCode: bankAccountData.bankCode || null,
+                        bankName: bankAccountData.bankName || null,
+                        accountNumber: bankAccountData.accountNumber || null,
+                        accountName: bankAccountData.accountName || null,
                         currency: businessData.currency,
                         status: 'processing',
                         createdAt: serverTimestamp(),
@@ -985,7 +1060,12 @@ const OrdersContent = () => {
 
                 // If confirming, deduct stock (example logic, adjust as needed)
                 if (status === 'confirmed' && order.status === 'pending') {
-                    for (const item of order.items) {
+                    const items = Array.isArray(order.items) ? order.items : null;
+                    if (!items || items.length === 0) {
+                        throw new Error(t('ownerMarket.orderItemsMissingError'));
+                    }
+
+                    for (const item of items) {
                         const productRef = doc(firestore, `businesses/${businessId}/products`, item.productId);
                         const marketProductRef = doc(firestore, 'marketProducts', item.productId);
 
@@ -1038,20 +1118,20 @@ const OrdersContent = () => {
     };
 
     if (isLoading) {
-        return <Card><CardHeader><CardTitle>Incoming Orders</CardTitle><CardDescription>View and manage orders from your market store.</CardDescription></CardHeader><CardContent className="p-0"><div className="relative w-full overflow-auto"><table className="w-full caption-bottom text-sm"><thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th></tr></thead><tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody></table></div></CardContent></Card>;
+        return <Card><CardHeader><CardTitle>{t('ownerMarket.incomingOrdersTitle')}</CardTitle><CardDescription>{t('ownerMarket.incomingOrdersDesc')}</CardDescription></CardHeader><CardContent className="p-0"><div className="relative w-full overflow-auto"><table className="w-full caption-bottom text-sm"><thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.customer')}</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.date')}</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.status')}</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.total')}</th></tr></thead><tbody className="[&_tr:last-child]:border-0">{[...Array(3)].map((_, i) => <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-24" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-20" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0"><Skeleton className="h-6 w-16 rounded-full" /></td><td className="p-4 align-middle [&:has([role=checkbox])]:pr-0 text-right"><Skeleton className="h-6 w-16 ml-auto" /></td></tr>)}</tbody></table></div></CardContent></Card>;
     }
     
     return (
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Incoming Orders</CardTitle>
-                    <CardDescription>View and manage orders from your market store.</CardDescription>
+                    <CardTitle>{t('ownerMarket.incomingOrdersTitle')}</CardTitle>
+                    <CardDescription>{t('ownerMarket.incomingOrdersDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="relative w-full overflow-auto">
                         <table className="w-full caption-bottom text-sm">
-                            <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Customer</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Date</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Items</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Total</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Actions</th></tr></thead>
+                            <thead className="[&_tr]:border-b"><tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.customer')}</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.date')}</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.status')}</th><th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.items')}</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.total')}</th><th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">{t('ownerMarket.actions')}</th></tr></thead>
                             <tbody className="[&_tr:last-child]:border-0">
                                 {sortedOrders && sortedOrders.length > 0 ? sortedOrders.map((order) => (
                                     <tr key={order.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
@@ -1064,7 +1144,7 @@ const OrdersContent = () => {
                                                 <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
                                                 {order.payment === 'busmopay' && order.paymentStatus ? (
                                                     <Badge variant={paymentStatusVariant[order.paymentStatus]}>
-                                                        {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
+                                                        {order.paymentStatus === 'paid' ? t('ownerMarket.paid') : order.paymentStatus === 'failed' ? t('ownerMarket.paymentFailed') : t('ownerMarket.paymentPending')}
                                                     </Badge>
                                                 ) : null}
                                             </div>
@@ -1075,23 +1155,23 @@ const OrdersContent = () => {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => setSelectedOrder(order)}>View Details</DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handlePrintSlip(order)}>Print Order Slip</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => setSelectedOrder(order)}>{t('ownerMarket.viewDetails')}</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handlePrintSlip(order)}>{t('ownerMarket.printOrderSlip')}</DropdownMenuItem>
                                                     <DropdownMenuItem 
                                                         disabled={order.pickupRequested || ['shipped','fulfilled','cancelled'].includes(order.status)}
                                                         onClick={() => handleRequestPickup(order)}
                                                     >
                                                         {pickupLoadingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                        {order.pickupRequested ? 'Pickup Requested' : 'Request BusmoGo Pickup'}
+                                                        {order.pickupRequested ? t('ownerMarket.pickupRequestedLabel') : t('ownerMarket.requestPickupLabel')}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubTrigger>{t('ownerMarket.updateStatus')}</DropdownMenuSubTrigger>
                                                         <DropdownMenuPortal>
                                                             <DropdownMenuSubContent>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'confirmed')}>Mark as Confirmed</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'shipped')}>Mark as Shipped</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'fulfilled')}>Mark as Fulfilled</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'confirmed')}>{t('ownerMarket.markConfirmed')}</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'shipped')}>{t('ownerMarket.markShipped')}</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'fulfilled')}>{t('ownerMarket.markFulfilled')}</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleUpdateStatus(order, 'cancelled')} className="text-destructive">{t('ownerMarket.cancelOrder')}</DropdownMenuItem>
                                                             </DropdownMenuSubContent>
                                                         </DropdownMenuPortal>
                                                     </DropdownMenuSub>
@@ -1100,7 +1180,7 @@ const OrdersContent = () => {
                                         </td>
                                     </tr>
                                 )) : (
-                                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td colSpan={6} className="p-4 align-middle [&:has([role=checkbox])]:pr-0 h-24 text-center">No orders yet.</td></tr>
+                                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"><td colSpan={6} className="p-4 align-middle [&:has([role=checkbox])]:pr-0 h-24 text-center">{t('ownerMarket.noOrdersYet')}</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -1186,16 +1266,16 @@ const OrdersContent = () => {
                                 <p className="text-sm text-muted-foreground">Order #{orderForSlip.id.substring(0,6).toUpperCase()}</p>
                             </div>
                             <div className="text-right text-sm">
-                                <p>{new Date(orderForSlip.createdAt.toDate()).toLocaleDateString()}</p>
+                                <p>{orderForSlip.createdAt?.toDate ? new Date(orderForSlip.createdAt.toDate()).toLocaleDateString() : ''}</p>
                                 <p className="text-muted-foreground">Attach this slip to the package.</p>
                             </div>
                         </div>
                         <div className="grid sm:grid-cols-2 gap-4 px-6 py-4 text-sm">
                             <div className="space-y-1">
                                 <p className="font-semibold">Ship To</p>
-                                <p>{orderForSlip.customer.name}</p>
-                                <p>{orderForSlip.customer.phone}</p>
-                                {orderForSlip.customer.address && <p className="text-muted-foreground whitespace-pre-line">{orderForSlip.customer.address}</p>}
+                                <p>{orderForSlip.customer?.name || '—'}</p>
+                                <p>{orderForSlip.customer?.phone || '—'}</p>
+                                {orderForSlip.customer?.address && <p className="text-muted-foreground whitespace-pre-line">{orderForSlip.customer.address}</p>}
                             </div>
                             <div className="space-y-1">
                                 <p className="font-semibold">Dispatch Instructions</p>
@@ -1213,7 +1293,7 @@ const OrdersContent = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {orderForSlip.items.map((item, idx) => (
+                                    {(Array.isArray(orderForSlip.items) ? orderForSlip.items : []).map((item, idx) => (
                                         <tr key={idx}>
                                             <td className="px-3 py-2 border">{item.productName}{item.variantName ? ` (${item.variantName})` : ''}</td>
                                             <td className="px-3 py-2 border text-right">{item.quantity}</td>
@@ -1222,7 +1302,7 @@ const OrdersContent = () => {
                                     ))}
                                     <tr>
                                         <td className="px-3 py-2 border font-semibold" colSpan={2}>Total</td>
-                                        <td className="px-3 py-2 border text-right font-semibold">{formatCurrency(orderForSlip.total, businessData?.currency)}</td>
+                                        <td className="px-3 py-2 border text-right font-semibold">{formatCurrency(Number(orderForSlip.total || 0), businessData?.currency)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1253,15 +1333,24 @@ const CustomersContent = () => {
         if (!orders) return [];
         const customerData: { [key: string]: Customer } = {};
         orders.forEach(order => {
-            const customerId = order.customer.phone; // Use phone as unique ID
+            const customerId = order.customer?.phone; // Use phone as unique ID
             if (!customerId) return;
             if (!customerData[customerId]) {
-                customerData[customerId] = { id: customerId, name: order.customer.name, phone: order.customer.phone, totalOrders: 0, totalSpent: 0, lastOrder: order.createdAt.toDate() };
+                const firstOrderDate = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(0);
+                customerData[customerId] = {
+                    id: customerId,
+                    name: order.customer?.name || 'Customer',
+                    phone: customerId,
+                    totalOrders: 0,
+                    totalSpent: 0,
+                    lastOrder: firstOrderDate,
+                };
             }
             customerData[customerId].totalOrders += 1;
-            customerData[customerId].totalSpent += order.total;
-            if (order.createdAt.toDate() > customerData[customerId].lastOrder) {
-                customerData[customerId].lastOrder = order.createdAt.toDate();
+            customerData[customerId].totalSpent += Number(order.total || 0);
+            const orderDate = order.createdAt?.toDate ? order.createdAt.toDate() : null;
+            if (orderDate && orderDate > customerData[customerId].lastOrder) {
+                customerData[customerId].lastOrder = orderDate;
             }
         });
         return Object.values(customerData).sort((a,b) => b.totalSpent - a.totalSpent);
@@ -1306,6 +1395,7 @@ const CustomersContent = () => {
 
 // #region --- BusmoPaySettings ---
 const BusmoPaySettings = () => {
+    const { t } = useLanguage();
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user } = useUser();
@@ -1315,10 +1405,23 @@ const BusmoPaySettings = () => {
     const businessId = userProfile?.businessId;
 
     const businessRef = useMemoFirebase(() => (businessId ? doc(firestore, 'businesses', businessId) : null), [firestore, businessId]);
-    const { data: businessData } = useDoc<{ country?: string }>(businessRef);
+    const { data: businessData } = useDoc<{ country?: string; ownerId?: string }>(businessRef);
+
+    const canManagePayoutSettings = !!user && !!businessData?.ownerId && businessData.ownerId === user.uid;
 
     const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
     const [isLoadingBanks, setIsLoadingBanks] = useState(true);
+
+    const banksForSelect = useMemo(() => {
+        const byCode = new Map<string, { name: string; code: string }>();
+        for (const bank of banks) {
+            const code = typeof bank?.code === 'string' || typeof bank?.code === 'number' ? String(bank.code).trim() : '';
+            if (!code || byCode.has(code)) continue;
+            const name = typeof bank?.name === 'string' ? bank.name.trim() : '';
+            byCode.set(code, { code, name: name || code });
+        }
+        return Array.from(byCode.values());
+    }, [banks]);
 
     const [bankCode, setBankCode] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
@@ -1343,18 +1446,54 @@ const BusmoPaySettings = () => {
                 return;
             }
             const countryName = markets.find((m) => m.code === businessData.country)?.name.toLowerCase() || 'nigeria';
+
+            const normalizeBanksByCode = (data: unknown): { name: string; code: string }[] => {
+                if (!Array.isArray(data)) return [];
+
+                const seenCodes = new Set<string>();
+                const out: { name: string; code: string }[] = [];
+
+                for (const item of data) {
+                    const bankName = (item as any)?.name;
+                    const bankCode = (item as any)?.code;
+
+                    const name = typeof bankName === 'string' ? bankName.trim() : '';
+                    const code = typeof bankCode === 'string' || typeof bankCode === 'number' ? String(bankCode).trim() : '';
+
+                    if (!code || seenCodes.has(code)) continue;
+                    seenCodes.add(code);
+                    out.push({ name: name || code, code });
+                }
+
+                return out;
+            };
             
             try {
-                const response = await fetch(`${fetchBankListUrl}?country=${countryName}`);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const result = await response.json();
-                if (result.success) {
-                    setBanks(result.data);
-                } else {
-                    toast({ title: 'Error fetching banks', description: result.error, variant: 'destructive' });
+                setIsLoadingBanks(true);
+                const url = `${fetchBankListUrl}?country=${encodeURIComponent(countryName)}`;
+                const response = await fetch(url);
+
+                let result: any = null;
+                try {
+                    result = await response.json();
+                } catch {
+                    // ignore
                 }
+
+                if (!response.ok) {
+                    const serverError = result?.error || result?.message || t('ownerMarket.couldNotFetchBankList');
+                    toast({ title: t('ownerMarket.errorFetchingBanksTitle'), description: String(serverError), variant: 'destructive' });
+                    return;
+                }
+
+                if (result?.success) {
+                    setBanks(normalizeBanksByCode(result.data));
+                    return;
+                }
+
+                toast({ title: t('ownerMarket.errorFetchingBanksTitle'), description: String(result?.error || t('ownerMarket.couldNotFetchBankList')), variant: 'destructive' });
             } catch (error) {
-                toast({ title: 'Error', description: 'Could not fetch bank list.', variant: 'destructive' });
+                toast({ title: t('common.errorTitle'), description: t('ownerMarket.couldNotFetchBankList'), variant: 'destructive' });
             } finally {
                 setIsLoadingBanks(false);
             }
@@ -1363,7 +1502,7 @@ const BusmoPaySettings = () => {
         if (businessData?.country) {
             fetchBanks();
         }
-    }, [businessData?.country, toast]);
+    }, [businessData?.country, t, toast]);
 
     useEffect(() => {
         if (bankAccountData) {
@@ -1373,18 +1512,39 @@ const BusmoPaySettings = () => {
     }, [bankAccountData]);
 
     const handleVerifyAccount = async () => {
+        if (!canManagePayoutSettings) {
+            toast({
+                title: t('common.errorTitle'),
+                description: t('ownerMarket.payoutSettingsOwnerOnly'),
+                variant: 'destructive',
+            });
+            return;
+        }
+
         if (!bankCode || !accountNumber) {
-            toast({ title: 'Missing Details', description: 'Please select a bank and enter your account number.', variant: 'destructive' });
+            toast({
+                title: t('ownerMarket.missingDetailsTitle'),
+                description: t('ownerMarket.missingDetailsDesc'),
+                variant: 'destructive',
+            });
             return;
         }
         if (accountNumber.length < 8) {
-            toast({ title: 'Invalid Account Number', description: 'Please enter a valid account number.', variant: 'destructive' });
+            toast({
+                title: t('ownerMarket.invalidAccountNumberTitle'),
+                description: t('ownerMarket.invalidAccountNumberDesc'),
+                variant: 'destructive',
+            });
             return;
         }
         
         const verifyBankAccountUrl = getFunctionUrl('verifyBankAccount');
         if (!verifyBankAccountUrl || verifyBankAccountUrl.includes('undefined')) {
-            toast({ variant: 'destructive', title: 'Configuration Error', description: 'Bank verification service is not set up.' });
+            toast({
+                variant: 'destructive',
+                title: t('ownerMarket.configurationErrorTitle'),
+                description: t('ownerMarket.bankVerificationNotSetupDesc'),
+            });
             return;
         }
     
@@ -1396,15 +1556,47 @@ const BusmoPaySettings = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ account_number: accountNumber, bank_code: bankCode }),
             });
-            const result = await response.json();
-            
-            if (result.success) {
+            const responseText = await response.text();
+            let result: any = null;
+            if (responseText) {
+                try {
+                    result = JSON.parse(responseText);
+                } catch {
+                    result = null;
+                }
+            }
+
+            if (!response.ok) {
+                const serverError =
+                    result?.error ||
+                    result?.message ||
+                    (responseText ? responseText : null) ||
+                    t('ownerMarket.unexpectedError');
+                console.error('verifyBankAccount failed:', {
+                    url: response.url,
+                    status: response.status,
+                    statusText: response.statusText,
+                    result,
+                    responseText: responseText?.slice?.(0, 800) ?? responseText,
+                });
                 toast({
-                  title: 'Verification Successful',
-                  description: `Account holder: ${result.data.account_name}`,
+                    title: t('ownerMarket.verificationFailedTitle'),
+                    description: String(serverError),
+                    variant: 'destructive',
+                });
+                if (bankAccountRef && canManagePayoutSettings) {
+                    await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
+                }
+                return;
+            }
+            
+            if (result?.success) {
+                toast({
+                                    title: t('ownerMarket.verificationSuccessfulTitle'),
+                                    description: t('ownerMarket.accountHolder').replace('{{name}}', String(result.data.account_name || '')),
                 });
                  if(bankAccountRef) {
-                    const selectedBank = banks.find(b => b.code === bankCode);
+                    const selectedBank = banksForSelect.find(b => b.code === bankCode);
                     await setDocumentNonBlocking(bankAccountRef, {
                         bankName: selectedBank?.name,
                         bankCode: bankCode,
@@ -1415,19 +1607,19 @@ const BusmoPaySettings = () => {
                 }
             } else {
                 toast({
-                  title: 'Verification Failed',
-                  description: result.error || 'The bank details could not be verified.',
+                                    title: t('ownerMarket.verificationFailedTitle'),
+                                    description: String(result?.error || (responseText ? responseText : null) || t('ownerMarket.bankDetailsCouldNotBeVerified')),
                   variant: 'destructive',
                 });
-                if(bankAccountRef) {
+                                if(bankAccountRef && canManagePayoutSettings) {
                     await updateDocumentNonBlocking(bankAccountRef, { status: 'failed' });
                 }
             }
         } catch (error: any) {
           console.error("Client-side verification error:", error);
           toast({
-            title: 'Error',
-            description: error.message || 'An unexpected error occurred.',
+                        title: t('common.errorTitle'),
+                        description: error.message || t('ownerMarket.unexpectedError'),
             variant: 'destructive',
           });
         } finally {
@@ -1441,21 +1633,27 @@ const BusmoPaySettings = () => {
         <div className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Payout Settings (Nigeria)</CardTitle>
-                    <CardDescription>Set up your bank account to receive BusmoPay payouts from your online sales.</CardDescription>
+                    <CardTitle>{t('ownerMarket.payoutSettingsTitle')}</CardTitle>
+                    <CardDescription>{t('ownerMarket.payoutSettingsDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {!isLoading && !canManagePayoutSettings && (
+                        <Alert>
+                            <AlertTitle>{t('common.errorTitle')}</AlertTitle>
+                            <AlertDescription>{t('ownerMarket.payoutSettingsOwnerOnly')}</AlertDescription>
+                        </Alert>
+                    )}
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="bank-select">Bank</Label>
-                            <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying || isLoading}>
-                                <SelectTrigger id="bank-select"><SelectValue placeholder={isLoadingBanks ? 'Loading banks...' : 'Select your bank'} /></SelectTrigger>
-                                <SelectContent>{banks.map(bank => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
+                            <Label htmlFor="bank-select">{t('ownerMarket.bank')}</Label>
+                            <Select value={bankCode} onValueChange={setBankCode} disabled={isVerifying || isLoading || !canManagePayoutSettings}>
+                                <SelectTrigger id="bank-select"><SelectValue placeholder={isLoadingBanks ? t('ownerMarket.loadingBanks') : t('ownerMarket.selectYourBank')} /></SelectTrigger>
+                                <SelectContent>{banksForSelect.map((bank) => (<SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>))}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="account-number">Account Number</Label>
-                            <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying || isLoading} />
+                            <Label htmlFor="account-number">{t('ownerMarket.accountNumber')}</Label>
+                            <Input id="account-number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="0123456789" disabled={isVerifying || isLoading || !canManagePayoutSettings} />
                         </div>
                     </div>
                     
@@ -1463,8 +1661,8 @@ const BusmoPaySettings = () => {
                         <Card className="bg-muted/50">
                             <CardHeader className="p-4 flex-row items-start justify-between">
                                 <div>
-                                    <CardTitle className="text-base">Current Payout Account</CardTitle>
-                                    <CardDescription className="text-xs">This is where your earnings will be sent.</CardDescription>
+                                    <CardTitle className="text-base">{t('ownerMarket.currentPayoutAccount')}</CardTitle>
+                                    <CardDescription className="text-xs">{t('ownerMarket.earningsSentHere')}</CardDescription>
                                 </div>
                                 <Badge variant={bankAccountData.status === 'verified' ? 'default' : bankAccountData.status === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{bankAccountData.status}</Badge>
                             </CardHeader>
@@ -1476,24 +1674,24 @@ const BusmoPaySettings = () => {
                             )}
                              {bankAccountData.status === 'failed' && (
                                 <CardContent className="p-4 pt-0 text-sm">
-                                    <p className="text-destructive">Verification failed. Please check your details and try again.</p>
+                                    <p className="text-destructive">{t('ownerMarket.verificationFailedInline')}</p>
                                 </CardContent>
                             )}
                         </Card>
                     )}
                 </CardContent>
                 <CardFooter>
-                     <Button onClick={handleVerifyAccount} disabled={isVerifying || isLoading || !bankCode || !accountNumber}>
+                     <Button onClick={handleVerifyAccount} disabled={isVerifying || isLoading || !canManagePayoutSettings || !bankCode || !accountNumber}>
                         {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isVerifying ? 'Verifying...' : 'Save & Verify Account'}
+                        {isVerifying ? t('ownerMarket.verifying') : t('ownerMarket.saveAndVerifyAccount')}
                     </Button>
                 </CardFooter>
             </Card>
             <Alert>
                 <CreditCard className="h-4 w-4" />
-                <AlertTitle>How Payouts Work</AlertTitle>
+                <AlertTitle>{t('ownerMarket.howPayoutsWorkTitle')}</AlertTitle>
                 <AlertDescription>
-                    Busmo collects payments from buyers on your behalf. After you fulfill an order, earnings (minus a 10% commission) are settled to your verified bank account within 24–48 hours.
+                    {t('ownerMarket.howPayoutsWorkDesc')}
                 </AlertDescription>
             </Alert>
         </div>
@@ -1503,6 +1701,7 @@ const BusmoPaySettings = () => {
 
 // #region --- VERIFICATION COMPONENT ---
 const BusinessVerificationContent = () => {
+    const { t } = useLanguage();
     const { toast } = useToast();
     const firestore = useFirestore();
     const { user } = useUser();
@@ -1512,6 +1711,23 @@ const BusinessVerificationContent = () => {
     
     const verificationRef = useMemoFirebase(() => businessId ? doc(firestore, `businessVerifications/${businessId}`) : null, [firestore, businessId]);
     const { data: verificationData, isLoading: isLoadingVerification } = useDoc<{status: string, rejectionReason?: string, idImageUrl?: string, stockImageUrl?: string, storeImageUrl?: string}>(verificationRef);
+
+    // Public storefronts cannot read businessVerifications (protected by rules).
+    // Mirror the verification status onto a public field so the storefront can show a badge.
+    const businessProfileRef = useMemoFirebase(
+        () => (businessId ? doc(firestore, 'businessProfiles', businessId) : null),
+        [firestore, businessId]
+    );
+
+    useEffect(() => {
+        if (!businessProfileRef) return;
+        if (!verificationData?.status) return;
+
+        const nextIsVerified = verificationData.status === 'verified';
+
+        // Use merge to avoid overwriting profile data.
+        setDocumentNonBlocking(businessProfileRef, { isVerified: nextIsVerified }, { merge: true });
+    }, [businessProfileRef, verificationData?.status]);
     
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [idImage, setIdImage] = useState<string | null>(null);
@@ -1529,13 +1745,21 @@ const BusinessVerificationContent = () => {
             reader.onloadend = () => setter(reader.result as string);
             reader.readAsDataURL(compressedFile);
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Image Upload Failed', description: 'Could not process the image. Please try another file.' });
+            toast({
+                variant: 'destructive',
+                title: t('ownerMarket.imageUploadFailedTitle'),
+                description: t('ownerMarket.imageUploadFailedDesc'),
+            });
         }
     };
     
     const handleSubmit = async () => {
         if (!idImage || !stockImage || !storeImage) {
-            toast({ variant: 'destructive', title: 'Missing Documents', description: 'Please upload all three required images.' });
+            toast({
+                variant: 'destructive',
+                title: t('ownerMarket.missingDocumentsTitle'),
+                description: t('ownerMarket.missingDocumentsDesc'),
+            });
             return;
         }
         if (!verificationRef) return;
@@ -1586,8 +1810,8 @@ const BusinessVerificationContent = () => {
             <Card className="text-center">
                 <CardHeader>
                     <div className="flex justify-center"><CheckCircle className="w-16 h-16 text-success" /></div>
-                    <CardTitle className="text-2xl pt-4">Business Verified!</CardTitle>
-                    <CardDescription>Your business is verified and you can now sell products on the Busmo Market.</CardDescription>
+                    <CardTitle className="text-2xl pt-4">{t('ownerMarket.businessVerifiedTitle')}</CardTitle>
+                    <CardDescription>{t('ownerMarket.businessVerifiedDesc')}</CardDescription>
                 </CardHeader>
             </Card>
         );
@@ -1598,8 +1822,8 @@ const BusinessVerificationContent = () => {
             <Card className="text-center">
                 <CardHeader>
                     <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
-                    <CardTitle className="text-2xl pt-4">Verification Pending</CardTitle>
-                    <CardDescription>Your documents have been submitted and are awaiting review. This typically takes 24-48 hours.</CardDescription>
+                    <CardTitle className="text-2xl pt-4">{t('ownerMarket.verificationPendingTitle')}</CardTitle>
+                    <CardDescription>{t('ownerMarket.verificationPendingDesc')}</CardDescription>
                 </CardHeader>
             </Card>
         );
@@ -1609,27 +1833,29 @@ const BusinessVerificationContent = () => {
          <div className="space-y-6">
              <Card>
                 <CardHeader>
-                    <CardTitle>Business Verification</CardTitle>
-                    <CardDescription>To ensure a safe marketplace, please provide the following documents.</CardDescription>
+                          <CardTitle>{t('ownerMarket.businessVerificationTitle')}</CardTitle>
+                          <CardDescription>{t('ownerMarket.businessVerificationDesc')}</CardDescription>
                 </CardHeader>
              </Card>
             {verificationData?.status === 'rejected' && (
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Verification Rejected</AlertTitle>
+                          <AlertTitle>{t('ownerMarket.verificationRejectedTitle')}</AlertTitle>
                     <AlertDescription>
-                       Your previous submission was rejected. Reason: {verificationData.rejectionReason || 'No reason provided.'} Please re-upload your documents and submit again.
+                              {t('ownerMarket.verificationRejectedDescPrefix')}{' '}
+                              {verificationData.rejectionReason || t('ownerMarket.noReasonProvided')}{' '}
+                              {t('ownerMarket.verificationRejectedDescSuffix')}
                     </AlertDescription>
                 </Alert>
             )}
              <div className="grid md:grid-cols-3 gap-6">
-                <ImageUploader title="Valid ID" description="e.g., National ID, Driver's License" image={idImage || verificationData?.idImageUrl} onImageUpload={setIdImage} isSubmitting={isSubmitting}/>
-                <ImageUploader title="Proof of Stock" description="A photo showing your products/inventory" image={stockImage || verificationData?.stockImageUrl} onImageUpload={setStockImage} isSubmitting={isSubmitting}/>
-                <ImageUploader title="Store/Shop Image" description="A photo of your physical shop or workspace" image={storeImage || verificationData?.storeImageUrl} onImageUpload={setStoreImage} isSubmitting={isSubmitting}/>
+                     <ImageUploader title={t('ownerMarket.validIdTitle')} description={t('ownerMarket.validIdDesc')} image={idImage || verificationData?.idImageUrl} onImageUpload={setIdImage} isSubmitting={isSubmitting}/>
+                     <ImageUploader title={t('ownerMarket.proofOfStockTitle')} description={t('ownerMarket.proofOfStockDesc')} image={stockImage || verificationData?.stockImageUrl} onImageUpload={setStockImage} isSubmitting={isSubmitting}/>
+                     <ImageUploader title={t('ownerMarket.storeImageTitle')} description={t('ownerMarket.storeImageDesc')} image={storeImage || verificationData?.storeImageUrl} onImageUpload={setStoreImage} isSubmitting={isSubmitting}/>
              </div>
              <Button size="lg" className="w-full h-14 text-lg" onClick={handleSubmit} disabled={isSubmitting || !idImage || !stockImage || !storeImage}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit for Verification
+                     {t('ownerMarket.submitForVerification')}
             </Button>
          </div>
     )
@@ -1644,6 +1870,7 @@ export default function ManageMarketPage() {
     const [activeSection, setActiveSection] = useState(initialSection);
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const router = useRouter();
+    const { t } = useLanguage();
 
     const firestore = useFirestore();
     const { user } = useUser();
@@ -1656,17 +1883,17 @@ export default function ManageMarketPage() {
 
     const menuItems = useMemo(() => {
         const items = [
-            { id: 'products', label: 'Products', icon: Package },
-            { id: 'orders', label: 'Orders', icon: ShoppingCart },
-            { id: 'customers', label: 'Customers', icon: Users },
-            { id: 'verification', label: 'Verification', icon: PackageCheck },
-            { id: 'settings', label: 'Store Settings', icon: Settings },
+            { id: 'products', label: t('ownerMarket.menu.products'), icon: Package },
+            { id: 'orders', label: t('ownerMarket.menu.orders'), icon: ShoppingCart },
+            { id: 'customers', label: t('ownerMarket.menu.customers'), icon: Users },
+            { id: 'verification', label: t('ownerMarket.menu.verification'), icon: PackageCheck },
+            { id: 'settings', label: t('ownerMarket.menu.settings'), icon: Settings },
         ];
         if (businessData?.country === 'NG') {
-            items.push({ id: 'busmopay', label: 'BusmoPay', icon: CreditCard });
+            items.push({ id: 'busmopay', label: t('ownerMarket.menu.busmopay'), icon: CreditCard });
         }
         return items;
-    }, [businessData]);
+    }, [businessData, t]);
     
     useEffect(() => {
         const section = searchParams.get('section');
@@ -1693,7 +1920,7 @@ export default function ManageMarketPage() {
          <>
             <SidebarHeader>
                 <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center p-2">
-                    <Button variant="ghost" className="justify-start gap-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span className="group-data-[collapsible=icon]:hidden">Back to Home</span></Button>
+                    <Button variant="ghost" className="justify-start gap-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:p-2" onClick={() => router.push('/owner/home')}><ArrowLeft className="h-5 w-5" /><span className="group-data-[collapsible=icon]:hidden">{t('ownerMarket.backToHome')}</span></Button>
                 </div>
             </SidebarHeader>
 

@@ -104,6 +104,12 @@ export default function MarketLayout({
     );
     const topAdBanner = topAdBanners?.[0];
 
+    const safeImageSrc = (src: unknown, fallback: string) => {
+        if (typeof src !== 'string') return fallback;
+        const trimmed = src.trim();
+        return trimmed.length > 0 ? trimmed : fallback;
+    };
+
     useEffect(() => {
         if (!stickyHeaderRef.current) return;
 
@@ -135,10 +141,10 @@ export default function MarketLayout({
         }
         const lowercasedQuery = searchQuery.toLowerCase();
         const products = (allProducts || [])
-            .filter(p => p.productName.toLowerCase().includes(lowercasedQuery))
+            .filter(p => (p.productName || '').toLowerCase().includes(lowercasedQuery))
             .slice(0, 5);
         const categories = (allCategories || [])
-            .filter(c => c.name.toLowerCase().includes(lowercasedQuery))
+            .filter(c => (c.name || '').toLowerCase().includes(lowercasedQuery))
             .slice(0, 3);
 
         return { products, categories };
@@ -171,7 +177,7 @@ export default function MarketLayout({
                 {topAdBanner && (
                     <div className="bg-black text-white">
                         <Link href={topAdBanner.linkUrl || '#'} target="_blank" rel="noopener noreferrer">
-                            <Image src={topAdBanner.imageUrl} alt="Advertisement" width={1200} height={80} className="w-full h-auto" style={{ maxHeight: '60px', objectFit: 'cover' }} />
+                            <Image src={safeImageSrc(topAdBanner.imageUrl, 'https://picsum.photos/seed/top-ad/1200/80')} alt="Advertisement" width={1200} height={80} className="w-full h-auto" style={{ maxHeight: '60px', objectFit: 'cover' }} />
                         </Link>
                     </div>
                 )}
@@ -249,7 +255,7 @@ export default function MarketLayout({
                                                                 {suggestions.products.map(prod => (
                                                                     <Link key={prod.id} href={`/market/product/${prod.id}`} onClick={closeAndClear} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent">
                                                                         <div className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden bg-muted">
-                                                                            <Image src={prod.images?.[0] || `https://picsum.photos/seed/${prod.id}/100`} alt={prod.productName} fill className="object-cover" />
+                                                                            <Image src={safeImageSrc(prod.images?.[0], `https://picsum.photos/seed/${prod.id}/100`)} alt={prod.productName || 'Product'} fill className="object-cover" />
                                                                         </div>
                                                                         <div className="flex-1">
                                                                             <p className="text-sm font-medium line-clamp-1">{prod.productName}</p>

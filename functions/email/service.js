@@ -5,7 +5,9 @@ const handlebars = require("handlebars");
 const fs = require("fs");
 const path = require("path");
 
-const db = admin.firestore();
+function getDb() {
+    return admin.firestore();
+}
 
 // --- Email Provider Configuration ---
 // IMPORTANT: Set these in your Firebase environment variables
@@ -143,6 +145,18 @@ const defaultTemplates = {
                 `,
                 preheader: "A customer placed an order in your store.",
         },
+
+            email_verification: {
+                subject: "Verify your email for Busmo",
+                htmlBody: `
+                    <h1>Verify your email</h1>
+                    <p>Hi {{userName}},</p>
+                    <p>Please verify your email address to continue using your Busmo dashboard.</p>
+                    <p><a href="{{verificationUrl}}" target="_blank" rel="noopener noreferrer">Verify Email</a></p>
+                    <p>If you didn’t request this, you can ignore this email.</p>
+                `,
+                preheader: "Verify your email to continue.",
+            },
 };
 
 // --- Core Service ---
@@ -165,6 +179,7 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         throw new Error(errorMsg);
     }
     
+    const db = getDb();
     const logRef = db.collection('emailLogs').doc();
     
     try {

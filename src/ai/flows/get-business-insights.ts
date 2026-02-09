@@ -60,8 +60,8 @@ function normalizeLanguage(language?: string): 'en' | 'fr' {
 
 function notEnoughDataMessage(language: 'en' | 'fr') {
   return language === 'fr'
-    ? "Je n’ai pas encore assez de données pour répondre. Enregistre plus de ventes ou ajoute tes produits."
-    : "I don’t have enough data yet to answer that. Please record more sales or add your products.";
+    ? "Je n’ai pas encore assez de données pour répondre. Ajoute tes produits, puis enregistre quelques ventes et dépenses (même 3–5) et réessaie."
+    : "I don’t have enough data yet to answer that. Add your products, then record a few sales and expenses (even 3–5) and try again.";
 }
 
 function unavailableMessage(language: 'en' | 'fr') {
@@ -74,16 +74,26 @@ function ensureConciseAnswer(answer: string) {
   const trimmed = (answer || '').trim();
   if (!trimmed) return '';
 
-  const maxChars = 360;
+  const maxChars = 900;
   if (trimmed.length <= maxChars) return trimmed;
 
+  // Prefer keeping a few complete lines (works well for short bullet guidance).
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
+  const shortLines = lines.slice(0, 6).join('\n');
+  if (shortLines.length <= maxChars) return shortLines;
+
+  // Fallback: keep the first few sentences.
   const sentences = trimmed
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(Boolean);
-
-  const short = sentences.slice(0, 2).join(' ');
-  return short.length <= maxChars ? short : trimmed.slice(0, maxChars).trimEnd();
+  const shortSentences = sentences.slice(0, 4).join(' ');
+  return shortSentences.length <= maxChars
+    ? shortSentences
+    : trimmed.slice(0, maxChars).trimEnd();
 }
 
 function formatMoney(value: number | undefined, currencySymbol: string) {
@@ -96,19 +106,23 @@ const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
   output: {schema: GetBusinessInsightsOutputSchema},
-  prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo. 
+  prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo.
   
-  Your goal is to provide factual, short, and calm answers by explaining the pre-calculated data provided in the 'Data' section.
+  Your goal is to provide factual, practical, and calm answers by explaining the pre-calculated data provided in the 'Data' section.
   
   CRITICAL RULES:
   0.  LANGUAGE: If Language is "fr", respond in French. Otherwise, respond in English. Always respond in that language.
   1.  The data provided represents RECENT activity and may not be the complete, all-time history of the business. When you mention totals (like total sales or profit), you MUST clarify that it is based on recent data (e.g., "Based on recent activity, your total sales are...").
   2.  You MUST NOT perform any calculations, forecasts, or generate numbers yourself. Your answers must be based *only* on the data provided below.
+  2b. FORMAT: Output MUST be plain text only. Do NOT use HTML tags (no <ul>, <li>, <br>, etc.) and do NOT use code blocks. For bullet points, use lines that start with "- ".
   3.  When formatting monetary values, ALWAYS include thousands separators (e.g., 45,000 not 45000). Use the provided currency symbol. If the symbol is "CFA", place it AFTER the number with a space (e.g., 600 CFA). For all other symbols, place them BEFORE the number with no space (e.g., ₦600, $100).
   4.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
   5.  Do NOT guess or invent numbers.
-  6.  If the user explicitly asks for advice, provide 1–3 practical, data-backed suggestions using only the provided data.
-  7.  Keep answers VERY concise: 1–3 short sentences maximum. Answer only the question (no greetings, no long summaries).
+  6.  If the user asks for advice or "what should I do", provide 2–4 practical next steps that are grounded in the provided data (e.g., low stock list, best/worst product, profit margin, expenses).
+  7.  Keep answers helpful but tight:
+      - Start with a direct 1–2 sentence answer.
+      - Then add up to 4 short bullet points (each one action-oriented) when it improves usefulness.
+      - No greetings, no fluff.
 
   Data:
   - Language: {{{language}}}

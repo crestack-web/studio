@@ -9,6 +9,7 @@ import { doc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmailVerificationRequired } from '@/components/auth/email-verification-required';
 
 interface AppUser {
     displayName?: string;
@@ -29,6 +30,15 @@ export default function StaffHomePage() {
     const firestore = useFirestore();
     const auth = useAuth();
     const router = useRouter();
+
+    if (!isUserLoading && !user) {
+        router.replace('/login');
+        return null;
+    }
+
+    if (user && !user.emailVerified) {
+        return <EmailVerificationRequired dashboardLabel="Staff" />;
+    }
 
     const userProfileRef = useMemoFirebase(() => {
         if (!user || !firestore) return null;

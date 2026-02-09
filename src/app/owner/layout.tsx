@@ -74,16 +74,19 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
     const isBillingRoute = pathname.startsWith('/owner/pricing') || pathname.startsWith('/owner/subscribe');
 
     if (!subscription) {
-      if (!onboardingCompleted && !hasPlan && !isBillingRoute) {
-        router.replace('/owner/pricing');
+      // During onboarding, force plan selection.
+      if (!onboardingCompleted && !hasPlan) {
+        if (!isBillingRoute) {
+          router.replace('/owner/pricing');
+        }
         return;
       }
 
-      if ((onboardingCompleted || hasPlan) && isBillingRoute) {
-        router.replace('/owner/home');
-        return;
+      // If onboarding is complete (or a plan exists) but the subscription doc is missing,
+      // treat it as a billing issue and route to subscribe.
+      if (!pathname.startsWith('/owner/subscribe')) {
+        router.replace('/owner/subscribe');
       }
-
       return;
     }
 

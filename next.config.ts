@@ -49,6 +49,10 @@ const nextConfig: NextConfig = {
         source: '/api/verifyBankAccount',
         destination: `${firebaseFunctionsBaseUrl}/verifyBankAccount`,
       },
+      {
+        source: '/api/sendEmailVerification',
+        destination: `${firebaseFunctionsBaseUrl}/sendEmailVerification`,
+      },
     ];
   },
   typescript: {
@@ -80,6 +84,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
         port: '',
         pathname: '/**',
       },

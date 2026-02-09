@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev --turbopack",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -59,10 +59,15 @@
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
   },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "15.5.7"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "eslint": "9.39.2",
+    "eslint-config-next": "16.1.6",
     "genkit-cli": "^1.20.0",
     "png-to-ico": "^3.0.1",
     "postcss": "^8",

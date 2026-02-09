@@ -169,16 +169,15 @@ export default function PricingPage() {
             currentPeriodEnd: addDays(new Date(), 14),
             createdAt: serverTimestamp()
         });
-        
-        // Commit in the background without blocking navigation
-        batch.commit().catch(error => {
-            console.error("Error starting trial:", error);
-            // Optionally, show a toast for background failure
-            toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your plan choice. Please try again.' });
-        });
 
-        // Immediately navigate to the home page
-        router.push('/owner/home?onboarding=complete');
+        try {
+            await batch.commit();
+            router.push('/owner/home?onboarding=complete');
+        } catch (error) {
+            console.error("Error starting trial:", error);
+            toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your plan choice. Please try again.' });
+            setIsSubmitting(false);
+        }
     };
     
   return (

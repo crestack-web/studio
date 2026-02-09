@@ -29,18 +29,22 @@ const OrderConfirmationContent = () => {
     const paystackRef = searchParams.get('reference');
     const source = searchParams.get('source');
 
+    const isSubscription = source === 'subscription';
+
+    const [subscriptionVerifyAttempt, setSubscriptionVerifyAttempt] = useState(0);
+
     const [verificationStatus, setVerificationStatus] = useState<'verifying' | 'success' | 'failed' | 'idle'>(paystackRef ? 'verifying' : 'idle');
     const [verificationMessage, setVerificationMessage] = useState(paystackRef ? 'Verifying your payment...' : '');
 
     // Query for the order using the Paystack reference
     const orderQuery = useMemoFirebase(() => {
-        if (!firestore || !paystackRef) return null;
+        if (!firestore || !paystackRef || isSubscription) return null;
         return query(
             collectionGroup(firestore, 'orders'),
             where('paymentReference', '==', paystackRef),
             limit(1)
         );
-    }, [firestore, paystackRef]);
+    }, [firestore, paystackRef, isSubscription]);
 
     // Use useCollection because we're querying. We expect 0 or 1 result.
     const { data: ordersData, isLoading: isLoadingOrder } = useCollection<Order>(orderQuery);
@@ -52,6 +56,58 @@ const OrderConfirmationContent = () => {
     const { data: businessProfile, isLoading: isLoadingBusiness } = useDoc<BusinessProfile>(businessProfileRef);
 
     useEffect(() => {
+        if (!paystackRef) return;
+
+        if (isSubscription) {
+            let cancelled = false;
+
+            const verifySubscription = async () => {
+                try {
+                    setVerificationStatus('verifying');
+                    setVerificationMessage('Verifying your subscription payment...');
+
+                    const verifyPaymentUrl = getFunctionUrl('verifyPayment');
+                    const res = await fetch(`${verifyPaymentUrl}?reference=${encodeURIComponent(paystackRef)}`);
+                    const json = await res.json().catch(() => null);
+
+                    const paystackData = json?.data;
+                    const paid = paystackData?.status === 'success';
+
+                    if (!res.ok || !paid) {
+                        const errorMessage =
+                            json?.error ||
+                            json?.message ||
+                            paystackData?.gateway_response ||
+                            'We could not confirm your payment.';
+
+                        if (!cancelled) {
+                            setVerificationStatus('failed');
+                            setVerificationMessage(errorMessage);
+                        }
+                        return;
+                    }
+
+                    if (!cancelled) {
+                        setVerificationStatus('success');
+                        setVerificationMessage('Payment confirmed. Redirecting to your dashboard...');
+                        setTimeout(() => {
+                            router.replace('/owner/home?subscription=success');
+                        }, 800);
+                    }
+                } catch (err: any) {
+                    if (!cancelled) {
+                        setVerificationStatus('failed');
+                        setVerificationMessage(err?.message || 'We could not confirm your payment.');
+                    }
+                }
+            };
+
+            verifySubscription();
+            return () => {
+                cancelled = true;
+            };
+        }
+
         if (paystackRef) {
             // If the order exists but payment isn't confirmed yet, keep waiting.
             if (!isLoadingOrder && order) {
@@ -87,49 +143,86 @@ const OrderConfirmationContent = () => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [paystackRef, order, isLoadingOrder, verificationStatus, clearCart, toast]);
+    }, [paystackRef, isSubscription, subscriptionVerifyAttempt, order, isLoadingOrder, verificationStatus, clearCart, toast, router]);
 
 
-    const isLoading = (paystackRef && isLoadingOrder) || (order && isLoadingBusiness);
+    const isLoading = (!isSubscription && paystackRef && isLoadingOrder) || (order && isLoadingBusiness);
 
-    const handleCopy = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast({ title: "Copied to clipboard!" });
+    const handleCopy = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast({ title: "Copied to clipboard!" });
+        } catch {
+            toast({ title: "Copy failed", description: "Please copy manually.", variant: "destructive" });
+        }
     };
 
     if (isLoading || verificationStatus === 'verifying') {
+        const loadingTitle = isSubscription ? 'Confirming Your Subscription' : 'Processing Your Order';
         return (
             <div className="w-full max-w-lg space-y-6 text-center">
                 <Card>
                     <CardHeader>
                         <div className="flex justify-center"><Loader2 className="w-16 h-16 text-primary animate-spin" /></div>
-                        <CardTitle className="text-2xl pt-4">Processing Your Order</CardTitle>
+                        <CardTitle className="text-2xl pt-4">{loadingTitle}</CardTitle>
                         <CardDescription>{verificationMessage}</CardDescription>
                     </CardHeader>
                 </Card>
             </div>
         );
     }
-    
-    if (source === 'subscription' && verificationStatus !== 'verifying') {
-         return (
+
+    if (isSubscription) {
+        if (verificationStatus === 'success') {
+            return (
+                <div className="w-full max-w-lg space-y-6 text-center">
+                    <Card>
+                        <CardHeader>
+                            <div className="flex justify-center">
+                                <CheckCircle2 className="w-16 h-16 text-success" />
+                            </div>
+                            <CardTitle className="text-2xl pt-4">Payment Confirmed</CardTitle>
+                            <CardDescription>{verificationMessage}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button asChild onClick={() => router.replace('/owner/home?subscription=success')}>
+                                Go to Dashboard
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            );
+        }
+
+        return (
             <div className="w-full max-w-lg space-y-6 text-center">
                 <Card>
                     <CardHeader>
                         <div className="flex justify-center">
-                            <CheckCircle2 className="w-16 h-16 text-success" />
+                            <AlertCircle className="w-16 h-16 text-destructive" />
                         </div>
-                        <CardTitle className="text-2xl pt-4">Payment Successful!</CardTitle>
-                        <CardDescription>
-                            Your subscription is now active. You will be redirected to your dashboard.
-                        </CardDescription>
+                        <CardTitle className="text-2xl pt-4">Payment Not Confirmed</CardTitle>
+                        <CardDescription>{verificationMessage || 'We could not confirm your payment yet.'}</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                       <Button asChild onClick={() => router.push('/owner/home')}>Go to Dashboard</Button>
+                    <CardContent className="flex items-center justify-center gap-2">
+                        <Button
+                            onClick={() => {
+                                if (!paystackRef) return;
+                                setVerificationStatus('verifying');
+                                setVerificationMessage('Retrying verification...');
+                                setSubscriptionVerifyAttempt((n) => n + 1);
+                            }}
+                            variant="outline"
+                        >
+                            Retry
+                        </Button>
+                        <Button asChild onClick={() => router.replace('/owner/subscribe')}>
+                            Go back
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
-         );
+        );
     }
     
     if (!orderId || !order) {

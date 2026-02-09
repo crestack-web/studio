@@ -84,6 +84,13 @@ interface MarketGifBanner {
 }
 
 
+const safeImageSrc = (src: unknown, fallback: string) => {
+    if (typeof src !== 'string') return fallback;
+    const trimmed = src.trim();
+    return trimmed.length > 0 ? trimmed : fallback;
+};
+
+
 const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct, isFlashDeal?: boolean }) => {
     const { addItem } = useCart();
     const { toast } = useToast();
@@ -95,7 +102,7 @@ const ProductCard = ({ product, isFlashDeal = false }: { product: MarketProduct,
 
     const showDiscount = oldPrice && oldPrice > displayPrice;
     const discountAmount = showDiscount ? oldPrice - displayPrice : 0;
-    const imageUrl = product.images?.[0] || `https://picsum.photos/seed/${product.id}/400/300`;
+    const imageUrl = safeImageSrc(product.images?.[0], `https://picsum.photos/seed/${product.id}/400/300`);
     const stock = product.availableQuantity;
 
     const handleAddToCart = (e: React.MouseEvent) => {
@@ -366,7 +373,7 @@ export default function MarketPage() {
                                 <Card className="overflow-hidden group">
                                     <div className="relative w-full aspect-[3/4]">
                                         <Image
-                                            src={sideBanner.imageUrl}
+                                            src={safeImageSrc(sideBanner.imageUrl, 'https://picsum.photos/seed/market-side/400/600')}
                                             alt="Promo banner"
                                             fill
                                             className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -397,19 +404,24 @@ export default function MarketPage() {
                                 </CarouselItem>
                             ) : (heroBanners && heroBanners.length > 0) ? (
                                 heroBanners.map((banner, index) => {
-                                    const isGif = banner.imageUrl.includes('.gif') || banner.imageUrl.startsWith('data:image/gif');
+                                    const bannerUrl = safeImageSrc(banner.imageUrl, '');
+                                    const isGif = bannerUrl.includes('.gif') || bannerUrl.startsWith('data:image/gif');
                                     return (
                                         <CarouselItem key={banner.id} className={cn("relative aspect-[16/7] overflow-hidden rounded-lg", banner.className)}>
-                                            {isGif ? (
+                                            {!bannerUrl ? (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                                                    <p className="text-muted-foreground">Banner unavailable</p>
+                                                </div>
+                                            ) : isGif ? (
                                                 <img 
-                                                    src={banner.imageUrl} 
+                                                    src={bannerUrl} 
                                                     alt={banner.title || 'Market banner'} 
                                                     className="absolute inset-0 w-full h-full object-cover" 
                                                     data-ai-hint={banner.imageHint || ''}
                                                 />
                                             ) : (
                                                 <Image 
-                                                    src={banner.imageUrl} 
+                                                    src={bannerUrl} 
                                                     alt={banner.title || 'Market banner'} 
                                                     fill 
                                                     className="object-cover" 
@@ -505,7 +517,7 @@ export default function MarketPage() {
                                             <Link href="#" className="block group text-center">
                                                 <div className="aspect-square relative overflow-hidden rounded-lg bg-card">
                                                     <Image
-                                                        src={category.imageUrl}
+                                                        src={safeImageSrc(category.imageUrl, `https://picsum.photos/seed/cat-${category.id}/300/300`)}
                                                         alt={category.name || ''}
                                                         fill
                                                         className="object-cover transition-transform duration-300 group-hover:scale-105"

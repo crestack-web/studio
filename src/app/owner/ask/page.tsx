@@ -68,14 +68,15 @@ interface Message {
 export default function AskPage() {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const { language } = useLanguage();
-  const unavailableText = language === 'fr'
-    ? "Busmo n’est pas disponible pour le moment. Réessaie bientôt."
-    : "Busmo isn’t available right now. Please try again.";
+  const { language, t } = useLanguage();
+
+  const unavailableText = t('askBusmo.unavailable');
+  const loadingDataText = t('askBusmo.loadingData');
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'initial',
-      text: 'Hello! Ask me anything about your business performance.',
+      text: t('askBusmo.greeting'),
       sender: 'ai',
     },
   ]);
@@ -257,6 +258,19 @@ export default function AskPage() {
 
   const isInsightsReady = !!businessData && !!salesData && !!expensesData && !!transactionsData && !!productsData;
 
+  const quickQuestions = useMemo(() => {
+    const list = t('askBusmo.ownerQuickQuestions', { returnObjects: true }) as unknown;
+    const questions = Array.isArray(list) ? (list as string[]).filter(Boolean) : [];
+
+    // Shuffle suggestions so owners see different prompts each visit.
+    const shuffled = [...questions];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 8);
+  }, [t, language]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -265,15 +279,27 @@ export default function AskPage() {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (inputValue.trim() === '' || isLoading) return;
+  useEffect(() => {
+    setMessages(prev => {
+      if (prev.length !== 1) return prev;
+      const first = prev[0];
+      if (!first || first.id !== 'initial' || first.sender !== 'ai') return prev;
+      const nextText = t('askBusmo.greeting');
+      if (first.text === nextText) return prev;
+      return [{ ...first, text: nextText }];
+    });
+  }, [language, t]);
+
+  const submitQuestion = async (question: string) => {
+    const trimmed = (question || '').trim();
+    if (!trimmed || isLoading) return;
+
     if (!isInsightsReady) {
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: "I'm still loading your business data. Please try again in a moment.",
+          text: loadingDataText,
           sender: 'ai',
         },
       ]);
@@ -282,11 +308,11 @@ export default function AskPage() {
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputValue,
+      text: trimmed,
       sender: 'user',
     };
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = inputValue;
+    const currentInput = trimmed;
     setInputValue('');
     setIsLoading(true);
 
@@ -332,8 +358,17 @@ export default function AskPage() {
     }
   };
 
+  const handleSendMessage = async (e: FormEvent) => {
+    e.preventDefault();
+    await submitQuestion(inputValue);
+  };
+
+  const sendQuickQuestion = async (question: string) => {
+    await submitQuestion(question);
+  };
+
   return (
-    <MainLayout title="Ask Busmo" backHref="/owner/home">
+    <MainLayout title={t('askBusmo.title')} backHref="/owner/home">
       <div className="flex flex-col h-full w-full max-w-2xl">
         <div className="flex-1 overflow-y-auto p-1 md:p-4 space-y-6">
           {messages.map((message) => (
@@ -376,11 +411,35 @@ export default function AskPage() {
           )}
           <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-4 border-t bg-background">
+
+        {quickQuestions.length > 0 && (
+          <div className="border-t bg-background px-1 md:px-4 py-3">
+            <div className="text-sm text-muted-foreground mb-2">{t('askBusmo.tryAsking')}</div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {quickQuestions.map((q) => (
+                <Button
+                  key={q}
+                  type="button"
+                  variant="secondary"
+                  className="h-9 shrink-0"
+                  disabled={isLoading || isUserLoading || !isInsightsReady}
+                  onClick={() => sendQuickQuestion(q)}
+                >
+                  {q}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSendMessage}
+          className={`flex items-center gap-2 pt-4 bg-background ${quickQuestions.length > 0 ? '' : 'border-t'}`}
+        >
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your question..."
+            placeholder={t('askBusmo.placeholder')}
             className="h-12 flex-1 text-base"
             disabled={isLoading || isUserLoading}
             autoFocus

@@ -8,7 +8,6 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
@@ -70,17 +69,24 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
+        // Only wrap permission-denied errors in our contextual LLM-friendly error.
+        // Other Firestore errors (indexes, network, etc.) should pass through untouched.
+        const contextualError =
+          error.code === 'permission-denied'
+            ? new FirestorePermissionError({
+                operation: 'get',
+                path: memoizedDocRef.path,
+              })
+            : error;
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // IMPORTANT: Do not throw globally for permission errors.
+        // Public pages (e.g. storefront) may intentionally access public-only data,
+        // and owner/admin pages should handle auth/rules errors locally.
+        // errorEmitter.emit('permission-error', contextualError as FirestorePermissionError);
       }
     );
 

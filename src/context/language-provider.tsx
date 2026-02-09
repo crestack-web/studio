@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import en from '@/locales/en.json';
 import fr from '@/locales/fr.json';
 
@@ -15,7 +15,34 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguageState] = useState<'en' | 'fr'>('en');
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('busmo_language');
+      if (saved === 'en' || saved === 'fr') {
+        setLanguageState(saved);
+        return;
+      }
+
+      const browser = (navigator.language || '').toLowerCase();
+      if (browser.startsWith('fr')) {
+        setLanguageState('fr');
+      }
+    } catch {
+      // Ignore storage / browser access errors.
+    }
+  }, []);
+
+  const setLanguage = useCallback((next: string) => {
+    const normalized: 'en' | 'fr' = next === 'fr' ? 'fr' : 'en';
+    setLanguageState(normalized);
+    try {
+      window.localStorage.setItem('busmo_language', normalized);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, []);
 
   const t = useCallback((key: string, options?: { returnObjects: boolean }): any => {
     const keys = key.split('.');
