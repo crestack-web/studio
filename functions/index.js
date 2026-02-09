@@ -1,6 +1,7 @@
 
 const functions = require("firebase-functions");
 const { onRequest } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const admin = require("firebase-admin");
 const axios = require("axios");
 
@@ -13,8 +14,17 @@ const { onOrderCreate, onOrderPaid } = require('./triggers/orders');
 const { onSaleWrite, onOrderWriteForRevenue, onRevenueBackfillRequestCreate } = require('./triggers/revenue');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
-// IMPORTANT: Set your Paystack secret key in your environment variables
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
+
+function getPaystackSecret() {
+    try {
+        const secret = PAYSTACK_SECRET_KEY.value();
+        if (secret) return secret;
+    } catch {
+        // When running locally without secrets, fall back to env var.
+    }
+    return process.env.PAYSTACK_SECRET_KEY;
+}
 
 // --- NEW PAYMENT FUNCTIONS ---
 // All new payment logic is imported from the dedicated payments.js file.
@@ -46,20 +56,21 @@ exports.onRevenueBackfillRequestCreate = onRevenueBackfillRequestCreate;
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
-exports.fetchBankList = onRequest({ cors: true }, async (req, res) => {
+exports.fetchBankList = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY] }, async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).send('Method Not Allowed');
     }
     const country = req.query.country || 'nigeria';
 
-    if (!PAYSTACK_SECRET) {
+    const paystackSecret = getPaystackSecret();
+    if (!paystackSecret) {
         console.error("Paystack secret key is not configured.");
         return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
     }
 
     try {
         const response = await axios.get(`https://api.paystack.co/bank?country=${country}&currency=NGN`, {
-            headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            headers: { Authorization: `Bearer ${paystackSecret}` },
         });
 
         if (response.data && response.data.status) {
@@ -73,7 +84,7 @@ exports.fetchBankList = onRequest({ cors: true }, async (req, res) => {
     }
 });
 
-exports.verifyBankAccount = onRequest({ cors: true }, async (req, res) => {
+exports.verifyBankAccount = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY] }, async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -83,14 +94,15 @@ exports.verifyBankAccount = onRequest({ cors: true }, async (req, res) => {
         return res.status(400).json({ success: false, error: 'Missing account_number or bank_code.' });
     }
 
-    if (!PAYSTACK_SECRET) {
+    const paystackSecret = getPaystackSecret();
+    if (!paystackSecret) {
         console.error("Paystack secret key is not configured.");
         return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
     }
     
     try {
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${account_number}&bank_code=${bank_code}`, {
-            headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            headers: { Authorization: `Bearer ${paystackSecret}` },
         });
         
         if (response.data && response.data.status) {

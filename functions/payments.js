@@ -1,15 +1,22 @@
 
 const { onRequest } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const crypto = require("crypto");
 const axios = require("axios");
 const admin = require("firebase-admin");
 
 const db = admin.firestore();
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
 
-if (!PAYSTACK_SECRET_KEY) {
-  console.error("FATAL ERROR: PAYSTACK_SECRET_KEY environment variable is not set.");
+function getPaystackSecret() {
+    try {
+        const secret = PAYSTACK_SECRET_KEY.value();
+        if (secret) return secret;
+    } catch {
+        // When running locally without secrets, fall back to env var.
+    }
+    return process.env.PAYSTACK_SECRET_KEY;
 }
 
 
@@ -17,12 +24,13 @@ if (!PAYSTACK_SECRET_KEY) {
  * Initializes a payment with Paystack after validating and calculating the amount on the backend.
  * This is the single, authoritative entry point for all payments.
  */
-exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
+exports.initializePayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY] }, async (req, res) => {
         if (req.method !== 'POST') {
             return res.status(405).send('Method Not Allowed');
         }
 
-        if (!PAYSTACK_SECRET_KEY) {
+        const paystackSecret = getPaystackSecret();
+        if (!paystackSecret) {
             return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
         }
 
@@ -206,7 +214,7 @@ exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
             };
 
             const response = await axios.post('https://api.paystack.co/transaction/initialize', paystackPayload, {
-                headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' },
+                headers: { Authorization: `Bearer ${paystackSecret}`, 'Content-Type': 'application/json' },
             });
 
             if (response.data && response.data.status) {
@@ -253,12 +261,13 @@ exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
  * Accepts query param: ?reference=<tx_ref>
  * Returns: Full Paystack verification data object on success.
  */
-exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
+exports.verifyPayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY] }, async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).send('Method Not Allowed');
     }
-    if (!PAYSTACK_SECRET_KEY) {
-        console.error("Verify function called, but PAYSTACK_SECRET_KEY is not set.");
+    const paystackSecret = getPaystackSecret();
+    if (!paystackSecret) {
+        console.error("Verify function called, but PAYSTACK_SECRET_KEY is not configured.");
         return res.status(500).json({ success: false, error: 'Payment gateway not configured.' });
     }
     
@@ -273,7 +282,7 @@ exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
             `https://api.paystack.co/transaction/verify/${reference}`,
             {
                 headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    Authorization: `Bearer ${paystackSecret}`,
                 },
             }
         );
@@ -296,18 +305,19 @@ exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
  * Handles incoming webhook events from Paystack.
  * It cryptographically verifies the request and processes the payment events.
  */
-exports.paystackWebhook = onRequest(async (req, res) => {
+exports.paystackWebhook = onRequest({ secrets: [PAYSTACK_SECRET_KEY] }, async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
 
-    if (!PAYSTACK_SECRET_KEY) {
-        console.error('Webhook received but PAYSTACK_SECRET_KEY is not set.');
+    const paystackSecret = getPaystackSecret();
+    if (!paystackSecret) {
+        console.error('Webhook received but PAYSTACK_SECRET_KEY is not configured.');
         return res.status(500).send('Webhook secret not configured');
     }
     
     // 1. Verify the webhook signature.
-    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY)
+    const hash = crypto.createHmac('sha512', paystackSecret)
                        .update(JSON.stringify(req.body))
                        .digest('hex');
 
