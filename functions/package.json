@@ -3,6 +3,7 @@
   "description": "Cloud Functions for Firebase",
   "main": "index.js",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.4",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "firebase-admin": "^12.1.0",

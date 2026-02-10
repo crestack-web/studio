@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -19,6 +19,30 @@ export function EmailVerificationRequired({
 
   const [isSending, setIsSending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const hasAutoCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (!user) return;
+    if (hasAutoCheckedRef.current) return;
+    hasAutoCheckedRef.current = true;
+
+    const run = async () => {
+      setIsChecking(true);
+      try {
+        await user.reload();
+        await user.getIdToken(true);
+
+        if (user.emailVerified) {
+          window.location.reload();
+        }
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    run();
+  }, [user]);
 
   const handleSend = async () => {
     if (!user) return;
@@ -26,13 +50,14 @@ export function EmailVerificationRequired({
     setIsSending(true);
     try {
       const token = await user.getIdToken();
+      const continueUrl = `${window.location.pathname}${window.location.search}`;
       const res = await fetch(getFunctionUrl('sendEmailVerification'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ continueUrl }),
       });
 
       let result: any = null;
@@ -75,7 +100,15 @@ export function EmailVerificationRequired({
     try {
       await user.reload();
       await user.getIdToken(true);
-      window.location.reload();
+      if (user.emailVerified) {
+        window.location.reload();
+      } else {
+        toast({
+          title: 'Not verified yet',
+          description: 'Please open the verification link in your email, then try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -105,7 +138,7 @@ export function EmailVerificationRequired({
             Send verification email
           </Button>
           <Button variant="secondary" onClick={handleRefresh} disabled={isRefreshing || !user}>
-            {isRefreshing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {(isRefreshing || isChecking) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             I’ve verified
           </Button>
         </CardFooter>

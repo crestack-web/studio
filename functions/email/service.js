@@ -1,6 +1,7 @@
 
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+let sgMail;
 const handlebars = require("handlebars");
 const fs = require("fs");
 const path = require("path");
@@ -10,19 +11,41 @@ function getDb() {
 }
 
 // --- Email Provider Configuration ---
-// IMPORTANT: Set these in your Firebase environment variables
-// For example, using SendGrid:
-// EMAIL_HOST=smtp.sendgrid.net
-// EMAIL_PORT=587
-// EMAIL_USER=apikey
-// EMAIL_PASS=YOUR_SENDGRID_API_KEY
+// Preferred: SendGrid API
+//   SENDGRID_API_KEY=...
+//   SENDGRID_FROM_EMAIL=verified-sender@yourdomain.com
+// Optional:
+//   SENDGRID_FROM_NAME=Busmo
+// Fallback: SMTP (e.g. SendGrid SMTP)
+//   EMAIL_HOST=smtp.sendgrid.net
+//   EMAIL_PORT=587
+//   EMAIL_USER=apikey
+//   EMAIL_PASS=YOUR_SENDGRID_API_KEY
 
-const requiredEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
-const missingEnvVars = requiredEnvVars.filter(v => !process.env[v]);
+const requiredSmtpEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
+const missingSmtpEnvVars = requiredSmtpEnvVars.filter(v => !process.env[v]);
 const publicBrandHost = process.env.PUBLIC_BRAND_HOST || 'https://busmo.web.app';
 
+const hasSendGridApi = !!process.env.SENDGRID_API_KEY;
+const hasSmtp = missingSmtpEnvVars.length === 0;
+
+let provider = null;
+if (hasSendGridApi) {
+    try {
+        // Lazy require so local dev doesn't crash if dep isn't installed yet.
+        sgMail = require('@sendgrid/mail');
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        provider = {
+            type: 'sendgrid',
+            send: async (msg) => sgMail.send(msg),
+        };
+    } catch (e) {
+        console.warn('SendGrid API is configured but @sendgrid/mail is not available:', e?.message || e);
+    }
+}
+
 let transporter;
-if (missingEnvVars.length === 0) {
+if (!provider && hasSmtp) {
     transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: parseInt(process.env.EMAIL_PORT || "587", 10),
@@ -31,12 +54,17 @@ if (missingEnvVars.length === 0) {
             pass: process.env.EMAIL_PASS,
         },
     });
-} else {
-    // This log will appear when the function instance starts up.
-    console.warn(
-      'Email service is not configured. Missing environment variables:', 
-      missingEnvVars.join(', ')
-    );
+    provider = {
+        type: 'smtp',
+        send: async (msg) => transporter.sendMail(msg),
+    };
+}
+
+if (!provider) {
+    const notes = [];
+    if (!hasSendGridApi) notes.push('SENDGRID_API_KEY');
+    if (!hasSmtp) notes.push(...missingSmtpEnvVars);
+    console.warn('Email service is not configured. Missing environment variables:', Array.from(new Set(notes)).join(', '));
 }
 
 // --- Default Data ---
@@ -157,6 +185,18 @@ const defaultTemplates = {
                 `,
                 preheader: "Verify your email to continue.",
             },
+
+            password_reset: {
+                subject: "Reset your Busmo password",
+                htmlBody: `
+                    <h1>Reset your password</h1>
+                    <p>Hi {{userName}},</p>
+                    <p>We received a request to reset your password.</p>
+                    <p><a href="{{resetUrl}}" target="_blank" rel="noopener noreferrer">Reset Password</a></p>
+                    <p>If you didn’t request this, you can ignore this email.</p>
+                `,
+                preheader: "Use the link to reset your password.",
+            },
 };
 
 // --- Core Service ---
@@ -172,8 +212,8 @@ const mainTemplate = handlebars.compile(mainTemplateHtml, { strict: true });
  * @param {Object} params.data The dynamic data to inject into the template.
  */
 async function sendTransactionalEmail({ to, templateId, data }) {
-    if (!transporter) {
-        const errorMsg = `Email service is not configured due to missing environment variables: ${missingEnvVars.join(', ')}. Please set them in your Firebase Functions environment.`;
+    if (!provider) {
+        const errorMsg = `Email service is not configured. Set SENDGRID_API_KEY (recommended) or SMTP env vars (${requiredSmtpEnvVars.join(', ')}).`;
         console.error(errorMsg);
         // We throw the error so the calling function's catch block can log it with full context.
         throw new Error(errorMsg);
@@ -209,15 +249,24 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         });
 
         // 4. Send email
-        const mailOptions = {
-            from: `"${branding.senderName}" <${branding.senderEmail}>`,
-            to,
-            subject,
-            html: finalHtml,
-            // TODO: Add plain text version
-        };
+        const fromEmail = process.env.SENDGRID_FROM_EMAIL || branding.senderEmail;
+        const fromName = process.env.SENDGRID_FROM_NAME || branding.senderName;
 
-        await transporter.sendMail(mailOptions);
+        if (provider.type === 'sendgrid') {
+            await provider.send({
+                to,
+                from: { email: fromEmail, name: fromName },
+                subject,
+                html: finalHtml,
+            });
+        } else {
+            await provider.send({
+                from: `"${fromName}" <${fromEmail}>`,
+                to,
+                subject,
+                html: finalHtml,
+            });
+        }
         
         // 5. Log success
         await logRef.set({

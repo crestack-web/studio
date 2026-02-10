@@ -26,7 +26,10 @@ export default function LoginPage() {
     try {
         await signInWithEmailAndPassword(auth, email, password);
         toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
-        router.replace('/owner/home');
+        const params = new URLSearchParams(window.location.search);
+        const continueParam = params.get('continue');
+        const safeContinue = continueParam && continueParam.startsWith('/') ? continueParam : null;
+        router.replace(safeContinue || '/owner/home');
     } catch (error: any) {
         let description = "An unexpected error occurred. Please try again.";
         if (error.code === 'auth/invalid-email') {
@@ -59,6 +62,11 @@ export default function LoginPage() {
             <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" placeholder="••••••••" className="h-12 text-base" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} />
+                <div className="flex justify-end">
+                  <Link href="/reset-password" className="text-sm underline text-muted-foreground">
+                    Forgot password?
+                  </Link>
+                </div>
             </div>
             <Button className="w-full h-14 text-lg" onClick={handleLogin} disabled={isLoading || !email || !password}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

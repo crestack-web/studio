@@ -53,6 +53,10 @@ const nextConfig: NextConfig = {
         source: '/api/sendEmailVerification',
         destination: `${firebaseFunctionsBaseUrl}/sendEmailVerification`,
       },
+      {
+        source: '/api/sendPasswordReset',
+        destination: `${firebaseFunctionsBaseUrl}/sendPasswordReset`,
+      },
     ];
   },
   typescript: {

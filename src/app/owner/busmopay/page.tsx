@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
@@ -78,14 +80,35 @@ const transactionStatusVariant: { [key: string]: "default" | "secondary" | "dest
     failed: 'destructive',
 };
 
-const StatCard = ({ title, value, isLoading, currency, note, children }: { title: string, value: number, isLoading: boolean, currency?: string, note?: string, children?: React.ReactNode }) => (
-    <Card>
-        <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+const StatCard = ({
+    title,
+    value,
+    isLoading,
+    currency,
+    note,
+    icon,
+    children,
+}: {
+    title: string;
+    value: number;
+    isLoading: boolean;
+    currency?: string;
+    note?: string;
+    icon?: React.ReactNode;
+    children?: React.ReactNode;
+}) => (
+    <Card className="bg-muted/20">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+            {icon ? <div className="text-muted-foreground">{icon}</div> : null}
         </CardHeader>
-        <CardContent>
-            {isLoading ? <Skeleton className="h-9 w-3/4" /> : <p className="text-2xl font-bold">{formatCurrency(value, currency)}</p>}
-            {note && <p className="text-xs text-muted-foreground">{note}</p>}
+        <CardContent className="space-y-1">
+            {isLoading ? (
+                <Skeleton className="h-9 w-3/4" />
+            ) : (
+                <p className="text-2xl font-semibold tracking-tight">{formatCurrency(value, currency)}</p>
+            )}
+            {note ? <p className="text-xs text-muted-foreground">{note}</p> : null}
             {children}
         </CardContent>
     </Card>
@@ -116,6 +139,7 @@ export default function BusmoPayDashboard() {
     const { toast } = useToast();
     const { user: authUser } = useUser();
     const firestore = useFirestore();
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
     const [isProcessingPayout, setIsProcessingPayout] = useState(false);
     const [date, setDate] = useState<DateRange | undefined>({
@@ -250,72 +274,123 @@ export default function BusmoPayDashboard() {
     return (
         <MainLayout title="BusmoPay" backHref="/owner/home">
             <div className="w-full max-w-5xl space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> BusmoPay: Payments & Payouts</CardTitle>
-                        <CardDescription>
-                            BusmoPay is Busmo’s payment gateway. We collect money from your customers, confirm the payment for the order, then pay out your earnings to you.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="rounded-lg border p-4">
-                                <div className="flex items-center gap-2 font-semibold"><CreditCard className="h-4 w-4 text-primary" /> Collect</div>
-                                <p className="mt-1 text-sm text-muted-foreground">Customers pay online during checkout. The payment is recorded as a BusmoPay transaction.</p>
+                <Collapsible open={isAboutOpen} onOpenChange={setIsAboutOpen}>
+                    <Card>
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> About BusmoPay</CardTitle>
+                                <CardDescription>
+                                    BusmoPay collects money from your customers, confirms the payment for the order, then pays out your earnings.
+                                </CardDescription>
                             </div>
-                            <div className="rounded-lg border p-4">
-                                <div className="flex items-center gap-2 font-semibold"><ShoppingCart className="h-4 w-4 text-primary" /> Confirm</div>
-                                <p className="mt-1 text-sm text-muted-foreground">Successful payments move the order forward so you can prepare, ship, or deliver with confidence.</p>
-                            </div>
-                            <div className="rounded-lg border p-4">
-                                <div className="flex items-center gap-2 font-semibold"><Banknote className="h-4 w-4 text-primary" /> Settle</div>
-                                <p className="mt-1 text-sm text-muted-foreground">After you fulfill the order, your earnings are paid out to your verified bank account.</p>
-                            </div>
-                        </div>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2 self-start">
+                                    {isAboutOpen ? 'Hide details' : 'Show details'}
+                                    <ChevronDown className={cn('h-4 w-4', isAboutOpen ? 'rotate-180' : 'rotate-0')} />
+                                </Button>
+                            </CollapsibleTrigger>
+                        </CardHeader>
+                        <CollapsibleContent>
+                            <CardContent className="space-y-6">
+                                <div className="grid gap-4 md:grid-cols-3">
+                                    <div className="rounded-lg border p-4">
+                                        <div className="flex items-center gap-2 font-semibold"><CreditCard className="h-4 w-4 text-primary" /> Collect</div>
+                                        <p className="mt-1 text-sm text-muted-foreground">Customers pay online during checkout. The payment is recorded as a BusmoPay transaction.</p>
+                                    </div>
+                                    <div className="rounded-lg border p-4">
+                                        <div className="flex items-center gap-2 font-semibold"><ShoppingCart className="h-4 w-4 text-primary" /> Confirm</div>
+                                        <p className="mt-1 text-sm text-muted-foreground">Successful payments move the order forward so you can prepare, ship, or deliver with confidence.</p>
+                                    </div>
+                                    <div className="rounded-lg border p-4">
+                                        <div className="flex items-center gap-2 font-semibold"><Banknote className="h-4 w-4 text-primary" /> Settle</div>
+                                        <p className="mt-1 text-sm text-muted-foreground">After you fulfill the order, your earnings are paid out to your verified bank account.</p>
+                                    </div>
+                                </div>
 
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Card className="bg-muted/30">
-                                <CardHeader>
-                                    <CardTitle className="text-base">How money flows</CardTitle>
-                                    <CardDescription>Simple, auditable movement of funds.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="text-sm text-muted-foreground space-y-2">
-                                    <p><span className="font-medium text-foreground">1)</span> Buyer pays via BusmoPay during checkout.</p>
-                                    <p><span className="font-medium text-foreground">2)</span> BusmoPay records the transaction and updates the order payment status.</p>
-                                    <p><span className="font-medium text-foreground">3)</span> When the order is fulfilled, BusmoPay triggers settlement.</p>
-                                    <p><span className="font-medium text-foreground">4)</span> Payout is sent to your verified bank account (minus Busmo commission).</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-muted/30">
-                                <CardHeader>
-                                    <CardTitle className="text-base">Where BusmoPay is used</CardTitle>
-                                    <CardDescription>Across Busmo commerce features that accept online payments.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="text-sm text-muted-foreground space-y-2">
-                                    <p><span className="font-medium text-foreground">•</span> Online checkout on your Busmo Storefront / Market orders.</p>
-                                    <p><span className="font-medium text-foreground">•</span> Transaction history for reconciliation and reporting.</p>
-                                    <p><span className="font-medium text-foreground">•</span> Payouts to your bank account after fulfillment.</p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Card className="bg-muted/30">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">How money flows</CardTitle>
+                                            <CardDescription>Simple, auditable movement of funds.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="text-sm text-muted-foreground space-y-2">
+                                            <p><span className="font-medium text-foreground">1)</span> Buyer pays via BusmoPay during checkout.</p>
+                                            <p><span className="font-medium text-foreground">2)</span> BusmoPay records the transaction and updates the order payment status.</p>
+                                            <p><span className="font-medium text-foreground">3)</span> When the order is fulfilled, BusmoPay triggers settlement.</p>
+                                            <p><span className="font-medium text-foreground">4)</span> Payout is sent to your verified bank account (minus Busmo commission).</p>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="bg-muted/30">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Where BusmoPay is used</CardTitle>
+                                            <CardDescription>Across Busmo commerce features that accept online payments.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="text-sm text-muted-foreground space-y-2">
+                                            <p><span className="font-medium text-foreground">•</span> Online checkout on your Busmo Storefront / Market orders.</p>
+                                            <p><span className="font-medium text-foreground">•</span> Transaction history for reconciliation and reporting.</p>
+                                            <p><span className="font-medium text-foreground">•</span> Payouts to your bank account after fulfillment.</p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
 
-                        <Alert>
-                            <HelpCircle className="h-4 w-4" />
-                            <AlertTitle>Payout timeline & fees</AlertTitle>
-                            <AlertDescription>
-                                Busmo collects payments from buyers on your behalf. After you fulfill an order, earnings (minus a 10% commission) are settled to your verified bank account within 24–48 hours.
-                            </AlertDescription>
-                        </Alert>
-                    </CardContent>
-                </Card>
+                                <Alert>
+                                    <HelpCircle className="h-4 w-4" />
+                                    <AlertTitle>Payout timeline & fees</AlertTitle>
+                                    <AlertDescription>
+                                        After you fulfill an order, earnings (minus a 10% commission) are settled to your verified bank account within 24–48 hours.
+                                    </AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </CollapsibleContent>
+                    </Card>
+                </Collapsible>
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard title="Available for Payout" value={availableForPayout} isLoading={isLoading} currency={currency}>
-                        <Button size="sm" className="mt-2" onClick={handleRequestPayout}>Request Payout</Button>
+                <Separator />
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 className="text-xl font-semibold tracking-tight">BusmoPay Dashboard</h2>
+                        <p className="text-sm text-muted-foreground">Track revenue, payouts, and transaction activity.</p>
+                    </div>
+                    <Button size="sm" variant="outline" asChild>
+                        <Link href="/owner/market?section=busmopay">Payout Settings</Link>
+                    </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        title="Available for Payout"
+                        value={availableForPayout}
+                        isLoading={isLoading}
+                        currency={currency}
+                        icon={<Wallet className="h-4 w-4" />}
+                    >
+                        <Button size="sm" className="mt-2 w-full" onClick={handleRequestPayout}>Request Payout</Button>
                     </StatCard>
-                    <StatCard title="Coming Soon" value={comingSoon} isLoading={isLoading} currency={currency} note="Estimated from confirmed orders" />
-                    <StatCard title="Total Revenue" value={totalRevenue} isLoading={isLoading} currency={currency} note="All-time online sales" />
-                    <StatCard title="Total Paid Out" value={totalPaidOut} isLoading={isLoading} currency={currency} note="Sent to your bank" />
+                    <StatCard
+                        title="Coming Soon"
+                        value={comingSoon}
+                        isLoading={isLoading}
+                        currency={currency}
+                        note="Estimated from confirmed orders"
+                        icon={<CalendarIcon className="h-4 w-4" />}
+                    />
+                    <StatCard
+                        title="Total Revenue"
+                        value={totalRevenue}
+                        isLoading={isLoading}
+                        currency={currency}
+                        note="All-time online sales"
+                        icon={<CreditCard className="h-4 w-4" />}
+                    />
+                    <StatCard
+                        title="Total Paid Out"
+                        value={totalPaidOut}
+                        isLoading={isLoading}
+                        currency={currency}
+                        note="Sent to your bank"
+                        icon={<Banknote className="h-4 w-4" />}
+                    />
                 </div>
                 
                 <Card>
@@ -363,40 +438,45 @@ export default function BusmoPayDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div><CardTitle>Transaction History</CardTitle><CardDescription>Your recent BusmoPay transactions.</CardDescription></div>
-                        <div className="flex items-center gap-2"><Button size="sm" asChild><Link href="/owner/market?section=busmopay">Payout Settings</Link></Button></div>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Order ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {isLoading ? [...Array(3)].map((_, i) => (
-                                    <TableRow key={i}><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-6 w-24 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>
-                                )) : transactions && transactions.length > 0 ? transactions.slice(0, 5).map((tx) => (
-                                    <TableRow key={tx.id}><TableCell>{tx.createdAt.toDate().toLocaleDateString()}</TableCell><TableCell className="font-mono text-xs">#{tx.orderId.substring(0, 7)}</TableCell><TableCell><Badge variant={transactionStatusVariant[tx.status]} className="capitalize">{tx.status}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(tx.amount, currency)}</TableCell></TableRow>
-                                )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No transactions yet.</TableCell></TableRow>)}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Transaction History</CardTitle>
+                            <CardDescription>Your recent BusmoPay transactions.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Order ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoading ? [...Array(3)].map((_, i) => (
+                                        <TableRow key={i}><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-6 w-24 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>
+                                    )) : transactions && transactions.length > 0 ? transactions.slice(0, 5).map((tx) => (
+                                        <TableRow key={tx.id}><TableCell>{tx.createdAt.toDate().toLocaleDateString()}</TableCell><TableCell className="font-mono text-xs">#{tx.orderId.substring(0, 7)}</TableCell><TableCell><Badge variant={transactionStatusVariant[tx.status]} className="capitalize">{tx.status}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(tx.amount, currency)}</TableCell></TableRow>
+                                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No transactions yet.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
 
-                <Card>
-                    <CardHeader><CardTitle>Payout History</CardTitle><CardDescription>Your recent payouts from completed orders.</CardDescription></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Order ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {isLoading ? [...Array(3)].map((_, i) => (
-                                    <TableRow key={i}><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-6 w-16 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>
-                                )) : payouts && payouts.length > 0 ? payouts.slice(0, 5).map((payout) => (
-                                    <TableRow key={payout.id}><TableCell>{payout.createdAt.toDate().toLocaleDateString()}</TableCell><TableCell className="font-mono text-xs">#{payout.orderId.substring(0, 7)}</TableCell><TableCell><Badge variant={payoutStatusVariant[payout.status]} className="capitalize">{payout.status === 'paid' && <CheckCircle2 className="mr-1 h-3 w-3"/>}{payout.status}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(payout.amount, currency)}</TableCell></TableRow>
-                                )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No payouts yet.</TableCell></TableRow>)}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Payout History</CardTitle>
+                            <CardDescription>Your recent payouts from completed orders.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Order ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoading ? [...Array(3)].map((_, i) => (
+                                        <TableRow key={i}><TableCell><Skeleton className="h-5 w-24"/></TableCell><TableCell><Skeleton className="h-5 w-20"/></TableCell><TableCell><Skeleton className="h-6 w-16 rounded-full"/></TableCell><TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto"/></TableCell></TableRow>
+                                    )) : payouts && payouts.length > 0 ? payouts.slice(0, 5).map((payout) => (
+                                        <TableRow key={payout.id}><TableCell>{payout.createdAt.toDate().toLocaleDateString()}</TableCell><TableCell className="font-mono text-xs">#{payout.orderId.substring(0, 7)}</TableCell><TableCell><Badge variant={payoutStatusVariant[payout.status]} className="capitalize">{payout.status === 'paid' && <CheckCircle2 className="mr-1 h-3 w-3"/>}{payout.status}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(payout.amount, currency)}</TableCell></TableRow>
+                                    )) : (<TableRow><TableCell colSpan={4} className="h-24 text-center">No payouts yet.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
             
             <Dialog open={isPayoutDialogOpen} onOpenChange={setIsPayoutDialogOpen}>

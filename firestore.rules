@@ -50,6 +50,12 @@ service cloud.firestore {
       // Owners can list users for their own business (used for staff management).
       allow list: if isAdmin() || (isSignedIn() && getUserData().businessId != null && isOwner(getUserData().businessId));
       allow delete: if isAdmin();
+
+      // In-app notifications are created by backend (Admin SDK). Users can only read their own.
+      match /notifications/{notificationId} {
+        allow read: if isUserOwner(userId);
+        allow write: if false;
+      }
     }
     
     match /invitations/{email} {
@@ -143,6 +149,14 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
       allow delete: if isOwner(businessId) || isAdmin();
+
+      // Storefront subscriptions (buyers following a store).
+      match /subscribers/{userId} {
+        allow get: if isSignedIn() && request.auth.uid == userId;
+        allow create, delete: if isSignedIn() && request.auth.uid == userId;
+        allow update: if false;
+        allow list: if isOwner(businessId) || isAdmin();
+      }
     }
     
     match /marketProducts/{productId} {

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
-import { Menu, Search, ShoppingCart, Megaphone, Instagram, Facebook, Box, Tag } from 'lucide-react';
+import { Menu, Search, ShoppingBag, Megaphone, Instagram, Facebook, Box, Tag } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from '@/components/app/language-switcher';
 import { ThemeToggle } from '@/components/app/theme-toggle';
@@ -203,7 +203,7 @@ export default function MarketLayout({
                         </Carousel>
                     </div>
                 )}
-                <header className="bg-card border-b">
+                <header className="bg-white border-b">
                     <div className="container mx-auto">
                         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-3 md:h-16 md:flex-nowrap md:py-0">
                             {/* Logo & Desktop Market Switcher */}
@@ -284,11 +284,11 @@ export default function MarketLayout({
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 order-2 md:order-3">
-                                <Link href="/market/cart" passHref>
+                                <Link href="/market/checkout" passHref>
                                     <Button variant="ghost" size="icon" className="relative">
-                                        <ShoppingCart className="h-6 w-6" />
+                                        <ShoppingBag className="h-6 w-6" />
                                         {totalItems > 0 && <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">{totalItems}</Badge>}
-                                        <span className="sr-only">Cart</span>
+                                        <span className="sr-only">Checkout</span>
                                     </Button>
                                 </Link>
                                 <div className="hidden sm:flex items-center gap-2">

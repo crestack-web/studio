@@ -4,11 +4,12 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Star, MapPin, Mail, Phone, ShieldCheck, Check, Instagram, Facebook, Twitter } from 'lucide-react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { Star, MapPin, Mail, Phone, ShieldCheck, Check, Instagram, Facebook, Twitter, ShoppingBag, Bell } from 'lucide-react';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { collection, query, where, limit, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, convertCurrency, getCurrencyName } from '@/lib/currency';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useMarket } from '@/context/market-provider';
+import { useCart } from '@/context/cart-provider';
 
 
 // Interfaces
@@ -67,10 +69,13 @@ export default function StoreSlugPage() {
     const params = useParams();
     const rawSlug = (params as any)?.slug as string | string[] | undefined;
     const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
+    const router = useRouter();
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isSubscribed, setIsSubscribed] = useState(false);
+    const { user, isUserLoading } = useUser();
+    const [isSubscribing, setIsSubscribing] = useState(false);
     const { market } = useMarket();
+    const { totalItems } = useCart();
 
     const safeHref = (href: unknown): string | undefined => {
         if (typeof href !== 'string') return undefined;
@@ -115,13 +120,62 @@ export default function StoreSlugPage() {
     }, [firestore, businessId]);
     const { data: productsData, isLoading: isLoadingProducts } = useCollection<MarketProduct>(productsQuery);
 
-    const handleSubscribe = () => {
-        if (!businessProfile) return;
-        setIsSubscribed(true);
-        toast({
-            title: "Subscribed!",
-            description: `You'll now hear about updates from ${businessProfile.businessName}.`,
-        });
+    const subscriberDocRef = useMemoFirebase(() => {
+        if (!firestore || !businessId || !user?.uid) return null;
+        return doc(firestore, `businessProfiles/${businessId}/subscribers/${user.uid}`);
+    }, [firestore, businessId, user?.uid]);
+    const { data: subscriberDoc } = useDoc<{ createdAt?: any; updatedAt?: any }>(subscriberDocRef);
+    const isSubscribed = Boolean(subscriberDoc);
+
+    const handleSubscribe = async () => {
+        if (!businessProfile || !businessId || !firestore) return;
+        if (isUserLoading) {
+            toast({ title: 'Please wait', description: 'Checking your account…' });
+            return;
+        }
+        if (!user?.uid) {
+            toast({ title: 'Sign in required', description: 'Log in to subscribe to store updates.' });
+            router.push('/login');
+            return;
+        }
+        if (!subscriberDocRef) return;
+        if (isSubscribing) return;
+
+        setIsSubscribing(true);
+        try {
+            if (isSubscribed) {
+                await deleteDoc(subscriberDocRef);
+                toast({
+                    title: 'Unsubscribed',
+                    description: `You won’t receive updates from ${businessProfile.businessName}.`,
+                });
+                return;
+            }
+
+            await setDoc(
+                subscriberDocRef,
+                {
+                    uid: user.uid,
+                    businessId,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    notifyNewProducts: true,
+                },
+                { merge: true }
+            );
+            toast({
+                title: 'Subscribed!',
+                description: `You’ll receive updates when ${businessProfile.businessName} adds new products.`,
+            });
+        } catch (err: any) {
+            toast({
+                title: 'Could not subscribe',
+                description: err?.message || 'Please try again.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSubscribing(false);
+        }
     };
 
     const settings: any = businessProfile?.marketSettings || {};
@@ -240,11 +294,34 @@ export default function StoreSlugPage() {
 
     return (
         <div className="min-h-screen" style={{ backgroundColor: theme.background, color: theme.text }}>
+            <header className="sticky top-0 z-40 bg-white border-b">
+                <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+                    <Link href="/market" className="flex items-center">
+                        <Logo className="h-7" />
+                    </Link>
+                    <Link href="/market/checkout" aria-label="Go to checkout" className="relative inline-flex items-center justify-center">
+                        <Button variant="ghost" size="icon" className="relative">
+                            <ShoppingBag className="h-5 w-5" />
+                            {totalItems > 0 && (
+                                <Badge className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0">
+                                    {totalItems}
+                                </Badge>
+                            )}
+                            <span className="sr-only">Checkout</span>
+                        </Button>
+                    </Link>
+                </div>
+            </header>
+
             {Boolean(settings?.announcement && typeof settings.announcement === 'object' && settings.announcement.enabled && settings.announcement.text) && (
                 <div className="w-full" style={{ backgroundColor: theme.primary, color: '#fff' }}>
-                    <div className="mx-auto max-w-6xl px-4 py-2 text-sm flex justify-between gap-4">
+                    <div className="mx-auto max-w-6xl px-4 py-2 text-sm flex items-center justify-center gap-4 text-center">
                         <span>{settings.announcement.text}</span>
-                            {safeHref(settings.announcement.link) && <Link href={safeHref(settings.announcement.link)!} className="underline">Learn more</Link>}
+                        {safeHref(settings.announcement.link) && (
+                            <Link href={safeHref(settings.announcement.link)!} className="underline">
+                                Learn more
+                            </Link>
+                        )}
                     </div>
                 </div>
             )}
@@ -277,9 +354,20 @@ export default function StoreSlugPage() {
                                 <Button
                                     onClick={handleSubscribe}
                                     variant="secondary"
-                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                    disabled={isUserLoading || isSubscribing}
+                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 inline-flex items-center gap-2"
                                 >
-                                    {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                                    <span className="relative inline-flex items-center justify-center">
+                                        <Bell className="h-4 w-4" />
+                                        {!isSubscribed && (
+                                            <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/60 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span>{isSubscribed ? 'Subscribed' : 'Subscribe'}</span>
+                                    {isSubscribed && <Check className="h-4 w-4" />}
                                 </Button>
                                 {safeHref(settings?.socials?.instagram) && <Link href={safeHref(settings.socials.instagram)!} target="_blank" rel="noopener noreferrer"><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Instagram className="h-4 w-4" /></Button></Link>}
                                 {safeHref(settings?.socials?.facebook) && <Link href={safeHref(settings.socials.facebook)!} target="_blank" rel="noopener noreferrer"><Button variant="secondary" size="icon" className="bg-white/10 border-white/20 text-white"><Facebook className="h-4 w-4" /></Button></Link>}

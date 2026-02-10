@@ -13,6 +13,7 @@ const { onUserCreate } = require("./triggers/auth");
 const { onStaffInvitationCreate, onStaffPermissionsAssigned } = require('./triggers/staff');
 const { onOrderCreate, onOrderPaid } = require('./triggers/orders');
 const { onSaleWrite, onOrderWriteForRevenue, onRevenueBackfillRequestCreate } = require('./triggers/revenue');
+const { onMarketProductCreatedNotifySubscribers } = require('./triggers/marketSubscriptions');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
 const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
@@ -77,6 +78,9 @@ exports.onOrderPaid = onOrderPaid;
 exports.onSaleWrite = onSaleWrite;
 exports.onOrderWriteForRevenue = onOrderWriteForRevenue;
 exports.onRevenueBackfillRequestCreate = onRevenueBackfillRequestCreate;
+
+// Storefront subscriber notifications
+exports.onMarketProductCreatedNotifySubscribers = onMarketProductCreatedNotifySubscribers;
 
 // Daily owner email digest
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
@@ -185,6 +189,16 @@ exports.sendEmailVerification = onRequest({ cors: true }, async (req, res) => {
     }
 
     try {
+        let body = req.body;
+        if (typeof body === 'string') {
+            try {
+                body = JSON.parse(body);
+            } catch {
+                body = {};
+            }
+        }
+        const safeBody = (body && typeof body === 'object') ? body : {};
+
         const userRecord = await admin.auth().getUser(decoded.uid);
         const email = userRecord.email;
         if (!email) {
@@ -196,8 +210,11 @@ exports.sendEmailVerification = onRequest({ cors: true }, async (req, res) => {
         }
 
         const publicBrandHost = process.env.PUBLIC_BRAND_HOST || process.env.PUBLIC_APP_URL || 'https://busmo.web.app';
+
+        const rawContinue = typeof safeBody.continueUrl === 'string' ? safeBody.continueUrl : '';
+        const continuePath = rawContinue.startsWith('/') ? rawContinue : '/owner/home';
         const actionCodeSettings = {
-            url: `${publicBrandHost}/finish-signin`,
+            url: `${publicBrandHost}/finish-email-verification?continue=${encodeURIComponent(continuePath)}`,
             handleCodeInApp: false,
         };
 
@@ -216,5 +233,57 @@ exports.sendEmailVerification = onRequest({ cors: true }, async (req, res) => {
     } catch (error) {
         console.error('sendEmailVerification error:', error);
         return res.status(500).json({ success: false, error: error?.message || 'Failed to send verification email.' });
+    }
+});
+
+exports.sendPasswordReset = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+    }
+
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch {
+            body = {};
+        }
+    }
+
+    const safeBody = (body && typeof body === 'object') ? body : {};
+    const email = String(safeBody.email || '').trim().toLowerCase();
+
+    if (!email) {
+        return res.status(400).json({ success: false, error: 'Missing email.' });
+    }
+
+    try {
+        const publicBrandHost = process.env.PUBLIC_BRAND_HOST || process.env.PUBLIC_APP_URL || 'https://busmo.web.app';
+        const actionCodeSettings = {
+            url: `${publicBrandHost}/login/form`,
+            handleCodeInApp: false,
+        };
+
+        const resetUrl = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'password_reset',
+            data: {
+                userName: 'there',
+                resetUrl,
+            },
+        });
+
+        // Avoid leaking whether an email exists.
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        // Avoid leaking whether an email exists.
+        if (error?.code === 'auth/user-not-found') {
+            return res.status(200).json({ success: true });
+        }
+
+        console.error('sendPasswordReset error:', error);
+        return res.status(500).json({ success: false, error: error?.message || 'Failed to send password reset email.' });
     }
 });

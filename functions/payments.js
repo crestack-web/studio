@@ -194,7 +194,7 @@ exports.initializePayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KE
                     
                     const planRef = db.collection('plans').doc(finalPlanId);
                     const planSnap = await planRef.get();
-                    if (!planSnap.exists()) {
+                    if (!planSnap.exists) {
                         throw new Error(`Subscription plan with ID '${planId}' not found in database.`);
                     }
                     const planData = planSnap.data();
@@ -218,7 +218,7 @@ exports.initializePayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KE
                     const { serviceId } = payload;
                     const serviceRef = db.collection('services').doc(serviceId);
                     const serviceSnap = await serviceRef.get();
-                    if (!serviceSnap.exists()) {
+                    if (!serviceSnap.exists) {
                          throw new Error('Service not found.');
                     }
                     const serviceFee = serviceSnap.data().fee;
