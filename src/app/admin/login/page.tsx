@@ -7,28 +7,22 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Logo } from '@/components/app/logo';
-import { useAuth } from '@/firebase';
-import { sendSignInLinkToEmail } from 'firebase/auth';
+import { getFunctionUrl } from '@/lib/api';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const { toast } = useToast();
-  const auth = useAuth();
-  const [actionCodeSettings, setActionCodeSettings] = useState<any>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // This code now runs only on the client, safely accessing `window`
-    setActionCodeSettings({
-      url: `${window.location.origin}/admin/finish-signin`,
-      handleCodeInApp: true,
-    });
+    setIsReady(true);
   }, []);
 
   const handleSendLink = async () => {
     setIsLoading(true);
-    if (!actionCodeSettings) {
+    if (!isReady) {
       toast({
         variant: 'destructive',
         title: 'Initialization Error',
@@ -39,7 +33,26 @@ export default function AdminLoginPage() {
     }
     try {
       window.localStorage.setItem('emailForSignIn', email);
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      const res = await fetch(getFunctionUrl('sendAdminSignInLink'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      let result: any = null;
+      try {
+        result = await res.json();
+      } catch {
+        // ignore
+      }
+
+      if (!res.ok || !result?.success) {
+        const msg = result?.error || result?.message || 'Could not send login link. Please try again.';
+        throw new Error(String(msg));
+      }
+
       setIsEmailSent(true);
       toast({
           title: "Check your email",
@@ -47,12 +60,7 @@ export default function AdminLoginPage() {
       });
     } catch(error: any) {
       console.error("Failed to send sign-in link:", error);
-      let description = "Could not send login link. Please check the email and try again.";
-      if (error.code === 'auth/invalid-email') {
-          description = 'Please enter a valid email address.';
-      } else if (error.code === 'auth/quota-exceeded') {
-          description = 'The daily quota for sending email links has been exceeded. Please try again tomorrow.';
-      }
+      let description = String(error?.message || error || 'Could not send login link. Please check the email and try again.');
       toast({
           variant: "destructive",
           title: "Login Failed",

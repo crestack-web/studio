@@ -50,6 +50,10 @@ const nextConfig: NextConfig = {
         destination: `${firebaseFunctionsBaseUrl}/verifyBankAccount`,
       },
       {
+        source: '/api/sendAdminSignInLink',
+        destination: `${firebaseFunctionsBaseUrl}/sendAdminSignInLink`,
+      },
+      {
         source: '/api/sendEmailVerification',
         destination: `${firebaseFunctionsBaseUrl}/sendEmailVerification`,
       },

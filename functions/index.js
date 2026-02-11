@@ -625,3 +625,57 @@ exports.sendPasswordReset = onRequest({ cors: true }, async (req, res) => {
         return res.status(500).json({ success: false, error: error?.message || 'Failed to send password reset email.' });
     }
 });
+
+exports.sendAdminSignInLink = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+    }
+
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch {
+            body = {};
+        }
+    }
+
+    const safeBody = (body && typeof body === 'object') ? body : {};
+    const email = String(safeBody.email || '').trim().toLowerCase();
+
+    if (!email) {
+        return res.status(400).json({ success: false, error: 'Missing email.' });
+    }
+
+    try {
+        const publicBrandHost = process.env.PUBLIC_BRAND_HOST || process.env.PUBLIC_APP_URL || 'https://busmo.web.app';
+        const actionCodeSettings = {
+            url: `${publicBrandHost}/admin/finish-signin`,
+            handleCodeInApp: true,
+        };
+
+        const signInUrl = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+
+        let userName = 'there';
+        try {
+            const userRecord = await admin.auth().getUserByEmail(email);
+            userName = userRecord?.displayName || userName;
+        } catch {
+            // ignore
+        }
+
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'admin_signin_link',
+            data: {
+                userName,
+                signInUrl,
+            },
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendAdminSignInLink error:', error);
+        return res.status(500).json({ success: false, error: error?.message || 'Failed to send login link.' });
+    }
+});
