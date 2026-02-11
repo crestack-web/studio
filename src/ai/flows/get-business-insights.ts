@@ -35,6 +35,9 @@ const BusinessInsightsDataSchema = z.object({
     cashBalance: z.number().optional().describe("Cash balance (total deposits minus total withdrawals)."),
     dailyAvgExpense: z.number().optional().describe("Average daily expenses for the period."),
     salesDays: z.number().optional().describe("Number of days with sales in the period."),
+  expenseRatioPct: z.number().optional().describe("Expenses divided by sales, as a percentage (0-100)."),
+  expensesGreaterThanSales: z.boolean().optional().describe("True if total expenses are greater than total sales for the period."),
+  isNetProfitNegative: z.boolean().optional().describe("True if totalProfit is negative for the period."),
 });
 
 const GetBusinessInsightsInputSchema = z.object({
@@ -60,8 +63,8 @@ function normalizeLanguage(language?: string): 'en' | 'fr' {
 
 function notEnoughDataMessage(language: 'en' | 'fr') {
   return language === 'fr'
-    ? "Je n’ai pas encore assez de données pour répondre. Ajoute tes produits, puis enregistre quelques ventes et dépenses (même 3–5) et réessaie."
-    : "I don’t have enough data yet to answer that. Add your products, then record a few sales and expenses (even 3–5) and try again.";
+    ? "Je n’ai pas encore assez de données pour répondre.\n\nQue faire ensuite :\n- Ajoute tes produits (au moins 5).\n- Enregistre 3–5 ventes réelles.\n- Ajoute 3–5 dépenses (même petites).\nPuis réessaie ta question."
+    : "I don’t have enough data yet to answer that.\n\nWhat to do next:\n- Add your products (at least 5).\n- Record 3–5 real sales.\n- Add 3–5 expenses (even small ones).\nThen ask again.";
 }
 
 function unavailableMessage(language: 'en' | 'fr') {
@@ -106,23 +109,31 @@ const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
   output: {schema: GetBusinessInsightsOutputSchema},
-  prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo.
+    prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo.
   
-  Your goal is to provide factual, practical, and calm answers by explaining the pre-calculated data provided in the 'Data' section.
+    Your goal is to provide factual, practical, calm answers by explaining the pre-calculated data provided in the 'Data' section.
+    The answer must feel like guidance (why it matters + what to do next), not just repeating numbers the owner can already see.
   
-  CRITICAL RULES:
-  0.  LANGUAGE: If Language is "fr", respond in French. Otherwise, respond in English. Always respond in that language.
-  1.  The data provided represents RECENT activity and may not be the complete, all-time history of the business. When you mention totals (like total sales or profit), you MUST clarify that it is based on recent data (e.g., "Based on recent activity, your total sales are...").
-  2.  You MUST NOT perform any calculations, forecasts, or generate numbers yourself. Your answers must be based *only* on the data provided below.
-  2b. FORMAT: Output MUST be plain text only. Do NOT use HTML tags (no <ul>, <li>, <br>, etc.) and do NOT use code blocks. For bullet points, use lines that start with "- ".
-  3.  When formatting monetary values, ALWAYS include thousands separators (e.g., 45,000 not 45000). Use the provided currency symbol. If the symbol is "CFA", place it AFTER the number with a space (e.g., 600 CFA). For all other symbols, place them BEFORE the number with no space (e.g., ₦600, $100).
-  4.  If the data required to answer the question is 0 or empty, you MUST respond with: "I don’t have enough data yet to answer that. Please record more sales or add your products." For example, if totalSales is 0, you cannot answer questions about sales.
-  5.  Do NOT guess or invent numbers.
-  6.  If the user asks for advice or "what should I do", provide 2–4 practical next steps that are grounded in the provided data (e.g., low stock list, best/worst product, profit margin, expenses).
-  7.  Keep answers helpful but tight:
+    CRITICAL RULES:
+    0) LANGUAGE: If Language is "fr", respond in French. Otherwise, respond in English. Always respond in that language.
+    1) RECENCY: The data provided represents RECENT activity and may not be the complete, all-time history of the business. When you mention totals, you MUST clarify that it is based on recent data.
+    2) NO NEW MATH: You MUST NOT perform calculations, forecasts, or generate numbers yourself. Use ONLY the values provided below.
+    2b) FORMAT: Output MUST be plain text only. Do NOT use HTML tags and do NOT use code blocks. For bullet points, use lines that start with "- ".
+    3) MONEY FORMAT: Always include thousands separators (45,000 not 45000). Use the provided currency symbol. If "CFA", place AFTER the number with a space (600 CFA). Otherwise place BEFORE with no space (₦600, $100).
+    4) DATA GAPS: If the data required to answer the question is 0 or empty, respond that you don't have enough data yet and tell the user exactly what to record next (sales/expenses/products).
+    5) NO GUESSING: Do NOT guess or invent numbers.
+    6) ALWAYS ADD WHY + NEXT STEPS:
+      - Explain why the situation matters to profit/cash/stock/customer experience.
+      - Give 3–5 next steps that are actionable, simple, and grounded in the provided data (low stock list, best/worst product, profit margin, cash balance, expenses, expense ratio if provided).
+      - Prefer actions the owner can do today.
+    7) STRUCTURE (required):
       - Start with a direct 1–2 sentence answer.
-      - Then add up to 4 short bullet points (each one action-oriented) when it improves usefulness.
-      - No greetings, no fluff.
+      - Then include exactly these two sections in the same language:
+       Why it matters: (1–2 short sentences)
+       What to do next:
+       - (3–5 bullets)
+      - End with ONE short follow-up question to guide the owner (one line, no bullets).
+      - No greetings, no fluff, no "check your statement".
 
   Data:
   - Language: {{{language}}}
@@ -132,7 +143,10 @@ const prompt = ai.definePrompt({
   - Total Cash Deposits: {{{insights.totalDeposits}}}
   - Total Cash Withdrawals: {{{insights.totalWithdrawals}}}
   - Total Expenses: {{{insights.totalExpenses}}}
+  - Expense Ratio (% of sales): {{{insights.expenseRatioPct}}}
+  - Expenses > Sales: {{{insights.expensesGreaterThanSales}}}
   - Profit Margin (%): {{{insights.profitMargin}}}
+  - Net Profit Negative: {{{insights.isNetProfitNegative}}}
   - Cash Balance: {{{insights.cashBalance}}}
   - Avg Daily Expense: {{{insights.dailyAvgExpense}}}
   - Sales Days: {{{insights.salesDays}}}
