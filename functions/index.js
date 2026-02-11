@@ -1,7 +1,6 @@
 
 const functions = require("firebase-functions");
 const { onRequest } = require('firebase-functions/v2/https');
-const { defineSecret } = require('firebase-functions/params');
 const admin = require("firebase-admin");
 const axios = require("axios");
 const { sendTransactionalEmail } = require('./email/service');
@@ -17,28 +16,13 @@ const { onMarketProductCreatedNotifySubscribers } = require('./triggers/marketSu
 const { onSubscriptionTransactionCreatedApplyReferralCommission } = require('./triggers/referrals');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
-const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
-
-// Backwards-compatibility: some environments may still use a different secret name.
-const PAYSTACK_SECRET = defineSecret('PAYSTACK_SECRET');
-
 function getPaystackSecret() {
-    try {
-        const secret = PAYSTACK_SECRET_KEY.value();
-        if (secret) return secret;
-    } catch {
-        // When running locally without secrets, fall back to env var.
-    }
-
-    try {
-        const secret = PAYSTACK_SECRET.value();
-        if (secret) return secret;
-    } catch {
-        // ignore
-    }
-
-    if (process.env.PAYSTACK_SECRET_KEY) return process.env.PAYSTACK_SECRET_KEY;
-    if (process.env.PAYSTACK_SECRET) return process.env.PAYSTACK_SECRET;
+    const raw = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET;
+    const secret = raw ? String(raw).trim() : '';
+    if (!secret) return undefined;
+    // Paystack secret keys are typically sk_test_* or sk_live_*; guard against misconfiguration.
+    if (!secret.startsWith('sk_')) return undefined;
+    return secret;
 
     return undefined;
 }
@@ -80,7 +64,7 @@ exports.onSubscriptionTransactionCreatedApplyReferralCommission = onSubscription
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
-exports.fetchBankList = onRequest({ cors: true, invoker: 'public', secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET] }, async (req, res) => {
+exports.fetchBankList = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
@@ -112,7 +96,7 @@ exports.fetchBankList = onRequest({ cors: true, invoker: 'public', secrets: [PAY
     }
 });
 
-exports.verifyBankAccount = onRequest({ cors: true, invoker: 'public', secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET] }, async (req, res) => {
+exports.verifyBankAccount = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
     try {
         if (req.method !== 'POST') {
             return res.status(405).json({ success: false, error: 'Method Not Allowed' });

@@ -257,7 +257,7 @@ const SettingsContent = () => {
         handleSettingsChange('collections', collections.filter(c => c.id !== collectionId));
     };
 
-    const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'bannerImageUrl' | 'hero.backgroundUrl') => {
+    const handleBrandingImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'logoImageUrl' | 'hero.backgroundUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
         const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
@@ -433,24 +433,6 @@ const SettingsContent = () => {
                     
                     <div className="space-y-4 pt-4 border-t">
                         <Label className="font-semibold flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Branding</Label>
-                        
-                        <div className="space-y-2">
-                            <Label>Store Banner</Label>
-                            <Card className="aspect-[3/1] relative flex items-center justify-center border-2 border-dashed">
-                                {settings.bannerImageUrl ? (
-                                    <Image src={settings.bannerImageUrl} alt="Banner preview" fill className="object-cover rounded-md" />
-                                ) : (
-                                    <div className="text-center text-muted-foreground">
-                                        <ImageIcon className="mx-auto h-8 w-8"/>
-                                        <p>Upload a banner (1200x400 recommended)</p>
-                                    </div>
-                                )}
-                                <Label htmlFor="banner-upload" className="absolute inset-0 cursor-pointer bg-black/20 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <FileUp className="h-8 w-8 text-white"/>
-                                </Label>
-                                <Input id="banner-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleBrandingImageUpload(e, 'bannerImageUrl')} disabled={isSaving} />
-                            </Card>
-                        </div>
 
                         <div className="space-y-2">
                             <Label>Store Logo</Label>

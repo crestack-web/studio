@@ -8,8 +8,10 @@ const admin = require("firebase-admin");
 const db = admin.firestore();
 
 function getPaystackSecret() {
-    if (process.env.PAYSTACK_SECRET_KEY) return process.env.PAYSTACK_SECRET_KEY;
-    if (process.env.PAYSTACK_SECRET) return process.env.PAYSTACK_SECRET;
+    const raw = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET;
+    const secret = raw ? String(raw).trim() : '';
+    if (!secret) return undefined;
+    return secret;
 
     return undefined;
 }
