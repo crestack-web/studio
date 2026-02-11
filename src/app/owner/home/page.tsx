@@ -158,14 +158,22 @@ interface Subscription {
 }
 
 
-const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: string; currency?: string; }) => {
+const MarketOverviewCard = ({
+    businessId,
+    currency,
+    isStoreActive,
+}: {
+    businessId: string;
+    currency?: string;
+    isStoreActive?: boolean;
+}) => {
     const { t } = useLanguage();
     const firestore = useFirestore();
 
     const marketOrdersQuery = useMemoFirebase(() => {
         return query(
-            collection(firestore, `businesses/${businessId}/orders`), 
-            where('payment', '==', 'busmopay') // Assuming busmopay orders are from the market
+            collection(firestore, `businesses/${businessId}/orders`),
+            where('payment', '==', 'busmopay')
         );
     }, [firestore, businessId]);
 
@@ -173,42 +181,47 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
 
     const { successfulOrders, marketRevenue } = useMemo(() => {
         if (!marketOrders) return { successfulOrders: [], marketRevenue: 0 };
-        
-        const successful = marketOrders.filter(order => 
-            !['pending', 'cancelled', 'returned'].includes(order.status)
-        );
-        
+
+        const successful = marketOrders.filter((order) => !['pending', 'cancelled', 'returned'].includes(order.status));
         const revenue = successful.reduce((acc, order) => acc + order.total, 0);
 
         return { successfulOrders: successful, marketRevenue: revenue };
     }, [marketOrders]);
 
-    if (isLoading) {
-        return <Skeleton className="h-24 w-full" />;
-    }
-
     return (
         <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <ShoppingCart className="w-5 h-5 text-primary" />
-                    <span>{t('ownerHome.marketplacePerformanceTitle')}</span>
-                </CardTitle>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Store className="w-5 h-5 text-primary" />
+                            <span>{t('ownerHome.sellOnlineTitle')}</span>
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            {isStoreActive ? t('ownerHome.storeLiveDesc') : t('ownerHome.storeSetupDesc')}
+                        </CardDescription>
+                    </div>
+                    <Button asChild variant="secondary" size="sm" className="shrink-0">
+                        <Link href="/owner/market">{t('ownerHome.manageMyMarket')}</Link>
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
-                {successfulOrders && successfulOrders.length > 0 ? (
+                {isLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                ) : successfulOrders.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center">
+                        <div className="rounded-md border bg-background p-3 text-center">
                             <p className="text-2xl font-bold">{successfulOrders.length}</p>
                             <p className="text-xs text-muted-foreground">{t('ownerHome.orders')}</p>
                         </div>
-                        <div className="text-center">
+                        <div className="rounded-md border bg-background p-3 text-center">
                             <p className="text-2xl font-bold">{formatCurrency(marketRevenue, currency)}</p>
                             <p className="text-xs text-muted-foreground">{t('ownerHome.revenue')}</p>
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-center text-muted-foreground py-4">{t('ownerHome.noMarketplaceOrders')}</p>
+                    <p className="text-sm text-center text-muted-foreground py-2">{t('ownerHome.noMarketplaceOrders')}</p>
                 )}
             </CardContent>
         </Card>
@@ -1446,7 +1459,13 @@ export default function OwnerHomePage() {
                     </CardContent>
                 </Card>
                 
-                {businessId && <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />}
+                {businessId && (
+                    <MarketOverviewCard
+                        businessId={businessId}
+                        currency={businessData?.currency}
+                        isStoreActive={businessData?.marketSettings?.isStoreActive}
+                    />
+                )}
 
                 {businessData?.country === 'NG' && (
                     <Card>
@@ -1460,66 +1479,20 @@ export default function OwnerHomePage() {
                     </Card>
                 )}
 
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Gift className="w-5 h-5 text-primary" /> {t('ownerHome.referralTitle')}</CardTitle>
-                        <CardDescription className="text-xs">{t('ownerHome.referralSubtitle')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="rounded-md border bg-background p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-xs text-muted-foreground flex items-center gap-2"><Link2 className="h-4 w-4" /> {t('ownerHome.referralLinkLabel')}</p>
-                                    <p className="mt-1 font-semibold truncate">
-                                        {(userProfile as any)?.referralCode
-                                            ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${(userProfile as any).referralCode}`
-                                            : t('ownerHome.needsData')}
-                                    </p>
-                                </div>
-                                <Button type="button" variant="secondary" onClick={handleCopyReferralLink} className="shrink-0">
-                                    <Copy className="h-4 w-4 mr-2" /> {t('ownerHome.referralCopyButton')}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Percent className="h-4 w-4 text-primary" /> {t('ownerHome.referralRateLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{Math.round(((referralStats?.currentRate ?? 0.3) as number) * 100)}%</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralRateHint')}</p>
-                            </div>
-
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Users className="h-4 w-4 text-primary" /> {t('ownerHome.referralPaidUsersLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{referralStats?.paidReferralsCount ?? 0}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralPaidUsersHint')}</p>
-                            </div>
-
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><CircleDollarSign className="h-4 w-4 text-primary" /> {t('ownerHome.referralBalanceLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{formatCurrency(referralStats?.balance ?? 0, businessData?.currency || 'NGN')}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralBalanceHint')}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="pt-0">
-                        <p className="text-xs text-muted-foreground">{t('ownerHome.referralFootnote')}</p>
-                    </CardFooter>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> {t('ownerHome.sellOnlineTitle')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {businessData?.marketSettings?.isStoreActive ? (
-                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeLiveDesc')}</p>
-                        ) : (
-                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeSetupDesc')}</p>
-                        )}
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">{t('ownerHome.manageMyMarket')}</Link></Button>
-                    </CardContent>
-                </Card>
+                <Link href="/owner/referrals" className="block">
+                    <Card className="cursor-pointer hover:bg-muted/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Gift className="w-5 h-5 text-primary" /> {t('ownerHome.referralTitle')}
+                            </CardTitle>
+                            <CardDescription className="text-xs">{t('ownerHome.referralSubtitle')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-1">
+                            <p className="text-xs text-muted-foreground">{t('ownerHome.referralBalanceLabel')}</p>
+                            <p className="text-2xl font-bold">{formatCurrency(referralStats?.balance ?? 0, businessData?.currency || 'NGN')}</p>
+                        </CardContent>
+                    </Card>
+                </Link>
                                 
                 <Card>
                     <CardHeader className="pb-2">
