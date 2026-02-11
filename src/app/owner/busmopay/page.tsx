@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, orderBy, where, serverTimestamp } from 'firebase/firestore';
@@ -361,18 +360,6 @@ export default function BusmoPayDashboard() {
                     </Card>
                 </Collapsible>
 
-                <Separator />
-
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h2 className="text-xl font-semibold tracking-tight">BusmoPay Dashboard</h2>
-                        <p className="text-sm text-muted-foreground">Track revenue, payouts, and transaction activity.</p>
-                    </div>
-                    <Button size="sm" variant="outline" asChild>
-                        <Link href="/owner/market?section=busmopay">Payout Settings</Link>
-                    </Button>
-                </div>
-
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <StatCard
                         title="Available for Payout"
@@ -382,6 +369,9 @@ export default function BusmoPayDashboard() {
                         icon={<Wallet className="h-4 w-4" />}
                     >
                         <Button size="sm" className="mt-2 w-full" onClick={handleRequestPayout}>Request Payout</Button>
+                        <Button size="sm" variant="outline" className="mt-2 w-full" asChild>
+                            <Link href="/owner/market?section=busmopay">Payout Settings</Link>
+                        </Button>
                     </StatCard>
                     <StatCard
                         title="Coming Soon"

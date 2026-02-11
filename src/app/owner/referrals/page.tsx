@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Copy, Gift, Link2, Percent, Users, CircleDollarSign, ArrowLeft } from 'lucide-react';
+import { Copy, Gift, Link2, Percent, Users, CircleDollarSign } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,19 +110,6 @@ export default function ReferralsPage() {
 
   return (
     <main className="flex-1 p-4 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Gift className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-headline font-semibold">{t('ownerHome.referralTitle')}</h1>
-        </div>
-        <Button asChild variant="ghost" className="gap-2">
-          <Link href="/owner/home">
-            <ArrowLeft className="h-4 w-4" />
-            <span>{t('ownerMarket.backToHome')}</span>
-          </Link>
-        </Button>
-      </div>
-
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
