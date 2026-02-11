@@ -1,13 +1,13 @@
 
 'use client';
 import React, { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useDoc, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, query, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Shield, Edit, Truck } from 'lucide-react';
+import { MoreHorizontal, Shield, Edit, Truck, HandCoins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,6 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { formatCurrency } from '@/lib/currency';
+import { getFunctionUrl } from '@/lib/api';
 
 interface User {
     id: string;
@@ -41,6 +44,151 @@ interface AdminPermission {
     canManageCoupons?: boolean;
     canManageAnnouncements?: boolean;
 }
+
+interface ReferralStats {
+    balance?: number;
+    totalCommission?: number;
+    totalPaidOut?: number;
+    paidReferralsCount?: number;
+    totalReferralsCount?: number;
+    currentRate?: number;
+}
+
+const ReferralPayoutDialog = ({
+    user,
+    isOpen,
+    onOpenChange,
+}: {
+    user: User;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+}) => {
+    const firestore = useFirestore();
+    const { user: authUser } = useUser();
+    const { toast } = useToast();
+
+    const statsRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, `users/${user.id}/referralStats/summary`);
+    }, [firestore, user]);
+    const { data: stats, isLoading } = useDoc<ReferralStats>(statsRef);
+
+    const [amount, setAmount] = useState('');
+    const [note, setNote] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const balance = stats?.balance ?? 0;
+
+    const handleSave = async () => {
+        if (!authUser) {
+            toast({ variant: 'destructive', title: 'Not signed in', description: 'Please sign in as an admin.' });
+            return;
+        }
+
+        const parsedAmount = Number(amount);
+        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+            toast({ variant: 'destructive', title: 'Invalid amount', description: 'Enter a valid payout amount.' });
+            return;
+        }
+
+        if (parsedAmount < 5000) {
+            toast({ variant: 'destructive', title: 'Minimum payout', description: 'Minimum payout amount is NGN 5000.' });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const token = await authUser.getIdToken();
+            const resp = await fetch(getFunctionUrl('adminRecordReferralPayout'), {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId: user.id, amount: parsedAmount, note }),
+            });
+
+            const json = await resp.json().catch(() => ({}));
+            if (!resp.ok || !json?.success) {
+                throw new Error(json?.error || 'Failed to record payout.');
+            }
+
+            toast({ title: 'Payout recorded', description: `Recorded a payout for ${user.displayName}.` });
+            setAmount('');
+            setNote('');
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error?.message || 'Failed to record payout.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Mark Referral Payout</DialogTitle>
+                    <DialogDescription>
+                        Record a manual payout and subtract it from this user’s referral balance.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="py-2 space-y-4">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="animate-spin" />
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="rounded-md border p-3">
+                                <div className="text-xs text-muted-foreground">Current referral balance</div>
+                                <div className="text-xl font-bold">{formatCurrency(balance, 'NGN')}</div>
+                            </div>
+
+                            <div className="text-xs text-muted-foreground">
+                                Minimum payout is NGN 5000.
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="payout-amount">Payout amount (NGN)</Label>
+                                <Input
+                                    id="payout-amount"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="e.g., 5000"
+                                    disabled={isSaving}
+                                    inputMode="decimal"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="payout-note">Note (optional)</Label>
+                                <Input
+                                    id="payout-note"
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    placeholder="e.g., bank transfer reference"
+                                    disabled={isSaving}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSave} disabled={isSaving || isLoading}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Record payout
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
     Admin: 'destructive',
@@ -143,6 +291,8 @@ export default function AdminUsersPage() {
     
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
+    const [payoutUser, setPayoutUser] = useState<User | null>(null);
+    const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
 
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -289,6 +439,10 @@ export default function AdminUsersPage() {
                                                         </DropdownMenuItem>
                                                     )}
 
+                                                    <DropdownMenuItem onClick={() => { setPayoutUser(user); setIsPayoutDialogOpen(true); }}>
+                                                        <HandCoins className="mr-2 h-4 w-4" /> Mark Referral Payout
+                                                    </DropdownMenuItem>
+
                                                     {user.businessId && (
                                                          <DropdownMenuSub>
                                                             <DropdownMenuSubTrigger>Change Plan</DropdownMenuSubTrigger>
@@ -321,6 +475,16 @@ export default function AdminUsersPage() {
                     isOpen={isPermissionsDialogOpen}
                     onOpenChange={setIsPermissionsDialogOpen}
                     onSave={handleSavePermissions}
+                />
+            )}
+            {payoutUser && (
+                <ReferralPayoutDialog
+                    user={payoutUser}
+                    isOpen={isPayoutDialogOpen}
+                    onOpenChange={(open) => {
+                        setIsPayoutDialogOpen(open);
+                        if (!open) setPayoutUser(null);
+                    }}
                 />
             )}
         </main>

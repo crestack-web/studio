@@ -12,6 +12,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { getFunctionUrl } from '@/lib/api';
+import { useEffect } from 'react';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -24,6 +26,39 @@ export default function SignUpPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref') || params.get('r');
+    if (ref && ref.trim()) {
+      window.localStorage.setItem('pendingReferralCode', ref.trim().toUpperCase());
+    }
+  }, []);
+
+  const claimReferralIfPresent = async (user: any) => {
+    if (typeof window === 'undefined') return;
+    const code = window.localStorage.getItem('pendingReferralCode');
+    if (!code) return;
+
+    try {
+      const token = await user.getIdToken();
+      const resp = await fetch(getFunctionUrl('claimReferral'), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      if (resp.ok) {
+        window.localStorage.removeItem('pendingReferralCode');
+      }
+    } catch (error) {
+      console.warn('Failed to claim referral (non-blocking):', error);
+    }
+  };
 
   const handleSignUp = async () => {
     setIsLoading(true);
@@ -66,12 +101,17 @@ export default function SignUpPage() {
                 role: 'Owner',
                 businessId: newBusinessRef.id,
                 createdAt: serverTimestamp(),
-            });
+            }, { merge: true });
 
             // Commit in the background without blocking navigation
             batch.commit().catch(error => {
                 console.error("Error creating user/business documents:", error);
             });
+        }
+
+        // Non-blocking: claim referral after account creation if present.
+        if (user) {
+          claimReferralIfPresent(user);
         }
 
         toast({ title: "Account Created!", description: "Let's set up your business." });

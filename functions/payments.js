@@ -1,43 +1,15 @@
 
 const { onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { defineSecret } = require('firebase-functions/params');
 const crypto = require("crypto");
 const axios = require("axios");
 const admin = require("firebase-admin");
 
 const db = admin.firestore();
 
-const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
-const PAYSTACK_SECRET = defineSecret('PAYSTACK_SECRET');
-
 function getPaystackSecret() {
-    try {
-        const secret = PAYSTACK_SECRET_KEY.value();
-        if (secret) return secret;
-    } catch {
-        // When running locally without secrets, fall back to env var.
-    }
-
-    try {
-        const secret = PAYSTACK_SECRET.value();
-        if (secret) return secret;
-    } catch {
-        // ignore
-    }
-
     if (process.env.PAYSTACK_SECRET_KEY) return process.env.PAYSTACK_SECRET_KEY;
     if (process.env.PAYSTACK_SECRET) return process.env.PAYSTACK_SECRET;
-
-    try {
-        // Backwards-compatibility with `firebase functions:config:set paystack.secret_key=...`
-        const functions = require('firebase-functions');
-        const cfg = functions.config && functions.config();
-        const fromConfig = cfg?.paystack?.secret_key || cfg?.paystack?.secret || cfg?.paystack?.secretKey;
-        if (fromConfig) return fromConfig;
-    } catch {
-        // ignore
-    }
 
     return undefined;
 }
@@ -66,7 +38,7 @@ function getBusinessIdFromDocPath(docPath) {
  * Initializes a payment with Paystack after validating and calculating the amount on the backend.
  * This is the single, authoritative entry point for all payments.
  */
-exports.initializePayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET] }, async (req, res) => {
+exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
         if (req.method !== 'POST') {
             return res.status(405).send('Method Not Allowed');
         }
@@ -303,7 +275,7 @@ exports.initializePayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KE
  * Accepts query param: ?reference=<tx_ref>
  * Returns: Full Paystack verification data object on success.
  */
-exports.verifyPayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET] }, async (req, res) => {
+exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -468,7 +440,7 @@ exports.verifyPayment = onRequest({ cors: true, secrets: [PAYSTACK_SECRET_KEY, P
  * Handles incoming webhook events from Paystack.
  * It cryptographically verifies the request and processes the payment events.
  */
-exports.paystackWebhook = onRequest({ secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET] }, async (req, res) => {
+exports.paystackWebhook = onRequest({ cors: true }, async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -729,7 +701,6 @@ exports.paystackWebhook = onRequest({ secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SE
 exports.processPayouts = onSchedule(
     {
         schedule: 'every 60 minutes',
-        secrets: [PAYSTACK_SECRET_KEY, PAYSTACK_SECRET],
     },
     async () => {
         const paystackSecret = getPaystackSecret();

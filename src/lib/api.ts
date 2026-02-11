@@ -9,6 +9,9 @@ const functionPathMap: { [key: string]: string } = {
   verifyBankAccount: '/api/verifyBankAccount',
   sendEmailVerification: '/api/sendEmailVerification',
   sendPasswordReset: '/api/sendPasswordReset',
+  claimReferral: '/api/claimReferral',
+  ensureReferralCode: '/api/ensureReferralCode',
+  adminRecordReferralPayout: '/api/adminRecordReferralPayout',
 };
 
 /**

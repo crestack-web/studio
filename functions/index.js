@@ -14,6 +14,7 @@ const { onStaffInvitationCreate, onStaffPermissionsAssigned } = require('./trigg
 const { onOrderCreate, onOrderPaid } = require('./triggers/orders');
 const { onSaleWrite, onOrderWriteForRevenue, onRevenueBackfillRequestCreate } = require('./triggers/revenue');
 const { onMarketProductCreatedNotifySubscribers } = require('./triggers/marketSubscriptions');
+const { onSubscriptionTransactionCreatedApplyReferralCommission } = require('./triggers/referrals');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
 const PAYSTACK_SECRET_KEY = defineSecret('PAYSTACK_SECRET_KEY');
@@ -38,16 +39,6 @@ function getPaystackSecret() {
 
     if (process.env.PAYSTACK_SECRET_KEY) return process.env.PAYSTACK_SECRET_KEY;
     if (process.env.PAYSTACK_SECRET) return process.env.PAYSTACK_SECRET;
-
-    // Backwards-compatibility: some projects still set this via `firebase functions:config:set`.
-    // This is deprecated for newer runtimes, but we support it as a fallback to reduce breakage.
-    try {
-        const cfg = functions.config && functions.config();
-        const fromConfig = cfg?.paystack?.secret_key || cfg?.paystack?.secret || cfg?.paystack?.secretKey;
-        if (fromConfig) return fromConfig;
-    } catch {
-        // ignore
-    }
 
     return undefined;
 }
@@ -81,6 +72,9 @@ exports.onRevenueBackfillRequestCreate = onRevenueBackfillRequestCreate;
 
 // Storefront subscriber notifications
 exports.onMarketProductCreatedNotifySubscribers = onMarketProductCreatedNotifySubscribers;
+
+// Referral commissions (recurring on subscriptions)
+exports.onSubscriptionTransactionCreatedApplyReferralCommission = onSubscriptionTransactionCreatedApplyReferralCommission;
 
 // Daily owner email digest
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
@@ -165,6 +159,344 @@ exports.verifyBankAccount = onRequest({ cors: true, invoker: 'public', secrets: 
         console.error('verifyBankAccount unexpected error:', error?.response ? error.response.data : error);
         const errorMessage = error?.response?.data?.message || error?.message || 'An internal error occurred while resolving the bank account.';
         return res.status(error?.response?.status || 500).json({ success: false, error: errorMessage });
+    }
+});
+
+// --- REFERRALS ---
+// Securely claims a referral code for the currently signed-in user.
+// Body: { code: string }
+exports.claimReferral = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+    }
+
+    const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const idToken = match?.[1];
+    if (!idToken) {
+        return res.status(401).json({ success: false, error: 'Missing Authorization bearer token.' });
+    }
+
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch {
+        return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+    }
+
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch {
+            body = {};
+        }
+    }
+    const safeBody = (body && typeof body === 'object') ? body : {};
+    const rawCode = typeof safeBody.code === 'string' ? safeBody.code : '';
+    const code = rawCode.trim().toUpperCase();
+
+    if (!code || code.length < 6) {
+        return res.status(400).json({ success: false, error: 'Invalid referral code.' });
+    }
+
+    const uid = decoded.uid;
+    const userRef = admin.firestore().collection('users').doc(uid);
+    const codeRef = admin.firestore().collection('referralCodes').doc(code);
+
+    try {
+        await admin.firestore().runTransaction(async (tx) => {
+            const [codeSnap, userSnap] = await Promise.all([tx.get(codeRef), tx.get(userRef)]);
+            if (!codeSnap.exists) {
+                throw Object.assign(new Error('Invalid referral code.'), { status: 400 });
+            }
+
+            const referrerUid = codeSnap.data()?.uid;
+            if (!referrerUid || typeof referrerUid !== 'string') {
+                throw Object.assign(new Error('Invalid referral code.'), { status: 400 });
+            }
+            if (referrerUid === uid) {
+                throw Object.assign(new Error('You cannot refer yourself.'), { status: 400 });
+            }
+
+            const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+            if (userData.referredBy && typeof userData.referredBy === 'string') {
+                // Idempotent: already linked.
+                return;
+            }
+
+            const now = admin.firestore.FieldValue.serverTimestamp();
+            tx.set(
+                userRef,
+                {
+                    referredBy: referrerUid,
+                    referralCodeUsed: code,
+                    referredAt: now,
+                },
+                { merge: true }
+            );
+
+            const referrerReferralRef = admin.firestore().doc(`users/${referrerUid}/referrals/${uid}`);
+            const referrerStatsRef = admin.firestore().doc(`users/${referrerUid}/referralStats/summary`);
+            const existingReferralSnap = await tx.get(referrerReferralRef);
+
+            if (!existingReferralSnap.exists) {
+                tx.set(
+                    referrerReferralRef,
+                    {
+                        referredUid: uid,
+                        status: 'signed_up',
+                        createdAt: now,
+                        paidCount: 0,
+                        totalCommission: 0,
+                        firstPaidAt: null,
+                        lastCommissionAt: null,
+                    },
+                    { merge: true }
+                );
+
+                tx.set(
+                    referrerStatsRef,
+                    {
+                        balance: 0,
+                        totalCommission: 0,
+                        paidReferralsCount: 0,
+                        totalReferralsCount: admin.firestore.FieldValue.increment(1),
+                        currentRate: 0.3,
+                        updatedAt: now,
+                    },
+                    { merge: true }
+                );
+            }
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        const status = error?.status || 500;
+        const message = status === 500 ? 'Failed to claim referral.' : (error?.message || 'Failed to claim referral.');
+        console.error('claimReferral error', { uid: decoded?.uid, code, error: error?.message || String(error) });
+        return res.status(status).json({ success: false, error: message });
+    }
+});
+
+// Generates a referral code for the current user if missing.
+// Returns: { success: true, code: string }
+exports.ensureReferralCode = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+    }
+
+    const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const idToken = match?.[1];
+    if (!idToken) {
+        return res.status(401).json({ success: false, error: 'Missing Authorization bearer token.' });
+    }
+
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch {
+        return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+    }
+
+    const uid = decoded.uid;
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const statsRef = userRef.collection('referralStats').doc('summary');
+
+    const generateCode = (length = 8) => {
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let out = '';
+        for (let i = 0; i < length; i += 1) {
+            out += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+        }
+        return out;
+    };
+
+    try {
+        // Fast path: already has a code.
+        const userSnap = await userRef.get();
+        const existingCode = userSnap.exists ? userSnap.data()?.referralCode : null;
+        if (typeof existingCode === 'string' && existingCode.trim()) {
+            const normalized = existingCode.trim().toUpperCase();
+            const codeRef = db.collection('referralCodes').doc(normalized);
+            const codeSnap = await codeRef.get().catch(() => null);
+
+            if (!codeSnap?.exists) {
+                await codeRef.set({ uid, createdAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
+
+            await statsRef.set(
+                {
+                    balance: 0,
+                    totalCommission: 0,
+                    paidReferralsCount: 0,
+                    totalReferralsCount: 0,
+                    currentRate: 0.3,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+            );
+
+            return res.status(200).json({ success: true, code: normalized });
+        }
+
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+            const code = generateCode(8);
+            const claimed = await db.runTransaction(async (tx) => {
+                const codeRef = db.collection('referralCodes').doc(code);
+                const codeSnap = await tx.get(codeRef);
+                if (codeSnap.exists) return null;
+
+                const now = admin.firestore.FieldValue.serverTimestamp();
+                tx.set(codeRef, { uid, createdAt: now });
+                tx.set(userRef, { referralCode: code }, { merge: true });
+                tx.set(
+                    statsRef,
+                    {
+                        balance: 0,
+                        totalCommission: 0,
+                        paidReferralsCount: 0,
+                        totalReferralsCount: 0,
+                        currentRate: 0.3,
+                        updatedAt: now,
+                    },
+                    { merge: true }
+                );
+                return code;
+            });
+
+            if (claimed) {
+                return res.status(200).json({ success: true, code: claimed });
+            }
+        }
+
+        return res.status(500).json({ success: false, error: 'Failed to generate referral code.' });
+    } catch (error) {
+        console.error('ensureReferralCode error', { uid, error: error?.message || String(error) });
+        return res.status(500).json({ success: false, error: 'Failed to generate referral code.' });
+    }
+});
+
+// Admin-only: records a manual payout against a user's referral balance.
+// Body: { userId: string, amount: number, note?: string }
+exports.adminRecordReferralPayout = onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+    }
+
+    const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const idToken = match?.[1];
+    if (!idToken) {
+        return res.status(401).json({ success: false, error: 'Missing Authorization bearer token.' });
+    }
+
+    let decoded;
+    try {
+        decoded = await admin.auth().verifyIdToken(idToken);
+    } catch {
+        return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+    }
+
+    const callerUid = decoded.uid;
+    const callerEmail = String(decoded.email || '').toLowerCase();
+
+    const db = admin.firestore();
+
+    const allowlisted = callerEmail === 'crestack@gmail.com' || callerEmail === 'abduladallahusman@gmail.com';
+    let isAdminUser = allowlisted;
+    if (!isAdminUser) {
+        try {
+            const permSnap = await db.doc(`admin_permissions/${callerUid}`).get();
+            isAdminUser = permSnap.exists;
+        } catch {
+            isAdminUser = false;
+        }
+    }
+
+    if (!isAdminUser) {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch {
+            body = {};
+        }
+    }
+    const safeBody = (body && typeof body === 'object') ? body : {};
+
+    const targetUserId = typeof safeBody.userId === 'string' ? safeBody.userId : '';
+    const amountRaw = safeBody.amount;
+    const note = typeof safeBody.note === 'string' ? safeBody.note.trim().slice(0, 200) : '';
+
+    const amount = typeof amountRaw === 'number' ? amountRaw : Number(amountRaw);
+    if (!targetUserId) {
+        return res.status(400).json({ success: false, error: 'Missing userId.' });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ success: false, error: 'Invalid amount.' });
+    }
+
+    if (amount < 5000) {
+        return res.status(400).json({ success: false, error: 'Minimum payout is 5000.' });
+    }
+
+    // Keep to 2 decimals.
+    const payoutAmount = Math.round(amount * 100) / 100;
+
+    try {
+        const payoutId = db.collection('_').doc().id;
+        await db.runTransaction(async (tx) => {
+            const statsRef = db.doc(`users/${targetUserId}/referralStats/summary`);
+            const statsSnap = await tx.get(statsRef);
+            const stats = statsSnap.exists ? (statsSnap.data() || {}) : {};
+            const currentBalance = Number(stats.balance || 0);
+            if (!Number.isFinite(currentBalance) || currentBalance <= 0) {
+                throw Object.assign(new Error('User has no referral balance.'), { status: 400 });
+            }
+            if (payoutAmount > currentBalance + 1e-9) {
+                throw Object.assign(new Error('Amount exceeds referral balance.'), { status: 400 });
+            }
+
+            const payoutRef = db.doc(`users/${targetUserId}/referralPayouts/${payoutId}`);
+            const now = admin.firestore.FieldValue.serverTimestamp();
+
+            tx.set(payoutRef, {
+                id: payoutId,
+                userId: targetUserId,
+                amount: payoutAmount,
+                currency: 'NGN',
+                note: note || null,
+                createdAt: now,
+                createdBy: callerUid,
+                createdByEmail: callerEmail || null,
+                status: 'paid',
+                method: 'manual',
+            });
+
+            tx.set(
+                statsRef,
+                {
+                    balance: Math.round((currentBalance - payoutAmount) * 100) / 100,
+                    totalPaidOut: admin.firestore.FieldValue.increment(payoutAmount),
+                    lastPayoutAt: now,
+                    updatedAt: now,
+                },
+                { merge: true }
+            );
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        const status = error?.status || 500;
+        const message = status === 500 ? 'Failed to record payout.' : (error?.message || 'Failed to record payout.');
+        console.error('adminRecordReferralPayout error', { callerUid, targetUserId, payoutAmount, error: error?.message || String(error) });
+        return res.status(status).json({ success: false, error: message });
     }
 });
 

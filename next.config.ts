@@ -57,6 +57,18 @@ const nextConfig: NextConfig = {
         source: '/api/sendPasswordReset',
         destination: `${firebaseFunctionsBaseUrl}/sendPasswordReset`,
       },
+      {
+        source: '/api/claimReferral',
+        destination: `${firebaseFunctionsBaseUrl}/claimReferral`,
+      },
+      {
+        source: '/api/ensureReferralCode',
+        destination: `${firebaseFunctionsBaseUrl}/ensureReferralCode`,
+      },
+      {
+        source: '/api/adminRecordReferralPayout',
+        destination: `${firebaseFunctionsBaseUrl}/adminRecordReferralPayout`,
+      },
     ];
   },
   typescript: {
