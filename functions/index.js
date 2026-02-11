@@ -531,10 +531,32 @@ exports.sendEmailVerification = onRequest({ cors: true }, async (req, res) => {
         const continuePath = rawContinue.startsWith('/') ? rawContinue : '/owner/home';
         const actionCodeSettings = {
             url: `${publicBrandHost}/finish-email-verification?continue=${encodeURIComponent(continuePath)}`,
-            handleCodeInApp: false,
+            handleCodeInApp: true,
         };
 
-        const verificationUrl = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+        const firebaseVerificationUrl = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+
+        // Build a branded in-app link that applies the action code on our site.
+        // This avoids the default Firebase action-handler UI and fixes bad redirects.
+        let verificationUrl = firebaseVerificationUrl;
+        try {
+            const urlObj = new URL(firebaseVerificationUrl);
+            const mode = urlObj.searchParams.get('mode') || 'verifyEmail';
+            const oobCode = urlObj.searchParams.get('oobCode');
+            const lang = urlObj.searchParams.get('lang');
+
+            if (oobCode) {
+                const branded = new URL(`${publicBrandHost}/finish-email-verification`);
+                branded.searchParams.set('mode', mode);
+                branded.searchParams.set('oobCode', oobCode);
+                branded.searchParams.set('continue', continuePath);
+                if (lang) branded.searchParams.set('lang', lang);
+                verificationUrl = branded.toString();
+            }
+        } catch (e) {
+            // Fall back to the Firebase-generated link.
+            verificationUrl = firebaseVerificationUrl;
+        }
 
         await sendTransactionalEmail({
             to: email,

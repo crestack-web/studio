@@ -324,23 +324,9 @@ export default function OwnerHomePage() {
 
         if (missing.length === 0) return null;
         if (language === 'fr') {
-            return (
-                `Je n’ai pas assez de données pour répondre à ça.\n\n` +
-                `Pourquoi : cette question dépend de tes données récentes.\n\n` +
-                `Que faire ensuite :\n` +
-                `- Commence par ${missing[0]}.\n` +
-                (missing[1] ? `- Ensuite, ${missing[1]}.\n` : '') +
-                `- Réessaie après 3–5 enregistrements.`
-            );
+            return `Je n’ai pas assez de données pour répondre. Pour ça, tu dois ${missing.join(', ')}.`;
         }
-        return (
-            `I don’t have enough data to answer that yet.\n\n` +
-            `Why: this question depends on your recent records.\n\n` +
-            `What to do next:\n` +
-            `- Start by ${missing[0]}.\n` +
-            (missing[1] ? `- Then ${missing[1]}.\n` : '') +
-            `- Try again after 3–5 entries.`
-        );
+        return `I don’t have enough data to answer that. To get this, please ${missing.join(', ')}.`;
     };
 
     const userProfileRef = useMemoFirebase(() => {
@@ -909,8 +895,8 @@ export default function OwnerHomePage() {
             if (text.includes('revenue') || text.includes('sales') || text.includes('chiffre') || text.includes('vent')) {
                 if (!hasSales) return null;
                 return isFrench
-                    ? `${basedOnRecent}, ton chiffre d’affaires est ${formatLocalCurrency(businessInsights.totalSales)}.\n\nPourquoi c’est important : plus tes ventes montent, plus tu peux couvrir tes dépenses et améliorer ta marge.\n\nQue faire ensuite :\n- Identifie ton produit le plus vendu et assure-toi qu’il reste en stock.\n- Relance tes clients (WhatsApp) avec une offre simple sur ton top produit.\n- Enregistre chaque vente pour que mes conseils soient plus précis.\n\nTu veux regarder les ventes d’aujourd’hui ou de la période récente ?`
-                    : `${basedOnRecent}, your sales are ${formatLocalCurrency(businessInsights.totalSales)}.\n\nWhy it matters: higher sales give you more room to cover expenses and improve profit.\n\nWhat to do next:\n- Focus on your best seller and keep it in stock.\n- Re‑engage customers (WhatsApp) with a simple offer on your top product.\n- Keep recording every sale so the guidance gets sharper.\n\nDo you mean today’s sales or recent-period sales?`;
+                    ? `${basedOnRecent}, ton chiffre d’affaires total est ${formatLocalCurrency(businessInsights.totalSales)}.`
+                    : `${basedOnRecent}, your total sales are ${formatLocalCurrency(businessInsights.totalSales)}.`;
             }
 
             if (text.includes('profit') || text.includes('béné') || text.includes('benef')) {
@@ -929,29 +915,9 @@ export default function OwnerHomePage() {
 
             if (text.includes('expense') || text.includes('charge') || text.includes('dépense') || text.includes('depense')) {
                 if (!hasExpenses) return null;
-
-                const expenses = businessInsights.totalExpenses;
-                const sales = businessInsights.totalSales;
-                const ratioPct = sales > 0 ? Math.round((expenses / sales) * 100) : null;
-                const spendingMore = sales > 0 ? expenses > sales : null;
-                const expenseLine = isFrench
-                    ? `${basedOnRecent}, tes dépenses sont ${formatLocalCurrency(expenses)} (≈ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} / jour).`
-                    : `${basedOnRecent}, your expenses are ${formatLocalCurrency(expenses)} (≈ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} / day).`;
-
-                const compareLine = sales > 0
-                    ? (isFrench
-                        ? `Comparaison : ventes ${formatLocalCurrency(sales)} → dépenses ≈ ${ratioPct}% des ventes${spendingMore ? ' (plus élevées que les ventes).' : '.'}`
-                        : `Comparison: sales ${formatLocalCurrency(sales)} → expenses are ~${ratioPct}% of sales${spendingMore ? ' (higher than sales).' : '.'}`)
-                    : null;
-
-                return (
-                    `${expenseLine}` +
-                    (compareLine ? `\n${compareLine}` : '') +
-                    `\n\n` +
-                    (isFrench
-                        ? `Pourquoi c’est important : quand les dépenses montent plus vite que les ventes, la marge baisse et la trésorerie se vide.\n\nQue faire ensuite :\n- Liste tes 3 plus grosses dépenses et coupe/renégocie au moins 1 cette semaine.\n- Augmente légèrement le prix de tes produits les plus demandés (ou réduis les promos).\n- Mets un budget quotidien simple (≈ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} / jour) et suis-le 7 jours.\n\nQuelle dépense te surprend le plus (loyer, salaires, livraison, pub, achats) ?`
-                        : `Why it matters: when expenses grow faster than sales, profit shrinks and cash runs out sooner.\n\nWhat to do next:\n- List your top 3 expenses and cut/renegotiate at least 1 this week.\n- Slightly raise price on high-demand items (or reduce discounts).\n- Set a simple daily spending cap (≈ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} / day) and track it for 7 days.\n\nWhich expense is surprising you most (rent, salaries, delivery, ads, purchases)?`)
-                );
+                return isFrench
+                    ? `${basedOnRecent}, tes dépenses totalisent ${formatLocalCurrency(businessInsights.totalExpenses)} (environ ${formatLocalCurrency(businessInsights.dailyAvgExpense)} par jour).`
+                    : `${basedOnRecent}, your expenses total ${formatLocalCurrency(businessInsights.totalExpenses)} (about ${formatLocalCurrency(businessInsights.dailyAvgExpense)} per day).`;
             }
 
             if (text.includes('withdraw') || text.includes('retir')) {
@@ -1057,15 +1023,6 @@ export default function OwnerHomePage() {
                 cashBalance: businessInsights.cashBalance,
                 dailyAvgExpense: businessInsights.dailyAvgExpense,
                 salesDays: businessInsights.salesDays,
-                expenseRatioPct:
-                    businessInsights.totalSales > 0
-                        ? (businessInsights.totalExpenses / businessInsights.totalSales) * 100
-                        : undefined,
-                expensesGreaterThanSales:
-                    businessInsights.totalSales > 0
-                        ? businessInsights.totalExpenses > businessInsights.totalSales
-                        : undefined,
-                isNetProfitNegative: businessInsights.totalProfit < 0,
             };
 
             const response = await getBusinessInsights({ 

@@ -1,9 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { applyActionCode } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
-import { useUser } from '@/firebase';
+
+import { useAuth, useUser } from '@/firebase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 function normalizeContinuePath(raw: string | null): string {
   if (!raw) return '/owner/home';
@@ -21,43 +26,125 @@ function normalizeContinuePath(raw: string | null): string {
   }
 }
 
+function pickLoginRoute(continuePath: string): string {
+  if (continuePath.startsWith('/admin')) return '/admin/login';
+  if (continuePath.startsWith('/investor')) return '/investor/login';
+  if (continuePath.startsWith('/delivery-agent')) return '/delivery-agent/login';
+  return `/login/form?continue=${encodeURIComponent(continuePath)}`;
+}
+
 export default function FinishEmailVerificationPage() {
   const router = useRouter();
+  const params = useSearchParams();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
-  const [continuePath, setContinuePath] = useState('/owner/home');
+  const continuePath = useMemo(() => normalizeContinuePath(params.get('continue')), [params]);
+  const mode = params.get('mode');
+  const oobCode = params.get('oobCode');
+
+  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fromContinue = params.get('continue');
-    setContinuePath(normalizeContinuePath(fromContinue));
-  }, []);
-
-  useEffect(() => {
-    if (isUserLoading) return;
-
     const run = async () => {
+      // If we have an action code, complete verification directly (branded flow).
+      if (oobCode && (!mode || mode === 'verifyEmail')) {
+        try {
+          await applyActionCode(auth, oobCode);
+
+          if (auth.currentUser) {
+            await auth.currentUser.reload();
+            await auth.currentUser.getIdToken(true);
+          }
+
+          setStatus('success');
+          return;
+        } catch (err: any) {
+          setErrorMessage(String(err?.message || err || 'Verification failed.'));
+          setStatus('error');
+          return;
+        }
+      }
+
+      // Otherwise, attempt to confirm the signed-in user's verification status.
+      if (isUserLoading) return;
+
       if (!user) {
-        router.replace(`/login/form?continue=${encodeURIComponent(continuePath)}`);
+        setErrorMessage('You may need to sign in to continue.');
+        setStatus('error');
         return;
       }
 
       try {
         await user.reload();
-      } catch {
-        // ignore
-      }
+        await user.getIdToken(true);
+        if (user.emailVerified) {
+          setStatus('success');
+          return;
+        }
 
-      router.replace(continuePath);
+        setErrorMessage('Email not verified yet. Please use the link from your email.');
+        setStatus('error');
+      } catch (err: any) {
+        setErrorMessage(String(err?.message || err || 'Could not confirm verification status.'));
+        setStatus('error');
+      }
     };
 
     run();
-  }, [continuePath, isUserLoading, router, user]);
+  }, [auth, isUserLoading, mode, oobCode, user]);
+
+  const handleContinue = () => {
+    window.location.href = continuePath;
+  };
+
+  const handleLogin = () => {
+    router.push(pickLoginRoute(continuePath));
+  };
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center space-y-4 text-center p-4">
-      <Loader2 className="h-8 w-8 animate-spin" />
-      <p className="text-muted-foreground">Finishing email verification…</p>
-    </div>
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Email verification</CardTitle>
+          <CardDescription>
+            {status === 'verifying'
+              ? 'Finishing your email verification…'
+              : status === 'success'
+                ? 'Your email is verified.'
+                : 'We couldn’t verify your email.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {status === 'verifying' && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Verifying…</span>
+            </div>
+          )}
+          {status === 'success' && (
+            <Alert>
+              <AlertTitle>Verified</AlertTitle>
+              <AlertDescription>Continue back to your dashboard.</AlertDescription>
+            </Alert>
+          )}
+          {status === 'error' && (
+            <Alert variant="destructive">
+              <AlertTitle>Verification issue</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter className="flex gap-2">
+          <Button onClick={handleContinue} disabled={status !== 'success'}>
+            Continue
+          </Button>
+          <Button variant="secondary" onClick={handleLogin}>
+            Sign in
+          </Button>
+        </CardFooter>
+      </Card>
+    </main>
   );
 }

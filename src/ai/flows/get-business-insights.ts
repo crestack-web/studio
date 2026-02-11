@@ -35,9 +35,6 @@ const BusinessInsightsDataSchema = z.object({
     cashBalance: z.number().optional().describe("Cash balance (total deposits minus total withdrawals)."),
     dailyAvgExpense: z.number().optional().describe("Average daily expenses for the period."),
     salesDays: z.number().optional().describe("Number of days with sales in the period."),
-  expenseRatioPct: z.number().optional().describe("Expenses divided by sales, as a percentage (0-100)."),
-  expensesGreaterThanSales: z.boolean().optional().describe("True if total expenses are greater than total sales for the period."),
-  isNetProfitNegative: z.boolean().optional().describe("True if totalProfit is negative for the period."),
 });
 
 const GetBusinessInsightsInputSchema = z.object({
@@ -63,8 +60,8 @@ function normalizeLanguage(language?: string): 'en' | 'fr' {
 
 function notEnoughDataMessage(language: 'en' | 'fr') {
   return language === 'fr'
-    ? "Je n’ai pas encore assez de données pour répondre.\n\nQue faire ensuite :\n- Ajoute tes produits (au moins 5).\n- Enregistre 3–5 ventes réelles.\n- Ajoute 3–5 dépenses (même petites).\nPuis réessaie ta question."
-    : "I don’t have enough data yet to answer that.\n\nWhat to do next:\n- Add your products (at least 5).\n- Record 3–5 real sales.\n- Add 3–5 expenses (even small ones).\nThen ask again.";
+    ? "Je n’ai pas encore assez de données pour répondre. Ajoute tes produits, puis enregistre quelques ventes et dépenses (même 3–5) et réessaie."
+    : "I don’t have enough data yet to answer that. Add your products, then record a few sales and expenses (even 3–5) and try again.";
 }
 
 function unavailableMessage(language: 'en' | 'fr') {
@@ -73,30 +70,8 @@ function unavailableMessage(language: 'en' | 'fr') {
     : "Busmo isn’t available right now. Please try again.";
 }
 
-function ensureConciseAnswer(answer: string) {
-  const trimmed = (answer || '').trim();
-  if (!trimmed) return '';
-
-  const maxChars = 900;
-  if (trimmed.length <= maxChars) return trimmed;
-
-  // Prefer keeping a few complete lines (works well for short bullet guidance).
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map(l => l.trim())
-    .filter(Boolean);
-  const shortLines = lines.slice(0, 6).join('\n');
-  if (shortLines.length <= maxChars) return shortLines;
-
-  // Fallback: keep the first few sentences.
-  const sentences = trimmed
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(Boolean);
-  const shortSentences = sentences.slice(0, 4).join(' ');
-  return shortSentences.length <= maxChars
-    ? shortSentences
-    : trimmed.slice(0, maxChars).trimEnd();
+function sanitizeAnswer(answer: string) {
+  return (answer || '').trim();
 }
 
 function formatMoney(value: number | undefined, currencySymbol: string) {
@@ -109,33 +84,37 @@ const prompt = ai.definePrompt({
   name: 'getBusinessInsightsPrompt',
   input: {schema: GetBusinessInsightsInputSchema},
   output: {schema: GetBusinessInsightsOutputSchema},
-    prompt: `You are an expert business analyst AI for a small business owner. Your name is Busmo.
-  
-    Your goal is to provide factual, practical, calm answers by explaining the pre-calculated data provided in the 'Data' section.
-    The answer must feel like guidance (why it matters + what to do next), not just repeating numbers the owner can already see.
-  
-    CRITICAL RULES:
-    0) LANGUAGE: If Language is "fr", respond in French. Otherwise, respond in English. Always respond in that language.
-    1) RECENCY: The data provided represents RECENT activity and may not be the complete, all-time history of the business. When you mention totals, you MUST clarify that it is based on recent data.
-    2) NO NEW MATH: You MUST NOT perform calculations, forecasts, or generate numbers yourself. Use ONLY the values provided below.
-    2b) FORMAT: Output MUST be plain text only. Do NOT use HTML tags and do NOT use code blocks. For bullet points, use lines that start with "- ".
-    3) MONEY FORMAT: Always include thousands separators (45,000 not 45000). Use the provided currency symbol. If "CFA", place AFTER the number with a space (600 CFA). Otherwise place BEFORE with no space (₦600, $100).
-    4) DATA GAPS: If the data required to answer the question is 0 or empty, respond that you don't have enough data yet and tell the user exactly what to record next (sales/expenses/products).
-    5) NO GUESSING: Do NOT guess or invent numbers.
-    6) ALWAYS ADD WHY + NEXT STEPS:
-      - Explain why the situation matters to profit/cash/stock/customer experience.
-      - Give 3–5 next steps that are actionable, simple, and grounded in the provided data (low stock list, best/worst product, profit margin, cash balance, expenses, expense ratio if provided).
-      - Prefer actions the owner can do today.
-    7) STRUCTURE (required):
-      - Start with a direct 1–2 sentence answer.
-      - Then include exactly these two sections in the same language:
-       Why it matters: (1–2 short sentences)
-       What to do next:
-       - (3–5 bullets)
-      - End with ONE short follow-up question to guide the owner (one line, no bullets).
-      - No greetings, no fluff, no "check your statement".
+  prompt: `You translate raw business numbers into clear, professional, actionable insights for a business owner. Speak directly to the owner using “you”.
 
-  Data:
+IMPORTANT RULES (non‑negotiable):
+1) ONLY analyze the business data provided under “Data”.
+2) Do NOT assume missing data. If a section needs data that is not provided, say so plainly.
+3) Do NOT hallucinate numbers. Do NOT invent percentages, comparisons, averages, or timelines.
+4) Do NOT do new calculations. You may restate the provided figures and explain what they mean.
+5) Avoid technical accounting jargon. Use simple, everyday language.
+6) Keep it professional but human. No fluff, no motivational talk.
+7) FORMAT: Output MUST be plain text only. No HTML, no markdown headings, no code blocks.
+   Use the exact section titles shown below, each on its own line.
+8) LENGTH: 400–600 words total. Not shorter, not longer.
+9) LANGUAGE: If Language is "fr", respond in French. Otherwise respond in English.
+
+REQUIRED RESPONSE STRUCTURE (use these exact titles, in this order):
+Business Snapshot
+Revenue Analysis
+Expense & Profit Analysis
+Cash Flow Health
+Customer & Subscription Insights
+Risk Signals
+Growth Opportunities
+Recommended Actions
+
+Style guidelines:
+- Be decision-focused: explain what the numbers mean for what you should do next.
+- Be honest about limits: if you cannot see a trend from the data, say “the data provided does not show a time trend”.
+- When you mention totals, clarify they reflect the data provided (recent activity) rather than guaranteed all-time.
+- Monetary formatting: include thousands separators. Use the Currency symbol provided. If Currency is “CFA”, put it after the number with a space (e.g., “45,000 CFA”). Otherwise put it before the number (e.g., “₦45,000”).
+
+Data:
   - Language: {{{language}}}
   - Currency: {{{currency}}}
   - Total Sales Revenue: {{{insights.totalSales}}}
@@ -143,10 +122,7 @@ const prompt = ai.definePrompt({
   - Total Cash Deposits: {{{insights.totalDeposits}}}
   - Total Cash Withdrawals: {{{insights.totalWithdrawals}}}
   - Total Expenses: {{{insights.totalExpenses}}}
-  - Expense Ratio (% of sales): {{{insights.expenseRatioPct}}}
-  - Expenses > Sales: {{{insights.expensesGreaterThanSales}}}
   - Profit Margin (%): {{{insights.profitMargin}}}
-  - Net Profit Negative: {{{insights.isNetProfitNegative}}}
   - Cash Balance: {{{insights.cashBalance}}}
   - Avg Daily Expense: {{{insights.dailyAvgExpense}}}
   - Sales Days: {{{insights.salesDays}}}
@@ -164,7 +140,7 @@ const prompt = ai.definePrompt({
 
   ---
 
-  User Question: {{{query}}}
+  Owner Prompt (context, may be ignored if not relevant): {{{query}}}
   `,
 });
 
@@ -177,7 +153,14 @@ const getBusinessInsightsFlow = ai.defineFlow(
   async input => {
     const language = normalizeLanguage(input.language);
     const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY);
-    const lacksData = input.insights.totalSales === 0 && input.insights.salesTodayCount === 0 && input.insights.totalDeposits === 0 && input.insights.totalWithdrawals === 0;
+    const lacksData =
+      input.insights.totalSales === 0 &&
+      input.insights.salesTodayCount === 0 &&
+      input.insights.totalDeposits === 0 &&
+      input.insights.totalWithdrawals === 0 &&
+      (input.insights.lowStockProducts?.length || 0) === 0 &&
+      !input.insights.bestSellingProduct &&
+      !input.insights.worstSellingProduct;
 
     if (lacksData) {
       return {answer: notEnoughDataMessage(language)};
@@ -190,7 +173,7 @@ const getBusinessInsightsFlow = ai.defineFlow(
     try {
       const {output} = await prompt(input);
       if (output?.answer) {
-        return {answer: ensureConciseAnswer(output.answer)};
+        return {answer: sanitizeAnswer(output.answer)};
       }
       return {answer: unavailableMessage(language)};
     } catch (error: any) {

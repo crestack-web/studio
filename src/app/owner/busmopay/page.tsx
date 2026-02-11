@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
+import { Banknote, CreditCard, Download, Rocket, TrendingUp, Wallet, CheckCircle2, ShoppingCart, HelpCircle, Loader2, ArrowRight, Calendar as CalendarIcon, ChevronDown, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -22,6 +22,7 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface AppUser {
     businessId?: string;
@@ -135,6 +136,7 @@ const RevenueChart = ({ data, currency }: { data: any[], currency?: string }) =>
 
 export default function BusmoPayDashboard() {
     const { toast } = useToast();
+    const router = useRouter();
     const { user: authUser } = useUser();
     const firestore = useFirestore();
     const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -260,7 +262,14 @@ export default function BusmoPayDashboard() {
     if (isLoadingBusiness) {
         return (
             <main className="flex-1 p-4 sm:p-6">
-                <div className="w-full max-w-5xl space-y-6">
+                <header className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => router.push('/owner/home')} className="gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                    </Button>
+                    <h1 className="text-lg font-semibold">BusmoPay</h1>
+                </header>
+                <div className="w-full space-y-6">
                     <Skeleton className="h-24 w-full" />
                     <Skeleton className="h-48 w-full" />
                 </div>
@@ -271,6 +280,13 @@ export default function BusmoPayDashboard() {
     if (businessData && businessData.country !== 'NG') {
         return (
             <main className="flex-1 p-4 sm:p-6">
+                <header className="flex items-center gap-3">
+                    <Button variant="outline" size="sm" onClick={() => router.push('/owner/home')} className="gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                    </Button>
+                    <h1 className="text-lg font-semibold">BusmoPay</h1>
+                </header>
                 <div className="w-full max-w-lg text-center">
                     <Card>
                         <CardHeader>
@@ -288,7 +304,14 @@ export default function BusmoPayDashboard() {
     
     return (
         <main className="flex-1 p-4 sm:p-6">
-            <div className="w-full max-w-5xl space-y-6">
+            <header className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => router.push('/owner/home')} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                </Button>
+                <h1 className="text-lg font-semibold">BusmoPay</h1>
+            </header>
+            <div className="w-full space-y-6">
                 <Collapsible open={isAboutOpen} onOpenChange={setIsAboutOpen}>
                     <Card>
                         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

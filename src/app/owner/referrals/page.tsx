@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Copy, Gift, Link2, Percent, Users, CircleDollarSign } from 'lucide-react';
+import { Copy, Gift, Link2, Percent, Users, CircleDollarSign, ArrowLeft } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/language-provider';
 import { formatCurrency } from '@/lib/currency';
 import { getFunctionUrl } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 interface AppUser {
   displayName?: string;
@@ -32,6 +33,7 @@ interface Business {
 export default function ReferralsPage() {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const router = useRouter();
   const { user: authUser } = useUser();
   const firestore = useFirestore();
 
@@ -110,6 +112,18 @@ export default function ReferralsPage() {
 
   return (
     <main className="flex-1 p-4 sm:p-6 space-y-6">
+      <header className="flex items-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.push('/owner/home')}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t('main_layout.back')}
+        </Button>
+        <h1 className="text-lg font-semibold">{t('ownerHome.referralTitle')}</h1>
+      </header>
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">

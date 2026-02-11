@@ -335,15 +335,6 @@ export default function AskPage() {
           cashBalance: businessInsights.cashBalance,
           dailyAvgExpense: businessInsights.dailyAvgExpense,
           salesDays: businessInsights.salesDays,
-          expenseRatioPct:
-            businessInsights.totalSales > 0
-              ? (businessInsights.totalExpenses / businessInsights.totalSales) * 100
-              : undefined,
-          expensesGreaterThanSales:
-            businessInsights.totalSales > 0
-              ? businessInsights.totalExpenses > businessInsights.totalSales
-              : undefined,
-          isNetProfitNegative: businessInsights.totalProfit < 0,
         },
         currency: getCurrencySymbol(businessData?.currency || businessData?.country),
         language,
