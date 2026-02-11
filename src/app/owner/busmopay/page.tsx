@@ -1,7 +1,6 @@
 
 'use client';
 import { useMemo, useState } from 'react';
-import MainLayout from '@/components/app/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -260,19 +259,36 @@ export default function BusmoPayDashboard() {
     const isLoading = isLoadingBusiness || isLoadingPayouts || isLoadingTransactions || isLoadingOrders || isLoadingBank;
     
     if (isLoadingBusiness) {
-        return <MainLayout title="BusmoPay Dashboard" backHref="/owner/home"><div className="w-full max-w-5xl space-y-6"><Skeleton className="h-24 w-full" /><Skeleton className="h-48 w-full" /></div></MainLayout>
+        return (
+            <main className="flex-1 p-4 sm:p-6">
+                <div className="w-full max-w-5xl space-y-6">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                </div>
+            </main>
+        );
     }
 
     if (businessData && businessData.country !== 'NG') {
         return (
-            <MainLayout title="BusmoPay" backHref="/owner/home">
-                <div className="w-full max-w-lg text-center"><Card><CardHeader><CardTitle>Coming Soon!</CardTitle><CardDescription>BusmoPay is currently available only for businesses in Nigeria.</CardDescription></CardHeader><CardContent><p className="text-sm text-muted-foreground">We are working hard to bring BusmoPay to your country. Stay tuned for updates!</p></CardContent></Card></div>
-            </MainLayout>
+            <main className="flex-1 p-4 sm:p-6">
+                <div className="w-full max-w-lg text-center">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Coming Soon!</CardTitle>
+                            <CardDescription>BusmoPay is currently available only for businesses in Nigeria.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">We are working hard to bring BusmoPay to your country. Stay tuned for updates!</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </main>
         );
     }
     
     return (
-        <MainLayout title="BusmoPay" backHref="/owner/home">
+        <main className="flex-1 p-4 sm:p-6">
             <div className="w-full max-w-5xl space-y-6">
                 <Collapsible open={isAboutOpen} onOpenChange={setIsAboutOpen}>
                     <Card>
@@ -498,6 +514,6 @@ export default function BusmoPayDashboard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </MainLayout>
+        </main>
     );
 }

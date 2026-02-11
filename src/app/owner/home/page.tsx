@@ -2,28 +2,21 @@
 
 import Link from 'next/link';
 import { useState, useMemo, useEffect, FormEvent, Suspense, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Plus, BotMessageSquare, PackagePlus, FilePlus, Landmark, CircleDollarSign, Activity, TrendingUp, AlertTriangle, Download, Bell, Users, Store, Loader2, LogOut, MessageSquare, Send, ArrowLeft, TrendingDown, ChevronsUp, Calendar, PackageMinus, Package, ShoppingCart, Lock, X, CreditCard, FileUp, Megaphone, MapPin, Briefcase, Gift, Link2, Copy, Percent } from 'lucide-react';
-import { Logo } from '@/components/app/logo';
+import { Plus, BotMessageSquare, PackagePlus, FilePlus, CircleDollarSign, Activity, AlertTriangle, Megaphone, MapPin, Gift, Copy, X, ShoppingCart } from 'lucide-react';
 import { getBusinessInsights } from '@/ai/flows/get-business-insights';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { startOfDay, endOfDay, isWithinInterval, differenceInDays, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { ThemeToggle } from '@/components/app/theme-toggle';
-import { LanguageSwitcher } from '@/components/app/language-switcher';
-import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, useAuth, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useCollection, useDoc, useMemoFirebase, useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, Timestamp, serverTimestamp, orderBy, limit } from 'firebase/firestore';
 import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { signOut } from 'firebase/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,7 +210,6 @@ const MarketplacePerformanceCard = ({ businessId, currency }: { businessId: stri
 
 
 export default function OwnerHomePage() {
-    const router = useRouter();
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const onboardingComplete = searchParams.get('onboarding') === 'complete';
@@ -232,7 +224,6 @@ export default function OwnerHomePage() {
 
     const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
-    const auth = useAuth();
     const { language, t } = useLanguage();
     
     const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
@@ -1043,16 +1034,7 @@ export default function OwnerHomePage() {
         }
     };
     
-    const statementUrl = '/owner/summary';
-    
-    const handleSignOut = async () => {
-      if(auth) {
-        await signOut(auth);
-      }
-      router.push('/login');
-    };
-
-    const lowStockNotifications = businessInsights.lowStockProducts;
+        const statementUrl = '/owner/summary';
 
     const displayAnswer = useMemo(() => {
         const raw = (answer || '').trim();
@@ -1082,71 +1064,7 @@ export default function OwnerHomePage() {
     const showBranchSelector = (businessData?.plan === 'multi-branch' || businessData?.plan === 'company') && branches.length > 0;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-card px-4">
-        <Logo className="h-8" />
-        <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <LanguageSwitcher />
-             <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative hover:bg-transparent">
-                        <Bell className="h-5 w-5" />
-                        {lowStockNotifications.length > 0 && <span className="absolute top-1 right-1 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span></span>}
-                    </Button>
-                </PopoverTrigger>
-                 <PopoverContent align="end" className="w-80">
-                    <div className="grid gap-4">
-                        <div className="space-y-2">
-                            <h4 className="font-medium leading-none">{t('ownerHome.notificationsTitle')}</h4>
-                            <p className="text-sm text-muted-foreground">{t('ownerHome.notificationsSubtitle')}</p>
-                        </div>
-                         <div className="grid gap-2">
-                            {lowStockNotifications.length > 0 ? (
-                                lowStockNotifications.slice(0, 3).map(product => (
-                                    <div key={product.id} className="grid grid-cols-[25px_1fr] items-start pb-2 last:pb-0">
-                                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                                        <div className="grid gap-1">
-                                            <p className="text-sm font-medium leading-none">{t('ownerHome.lowStockTitle')}</p>
-                                            <p className="text-sm text-muted-foreground">{t('ownerHome.lowStockDesc')?.replace('{{name}}', product.name)?.replace('{{qty}}', String(product.quantity))}</p>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-muted-foreground">{t('ownerHome.noNotifications')}</p>
-                            )}
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                     <Button variant="ghost" className="flex items-center gap-2 p-1 h-auto hover:bg-transparent">
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback>{userProfile?.displayName?.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                        </Avatar>
-                        <div className="hidden md:flex flex-col items-start">
-                             <span className="font-semibold text-sm">{userProfile?.displayName}</span>
-                             <span className="text-xs text-muted-foreground">{businessData?.businessName}</span>
-                        </div>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{t('ownerHome.myAccount')}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild><Link href="/owner/staff">{t('ownerHome.manageStaff')}</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/owner/pricing">{t('ownerHome.billing')}</Link></DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>{t('ownerHome.logout')}</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-      </header>
-      
+    <div className="flex flex-col min-h-svh bg-background">
         {announcements && announcements.length > 0 && (
             <div className="bg-primary text-primary-foreground">
                 <div className="container mx-auto">
@@ -1240,38 +1158,6 @@ export default function OwnerHomePage() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> {t('askBusmo.title')}</CardTitle>
-                    <CardDescription>{t('ownerHome.askBusmoDesc')}</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {presetQuestions.map((q, i) => (
-                        <Button key={i} variant="outline" size="sm" className={cn("h-auto py-2 justify-start text-left text-xs sm:text-sm truncate", selectedQuestion === q && "bg-accent/80 text-accent-foreground")} onClick={() => handleQuestionClick(q)}>
-                           {q}
-                        </Button>
-                    ))}
-                </CardContent>
-            </Card>
-
-            {(isLoadingAi || answer) && (
-                 <Card className="bg-muted/50">
-                    <CardContent className="p-4">
-                        {isLoadingAi ? (
-                             <div className="flex items-center gap-3">
-                                <Skeleton className="h-8 w-8 rounded-full" />
-                                <div className="space-y-2 flex-1">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-sm font-medium whitespace-pre-line">{displayAnswer}</p>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-
-            <Card>
-                <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-primary"/> {t('ownerHome.businessHealthTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1296,16 +1182,6 @@ export default function OwnerHomePage() {
                     <Button variant="secondary" asChild><Link href={statementUrl}>{t('ownerHome.viewStatement')}</Link></Button>
                 </CardFooter>
             </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> {t('ownerHome.businessServicesTitle')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">{t('ownerHome.businessServicesDesc')}</p>
-                    <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/services">{t('ownerHome.exploreServices')}</Link></Button>
-                </CardContent>
-            </Card>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> {t('ownerHome.recordSale')}</Link></Button>
@@ -1326,208 +1202,36 @@ export default function OwnerHomePage() {
            <div className="lg:col-span-1 flex flex-col gap-6">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5"/> {t('ownerHome.topInsightTitle')}</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2"><BotMessageSquare className="w-5 h-5 text-accent"/> {t('askBusmo.title')}</CardTitle>
+                        <CardDescription className="text-xs">{t('ownerHome.askBusmoDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ul className="space-y-2">
-                            {topInsights.map((insight, idx) => (
-                                <li key={idx} className="text-sm text-muted-foreground font-medium">
-                                    {insight}
-                                </li>
-                            ))}
-                        </ul>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><ChevronsUp className="w-5 h-5 text-primary"/> {t('ownerHome.forecastsTitle')}</CardTitle>
-                        <CardDescription className="text-xs">{t('ownerHome.forecastsSubtitle')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 pt-4">
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-success/10 rounded-full"><TrendingUp className="w-4 h-4 text-success" /></div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">{t('ownerHome.nextWeeksProfit')}</p>
-                                {forecasts.weeklyProfit ? (
-                                    <p className="font-semibold">~{formatCurrency(forecasts.weeklyProfit, businessData?.currency)}</p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-primary/10 rounded-full"><Calendar className="w-4 h-4 text-primary" /></div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">{t('ownerHome.busiestDay')}</p>
-                                {forecasts.busiestDay ? (
-                                    <p className="font-semibold">{forecasts.busiestDay}</p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-accent/10 rounded-full"><Landmark className="w-4 h-4 text-accent" /></div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">{t('ownerHome.cashRunway')}</p>
-                                {forecasts.cashRunway !== null ? (
-                                    <p className="font-semibold">{t('ownerHome.approxDays').replace('{{days}}', String(forecasts.cashRunway))}</p>
-                                ) : businessInsights.recentActivityInWindow && businessInsights.dailyAvgBurn === 0 ? (
-                                    <p className="text-xs text-muted-foreground">{t('ownerHome.notBurningCash')}</p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 bg-destructive/10 rounded-full"><PackageMinus className="w-4 h-4 text-destructive" /></div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">{t('ownerHome.stockOutlook')}</p>
-                                {forecasts.inventoryOutlook ? (
-                                    <p className="font-semibold text-destructive text-xs">{forecasts.inventoryOutlook}</p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">{t('ownerHome.stockHealthy')}</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="sm:col-span-2 border-t pt-4">
-                            <div className="flex items-start justify-between gap-4 mb-2">
-                                <p className="text-sm font-medium">{t('ownerHome.productPerformanceTitle')}</p>
-                                <p className="text-xs text-muted-foreground">{t('ownerHome.productPerformanceSubtitle')}</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="rounded-md border bg-background p-3">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <TrendingUp className="h-4 w-4 text-success" />
-                                        <span>{t('ownerHome.bestSeller')}</span>
-                                    </div>
-                                    {forecastProductPerformanceSummary.bestSeller ? (
-                                        <div className="mt-2 space-y-1">
-                                            <p className="font-semibold leading-snug truncate">{forecastProductPerformanceSummary.bestSeller.name}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {forecastProductPerformanceSummary.bestSeller.units} {t('ownerHome.unitsSold')}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <p className="mt-2 text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
-                                    )}
-                                </div>
-
-                                <div className="rounded-md border bg-background p-3">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <TrendingDown className="h-4 w-4 text-destructive" />
-                                        <span>{t('ownerHome.worstSeller')}</span>
-                                    </div>
-                                    {forecastProductPerformanceSummary.worstSeller ? (
-                                        <div className="mt-2 space-y-1">
-                                            <p className="font-semibold leading-snug truncate">{forecastProductPerformanceSummary.worstSeller.name}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {forecastProductPerformanceSummary.worstSeller.units} {t('ownerHome.unitsSold')}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <p className="mt-2 text-xs text-muted-foreground">{t('ownerHome.needsData')}</p>
-                                    )}
-                                </div>
-
-                                <div className="rounded-md border bg-background p-3">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Package className="h-4 w-4 text-primary" />
-                                        <span>{t('ownerHome.totalUnitsSold')}</span>
-                                    </div>
-                                    <p className="mt-2 text-2xl font-bold leading-none">{forecastProductPerformanceSummary.totalUnits}</p>
-                                    <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.unitsSold')}</p>
-                                </div>
-                            </div>
-                        </div>
+                        <Button asChild variant="secondary" className="w-full">
+                            <Link href="/owner/ask">{t('askBusmo.title')}</Link>
+                        </Button>
                     </CardContent>
                 </Card>
                 
                 {businessId && <MarketplacePerformanceCard businessId={businessId} currency={businessData?.currency} />}
-
-                {businessData?.country === 'NG' && (
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary" /> BusmoPay</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">{t('ownerHome.busmopayDesc')}</p>
-                            <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/busmopay">{t('ownerHome.goToBusmoPay')}</Link></Button>
-                        </CardContent>
-                    </Card>
-                )}
 
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg flex items-center gap-2"><Gift className="w-5 h-5 text-primary" /> {t('ownerHome.referralTitle')}</CardTitle>
                         <CardDescription className="text-xs">{t('ownerHome.referralSubtitle')}</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3">
                         <div className="rounded-md border bg-background p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-xs text-muted-foreground flex items-center gap-2"><Link2 className="h-4 w-4" /> {t('ownerHome.referralLinkLabel')}</p>
-                                    <p className="mt-1 font-semibold truncate">
-                                        {(userProfile as any)?.referralCode
-                                            ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${(userProfile as any).referralCode}`
-                                            : t('ownerHome.needsData')}
-                                    </p>
-                                </div>
-                                <Button type="button" variant="secondary" onClick={handleCopyReferralLink} className="shrink-0">
-                                    <Copy className="h-4 w-4 mr-2" /> {t('ownerHome.referralCopyButton')}
-                                </Button>
-                            </div>
+                            <p className="text-xs text-muted-foreground">{t('ownerHome.referralBalanceLabel')}</p>
+                            <p className="mt-1 text-2xl font-bold">{formatCurrency(referralStats?.balance ?? 0, businessData?.currency || 'NGN')}</p>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Percent className="h-4 w-4 text-primary" /> {t('ownerHome.referralRateLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{Math.round(((referralStats?.currentRate ?? 0.3) as number) * 100)}%</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralRateHint')}</p>
-                            </div>
-
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Users className="h-4 w-4 text-primary" /> {t('ownerHome.referralPaidUsersLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{referralStats?.paidReferralsCount ?? 0}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralPaidUsersHint')}</p>
-                            </div>
-
-                            <div className="rounded-md border bg-background p-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><CircleDollarSign className="h-4 w-4 text-primary" /> {t('ownerHome.referralBalanceLabel')}</div>
-                                <p className="mt-2 text-2xl font-bold leading-none">{formatCurrency(referralStats?.balance ?? 0, businessData?.currency || 'NGN')}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{t('ownerHome.referralBalanceHint')}</p>
-                            </div>
+                        <div className="flex gap-2">
+                            <Button asChild variant="secondary" className="flex-1">
+                                <Link href="/owner/referrals">{t('ownerHome.referralTitle')}</Link>
+                            </Button>
+                            <Button type="button" variant="outline" className="flex-1" onClick={handleCopyReferralLink}>
+                                <Copy className="h-4 w-4 mr-2" /> {t('ownerHome.referralCopyButton')}
+                            </Button>
                         </div>
-                    </CardContent>
-                    <CardFooter className="pt-0">
-                        <p className="text-xs text-muted-foreground">{t('ownerHome.referralFootnote')}</p>
-                    </CardFooter>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Store className="w-5 h-5 text-primary" /> {t('ownerHome.sellOnlineTitle')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {businessData?.marketSettings?.isStoreActive ? (
-                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeLiveDesc')}</p>
-                        ) : (
-                             <p className="text-sm text-muted-foreground">{t('ownerHome.storeSetupDesc')}</p>
-                        )}
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/market">{t('ownerHome.manageMyMarket')}</Link></Button>
-                    </CardContent>
-                </Card>
-                                
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> {t('ownerHome.accessCapitalTitle')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                       <p className="text-sm text-muted-foreground">{t('ownerHome.accessCapitalDesc')}</p>
-                       <Button asChild variant="secondary" className="mt-4 w-full"><Link href="/owner/invest">{t('ownerHome.exploreFunding')}</Link></Button>
                     </CardContent>
                 </Card>
           </div>

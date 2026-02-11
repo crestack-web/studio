@@ -20,7 +20,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/language-provider';
-import { LanguageSwitcher } from '@/components/app/language-switcher';
 
 interface AppUser {
     businessId?: string;
@@ -248,7 +247,7 @@ function StatementContent() {
 
     return (
         <div className="bg-muted/30 dark:bg-background">
-             <header className="bg-card p-4 print:hidden sticky top-0 z-10 border-b">
+             <header className="bg-card p-4 print:hidden border-b">
                 <div className="max-w-4xl mx-auto flex justify-between items-center gap-4">
                      <Button variant="outline" onClick={() => router.back()} className="hidden sm:inline-flex">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -293,7 +292,6 @@ function StatementContent() {
                         </Popover>
                     </div>
                     <div className="flex items-center gap-2">
-                        <LanguageSwitcher />
                         <Button onClick={handlePrint}>
                             <Printer className="mr-2 h-4 w-4" />
                             <span className="hidden sm:inline">{t('statement.printCta')}</span>
