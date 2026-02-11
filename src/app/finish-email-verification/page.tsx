@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { applyActionCode } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
@@ -35,16 +35,22 @@ function pickLoginRoute(continuePath: string): string {
 
 export default function FinishEmailVerificationPage() {
   const router = useRouter();
-  const params = useSearchParams();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
-  const continuePath = useMemo(() => normalizeContinuePath(params.get('continue')), [params]);
-  const mode = params.get('mode');
-  const oobCode = params.get('oobCode');
+  const [continuePath, setContinuePath] = useState('/owner/home');
+  const [mode, setMode] = useState<string | null>(null);
+  const [oobCode, setOobCode] = useState<string | null>(null);
 
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setContinuePath(normalizeContinuePath(params.get('continue')));
+    setMode(params.get('mode'));
+    setOobCode(params.get('oobCode'));
+  }, []);
 
   useEffect(() => {
     const run = async () => {
