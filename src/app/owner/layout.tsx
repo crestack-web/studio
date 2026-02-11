@@ -298,6 +298,12 @@ const ProtectedOwnerLayout = ({ children }: { children: React.ReactNode }) => {
       return <>{children}</>;
     }
 
+    // Restore the original Home page layout (it includes its own header).
+    // Rendering the global owner shell there would create a double-header UX.
+    if (pathname === '/owner/home') {
+      return <>{children}</>;
+    }
+
     return (
       <OwnerAppShell
         userDisplayName={(userProfile as any)?.displayName}
