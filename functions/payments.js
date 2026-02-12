@@ -7,6 +7,46 @@ const admin = require("firebase-admin");
 
 const db = admin.firestore();
 
+// Fallback plan configuration.
+// The backend is authoritative for subscription amounts and Paystack plan codes.
+// If the `plans/{planId}` doc is missing, we use these defaults so subscriptions can still be paid.
+const DEFAULT_SUBSCRIPTION_PLANS = {
+    shop: {
+        monthlyPrice: 1500,
+        yearlyPrice: 15000,
+        paystack_plan_code_monthly: 'PLN_79p5yysj5q5z1qz',
+        paystack_plan_code_yearly: 'PLN_k9c24tyc4g5x8v9',
+    },
+    supermarket: {
+        monthlyPrice: 10000,
+        yearlyPrice: 100000,
+        paystack_plan_code_monthly: 'PLN_x5vbs3rigk8g9q2',
+        paystack_plan_code_yearly: 'PLN_0z6g4j3j6a59v04',
+    },
+    'multi-branch': {
+        monthlyPrice: 30000,
+        yearlyPrice: 300000,
+        paystack_plan_code_monthly: 'PLN_p0j2j9y6f7a6g9v',
+        paystack_plan_code_yearly: 'PLN_2s4q2y0g1m1c8s7',
+    },
+    company: {
+        monthlyPrice: 50000,
+        yearlyPrice: 500000,
+        paystack_plan_code_monthly: 'PLN_w8t4c0j7d8f9a2s',
+        paystack_plan_code_yearly: 'PLN_3d5f8g0h2k1l4m9',
+    },
+};
+
+function normalizePlanId(planId) {
+    const raw = String(planId || '').trim();
+    if (!raw) return '';
+    const lower = raw.toLowerCase();
+    if (lower === 'multibranch' || lower === 'multi_branch' || lower === 'multi branch') {
+        return 'multi-branch';
+    }
+    return lower;
+}
+
 function getPaystackSecret() {
     const raw = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET;
     const secret = raw ? String(raw).trim() : '';
@@ -160,29 +200,39 @@ exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
                 }
                 case 'subscription': {
                     const { planId, billingCycle } = payload;
-                    let finalPlanId = planId;
-                    
-                    if (planId === 'multibranch') {
-                        finalPlanId = 'multi-branch';
+                    const finalPlanId = normalizePlanId(planId);
+
+                    // Prefer Firestore so pricing can be updated without redeploy.
+                    // Fallback to defaults so owners are never blocked by a missing plan doc.
+                    let planData = null;
+                    try {
+                        const planRef = db.collection('plans').doc(finalPlanId);
+                        const planSnap = await planRef.get();
+                        if (planSnap.exists) {
+                            planData = planSnap.data();
+                        }
+                    } catch (e) {
+                        planData = null;
                     }
-                    
-                    const planRef = db.collection('plans').doc(finalPlanId);
-                    const planSnap = await planRef.get();
-                    if (!planSnap.exists) {
-                        throw new Error(`Subscription plan with ID '${planId}' not found in database.`);
+
+                    if (!planData) {
+                        const fallback = DEFAULT_SUBSCRIPTION_PLANS[finalPlanId];
+                        if (!fallback) {
+                            throw new Error(`Subscription plan '${finalPlanId}' is not configured.`);
+                        }
+                        planData = fallback;
                     }
-                    const planData = planSnap.data();
 
                     const priceInNaira = billingCycle === 'monthly' ? planData.monthlyPrice : planData.yearlyPrice;
                     if (typeof priceInNaira !== 'number' || isNaN(priceInNaira)) {
-                        throw new Error(`Price for plan '${planId}' and cycle '${billingCycle}' is not configured correctly.`);
-    
+                        throw new Error(`Price for plan '${finalPlanId}' and cycle '${billingCycle}' is not configured correctly.`);
                     }
+
                     amountInNaira = priceInNaira;
-                    
+
                     planCode = billingCycle === 'monthly' ? planData.paystack_plan_code_monthly : planData.paystack_plan_code_yearly;
-                    if (!planCode || planCode.includes('PLN_xx')) {
-                        console.warn(`Paystack plan code not configured for plan '${planId}'. Proceeding with one-time charge.`);
+                    if (!planCode || String(planCode).includes('PLN_xx')) {
+                        console.warn(`Paystack plan code not configured for plan '${finalPlanId}'. Proceeding with one-time charge.`);
                         planCode = undefined;
                     }
                     currency = 'NGN';
