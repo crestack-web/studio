@@ -36,7 +36,7 @@ export default function SellLandingPage() {
                   Storefront, products, orders, payments, and BusmoGo delivery — all in one place.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                  <Link href="/signup">
+                  <Link href="/seller/signup">
                     <Button size="lg" className="h-12 rounded-full px-8">Create Seller Account</Button>
                   </Link>
                   <Link href="/seller/login">

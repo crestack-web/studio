@@ -69,7 +69,7 @@ export default function SellerDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="flex items-center justify-between p-4 border-b bg-card">
+      <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
         <Link href="/sell" className="flex items-center gap-2">
           <Logo className="h-8" />
           <span className="text-sm font-semibold text-muted-foreground">Seller Central</span>
@@ -96,18 +96,21 @@ export default function SellerDashboardPage() {
       </header>
 
       <main className="flex-1 p-4 sm:p-6">
-        <div className="mx-auto w-full max-w-4xl space-y-6">
+        <div className="mx-auto w-full max-w-5xl space-y-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-headline">Seller Dashboard</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage your storefront, products, orders, payments, and delivery.
-            </p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold font-headline tracking-tight">Seller Dashboard</h1>
+            <p className="mt-2 text-base text-muted-foreground">Storefront, products, orders, payments, and delivery — together.</p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Card className="rounded-2xl shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2"><Store className="h-5 w-5 text-primary" /> Storefront</CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Store className="h-5 w-5 text-primary" />
+                  </span>
+                  Storefront
+                </CardTitle>
                 <CardDescription>Turn your store on and manage settings.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -117,9 +120,14 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2"><PackagePlus className="h-5 w-5 text-primary" /> Add product</CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <PackagePlus className="h-5 w-5 text-primary" />
+                  </span>
+                  Add product
+                </CardTitle>
                 <CardDescription>Create a new marketplace product listing.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -129,9 +137,14 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2"><Package className="h-5 w-5 text-primary" /> Orders</CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Package className="h-5 w-5 text-primary" />
+                  </span>
+                  Orders
+                </CardTitle>
                 <CardDescription>View and manage incoming marketplace orders.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -141,9 +154,14 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="rounded-2xl shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /> Payments</CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                  </span>
+                  Payments
+                </CardTitle>
                 <CardDescription>BusmoPay payouts and marketplace payment settings.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -153,9 +171,14 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="sm:col-span-2">
+            <Card className="sm:col-span-2 rounded-2xl shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2"><Send className="h-5 w-5 text-primary" /> Delivery (BusmoGo)</CardTitle>
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Send className="h-5 w-5 text-primary" />
+                  </span>
+                  Delivery (BusmoGo)
+                </CardTitle>
                 <CardDescription>Offer delivery options and learn how BusmoGo works.</CardDescription>
               </CardHeader>
               <CardContent>
