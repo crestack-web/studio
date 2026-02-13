@@ -332,6 +332,86 @@ export default function LandingPage() {
             </div>
         </section>
 
+        {/* Seller Section */}
+        <section className="py-20 sm:py-32 bg-background border-y">
+            <div className="container mx-auto px-4">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Sell on Busmo</h2>
+                        <p className="mt-6 text-lg text-muted-foreground">
+                            Launch your storefront, list products, accept integrated marketplace payments, and deliver with BusmoGo — all from one simple Seller dashboard.
+                        </p>
+
+                        <div className="mt-8 grid gap-3">
+                            <div className="flex items-start gap-3">
+                                <Store className="w-5 h-5 text-primary mt-1 shrink-0" />
+                                <div>
+                                    <p className="font-medium">Storefront</p>
+                                    <p className="text-sm text-muted-foreground">Create a professional store that customers can browse and trust.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <CreditCard className="w-5 h-5 text-primary mt-1 shrink-0" />
+                                <div>
+                                    <p className="font-medium">Integrated payments</p>
+                                    <p className="text-sm text-muted-foreground">Get paid with BusmoPay marketplace checkout and track your payouts.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <Send className="w-5 h-5 text-primary mt-1 shrink-0" />
+                                <div>
+                                    <p className="font-medium">BusmoGo delivery</p>
+                                    <p className="text-sm text-muted-foreground">Offer delivery options to customers with BusmoGo logistics.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                                <Package className="w-5 h-5 text-primary mt-1 shrink-0" />
+                                <div>
+                                    <p className="font-medium">Products & orders</p>
+                                    <p className="text-sm text-muted-foreground">List products, manage inventory, and handle incoming orders.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 flex flex-wrap gap-3">
+                            <Link href="/sell" passHref>
+                                <Button size="lg" variant="secondary">How Seller Central works</Button>
+                            </Link>
+                            <Link href="/seller/login" passHref>
+                                <Button size="lg">Seller Login</Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-lg">How it works</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {["Create your business", "Add products", "Activate your storefront", "Receive orders & get paid"].map((step, idx) => (
+                                    <div key={step} className="flex items-start gap-3">
+                                        <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary shrink-0">
+                                            {idx + 1}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">{step}</p>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-lg">Built for sellers</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-sm text-muted-foreground">
+                                Amazon Seller Central vibes — but focused on helping local businesses sell faster with simple tools.
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         {/* BusmoPay Section */}
         <section className="py-20 sm:py-32 bg-muted/20 border-y">
             <div className="container mx-auto px-4">

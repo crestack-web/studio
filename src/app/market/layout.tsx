@@ -203,7 +203,7 @@ export default function MarketLayout({
                         </Carousel>
                     </div>
                 )}
-                <header className="bg-background border-b">
+                <header className="bg-white dark:bg-background border-b">
                     <div className="container mx-auto">
                         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-3 md:h-16 md:flex-nowrap md:py-0">
                             {/* Logo & Desktop Market Switcher */}
