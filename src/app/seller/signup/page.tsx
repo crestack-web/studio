@@ -330,7 +330,7 @@ export default function SellerSignupPage() {
 
           <p className="text-sm text-center text-muted-foreground">
             Looking for the seller overview?{' '}
-            <Link href="/sell" className="underline font-medium text-primary">
+            <Link href="/seller" className="underline font-medium text-primary">
               See how it works
             </Link>
           </p>

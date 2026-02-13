@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreditCard, Package, Send, ShoppingCart, Store, Landmark } from 'lucide-react';
 
-export default function SellLandingPage() {
+export default function SellerLandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-sm">

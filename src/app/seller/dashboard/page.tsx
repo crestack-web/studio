@@ -70,7 +70,7 @@ export default function SellerDashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
-        <Link href="/sell" className="flex items-center gap-2">
+        <Link href="/seller" className="flex items-center gap-2">
           <Logo className="h-8" />
           <span className="text-sm font-semibold text-muted-foreground">Seller Central</span>
         </Link>

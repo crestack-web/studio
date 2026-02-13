@@ -102,7 +102,7 @@ export default function SellerLoginPage() {
 
           <p className="text-sm text-center text-muted-foreground pt-2">
             New seller?{' '}
-            <Link href="/sell" className="underline font-medium text-primary">
+            <Link href="/seller" className="underline font-medium text-primary">
               See how it works
             </Link>
           </p>

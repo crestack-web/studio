@@ -157,7 +157,7 @@ export default function LandingPage() {
             <Link href="/market/delivery" passHref>
               <Button variant="ghost">{t('nav.busmogo')}</Button>
             </Link>
-                        <Link href="/sell" passHref>
+                        <Link href="/seller" passHref>
                             <Button variant="ghost">Become a Seller</Button>
                         </Link>
              <Link href="/invest" passHref>
@@ -196,7 +196,7 @@ export default function LandingPage() {
                         <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                         <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                         <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
-                                                <Link href="/sell" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Become a Seller</Button></Link>
+                                                <Link href="/seller" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Become a Seller</Button></Link>
                         <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                         <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
                         <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
@@ -374,7 +374,7 @@ export default function LandingPage() {
                             <Link href="/seller/signup" passHref>
                                 <Button size="lg">Create Seller Account</Button>
                             </Link>
-                            <Link href="/sell" passHref>
+                            <Link href="/seller" passHref>
                                 <Button size="lg" variant="secondary">Learn more</Button>
                             </Link>
                             <Link href="/seller/login" passHref>

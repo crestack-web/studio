@@ -31,6 +31,15 @@ const firebaseFunctionsRegion = process.env.FIREBASE_FUNCTIONS_REGION || 'us-cen
 const firebaseFunctionsBaseUrl = `https://${firebaseFunctionsRegion}-${firebaseProjectId}.cloudfunctions.net`;
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/sell',
+        destination: '/seller',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
