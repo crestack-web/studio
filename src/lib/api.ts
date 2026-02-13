@@ -8,6 +8,7 @@ const functionPathMap: { [key: string]: string } = {
   fetchBankList: '/api/fetchBankList',
   verifyBankAccount: '/api/verifyBankAccount',
   sendAdminSignInLink: '/api/sendAdminSignInLink',
+  sendStaffSignInLink: '/api/sendStaffSignInLink',
   sendEmailVerification: '/api/sendEmailVerification',
   sendPasswordReset: '/api/sendPasswordReset',
   claimReferral: '/api/claimReferral',

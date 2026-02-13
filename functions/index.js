@@ -207,6 +207,75 @@ exports.sendAdminSignInLink = onRequest({ cors: true, invoker: 'public' }, async
     }
 });
 
+// Sends a staff email-link sign-in URL using our transactional email provider.
+// Allowed if there's a pending invitation for the email, or the email belongs to an existing Staff account.
+// Body: { email: string }
+exports.sendStaffSignInLink = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+
+        const body = parseJsonBody(req);
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: 'Missing or invalid email.' });
+        }
+
+        const invitationRef = admin.firestore().doc(`invitations/${email}`);
+        const invitationSnap = await invitationRef.get();
+        const invitation = invitationSnap.exists ? (invitationSnap.data() || {}) : null;
+        const hasPendingInvite = !!invitation && invitation.status === 'pending';
+
+        let existingStaffName = undefined;
+        let existingBusinessName = undefined;
+
+        if (!hasPendingInvite) {
+            // If no invite, only allow if the user is already a Staff.
+            try {
+                const userRecord = await admin.auth().getUserByEmail(email);
+                const profileSnap = await admin.firestore().doc(`users/${userRecord.uid}`).get();
+                const role = profileSnap.exists ? profileSnap.data()?.role : undefined;
+                if (role !== 'Staff') {
+                    return res.status(403).json({ success: false, error: 'No staff invitation found for this email.' });
+                }
+
+                existingStaffName = userRecord.displayName || userRecord.email;
+            } catch {
+                return res.status(403).json({ success: false, error: 'No staff invitation found for this email.' });
+            }
+        }
+
+        if (hasPendingInvite) {
+            existingBusinessName = invitation.businessName;
+        }
+
+        const origin = resolveAppOrigin(req);
+        const actionCodeSettings = {
+            url: `${origin}/finish-signin`,
+            handleCodeInApp: true,
+        };
+
+        const signInUrl = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+        const userName = existingStaffName || email;
+
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'staff_signin_link',
+            data: {
+                userName,
+                businessName: existingBusinessName,
+                signInUrl,
+            },
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendStaffSignInLink error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send login link.' });
+    }
+});
+
 // Sends an email verification link using our transactional email provider.
 // Requires Authorization: Bearer <Firebase ID token>
 // Body: { continueUrl?: string }

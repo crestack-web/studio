@@ -209,6 +209,21 @@ const defaultTemplates = {
                 `,
                 preheader: "Use this link to sign in to Admin.",
             },
+
+            staff_signin_link: {
+                subject: "Your Busmo Staff login link",
+                htmlBody: `
+                    <h1>Staff login</h1>
+                    <p>Hi {{userName}},</p>
+                    {{#if businessName}}
+                        <p>You’ve been invited to join <strong>{{businessName}}</strong> as staff on Busmo.</p>
+                    {{/if}}
+                    <p>Use the link below to sign in to your Staff dashboard.</p>
+                    <p><a href="{{signInUrl}}" target="_blank" rel="noopener noreferrer">Sign in as Staff</a></p>
+                    <p>If you didn’t request this, you can ignore this email.</p>
+                `,
+                preheader: "Use this link to sign in as staff.",
+            },
 };
 
 // --- Core Service ---
