@@ -52,6 +52,7 @@ export default function SellLandingPage() {
                     alt="Business owners using Busmo Seller Central"
                     fill
                     priority
+                    unoptimized
                     sizes="(min-width: 1024px) 50vw, 100vw"
                     className="object-cover"
                   />

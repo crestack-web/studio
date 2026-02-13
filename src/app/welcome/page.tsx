@@ -157,6 +157,9 @@ export default function LandingPage() {
             <Link href="/market/delivery" passHref>
               <Button variant="ghost">{t('nav.busmogo')}</Button>
             </Link>
+                        <Link href="/sell" passHref>
+                            <Button variant="ghost">Become a Seller</Button>
+                        </Link>
              <Link href="/invest" passHref>
               <Button variant="ghost">{t('nav.investors')}</Button>
             </Link>
@@ -193,6 +196,7 @@ export default function LandingPage() {
                         <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
                         <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
                         <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
+                                                <Link href="/sell" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">Become a Seller</Button></Link>
                         <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
                         <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
                         <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
@@ -337,9 +341,9 @@ export default function LandingPage() {
             <div className="container mx-auto px-4">
                 <div className="grid lg:grid-cols-2 gap-12 items-center">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Sell on Busmo</h2>
+                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Become a Busmo Seller</h2>
                         <p className="mt-6 text-lg text-muted-foreground">
-                            Launch your storefront, list products, accept integrated marketplace payments, and deliver with BusmoGo — all from one simple Seller dashboard.
+                            Launch your storefront, add products, and start selling with payments + delivery built in.
                         </p>
 
                         <div className="mt-8 grid gap-3">
@@ -347,38 +351,34 @@ export default function LandingPage() {
                                 <Store className="w-5 h-5 text-primary mt-1 shrink-0" />
                                 <div>
                                     <p className="font-medium">Storefront</p>
-                                    <p className="text-sm text-muted-foreground">Create a professional store that customers can browse and trust.</p>
+                                    <p className="text-sm text-muted-foreground">A trusted store customers can browse and buy from.</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3">
                                 <CreditCard className="w-5 h-5 text-primary mt-1 shrink-0" />
                                 <div>
                                     <p className="font-medium">Integrated payments</p>
-                                    <p className="text-sm text-muted-foreground">Get paid with BusmoPay marketplace checkout and track your payouts.</p>
+                                    <p className="text-sm text-muted-foreground">Marketplace checkout with clear payout tracking.</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3">
                                 <Send className="w-5 h-5 text-primary mt-1 shrink-0" />
                                 <div>
                                     <p className="font-medium">BusmoGo delivery</p>
-                                    <p className="text-sm text-muted-foreground">Offer delivery options to customers with BusmoGo logistics.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <Package className="w-5 h-5 text-primary mt-1 shrink-0" />
-                                <div>
-                                    <p className="font-medium">Products & orders</p>
-                                    <p className="text-sm text-muted-foreground">List products, manage inventory, and handle incoming orders.</p>
+                                    <p className="text-sm text-muted-foreground">Offer delivery options with BusmoGo logistics.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-10 flex flex-wrap gap-3">
+                            <Link href="/seller/signup" passHref>
+                                <Button size="lg">Create Seller Account</Button>
+                            </Link>
                             <Link href="/sell" passHref>
-                                <Button size="lg" variant="secondary">How Seller Central works</Button>
+                                <Button size="lg" variant="secondary">Learn more</Button>
                             </Link>
                             <Link href="/seller/login" passHref>
-                                <Button size="lg">Seller Login</Button>
+                                <Button size="lg" variant="ghost">Seller Login</Button>
                             </Link>
                         </div>
                     </div>
@@ -401,10 +401,10 @@ export default function LandingPage() {
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-lg">Built for sellers</CardTitle>
+                                <CardTitle className="text-lg">Clarity for business owners</CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm text-muted-foreground">
-                                Amazon Seller Central vibes — but focused on helping local businesses sell faster with simple tools.
+                                Simple tools that keep your products, orders, and payouts easy to understand.
                             </CardContent>
                         </Card>
                     </div>
