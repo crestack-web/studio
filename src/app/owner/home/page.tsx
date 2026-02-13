@@ -1320,10 +1320,11 @@ export default function OwnerHomePage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> {t('ownerHome.recordSale')}</Link></Button>
-                            <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>{t('ownerHome.addStock')}</Link></Button>
-                            <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>{t('ownerHome.addExpense')}</Link></Button>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> {t('ownerHome.recordSale')}</Link></Button>
+                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-product"><Package />Add Product</Link></Button>
+                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>{t('ownerHome.addStock')}</Link></Button>
+                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>{t('ownerHome.addExpense')}</Link></Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                                         <Button variant="secondary" className="h-24 flex-col gap-2"><CircleDollarSign/>{t('ownerHome.cashflow')}</Button>

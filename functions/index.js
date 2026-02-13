@@ -16,6 +16,82 @@ const { onMarketProductCreatedNotifySubscribers } = require('./triggers/marketSu
 const { onSubscriptionTransactionCreatedApplyReferralCommission } = require('./triggers/referrals');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
 
+function getProjectId() {
+    const fromEnv = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    if (fromEnv) return String(fromEnv);
+    const firebaseConfig = process.env.FIREBASE_CONFIG;
+    if (firebaseConfig) {
+        try {
+            const parsed = JSON.parse(firebaseConfig);
+            if (parsed?.projectId) return String(parsed.projectId);
+        } catch {
+            // ignore
+        }
+    }
+    return undefined;
+}
+
+function resolveAppOrigin(req) {
+    const candidates = [
+        process.env.PUBLIC_APP_URL,
+        process.env.PUBLIC_APP_ORIGIN,
+        process.env.APP_URL,
+        process.env.APP_ORIGIN,
+        process.env.NEXT_PUBLIC_APP_URL,
+        process.env.NEXT_PUBLIC_APP_ORIGIN,
+        process.env.PUBLIC_BRAND_HOST,
+    ].filter(Boolean);
+
+    if (candidates.length > 0) {
+        return String(candidates[0]).replace(/\/+$/, '');
+    }
+
+    const originHeader = String(req.headers.origin || '').trim();
+    if (originHeader.startsWith('http://') || originHeader.startsWith('https://')) {
+        try {
+            const asUrl = new URL(originHeader);
+            // Avoid accidentally using a cloudfunctions origin.
+            if (!asUrl.hostname.endsWith('cloudfunctions.net')) {
+                return `${asUrl.protocol}//${asUrl.host}`;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    const projectId = getProjectId();
+    if (projectId) return `https://${projectId}.web.app`;
+
+    // Last resort: keep it valid.
+    return 'https://busmo.web.app';
+}
+
+function parseJsonBody(req) {
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch {
+            body = {};
+        }
+    }
+    return (body && typeof body === 'object') ? body : {};
+}
+
+function normalizeRelativeContinueUrl(raw) {
+    if (!raw || typeof raw !== 'string') return '/owner/home';
+    const trimmed = raw.trim();
+    if (!trimmed) return '/owner/home';
+    try {
+        const decoded = decodeURIComponent(trimmed);
+        if (decoded.startsWith('/')) return decoded;
+        // Reject absolute URLs.
+        return '/owner/home';
+    } catch {
+        return trimmed.startsWith('/') ? trimmed : '/owner/home';
+    }
+}
+
 function getPaystackSecret() {
     const raw = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET;
     const secret = raw ? String(raw).trim() : '';
@@ -62,6 +138,181 @@ exports.onSubscriptionTransactionCreatedApplyReferralCommission = onSubscription
 
 // Daily owner email digest
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
+
+// --- AUTH EMAILS (TRANSACTIONAL) ---
+
+// Sends an admin email-link sign-in URL using our transactional email provider.
+// Body: { email: string }
+exports.sendAdminSignInLink = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+
+        const body = parseJsonBody(req);
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: 'Missing or invalid email.' });
+        }
+
+        let userRecord;
+        try {
+            userRecord = await admin.auth().getUserByEmail(email);
+        } catch {
+            return res.status(404).json({ success: false, error: 'No user found for that email.' });
+        }
+
+        const superAdmins = new Set([
+            'crestack@gmail.com',
+            'abduladallahusman@gmail.com',
+        ]);
+
+        let isAdmin = superAdmins.has(email);
+        if (!isAdmin) {
+            const [profileSnap, permSnap] = await Promise.all([
+                admin.firestore().doc(`users/${userRecord.uid}`).get(),
+                admin.firestore().doc(`admin_permissions/${userRecord.uid}`).get(),
+            ]);
+            const role = profileSnap.exists ? profileSnap.data()?.role : undefined;
+            const perm = permSnap.exists ? permSnap.data() : undefined;
+            isAdmin = role === 'Admin' || !!perm?.isSuperAdmin;
+        }
+
+        if (!isAdmin) {
+            return res.status(403).json({ success: false, error: 'Not authorized for admin access.' });
+        }
+
+        const origin = resolveAppOrigin(req);
+        const actionCodeSettings = {
+            url: `${origin}/admin/finish-signin`,
+            handleCodeInApp: true,
+        };
+
+        const signInUrl = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+
+        const userName = userRecord.displayName || userRecord.email || 'there';
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'admin_signin_link',
+            data: {
+                userName,
+                signInUrl,
+            },
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendAdminSignInLink error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send login link.' });
+    }
+});
+
+// Sends an email verification link using our transactional email provider.
+// Requires Authorization: Bearer <Firebase ID token>
+// Body: { continueUrl?: string }
+exports.sendEmailVerification = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+
+        const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
+        const match = authHeader.match(/^Bearer\s+(.+)$/i);
+        const idToken = match?.[1];
+        if (!idToken) {
+            return res.status(401).json({ success: false, error: 'Missing Authorization bearer token.' });
+        }
+
+        let decoded;
+        try {
+            decoded = await admin.auth().verifyIdToken(idToken);
+        } catch {
+            return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
+        }
+
+        const userRecord = await admin.auth().getUser(decoded.uid);
+        if (!userRecord.email) {
+            return res.status(400).json({ success: false, error: 'User has no email address.' });
+        }
+
+        if (userRecord.emailVerified) {
+            return res.status(200).json({ success: true, alreadyVerified: true });
+        }
+
+        const body = parseJsonBody(req);
+        const continueUrl = normalizeRelativeContinueUrl(body.continueUrl);
+        const origin = resolveAppOrigin(req);
+        const finishUrl = `${origin}/finish-email-verification?continue=${encodeURIComponent(continueUrl)}`;
+
+        const actionCodeSettings = {
+            url: finishUrl,
+            handleCodeInApp: true,
+        };
+
+        const verificationUrl = await admin.auth().generateEmailVerificationLink(userRecord.email, actionCodeSettings);
+
+        const userName = userRecord.displayName || userRecord.email;
+        await sendTransactionalEmail({
+            to: userRecord.email,
+            templateId: 'email_verification',
+            data: {
+                userName,
+                verificationUrl,
+            },
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendEmailVerification error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send verification email.' });
+    }
+});
+
+// Sends a password reset link using our transactional email provider.
+// Body: { email: string }
+exports.sendPasswordReset = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+
+        const body = parseJsonBody(req);
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: 'Missing or invalid email.' });
+        }
+
+        let userRecord;
+        try {
+            userRecord = await admin.auth().getUserByEmail(email);
+        } catch {
+            // Avoid user enumeration: always return success.
+            return res.status(200).json({ success: true });
+        }
+
+        const origin = resolveAppOrigin(req);
+        const actionCodeSettings = {
+            url: `${origin}/login/form`,
+        };
+
+        const resetUrl = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+
+        const userName = userRecord.displayName || userRecord.email;
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'password_reset',
+            data: {
+                userName,
+                resetUrl,
+            },
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendPasswordReset error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send password reset email.' });
+    }
+});
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
 exports.fetchBankList = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {

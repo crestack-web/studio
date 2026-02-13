@@ -203,14 +203,20 @@ export default function MarketLayout({
                         </Carousel>
                     </div>
                 )}
-                <header className="bg-white border-b">
+                <header className="bg-background border-b">
                     <div className="container mx-auto">
                         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-3 md:h-16 md:flex-nowrap md:py-0">
                             {/* Logo & Desktop Market Switcher */}
                             <div className="flex items-center gap-6">
                                 <Link href="/market"><Logo className="h-8" /></Link>
-                                <div className="hidden md:block">
-                                    <MarketSwitcher />
+                                <div className="hidden md:flex flex-col items-start gap-1 leading-none">
+                                    <span className="text-xs text-muted-foreground">Deliver to</span>
+                                    <div className="flex items-center gap-2">
+                                        <MarketSwitcher />
+                                        <span className="text-sm font-medium">
+                                            {market.city}{market.country ? `, ${market.country}` : ''}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -291,6 +297,7 @@ export default function MarketLayout({
                                         <span className="sr-only">Checkout</span>
                                     </Button>
                                 </Link>
+                                <LanguageSwitcher />
                                 <div className="hidden sm:flex items-center gap-2">
                                     <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
                                     <Button asChild><Link href="/signup">Sign Up</Link></Button>
