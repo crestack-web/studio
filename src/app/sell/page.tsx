@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { Logo } from '@/components/app/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, Package, Send, Store } from 'lucide-react';
+import { CreditCard, Package, Send, ShoppingCart, Store, Landmark } from 'lucide-react';
 
 export default function SellLandingPage() {
   return (
@@ -15,41 +15,38 @@ export default function SellLandingPage() {
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/market">
-              <Button variant="ghost">Marketplace</Button>
+              <Button variant="ghost" className="rounded-full">Marketplace</Button>
             </Link>
             <Link href="/seller/login">
-              <Button>Seller Login</Button>
+              <Button className="rounded-full">Seller Login</Button>
             </Link>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="py-20 sm:py-28">
+        <section className="py-20 sm:py-28 bg-gradient-to-b from-background to-muted/20">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-6xl grid gap-10 lg:grid-cols-2 lg:gap-12 items-center">
               <div className="text-center lg:text-left">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline">
-                  Busmo Seller Central
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight font-headline">
+                  Get your Busmo Seller Account
                 </h1>
-                <p className="mt-6 text-lg text-muted-foreground">
-                  Everything you need to sell on the Busmo marketplace: a storefront, product listings, integrated payments, order management, and BusmoGo delivery.
-                </p>
-                <p className="mt-4 text-base text-muted-foreground">
-                  We build for the business owner, not the accountant. Busmo is designed to give you clarity and control — so you can make faster decisions, serve customers better, and grow sustainably.
+                <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+                  Storefront, products, orders, payments, and BusmoGo delivery — all in one place.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-3">
                   <Link href="/signup">
-                    <Button size="lg" className="h-12">Start Selling</Button>
+                    <Button size="lg" className="h-12 rounded-full px-8">Create Seller Account</Button>
                   </Link>
                   <Link href="/seller/login">
-                    <Button size="lg" variant="secondary" className="h-12">Seller Login</Button>
+                    <Button size="lg" variant="secondary" className="h-12 rounded-full px-8">Seller Login</Button>
                   </Link>
                 </div>
               </div>
 
               <div className="w-full">
-                <div className="relative w-full overflow-hidden rounded-lg border bg-muted/20 aspect-[3/2]">
+                <div className="relative w-full overflow-hidden rounded-2xl border bg-muted/20 aspect-[3/2] shadow-lg">
                   <Image
                     src="/sell-hero.png"
                     alt="Business owners using Busmo Seller Central"
@@ -64,25 +61,69 @@ export default function SellLandingPage() {
           </div>
         </section>
 
+        <section className="py-16 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-5xl">
+              <div className="text-center">
+                <h2 className="text-2xl sm:text-3xl font-bold font-headline">Built for selling</h2>
+                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+                  Everything a modern seller needs — without complicated setup.
+                </p>
+              </div>
+
+              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { icon: Store, title: 'Storefront', desc: 'A trusted store page customers can browse and buy from.' },
+                  { icon: Package, title: 'Product listings', desc: 'List products, update pricing, and keep inventory fresh.' },
+                  { icon: ShoppingCart, title: 'Orders', desc: 'Track incoming orders and manage fulfillment with clarity.' },
+                  { icon: CreditCard, title: 'Payments', desc: 'Integrated marketplace checkout with BusmoPay.' },
+                  { icon: Landmark, title: 'Payouts', desc: 'Understand payouts and cash flow so you can plan confidently.' },
+                  { icon: Send, title: 'BusmoGo delivery', desc: 'Offer delivery options with BusmoGo logistics.' },
+                ].map((feature) => (
+                  <Card key={feature.title} className="h-full rounded-2xl shadow-lg">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-bold flex items-center gap-3">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                          <feature.icon className="h-5 w-5 text-primary" />
+                        </span>
+                        {feature.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-base text-muted-foreground">
+                      {feature.desc}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="py-16 bg-card border-y">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-5xl">
-              <h2 className="text-2xl sm:text-3xl font-bold font-headline">Busmo clarity tools</h2>
-              <p className="mt-4 text-muted-foreground">
-                Seller Central is more than a dashboard — it’s a set of clarity tools that help you understand what’s working, what’s not, and what to do next.
-              </p>
-              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="text-center">
+                <h2 className="text-2xl sm:text-3xl font-bold font-headline">How it works</h2>
+                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">Go live fast. Keep it simple. Sell more.</p>
+              </div>
+
+              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  { title: 'Profit clarity', desc: 'See performance clearly so you can price confidently and protect margin.' },
-                  { title: 'Cash clarity', desc: 'Understand sales inflow and payouts so you can plan inventory and operations.' },
-                  { title: 'Inventory clarity', desc: 'Track what’s in stock and what’s moving so you restock smarter.' },
-                  { title: 'Order clarity', desc: 'Stay on top of orders, fulfillment, and delivery without the chaos.' },
-                ].map((item) => (
-                  <Card key={item.title}>
+                  { title: 'Create your account', desc: 'Sign up and set up your seller profile.' },
+                  { title: 'Add products', desc: 'Create listings and keep your catalog updated.' },
+                  { title: 'Activate your storefront', desc: 'Turn your store on and start accepting orders.' },
+                  { title: 'Deliver & get paid', desc: 'Fulfill orders, offer delivery, and track payouts.' },
+                ].map((step, index) => (
+                  <Card key={step.title} className="rounded-2xl shadow-lg">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{item.title}</CardTitle>
+                      <CardTitle className="text-lg font-bold flex items-start gap-3">
+                        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-extrabold shrink-0">
+                          {index + 1}
+                        </span>
+                        <span>{step.title}</span>
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">{item.desc}</CardContent>
+                    <CardContent className="text-base text-muted-foreground">{step.desc}</CardContent>
                   </Card>
                 ))}
               </div>
@@ -90,63 +131,41 @@ export default function SellLandingPage() {
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="py-16 bg-background">
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-5xl">
-              <h2 className="text-2xl sm:text-3xl font-bold font-headline">How it works</h2>
-              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { title: 'Create your business', desc: 'Sign up and set up your business profile.' },
-                  { title: 'Add products', desc: 'List products and keep inventory up to date.' },
-                  { title: 'Activate your storefront', desc: 'Turn on your store so customers can browse.' },
-                  { title: 'Get orders & get paid', desc: 'Accept marketplace payments and fulfill orders.' },
-                ].map((step) => (
-                  <Card key={step.title}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{step.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">{step.desc}</CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+              <div className="grid gap-6 lg:grid-cols-2 lg:gap-10 items-center">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-headline">Everything sellers need — together</h2>
+                  <p className="mt-4 text-muted-foreground text-base">
+                    Busmo blends your storefront, product management, orders, integrated payments, and delivery into one workflow.
+                    That’s how we help business owners succeed: simple tools that create clarity (profit, cash, inventory, and orders) and keep you moving.
+                  </p>
+                </div>
 
-        <section className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-5xl">
-              <h2 className="text-2xl sm:text-3xl font-bold font-headline">Marketplace features for sellers</h2>
-              <div className="mt-8 grid gap-4 md:grid-cols-2">
-                <Card>
+                <Card className="rounded-2xl shadow-lg">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2"><Store className="h-5 w-5 text-primary" /> Storefront</CardTitle>
+                    <CardTitle className="text-lg font-bold">Seller success, without the chaos</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">A dedicated store page customers can browse, follow, and trust.</CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2"><Package className="h-5 w-5 text-primary" /> Products & orders</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">List products, update pricing, and manage incoming marketplace orders.</CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /> Integrated payments</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">BusmoPay marketplace checkout for smooth customer payments and payout tracking.</CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2"><Send className="h-5 w-5 text-primary" /> BusmoGo delivery</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">Offer delivery options using BusmoGo logistics.</CardContent>
+                  <CardContent className="grid gap-3 sm:grid-cols-2 text-base">
+                    {[
+                      { title: 'Profit clarity', desc: 'Price confidently and protect your margin.' },
+                      { title: 'Cash clarity', desc: 'Understand sales and payouts as they happen.' },
+                      { title: 'Inventory clarity', desc: 'Restock smarter with visibility.' },
+                      { title: 'Order clarity', desc: 'Fulfill consistently and build trust.' },
+                    ].map((item) => (
+                      <div key={item.title} className="rounded-xl border bg-background p-4 shadow-sm">
+                        <div className="font-bold">{item.title}</div>
+                        <div className="text-sm text-muted-foreground mt-1">{item.desc}</div>
+                      </div>
+                    ))}
+                  </CardContent>
                 </Card>
               </div>
 
-              <div className="mt-10 flex flex-wrap gap-3">
-                <Link href="/seller/login"><Button size="lg">Go to Seller Dashboard</Button></Link>
-                <Link href="/market"><Button size="lg" variant="secondary">View Marketplace</Button></Link>
+              <div className="mt-10 flex flex-wrap gap-3 justify-center lg:justify-start">
+                <Link href="/seller/login"><Button size="lg" className="rounded-full px-8">Go to Seller Dashboard</Button></Link>
+                <Link href="/market"><Button size="lg" variant="secondary" className="rounded-full px-8">View Marketplace</Button></Link>
               </div>
             </div>
           </div>

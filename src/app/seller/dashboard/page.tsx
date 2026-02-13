@@ -88,7 +88,7 @@ export default function SellerDashboardPage() {
               )}
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+          <Button variant="ghost" size="icon" onClick={handleSignOut} className="rounded-full">
             <LogOut className="h-5 w-5" />
             <span className="sr-only">Sign Out</span>
           </Button>
@@ -111,7 +111,7 @@ export default function SellerDashboardPage() {
                 <CardDescription>Turn your store on and manage settings.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full" variant="secondary">
+                <Button asChild className="w-full rounded-full" variant="secondary">
                   <Link href="/owner/market">Open Storefront Settings</Link>
                 </Button>
               </CardContent>
@@ -123,7 +123,7 @@ export default function SellerDashboardPage() {
                 <CardDescription>Create a new marketplace product listing.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full">
+                <Button asChild className="w-full rounded-full">
                   <Link href="/add-product">Add Product</Link>
                 </Button>
               </CardContent>
@@ -135,7 +135,7 @@ export default function SellerDashboardPage() {
                 <CardDescription>View and manage incoming marketplace orders.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full" variant="secondary">
+                <Button asChild className="w-full rounded-full" variant="secondary">
                   <Link href="/owner/market?section=orders">View Orders</Link>
                 </Button>
               </CardContent>
@@ -147,7 +147,7 @@ export default function SellerDashboardPage() {
                 <CardDescription>BusmoPay payouts and marketplace payment settings.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full" variant="secondary">
+                <Button asChild className="w-full rounded-full" variant="secondary">
                   <Link href="/owner/market?section=busmopay">Open Payment Settings</Link>
                 </Button>
               </CardContent>
@@ -159,7 +159,7 @@ export default function SellerDashboardPage() {
                 <CardDescription>Offer delivery options and learn how BusmoGo works.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild className="w-full" variant="secondary">
+                <Button asChild className="w-full rounded-full" variant="secondary">
                   <Link href="/market/delivery">Go to BusmoGo</Link>
                 </Button>
               </CardContent>
