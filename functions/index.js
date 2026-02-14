@@ -276,112 +276,6 @@ exports.sendStaffSignInLink = onRequest({ cors: true, invoker: 'public' }, async
     }
 });
 
-// Sends an email verification link using our transactional email provider.
-// Requires Authorization: Bearer <Firebase ID token>
-// Body: { continueUrl?: string }
-exports.sendEmailVerification = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
-    try {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-        }
-
-        const authHeader = String(req.headers.authorization || req.headers.Authorization || '');
-        const match = authHeader.match(/^Bearer\s+(.+)$/i);
-        const idToken = match?.[1];
-        if (!idToken) {
-            return res.status(401).json({ success: false, error: 'Missing Authorization bearer token.' });
-        }
-
-        let decoded;
-        try {
-            decoded = await admin.auth().verifyIdToken(idToken);
-        } catch {
-            return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
-        }
-
-        const userRecord = await admin.auth().getUser(decoded.uid);
-        if (!userRecord.email) {
-            return res.status(400).json({ success: false, error: 'User has no email address.' });
-        }
-
-        if (userRecord.emailVerified) {
-            return res.status(200).json({ success: true, alreadyVerified: true });
-        }
-
-        const body = parseJsonBody(req);
-        const continueUrl = normalizeRelativeContinueUrl(body.continueUrl);
-        const origin = resolveAppOrigin(req);
-        const finishUrl = `${origin}/finish-email-verification?continue=${encodeURIComponent(continueUrl)}`;
-
-        const actionCodeSettings = {
-            url: finishUrl,
-            handleCodeInApp: true,
-        };
-
-        const verificationUrl = await admin.auth().generateEmailVerificationLink(userRecord.email, actionCodeSettings);
-
-        const userName = userRecord.displayName || userRecord.email;
-        await sendTransactionalEmail({
-            to: userRecord.email,
-            templateId: 'email_verification',
-            data: {
-                userName,
-                verificationUrl,
-            },
-        });
-
-        return res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('sendEmailVerification error:', error);
-        return res.status(500).json({ success: false, error: 'Failed to send verification email.' });
-    }
-});
-
-// Sends a password reset link using our transactional email provider.
-// Body: { email: string }
-exports.sendPasswordReset = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
-    try {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-        }
-
-        const body = parseJsonBody(req);
-        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-        if (!email || !email.includes('@')) {
-            return res.status(400).json({ success: false, error: 'Missing or invalid email.' });
-        }
-
-        let userRecord;
-        try {
-            userRecord = await admin.auth().getUserByEmail(email);
-        } catch {
-            // Avoid user enumeration: always return success.
-            return res.status(200).json({ success: true });
-        }
-
-        const origin = resolveAppOrigin(req);
-        const actionCodeSettings = {
-            url: `${origin}/login/form`,
-        };
-
-        const resetUrl = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
-
-        const userName = userRecord.displayName || userRecord.email;
-        await sendTransactionalEmail({
-            to: email,
-            templateId: 'password_reset',
-            data: {
-                userName,
-                resetUrl,
-            },
-        });
-
-        return res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('sendPasswordReset error:', error);
-        return res.status(500).json({ success: false, error: 'Failed to send password reset email.' });
-    }
-});
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
 exports.fetchBankList = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
@@ -804,7 +698,7 @@ exports.adminRecordReferralPayout = onRequest({ cors: true }, async (req, res) =
     }
 });
 
-exports.sendEmailVerification = onRequest({ cors: true }, async (req, res) => {
+exports.sendEmailVerification = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }

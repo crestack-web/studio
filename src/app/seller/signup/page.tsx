@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { getFunctionUrl } from '@/lib/api';
 
 type AuthMode = 'signup' | 'login';
 
@@ -70,6 +71,49 @@ export default function SellerSignupPage() {
   const { toast } = useToast();
   const auth = useAuth();
   const firestore = useFirestore();
+
+  const sendVerificationEmailBestEffort = async () => {
+    try {
+      if (!auth?.currentUser) return;
+      if (auth.currentUser.emailVerified) return;
+
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(getFunctionUrl('sendEmailVerification'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ continueUrl: '/seller/dashboard' }),
+      });
+
+      let result: any = null;
+      try {
+        result = await res.json();
+      } catch {
+        // ignore
+      }
+
+      if (!res.ok || !result?.success) {
+        const msg = result?.error || result?.message || 'Could not send verification email.';
+        toast({ title: 'Verification email failed', description: String(msg), variant: 'destructive' });
+        return;
+      }
+
+      if (result?.alreadyVerified) return;
+
+      toast({
+        title: 'Check your email',
+        description: `We sent a verification link to ${auth.currentUser.email || 'your email'} `,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Verification email failed',
+        description: String(err?.message || err || 'Unknown error'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const title = useMemo(() => (mode === 'signup' ? 'Create Seller Account' : 'Seller Login'), [mode]);
   const subtitle = useMemo(
@@ -128,12 +172,14 @@ export default function SellerSignupPage() {
       if (mode === 'signup') {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         toast({ title: 'Account Created', description: 'One more step to personalize your seller profile.' });
+        await sendVerificationEmailBestEffort();
         await afterAuth(cred.user.uid);
         return;
       }
 
       const cred = await signInWithEmailAndPassword(auth, email, password);
       toast({ title: 'Login Successful', description: 'Continuing to Seller Central...' });
+      await sendVerificationEmailBestEffort();
       await afterAuth(cred.user.uid);
     } catch (error: any) {
       let description = 'An unexpected error occurred. Please try again.';

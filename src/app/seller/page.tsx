@@ -3,7 +3,8 @@ import Image from 'next/image';
 import { Logo } from '@/components/app/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, Package, Send, ShoppingCart, Store, Landmark } from 'lucide-react';
+import { CreditCard, Package, Send, ShoppingCart, Store, Landmark, Menu, Instagram, Facebook } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 export default function SellerLandingPage() {
   return (
@@ -13,13 +14,39 @@ export default function SellerLandingPage() {
           <Link href="/welcome" className="flex items-center gap-2">
             <Logo className="h-8" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <Link href="/market">
               <Button variant="ghost" className="rounded-full">Marketplace</Button>
             </Link>
             <Link href="/seller/login">
               <Button className="rounded-full">Seller Login</Button>
             </Link>
+          </div>
+
+          <div className="sm:hidden flex items-center">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-xs">
+                <SheetHeader>
+                  <SheetTitle>Seller menu</SheetTitle>
+                </SheetHeader>
+                <nav className="mt-6 flex flex-col gap-3">
+                  <Link href="/market" className="w-full">
+                    <Button variant="ghost" className="w-full justify-start">Marketplace</Button>
+                  </Link>
+                  <Link href="/seller/signup" className="w-full">
+                    <Button className="w-full justify-start">Create Seller Account</Button>
+                  </Link>
+                  <Link href="/seller/login" className="w-full">
+                    <Button variant="secondary" className="w-full justify-start">Seller Login</Button>
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
@@ -174,8 +201,33 @@ export default function SellerLandingPage() {
       </main>
 
       <footer className="border-t bg-card">
-        <div className="container mx-auto px-4 py-10 text-sm text-muted-foreground">
-          Busmo Seller Central helps you sell faster with simple tools.
+        <div className="container mx-auto flex flex-col gap-6 py-10 px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground text-center sm:text-left">
+              Busmo Seller Central helps you sell faster with simple tools.
+            </div>
+
+            <div className="flex items-center gap-4">
+              <a href="https://x.com/busmohq" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
+                <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+              </a>
+              <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                <Instagram className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              </a>
+              <a href="https://facebook.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <Facebook className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@busmo.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted-foreground hover:text-foreground"
+                aria-label="TikTok @busmo.io"
+              >
+                TikTok @busmo.io
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
