@@ -72,6 +72,9 @@ export default function BusmoPayPage() {
                 <li className="flex items-start gap-3"><CheckCircle className="w-6 h-6 text-primary shrink-0 mt-1"/><span><strong>Used across Busmo features:</strong> Online payments for Busmo Market / Storefront orders, with reporting that matches your sales and fulfillment.</span></li>
             </ul>
         </section>
+        <div className="mt-24 flex justify-center">
+          <img src="/busmogo.png" alt="BusmoGo" className="max-w-xs w-full h-auto rounded-xl shadow-lg" />
+        </div>
       </div>
     </InvestorLayout>
   );

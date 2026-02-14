@@ -233,7 +233,7 @@ function SubscribePageContent() {
                 </Card>
                 <Button className="w-full h-14 text-lg" onClick={handlePayment} disabled={isProcessing}>
                     {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {isProcessing ? 'Processing...' : `Pay with Paystack`}
+                    {isProcessing ? 'Processing...' : 'Complete Payment'}
                 </Button>
             </div>
         </MainLayout>
