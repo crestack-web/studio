@@ -1,3 +1,19 @@
+            <Card className="sm:col-span-2 rounded-2xl shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Send className="h-5 w-5 text-primary" />
+                  </span>
+                  Dispatch Shop
+                </CardTitle>
+                <CardDescription>Manage dispatch and request pickups for your orders.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="w-full rounded-full" variant="secondary">
+                  <Link href="/seller/dispatch">Go to Dispatch Shop</Link>
+                </Button>
+              </CardContent>
+            </Card>
 'use client';
 
 import Link from 'next/link';
@@ -112,7 +128,7 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/owner/market">Open Storefront Settings</Link>
+                  <Link href="/seller/storefront">Open Storefront Settings</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -146,7 +162,7 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/owner/market?section=orders">View Orders</Link>
+                  <Link href="/seller/orders">View Orders</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -163,7 +179,7 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/owner/market?section=busmopay">Open Payment Settings</Link>
+                  <Link href="/seller/payments">Open Payment Settings</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -180,7 +196,7 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/market/delivery">Go to BusmoGo</Link>
+                  <Link href="/seller/delivery">Go to BusmoGo</Link>
                 </Button>
               </CardContent>
             </Card>

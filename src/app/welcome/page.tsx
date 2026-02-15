@@ -1,6 +1,9 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { Player } from 'lottie-react';
+import { checkBurst } from '@/lib/lottie/checkBurst.json';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
 import { Activity, BarChart, Building, CheckCircle, HelpCircle, Landmark, Menu, MessageSquare, Package, Send, ShoppingCart, Store, TrendingUp, UtensilsCrossed, XCircle, ArrowLeft, CreditCard, Loader2, FileUp, ImageIcon, Instagram, Facebook, Megaphone, Check } from 'lucide-react';
@@ -212,22 +215,50 @@ export default function LandingPage() {
       <main className="flex-1">
         
         {/* Hero Section */}
-        <section className="relative overflow-hidden py-20 sm:py-32 bg-gradient-to-b from-background to-muted/20">
-            <div className="container mx-auto px-4 text-center">
-                <div className="flex justify-center mb-8">
-                  <Image src="/busmogo.png" alt="BusmoGo" width={220} height={80} className="object-contain rounded-xl shadow-lg" priority />
-                </div>
-                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.title') }}></h1>
-                <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
-                    {t('welcome.subtitle')}
-                </p>
-                <div className="mt-10 flex items-center justify-center gap-x-6">
-                    <Link href="/signup" passHref>
-                        <Button size="lg" className="h-14 text-lg">{t('welcome.cta')}</Button>
-                    </Link>
-                </div>
-            </div>
-        </section>
+                <section className="relative overflow-hidden py-20 sm:py-32 bg-gradient-to-b from-background to-muted/20">
+                        <div className="container mx-auto px-4 text-center">
+                                <motion.div
+                                    className="flex flex-col items-center justify-center mb-8 gap-2"
+                                    initial={{ opacity: 0, y: 40 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                                >
+                                    <Image src="/busmogo.png" alt="BusmoGo" width={220} height={80} className="object-contain rounded-xl shadow-lg" priority />
+                                    <Player
+                                        autoplay
+                                        loop={false}
+                                        src={checkBurst}
+                                        style={{ height: 80, width: 80 }}
+                                        className="mx-auto mt-2"
+                                    />
+                                </motion.div>
+                                <motion.h1
+                                    className="text-4xl font-bold tracking-tight sm:text-6xl font-headline"
+                                    dangerouslySetInnerHTML={{ __html: t('welcome.title') }}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
+                                />
+                                <motion.p
+                                    className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}
+                                >
+                                    {t('welcome.subtitle')}
+                                </motion.p>
+                                <motion.div
+                                    className="mt-10 flex items-center justify-center gap-x-6"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: 0.6, duration: 0.5, ease: 'easeOut' }}
+                                >
+                                    <Link href="/signup" passHref>
+                                        <Button size="lg" className="h-14 text-lg">{t('welcome.cta')}</Button>
+                                    </Link>
+                                </motion.div>
+                        </div>
+                </section>
 
         {/* Mockup Section */}
         <section className="container mx-auto px-4 -mt-4 sm:-mt-10 relative z-10">
@@ -271,41 +302,50 @@ export default function LandingPage() {
          {/* Features Section */}
         <section className="py-20 sm:py-32">
             <div className="container mx-auto px-4">
-                <div className="mx-auto max-w-2xl lg:text-center">
+                <motion.div
+                  className="mx-auto max-w-2xl lg:text-center"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7, ease: 'easeOut' }}
+                >
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">{t('welcome.features_title')}</h2>
                     <p className="mt-4 text-lg text-muted-foreground">
                         {t('welcome.features_subtitle')}
                     </p>
-                </div>
+                </motion.div>
                 <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
                     <div className="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-3">
-                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+                        {[{
+                          icon: Package,
+                          title: t('welcome.feature_1_title'),
+                          desc: t('welcome.feature_1_desc'),
+                        }, {
+                          icon: BarChart,
+                          title: t('welcome.feature_2_title'),
+                          desc: t('welcome.feature_2_desc'),
+                        }, {
+                          icon: TrendingUp,
+                          title: t('welcome.feature_3_title'),
+                          desc: t('welcome.feature_3_desc'),
+                        }].map((feature, i) => (
+                          <motion.div
+                            key={feature.title}
+                            className="flex flex-col items-center text-center lg:items-start lg:text-left"
+                            initial={{ opacity: 0, y: 40 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 + i * 0.15, duration: 0.7, ease: 'easeOut' }}
+                          >
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                <Package className="h-6 w-6 text-primary" />
+                              <feature.icon className="h-6 w-6 text-primary" />
                             </div>
                             <div className="mt-4 flex-auto">
-                                <h3 className="text-xl font-semibold">{t('welcome.feature_1_title')}</h3>
-                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_1_desc')}</p>
+                              <h3 className="text-xl font-semibold">{feature.title}</h3>
+                              <p className="mt-2 text-muted-foreground">{feature.desc}</p>
                             </div>
-                        </div>
-                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                <BarChart className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="mt-4 flex-auto">
-                                <h3 className="text-xl font-semibold">{t('welcome.feature_2_title')}</h3>
-                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_2_desc')}</p>
-                            </div>
-                        </div>
-                         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                <TrendingUp className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="mt-4 flex-auto">
-                                <h3 className="text-xl font-semibold">{t('welcome.feature_3_title')}</h3>
-                                <p className="mt-2 text-muted-foreground">{t('welcome.feature_3_desc')}</p>
-                            </div>
-                        </div>
+                          </motion.div>
+                        ))}
                     </div>
                 </div>
             </div>
