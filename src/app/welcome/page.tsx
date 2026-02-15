@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Player } from 'lottie-react';
+import Lottie from 'lottie-react';
 import { checkBurst } from '@/lib/lottie/checkBurst.json';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/app/logo';
@@ -224,10 +224,10 @@ export default function LandingPage() {
                                     transition={{ duration: 0.8, ease: 'easeOut' }}
                                 >
                                     <Image src="/busmogo.png" alt="BusmoGo" width={220} height={80} className="object-contain rounded-xl shadow-lg" priority />
-                                    <Player
-                                        autoplay
+                                    <Lottie
+                                        animationData={checkBurst}
                                         loop={false}
-                                        src={checkBurst}
+                                        autoplay
                                         style={{ height: 80, width: 80 }}
                                         className="mx-auto mt-2"
                                     />
