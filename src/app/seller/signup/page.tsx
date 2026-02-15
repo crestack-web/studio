@@ -172,14 +172,12 @@ export default function SellerSignupPage() {
       if (mode === 'signup') {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         toast({ title: 'Account Created', description: 'One more step to personalize your seller profile.' });
-        await sendVerificationEmailBestEffort();
         await afterAuth(cred.user.uid);
         return;
       }
 
       const cred = await signInWithEmailAndPassword(auth, email, password);
       toast({ title: 'Login Successful', description: 'Continuing to Seller Central...' });
-      await sendVerificationEmailBestEffort();
       await afterAuth(cred.user.uid);
     } catch (error: any) {
       let description = 'An unexpected error occurred. Please try again.';

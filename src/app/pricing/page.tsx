@@ -20,13 +20,20 @@ const plans = [
     {
         name: 'Shop',
         id: 'shop',
-        description: 'For small retailers',
-        monthlyPrice: 1500,
+        description: 'For small retailers. New sellers get 3 days free, then ₦1,000/month for 3 months, then ₦10,000/month.',
+        monthlyPrice: 1000,
         yearlyPrice: 15000,
+        trialDays: 3,
+        introMonths: 3,
+        introMonthlyPrice: 1000,
+        regularMonthlyPrice: 10000,
         features: [
             'Record Sales, Expenses & Inventory',
             'Basic AI Insights',
             'Sell on Busmo Market',
+            '3-day free trial for new sellers',
+            '₦1,000/month for first 3 months',
+            '₦10,000/month after trial',
         ],
         notIncluded: [
             'Manage Staff',

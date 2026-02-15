@@ -143,12 +143,16 @@ export default function PricingPage() {
 
     const handleStartTrial = async () => {
         if (!businessId || !firestore || !authUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please try again.' });
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: `Could not find your business details. businessId: ${businessId}, firestore: ${!!firestore}, authUser: ${!!authUser}`
+            });
             return;
         }
 
         setIsSubmitting(true);
-        
+
         const businessDocRef = doc(firestore, `businesses/${businessId}`);
         const subscriptionRef = doc(collection(firestore, `users/${authUser.uid}/subscriptions`));
 
@@ -174,8 +178,14 @@ export default function PricingPage() {
             await batch.commit();
             router.push('/owner/home?onboarding=complete');
         } catch (error) {
+            let errorMsg = 'Could not save your plan choice. Please try again.';
+            if (error && typeof error === 'object') {
+                if (error.message) errorMsg += `\nError: ${error.message}`;
+                if (error.code) errorMsg += `\nCode: ${error.code}`;
+                if (error.stack) errorMsg += `\nStack: ${error.stack}`;
+            }
             console.error("Error starting trial:", error);
-            toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your plan choice. Please try again.' });
+            toast({ variant: 'destructive', title: 'Save Failed', description: errorMsg });
             setIsSubmitting(false);
         }
     };

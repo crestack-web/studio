@@ -33,10 +33,7 @@ export default function SellerDashboardPage() {
     router.replace('/seller/login');
     return null;
   }
-
-  if (user && !user.emailVerified) {
-    return <EmailVerificationRequired dashboardLabel="Seller" />;
-  }
+  // Removed email verification requirement for seller login
 
   const userProfileRef = useMemoFirebase(() => {
     if (!user || !firestore) return null;

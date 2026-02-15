@@ -214,7 +214,10 @@ export default function LandingPage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden py-20 sm:py-32 bg-gradient-to-b from-background to-muted/20">
             <div className="container mx-auto px-4 text-center">
-                 <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.title') }}></h1>
+                <div className="flex justify-center mb-8">
+                  <Image src="/busmogo.png" alt="BusmoGo" width={220} height={80} className="object-contain rounded-xl shadow-lg" priority />
+                </div>
+                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.title') }}></h1>
                 <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
                     {t('welcome.subtitle')}
                 </p>

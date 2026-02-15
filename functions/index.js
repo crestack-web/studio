@@ -1,9 +1,83 @@
 
+// --- ALL REQUIRES AT TOP ---
 const functions = require("firebase-functions");
-const { onRequest } = require('firebase-functions/v2/https');
+let onRequest;
+try {
+    onRequest = require('firebase-functions/v2/https').onRequest;
+} catch {
+    onRequest = functions.https.onRequest;
+}
 const admin = require("firebase-admin");
 const axios = require("axios");
 const { sendTransactionalEmail } = require('./email/service');
+const { generateOTP, storeOTP, verifyOTP } = require('./email/otp');
+
+// --- OTP EMAIL LOGIN ---
+// Place OTP endpoints after all requires and initialization
+exports.sendOtpLogin = functions.https.onRequest(async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+        const body = parseJsonBody(req);
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        const role = typeof body.role === 'string' ? body.role : 'User';
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: 'Missing or invalid email.' });
+        }
+        const otp = generateOTP();
+        await storeOTP(email, otp, role);
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'otp_login',
+            data: { userName: email, otp, role },
+        });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('sendOtpLogin error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send OTP.' });
+    }
+});
+
+exports.verifyOtpLogin = functions.https.onRequest(async (req, res) => {
+    try {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+        }
+        const body = parseJsonBody(req);
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        const otp = typeof body.otp === 'string' ? body.otp.trim() : '';
+        if (!email || !otp) {
+            return res.status(400).json({ success: false, error: 'Missing email or OTP.' });
+        }
+        const valid = await verifyOTP(email, otp);
+        if (!valid) {
+            return res.status(401).json({ success: false, error: 'Invalid or expired OTP.' });
+        }
+        // Optionally, issue a custom token or session here
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('verifyOtpLogin error:', error);
+        return res.status(500).json({ success: false, error: 'OTP verification failed.' });
+    }
+});
+
+exports.sendTestOtp = functions.https.onRequest(async (req, res) => {
+    try {
+        const email = 'crestack@gmail.com';
+        const otp = generateOTP();
+        await storeOTP(email, otp, 'Admin');
+        await sendTransactionalEmail({
+            to: email,
+            templateId: 'otp_login',
+            data: { userName: email, otp, role: 'Admin' },
+        });
+        return res.status(200).json({ success: true, otp });
+    } catch (error) {
+        console.error('sendTestOtp error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to send test OTP.' });
+    }
+});
 
 // IMPORTANT: Initialize admin BEFORE requiring any modules that call admin.firestore().
 admin.initializeApp();

@@ -82,6 +82,18 @@ const defaultBranding = {
 };
 
 const defaultTemplates = {
+        otp_login: {
+            subject: "Your Busmo one-time login code",
+            htmlBody: `
+                <h1>Login code</h1>
+                <p>Hi {{userName}},</p>
+                <p>Your one-time login code is:</p>
+                <div style="font-size:2rem;font-weight:bold;letter-spacing:0.2em;margin:16px 0;">{{otp}}</div>
+                <p>This code is valid for 10 minutes. Enter it in the app to complete your login.</p>
+                <p>If you didn’t request this, you can ignore this email.</p>
+            `,
+            preheader: "Your one-time login code for Busmo.",
+        },
     welcome: {
         subject: "Welcome to Busmo!",
         htmlBody: `
@@ -242,7 +254,6 @@ async function sendTransactionalEmail({ to, templateId, data }) {
     if (!provider) {
         const errorMsg = `Email service is not configured. Set SENDGRID_API_KEY (recommended) or SMTP env vars (${requiredSmtpEnvVars.join(', ')}).`;
         console.error(errorMsg);
-        // We throw the error so the calling function's catch block can log it with full context.
         throw new Error(errorMsg);
     }
     
@@ -279,38 +290,45 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         const fromEmail = process.env.SENDGRID_FROM_EMAIL || branding.senderEmail;
         const fromName = process.env.SENDGRID_FROM_NAME || branding.senderName;
 
-        if (provider.type === 'sendgrid') {
-            await provider.send({
-                to,
-                from: { email: fromEmail, name: fromName },
-                subject,
-                html: finalHtml,
-            });
-        } else {
-            await provider.send({
-                from: `"${fromName}" <${fromEmail}>`,
-                to,
-                subject,
-                html: finalHtml,
-            });
+        let sendResult;
+        try {
+            if (provider.type === 'sendgrid') {
+                sendResult = await provider.send({
+                    to,
+                    from: { email: fromEmail, name: fromName },
+                    subject,
+                    html: finalHtml,
+                });
+            } else {
+                sendResult = await provider.send({
+                    from: `"${fromName}" <${fromEmail}>`,
+                    to,
+                    subject,
+                    html: finalHtml,
+                });
+            }
+        } catch (sendError) {
+            console.error('Detailed email send error:', sendError && sendError.response && sendError.response.body ? sendError.response.body : sendError);
+            throw sendError;
         }
-        
+
         // 5. Log success
         await logRef.set({
             to,
             templateId,
             status: 'sent',
             sentAt: admin.firestore.FieldValue.serverTimestamp(),
+            sendResult: sendResult || null,
         });
 
     } catch (error) {
-        console.error(`Error sending email to ${to} with template ${templateId}:`, error);
+        console.error(`Error sending email to ${to} with template ${templateId}:`, error && error.response && error.response.body ? error.response.body : error);
         // Log failure
         await logRef.set({
             to,
             templateId,
             status: 'failed',
-            error: error.message,
+            error: (error && error.response && error.response.body) ? JSON.stringify(error.response.body) : error.message,
             sentAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         // Re-throw to let the calling function know it failed
