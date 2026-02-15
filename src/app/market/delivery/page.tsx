@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirestore, addDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { Textarea } from '@/components/ui/textarea';
+
+import Image from 'next/image';
 import { Logo } from '@/components/app/logo';
 
 const packageSizes = [
@@ -168,19 +170,25 @@ export default function BusmoGoPage() {
     return (
         <div className="w-full max-w-5xl space-y-16">
             {/* Hero Section */}
-            <section className="text-center">
-                <div className="flex justify-center">
-                    <Logo variant="busmogo" className="text-5xl"/>
+            <section className="relative flex flex-col items-center justify-center text-center py-12 sm:py-20 bg-gradient-to-b from-accent/10 to-background rounded-3xl shadow-lg overflow-hidden mb-8">
+                <div className="absolute inset-0 w-full h-full pointer-events-none select-none">
+                    <Image
+                        src="/busmogo.png"
+                        alt="BusmoGo Delivery"
+                        fill
+                        className="object-cover object-top opacity-90"
+                        priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-background/80 to-background/95" />
                 </div>
-                <h1 className="mt-4 text-4xl font-bold tracking-tight font-headline sm:text-5xl">
-                    Your Business, Delivered. Fast.
-                </h1>
-                <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-                    Get your products to your customers' doorsteps. BusmoGo is our integrated delivery network designed for speed and peace of mind.
-                </p>
-                <Button asChild size="lg" className="mt-8">
-                    <Link href="/signup">Start Selling with BusmoGo</Link>
-                </Button>
+                <div className="relative z-10 flex flex-col items-center justify-center w-full">
+                    <Logo variant="busmogo" className="text-5xl mb-4 drop-shadow-lg"/>
+                    <h1 className="text-4xl sm:text-5xl font-extrabold font-headline tracking-tight mb-4">Your Business, Delivered. Fast.</h1>
+                    <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">Get your products to your customers' doorsteps. BusmoGo is our integrated delivery network designed for speed and peace of mind.</p>
+                    <Button asChild size="lg" className="w-full max-w-xs text-lg">
+                        <Link href="/signup">Start Selling with BusmoGo</Link>
+                    </Button>
+                </div>
             </section>
 
             {/* How It Works Section */}

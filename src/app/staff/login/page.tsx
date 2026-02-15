@@ -1,17 +1,13 @@
-'use client';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Logo } from '@/components/app/logo';
+import { useToast } from '@/hooks/use-toast';
 import { getFunctionUrl } from '@/lib/api';
 
-
-export default function AdminLoginPage() {
+export default function StaffLoginPage() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'email' | 'otp'>('email');
@@ -24,7 +20,7 @@ export default function AdminLoginPage() {
       const res = await fetch(getFunctionUrl('sendOtpLogin'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role: 'Admin' }),
+        body: JSON.stringify({ email, role: 'Staff' }),
       });
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || 'Failed to send OTP');
@@ -48,7 +44,7 @@ export default function AdminLoginPage() {
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || 'Invalid OTP');
       toast({ title: 'Login Successful', description: 'You are now logged in.' });
-      // TODO: Redirect to admin dashboard or set session
+      // TODO: Redirect to staff dashboard or set session
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'OTP verification failed.' });
     } finally {
@@ -59,20 +55,17 @@ export default function AdminLoginPage() {
   return (
     <main className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex justify-center">
-          <Logo className="h-10" />
-        </div>
         <Card className="w-full">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Admin Panel</CardTitle>
+            <CardTitle className="text-2xl font-headline">Staff Login</CardTitle>
             <CardDescription>Sign in with a one-time code sent to your email.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {step === 'email' ? (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Admin Email Address</Label>
-                  <Input id="email" type="email" placeholder="admin@busmo.com" className="h-12 text-base" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
+                  <Label htmlFor="email">Staff Email Address</Label>
+                  <Input id="email" type="email" placeholder="staff@busmo.com" className="h-12 text-base" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
                 </div>
                 <Button className="w-full h-14 text-lg" onClick={handleSendOtp} disabled={isLoading || !email}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
