@@ -1,3 +1,5 @@
+"use client";
+export const dynamic = "force-dynamic";
 import { Calendar, Filter, Download, AlertTriangle, TrendingDown } from 'lucide-react';
 import { useMemo } from 'react';
 import { ExpiryDashboard } from '@/components/owner/ExpiryDashboard';
