@@ -120,6 +120,23 @@ const SettingsContent = () => {
     const { user } = useUser();
     const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
     const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+    const [profileImage, setProfileImage] = useState(userProfile?.photoURL || '');
+    const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            const options = { maxSizeMB: 0.2, maxWidthOrHeight: 256, useWebWorker: true };
+            const compressedFile = await imageCompression(file, options);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfileImage(reader.result as string);
+                // TODO: Save to user profile in Firestore
+            };
+            reader.readAsDataURL(compressedFile);
+        } catch (err) {
+            toast({ title: 'Image upload failed', description: 'Could not upload profile picture.' });
+        }
+    };
     const businessId = userProfile?.businessId;
 
     const businessProfileRef = useMemoFirebase(() => businessId ? doc(firestore, `businessProfiles/${businessId}`) : null, [firestore, businessId]);
@@ -419,14 +436,24 @@ const SettingsContent = () => {
                     <CardDescription>Manage your public presence on the Busmo Market.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center justify-between rounded-lg border p-4 overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
                         <div className="space-y-0.5">
                             <Label htmlFor="store-status" className="text-base font-medium">Your store is {settings.isStoreActive ? 'online' : 'offline'}</Label>
                             <p className="text-sm text-muted-foreground">{settings.isStoreActive ? 'Customers can find and purchase your products.' : 'Your store and products are hidden from the market.'}</p>
                         </div>
                         <Switch id="store-status" checked={settings.isStoreActive} onCheckedChange={(val) => handleSettingsChange('isStoreActive', val)} disabled={isSaving} />
                     </div>
-                     <div className="space-y-2">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="store-name">Storefront Name</Label>
+                            <Input id="store-name" value={settings.businessName || ''} onChange={e => handleSettingsChange('businessName', e.target.value)} placeholder="Your Store Name" disabled={isSaving} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="store-category">Category</Label>
+                            <Input id="store-category" value={settings.businessType || ''} onChange={e => handleSettingsChange('businessType', e.target.value)} placeholder="e.g. Fashion, Electronics" disabled={isSaving} />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
                         <Label htmlFor="store-description">Store Description</Label>
                         <Textarea id="store-description" placeholder="Describe your business for customers..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={isSaving}/>
                     </div>
@@ -517,12 +544,13 @@ const SettingsContent = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <Label className="font-semibold">Theme Colors</Label>
+                        <Label className="font-semibold">HERO Text Colors</Label>
                         <div className="grid md:grid-cols-3 gap-4">
-                            <div className="space-y-2"><Label htmlFor="color-primary">Primary</Label><Input id="color-primary" type="color" value={settings.theme?.primary || '#5717ee'} onChange={(e) => handleSettingsChange('theme.primary', e.target.value)} disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="color-primary">Primary (Buttons/Accents)</Label><Input id="color-primary" type="color" value={settings.theme?.primary || '#5717ee'} onChange={(e) => handleSettingsChange('theme.primary', e.target.value)} disabled={isSaving} /></div>
                             <div className="space-y-2"><Label htmlFor="color-bg">Background</Label><Input id="color-bg" type="color" value={settings.theme?.background || '#f7f7fb'} onChange={(e) => handleSettingsChange('theme.background', e.target.value)} disabled={isSaving} /></div>
-                            <div className="space-y-2"><Label htmlFor="color-text">Text</Label><Input id="color-text" type="color" value={settings.theme?.text || '#0f172a'} onChange={(e) => handleSettingsChange('theme.text', e.target.value)} disabled={isSaving} /></div>
+                            <div className="space-y-2"><Label htmlFor="color-text">HERO Text</Label><Input id="color-text" type="color" value={settings.theme?.text || '#0f172a'} onChange={(e) => handleSettingsChange('theme.text', e.target.value)} disabled={isSaving} /></div>
                         </div>
+                        <p className="text-xs text-muted-foreground">These colors control the HERO section's text and button appearance.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -1344,7 +1372,30 @@ const CustomersContent = () => {
 
     return (
         <Card>
-            <CardHeader><CardTitle>Your Customers</CardTitle><CardDescription>A list of everyone who has ordered from your store.</CardDescription></CardHeader>
+            <CardHeader>
+                <CardTitle>Your Customers</CardTitle>
+                <CardDescription>A list of everyone who has ordered from your store.</CardDescription>
+                <div className="flex items-center gap-4 mt-4">
+                    <Avatar className="h-16 w-16 border bg-muted">
+                        {profileImage ? (
+                            <Image src={profileImage} alt="Profile" fill className="object-cover" />
+                        ) : (
+                            <AvatarFallback className="text-2xl bg-transparent">
+                                {userProfile?.displayName?.split(' ').map(n => n[0]).join('').substring(0,2) || 'U'}
+                            </AvatarFallback>
+                        )}
+                    </Avatar>
+                    <div>
+                        <Label htmlFor="profile-upload" className="cursor-pointer">
+                            <Button asChild variant="outline" className="pointer-events-none">
+                                <span>Upload Profile Picture</span>
+                            </Button>
+                        </Label>
+                        <Input id="profile-upload" type="file" className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
+                        <p className="text-xs text-muted-foreground">Recommended: Square image.</p>
+                    </div>
+                </div>
+            </CardHeader>
             <CardContent className="p-0">
                 <div className="relative w-full overflow-auto">
                     <table className="w-full caption-bottom text-sm">
@@ -1646,7 +1697,10 @@ const BusmoPaySettings = () => {
                                     <CardTitle className="text-base">{t('ownerMarket.currentPayoutAccount')}</CardTitle>
                                     <CardDescription className="text-xs">{t('ownerMarket.earningsSentHere')}</CardDescription>
                                 </div>
-                                <Badge variant={bankAccountData.status === 'verified' ? 'default' : bankAccountData.status === 'pending' ? 'secondary' : 'destructive'} className="capitalize">{bankAccountData.status}</Badge>
+                                <Badge className={bankAccountData.status === 'verified' ? 'bg-gradient-to-r from-green-400 via-blue-400 to-purple-500 text-white shadow-lg border-0 animate-pulse capitalize' : bankAccountData.status === 'pending' ? 'bg-yellow-400 text-black capitalize' : 'bg-destructive text-white capitalize'}>
+                                    {bankAccountData.status === 'verified' && <svg className="inline w-4 h-4 mr-1 -mt-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                    {bankAccountData.status}
+                                </Badge>
                             </CardHeader>
                             {bankAccountData.status === 'verified' && (
                                 <CardContent className="p-4 pt-0 text-sm space-y-1">
@@ -1791,7 +1845,12 @@ const BusinessVerificationContent = () => {
         return (
             <Card className="text-center">
                 <CardHeader>
-                    <div className="flex justify-center"><CheckCircle className="w-16 h-16 text-success" /></div>
+                    <div className="flex justify-center">
+                        <Badge className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-500 text-white shadow-lg border-0 animate-pulse flex items-center gap-2 px-6 py-3 text-lg">
+                            <svg className="inline w-6 h-6 mr-2 -mt-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            Verified Business
+                        </Badge>
+                    </div>
                     <CardTitle className="text-2xl pt-4">{t('ownerMarket.businessVerifiedTitle')}</CardTitle>
                     <CardDescription>{t('ownerMarket.businessVerifiedDesc')}</CardDescription>
                 </CardHeader>
