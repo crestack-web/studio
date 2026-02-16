@@ -18,11 +18,7 @@ export default function SellerLandingPage() {
             <Link href="/market">
               <Button variant="ghost" className="rounded-full">Marketplace</Button>
             </Link>
-            <Link href="/seller/login">
-              <Button className="rounded-full">Seller Login</Button>
-            </Link>
           </div>
-
           <div className="sm:hidden flex items-center">
             <Sheet>
               <SheetTrigger asChild>
@@ -37,12 +33,6 @@ export default function SellerLandingPage() {
                 <nav className="mt-6 flex flex-col gap-3">
                   <Link href="/market" className="w-full">
                     <Button variant="ghost" className="w-full justify-start">Marketplace</Button>
-                  </Link>
-                  <Link href="/seller/signup" className="w-full">
-                    <Button className="w-full justify-start">Create Seller Account</Button>
-                  </Link>
-                  <Link href="/seller/login" className="w-full">
-                    <Button variant="secondary" className="w-full justify-start">Seller Login</Button>
                   </Link>
                 </nav>
               </SheetContent>
@@ -63,12 +53,9 @@ export default function SellerLandingPage() {
                   Storefront, products, orders, payments, and BusmoGo delivery — all in one place.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                  <Link href="/seller/signup">
-                    <Button size="lg" className="h-12 rounded-full px-8">Create Seller Account</Button>
-                  </Link>
-                  <Link href="/seller/login">
-                    <Button size="lg" variant="secondary" className="h-12 rounded-full px-8">Seller Login</Button>
-                  </Link>
+                  <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
+                    <Button size="lg" className="h-12 rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
+                  </a>
                 </div>
               </div>
 
@@ -206,8 +193,9 @@ export default function SellerLandingPage() {
               </div>
 
               <div className="mt-10 flex flex-wrap gap-3 justify-center lg:justify-start">
-                <Link href="/seller/login"><Button size="lg" className="rounded-full px-8">Go to Seller Dashboard</Button></Link>
-                <Link href="/market"><Button size="lg" variant="secondary" className="rounded-full px-8">View Marketplace</Button></Link>
+                <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
+                </a>
               </div>
             </div>
           </div>

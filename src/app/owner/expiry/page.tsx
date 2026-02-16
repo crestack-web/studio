@@ -1,55 +1,24 @@
 import { Calendar, Filter, Download, AlertTriangle, TrendingDown } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { ExpiryDashboard } from '@/components/owner/ExpiryDashboard';
 import { ExpiryAlert } from '@/lib/expiryAlert';
-
-// Dummy data for demonstration
-const alerts: ExpiryAlert[] = [
-  {
-    id: '1',
-    productId: 'p1',
-    productName: 'Bottled Water',
-    batchId: 'BW-001',
-    quantity: 15,
-    expiryDate: new Date('2026-02-13'),
-    daysUntilExpiry: -2,
-    alertType: 'expired',
-    status: 'active',
-    notificationsSent: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    productId: 'p2',
-    productName: 'Yogurt',
-    batchId: 'YG-042',
-    quantity: 8,
-    expiryDate: new Date('2026-02-17'),
-    daysUntilExpiry: 2,
-    alertType: 'critical',
-    status: 'active',
-    notificationsSent: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    productId: 'p3',
-    productName: 'Fresh Milk',
-    batchId: 'FM-010',
-    quantity: 12,
-    expiryDate: new Date('2026-02-20'),
-    daysUntilExpiry: 5,
-    alertType: 'warning',
-    status: 'active',
-    notificationsSent: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
+import { useUser, useFirestore } from '@/firebase/provider';
+import { collection, query } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 export default function ExpiryManagementPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const businessId = user?.businessId;
+
+  // Memoize the query for expiry alerts
+  const expiryAlertsQuery = useMemo(() => {
+    if (!firestore || !businessId) return null;
+    return query(collection(firestore, `businesses/${businessId}/expiryAlerts`));
+  }, [firestore, businessId]);
+
+  const { data: alerts, isLoading, error } = useCollection<ExpiryAlert>(expiryAlertsQuery);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -62,7 +31,13 @@ export default function ExpiryManagementPage() {
           </p>
         </div>
       </div>
-      <ExpiryDashboard alerts={alerts} />
+      {isLoading ? (
+        <div>Loading expiry alerts...</div>
+      ) : error ? (
+        <div className="text-red-600">Error loading expiry alerts.</div>
+      ) : (
+        <ExpiryDashboard alerts={alerts || []} />
+      )}
     </div>
   );
 }

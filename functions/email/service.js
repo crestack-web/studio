@@ -318,10 +318,10 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         console.error(errorMsg);
         throw new Error(errorMsg);
     }
-    
+
     const db = getDb();
     const logRef = db.collection('emailLogs').doc();
-    
+
     try {
         // 1. Fetch Branding and Template from Firestore
         const brandingDoc = await db.collection('settings').doc('emailBranding').get();
@@ -333,14 +333,17 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         if (!templateData) {
             throw new Error(`Template with ID "${templateId}" not found.`);
         }
-        
+
+        // Always inject a default brandName if not present
+        const mergedData = { brandName: branding.brandName || 'Busmo', ...data };
+
         // 2. Compile templates with data
         const subjectTemplate = handlebars.compile(templateData.subject);
         const bodyTemplate = handlebars.compile(templateData.htmlBody);
 
-        const subject = subjectTemplate(data);
-        const htmlBody = bodyTemplate(data);
-        
+        const subject = subjectTemplate(mergedData);
+        const htmlBody = bodyTemplate(mergedData);
+
         // 3. Combine with main branded template
         const finalHtml = mainTemplate({
             ...branding,
