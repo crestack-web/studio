@@ -63,20 +63,145 @@ exports.verifyOtpLogin = functions.https.onRequest(async (req, res) => {
 });
 
 exports.sendTestOtp = functions.https.onRequest(async (req, res) => {
-    try {
-        const email = 'crestack@gmail.com';
-        const otp = generateOTP();
-        await storeOTP(email, otp, 'Admin');
-        await sendTransactionalEmail({
-            to: email,
-            templateId: 'otp_login',
-            data: { userName: email, otp, role: 'Admin' },
-        });
-        return res.status(200).json({ success: true, otp });
-    } catch (error) {
-        console.error('sendTestOtp error:', error);
-        return res.status(500).json({ success: false, error: 'Failed to send test OTP.' });
-    }
+    const functions = require('firebase-functions');
+    let sgMail;
+    // Read SendGrid config from both env and functions config
+    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || (functions.config().sendgrid && functions.config().sendgrid.apikey);
+    const SENDGRID_FROM_EMAIL = 'support@busmo.io';
+    const SENDGRID_FROM_NAME = process.env.SENDGRID_FROM_NAME || (functions.config().sendgrid && functions.config().sendgrid.from_name);
+        try {
+                sgMail = require('@sendgrid/mail');
+                sgMail.setApiKey(SENDGRID_API_KEY);
+                const msg = {
+                        to: 'crestack@gmail.com',
+                        from: {
+                                email: SENDGRID_FROM_EMAIL,
+                                name: SENDGRID_FROM_NAME || 'Busmo',
+                        },
+                        subject: 'Welcome to Busmo! Your business clarity journey starts now',
+                        html: `<!-- Busmo Responsive Email Template: Welcome Email -->
+<!DOCTYPE html>
+<html lang="en" style="background:#f3f4f6;">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to Busmo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        @media only screen and (max-width:600px) {
+            .container { width:100% !important; }
+            .main { padding:16px !important; }
+            .benefit-table td { display:block; width:100% !important; text-align:left !important; }
+            .cta-btn { width:100% !important; padding:16px 0 !important; }
+            .footer-links { display:block !important; text-align:center !important; }
+        }
+        .cta-btn:hover { background:#059669 !important; }
+    </style>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;">
+    <table width="100%" bgcolor="#f3f4f6" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
+        <tr>
+            <td align="center">
+                <table class="container" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(99,102,241,0.08);margin:32px auto;">
+                    <tr>
+                        <td align="center" style="padding:32px 0 16px 0;background:#fff;border-bottom:1px solid #f3f4f6;">
+                            <img src="https://busmo.io/logo.png" alt="Busmo App Logo" width="48" height="48" style="display:block;margin:auto;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding:32px;background:linear-gradient(90deg,#e0e7ff 0%,#dbeafe 100%);">
+                            <h1 style="font-family:'Segoe UI',Arial,sans-serif;font-size:2rem;font-weight:700;color:#3b82f6;margin:0;">Ready to See Your Real Profit?</h1>
+                            <p style="font-family:'Segoe UI',Arial,sans-serif;font-size:1.1rem;color:#6366f1;margin:16px 0 0 0;">Welcome to Busmo – the clarity tool for African business owners.</p>
+                            <span style="font-size:2rem;">💡</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="main" style="padding:32px;">
+                            <p style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;margin:0 0 24px 0;">
+                                You deserve to know your true profit, every day. Busmo helps you track sales, inventory, and expenses – all in one place, so you can focus on growing your business.
+                            </p>
+                            <table class="benefit-table" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="40" valign="top" style="font-size:1.5rem;">📊</td>
+                                    <td style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;padding-bottom:24px;">See daily profit in seconds</td>
+                                </tr>
+                                <tr>
+                                    <td width="40" valign="top" style="font-size:1.5rem;">📦</td>
+                                    <td style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;padding-bottom:24px;">Track inventory automatically</td>
+                                </tr>
+                                <tr>
+                                    <td width="40" valign="top" style="font-size:1.5rem;">💰</td>
+                                    <td style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;">Know exactly where your money goes</td>
+                                </tr>
+                            </table>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;padding:20px;margin:32px 0;">
+                                <tr>
+                                    <td width="60" align="center" valign="top">
+                                        <span style="font-size:2rem;">👤</span>
+                                    </td>
+                                    <td style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;padding-left:16px;">
+                                        <em>"Busmo helped me finally understand my ₦ profit and manage my shop with confidence!"</em>
+                                        <div style="font-size:0.9rem;color:#6b7280;margin-top:8px;">Aisha Bello, Bello Fashion Lagos</div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div align="center" style="margin:32px 0;">
+                                <a href="https://busmo.io/welcome" class="cta-btn" style="display:inline-block;background:#10b981;color:#fff;font-family:'Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:700;border-radius:8px;padding:16px 48px;text-decoration:none;transition:background 0.2s;">Start Your Free Trial</a>
+                                <div style="font-family:'Segoe UI',Arial,sans-serif;font-size:0.95rem;color:#6b7280;margin-top:12px;">
+                                    No credit card required • 14-day free trial
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="background:#f3f4f6;padding:32px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="padding-bottom:16px;">
+                                        <a href="https://twitter.com/busmohq" style="margin:0 8px;"><img src="https://busmo.io/twitter-icon.png" alt="Twitter" width="24" height="24" style="vertical-align:middle;"></a>
+                                        <a href="https://facebook.com/busmohq" style="margin:0 8px;"><img src="https://busmo.io/facebook-icon.png" alt="Facebook" width="24" height="24" style="vertical-align:middle;"></a>
+                                        <a href="https://instagram.com/busmohq" style="margin:0 8px;"><img src="https://busmo.io/instagram-icon.png" alt="Instagram" width="24" height="24" style="vertical-align:middle;"></a>
+                                        <a href="https://linkedin.com/company/busmo" style="margin:0 8px;"><img src="https://busmo.io/linkedin-icon.png" alt="LinkedIn" width="24" height="24" style="vertical-align:middle;"></a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="footer-links" align="center" style="font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#6366f1;padding-bottom:16px;">
+                                        <a href="https://busmo.io/about" style="color:#6366f1;text-decoration:none;margin:0 8px;">About Us</a> |
+                                        <a href="https://busmo.io/help" style="color:#6366f1;text-decoration:none;margin:0 8px;">Help</a> |
+                                        <a href="https://busmo.io/contact" style="color:#6366f1;text-decoration:none;margin:0 8px;">Contact</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="font-family:'Segoe UI',Arial,sans-serif;font-size:0.9rem;color:#6b7280;padding-bottom:8px;">
+                                        <a href="https://busmo.io/unsubscribe" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="font-family:'Segoe UI',Arial,sans-serif;font-size:0.9rem;color:#6b7280;">
+                                        12 Allen Avenue, Ikeja, Lagos, Nigeria
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="font-family:'Segoe UI',Arial,sans-serif;font-size:0.9rem;color:#6b7280;padding-top:8px;">
+                                        © 2026 Busmo
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`
+                };
+                await sgMail.send(msg);
+                console.log('Welcome email sent successfully');
+                return res.status(200).json({ success: true, message: 'Welcome email sent.' });
+        } catch (error) {
+                console.error('SendGrid welcome email error:', error);
+                return res.status(500).json({ success: false, error: error.message || error.toString() });
+        }
 });
 
 // IMPORTANT: Initialize admin BEFORE requiring any modules that call admin.firestore().

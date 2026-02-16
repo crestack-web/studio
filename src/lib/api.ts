@@ -14,6 +14,7 @@ const functionPathMap: { [key: string]: string } = {
   claimReferral: '/api/claimReferral',
   ensureReferralCode: '/api/ensureReferralCode',
   adminRecordReferralPayout: '/api/adminRecordReferralPayout',
+  sendOtpLogin: '/api/sendOtpLogin', // Added for OTP email
 };
 
 /**

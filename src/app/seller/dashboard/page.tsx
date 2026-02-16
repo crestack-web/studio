@@ -1,18 +1,11 @@
-
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { signOut } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
-import { Loader2, LogOut, PackagePlus, Store, CreditCard, Package, Send } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Logo } from '@/components/app/logo';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmailVerificationRequired } from '@/components/auth/email-verification-required';
-import { useAuth, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+
+// ...existing code...
+import { useUser, useFirestore, useAuth, useMemoFirebase, useDoc } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { doc } from 'firebase/firestore';
 
 interface AppUserProfile {
   displayName?: string;
@@ -24,170 +17,55 @@ interface BusinessProfile {
   businessName?: string;
 }
 
-export default function SellerDashboardPage() {
-  const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
-  const auth = useAuth();
-  const router = useRouter();
 
-  if (!isUserLoading && !user) {
-    router.replace('/seller/login');
-    return null;
-  }
-  // Removed email verification requirement for seller login
+// StatCard and other content components remain, but page should not wrap in layout or background classes
 
-  const userProfileRef = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [user, firestore]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<AppUserProfile>(userProfileRef);
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  change: string | number;
+  color: string;
+  up: boolean;
+}
 
-  const businessRef = useMemoFirebase(() => {
-    if (!userProfile?.businessId || !firestore) return null;
-    return doc(firestore, 'businesses', userProfile.businessId);
-  }, [userProfile?.businessId, firestore]);
-  const { data: businessData, isLoading: isBusinessLoading } = useDoc<BusinessProfile>(businessRef);
-
-  const isLoading = isUserLoading || isProfileLoading || isBusinessLoading;
-
-  const handleSignOut = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
-    router.push('/seller/login');
-  };
-
-  if (isUserLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+function StatCard({ title, value, change, color, up }: StatCardProps) {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-card/80 backdrop-blur-sm">
-        <Link href="/seller" className="flex items-center gap-2">
-          <Logo className="h-8" />
-          <span className="text-sm font-semibold text-muted-foreground">Seller Central</span>
-        </Link>
-
-        <div className="flex items-center gap-4">
-          {isLoading ? (
-            <Skeleton className="h-6 w-28" />
-          ) : (
-            <div className="text-right">
-              <div className="font-semibold">{userProfile?.displayName || user?.email}</div>
-              {businessData?.businessName ? (
-                <div className="text-xs text-muted-foreground">{businessData.businessName}</div>
-              ) : (
-                <div className="text-xs text-muted-foreground">Seller account</div>
-              )}
-            </div>
-          )}
-          <Button variant="ghost" size="icon" onClick={handleSignOut} className="rounded-full">
-            <LogOut className="h-5 w-5" />
-            <span className="sr-only">Sign Out</span>
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 sm:p-6">
-        <div className="mx-auto w-full max-w-5xl space-y-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold font-headline tracking-tight">Seller Dashboard</h1>
-            <p className="mt-2 text-base text-muted-foreground">Storefront, products, orders, payments, and delivery — together.</p>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Card className="rounded-2xl shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Store className="h-5 w-5 text-primary" />
-                  </span>
-                  Storefront
-                </CardTitle>
-                <CardDescription>Turn your store on and manage settings.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/seller/storefront">Open Storefront Settings</Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <PackagePlus className="h-5 w-5 text-primary" />
-                  </span>
-                  Add product
-                </CardTitle>
-                <CardDescription>Create a new marketplace product listing.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full rounded-full">
-                  <Link href="/add-product">Add Product</Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Package className="h-5 w-5 text-primary" />
-                  </span>
-                  Orders
-                </CardTitle>
-                <CardDescription>View and manage incoming marketplace orders.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/seller/orders">View Orders</Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                  </span>
-                  Payments
-                </CardTitle>
-                <CardDescription>BusmoPay payouts and marketplace payment settings.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/seller/payments">Open Payment Settings</Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="sm:col-span-2 rounded-2xl shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <Send className="h-5 w-5 text-primary" />
-                  </span>
-                  Delivery (BusmoGo)
-                </CardTitle>
-                <CardDescription>Offer delivery options and learn how BusmoGo works.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild className="w-full rounded-full" variant="secondary">
-                  <Link href="/seller/delivery">Go to BusmoGo</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
+    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg p-6 flex flex-col gap-2 border border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-3">
+        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${color}/10`}></span>
+        <span className="font-semibold text-gray-700 dark:text-gray-100 text-lg">{title}</span>
+      </div>
+      <div className="flex items-end gap-2 mt-2">
+        <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</span>
+        <span className={`flex items-center gap-1 text-sm font-medium ${up ? 'text-success-green' : 'text-error-red'}`}>{change}</span>
+      </div>
     </div>
   );
 }
+
+// import { TrendingUp, TrendingDown, ShoppingCart, Package, BarChart, ArrowRight, Box, PercentCircle } from 'lucide-react';
+import Link from 'next/link';
+
+export default function SellerDashboardPage() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Seller Dashboard</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat) => (
+          <StatCard key={stat.title} {...stat} />
+        ))}
+      </div>
+      {/* Add more dashboard widgets here as needed */}
+    </div>
+  );
+}
+
+
+
+// TODO: Replace with real data from Firestore
+const stats = [
+  { title: "Total Revenue", value: "₦1,200,000", change: "+12%", color: "bg-primary-purple", up: true },
+  { title: "Total Orders", value: "320", change: "-3%", color: "bg-primary-blue", up: false },
+  { title: "Products Listed", value: "48", change: "+2", color: "bg-success-green", up: true },
+  { title: "Conversion Rate", value: "4.2%", change: "+0.5%", color: "bg-warning-yellow", up: true },
+];

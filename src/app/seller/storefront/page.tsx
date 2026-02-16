@@ -8,15 +8,15 @@ export default function SellerStorefrontSettings() {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
-  // TODO: Load and save seller-specific storefront settings
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col px-6 py-8 bg-gray-50 dark:bg-gray-900">
+      <h1 className="text-3xl sm:text-4xl font-extrabold font-headline tracking-tight mb-2 text-gray-900 dark:text-gray-100">Storefront Settings</h1>
+      <p className="mb-8 text-base text-muted-foreground dark:text-gray-300">Customize your seller storefront. Changes here only affect your seller store.</p>
       <div className="w-full max-w-2xl">
-        <Card className="rounded-2xl shadow-lg">
+        <Card className="rounded-2xl shadow-lg bg-white/80 dark:bg-gray-900/80 border border-gray-100 dark:border-gray-800">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">Storefront Settings</CardTitle>
-            <CardDescription>Customize your seller storefront. Changes here only affect your seller store.</CardDescription>
+            <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Storefront Settings</CardTitle>
+            <CardDescription className="dark:text-gray-300">Customize your seller storefront. Changes here only affect your seller store.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Storefront settings form goes here */}

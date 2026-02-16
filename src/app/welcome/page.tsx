@@ -215,7 +215,7 @@ export default function LandingPage() {
       <main className="flex-1">
         
         {/* Hero Section */}
-                <section className="relative overflow-hidden py-20 sm:py-32 bg-gradient-to-b from-background to-muted/20">
+                <section className="relative overflow-hidden py-12 sm:py-20 bg-gradient-to-b from-background to-muted/20">
                         <div className="container mx-auto px-4 text-center">
                                 <motion.div
                                     className="flex flex-col items-center justify-center mb-8 gap-2"
@@ -223,7 +223,6 @@ export default function LandingPage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.8, ease: 'easeOut' }}
                                 >
-                                    <Image src="/busmogo.png" alt="BusmoGo" width={220} height={80} className="object-contain rounded-xl shadow-lg" priority />
                                     <Lottie
                                         animationData={checkBurst}
                                         loop={false}
@@ -233,14 +232,14 @@ export default function LandingPage() {
                                     />
                                 </motion.div>
                                 <motion.h1
-                                    className="text-4xl font-bold tracking-tight sm:text-6xl font-headline"
+                                    className="text-5xl font-bold tracking-tight sm:text-7xl font-headline"
                                     dangerouslySetInnerHTML={{ __html: t('welcome.title') }}
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
                                 />
                                 <motion.p
-                                    className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto"
+                                    className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}

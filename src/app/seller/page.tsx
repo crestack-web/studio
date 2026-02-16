@@ -128,28 +128,20 @@ export default function SellerLandingPage() {
         </section>
 
         <section className="py-16 bg-card border-y">
-                  <section className="py-16 bg-background border-b">
-                    <div className="container mx-auto px-4">
-                      <div className="mx-auto max-w-5xl">
-                        <div className="text-center mb-8">
-                          <h2 className="text-2xl sm:text-3xl font-bold font-headline">Seller Pricing</h2>
-                          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">Start with a 3-day free trial. Simple, transparent pricing for sellers.</p>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="border rounded-lg p-4 bg-card">
-                            <h3 className="font-semibold text-lg mb-2">Free Trial</h3>
-                            <p className="text-muted-foreground mb-2">Try all features free for 3 days.</p>
-                            <Link href="/seller/signup"><Button variant="secondary" className="w-full">Start Free Trial</Button></Link>
-                          </div>
-                          <div className="border rounded-lg p-4 bg-card">
-                            <h3 className="font-semibold text-lg mb-2">Seller Plan</h3>
-                            <p className="text-muted-foreground mb-2">₦1,500/month after trial. Cancel anytime.</p>
-                            <Link href="/seller/signup"><Button className="w-full">Choose Plan</Button></Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-3xl">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl sm:text-3xl font-bold font-headline">Seller Waitlist</h2>
+                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">We're putting the finishing touches on the new Seller Dashboard. Join the waitlist to get early access and updates!</p>
+              </div>
+              <div className="flex flex-col items-center gap-4">
+                <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
+                </a>
+                <p className="text-xs text-muted-foreground">You'll be notified as soon as the new dashboard is ready.</p>
+              </div>
+            </div>
+          </div>
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-5xl">
               <div className="text-center">

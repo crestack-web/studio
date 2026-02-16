@@ -18,7 +18,7 @@ async function storeOTP(email, otp, role) {
     role,
     expiresAt,
     attempts: 0,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: Date.now(),
   });
 }
 

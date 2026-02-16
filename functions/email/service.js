@@ -1,10 +1,17 @@
 
+
 const admin = require("firebase-admin");
+const functions = require("firebase-functions");
 const nodemailer = require("nodemailer");
 let sgMail;
 const handlebars = require("handlebars");
 const fs = require("fs");
 const path = require("path");
+
+// Read SendGrid config from both process.env and Firebase functions config
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || (functions.config().sendgrid && functions.config().sendgrid.apikey);
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || (functions.config().sendgrid && functions.config().sendgrid.from_email);
+const SENDGRID_FROM_NAME = process.env.SENDGRID_FROM_NAME || (functions.config().sendgrid && functions.config().sendgrid.from_name);
 
 function getDb() {
     return admin.firestore();
@@ -26,7 +33,7 @@ const requiredSmtpEnvVars = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PA
 const missingSmtpEnvVars = requiredSmtpEnvVars.filter(v => !process.env[v]);
 const publicBrandHost = process.env.PUBLIC_BRAND_HOST || 'https://busmo.web.app';
 
-const hasSendGridApi = !!process.env.SENDGRID_API_KEY;
+const hasSendGridApi = !!SENDGRID_API_KEY;
 const hasSmtp = missingSmtpEnvVars.length === 0;
 
 let provider = null;
@@ -34,7 +41,7 @@ if (hasSendGridApi) {
     try {
         // Lazy require so local dev doesn't crash if dep isn't installed yet.
         sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        sgMail.setApiKey(SENDGRID_API_KEY);
         provider = {
             type: 'sendgrid',
             send: async (msg) => sgMail.send(msg),
@@ -82,18 +89,73 @@ const defaultBranding = {
 };
 
 const defaultTemplates = {
-        otp_login: {
-            subject: "Your Busmo one-time login code",
-            htmlBody: `
-                <h1>Login code</h1>
-                <p>Hi {{userName}},</p>
-                <p>Your one-time login code is:</p>
-                <div style="font-size:2rem;font-weight:bold;letter-spacing:0.2em;margin:16px 0;">{{otp}}</div>
-                <p>This code is valid for 10 minutes. Enter it in the app to complete your login.</p>
-                <p>If you didn’t request this, you can ignore this email.</p>
-            `,
-            preheader: "Your one-time login code for Busmo.",
-        },
+                otp_login: {
+                        subject: "Your Busmo one-time login code",
+                        htmlBody: `<!DOCTYPE html>
+<html lang=\"en\" style=\"background:#f3f4f6;\">
+<head>
+    <meta charset=\"UTF-8\">
+    <title>Busmo OTP Login</title>
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <style>
+        @media only screen and (max-width:600px) {
+            .container { width:100% !important; }
+            .main { padding:16px !important; }
+            .cta-btn { width:100% !important; padding:16px 0 !important; }
+            .footer-links { display:block !important; text-align:center !important; }
+        }
+        .cta-btn:hover { background:#059669 !important; }
+    </style>
+</head>
+<body style=\"margin:0;padding:0;background:#f3f4f6;\">
+    <table width=\"100%\" bgcolor=\"#f3f4f6\" cellpadding=\"0\" cellspacing=\"0\">
+        <tr>
+            <td align=\"center\">
+                <table class=\"container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(99,102,241,0.08);margin:32px auto;\">
+                    <tr>
+                        <td align=\"center\" style=\"padding:32px 0 16px 0;background:#fff;border-bottom:1px solid #f3f4f6;\">
+                            <img src=\"https://busmo.io/logo.png\" alt=\"Busmo App Logo\" width=\"48\" height=\"48\" style=\"display:block;margin:auto;\">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align=\"center\" style=\"padding:32px;\">
+                            <h1 style=\"font-family:'Segoe UI',Arial,sans-serif;font-size:2rem;font-weight:700;color:#3b82f6;margin:0;\">One-Time Login Code</h1>
+                            <p style=\"font-family:'Segoe UI',Arial,sans-serif;font-size:1.1rem;color:#374151;margin:24px 0 0 0;\">Use this code to sign in securely:</p>
+                            <div style=\"font-size:2.2rem;color:#10b981;font-weight:700;margin:24px 0;\">{{otp}}</div>
+                            <div style=\"background:#f9fafb;border-radius:10px;padding:24px 20px;margin:32px 0;\">
+                                <div style=\"font-size:1.1rem;color:#6366f1;font-weight:600;margin-bottom:8px;\">🔒 For your security</div>
+                                <div style=\"font-family:'Segoe UI',Arial,sans-serif;font-size:1rem;color:#374151;\">This code is valid for one-time use and expires in 10 minutes.</div>
+                            </div>
+                            <div align=\"center\" style=\"margin:32px 0;\">
+                                <a href=\"https://busmo.io/login\" class=\"cta-btn\" style=\"display:inline-block;background:#10b981;color:#fff;font-family:'Segoe UI',Arial,sans-serif;font-size:1.2rem;font-weight:700;border-radius:8px;padding:16px 48px;text-decoration:none;transition:background 0.2s;\">Sign In Now</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align=\"center\" style=\"background:#f3f4f6;padding:32px;\">
+                            <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">
+                                <tr>
+                                    <td align=\"center\" style=\"padding-bottom:16px;\">
+                                        <a href=\"https://twitter.com/busmohq\" style=\"margin:0 8px;\"><img src=\"https://busmo.io/twitter-icon.png\" alt=\"Twitter\" width=\"24\" height=\"24\"></a>
+                                        <a href=\"https://facebook.com/busmohq\" style=\"margin:0 8px;\"><img src=\"https://busmo.io/facebook-icon.png\" alt=\"Facebook\" width=\"24\" height=\"24\"></a>
+                                        <a href=\"https://instagram.com/busmohq\" style=\"margin:0 8px;\"><img src=\"https://busmo.io/instagram-icon.png\" alt=\"Instagram\" width=\"24\" height=\"24\"></a>
+                                        <a href=\"https://linkedin.com/company/busmo\" style=\"margin:0 8px;\"><img src=\"https://busmo.io/linkedin-icon.png\" alt=\"LinkedIn\" width=\"24\" height=\"24\"></a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align=\"center\" style=\"font-family:'Segoe UI',Arial,sans-serif;font-size:0.9rem;color:#6b7280;padding-top:8px;\">© 2026 Busmo</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`,
+                        preheader: "Your one-time login code for Busmo.",
+                },
     welcome: {
         subject: "Welcome to Busmo!",
         htmlBody: `
@@ -287,8 +349,8 @@ async function sendTransactionalEmail({ to, templateId, data }) {
         });
 
         // 4. Send email
-        const fromEmail = process.env.SENDGRID_FROM_EMAIL || branding.senderEmail;
-        const fromName = process.env.SENDGRID_FROM_NAME || branding.senderName;
+        const fromEmail = SENDGRID_FROM_EMAIL || branding.senderEmail;
+        const fromName = SENDGRID_FROM_NAME || branding.senderName;
 
         let sendResult;
         try {
