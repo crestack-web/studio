@@ -46,19 +46,19 @@ function StatCard({ title, value, change, color, up }: StatCardProps) {
 // import { TrendingUp, TrendingDown, ShoppingCart, Package, BarChart, ArrowRight, Box, PercentCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function SellerDashboardPage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Seller Dashboard</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <StatCard key={stat.title} {...stat} />
-        ))}
-      </div>
-      {/* Add more dashboard widgets here as needed */}
-    </div>
-  );
-}
+// export default function SellerDashboardPage() {
+//   return (
+//     <div className="space-y-6">
+//       <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Seller Dashboard</h1>
+//       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+//         {stats.map((stat) => (
+//           <StatCard key={stat.title} {...stat} />
+//         ))}
+//       </div>
+//       {/* Add more dashboard widgets here as needed */}
+//     </div>
+//   );
+// }
 
 
 
