@@ -791,10 +791,29 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
                                 <span>Edit Product</span>
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" disabled>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteProduct(product)}>
                             <Trash2 className="mr-2 h-4 w-4"/>
                             <span>Delete</span>
                         </DropdownMenuItem>
+                    // ...existing code...
+                    const handleDeleteProduct = async (product: Product) => {
+                        if (!window.confirm(`Delete product "${product.name}"? This cannot be undone.`)) return;
+                        const firestore = useFirestore();
+                        const { user } = useUser();
+                        const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+                        const { data: userProfile } = useDoc<AppUser>(userProfileRef);
+                        const businessId = userProfile?.businessId;
+                        if (!firestore || !businessId) return;
+                        const productDocRef = doc(firestore, `businesses/${businessId}/products`, product.id);
+                        const marketProductDocRef = doc(firestore, 'marketProducts', product.id);
+                        try {
+                            await deleteDocumentNonBlocking(productDocRef);
+                            await deleteDocumentNonBlocking(marketProductDocRef);
+                            window.location.reload(); // Refresh to update UI
+                        } catch (error) {
+                            alert('Failed to delete product.');
+                        }
+                    };
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -820,6 +839,70 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
         </Card>
     );
 }
+
+import { motion } from 'framer-motion';
+
+const ForecastSection = ({ forecast }: { forecast: { revenue: number; orders: number; customers: number; } }) => (
+    <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <Card className="flex flex-col items-center justify-center p-6 animate-fade-in">
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.7, type: 'spring' }}
+                className="mb-2"
+            >
+                <BarChart className="w-10 h-10 text-primary animate-bounce" />
+            </motion.div>
+            <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+                className="text-3xl font-bold"
+            >
+                ₦{forecast.revenue.toLocaleString()}
+            </motion.div>
+            <p className="text-muted-foreground mt-1">Forecast Revenue</p>
+        </Card>
+        <Card className="flex flex-col items-center justify-center p-6 animate-fade-in">
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.7, type: 'spring' }}
+                className="mb-2"
+            >
+                <ShoppingCart className="w-10 h-10 text-primary animate-spin-slow" />
+            </motion.div>
+            <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+                className="text-3xl font-bold"
+            >
+                {forecast.orders}
+            </motion.div>
+            <p className="text-muted-foreground mt-1">Forecast Orders</p>
+        </Card>
+        <Card className="flex flex-col items-center justify-center p-6 animate-fade-in">
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.7, type: 'spring' }}
+                className="mb-2"
+            >
+                <Users className="w-10 h-10 text-primary animate-pulse" />
+            </motion.div>
+            <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+                className="text-3xl font-bold"
+            >
+                {forecast.customers}
+            </motion.div>
+            <p className="text-muted-foreground mt-1">Forecast Customers</p>
+        </Card>
+    </div>
+);
 
 const ProductsContent = ({ setActiveSection }: { setActiveSection: (section: string) => void }) => {
     const firestore = useFirestore();
@@ -896,8 +979,16 @@ const ProductsContent = ({ setActiveSection }: { setActiveSection: (section: str
         return <ProductsSkeleton />;
     }
     
+    // Dummy forecast data for animation demo
+    const forecast = useMemo(() => ({
+        revenue: 1200000,
+        orders: 320,
+        customers: 150,
+    }), []);
+
     return (
         <div>
+            <ForecastSection forecast={forecast} />
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-2xl font-bold font-headline">Your Products</h2>

@@ -99,9 +99,13 @@ function AddProductPageContent() {
     const [costPrice, setCostPrice] = useState('');
     const [productDescription, setProductDescription] = useState('');
     const [productCategory, setProductCategory] = useState('');
+    const [expiryDate, setExpiryDate] = useState('');
     
     const [hasVariants, setHasVariants] = useState(false);
+    const [variantType, setVariantType] = useState<'single' | 'color' | 'size' | 'color-size'>('single');
     const [variants, setVariants] = useState<Variant[]>([]);
+    const [newVariantColor, setNewVariantColor] = useState('');
+    const [newVariantSize, setNewVariantSize] = useState('');
     const [newVariantName, setNewVariantName] = useState('');
     const [newVariantCost, setNewVariantCost] = useState('');
     const [newVariantPrice, setNewVariantPrice] = useState('');
@@ -160,6 +164,7 @@ function AddProductPageContent() {
             setIsListedOnMarket(productData.isPublishedToMarket || false);
             setHasVariants(productData.hasVariants || false);
             setImages(productData.images || []);
+            setExpiryDate(productData.expiryDate || '');
             if (productData.hasVariants && productData.variants) {
                 setVariants(productData.variants.map(v => ({
                     id: v.id,
@@ -240,18 +245,25 @@ function AddProductPageContent() {
     };
 
     const handleAddVariant = () => {
-        if (newVariantName.trim() && newVariantPrice.trim() && newVariantQuantity.trim()) {
+        let name = '';
+        if (variantType === 'color') name = newVariantColor;
+        else if (variantType === 'size') name = newVariantSize;
+        else if (variantType === 'color-size') name = `${newVariantColor} / ${newVariantSize}`;
+        else name = newVariantName;
+        if (name.trim() && newVariantPrice.trim() && newVariantQuantity.trim()) {
             setVariants([
                 ...variants,
                 { 
                     id: new Date().getTime().toString(),
-                    name: newVariantName.trim(), 
+                    name: name.trim(), 
                     cost: newVariantCost.trim() || '0', 
                     price: newVariantPrice.trim(), 
                     quantity: newVariantQuantity.trim() 
                 }
             ]);
             setNewVariantName('');
+            setNewVariantColor('');
+            setNewVariantSize('');
             setNewVariantCost('');
             setNewVariantPrice('');
             setNewVariantQuantity('');
@@ -493,6 +505,18 @@ function AddProductPageContent() {
                             <CardDescription>Add each variant with its own price, cost, and quantity. The first variant's price will be shown as the default.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="variant-type">Variant Type</Label>
+                                <Select value={variantType} onValueChange={val => setVariantType(val as any)}>
+                                    <SelectTrigger id="variant-type"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="single">Single (e.g., Small, Blue)</SelectItem>
+                                        <SelectItem value="color">Color</SelectItem>
+                                        <SelectItem value="size">Size</SelectItem>
+                                        <SelectItem value="color-size">Color + Size</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             {variants.length > 0 && (
                                 <div className="space-y-2">
                                     {variants.map((variant) => (
@@ -517,7 +541,15 @@ function AddProductPageContent() {
                             <div className="space-y-2">
                                 <Label>{editingVariant ? 'Edit Variant' : 'Add Variant'}</Label>
                                 <div className="space-y-2 rounded-md border p-3">
-                                    <Input placeholder="Variant name (e.g., Small, Blue)" value={newVariantName} onChange={e => setNewVariantName(e.target.value)} disabled={isLoading} />
+                                    {variantType === 'color' && <Input placeholder="Color (e.g., Blue)" value={newVariantColor} onChange={e => setNewVariantColor(e.target.value)} disabled={isLoading} />}
+                                    {variantType === 'size' && <Input placeholder="Size (e.g., Large)" value={newVariantSize} onChange={e => setNewVariantSize(e.target.value)} disabled={isLoading} />}
+                                    {variantType === 'color-size' && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Input placeholder="Color (e.g., Red)" value={newVariantColor} onChange={e => setNewVariantColor(e.target.value)} disabled={isLoading} />
+                                            <Input placeholder="Size (e.g., XL)" value={newVariantSize} onChange={e => setNewVariantSize(e.target.value)} disabled={isLoading} />
+                                        </div>
+                                    )}
+                                    {variantType === 'single' && <Input placeholder="Variant name (e.g., Small, Blue)" value={newVariantName} onChange={e => setNewVariantName(e.target.value)} disabled={isLoading} />}
                                     <div className="grid grid-cols-3 gap-2">
                                         <Input type="number" placeholder="Price" value={newVariantPrice} onChange={e => setNewVariantPrice(e.target.value)} disabled={isLoading} />
                                         <Input type="number" placeholder="Cost (opt.)" value={newVariantCost} onChange={e => setNewVariantCost(e.target.value)} disabled={isLoading} />
@@ -525,7 +557,7 @@ function AddProductPageContent() {
                                     </div>
                                     {editingVariant ? (
                                         <div className="flex gap-2">
-                                            <Button size="sm" className="w-full" onClick={handleUpdateVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
+                                            <Button size="sm" className="w-full" onClick={handleUpdateVariant} disabled={!newVariantName && !newVariantColor && !newVariantSize || !newVariantPrice || !newVariantQuantity || isLoading}>
                                                 <Check className="mr-2 h-4 w-4" /> Update Variant
                                             </Button>
                                             <Button size="sm" variant="outline" className="w-full" onClick={handleCancelEdit} disabled={isLoading}>
@@ -533,7 +565,7 @@ function AddProductPageContent() {
                                             </Button>
                                         </div>
                                     ) : (
-                                        <Button size="sm" className="w-full" onClick={handleAddVariant} disabled={!newVariantName || !newVariantPrice || !newVariantQuantity || isLoading}>
+                                        <Button size="sm" className="w-full" onClick={handleAddVariant} disabled={!newVariantName && !newVariantColor && !newVariantSize || !newVariantPrice || !newVariantQuantity || isLoading}>
                                             <Plus className="mr-2 h-4 w-4" /> Add Variant
                                         </Button>
                                     )}
@@ -642,6 +674,14 @@ function AddProductPageContent() {
                                     <Label htmlFor="product-description">Product Description</Label>
                                     <Textarea id="product-description" placeholder="Describe your product for customers..." value={productDescription} onChange={e => setProductDescription(e.target.value)} disabled={isLoading} />
                                 </div>
+                                {/* Expiry date for groceries, pharmacy, bakery, etc. */}
+                                {['groceries', 'pharmacy', 'bakery'].includes(productCategory) && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="expiry-date">Expiry Date</Label>
+                                        <Input id="expiry-date" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} disabled={isLoading} />
+                                        <p className="text-xs text-muted-foreground">Enter the expiry date for this product.</p>
+                                    </div>
+                                )}
                                 <div className="space-y-2">
                                     <Label htmlFor="product-category">Product Category</Label>
                                     <Select onValueChange={setProductCategory} value={productCategory} disabled={isLoading || isLoadingCategories}>

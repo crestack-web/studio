@@ -33,7 +33,17 @@ type SellerCategoryKey =
   | 'Fashion'
   | 'Beauty'
   | 'Electronics'
-  | 'Services';
+  | 'Services'
+  | 'Groceries'
+  | 'Pharmacy'
+  | 'Bakery'
+  | 'Cafe'
+  | 'Books'
+  | 'Toys'
+  | 'Automotive'
+  | 'Home & Living'
+  | 'Sports'
+  | 'Health & Wellness';
 
 const CATEGORY_OPTIONS: Array<{
   key: SellerCategoryKey;
@@ -42,10 +52,20 @@ const CATEGORY_OPTIONS: Array<{
   Icon: any;
 }> = [
   { key: 'Food & Restaurants', title: 'Food & Restaurants', description: 'Meals, groceries, snacks, drinks.', Icon: UtensilsCrossed },
+  { key: 'Groceries', title: 'Groceries', description: 'Supermarkets, fresh produce, essentials.', Icon: ShoppingBag },
+  { key: 'Pharmacy', title: 'Pharmacy', description: 'Medicines, health products.', Icon: Briefcase },
+  { key: 'Bakery', title: 'Bakery', description: 'Bread, cakes, pastries.', Icon: UtensilsCrossed },
+  { key: 'Cafe', title: 'Cafe', description: 'Coffee, tea, snacks.', Icon: UtensilsCrossed },
   { key: 'Retail', title: 'Retail', description: 'General stores and everyday essentials.', Icon: ShoppingBag },
   { key: 'Fashion', title: 'Fashion', description: 'Clothing, accessories, footwear.', Icon: Shirt },
   { key: 'Beauty', title: 'Beauty', description: 'Salon, cosmetics, personal care.', Icon: Scissors },
   { key: 'Electronics', title: 'Electronics', description: 'Phones, gadgets, accessories.', Icon: Smartphone },
+  { key: 'Books', title: 'Books', description: 'Bookstores, magazines.', Icon: Briefcase },
+  { key: 'Toys', title: 'Toys', description: 'Toys, games, kids products.', Icon: Briefcase },
+  { key: 'Automotive', title: 'Automotive', description: 'Car parts, accessories, services.', Icon: Briefcase },
+  { key: 'Home & Living', title: 'Home & Living', description: 'Furniture, decor, appliances.', Icon: Briefcase },
+  { key: 'Sports', title: 'Sports', description: 'Sporting goods, fitness.', Icon: Briefcase },
+  { key: 'Health & Wellness', title: 'Health & Wellness', description: 'Fitness, wellness, supplements.', Icon: Briefcase },
   { key: 'Services', title: 'Services', description: 'Repairs, home services, and more.', Icon: Briefcase },
 ];
 

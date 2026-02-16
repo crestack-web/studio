@@ -131,6 +131,16 @@ export default function BusinessInfoPage() {
                 <SelectItem value="shop">Shop</SelectItem>
                 <SelectItem value="supermarket">Supermarket</SelectItem>
                 <SelectItem value="food">Food / Restaurant</SelectItem>
+                <SelectItem value="groceries">Groceries</SelectItem>
+                <SelectItem value="pharmacy">Pharmacy</SelectItem>
+                <SelectItem value="bakery">Bakery</SelectItem>
+                <SelectItem value="cafe">Cafe</SelectItem>
+                <SelectItem value="books">Books</SelectItem>
+                <SelectItem value="toys">Toys</SelectItem>
+                <SelectItem value="automotive">Automotive</SelectItem>
+                <SelectItem value="home">Home & Living</SelectItem>
+                <SelectItem value="sports">Sports</SelectItem>
+                <SelectItem value="health">Health & Wellness</SelectItem>
                 <SelectItem value="service">Service</SelectItem>
                 <SelectItem value="company">Company</SelectItem>
               </SelectContent>
