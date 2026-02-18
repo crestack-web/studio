@@ -1,6 +1,5 @@
 
-const { onRequest } = require('firebase-functions/v2/https');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
+const functions = require('firebase-functions');
 const crypto = require("crypto");
 const axios = require("axios");
 const admin = require("firebase-admin");
@@ -80,7 +79,7 @@ function getBusinessIdFromDocPath(docPath) {
  * Initializes a payment with Paystack after validating and calculating the amount on the backend.
  * This is the single, authoritative entry point for all payments.
  */
-exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
+exports.initializePayment = functions.https.onRequest(async (req, res) => {
         if (req.method !== 'POST') {
             return res.status(405).send('Method Not Allowed');
         }
@@ -327,7 +326,7 @@ exports.initializePayment = onRequest({ cors: true }, async (req, res) => {
  * Accepts query param: ?reference=<tx_ref>
  * Returns: Full Paystack verification data object on success.
  */
-exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
+exports.verifyPayment = functions.https.onRequest(async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -492,7 +491,7 @@ exports.verifyPayment = onRequest({ cors: true }, async (req, res) => {
  * Handles incoming webhook events from Paystack.
  * It cryptographically verifies the request and processes the payment events.
  */
-exports.paystackWebhook = onRequest({ cors: true }, async (req, res) => {
+exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -750,11 +749,7 @@ exports.paystackWebhook = onRequest({ cors: true }, async (req, res) => {
 // --- BUSMOPAY PAYOUTS (AUTOMATED) ---
 // Processes payouts that have been marked as `processing` and have aged past the configured delay.
 // Default delay is 48 hours; configure via `PAYOUT_DELAY_HOURS` env var.
-exports.processPayouts = onSchedule(
-    {
-        schedule: 'every 60 minutes',
-    },
-    async () => {
+exports.processPayouts = functions.pubsub.schedule('every 60 minutes').onRun(async (context) => {
         const paystackSecret = getPaystackSecret();
         if (!paystackSecret) {
             console.error('processPayouts: Paystack secret not configured.');

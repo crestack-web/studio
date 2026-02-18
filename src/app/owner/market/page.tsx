@@ -1,5 +1,6 @@
 
 'use client';
+// ...existing imports...
 
 import { useState, useMemo, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import Link from 'next/link';
@@ -795,25 +796,7 @@ const OwnerProductCard = ({ product, onListingChange, currency }: { product: Pro
                             <Trash2 className="mr-2 h-4 w-4"/>
                             <span>Delete</span>
                         </DropdownMenuItem>
-                    // ...existing code...
-                    const handleDeleteProduct = async (product: Product) => {
-                        if (!window.confirm(`Delete product "${product.name}"? This cannot be undone.`)) return;
-                        const firestore = useFirestore();
-                        const { user } = useUser();
-                        const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-                        const { data: userProfile } = useDoc<AppUser>(userProfileRef);
-                        const businessId = userProfile?.businessId;
-                        if (!firestore || !businessId) return;
-                        const productDocRef = doc(firestore, `businesses/${businessId}/products`, product.id);
-                        const marketProductDocRef = doc(firestore, 'marketProducts', product.id);
-                        try {
-                            await deleteDocumentNonBlocking(productDocRef);
-                            await deleteDocumentNonBlocking(marketProductDocRef);
-                            window.location.reload(); // Refresh to update UI
-                        } catch (error) {
-                            alert('Failed to delete product.');
-                        }
-                    };
+                    {/* ...existing code... */}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

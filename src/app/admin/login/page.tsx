@@ -14,9 +14,29 @@ import { getFunctionUrl } from '@/lib/api';
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  // Handler for email/password login
+  const handlePasswordLogin = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(getFunctionUrl('adminPasswordLogin'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || 'Invalid email or password');
+      toast({ title: 'Login Successful', description: 'You are now logged in.' });
+      // TODO: Redirect to admin dashboard or set session
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Password login failed.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendOtp = async () => {
     setIsLoading(true);
@@ -65,7 +85,7 @@ export default function AdminLoginPage() {
         <Card className="w-full">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-headline">Admin Panel</CardTitle>
-            <CardDescription>Sign in with a one-time code sent to your email.</CardDescription>
+            <CardDescription>Sign in with a one-time code or password.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {step === 'email' ? (
@@ -74,9 +94,18 @@ export default function AdminLoginPage() {
                   <Label htmlFor="email">Admin Email Address</Label>
                   <Input id="email" type="email" placeholder="admin@busmo.com" className="h-12 text-base" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
                 </div>
-                <Button className="w-full h-14 text-lg" onClick={handleSendOtp} disabled={isLoading || !email}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
-                </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" placeholder="Password" className="h-12 text-base" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} />
+                </div>
+                <div className="flex gap-2">
+                  <Button className="w-full h-14 text-lg" onClick={handlePasswordLogin} disabled={isLoading || !email || !password}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Login with Password
+                  </Button>
+                  <Button className="w-full h-14 text-lg" onClick={handleSendOtp} disabled={isLoading || !email} variant="outline">
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
+                  </Button>
+                </div>
               </>
             ) : (
               <>

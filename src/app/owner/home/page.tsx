@@ -237,6 +237,8 @@ export default function OwnerHomePage() {
     const subscriptionSuccess = searchParams.get('subscription') === 'success';
 
     const [answer, setAnswer] = useState<string | null>(null);
+    // Modal state for business tool UI
+    const [businessToolModal, setBusinessToolModal] = useState<{ open: boolean, tab: string }>({ open: false, tab: 'add-product' });
     const [isLoadingAi, setIsLoadingAi] = useState(false);
     const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
     const [aiCache, setAiCache] = useState<Record<string, string>>({});
@@ -1321,21 +1323,21 @@ export default function OwnerHomePage() {
             </Card>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <Button asChild className="h-24 text-lg flex-col gap-2"><Link href="/record-sale"><Plus /> {t('ownerHome.recordSale')}</Link></Button>
-                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-product"><Package />Add Product</Link></Button>
-                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/add-inventory"><PackagePlus/>{t('ownerHome.addStock')}</Link></Button>
-                                                        <Button asChild variant="secondary" className="h-24 flex-col gap-2"><Link href="/record-expense"><FilePlus/>{t('ownerHome.addExpense')}</Link></Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                                        <Button variant="secondary" className="h-24 flex-col gap-2"><CircleDollarSign/>{t('ownerHome.cashflow')}</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                                        <DropdownMenuItem asChild><Link href="/owner/add-money">{t('ownerHome.addMoneyDeposit')}</Link></DropdownMenuItem>
-                                        <DropdownMenuItem asChild><Link href="/owner/take-money">{t('ownerHome.takeMoneyWithdrawal')}</Link></DropdownMenuItem>
-                                        <DropdownMenuItem asChild><Link href="/owner/reduce-inventory">{t('ownerHome.reduceStockDamage')}</Link></DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                            <Button className="h-24 text-lg flex-col gap-2" onClick={() => setBusinessToolModal({ open: true, tab: 'add-product' })}><Plus /> {t('ownerHome.recordSale')}</Button>
+                            <Button variant="secondary" className="h-24 flex-col gap-2" onClick={() => setBusinessToolModal({ open: true, tab: 'add-product' })}><Package />Add Product</Button>
+                            <Button variant="secondary" className="h-24 flex-col gap-2" onClick={() => setBusinessToolModal({ open: true, tab: 'add-inventory' })}><PackagePlus/>{t('ownerHome.addStock')}</Button>
+                            <Button variant="secondary" className="h-24 flex-col gap-2" onClick={() => setBusinessToolModal({ open: true, tab: 'add-expense' })}><FilePlus/>{t('ownerHome.addExpense')}</Button>
+                            <Button variant="secondary" className="h-24 flex-col gap-2" onClick={() => setBusinessToolModal({ open: true, tab: 'cashflow' })}><CircleDollarSign/>{t('ownerHome.cashflow')}</Button>
+                        </div>
+
+                        {/* Modal/Dialog for BusinessToolUI */}
+                        {businessToolModal?.open && (
+                            <Dialog open={businessToolModal.open} onOpenChange={open => setBusinessToolModal(modal => ({ ...modal, open }))}>
+                                <DialogContent className="max-w-3xl w-full p-0" style={{ fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+                                    <BusinessToolUI activeTab={businessToolModal.tab} onClose={() => setBusinessToolModal({ open: false, tab: 'add-product' })} />
+                                </DialogContent>
+                            </Dialog>
+                        )}
           </div>
            <div className="lg:col-span-1 flex flex-col gap-6">
                 <Card>

@@ -69,11 +69,19 @@ interface PlatformRevenueStats {
 }
 
 // The new landing page component
+
 export default function LandingPage() {
-  const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
-  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
-  const { t } = useLanguage();
-  const firestore = useFirestore();
+    const { t } = useLanguage();
+    const [testimonials, setTestimonials] = useState<any[]>(testimonialsWithImages);
+    const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
+    const firestore = useFirestore();
+
+    const faqItems = [
+        { value: 'item-1', question: t('welcome.faq_1_q'), answer: t('welcome.faq_1_a') },
+        { value: 'item-2', question: t('welcome.faq_2_q'), answer: t('welcome.faq_2_a') },
+        { value: 'item-3', question: t('welcome.faq_3_q'), answer: t('welcome.faq_3_a') },
+        { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
+    ];
 
     const revenueRef = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -81,44 +89,44 @@ export default function LandingPage() {
     }, [firestore]);
     const { data: revenueStats, isLoading: isLoadingRevenue } = useDoc<PlatformRevenueStats>(revenueRef);
 
-  const { data: announcements } = useCollection<Announcement>(
-    useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'announcements'), where('isActive', '==', true), where('page', '==', 'welcome'));
-    }, [firestore])
-  );
+    const { data: announcements } = useCollection<Announcement>(
+        useMemoFirebase(() => {
+            if (!firestore) return null;
+            return query(collection(firestore, 'announcements'), where('isActive', '==', true), where('page', '==', 'welcome'));
+        }, [firestore])
+    );
 
+    const features = [
+        {
+            icon: TrendingUp,
+            title: t('welcome.feature_3_title'),
+            desc: t('welcome.feature_3_desc'),
+        }
+    ];
 
-  useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
-  }, []);
-  
-  const faqItems = [
-    { value: 'item-1', question: t('welcome.faq_1_q'), answer: t('welcome.faq_1_a') },
-    { value: 'item-2', question: t('welcome.faq_2_q'), answer: t('welcome.faq_2_a') },
-    { value: 'item-3', question: t('welcome.faq_3_q'), answer: t('welcome.faq_3_a') },
-    { value: 'item-4', question: t('welcome.faq_4_q'), answer: t('welcome.faq_4_a') },
-  ];
+    useEffect(() => {
+        setCurrentYear(new Date().getFullYear());
+    }, []);
 
-  const whoIsItFor = [
-    { name: t('welcome.who_1'), icon: Store },
-    { name: t('welcome.who_2'), icon: UtensilsCrossed },
-    { name: t('welcome.who_3'), icon: ShoppingCart },
-    { name: t('welcome.who_4'), icon: Building },
-  ];
-  
-  const whyBusmo = {
-    old: [
-      { title: t('welcome.why_old_1_title'), description: t('welcome.why_old_1_desc') },
-      { title: t('welcome.why_old_2_title'), description: t('welcome.why_old_2_desc') },
-      { title: t('welcome.why_old_3_title'), description: t('welcome.why_old_3_desc') },
-    ],
-    busmo: [
-      { title: t('welcome.why_busmo_1_title'), description: t('welcome.why_busmo_1_desc') },
-      { title: t('welcome.why_busmo_2_title'), description: t('welcome.why_busmo_2_desc') },
-      { title: t('welcome.why_busmo_3_title'), description: t('welcome.why_busmo_3_desc') },
-    ]
-  };
+    const whoIsItFor = [
+        { name: t('welcome.who_1'), icon: Store },
+        { name: t('welcome.who_2'), icon: UtensilsCrossed },
+        { name: t('welcome.who_3'), icon: ShoppingCart },
+        { name: t('welcome.who_4'), icon: Building },
+    ];
+
+    const whyBusmo = {
+        old: [
+            { title: t('welcome.why_old_1_title'), description: t('welcome.why_old_1_desc') },
+            { title: t('welcome.why_old_2_title'), description: t('welcome.why_old_2_desc') },
+            { title: t('welcome.why_old_3_title'), description: t('welcome.why_old_3_desc') },
+        ],
+        busmo: [
+            { title: t('welcome.why_busmo_1_title'), description: t('welcome.why_busmo_1_desc') },
+            { title: t('welcome.why_busmo_2_title'), description: t('welcome.why_busmo_2_desc') },
+            { title: t('welcome.why_busmo_3_title'), description: t('welcome.why_busmo_3_desc') },
+        ]
+    };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -209,199 +217,96 @@ export default function LandingPage() {
         </div>
       </header>
         {/* Seller section removed */}
-
-                            {/* Main Content */}
-                            <main className="flex-1">
-                                {/* Hero Section - Upgraded */}
-                                <section className="relative overflow-hidden py-24 sm:py-36 min-h-[600px] flex items-center justify-center bg-gradient-to-b from-[#6366f1] to-[#3b82f6]">
-                                    {/* Animated gradient overlay */}
-                                    <div className="absolute inset-0 z-0 pointer-events-none animate-gradient-move" style={{background: 'linear-gradient(120deg, rgba(99,102,241,0.3) 0%, rgba(59,130,246,0.3) 100%)', mixBlendMode: 'overlay'}} />
-                                    {/* Floating shapes */}
-                                    <div className="absolute inset-0 z-0 pointer-events-none">
-                                        <span className="absolute left-10 top-20 w-24 h-24 bg-white/10 rounded-full blur-2xl animate-float-slow" />
-                                        <span className="absolute right-24 top-32 w-16 h-16 bg-white/10 rounded-full blur-xl animate-float-medium" />
-                                        <span className="absolute left-1/2 bottom-10 w-20 h-20 bg-white/10 rounded-full blur-2xl animate-float-fast" />
-                                        <span className="absolute right-10 bottom-24 w-12 h-12 bg-white/10 rounded-lg blur-lg animate-float-slow" />
-                                        <span className="absolute left-1/4 top-1/3 w-10 h-10 bg-white/10 rounded-full blur-md animate-float-medium" />
-                                    </div>
-                                    <div className="container mx-auto px-4 text-center relative z-10">
-                                        <motion.div
-                                            className="flex flex-col items-center justify-center mb-10 gap-2"
-                                            initial={{ opacity: 0, y: 40 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.8, ease: 'easeOut' }}
-                                        >
-                                            <Lottie
-                                                animationData={checkBurst}
-                                                loop={false}
-                                                autoplay
-                                                style={{ height: 100, width: 100 }}
-                                                className="mx-auto mt-2 drop-shadow-xl"
-                                            />
-                                        </motion.div>
-                                        <motion.h1
-                                            className="text-6xl sm:text-8xl font-extrabold tracking-tight font-headline text-white drop-shadow-lg leading-tight animate-hero-headline"
-                                            style={{ textShadow: '0 4px 24px rgba(59,130,246,0.25)' }}
-                                            dangerouslySetInnerHTML={{ __html: t('welcome.title') }}
-                                            initial={{ opacity: 0, y: 30 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
-                                        />
-                                        <motion.p
-                                            className="mt-6 text-2xl sm:text-3xl text-white/90 max-w-3xl mx-auto font-medium drop-shadow"
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}
-                                        >
-                                            {t('welcome.subtitle')}
-                                        </motion.p>
-                                        <motion.div
-                                            className="mt-12 flex items-center justify-center gap-x-6"
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.6, duration: 0.5, ease: 'easeOut' }}
-                                        >
-                                            <Link href="/signup" passHref>
-                                                <Button
-                                                    size="lg"
-                                                    className="h-16 px-8 text-xl font-bold bg-white text-[#3b82f6] rounded-[12px] shadow-xl transition-transform duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-white/80"
-                                                    style={{ boxShadow: '0 8px 32px rgba(59,130,246,0.18)' }}
-                                                >
-                                                    {t('welcome.cta')}
-                                                </Button>
-                                            </Link>
-                                        </motion.div>
-                                    </div>
-                                </section>
-                          icon: TrendingUp,
-                          title: t('welcome.feature_3_title'),
-                          desc: t('welcome.feature_3_desc'),
-                        }].map((feature, i) => (
-                          <motion.div
-                            key={feature.title}
-                            className="flex flex-col items-center text-center lg:items-start lg:text-left"
-                            initial={{ opacity: 0, y: 40 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: 0.1 + i * 0.15, duration: 0.7, ease: 'easeOut' }}
-                          >
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                              <feature.icon className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="mt-4 flex-auto">
-                              <h3 className="text-xl font-semibold">{feature.title}</h3>
-                              <p className="mt-2 text-muted-foreground">{feature.desc}</p>
-                            </div>
-                          </motion.div>
+        {/* Seller section removed */}
+        <main className="flex-1">
+            {/* Hero Section - Upgraded */}
+            <section className="relative overflow-hidden py-24 sm:py-36 min-h-[600px] flex items-center justify-center bg-gradient-to-b from-[#6366f1] to-[#3b82f6]">
+                {/* Animated gradient overlay */}
+                <div className="absolute inset-0 z-0 pointer-events-none animate-gradient-move" style={{background: 'linear-gradient(120deg, rgba(99,102,241,0.3) 0%, rgba(59,130,246,0.3) 100%)', mixBlendMode: 'overlay'}} />
+                {/* Floating shapes */}
+                <div className="absolute inset-0 z-0 pointer-events-none">
+                    <span className="absolute left-10 top-20 w-24 h-24 bg-white/10 rounded-full blur-2xl animate-float-slow" />
+                    <span className="absolute right-24 top-32 w-16 h-16 bg-white/10 rounded-full blur-xl animate-float-medium" />
+                    <span className="absolute left-1/2 bottom-10 w-20 h-20 bg-white/10 rounded-full blur-2xl animate-float-fast" />
+                    <span className="absolute right-10 bottom-24 w-12 h-12 bg-white/10 rounded-lg blur-lg animate-float-slow" />
+                    <span className="absolute left-1/4 top-1/3 w-10 h-10 bg-white/10 rounded-full blur-md animate-float-medium" />
+                </div>
+                <div className="container mx-auto px-4 text-center relative z-10">
+                    <motion.div
+                        className="flex flex-col items-center justify-center mb-10 gap-2"
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                    >
+                        <Lottie
+                            animationData={checkBurst}
+                            loop={false}
+                            autoplay
+                            style={{ height: 100, width: 100 }}
+                            className="mx-auto mt-2 drop-shadow-xl"
+                        />
+                    </motion.div>
+                    <motion.h1
+                        className="text-6xl sm:text-8xl font-extrabold tracking-tight font-headline text-white drop-shadow-lg leading-tight animate-hero-headline"
+                        style={{ textShadow: '0 4px 24px rgba(59,130,246,0.25)' }}
+                        dangerouslySetInnerHTML={{ __html: t('welcome.title') }}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.7, ease: 'easeOut' }}
+                    />
+                    <motion.p
+                        className="mt-6 text-2xl sm:text-3xl text-white/90 max-w-3xl mx-auto font-medium drop-shadow"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}
+                    >
+                        {t('welcome.subtitle')}
+                    </motion.p>
+                    <motion.div
+                        className="mt-12 flex items-center justify-center gap-x-6"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.6, duration: 0.5, ease: 'easeOut' }}
+                    >
+                        <Link href="/signup" passHref>
+                            <Button
+                                size="lg"
+                                className="h-16 px-8 text-xl font-bold bg-white text-[#3b82f6] rounded-[12px] shadow-xl transition-transform duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-white/80"
+                                style={{ boxShadow: '0 8px 32px rgba(59,130,246,0.18)' }}
+                            >
+                                {t('welcome.cta')}
+                            </Button>
+                        </Link>
+                    </motion.div>
+                    <div className="container mx-auto px-4 mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {[{
+                            icon: TrendingUp,
+                            title: t('welcome.feature_3_title'),
+                            desc: t('welcome.feature_3_desc'),
+                        },
+                        // ...existing features...
+                        ].map((feature, i) => (
+                            <motion.div
+                                key={feature.title}
+                                className="flex flex-col items-center text-center lg:items-start lg:text-left"
+                                initial={{ opacity: 0, y: 40 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: 0.1 + i * 0.15, duration: 0.7, ease: 'easeOut' }}
+                            >
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                    <feature.icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <div className="mt-4 flex-auto">
+                                    <h3 className="text-xl font-semibold">{feature.title}</h3>
+                                    <p className="mt-2 text-muted-foreground">{feature.desc}</p>
+                                </div>
+                            </motion.div>
                         ))}
                     </div>
                 </div>
-            </div>
-        </section>
-
-         {/* Market Section */}
-        <section className="py-20 sm:py-32 bg-card border-y">
-            <div className="container mx-auto px-4">
-                 <div className="grid lg:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline" dangerouslySetInnerHTML={{ __html: t('welcome.market_title')}}></h2>
-                        <p className="mt-6 text-lg text-muted-foreground">{t('welcome.market_subtitle')}</p>
-                        <ul className="mt-8 space-y-4">
-                            {(t('welcome.market_features', { returnObjects: true }) as unknown as string[]).map(feature => (
-                                <li key={feature} className="flex items-start gap-3">
-                                    <CheckCircle className="w-6 h-6 text-primary mt-1 shrink-0"/>
-                                    <span className="text-muted-foreground">{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <div className="mt-10">
-                             <Link href="/market" passHref>
-                                <Button size="lg" variant="secondary">{t('welcome.market_cta')}</Button>
-                            </Link>
-                        </div>
-                    </div>
-                    <div className="relative w-full aspect-[4/3] sm:aspect-video lg:aspect-[1/1] max-w-2xl mx-auto">
-                        <MarketMockup />
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {/* Seller Section */}
-        <section className="py-20 sm:py-32 bg-background border-y">
-            <div className="container mx-auto px-4">
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Become a Busmo Seller</h2>
-                        <p className="mt-6 text-lg text-muted-foreground">
-                            Launch your storefront, add products, and start selling with payments + delivery built in.
-                        </p>
-
-                        <div className="mt-8 grid gap-3">
-                            <div className="flex items-start gap-3">
-                                <Store className="w-5 h-5 text-primary mt-1 shrink-0" />
-                                <div>
-                                    <p className="font-medium">Storefront</p>
-                                    <p className="text-sm text-muted-foreground">A trusted store customers can browse and buy from.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <CreditCard className="w-5 h-5 text-primary mt-1 shrink-0" />
-                                <div>
-                                    <p className="font-medium">Integrated payments</p>
-                                    <p className="text-sm text-muted-foreground">Marketplace checkout with clear payout tracking.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <Send className="w-5 h-5 text-primary mt-1 shrink-0" />
-                                <div>
-                                    <p className="font-medium">BusmoGo delivery</p>
-                                    <p className="text-sm text-muted-foreground">Offer delivery options with BusmoGo logistics.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-10 flex flex-wrap gap-3">
-                            <Link href="/seller/signup" passHref>
-                                <Button size="lg">Create Seller Account</Button>
-                            </Link>
-                            <Link href="/seller" passHref>
-                                <Button size="lg" variant="secondary">Learn more</Button>
-                            </Link>
-                            <Link href="/seller/login" passHref>
-                                <Button size="lg" variant="ghost">Seller Login</Button>
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div className="grid gap-4">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-lg">How it works</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {["Create your business", "Add products", "Activate your storefront", "Receive orders & get paid"].map((step, idx) => (
-                                    <div key={step} className="flex items-start gap-3">
-                                        <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary shrink-0">
-                                            {idx + 1}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">{step}</p>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-lg">Clarity for business owners</CardTitle>
-                            </CardHeader>
-                            <CardContent className="text-sm text-muted-foreground">
-                                Simple tools that keep your products, orders, and payouts easy to understand.
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </section>
+*** End Patch
 
         {/* BusmoPay Section */}
         <section className="py-20 sm:py-32 bg-muted/20 border-y">

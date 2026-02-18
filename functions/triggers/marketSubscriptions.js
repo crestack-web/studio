@@ -1,4 +1,4 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();
@@ -39,7 +39,7 @@ function chunk(array, size) {
  * Notify subscribers when a seller adds a new market product.
  * Writes notifications to: users/{uid}/notifications/{notificationId}
  */
-exports.onMarketProductCreatedNotifySubscribers = onDocumentCreated('marketProducts/{productId}', async (event) => {
+exports.onMarketProductCreatedNotifySubscribers = functions.firestore.document('marketProducts/{productId}').onCreate(async (snap, context) => {
   const productId = event?.params?.productId;
   const product = event?.data?.data?.() || {};
 

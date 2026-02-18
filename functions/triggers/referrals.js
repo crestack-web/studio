@@ -1,4 +1,4 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 const db = admin.firestore();
@@ -23,9 +23,7 @@ function roundMoney(value) {
  * - users/{referrerUid}/referrals/{referredUid}
  * - users/{referrerUid}/referralStats/summary
  */
-exports.onSubscriptionTransactionCreatedApplyReferralCommission = onDocumentCreated(
-  'subscriptionTransactions/{txId}',
-  async (event) => {
+exports.onSubscriptionTransactionCreatedApplyReferralCommission = functions.firestore.document('subscriptionTransactions/{txId}').onCreate(async (snap, context) => {
     const txId = event?.params?.txId;
     const txData = event?.data?.data?.() || {};
 

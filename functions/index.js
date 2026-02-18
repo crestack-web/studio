@@ -1,12 +1,7 @@
 
 // --- ALL REQUIRES AT TOP ---
 const functions = require("firebase-functions");
-let onRequest;
-try {
-    onRequest = require('firebase-functions/v2/https').onRequest;
-} catch {
-    onRequest = functions.https.onRequest;
-}
+const onRequest = functions.https.onRequest;
 const admin = require("firebase-admin");
 const axios = require("axios");
 const { sendTransactionalEmail } = require('./email/service');
@@ -342,7 +337,7 @@ exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
 
 // Sends an admin email-link sign-in URL using our transactional email provider.
 // Body: { email: string }
-exports.sendAdminSignInLink = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+exports.sendAdminSignInLink = onRequest(async (req, res) => {
     try {
         if (req.method !== 'POST') {
             return res.status(405).json({ success: false, error: 'Method Not Allowed' });
@@ -409,7 +404,7 @@ exports.sendAdminSignInLink = onRequest({ cors: true, invoker: 'public' }, async
 // Sends a staff email-link sign-in URL using our transactional email provider.
 // Allowed if there's a pending invitation for the email, or the email belongs to an existing Staff account.
 // Body: { email: string }
-exports.sendStaffSignInLink = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+exports.sendStaffSignInLink = onRequest(async (req, res) => {
     try {
         if (req.method !== 'POST') {
             return res.status(405).json({ success: false, error: 'Method Not Allowed' });
@@ -477,7 +472,7 @@ exports.sendStaffSignInLink = onRequest({ cors: true, invoker: 'public' }, async
 
 
 // Bank utility functions are preserved as they are not part of the core payment/subscription flow reset.
-exports.fetchBankList = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+exports.fetchBankList = onRequest(async (req, res) => {
     if (req.method !== 'GET') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
@@ -509,7 +504,7 @@ exports.fetchBankList = onRequest({ cors: true, invoker: 'public' }, async (req,
     }
 });
 
-exports.verifyBankAccount = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+exports.verifyBankAccount = onRequest(async (req, res) => {
     try {
         if (req.method !== 'POST') {
             return res.status(405).json({ success: false, error: 'Method Not Allowed' });
@@ -562,7 +557,7 @@ exports.verifyBankAccount = onRequest({ cors: true, invoker: 'public' }, async (
 // --- REFERRALS ---
 // Securely claims a referral code for the currently signed-in user.
 // Body: { code: string }
-exports.claimReferral = onRequest({ cors: true }, async (req, res) => {
+exports.claimReferral = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
@@ -678,7 +673,7 @@ exports.claimReferral = onRequest({ cors: true }, async (req, res) => {
 
 // Generates a referral code for the current user if missing.
 // Returns: { success: true, code: string }
-exports.ensureReferralCode = onRequest({ cors: true }, async (req, res) => {
+exports.ensureReferralCode = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
@@ -778,7 +773,7 @@ exports.ensureReferralCode = onRequest({ cors: true }, async (req, res) => {
 
 // Admin-only: records a manual payout against a user's referral balance.
 // Body: { userId: string, amount: number, note?: string }
-exports.adminRecordReferralPayout = onRequest({ cors: true }, async (req, res) => {
+exports.adminRecordReferralPayout = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
@@ -897,7 +892,7 @@ exports.adminRecordReferralPayout = onRequest({ cors: true }, async (req, res) =
     }
 });
 
-exports.sendEmailVerification = onRequest({ cors: true, invoker: 'public' }, async (req, res) => {
+exports.sendEmailVerification = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
@@ -987,7 +982,7 @@ exports.sendEmailVerification = onRequest({ cors: true, invoker: 'public' }, asy
     }
 });
 
-exports.sendPasswordReset = onRequest({ cors: true }, async (req, res) => {
+exports.sendPasswordReset = onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
