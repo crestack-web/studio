@@ -1,6 +1,6 @@
 // Converted from provided HTML UI
 // Font style: Segoe UI, Arial, sans-serif
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // TODO: Break into smaller components for each tab/page
 // TODO: Replace all inline event handlers with React logic
@@ -12,6 +12,13 @@ const fontFamily = 'Segoe UI, Arial, sans-serif';
 
 export default function BusinessToolUI({ activeTab, onClose }) {
   const [tab, setTab] = useState(activeTab || 'add-product');
+
+  // Sync tab state with activeTab prop
+  useEffect(() => {
+    if (activeTab && activeTab !== tab) {
+      setTab(activeTab);
+    }
+  }, [activeTab]);
 
   // ...existing state and handlers for each form...
 
