@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Logo } from '@/components/app/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,8 @@ import { collection, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMemo } from 'react';
+import Image from 'next/image';
+import { BagIcon, FarmIcon, PhoneIcon } from '@/components/icons/business';
 
 interface BusinessProfile {
     id: string;
@@ -102,14 +105,48 @@ export default function InvestPage() {
 
     return (
         <InvestorLayout>
-            <div className="container mx-auto px-4 py-12 sm:py-16">
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline">
+            {/* Hero Section with App Logo and Hero Image */}
+            <section className="relative bg-gradient-to-b from-background to-muted/20 py-16 sm:py-24">
+                <div className="container mx-auto px-4 flex flex-col items-center text-center">
+                    <div className="flex flex-col items-center gap-4 mb-8">
+                        {/* App Logo */}
+                        <div className="flex items-center gap-2">
+                            {/* Use Logo component for brand consistency */}
+                            <span className="inline-block"><Logo className="h-12 w-auto" /></span>
+                            <span className="font-display font-extrabold text-2xl text-primary">Busmo</span>
+                        </div>
+                        {/* Hero Image from Seller page */}
+                        <div className="relative w-full max-w-xl aspect-[3/2] rounded-2xl overflow-hidden border bg-muted/20 shadow-lg">
+                            <Image src="/sell-hero.png" alt="Business owners using Busmo Seller Central" fill priority unoptimized sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+                        </div>
+                    </div>
+                    <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline mb-4">
                         Invest in Africa's Growth Engine
                     </h1>
-                    <p className="mt-4 max-w-3xl mx-auto text-lg text-muted-foreground">
+                    <p className="max-w-3xl mx-auto text-lg text-muted-foreground">
                         Discover and fund the next generation of small and medium businesses, backed by real-time, trusted data from Busmo.
                     </p>
+                </div>
+            </section>
+
+            {/* Features/Opportunities Section with SVG Icons */}
+            <section className="container mx-auto px-4 py-12 sm:py-16">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-2xl shadow">
+                        <span className="mb-3"><BagIcon className="h-10 w-10 text-primary" /></span>
+                        <h3 className="font-bold text-lg mb-2">Discover Verified Opportunities</h3>
+                        <p className="text-muted-foreground">Browse businesses verified through real Busmo activity data. Filter by industry, location, revenue range, and investment type.</p>
+                    </div>
+                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-2xl shadow">
+                        <span className="mb-3"><FarmIcon className="h-10 w-10 text-primary" /></span>
+                        <h3 className="font-bold text-lg mb-2">Backed by Real Data</h3>
+                        <p className="text-muted-foreground">Every opportunity is backed by live sales, profit, cash flow, and inventory data — not just pitch decks. Reduce risk with transparency.</p>
+                    </div>
+                    <div className="flex flex-col items-center text-center p-6 bg-card rounded-2xl shadow">
+                        <span className="mb-3"><PhoneIcon className="h-10 w-10 text-primary" /></span>
+                        <h3 className="font-bold text-lg mb-2">Invest Your Way</h3>
+                        <p className="text-muted-foreground">Choose profit-sharing or equity-based deals. Track your returns and portfolio performance in one clear dashboard.</p>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -165,7 +202,7 @@ export default function InvestPage() {
                         </div>
                     )
                 )}
-            </div>
+            </section>
         </InvestorLayout>
     );
 }
