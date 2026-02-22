@@ -36,6 +36,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getFunctionUrl } from '@/lib/api';
+import BusinessToolUI from '@/app/owner/components/BusinessToolUI';
 
 interface AppUser {
     id: string;

@@ -10,7 +10,12 @@ import React, { useState, useEffect } from 'react';
 
 const fontFamily = 'Segoe UI, Arial, sans-serif';
 
-export default function BusinessToolUI({ activeTab, onClose }) {
+interface BusinessToolUIProps {
+  activeTab?: string;
+  onClose: () => void;
+}
+
+export default function BusinessToolUI({ activeTab, onClose }: BusinessToolUIProps) {
   const [tab, setTab] = useState(activeTab || 'add-product');
 
   // Sync tab state with activeTab prop
