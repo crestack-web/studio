@@ -475,6 +475,8 @@ export default function OwnerHomePage() {
 
         const todayInterval = { start: startOfDay(new Date()), end: endOfDay(new Date()) };
         const salesByProduct: { [key: string]: { id: string, name: string, quantity: number, sales: number } } = {};
+
+        const productsMap = new Map(productsData.map(p => [p.id, p]));
         
         let totalSales = 0;
         let totalCogs = 0;
@@ -487,7 +489,7 @@ export default function OwnerHomePage() {
         for (const sale of filteredSales) {
             totalSales += sale.amount;
             saleDates.add(sale.timestamp.toDate().toDateString());
-            const product = productsData.find(p => p.id === sale.productId);
+            const product = sale.productId ? productsMap.get(sale.productId) : undefined;
             if (product) {
                 let costOfItem = 0;
                 if (product.hasVariants && sale.variantId) {
@@ -582,7 +584,7 @@ export default function OwnerHomePage() {
         for (const sale of filteredSales) {
             if (!isWithinInterval(sale.timestamp.toDate(), activityWindow)) continue;
             salesInWindowTotal += sale.amount;
-            const product = productsData.find(p => p.id === sale.productId);
+            const product = sale.productId ? productsMap.get(sale.productId) : undefined;
             if (!product) continue;
             let costOfItem = 0;
             if (product.hasVariants && sale.variantId) {

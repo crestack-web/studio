@@ -156,7 +156,9 @@ const SettingsContent = () => {
 
     const productsQuery = useMemoFirebase(() => businessId ? query(collection(firestore, `businesses/${businessId}/products`)) : null, [firestore, businessId]);
     const { data: ownerProducts } = useCollection<Product>(productsQuery);
-    const selectedCollectionProducts = useMemo(() => (ownerProducts || []).filter(p => newCollectionProducts.includes(p.id)), [ownerProducts, newCollectionProducts]);
+    const newCollectionProductsSet = useMemo(() => new Set(newCollectionProducts), [newCollectionProducts]);
+    const featuredProductIdsSet = useMemo(() => new Set(settings?.featuredProductIds ?? []), [settings?.featuredProductIds]);
+    const selectedCollectionProducts = useMemo(() => (ownerProducts || []).filter(p => newCollectionProductsSet.has(p.id)), [ownerProducts, newCollectionProductsSet]);
 
     useEffect(() => {
         if (businessData) {
@@ -571,7 +573,7 @@ const SettingsContent = () => {
                             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 {(ownerProducts || []).map((p) => (
                                     <label key={p.id} className="flex items-center gap-2 rounded-md border p-2">
-                                        <Checkbox checked={settings.featuredProductIds?.includes(p.id)} onCheckedChange={() => toggleFeaturedProduct(p.id)} />
+                                        <Checkbox checked={featuredProductIdsSet.has(p.id)} onCheckedChange={() => toggleFeaturedProduct(p.id)} />
                                         <span className="text-sm line-clamp-2">{p.name}</span>
                                     </label>
                                 ))}
@@ -606,7 +608,7 @@ const SettingsContent = () => {
                                         {(ownerProducts || [])
                                             .filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
                                             .map((p) => {
-                                                const isSelected = newCollectionProducts.includes(p.id);
+                                                const isSelected = newCollectionProductsSet.has(p.id);
                                                 return (
                                                     <button
                                                         key={`coll-${p.id}`}

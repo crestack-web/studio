@@ -87,6 +87,7 @@ export default function AdminOrdersPage() {
 
     const businessesMap = useMemo(() => new Map(businesses?.map(b => [b.id, b])), [businesses]);
     const agentsMap = useMemo(() => new Map(agents?.map(a => [a.userId, a])), [agents]);
+    const availableAgents = useMemo(() => agents?.filter(a => a.status === 'available') ?? [], [agents]);
 
     const sortedOrders = useMemo(() => {
         if (!orders) return [];
@@ -227,14 +228,14 @@ export default function AdminOrdersPage() {
                                         <SelectValue placeholder="Select an available agent" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {agents?.filter(a => a.status === 'available').map(agent => (
+                                        {availableAgents.map(agent => (
                                             <SelectItem key={agent.userId} value={agent.userId}>
                                                 {agent.displayName}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {agents?.filter(a => a.status === 'available').length === 0 && <p className="text-xs text-muted-foreground mt-2">No agents are currently available.</p>}
+                                {availableAgents.length === 0 && <p className="text-xs text-muted-foreground mt-2">No agents are currently available.</p>}
                             </div>
                              <DialogFooter>
                                 <Button variant="outline" onClick={() => setAssignAgentOrder(null)}>Cancel</Button>
