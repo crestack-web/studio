@@ -38,6 +38,11 @@ const nextConfig: NextConfig = {
         destination: '/seller',
         permanent: true,
       },
+      {
+        source: '/plans/subscribe',
+        destination: '/plans',
+        permanent: false,
+      },
     ];
   },
   async rewrites() {
