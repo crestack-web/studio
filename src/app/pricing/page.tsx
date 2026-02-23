@@ -1,373 +1,190 @@
+"use client";
+import "../globals.css";
+import React, { useState } from "react";
+import { Header } from "../welcome/components/Header";
+import { Footer } from "../welcome/components/Footer";
 
-'use client';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Check, Menu, X, Globe, Instagram, Facebook } from 'lucide-react';
-import { Logo } from '@/components/app/logo';
-import { useState, useEffect } from 'react';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
-import { useLanguage } from '@/context/language-provider';
-import { LanguageSwitcher } from '@/components/app/language-switcher';
-import { ThemeToggle } from '@/components/app/theme-toggle';
-import { convertFromNgn, formatCurrency } from '@/lib/currency';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
-const plans = [
-    {
-        name: 'Shop',
-        id: 'shop',
-        description: 'For small retailers. New sellers get 3 days free, then ₦1,000/month for 3 months, then ₦10,000/month.',
-        monthlyPrice: 1000,
-        yearlyPrice: 15000,
-        trialDays: 3,
-        introMonths: 3,
-        introMonthlyPrice: 1000,
-        regularMonthlyPrice: 10000,
-        features: [
-            'Record Sales, Expenses & Inventory',
-            'Basic AI Insights',
-            'Sell on Busmo Market',
-            '3-day free trial for new sellers',
-            '₦1,000/month for first 3 months',
-            '₦10,000/month after trial',
-        ],
-        notIncluded: [
-            'Manage Staff',
-            'Advanced Forecasting',
-            'Multiple Branches',
-            'Production Tracking',
-            'Access to Equity Investment',
-        ]
-    },
-    {
-        name: 'Supermarket',
-        id: 'supermarket',
-        description: 'For larger stores & growing businesses',
-        monthlyPrice: 10000,
-        yearlyPrice: 100000,
-        isPopular: true,
-        features: [
-            'Everything in Shop',
-            'Up to 5 Staff Members',
-            'Advanced Forecasting',
-        ],
-        notIncluded: [
-            'Multiple Branches',
-            'Production Tracking',
-            'Access to Equity Investment',
-        ]
-    },
-    {
-        name: 'Multiple Branches',
-        id: 'multi-branch',
-        description: 'For chains & franchises',
-        monthlyPrice: 30000,
-        yearlyPrice: 300000,
-        features: [
-            'Everything in Supermarket',
-            'Unlimited Staff Members',
-            'Manage Multiple Branches',
-        ],
-        notIncluded: [
-            'Production Tracking',
-            'Access to Equity Investment',
-        ]
-    },
-    {
-        name: 'Company',
-        id: 'company',
-        description: 'For manufacturers & corporations',
-        monthlyPrice: 50000,
-        yearlyPrice: 500000,
-        features: [
-            'Everything in Multiple Branches',
-            'Production Tracking (Cost of Goods)',
-            'Access to Equity Investment',
-        ],
-        notIncluded: []
-    }
-];
-
-const availableCountries = [
-    { code: 'NG', name: 'Nigeria (NGN)' },
-    { code: 'GH', name: 'Ghana (GHS)' },
-    { code: 'NE', name: 'Niger (XOF)' },
-    { code: 'CM', name: 'Cameroon (XAF)' },
-];
-
+const prices = {
+  monthly: { shop: "₦1,000", super: "₦10,000", branch: "₦30,000", company: "₦50,000" },
+  yearly: { shop: "₦830", super: "₦8,300", branch: "₦24,900", company: "₦41,500" }
+};
+const yearlyNote = {
+  shop: "Billed ₦9,960/yr — save ₦2,040",
+  super: "Billed ₦99,600/yr — save ₦20,400",
+  branch: "Billed ₦298,800/yr — save ₦61,200",
+  company: "Billed ₦498,000/yr — save ₦102,000"
+};
 
 export default function PricingPage() {
-    const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
-    const { language, t } = useLanguage();
+  const [mode, setMode] = useState<"monthly" | "yearly">("monthly");
 
-    const [selectedCountry, setSelectedCountry] = useState('NG');
-
-    useEffect(() => {
-        if (language === 'fr') {
-            setSelectedCountry('NE');
-        } else {
-            setSelectedCountry('NG');
-        }
-    }, [language]);
-    
-    const currencyCode = selectedCountry;
-
-    const getTranslationArray = (
-        key: string,
-        fallback: string[]
-    ): string[] => {
-        const value = t(key, { returnObjects: true }) as unknown;
-        if (Array.isArray(value)) return value;
-        if (Array.isArray(fallback)) return fallback;
-        return [];
-    };
-
-
-    useEffect(() => {
-        setCurrentYear(new Date().getFullYear());
-    }, []);
-
-    return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full bg-card/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Logo className="h-8" />
-          <nav className="hidden md:flex items-center gap-2">
-             <Link href="/welcome" passHref>
-              <Button variant="ghost">{t('nav.home')}</Button>
-            </Link>
-             <Link href="/market" passHref>
-              <Button variant="ghost">{t('nav.market')}</Button>
-            </Link>
-            <Link href="/market/delivery" passHref>
-              <Button variant="ghost">{t('nav.busmogo')}</Button>
-            </Link>
-             <Link href="/invest" passHref>
-              <Button variant="ghost">{t('nav.investors')}</Button>
-            </Link>
-            <Link href="/pricing" passHref>
-              <Button variant="ghost">{t('nav.pricing')}</Button>
-            </Link>
-            <ThemeToggle />
-            <LanguageSwitcher />
-            <Separator orientation="vertical" className="h-8" />
-            <Link href="/login" passHref>
-              <Button variant="ghost">{t('nav.login')}</Button>
-            </Link>
-            <Link href="/signup" passHref>
-              <Button>{t('nav.signup')}</Button>
-            </Link>
-          </nav>
-           <div className="md:hidden flex items-center gap-2">
-            <ThemeToggle />
-            <LanguageSwitcher />
-             <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-6 w-6" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-full max-w-xs">
-                    <SheetHeader>
-                      <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                      <SheetDescription className="sr-only">Main navigation links for the site.</SheetDescription>
-                    </SheetHeader>
-                    <Logo className="h-8 mb-8" />
-                    <nav className="flex flex-col items-start gap-4">
-                        <Link href="/welcome" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.home')}</Button></Link>
-                        <Link href="/market" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.market')}</Button></Link>
-                        <Link href="/market/delivery" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.busmogo')}</Button></Link>
-                        <Link href="/invest" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.investors')}</Button></Link>
-                        <Link href="/pricing" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.pricing')}</Button></Link>
-                        <Link href="/login" passHref className="w-full"><Button variant="ghost" className="w-full justify-start text-lg">{t('nav.login')}</Button></Link>
-                        <Link href="/signup" passHref className="w-full"><Button className="w-full mt-4 text-lg h-12">{t('nav.signup')}</Button></Link>
-                    </nav>
-                </SheetContent>
-              </Sheet>
-          </div>
-        </div>
-      </header>
-        
-        <main className="flex-1 flex flex-col items-center p-4 py-12 sm:py-24">
-            <div className="text-center space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-headline">{t('pricing.title')}</h1>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                    {t('pricing.subtitle')}
-                </p>
+  return (
+    <>
+      <Header />
+      <main className="pt-[68px] bg-white text-[#0A0A0F] min-h-screen">
+        {/* Hero */}
+        <section className="text-center px-[5%] pt-16 pb-12 bg-gradient-to-b from-[#6B3FE710] via-transparent to-transparent">
+          <div className="uppercase text-[0.78rem] font-bold tracking-[0.08em] text-[#6B3FE7] mb-3">Simple, Transparent Pricing</div>
+          <h1 className="font-display text-[clamp(2rem,4vw,3rem)] font-extrabold text-[#0A0A0F] mb-3 leading-tight">
+            Find the Perfect Plan<br />for Your Business
+          </h1>
+          <p className="text-[#555568] text-base max-w-[500px] mx-auto mb-8">
+            All plans start with a 14-day free trial. No credit card required. Cancel anytime.
+          </p>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="inline-flex items-center gap-0 bg-[#F4F4F8] rounded-[10px] p-1">
+              <button
+                className={`font-body text-[0.875rem] font-medium px-5 py-2 rounded-[8px] transition-all ${
+                  mode === "monthly"
+                    ? "bg-white text-[#6B3FE7] font-semibold shadow"
+                    : "bg-transparent text-[#8888A0]"
+                }`}
+                onClick={() => setMode("monthly")}
+                type="button"
+              >
+                Monthly
+              </button>
+              <button
+                className={`font-body text-[0.875rem] font-medium px-5 py-2 rounded-[8px] transition-all ${
+                  mode === "yearly"
+                    ? "bg-white text-[#6B3FE7] font-semibold shadow"
+                    : "bg-transparent text-[#8888A0]"
+                }`}
+                onClick={() => setMode("yearly")}
+                type="button"
+              >
+                Yearly
+              </button>
             </div>
-            
-            <div className="flex justify-center items-center gap-4 mt-8">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-48">
-                             <Globe className="mr-2 h-4 w-4" />
-                            <span>{availableCountries.find(c => c.code === selectedCountry)?.name}</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        {availableCountries.map(country => (
-                            <DropdownMenuItem key={country.code} onSelect={() => setSelectedCountry(country.code)}>
-                                {country.name}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            {mode === "yearly" && (
+              <span className="inline-flex items-center gap-1 bg-[#DCFCE7] text-[#16A34A] text-[0.75rem] font-bold px-3 py-1 rounded-full ml-2">
+                Save 17%
+              </span>
+            )}
+          </div>
+        </section>
 
-            <Tabs defaultValue="monthly" className="w-full max-w-7xl mx-auto mt-4">
-                <div className="flex justify-center">
-                    <TabsList className="grid grid-cols-2 p-1 h-auto">
-                        <TabsTrigger value="monthly" className="px-8 py-2">{t('pricing.monthly')}</TabsTrigger>
-                        <TabsTrigger value="yearly" className="px-8 py-2 relative">
-                            {t('pricing.yearly')}
-                            <span className="absolute -top-3 -right-3 bg-accent text-accent-foreground text-xs font-bold px-2 py-0.5 rounded-full">{t('pricing.save_prefix')} 17% {t('pricing.save_suffix')}</span>
-                        </TabsTrigger>
-                    </TabsList>
-                </div>
-                <TabsContent value="monthly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => {
-                            const translationId = plan.id === 'multi-branch' ? 'multibranch' : plan.id;
-                            const price = convertFromNgn(plan.monthlyPrice, currencyCode);
-                            return (
-                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
-                                {plan.isPopular && (
-                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        {t('pricing.most_popular')}
-                                    </div>
-                                )}
-                                <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{t(`pricing.${translationId}_name`)}</CardTitle>
-                                    <CardDescription>{t(`pricing.${translationId}_desc`)}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(price, currencyCode)}</span>
-                                        <span className="text-muted-foreground">/ {t('pricing.monthly').toLowerCase()}</span>
-                                    </div>
-                                     <ul className="mt-6 space-y-3 text-sm">
-                                        {getTranslationArray(
-                                            `pricing.${translationId}_features`,
-                                            plan.features ?? []
-                                        ).map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground">{feature}</span>
-                                            </li>
-                                        ))}
-                                        {getTranslationArray(
-                                            `pricing.${translationId}_not_included`,
-                                            plan.notIncluded ?? []
-                                        ).map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground/50">{feature}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </CardContent>
-                                <CardFooter>
-                                    <Link href="/signup" className="w-full">
-                                        <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>{t('pricing.start_trial')}</Button>
-                                    </Link>
-                                </CardFooter>
-                            </Card>
-                        )})}
-                    </div>
-                </TabsContent>
-                <TabsContent value="yearly" className="mt-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {plans.map((plan) => {
-                            const translationId = plan.id === 'multi-branch' ? 'multibranch' : plan.id;
-                            const price = convertFromNgn(plan.yearlyPrice, currencyCode);
-                            return (
-                             <Card key={plan.name} className={cn("flex flex-col", plan.isPopular && "border-primary ring-2 ring-primary")}>
-                                 {plan.isPopular && (
-                                    <div className="bg-primary text-primary-foreground text-center text-sm font-semibold py-1.5 rounded-t-lg">
-                                        {t('pricing.most_popular')}
-                                    </div>
-                                )}
-                                <CardHeader className="pt-8">
-                                    <CardTitle className="font-headline">{t(`pricing.${translationId}_name`)}</CardTitle>
-                                    <CardDescription>{t(`pricing.${translationId}_desc`)}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-bold">{formatCurrency(price, currencyCode)}</span>
-                                        <span className="text-muted-foreground">/ {t('pricing.yearly').toLowerCase()}</span>
-                                    </div>
-                                    <p className="text-sm text-accent font-medium mt-1">
-                                        {t('pricing.save_prefix')} ~17%!
-                                    </p>
-                                     <ul className="mt-6 space-y-3 text-sm">
-                                        {getTranslationArray(
-                                            `pricing.${translationId}_features`,
-                                            plan.features ?? []
-                                        ).map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <Check className="w-5 h-5 text-accent mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground">{feature}</span>
-                                            </li>
-                                        ))}
-                                        {getTranslationArray(
-                                            `pricing.${translationId}_not_included`,
-                                            plan.notIncluded ?? []
-                                        ).map(feature => (
-                                            <li key={feature} className="flex items-start gap-2">
-                                                <X className="w-5 h-5 text-muted-foreground/50 mt-0.5 shrink-0"/>
-                                                <span className="text-muted-foreground/50">{feature}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </CardContent>
-                                <CardFooter>
-                                    <Link href="/signup" className="w-full">
-                                         <Button className={cn("w-full h-12 text-lg", !plan.isPopular && "variant-secondary")}>{t('pricing.start_trial')}</Button>
-                                    </Link>
-                                </CardFooter>
-                            </Card>
-                        )})}
-                    </div>
-                </TabsContent>
-            </Tabs>
-             <div className="text-center pt-8">
-                 <h3 className="text-lg font-semibold">{t('pricing.custom_needs')}</h3>
-                 <p className="text-muted-foreground">{t('pricing.custom_desc')}</p>
-                 <Button variant="link" className="mt-2">{t('pricing.contact_sales')}</Button>
+        {/* Plans */}
+        <section className="max-w-[1200px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 px-[5%] pb-20">
+          {/* SHOP */}
+          <div className="border border-[#E8E8F0] rounded-[24px] bg-white p-7 pt-8 relative transition hover:-translate-y-1 hover:shadow-lg">
+            <div className="font-display text-[1.1rem] font-bold text-[#0A0A0F] mb-1">Shop</div>
+            <div className="text-[0.8rem] text-[#8888A0] mb-5">For small retailers</div>
+            <div className="mb-2">
+              <span className="font-display text-2xl font-extrabold text-[#0A0A0F]">{prices[mode].shop}</span>
+              <span className="text-[0.8rem] text-[#8888A0]">/ month</span>
             </div>
-        </main>
-      
-      {/* Footer */}
-      <footer className="bg-card border-t">
-        <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 items-center justify-between gap-4 py-8 px-4 text-center md:text-left">
-          <Logo className="h-7 mx-auto md:mx-0" />
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <Link href="/about" className="hover:underline">{t('footer.about')}</Link>
-              <Link href="/help" className="hover:underline">{t('footer.help')}</Link>
-              <a href="mailto:support@busmo.io" className="hover:underline">{t('footer.contact')}</a>
-              <Link href="/terms" className="hover:underline">{t('footer.privacy')}</Link>
-              <Link href="/terms" className="hover:underline">{t('footer.terms')}</Link>
+            <div className="text-[#16A34A] text-[0.78rem] mb-6 min-h-[20px]">{mode === "yearly" ? yearlyNote.shop : ""}</div>
+            <hr className="border-t border-[#E8E8F0] my-5" />
+            <div className="text-[0.72rem] font-bold uppercase tracking-wide text-[#8888A0] mb-3">What's included</div>
+            <ul className="mb-4 text-[0.83rem]">
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Record Sales, Expenses & Inventory</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Basic AI Insights</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Sell on Busmo Market</li>
+              <li className="flex items-start gap-2 text-[#16A34A] py-1"><span className="text-[#16A34A]">✓</span> Manage Staff</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Advanced Forecasting</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Multiple Branches</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Production Tracking</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Access to Equity Investment</li>
+            </ul>
+            <button
+              className="plan-cta-btn w-full mt-6 font-body text-[0.9rem] font-semibold py-3 rounded-[10px] border border-[#E8E8F0] bg-none text-[#0A0A0F] transition hover:border-[#6B3FE7] hover:text-[#6B3FE7]"
+              onClick={() => (window.location = "/signup")}
+            >
+              Start Free Trial
+            </button>
           </div>
-          <div className="flex items-center gap-4 mx-auto md:ml-auto md:mr-0">
-                 <a href="https://x.com/busmohq" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
-                <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
-             </a>
-             <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                <Instagram className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-             </a>
-             <a href="https://facebook.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                <Facebook className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-             </a>
+
+          {/* SUPERMARKET */}
+          <div className="border-2 border-[#6B3FE7] rounded-[24px] bg-white p-7 pt-8 relative shadow transition hover:-translate-y-1 hover:shadow-lg popular">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#6B3FE7] text-white text-[0.72rem] font-bold px-4 py-1 rounded-full whitespace-nowrap shadow">Most Popular</div>
+            <div className="font-display text-[1.1rem] font-bold text-[#0A0A0F] mb-1 mt-3">Supermarket</div>
+            <div className="text-[0.8rem] text-[#8888A0] mb-5">For larger stores & growing businesses</div>
+            <div className="mb-2">
+              <span className="font-display text-2xl font-extrabold text-[#0A0A0F]">{prices[mode].super}</span>
+              <span className="text-[0.8rem] text-[#8888A0]">/ month</span>
+            </div>
+            <div className="text-[#16A34A] text-[0.78rem] mb-6 min-h-[20px]">{mode === "yearly" ? yearlyNote.super : ""}</div>
+            <hr className="border-t border-[#E8E8F0] my-5" />
+            <div className="text-[0.72rem] font-bold uppercase tracking-wide text-[#8888A0] mb-3">Everything in Shop, plus</div>
+            <ul className="mb-4 text-[0.83rem]">
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Up to 5 Staff Members</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Advanced Forecasting</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Multiple Branches</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Production Tracking</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Access to Equity Investment</li>
+            </ul>
+            <button
+              className="plan-cta-btn w-full mt-6 font-body text-[0.9rem] font-semibold py-3 rounded-[10px] border border-[#6B3FE7] bg-[#6B3FE7] text-white transition hover:bg-[#4B24C1]"
+              onClick={() => (window.location = "/signup")}
+            >
+              Start Free Trial
+            </button>
           </div>
-        </div>
-         <p className="text-center text-xs text-muted-foreground pb-4">&copy; {currentYear} busmo.</p>
-      </footer>
-    </div>
-    );
+
+          {/* MULTIPLE BRANCHES */}
+          <div className="border border-[#E8E8F0] rounded-[24px] bg-white p-7 pt-8 relative transition hover:-translate-y-1 hover:shadow-lg">
+            <div className="font-display text-[1.1rem] font-bold text-[#0A0A0F] mb-1">Multiple Branches</div>
+            <div className="text-[0.8rem] text-[#8888A0] mb-5">For chains & franchises</div>
+            <div className="mb-2">
+              <span className="font-display text-2xl font-extrabold text-[#0A0A0F]">{prices[mode].branch}</span>
+              <span className="text-[0.8rem] text-[#8888A0]">/ month</span>
+            </div>
+            <div className="text-[#16A34A] text-[0.78rem] mb-6 min-h-[20px]">{mode === "yearly" ? yearlyNote.branch : ""}</div>
+            <hr className="border-t border-[#E8E8F0] my-5" />
+            <div className="text-[0.72rem] font-bold uppercase tracking-wide text-[#8888A0] mb-3">Everything in Supermarket, plus</div>
+            <ul className="mb-4 text-[0.83rem]">
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Unlimited Staff Members</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Manage Multiple Branches</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Production Tracking</li>
+              <li className="flex items-start gap-2 text-[#8888A0] py-1 line-through"><span className="text-[#DC2626]">✗</span> Access to Equity Investment</li>
+            </ul>
+            <button
+              className="plan-cta-btn w-full mt-6 font-body text-[0.9rem] font-semibold py-3 rounded-[10px] border border-[#E8E8F0] bg-none text-[#0A0A0F] transition hover:border-[#6B3FE7] hover:text-[#6B3FE7]"
+              onClick={() => (window.location = "/signup")}
+            >
+              Start Free Trial
+            </button>
+          </div>
+
+          {/* COMPANY */}
+          <div className="border border-[#E8E8F0] rounded-[24px] bg-white p-7 pt-8 relative transition hover:-translate-y-1 hover:shadow-lg">
+            <div className="font-display text-[1.1rem] font-bold text-[#0A0A0F] mb-1">Company</div>
+            <div className="text-[0.8rem] text-[#8888A0] mb-5">For manufacturers & corporations</div>
+            <div className="mb-2">
+              <span className="font-display text-2xl font-extrabold text-[#0A0A0F]">{prices[mode].company}</span>
+              <span className="text-[0.8rem] text-[#8888A0]">/ month</span>
+            </div>
+            <div className="text-[#16A34A] text-[0.78rem] mb-6 min-h-[20px]">{mode === "yearly" ? yearlyNote.company : ""}</div>
+            <hr className="border-t border-[#E8E8F0] my-5" />
+            <div className="text-[0.72rem] font-bold uppercase tracking-wide text-[#8888A0] mb-3">Everything in Branches, plus</div>
+            <ul className="mb-4 text-[0.83rem]">
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Production Tracking (Cost of Goods)</li>
+              <li className="flex items-start gap-2 text-[#555568] py-1"><span className="text-[#16A34A]">✓</span> Access to Equity Investment</li>
+            </ul>
+            <button
+              className="plan-cta-btn w-full mt-6 font-body text-[0.9rem] font-semibold py-3 rounded-[10px] border border-[#E8E8F0] bg-none text-[#0A0A0F] transition hover:border-[#6B3FE7] hover:text-[#6B3FE7]"
+              onClick={() => (window.location = "/signup")}
+            >
+              Start Free Trial
+            </button>
+          </div>
+        </section>
+
+        {/* Enterprise CTA */}
+        <section className="bg-[#FAFAFC] border border-[#E8E8F0] rounded-[24px] max-w-[1160px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 py-7 px-8 mb-20 mt-0">
+          <div>
+            <h3 className="font-display text-[1.2rem] font-bold text-[#0A0A0F] mb-1">Custom Needs?</h3>
+            <p className="text-[0.875rem] text-[#555568]">
+              For custom integrations, dedicated support, or enterprise deployments — let's talk.
+            </p>
+          </div>
+          <button className="btn-primary font-body text-[0.875rem] font-semibold px-6 py-3 rounded-[10px] mt-2 md:mt-0">
+            Contact Sales
+          </button>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
 }

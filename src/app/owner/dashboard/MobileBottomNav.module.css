@@ -1,0 +1,74 @@
+.nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 30;
+  align-items: stretch;
+  justify-content: space-around;
+  box-shadow: 0 -4px 16px rgba(10, 10, 30, 0.08);
+}
+
+@media (max-width: 768px) {
+  .nav { display: flex; }
+}
+
+/* ── Regular item ── */
+.item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 6px 4px;
+  color: var(--text-3);
+  position: relative;
+}
+
+.item svg { width: 20px; height: 20px; }
+.item span { font-size: 0.6rem; font-weight: 600; white-space: nowrap; }
+.item.active { color: var(--purple); }
+
+/* ── MO special button ── */
+.moBtn {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.moIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7C3AED, #6B3FE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  margin-top: -10px;
+}
+
+.moIcon svg { width: 20px; height: 20px; }
+
+.moLabel {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--mo-color);
+}

@@ -1,77 +1,39 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  MessageSquare,
   Send,
   ArrowLeft,
   Loader2,
   ImageIcon,
+  Bot,
   User,
 } from 'lucide-react';
 import { useLanguage } from '@/context/language-provider';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, doc, orderBy, serverTimestamp, where, type Timestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc, orderBy, serverTimestamp, where, type Timestamp, getDocs } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import imageCompression from 'browser-image-compression';
 import { usePathname } from 'next/navigation';
+import { Button } from '@/app/welcome/components/Button';
 
-
-// Interfaces
-interface SupportAgent {
-    userId: string;
-    displayName: string;
-    avatarUrl?: string;
-    status: 'online' | 'offline';
-    language?: 'en' | 'fr';
-}
-
-interface ChatConversation {
-    id: string;
-    userId: string;
-    agentId?: string;
-    status: 'open' | 'in-progress' | 'closed';
-    lastMessage: string;
-    lastMessageAt: { toDate: () => Date };
-}
-
-interface ChatMessage {
-    id: string;
-    senderId: string;
-    senderName: string;
-    text?: string;
-    imageUrl?: string;
-    createdAt: Timestamp;
-}
+const BOT_ID = 'busmo-bot';
+const BOT_NAME = 'Busmo Bot';
 
 export function ChatWidget() {
   const pathname = usePathname();
   const { toast } = useToast();
-  
-  const [chatView, setChatView] = useState('initial'); // 'initial', 'chat', 'ticket'
+
+  const [open, setOpen] = useState(false);
+  const [chatView, setChatView] = useState<'initial' | 'chat' | 'ticket'>('initial');
   const [chatInput, setChatInput] = useState('');
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketMessage, setTicketMessage] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [localMessages, setLocalMessages] = useState<{ senderId: string; senderName: string; text: string; createdAt: Date }[]>([]);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,331 +41,199 @@ export function ChatWidget() {
   const firestore = useFirestore();
   const { language } = useLanguage();
 
-  const agentsQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return query(collection(firestore, 'supportAgents'));
+  // Example: Fetch agents from Firestore (adjust collection name as needed)
+  const [allAgents, setAllAgents] = useState<{ status: string }[] | null>(null);
+
+  useEffect(() => {
+    if (!firestore) return;
+    const fetchAgents = async () => {
+      const agentsSnapshot = await getDocs(collection(firestore, 'agents'));
+      setAllAgents(agentsSnapshot.docs.map(doc => doc.data() as { status: string }));
+    };
+    fetchAgents();
   }, [firestore]);
-  const { data: allAgents, isLoading: isLoadingAgents } = useCollection<SupportAgent>(agentsQuery);
 
-  const agentsMap = useMemo(() => {
-      if (!allAgents) return new Map();
-      return new Map(allAgents.map(a => [a.userId, a]));
-  }, [allAgents]);
+  const onlineAgents = allAgents?.filter(a => a.status === 'online') || [];
 
-  const assignedAgent = useMemo(() => {
-      if (!allAgents) return null;
-      const onlineLanguageMatches = allAgents.filter(a => a.status === 'online' && a.language === language);
-      if (onlineLanguageMatches.length > 0) return onlineLanguageMatches[0];
-      
-      const anyOnline = allAgents.filter(a => a.status === 'online');
-      if (anyOnline.length > 0) return anyOnline[0];
-
-      return null;
-  }, [allAgents, language]);
-
-  const canChat = useMemo(() => {
-      if(!allAgents) return false;
-      return allAgents.some(a => a.status === 'online');
-  }, [allAgents]);
-
-  const conversationQuery = useMemoFirebase(() => {
-      if (!firestore || !user) return null;
-      return query(
-          collection(firestore, 'chatConversations'),
-          where('userId', '==', user.uid),
-          where('status', '!=', 'closed')
-      );
-  }, [firestore, user]);
-  const { data: conversations } = useCollection<ChatConversation>(conversationQuery);
-  
+  // Scroll to bottom when messages update
   useEffect(() => {
-      if (conversations && conversations.length > 0) {
-          setConversationId(conversations[0].id);
-      } else {
-          setConversationId(null);
-      }
-  }, [conversations]);
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [localMessages, open]);
 
-  const messagesQuery = useMemoFirebase(() => {
-      if (!firestore || !conversationId) return null;
-      return query(
-          collection(firestore, `chatConversations/${conversationId}/messages`),
-          orderBy('createdAt', 'asc')
-      );
-  }, [firestore, conversationId]);
-  const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
-  
-  useEffect(() => {
-      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoadingMessages]);
-
-  const handleStartChat = async () => {
-      if (!user) {
-          toast({ variant: 'destructive', title: 'Please sign in', description: 'You need to be logged in to start a chat.'});
-          return;
-      }
-      if (!firestore) return;
-
-      if (conversationId) {
-          const conversationRef = doc(firestore, 'chatConversations', conversationId);
-          updateDocumentNonBlocking(conversationRef, { status: 'open' }); // Re-open existing chat
-          setChatView('chat');
-          return;
-      }
-
-      const newConversation = {
-          userId: user.uid,
-          userName: user.displayName || user.email || 'Anonymous',
-          agentId: assignedAgent?.userId || null,
-          status: 'open' as 'open',
-          lastMessage: 'Started a new chat.',
-          lastMessageAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-      };
-
-      try {
-          const newDocRef = await addDocumentNonBlocking(collection(firestore, 'chatConversations'), newConversation);
-          if (newDocRef) {
-              setConversationId(newDocRef.id);
-              setChatView('chat');
-          }
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat. Please try again.' });
-      }
-  };
-  
-  const handleSendMessage = async (e: FormEvent, text: string, imageUrl?: string) => {
-      e.preventDefault();
-      if ((!text.trim() && !imageUrl) || !conversationId || !user || !firestore) return;
-
-      const messagesColRef = collection(firestore, `chatConversations/${conversationId}/messages`);
-      const conversationRef = doc(firestore, 'chatConversations', conversationId);
-      
-      const newMessage: {
-          senderId: string;
-          senderName: string;
-          createdAt: any;
-          text?: string;
-          imageUrl?: string;
-      } = {
-          senderId: user.uid,
-          senderName: user.displayName || 'User',
-          createdAt: serverTimestamp(),
-      };
-
-      if (text.trim()) {
-          newMessage.text = text.trim();
-      }
-      if (imageUrl) {
-          newMessage.imageUrl = imageUrl;
-      }
-
-      const lastMessageText = text ? text.trim() : 'Sent an image';
-
-      setChatInput('');
-      await addDocumentNonBlocking(messagesColRef, newMessage);
-      updateDocumentNonBlocking(conversationRef, {
-          lastMessage: lastMessageText,
-          lastMessageAt: serverTimestamp(),
-          status: 'open',
-      });
-  };
-
-  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-      if (!e.target.files || e.target.files.length === 0) return;
-      const file = e.target.files[0];
-      
-      const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1024,
-          useWebWorker: true,
-      };
-
-      try {
-          toast({ title: 'Compressing image...' });
-          const compressedFile = await imageCompression(file, options);
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              handleSendMessage(new Event('submit'), '', reader.result as string);
-              toast({ title: 'Image sent!' });
-          };
-          reader.readAsDataURL(compressedFile);
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not upload image.' });
-      }
-  };
-
-  const handleSubmitTicket = async (e: FormEvent) => {
-      e.preventDefault();
-      if (!ticketSubject.trim() || !ticketMessage.trim() || !firestore) return;
-
-      const ticketData = {
-          subject: ticketSubject,
-          message: ticketMessage,
-          status: 'open',
-          createdAt: serverTimestamp(),
-          userId: user?.uid || 'anonymous',
-          userName: user?.displayName || 'Anonymous',
-          userEmail: user?.email || 'anonymous',
-      };
-
-      try {
-          await addDocumentNonBlocking(collection(firestore, 'supportTickets'), ticketData);
-          toast({ title: 'Ticket Submitted', description: 'We have received your message and will get back to you shortly.'});
-          setChatView('initial');
-          setTicketSubject('');
-          setTicketMessage('');
-      } catch (error) {
-           toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your ticket. Please try again.' });
-      }
-  };
-
+  // Prevent widget on admin pages
   if (pathname.startsWith('/admin')) {
     return null;
   }
 
-  const onlineAgents = allAgents?.filter(a => a.status === 'online') || [];
+  // Handle sending a message
+  const handleSend = (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim()) return;
+    setLocalMessages(msgs => [
+      ...msgs,
+      {
+        senderId: user?.uid || 'user',
+        senderName: user?.displayName || 'You',
+        text: chatInput,
+        createdAt: new Date(),
+      },
+    ]);
+    setChatInput('');
+    // Simulate bot reply
+    setTimeout(() => {
+      setLocalMessages(msgs => [
+        ...msgs,
+        {
+          senderId: BOT_ID,
+          senderName: BOT_NAME,
+          text: "Sorry, MO can only answer business-related questions for now. Try asking about sales, profit, expenses, or stock.",
+          createdAt: new Date(),
+        },
+      ]);
+    }, 1200);
+  };
 
+  // --- Modern UI Chat Widget (right-aligned, modern bot icon, bot fallback) ---
   return (
-    <Sheet>
-        <SheetTrigger asChild>
-            <Button className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-xl bg-primary text-primary-foreground hover:bg-primary/90">
-                <MessageSquare className="h-7 w-7" />
-            </Button>
-        </SheetTrigger>
-        <SheetContent className="flex flex-col p-0 w-full sm:max-w-md">
-            {chatView === 'initial' && (
-                <>
-                    <SheetHeader className="p-5 border-b bg-card/80 backdrop-blur-sm">
-                        <SheetTitle className="text-lg">Busmo Support</SheetTitle>
-                        <SheetDescription>Get quick help from our team.</SheetDescription>
-                    </SheetHeader>
-                    <div className="p-5 flex-1 space-y-5">
-                        {isLoadingAgents ? (
-                            <Skeleton className="h-24 w-full" />
-                        ) : (
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="font-semibold mb-2">
-                                        {canChat ? "Our agents are online" : "We're currently offline"}
-                                    </h3>
-                                    {canChat && (
-                                        <div className="flex -space-x-2 overflow-hidden mb-4">
-                                            {onlineAgents.map(agent => (
-                                                <Avatar key={agent.userId} className="inline-block h-10 w-10 rounded-full ring-2 ring-background">
-                                                    <AvatarFallback>{agent.displayName.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                            ))}
-                                            <span className="ml-3 text-xs text-muted-foreground self-center">{onlineAgents.length} available</span>
-                                        </div>
-                                    )}
-                                    <Button className="w-full h-11" onClick={handleStartChat} disabled={!canChat}>
-                                        Start Live Chat
-                                    </Button>
-                                    {!canChat && <p className="text-xs text-muted-foreground mt-1 text-center">No agents available right now.</p>}
-                                </div>
-                                
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <span className="w-full border-t" />
-                                    </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-background px-2 text-muted-foreground">Or</span>
-                                    </div>
-                                </div>
+    <>
+      {/* Floating Chat Button */}
+      {!open && (
+        <Button
+          className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl bg-white hover:bg-gray-100 z-50 flex items-center justify-center border border-yellow-400"
+          onClick={() => setOpen(true)}
+          aria-label="Open chat"
+          style={{ padding: 0 }}
+        >
+          {/* Custom SVG Icon from prompt */}
+          <span className="block">
+            <svg width="56" height="56" viewBox="0 0 80 80" fill="none">
+              <circle cx="40" cy="40" r="38" fill="#100A00"></circle>
+              <circle cx="40" cy="40" r="36" fill="none" stroke="#F4A535" strokeWidth="1.5"></circle>
+              {/* chat bubbles */}
+              <rect x="8" y="10" width="28" height="16" rx="5" fill="rgba(29,185,84,0.2)" stroke="#1DB954" strokeWidth="1"></rect>
+              <circle cx="14" cy="18" r="2" fill="#1DB954"></circle>
+              <circle cx="20" cy="18" r="2" fill="#1DB954"></circle>
+              <circle cx="26" cy="18" r="2" fill="#1DB954"></circle>
+              <path d="M12 26 L16 26 L14 30 Z" fill="#1DB954" opacity="0.6"></path>
+              <rect x="44" y="10" width="28" height="16" rx="5" fill="rgba(244,165,53,0.2)" stroke="#F4A535" strokeWidth="1"></rect>
+              <circle cx="50" cy="18" r="2" fill="#F4A535"></circle>
+              <circle cx="56" cy="18" r="2" fill="#F4A535"></circle>
+              <circle cx="62" cy="18" r="2" fill="#F4A535"></circle>
+              <path d="M68 26 L64 26 L66 30 Z" fill="#F4A535" opacity="0.6"></path>
+              {/* Mo left */}
+              <circle cx="24" cy="48" r="14" fill="#F5C9A0"></circle>
+              <path d="M10 44 C10 34 38 34 38 44 L38 39 C38 30 10 30 10 39 Z" fill="#2C1A0E"></path>
+              <circle cx="19" cy="47" r="2.5" fill="#1A2B3C"></circle>
+              <circle cx="29" cy="47" r="2.5" fill="#1A2B3C"></circle>
+              <path d="M19 53 Q24 57 29 53" stroke="#CC7A3A" strokeWidth="1.5" strokeLinecap="round" fill="none"></path>
+              <ellipse cx="24" cy="66" rx="10" ry="4" fill="#1DB954" opacity="0.8"></ellipse>
+              <rect x="18" y="62" width="12" height="6" rx="3" fill="#F5C9A0"></rect>
+              {/* Customer right */}
+              <circle cx="56" cy="48" r="14" fill="#D4956A"></circle>
+              <path d="M42 44 C42 34 70 34 70 44 L70 39 C70 30 42 30 42 39 Z" fill="#1A0A06"></path>
+              <circle cx="51" cy="47" r="2.5" fill="#1A2B3C"></circle>
+              <circle cx="61" cy="47" r="2.5" fill="#1A2B3C"></circle>
+              <path d="M51 53 Q56 57 61 53" stroke="#996040" strokeWidth="1.5" strokeLinecap="round" fill="none"></path>
+              <ellipse cx="56" cy="66" rx="10" ry="4" fill="#E8503A" opacity="0.8"></ellipse>
+              <rect x="50" y="62" width="12" height="6" rx="3" fill="#D4956A"></rect>
+            </svg>
+          </span>
+        </Button>
+      )}
 
-                                <div>
-                                    <p className="text-sm text-muted-foreground mb-2 text-center">Leave us a message and we'll get back to you via email.</p>
-                                    <Button className="w-full h-11" variant="outline" onClick={() => setChatView('ticket')}>
-                                        Submit a Ticket
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+      {/* Chat Modal */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 backdrop-blur-sm">
+          <div className="relative w-full max-w-xs sm:max-w-md mx-4 mb-6 sm:mb-8">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col h-[480px]">
+              {/* Header */}
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-purple-700 to-indigo-600 rounded-t-2xl">
+                {/* MO Avatar SVG */}
+                <span className="rounded-full w-10 h-10 flex items-center justify-center bg-white shadow border-2 border-green-400">
+                  <svg width="40" height="40" viewBox="0 0 80 80" fill="none">
+                    <circle cx="40" cy="40" r="38" fill="none" stroke="#1DB954" strokeWidth="2" strokeDasharray="6 3"></circle>
+                    <circle cx="40" cy="34" r="15" fill="#F5C9A0"></circle>
+                    <path d="M25 30 C25 21 55 21 55 30 L55 26 C55 18 25 18 25 26 Z" fill="#2C1A0E"></path>
+                    <ellipse cx="33.5" cy="33" rx="2.8" ry="3.2" fill="#1A2B3C"></ellipse>
+                    <ellipse cx="46.5" cy="33" rx="2.8" ry="3.2" fill="#1A2B3C"></ellipse>
+                    <circle cx="34.5" cy="31.5" r="1" fill="white"></circle>
+                    <circle cx="47.5" cy="31.5" r="1" fill="white"></circle>
+                    <path d="M33 39 Q40 44 47 39" stroke="#CC7A3A" strokeWidth="1.8" strokeLinecap="round" fill="none"></path>
+                    <ellipse cx="40" cy="61" rx="13" ry="5.5" fill="rgba(29,185,84,0.3)" stroke="#1DB954" strokeWidth="1"></ellipse>
+                    <rect x="33" y="49" width="14" height="10" rx="5" fill="#F5C9A0"></rect>
+                    {/* online dot */}
+                    <circle cx="58" cy="22" r="5" fill="#1DB954"></circle>
+                    <circle cx="58" cy="22" r="3" fill="#4AEF84"></circle>
+                  </svg>
+                </span>
+                <span className="font-bold text-white text-base flex-1">Talk to Mo</span>
+                <button
+                  className="ml-auto text-white hover:text-purple-200 transition"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close chat"
+                  type="button"
+                >
+                  <ArrowLeft className="h-6 w-6 rotate-180" />
+                </button>
+              </div>
+
+              {/* Main Content */}
+              <div className="flex-1 flex flex-col px-5 py-4 overflow-y-auto">
+                {localMessages.length === 0 && (
+                  <div className="text-gray-500 text-sm mb-4">
+                    Hi! I'm MO, your business assistant. Ask me anything about your sales, profit, expenses, or stock.
+                  </div>
+                )}
+                {localMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "mb-2 flex",
+                      msg.senderId === BOT_ID ? "justify-start" : "justify-end"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[70%] px-4 py-2 rounded-lg text-sm",
+                        msg.senderId === BOT_ID
+                          ? "bg-gray-100 text-gray-900"
+                          : "bg-purple-700 text-white"
+                      )}
+                    >
+                      {msg.text}
                     </div>
-                </>
-            )}
+                  </div>
+                ))}
+                <div ref={chatMessagesEndRef} />
+              </div>
 
-            {chatView === 'chat' && (
-                <>
-                    <SheetHeader className="p-4 border-b flex-row items-center gap-3 bg-card/80 backdrop-blur-sm">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatView('initial')}><ArrowLeft className="h-5 w-5" /></Button>
-                        {assignedAgent ? (
-                            <>
-                                <Avatar className="h-9 w-9"><AvatarFallback>{assignedAgent.displayName.charAt(0)}</AvatarFallback></Avatar>
-                                <div className="min-w-0">
-                                    <SheetTitle className="text-base truncate">{assignedAgent.displayName}</SheetTitle>
-                                    <SheetDescription className="text-xs flex items-center gap-2">
-                                        <span className="inline-flex h-2 w-2 rounded-full bg-success" />
-                                        Support Agent
-                                    </SheetDescription>
-                                </div>
-                            </>
-                        ) : (
-                            <SheetTitle>Live Chat</SheetTitle>
-                        )}
-                    </SheetHeader>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
-                        {isLoadingMessages ? (
-                            <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>
-                        ) : messages && messages.length > 0 ? (
-                            messages.map(msg => (
-                                <div key={msg.id} className={cn("flex items-end gap-2", msg.senderId === user?.uid ? "justify-end" : "justify-start")}>
-                                    {msg.senderId !== user?.uid && (
-                                        <Avatar className="h-8 w-8"><AvatarFallback>{agentsMap.get(msg.senderId)?.displayName.charAt(0) || 'A'}</AvatarFallback></Avatar>
-                                    )}
-                                    <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm", msg.senderId === user?.uid ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card border rounded-bl-none")}> 
-                                        {msg.text && <p>{msg.text}</p>}
-                                        {msg.imageUrl && (
-                                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
-                                                <Image src={msg.imageUrl} alt="User upload" width={240} height={240} className="rounded-lg mt-2 cursor-pointer" />
-                                            </a>
-                                        )}
-                                        {msg.createdAt && <p className="text-[11px] opacity-70 mt-1">{formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true })}</p>}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                        <div className="text-center text-sm text-muted-foreground pt-10">
-                          Start the conversation by saying hello.
-                        </div>
-                        )}
-                        <div ref={chatMessagesEndRef} />
-                    </div>
-                    <SheetFooter className="p-4 border-t bg-card">
-                        <form onSubmit={(e) => handleSendMessage(e, chatInput)} className="flex items-center gap-2 w-full">
-                            <Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type your message..." className="h-11" />
-                            <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5" /></Button>
-                            <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                            <Button type="submit" size="icon" className="h-11 w-11 shrink-0" disabled={!chatInput.trim()}>
-                              <Send className="h-5 w-5" />
-                            </Button>
-                        </form>
-                    </SheetFooter>
-                </>
-            )}
-
-            {chatView === 'ticket' && (
-                <>
-                    <SheetHeader className="p-4 border-b flex-row items-center gap-2 bg-card/80 backdrop-blur-sm">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatView('initial')}><ArrowLeft className="h-5 w-5" /></Button>
-                        <SheetTitle>Leave a Message</SheetTitle>
-                    </SheetHeader>
-                    <form onSubmit={handleSubmitTicket} className="p-5 flex-1 space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket-subject">Subject</Label>
-                            <Input id="ticket-subject" value={ticketSubject} onChange={(e) => setTicketSubject(e.target.value)} placeholder="e.g., Issue with my subscription" />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="ticket-message">How can we help?</Label>
-                            <Textarea id="ticket-message" value={ticketMessage} onChange={(e) => setTicketMessage(e.target.value)} placeholder="Please describe your issue in detail..." rows={6}/>
-                        </div>
-                        <Button type="submit" className="w-full h-11">Submit Ticket</Button>
-                    </form>
-                </>
-            )}
-        </SheetContent>
-    </Sheet>
+              {/* Input */}
+              <form
+                className="flex items-center gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-800"
+                onSubmit={handleSend}
+              >
+                <Input
+                  className="flex-1"
+                  type="text"
+                  placeholder="Type your question…"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  autoFocus
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!chatInput.trim()}
+                  className="p-2 rounded-full bg-purple-700 text-white hover:bg-purple-800"
+                  aria-label="Send"
+                >
+                  <Send className="w-5 h-5" />
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

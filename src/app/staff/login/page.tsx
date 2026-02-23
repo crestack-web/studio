@@ -1,99 +1,143 @@
 "use client";
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { getFunctionUrl } from '@/lib/api';
 
-export default function StaffLoginPage() {
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [isLoading, setIsLoading] = useState(false);
-  const [resent, setResent] = useState(false);
-  const { toast } = useToast();
+import React, { useState } from "react";
 
-  const handleSendOtp = async (isResend = false) => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(getFunctionUrl('sendOtpLogin'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role: 'Staff' }),
-      });
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.error || 'Failed to send OTP');
-      setStep('otp');
-      setResent(isResend);
-      toast({ title: 'OTP Sent', description: 'Check your email for the one-time code.' });
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to send OTP.' });
-    } finally {
-      setIsLoading(false);
-    }
+type Step = 1 | 2;
+
+export default function StaffTwoStepLogin() {
+  const [step, setStep] = useState<Step>(1);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Simulate sending code
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    // TODO: Replace with real API call
+    setTimeout(() => {
+      setLoading(false);
+      setStep(2);
+    }, 1000);
   };
 
-  const handleVerifyOtp = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(getFunctionUrl('verifyOtpLogin'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
-      });
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.error || 'Invalid OTP');
-      toast({ title: 'Login Successful', description: 'You are now logged in.' });
-      // TODO: Redirect to staff dashboard or set session
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'OTP verification failed.' });
-    } finally {
-      setIsLoading(false);
-    }
+  // Simulate verifying code
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    // TODO: Replace with real API call
+    setTimeout(() => {
+      setLoading(false);
+      if (code === "123456") {
+        // Success: redirect or show success
+        alert("Login successful!");
+      } else {
+        setError("Invalid code. Please try again.");
+      }
+    }, 1000);
   };
 
   return (
-    <main className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <Card className="w-full">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Staff Login</CardTitle>
-            <CardDescription>Sign in with a one-time code sent to your email.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {step === 'email' ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Staff Email Address</Label>
-                  <Input id="email" type="email" placeholder="staff@busmo.com" className="h-12 text-base" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} />
-                </div>
-                <Button className="w-full h-14 text-lg" onClick={() => handleSendOtp(false)} disabled={isLoading || !email}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Send OTP
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="otp">Enter OTP</Label>
-                  <Input id="otp" type="text" placeholder="6-digit code" className="h-12 text-base" value={otp} onChange={e => setOtp(e.target.value)} disabled={isLoading} />
-                </div>
-                <div className="mb-2 text-sm text-muted-foreground text-center">
-                  {resent ? 'OTP resent. ' : ''}A one-time code was sent to <b>{email}</b>.<br />
-                  Didn’t get it? <button type="button" className="underline text-purple-600 hover:text-purple-800" onClick={() => handleSendOtp(true)} disabled={isLoading}>Resend OTP</button>
-                  <br />
-                  <button type="button" className="underline text-gray-600 hover:text-gray-900 mt-1" onClick={() => { setStep('email'); setOtp(''); setResent(false); }} disabled={isLoading}>Change email</button>
-                </div>
-                <Button className="w-full h-14 text-lg" onClick={handleVerifyOtp} disabled={isLoading || !otp}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Verify OTP
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    <div style={{ maxWidth: 340, margin: "60px auto", padding: 24, background: "#fff", borderRadius: 16, boxShadow: "0 2px 16px #e8e8f0" }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 18, color: "#6B3FE7" }}>Staff Login</h2>
+      {step === 1 && (
+        <form onSubmit={handleSendCode} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <label htmlFor="email" style={{ fontWeight: 600, color: "#555568" }}>Staff Email</label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="staff@company.com"
+            style={{
+              borderRadius: 10,
+              padding: "12px 14px",
+              border: "1.5px solid #E8E8F0",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loading || !email}
+            style={{
+              background: "#6B3FE7",
+              color: "#fff",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 0",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Sending..." : "Send Code"}
+          </button>
+        </form>
+      )}
+
+      {step === 2 && (
+        <form onSubmit={handleVerifyCode} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <label htmlFor="code" style={{ fontWeight: 600, color: "#555568" }}>
+            Enter Verification Code
+          </label>
+          <input
+            id="code"
+            type="text"
+            required
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            placeholder="Enter 6-digit code"
+            maxLength={6}
+            style={{
+              borderRadius: 10,
+              padding: "12px 14px",
+              border: "1.5px solid #E8E8F0",
+              fontSize: 15,
+              outline: "none",
+              letterSpacing: 2,
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loading || code.length !== 6}
+            style={{
+              background: "#6B3FE7",
+              color: "#fff",
+              border: "none",
+              borderRadius: 10,
+              padding: "12px 0",
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Verifying..." : "Verify & Login"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            style={{
+              background: "none",
+              color: "#6B3FE7",
+              border: "none",
+              marginTop: 4,
+              cursor: "pointer",
+              fontSize: 14,
+              textDecoration: "underline",
+            }}
+          >
+            Back to Email
+          </button>
+          {error && <div style={{ color: "#DC2626", fontSize: 13 }}>{error}</div>}
+        </form>
+      )}
+    </div>
   );
 }

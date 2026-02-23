@@ -1,114 +1,241 @@
-'use client';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import OnboardingLayout from '@/components/app/onboarding-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { getFunctionUrl } from '@/lib/api';
+"use client";
 
-export default function StaffLoginPage() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isEmailSent, setIsEmailSent] = useState(false);
-  const { toast } = useToast();
-  const [isReady, setIsReady] = useState(false);
+import { useState } from "react";
 
-  useEffect(() => {
-    setIsReady(true);
-  }, []);
+// ── Staff Logo ────────────────────────────────
+function StaffLogo({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <rect width="40" height="40" rx="12" fill="#16A34A" />
+      <text
+        x="50%"
+        y="50%"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontFamily="'Sora', sans-serif"
+        fontWeight="bold"
+        fontSize={size * 0.45}
+        fill="white"
+      >
+        S
+      </text>
+    </svg>
+  );
+}
+
+// ── Field ──────────────────────────────────────
+function Field({
+  label, id, type = "text", value, onChange, placeholder, autoComplete,
+}: {
+  label: string; id: string; type?: string; value: string;
+  onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{ fontSize: 13, fontWeight: 600, color: "#16A34A", letterSpacing: "0.025em" }}
+      >
+        {label}
+      </label>
+      <div
+        style={{
+          display: "flex", alignItems: "center", borderRadius: 12, overflow: "hidden",
+          background: "white", transition: "all 0.2s",
+          border: `1.5px solid ${focused ? "#16A34A" : "#E8E8F0"}`,
+          boxShadow: focused ? "0 0 0 3px rgba(22,163,74,0.12)" : "none",
+        }}
+      >
+        <input
+          id={id} type={type} value={value} autoComplete={autoComplete}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          style={{
+            flex: 1, background: "transparent", border: "none", outline: "none",
+            padding: "13px 16px", fontSize: 15, color: "#0A0A0F",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Primary Button ─────────────────────────────
+function StaffBtn({ children, onClick, disabled = false }: {
+  children: React.ReactNode; onClick?: () => void; disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        padding: "13px 26px", borderRadius: 13,
+        background: disabled ? "#A7F3D0" : "#16A34A",
+        border: "none", cursor: disabled ? "not-allowed" : "pointer",
+        color: "white", fontFamily: "'Sora', sans-serif",
+        fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em",
+        transition: "all 0.2s",
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = "#15803D";
+          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.boxShadow = "0 6px 20px rgba(22,163,74,0.18)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = "#16A34A";
+          e.currentTarget.style.transform = "none";
+          e.currentTarget.style.boxShadow = "none";
+        }
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Shell ──────────────────────────────────────
+function StaffLoginShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "32px 16px",
+        background: "radial-gradient(ellipse 80% 55% at 50% -10%, rgba(22,163,74,0.07) 0%, transparent 65%), #F4F4F8",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}
+    >
+      {/* Dot grid */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", opacity: 0.6,
+        backgroundImage: "radial-gradient(circle, rgba(22,163,74,0.12) 1px, transparent 1px)",
+        backgroundSize: "28px 28px",
+      }} />
+
+      <div style={{ position: "relative", width: "100%", maxWidth: 460, zIndex: 1,
+        display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{
+          background: "white", borderRadius: 28, padding: "28px 26px",
+          border: "1px solid #E8E8F0",
+          boxShadow: "0 4px 6px rgba(0,0,0,0.04), 0 20px 48px rgba(22,163,74,0.09)",
+          display: "flex", flexDirection: "column", gap: 20,
+        }}>
+          {children}
+        </div>
+        <p style={{ textAlign: "center", fontSize: 11, color: "#8888A0" }}>
+          © {new Date().getFullYear()} Busmo Staff · Empowering your team
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// ROOT
+// ══════════════════════════════════════════════
+export default function StaffLogin() {
+  const [staffId, setStaffId] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const valid = staffId.trim().length > 2 && password.length >= 6;
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    if (!isReady) {
-      toast({
-        variant: 'destructive',
-        title: 'Initialization Error',
-        description: 'Page is still loading. Please try again in a moment.',
-      });
-      setIsLoading(false);
-      return;
-    }
-    try {
-      window.localStorage.setItem('emailForSignIn', email);
-
-      const res = await fetch(getFunctionUrl('sendStaffSignInLink'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      let result: any = null;
-      try {
-        result = await res.json();
-      } catch {
-        // ignore
+    setLoading(true);
+    setError("");
+    // TODO: Connect to backend staff authentication
+    setTimeout(() => {
+      setLoading(false);
+      if (staffId === "staff001" && password === "password") {
+        window.location.href = "/staff/dashboard";
+      } else {
+        setError("Invalid staff ID or password.");
       }
-
-      if (!res.ok || !result?.success) {
-        const msg = result?.error || result?.message || 'Could not send login link. Please try again.';
-        throw new Error(String(msg));
-      }
-
-      setIsEmailSent(true);
-      toast({
-          title: "Check your email",
-          description: `A sign-in link has been sent to ${email}.`,
-      });
-    } catch(error: any) {
-      console.error("Failed to send sign-in link:", error);
-      const description = String(error?.message || error || 'Could not send login link. Please check the email and try again.');
-      toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: description,
-      });
-    } finally {
-        setIsLoading(false);
-    }
+    }, 1200);
   };
 
   return (
-    <OnboardingLayout>
-      <Card className="w-full">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Staff Log In</CardTitle>
-          <CardDescription>
-            {isEmailSent 
-                ? "A login link has been sent to your email address." 
-                : "Enter your email to receive a secure login link."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {isEmailSent ? (
-             <div className="text-center text-muted-foreground">
-                <p>Click the link in the email to complete your sign-in. You can close this tab.</p>
-             </div>
-          ) : (
-            <>
-                <div className="space-y-2">
-                    <Label htmlFor="email">Work Email Address</Label>
-                    <Input id="email" type="email" placeholder="you@example.com" className="h-12 text-base" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} />
-                </div>
-                <Button className="w-full h-14 text-lg" onClick={handleLogin} disabled={isLoading || !email}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send Login Link
-                </Button>
-            </>
-          )}
-          <p className="text-sm text-center text-muted-foreground pt-2">
-              Not a staff member?{' '}
-              <Link href="/login/form" className="underline font-medium text-primary">
-                  Log in as a business owner
-              </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </OnboardingLayout>
+    <StaffLoginShell>
+      {/* Top bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <StaffLogo size={30} />
+        <span style={{
+          fontSize: 17, fontWeight: 800, color: "#16A34A",
+          fontFamily: "'Sora', sans-serif", letterSpacing: "-0.03em"
+        }}>
+          busmo staff
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: -4 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0A0A0F",
+          fontFamily: "'Sora', sans-serif", letterSpacing: "-0.025em", lineHeight: 1.22, marginBottom: 4 }}>
+          Staff Login
+        </h1>
+        <p style={{ fontSize: 14, color: "#16A34A", lineHeight: 1.55 }}>
+          Enter your staff ID and password to access your workspace.
+        </p>
+      </div>
+
+      <div style={{ height: 1, background: "#E8E8F0" }} />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <Field
+          label="Staff ID"
+          id="staffId"
+          value={staffId}
+          onChange={setStaffId}
+          placeholder="e.g. staff001"
+          autoComplete="username"
+        />
+        <Field
+          label="Password"
+          id="password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="Enter your password"
+          autoComplete="current-password"
+        />
+        {error && (
+          <p style={{ color: "#DC2626", fontSize: 13, marginTop: 2 }}>{error}</p>
+        )}
+      </div>
+
+      <StaffBtn onClick={handleLogin} disabled={!valid || loading}>
+        {loading ? "Logging in..." : "Log in"}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6 4l4 4-4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </StaffBtn>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#8888A0", marginTop: 2 }}>
+        <a href="/login"
+          style={{ color: "#16A34A", fontWeight: 600, textDecoration: "none" }}
+          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}>
+          Not staff? Owner login
+        </a>
+        <span>
+          Trouble logging in?{" "}
+          <a href="/staff/forgot"
+            style={{ color: "#16A34A", fontWeight: 600, textDecoration: "none" }}
+            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}>
+            Reset password
+          </a>
+        </span>
+      </div>
+    </StaffLoginShell>
   );
 }

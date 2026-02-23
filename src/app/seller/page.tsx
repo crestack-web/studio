@@ -1,237 +1,161 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { Logo } from '@/components/app/logo';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, Package, Send, ShoppingCart, Store, Landmark, Menu, Instagram, Facebook } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import React from "react";
+import { Header } from "@/app/welcome/components/Header";
 
-export default function SellerLandingPage() {
+export default function SellerPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/welcome" className="flex items-center gap-2">
-            <Logo className="h-8" />
-          </Link>
-          <div className="hidden sm:flex items-center gap-2">
-            <Link href="/market">
-              <Button variant="ghost" className="rounded-full">Marketplace</Button>
-            </Link>
+    <>
+      <Header />
+      <main className="pt-[68px] bg-white">
+        {/* Seller Hero Section */}
+        <section className="seller-hero flex flex-col md:flex-row items-center justify-center gap-16 px-[5%] py-24 bg-gradient-to-br from-green-50/60 to-white text-center md:text-left">
+          {/* Picture space */}
+          <div className="w-full md:w-1/2 flex justify-center md:justify-end mb-10 md:mb-0">
+            {/* Large image, fully visible, rounded corners */}
+            <img
+              src="/sell-hero.png"
+              alt="Your Storefront"
+              className="w-[440px] h-[440px] md:w-[520px] md:h-[520px] rounded-3xl bg-transparent"
+              style={{ objectFit: "contain", background: "transparent" }}
+            />
           </div>
-          <div className="sm:hidden flex items-center">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Open menu">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full max-w-xs">
-                <SheetHeader>
-                  <SheetTitle>Seller menu</SheetTitle>
-                </SheetHeader>
-                <nav className="mt-6 flex flex-col gap-3">
-                  <Link href="/market" className="w-full">
-                    <Button variant="ghost" className="w-full justify-start">Marketplace</Button>
-                  </Link>
-                </nav>
-              </SheetContent>
-            </Sheet>
+          {/* Content */}
+          <div className="w-full md:w-1/2 flex flex-col items-center md:items-start">
+            <div className="seller-badge mb-5 text-base font-semibold bg-purple-50 text-purple-700 px-4 py-1 rounded-full shadow-sm">
+              🛍️ Seller Central
+            </div>
+            <h1 className="font-display font-extrabold text-4xl md:text-5xl text-black mb-6 leading-tight">
+              Your Storefront.<br />
+              Your Customers.<br />
+              <span className="text-purple-700">Your Growth.</span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-lg">
+              Launch your free online storefront on Busmo Market. List products, accept payments, and offer BusmoGo delivery — all from one place.
+            </p>
+            <div className="flex gap-5 flex-wrap justify-center md:justify-start mb-4">
+              <a
+                href="/signup"
+                className="btn-primary btn-large font-semibold text-base px-8 py-3 rounded-xl bg-purple-700 text-white shadow hover:bg-purple-800 transition"
+              >
+                Sign Up
+              </a>
+              <a
+                href="/login"
+                className="btn-outline-large font-semibold text-base px-8 py-3 rounded-xl border border-purple-700 text-purple-700 bg-white hover:bg-purple-50 transition"
+              >
+                Log In
+              </a>
+            </div>
+            <div className="mt-2 text-sm text-gray-400">
+              Start selling today — it’s free to join
+            </div>
           </div>
-        </div>
-      </header>
+        </section>
 
-      <main>
-        <section className="py-20 sm:py-28 bg-gradient-to-b from-background to-muted/20">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-6xl grid gap-10 lg:grid-cols-2 lg:gap-12 items-center">
-              <div className="text-center lg:text-left">
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight font-headline">
-                  Get your Busmo Seller Account
-                </h1>
-                <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0">
-                  Storefront, products, orders, payments, and BusmoGo delivery — all in one place.
-                </p>
-                <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                  <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" className="h-12 rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
-                  </a>
-                </div>
+        {/* Seller Features Grid */}
+        <section className="seller-features-grid max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 py-20 px-4">
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">🏬</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">Storefront</div>
+            <div className="seller-feat-desc text-gray-600">
+              A trusted store page customers can browse and buy from. Professional, fast, and built for conversions.
+            </div>
+          </div>
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">📋</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">Product Listings</div>
+            <div className="seller-feat-desc text-gray-600">
+              List products, update pricing, and keep your catalog fresh. Changes reflect instantly for customers.
+            </div>
+          </div>
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">📦</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">Order Management</div>
+            <div className="seller-feat-desc text-gray-600">
+              Track incoming orders and manage fulfillment with full clarity. Know exactly what's pending and what's done.
+            </div>
+          </div>
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">💳</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">BusmoPay Checkout</div>
+            <div className="seller-feat-desc text-gray-600">
+              Integrated marketplace checkout that handles payments securely on your behalf.
+            </div>
+          </div>
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">💰</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">Payout Tracking</div>
+            <div className="seller-feat-desc text-gray-600">
+              Understand your payouts and cash flow clearly so you can plan and grow confidently.
+            </div>
+          </div>
+          <div className="seller-feat-card bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+            <div className="seller-feat-icon text-3xl mb-3">🚚</div>
+            <div className="seller-feat-title font-bold text-lg mb-2">BusmoGo Delivery</div>
+            <div className="seller-feat-desc text-gray-600">
+              Offer delivery options with the BusmoGo logistics network built into every order at checkout.
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works Section */}
+        <section className="how-it-works-section bg-gray-50 py-24">
+          <div className="max-w-5xl mx-auto">
+            <div className="section-head center mb-14">
+              <div className="section-label text-purple-700 font-semibold mb-2">How It Works</div>
+              <h2 className="section-title font-display font-extrabold text-3xl md:text-4xl mb-2">
+                Go live fast.<br />
+                <em className="not-italic text-purple-700">Sell more.</em>
+              </h2>
+            </div>
+            <div className="steps-row grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="step-item bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+                <div className="step-num text-2xl font-bold text-purple-700 mb-2">1</div>
+                <div className="step-title font-semibold mb-1">Create your account</div>
+                <div className="step-desc text-gray-600">Sign up and set up your seller profile in minutes</div>
               </div>
-
-              <div className="w-full">
-                <div className="relative w-full overflow-hidden rounded-2xl border bg-muted/20 aspect-[3/2] shadow-lg">
-                  <Image
-                    src="/sell-hero.png"
-                    alt="Business owners using Busmo Seller Central"
-                    fill
-                    priority
-                    unoptimized
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover"
-                  />
-                </div>
+              <div className="step-item bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+                <div className="step-num text-2xl font-bold text-purple-700 mb-2">2</div>
+                <div className="step-title font-semibold mb-1">Add your products</div>
+                <div className="step-desc text-gray-600">Create listings and keep your catalog updated</div>
+              </div>
+              <div className="step-item bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+                <div className="step-num text-2xl font-bold text-purple-700 mb-2">3</div>
+                <div className="step-title font-semibold mb-1">Activate storefront</div>
+                <div className="step-desc text-gray-600">Turn your store on and start accepting orders</div>
+              </div>
+              <div className="step-item bg-white rounded-2xl shadow p-8 flex flex-col items-center text-center">
+                <div className="step-num text-2xl font-bold text-purple-700 mb-2">4</div>
+                <div className="step-title font-semibold mb-1">Deliver & get paid</div>
+                <div className="step-desc text-gray-600">Fulfill orders, offer delivery, and track payouts</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="py-16 bg-background">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-5xl">
-              <div className="text-center">
-                <h2 className="text-2xl sm:text-3xl font-bold font-headline">Built for selling</h2>
-                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-                  Everything a modern seller needs — without complicated setup.
-                </p>
-              </div>
-
-              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { icon: Store, title: 'Storefront', desc: 'A trusted store page customers can browse and buy from.' },
-                  { icon: Package, title: 'Product listings', desc: 'List products, update pricing, and keep inventory fresh.' },
-                  { icon: ShoppingCart, title: 'Orders', desc: 'Track incoming orders and manage fulfillment with clarity.' },
-                  { icon: CreditCard, title: 'Payments', desc: 'Integrated marketplace checkout with BusmoPay.' },
-                  { icon: Landmark, title: 'Payouts', desc: 'Understand payouts and cash flow so you can plan confidently.' },
-                  { icon: Send, title: 'BusmoGo delivery', desc: 'Offer delivery options with BusmoGo logistics.' },
-                ].map((feature) => (
-                  <Card key={feature.title} className="h-full rounded-2xl shadow-lg">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-bold flex items-center gap-3">
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                          <feature.icon className="h-5 w-5 text-primary" />
-                        </span>
-                        {feature.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-base text-muted-foreground">
-                      {feature.desc}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 bg-card border-y">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-3xl">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl sm:text-3xl font-bold font-headline">Seller Waitlist</h2>
-                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">We're putting the finishing touches on the new Seller Dashboard. Join the waitlist to get early access and updates!</p>
-              </div>
-              <div className="flex flex-col items-center gap-4">
-                <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" className="rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
-                </a>
-                <p className="text-xs text-muted-foreground">You'll be notified as soon as the new dashboard is ready.</p>
-              </div>
-            </div>
-          </div>
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-5xl">
-              <div className="text-center">
-                <h2 className="text-2xl sm:text-3xl font-bold font-headline">How it works</h2>
-                <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">Go live fast. Keep it simple. Sell more.</p>
-              </div>
-
-              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {[
-                  { title: 'Create your account', desc: 'Sign up and set up your seller profile.' },
-                  { title: 'Add products', desc: 'Create listings and keep your catalog updated.' },
-                  { title: 'Activate your storefront', desc: 'Turn your store on and start accepting orders.' },
-                  { title: 'Deliver & get paid', desc: 'Fulfill orders, offer delivery, and track payouts.' },
-                ].map((step, index) => (
-                  <Card key={step.title} className="rounded-2xl shadow-lg">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-bold flex items-start gap-3">
-                        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-extrabold shrink-0">
-                          {index + 1}
-                        </span>
-                        <span>{step.title}</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-base text-muted-foreground">{step.desc}</CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 bg-background">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-5xl">
-              <div className="grid gap-6 lg:grid-cols-2 lg:gap-10 items-center">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-headline">Everything sellers need — together</h2>
-                  <p className="mt-4 text-muted-foreground text-base">
-                    Busmo blends your storefront, product management, orders, integrated payments, and delivery into one workflow.
-                    That’s how we help business owners succeed: simple tools that create clarity (profit, cash, inventory, and orders) and keep you moving.
-                  </p>
-                </div>
-
-                <Card className="rounded-2xl shadow-lg">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-bold">Seller success, without the chaos</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 sm:grid-cols-2 text-base">
-                    {[
-                      { title: 'Profit clarity', desc: 'Price confidently and protect your margin.' },
-                      { title: 'Cash clarity', desc: 'Understand sales and payouts as they happen.' },
-                      { title: 'Inventory clarity', desc: 'Restock smarter with visibility.' },
-                      { title: 'Order clarity', desc: 'Fulfill consistently and build trust.' },
-                    ].map((item) => (
-                      <div key={item.title} className="rounded-xl border bg-background p-4 shadow-sm">
-                        <div className="font-bold">{item.title}</div>
-                        <div className="text-sm text-muted-foreground mt-1">{item.desc}</div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="mt-10 flex flex-wrap gap-3 justify-center lg:justify-start">
-                <a href="https://forms.gle/waitlist-link" target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" className="rounded-full px-8 bg-purple-600 hover:bg-purple-700 text-white">Join Seller Waitlist</Button>
-                </a>
-              </div>
-            </div>
+        {/* CTA Banner */}
+        <section className="cta-banner bg-purple-700 text-white text-center py-20 px-[5%]">
+          <h2 className="font-display font-extrabold text-2xl md:text-4xl mb-3">
+            Ready to Start Selling?
+          </h2>
+          <p className="mb-8 text-lg text-purple-100">
+            Join Busmo Market and be among the first sellers to go live.
+          </p>
+          <div>
+            <a
+              href="/signup"
+              className="btn-white font-semibold text-base px-8 py-4 rounded-xl bg-white text-purple-700 shadow hover:bg-purple-100 transition"
+            >
+              Sign Up
+            </a>
+            <a
+              href="/login"
+              className="btn-outline-large ml-4 font-semibold text-base px-8 py-4 rounded-xl border border-white text-white bg-transparent hover:bg-purple-800 transition"
+            >
+              Log In
+            </a>
           </div>
         </section>
       </main>
-
-      <footer className="border-t bg-card">
-        <div className="container mx-auto flex flex-col gap-6 py-10 px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-muted-foreground text-center sm:text-left">
-              Busmo Seller Central helps you sell faster with simple tools.
-            </div>
-
-            <div className="flex items-center gap-4">
-              <a href="https://x.com/busmohq" target="_blank" rel="noopener noreferrer" aria-label="X (formerly Twitter)">
-                <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground hover:text-foreground fill-current"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
-              </a>
-              <a href="https://instagram.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                <Instagram className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-              </a>
-              <a href="https://facebook.com/busmo.io" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                <Facebook className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-              </a>
-              <a
-                href="https://www.tiktok.com/@busmo.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground"
-                aria-label="TikTok @busmo.io"
-              >
-                TikTok @busmo.io
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }

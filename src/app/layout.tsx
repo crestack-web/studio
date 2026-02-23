@@ -1,4 +1,4 @@
-import type {Metadata, Viewport} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/app/theme-provider';
@@ -21,8 +21,6 @@ export const metadata: Metadata = {
   },
 };
 
-
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,9 +28,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-      </head>
-      <body className="font-body antialiased">
+      <head />
+      <body className="font-body antialiased bg-white dark:bg-black text-black dark:text-white">
         <LanguageProvider>
           <FirebaseClientProvider>
             <MarketProvider>
@@ -43,6 +40,7 @@ export default function RootLayout({
                   enableSystem
                   disableTransitionOnChange
                 >
+                  {/* Removed DarkModeToggle and Translator from global layout */}
                   {children}
                   <PwaRegister />
                   <Toaster />
