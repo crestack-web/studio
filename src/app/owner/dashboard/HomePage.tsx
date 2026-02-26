@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { useApp } from '../../../contexts/AppContext';
-import { Card, CardHeader, CardIcon } from '../../shared/Card';
-import { MetricCard } from '../../shared/Badge';
-import { Button, ActionLink } from '../../shared/Button';
-import { MoIcon } from '../../layout/NavIcons';
+import { useApp } from './AppContext';
+import { Card, CardHeader, CardIcon } from './Card';
+import { MetricCard } from './Badge';
+import { Button, ActionLink } from './Button';
+import { NavIcons } from './NavIcons';
+import { MoIcon } from './NavIcons';
 import {
   HOME_METRICS,
   INSIGHTS,
   FORECASTS,
   MO_ASK_CHIPS,
-} from '../../../constants/mockData';
+} from './mockData';
 import styles from './HomePage.module.css';
 
 // ═══════════════════════════════════════════
@@ -43,7 +44,7 @@ export function HomePage() {
               aria-label="Open Ask MO"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
               </svg>
             </button>
           </div>
@@ -69,7 +70,7 @@ export function HomePage() {
         {/* Business Health */}
         <Card>
           <CardHeader
-            action={<ActionLink>Full Statement →</ActionLink>}
+            action={<ActionLink onClick={() => navigateTo('statement')}>Full Statement →</ActionLink>}
           >
             <CardIcon bg="var(--blue-bg)">
               <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2}>
@@ -109,9 +110,13 @@ export function HomePage() {
                 className={[styles.qaBtn, qa.primary ? styles.qaPrimary : ''].join(' ')}
                 onClick={() => qa.page ? navigateTo(qa.page as any) : showToast(`${qa.label}…`)}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d={qa.icon}/>
-                </svg>
+                {['sale', 'add-product', 'add-expense', 'cashflow'].includes(qa.icon) ? (
+                  <NavIcons id={qa.icon} size={18} />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d={qa.icon}/>
+                  </svg>
+                )}
                 {qa.label}
               </button>
             ))}
@@ -205,7 +210,7 @@ export function HomePage() {
           <button className={styles.miniBtn}>Set Up Your Store →</button>
         </div>
 
-        <div className={styles.miniCard} onClick={() => navigateTo('referrals')} style={{ cursor: 'pointer' }}>
+        <div className={styles.miniCard} onClick={() => navigateTo(`referrals`)} style={{ cursor: 'pointer' }}>
           <div className={styles.miniTitle}>
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2} width={14} height={14}>
               <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
@@ -217,7 +222,7 @@ export function HomePage() {
           <button className={styles.miniBtn}>Start Referring →</button>
         </div>
 
-        <div className={styles.miniCard} onClick={() => navigateTo('capital')} style={{ cursor: 'pointer' }}>
+        <div className={styles.miniCard} onClick={() => navigateTo(`capital`)} style={{ cursor: 'pointer' }}>
           <div className={styles.miniTitle}>
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} width={14} height={14}>
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
@@ -234,14 +239,10 @@ export function HomePage() {
 
 // ── Local data ────────────────────────────────
 const QUICK_ACTIONS = [
-  { label: 'Record Sale', page: 'sale', primary: true,
-    icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Add Product', page: null, primary: false,
-    icon: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z' },
-  { label: 'Add Stock', page: null, primary: false,
-    icon: 'M23 6L13.5 15.5 8.5 10.5 1 18M17 6L23 6 23 12' },
-  { label: 'Add Expense', page: null, primary: false,
-    icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+  { label: 'Record Sale', page: 'sale', primary: true, icon: 'sale' },
+  { label: 'Add Product', page: 'add-product', primary: false, icon: 'add-product' },
+  { label: 'Cashflow', page: 'cashflow', primary: false, icon: 'cashflow' },
+  { label: 'Add Expense', page: 'add-expense', primary: false, icon: 'add-expense' },
   { label: 'Ask MO', page: 'mo', primary: false,
     icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
   { label: 'Referrals', page: 'referrals', primary: false,

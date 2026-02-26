@@ -27,6 +27,29 @@ export function CapitalPage() {
       {/* Hero */}
       <div className={styles.hero}>
         <div className={styles.heroLeft}>
+          <div className={styles.fundingIcon} style={{ marginBottom: 18 }}>
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="60" cy="60" r="58" />
+              <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(244,165,53,.12)" strokeWidth="1.5" strokeDasharray="6,4" />
+              <path d="M36 56 Q36 40 60 40 Q84 40 84 56 L84 84 Q84 90 78 90 L42 90 Q36 90 36 84 Z" fill="rgba(244,165,53,.08)" stroke="rgba(244,165,53,.25)" strokeWidth="2" />
+              <path d="M44 56 Q44 46 60 46 Q76 46 76 56" fill="none" stroke="rgba(244,165,53,.2)" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="60" cy="70" r="7" fill="rgba(244,165,53,.2)" stroke="#F4A535" strokeWidth="1.5" />
+              <rect x="57" y="70" width="6" height="9" rx="3" fill="#F4A535" opacity=".4" />
+              <circle cx="60" cy="100" r="12" fill="#F5C9A0" />
+              <path d="M48 96 C48 88 72 88 72 96 L72 93 C72 85 48 85 48 93 Z" fill="#2C1A0E" />
+              <circle cx="55" cy="98" r="4" fill="white" />
+              <circle cx="65" cy="98" r="4" fill="white" />
+              <circle cx="55" cy="97" r="2.5" fill="#1A2B3C" />
+              <circle cx="65" cy="97" r="2.5" fill="#1A2B3C" />
+              <circle cx="55.8" cy="96.3" r="1" fill="white" />
+              <circle cx="65.8" cy="96.3" r="1" fill="white" />
+              <path d="M54 104 Q60 108 66 104" stroke="#CC7A3A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              <rect x="14" y="32" width="16" height="10" rx="2.5" fill="rgba(29,185,84,.2)" stroke="rgba(29,185,84,.3)" strokeWidth="1" transform="rotate(-15 14 32)" />
+              <text x="17" y="40" fontSize="5" fill="rgba(255,255,255,.5)" fontFamily="sans-serif" fontWeight="bold" transform="rotate(-15 17 40)">₦500</text>
+              <rect x="90" y="28" width="16" height="10" rx="2.5" fill="rgba(29,185,84,.2)" stroke="rgba(29,185,84,.3)" strokeWidth="1" transform="rotate(12 90 28)" />
+              <text x="93" y="36" fontSize="5" fill="rgba(255,255,255,.5)" fontFamily="sans-serif" fontWeight="bold" transform="rotate(12 93 36)">₦200</text>
+            </svg>
+          </div>
           <div className={styles.heroBadge}>🔒 Data-Verified Funding</div>
           <h2 className={styles.heroTitle}>Turn Your Business Activity Into Capital</h2>
           <p className={styles.heroDesc}>
@@ -139,7 +162,7 @@ export function CapitalPage() {
           variant="primary"
           size="lg"
           style={{ background: '#fff', color: 'var(--purple)', border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,.14)' }}
-          onClick={() => navigateTo('sale')}
+          onClick={() => navigateTo('home')}
         >
           + Record a Sale Now
         </Button>

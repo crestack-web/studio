@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../../../contexts/AppContext';
-import { Card, CardHeader, CardIcon } from '../../shared/Card';
-import { Button } from '../../shared/Button';
-import { Product, CartItem, PaymentMethod } from '../../../types';
-import { PRODUCTS } from '../../../constants/mockData';
+import { useApp } from './AppContext';
+import { Card, CardHeader, CardIcon } from './Card';
+import { Button } from './Button';
+import { Product, CartItem, PaymentMethod } from './types';
+import { PRODUCTS } from './mockData';
 import styles from './RecordSalePage.module.css';
 
 // ═══════════════════════════════════════════

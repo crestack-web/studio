@@ -1,37 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Button } from './Button';
-// Define AvatarOption type locally
-type AvatarOption = {
-  id: string;
-  content: string;
-  bg: string;
-  color: string;
-};
+import { AvatarOption } from './types';
 import { AVATAR_COLORS, AVATAR_EMOJIS } from './mockData';
 import styles from './AvatarModal.module.css';
-
-type User = {
-  avatarContent: string;
-  avatarStyle?: {
-    background?: string;
-    color?: string;
-  };
-  name: string;
-  role: string;
-  plan: string;
-  initials: string;
-};
-
-// If AvatarOption type is not defined properly, define it here:
-/*
-type AvatarOption = {
-  id: string;
-  content: string;
-  bg?: string;
-  color?: string;
-};
-*/
 
 // ═══════════════════════════════════════════
 //  AvatarModal
@@ -105,8 +77,8 @@ export function AvatarModal() {
               <button
                 key={opt.id}
                 className={[styles.avatarOpt, selected?.id === opt.id ? styles.selected : ''].join(' ')}
-                style={{ background: opt.bg, color: opt.color ?? '#fff' }}
-                onClick={() => setSelected({ ...opt, color: opt.color ?? '#fff' })}
+                style={{ background: opt.bg, color: opt.color }}
+                onClick={() => setSelected(opt)}
                 aria-label={`Color avatar ${opt.id}`}
               >
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700 }}>
@@ -123,7 +95,7 @@ export function AvatarModal() {
               <button
                 key={opt.id}
                 className={[styles.avatarOpt, styles.emojiOpt, selected?.id === opt.id ? styles.selected : ''].join(' ')}
-                onClick={() => setSelected({ ...opt, color: opt.color ?? '#fff' })}
+                onClick={() => setSelected(opt)}
                 aria-label={`Emoji avatar ${opt.content}`}
               >
                 {opt.content}

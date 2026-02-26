@@ -19,6 +19,11 @@ export type PageId =
   | 'mo'
   | 'services'
   | 'staff'
+  | 'add-product'
+  | 'add-expense'
+  | 'statement'
+  | 'update'
+  | 'recordsale'
   | 'settings';
 
 // ── Navigation ──────────────────────────────
@@ -39,6 +44,7 @@ export interface NavSection {
 export interface User {
   id: string;
   name: string;
+  email: string;
   shortName: string;
   initials: string;
   role: string;

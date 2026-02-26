@@ -1,10 +1,9 @@
 import "../../globals.css"; // Ensure global styles including .btn are loaded
 import React from "react";
 import { Logo } from "@/components/app/logo";
-import { Translator } from "./Translator";
 import Link from "next/link";
+import { Translator } from "./Translator";
 import { MobileNav } from "./MobileNav";
-
 export function Header() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-[68px] bg-white backdrop-blur border-b border-gray-200 flex items-center justify-between px-[5%] gap-6">
@@ -57,7 +56,9 @@ export function Header() {
         </div>
       </div>
       {/* Mobile Nav */}
-      <MobileNav />
+      <div className="md:hidden flex items-center">
+        <MobileNav />
+      </div>
     </nav>
   );
 }

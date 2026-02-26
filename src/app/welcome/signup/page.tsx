@@ -196,6 +196,63 @@ const COUNTRIES = [
   "Togo", "Tunisia", "Zambia", "Zimbabwe", "Other"
 ];
 
+// African countries with their phone country codes
+const AFRICAN_COUNTRY_CODES = [
+  { country: "Nigeria", code: "+234", flag: "🇳🇬" },
+  { country: "Ghana", code: "+233", flag: "🇬🇭" },
+  { country: "Kenya", code: "+254", flag: "🇰🇪" },
+  { country: "South Africa", code: "+27", flag: "🇿🇦" },
+  { country: "Tanzania", code: "+255", flag: "🇹🇿" },
+  { country: "Uganda", code: "+256", flag: "🇺🇬" },
+  { country: "Rwanda", code: "+250", flag: "🇷🇼" },
+  { country: "Senegal", code: "+221", flag: "🇸🇳" },
+  { country: "Côte d'Ivoire", code: "+225", flag: "🇨🇮" },
+  { country: "Cameroon", code: "+237", flag: "🇨🇲" },
+  { country: "Ethiopia", code: "+251", flag: "🇪🇹" },
+  { country: "Angola", code: "+244", flag: "🇦🇴" },
+  { country: "Benin", code: "+229", flag: "🇧🇯" },
+  { country: "Botswana", code: "+267", flag: "🇧🇼" },
+  { country: "Burkina Faso", code: "+226", flag: "🇧🇫" },
+  { country: "Burundi", code: "+257", flag: "🇧🇮" },
+  { country: "Cape Verde", code: "+238", flag: "🇨🇻" },
+  { country: "Central African Republic", code: "+236", flag: "🇨🇫" },
+  { country: "Chad", code: "+235", flag: "🇹🇩" },
+  { country: "Comoros", code: "+269", flag: "🇰🇲" },
+  { country: "Republic of the Congo", code: "+242", flag: "🇨🇬" },
+  { country: "Democratic Republic of the Congo", code: "+243", flag: "🇨🇩" },
+  { country: "Djibouti", code: "+253", flag: "🇩🇯" },
+  { country: "Egypt", code: "+20", flag: "🇪🇬" },
+  { country: "Equatorial Guinea", code: "+240", flag: "🇬🇶" },
+  { country: "Eritrea", code: "+291", flag: "🇪🇷" },
+  { country: "Eswatini", code: "+268", flag: "🇸🇿" },
+  { country: "Gabon", code: "+241", flag: "🇬🇦" },
+  { country: "Gambia", code: "+220", flag: "🇬🇲" },
+  { country: "Guinea", code: "+224", flag: "🇬🇳" },
+  { country: "Guinea-Bissau", code: "+245", flag: "🇬🇼" },
+  { country: "Lesotho", code: "+266", flag: "🇱🇸" },
+  { country: "Liberia", code: "+231", flag: "🇱🇷" },
+  { country: "Libya", code: "+218", flag: "🇱🇾" },
+  { country: "Madagascar", code: "+261", flag: "🇲🇬" },
+  { country: "Malawi", code: "+265", flag: "🇲🇼" },
+  { country: "Mali", code: "+223", flag: "🇲🇱" },
+  { country: "Mauritania", code: "+222", flag: "🇲🇷" },
+  { country: "Mauritius", code: "+230", flag: "🇲🇺" },
+  { country: "Morocco", code: "+212", flag: "🇲🇦" },
+  { country: "Mozambique", code: "+258", flag: "🇲🇿" },
+  { country: "Namibia", code: "+264", flag: "🇳🇦" },
+  { country: "Niger", code: "+227", flag: "🇳🇪" },
+  { country: "São Tomé and Príncipe", code: "+239", flag: "🇸🇹" },
+  { country: "Somalia", code: "+252", flag: "🇸🇴" },
+  { country: "South Sudan", code: "+211", flag: "🇸🇸" },
+  { country: "Sudan", code: "+249", flag: "🇸🇩" },
+  { country: "Seychelles", code: "+248", flag: "🇸🇨" },
+  { country: "Sierra Leone", code: "+232", flag: "🇸🇱" },
+  { country: "Togo", code: "+228", flag: "🇹🇬" },
+  { country: "Tunisia", code: "+216", flag: "🇹🇳" },
+  { country: "Zambia", code: "+260", flag: "🇿🇲" },
+  { country: "Zimbabwe", code: "+263", flag: "🇿🇼" },
+];
+
 const TEAM_SIZES = [
   { id: "solo", label: "Solo", desc: "Just me", icon: "🙋" },
   { id: "small", label: "2–10", desc: "Small team", icon: "👥" },
@@ -257,6 +314,7 @@ const PLANS = [
 type FormState = {
   fullName: string;
   email: string;
+  countryCode: string;
   phone: string;
   password: string;
   businessName: string;
@@ -328,8 +386,52 @@ function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         onChange={(v) => onChange("fullName", v)} placeholder="Femi Adeleke" autoComplete="name" />
       <Field label="Email address" id="email" type="email" value={data.email}
         onChange={(v) => onChange("email", v)} placeholder="femi@example.com" autoComplete="email" />
-      <Field label="Phone number" id="phone" type="tel" value={data.phone}
-        onChange={(v) => onChange("phone", v)} prefix="+234" placeholder="801 234 5678" autoComplete="tel" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#555568", marginBottom: 2 }}>Phone number</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <SelectField
+            label=""
+            id="countryCode"
+            value={data.countryCode}
+            onChange={(v) => onChange("countryCode", v)}
+            options={AFRICAN_COUNTRY_CODES.map(c => ({ value: c.code, label: `${c.flag} ${c.code}` }))}
+            placeholder="Code"
+            style={{
+              height: 44,
+              padding: "0 12px",
+              fontSize: 15,
+              borderRadius: 8,
+              boxShadow: "0 1px 4px rgba(107,63,231,0.08)",
+              border: "1px solid #E8E8F0",
+              background: "white",
+              minWidth: 90,
+              display: "flex",
+              alignItems: "center"
+            }}
+          />
+          <Field
+            label=""
+            id="phone"
+            type="tel"
+            value={data.phone}
+            onChange={(v) => onChange("phone", v)}
+            placeholder="801 234 5678"
+            autoComplete="tel"
+            style={{
+              height: 44,
+              padding: "0 12px",
+              fontSize: 15,
+              borderRadius: 8,
+              boxShadow: "0 1px 4px rgba(107,63,231,0.08)",
+              border: "1px solid #E8E8F0",
+              background: "white",
+              minWidth: 180,
+              display: "flex",
+              alignItems: "center"
+            }}
+          />
+        </div>
+      </div>
       <Field label="Password" id="password" type="password" value={data.password}
         onChange={(v) => onChange("password", v)} placeholder="Min. 6 characters" autoComplete="new-password" />
       <p style={{ fontSize: 11, color: "#8888A0", lineHeight: 1.6 }}>
@@ -539,7 +641,7 @@ export default function BusmoOnboarding() {
   const [step, setStep] = useState<number>(1);
   const [done, setDone] = useState(false);
   const [data, setData] = useState<FormState>({
-    fullName: "", email: "", phone: "", password: "",
+    fullName: "", email: "", countryCode: "", phone: "", password: "",
     businessName: "", category: "", country: "", description: "",
     teamSize: "", plan: "growth",
   });
@@ -580,7 +682,7 @@ export default function BusmoOnboarding() {
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="40" cy="40" r="38" fill="#ffffff"></circle>
-            <circle cx="40" cy="40" r="36" fill="none" stroke="#3d25c2" strokeWidth="1.5"></circle>
+            <circle cx="40" cy="40" r="36" fill="none" stroke="#ffffff" strokeWidth="1.5"></circle>
             <text x="11" y="24" fontSize="9" opacity="0.7">✨</text>
             <text x="60" y="22" fontSize="8" opacity="0.6">✨</text>
             <circle cx="40" cy="36" r="20" fill="#F5C9A0"></circle>
@@ -745,7 +847,6 @@ function isStepValid(step: number, data: FormState) {
 
 // ── SuccessScreen ─────────────────────────────
 function SuccessScreen({
-  children,
   name,
   bizName,
   onDashboard,

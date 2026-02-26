@@ -1,3 +1,65 @@
+.logoTextPoppins {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--purple);
+  white-space: nowrap;
+  overflow: hidden;
+  margin-left: 6px;
+  transition: max-width 0.22s, opacity 0.18s;
+  max-width: 120px;
+}
+.askMoBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--bg);
+  color: var(--purple);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background var(--transition);
+}
+.askMoBtn:hover {
+  background: var(--purple-lt);
+  color: var(--purple);
+}
+.moAvatarSidebar {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7C3AED, #6B3FE7);
+  margin-right: 2px;
+}
+.askMoLabel {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+/* Icon backgrounds for key sidebar buttons */
+.navIcon.home {
+  background: #E6F5EE;
+  border-radius: 10px;
+  padding: 6px;
+}
+.navIcon.sale {
+  background: #FEF3C7;
+  border-radius: 10px;
+  padding: 6px;
+}
+.navIcon.cashflow {
+  background: rgba(107,63,231,0.08);
+  border-radius: 10px;
+  padding: 6px;
+}
 /* ─────────────────────────────────────────────
    Sidebar
 ───────────────────────────────────────────── */
@@ -71,19 +133,18 @@
 }
 
 .logoIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: var(--purple);
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: transparent;
 }
 
 .logoIcon svg {
-  width: 17px;
-  height: 17px;
+  width: 100%;
+  height: 100%;
 }
 
 .logoText {
@@ -216,21 +277,24 @@
 .navIcon svg { width: 14px; height: 14px; }
 
 /* Icon background colors */
-.ni-home  { background: #EDE8FC; color: #6B3FE7; }
-.ni-sale  { background: #DCFCE7; color: #16A34A; }
-.ni-chart { background: #EFF6FF; color: #2563EB; }
-.ni-box   { background: #FEF3C7; color: #D97706; }
-.ni-spend { background: #FEE2E2; color: #DC2626; }
-.ni-cash  { background: #CCFBF1; color: #0D9488; }
-.ni-store { background: #CCFBF1; color: #0D9488; }
-.ni-pay   { background: #FCE7F3; color: #DB2777; }
-.ni-truck { background: #FFEDD5; color: #EA580C; }
-.ni-fund  { background: #DCFCE7; color: #16A34A; }
-.ni-gift  { background: #FEF3C7; color: #D97706; }
-.ni-mo    { background: #EDE8FC; color: #7C3AED; }
-.ni-svc   { background: #EFF6FF; color: #2563EB; }
-.ni-staff { background: #F0E8FF; color: #6B3FE7; }
-.ni-set   { background: #F3F4F8; color: #9696B4; }
+ .ni-home  { background: #EDE8FC; color: #6B3FE7; }
+ .ni-sale  { background: #DCFCE7; color: #16A34A; }
+ .ni-chart { background: #EFF6FF; color: #2563EB; }
+ .ni-box   { background: #FEF3C7; color: #D97706; }
+ .ni-spend { background: #FEE2E2; color: #DC2626; }
+ .ni-cash  { background: #CCFBF1; color: #0D9488; }
+ .ni-store { background: #CCFBF1; color: #0D9488; }
+ .ni-pay   { background: #FCE7F3; color: #DB2777; }
+ .ni-truck { background: #FFEDD5; color: #EA580C; }
+ .ni-fund  { background: #DCFCE7; color: #16A34A; }
+ .ni-gift  { background: #FEF3C7; color: #D97706; }
+ .ni-mo    { background: #EDE8FC; color: #7C3AED; }
+ .ni-svc   { background: #EFF6FF; color: #2563EB; }
+ .ni-staff { background: #F0E8FF; color: #6B3FE7; }
+ .ni-set   { background: #F3F4F8; color: #9696B4; }
+ .add-product { background: #FCE7F3; color: #DB2777; }
+ .add-expense { background: #FEE2E2; color: #DC2626; }
+ .statement   { background: #EFF6FF; color: #2563EB; }
 
 /* ── Nav label ── */
 .navLabel {

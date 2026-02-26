@@ -1,40 +1,45 @@
+'use client';
+
 import React from 'react';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from './AppContext';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileBottomNav } from './MobileBottomNav';
-import { HomePage }        from '../pages/HomePage';
-import { RecordSalePage }  from '../pages/RecordSalePage';
-import { AskMOPage }       from '../pages/AskMOPage';
-import { ServicesPage }    from '../pages/ServicesPage';
-import { StaffPage }       from '../pages/StaffPage';
-import { ReferralsPage }   from '../pages/ReferralsPage';
-import { CapitalPage }     from '../pages/CapitalPage';
-import { AvatarModal }     from '../modals/AvatarModal';
-import { Toast }           from '../shared/Toast';
+import { HomePage }        from './HomePage';
+import { RecordSalePage }  from './RecordSalePage';
+import { AskMOPage }       from './AskMOPage';
+import { ServicesPage }    from './ServicesPage';
+import { AddProductPage }  from './Addproductpage';
+import { AddExpensePage }  from './Addexpensepage';
+import { CashflowPage }    from './Cashflowpage';
+import { StatementPage }   from './Statementpage';
+import { StaffPage }       from './StaffPage';
+import { ReferralsPage }   from './ReferralsPage';
+import { CapitalPage }     from './CapitalPage';
+import { AvatarModal }     from './AvatarModal';
+import { Toast }           from './Toast';
 import styles from './AppShell.module.css';
 
 // ═══════════════════════════════════════════
-//  AppShell
-//  Composes the full application layout:
-//  Sidebar + Topbar + Page Area + Mobile Nav
-//  Add new pages to the PAGE_MAP below.
+//  AppShell — composes the full layout
+//  Add new pages to PAGE_MAP below
 // ═══════════════════════════════════════════
 
-// Map page IDs → components.
-// Add your new pages here and they'll be
-// automatically rendered by the router.
 const PAGE_MAP: Record<string, React.ReactNode> = {
-  home:      <HomePage />,
-  sale:      <RecordSalePage />,
-  mo:        <AskMOPage />,
-  services:  <ServicesPage />,
-  staff:     <StaffPage />,
-  referrals: <ReferralsPage />,
-  capital:   <CapitalPage />,
+  home:         <HomePage />,
+  sale:         <RecordSalePage />,
+  mo:           <AskMOPage />,
+  services:     <ServicesPage />,
+  staff:        <StaffPage />,
+  referrals:    <ReferralsPage />,
+  capital:      <CapitalPage />,
+  update:       <StatementPage />,
+  'add-product': <AddProductPage />,
+  'add-expense': <AddExpensePage />,
+  cashflow:      <CashflowPage />,
+  statement:     <StatementPage />,
 };
 
-// Pages where we want the AI chat layout (full height, no scroll)
 const FULL_HEIGHT_PAGES = new Set(['mo']);
 
 export function AppShell() {
@@ -65,7 +70,6 @@ export function AppShell() {
         <MobileBottomNav />
       </div>
 
-      {/* Global overlays */}
       <AvatarModal />
       <Toast />
     </div>

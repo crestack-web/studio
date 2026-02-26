@@ -108,7 +108,34 @@ export function ReferralsPage() {
           Referral History
         </CardHeader>
         <div className={styles.emptyState}>
-          No referrals yet. Share your link to get started! 🚀
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 12 }}>
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="60" cy="60" r="58" />
+              <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(124,58,237,.12)" strokeWidth="1.5" strokeDasharray="6,4" />
+              <circle cx="60" cy="24" r="8" fill="rgba(124,58,237,.1)" stroke="rgba(124,58,237,.25)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="28" cy="72" r="8" fill="rgba(124,58,237,.08)" stroke="rgba(124,58,237,.18)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="92" cy="72" r="8" fill="rgba(124,58,237,.08)" stroke="rgba(124,58,237,.18)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <line x1="54" y1="30" x2="34" y2="64" stroke="rgba(124,58,237,.2)" strokeWidth="1.5" strokeDasharray="4,4" />
+              <line x1="66" y1="30" x2="86" y2="64" stroke="rgba(124,58,237,.2)" strokeWidth="1.5" strokeDasharray="4,4" />
+              <line x1="36" y1="72" x2="84" y2="72" stroke="rgba(124,58,237,.15)" strokeWidth="1.5" strokeDasharray="4,4" />
+              <text x="60" y="27" fontSize="7" fill="rgba(124,58,237,.4)" textAnchor="middle">?</text>
+              <text x="28" y="75" fontSize="7" fill="rgba(124,58,237,.3)" textAnchor="middle">?</text>
+              <text x="92" y="75" fontSize="7" fill="rgba(124,58,237,.3)" textAnchor="middle">?</text>
+              <circle cx="60" cy="52" r="11" fill="#F5C9A0" />
+              <path d="M49 49 C49 42 71 42 71 49 L71 46 C71 39 49 39 49 46 Z" fill="#2C1A0E" />
+              <circle cx="55" cy="51" r="2.5" fill="#1A2B3C" />
+              <circle cx="65" cy="51" r="2.5" fill="#1A2B3C" />
+              <path d="M55 57 Q60 61 65 57" stroke="#CC7A3A" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+              <rect x="52" y="90" width="16" height="14" rx="2" fill="rgba(124,58,237,.15)" stroke="#7C3AED" strokeWidth="1.2" />
+              <line x1="60" y1="90" x2="60" y2="104" stroke="#7C3AED" strokeWidth="1.2" />
+              <path d="M52 94 L68 94" stroke="#7C3AED" strokeWidth="1.2" />
+              <path d="M60 88 Q55 84 52 86 Q50 90 55 90 Q58 90 60 88 Z" fill="#7C3AED" opacity=".7" />
+              <path d="M60 88 Q65 84 68 86 Q70 90 65 90 Q62 90 60 88 Z" fill="#7C3AED" opacity=".5" />
+              <path d="M71 56 Q70 70 68 88" stroke="#F5C9A0" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+              <path d="M49 56 Q50 66 52 88" stroke="#F5C9A0" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+            </svg>
+            <div style={{ marginTop: 10 }}>No referrals yet. Share your link to get started! 🚀</div>
+          </div>
         </div>
       </Card>
     </div>

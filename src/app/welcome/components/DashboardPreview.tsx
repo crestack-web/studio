@@ -2,22 +2,24 @@ export function DashboardPreview() {
   return (
     <div className="dashboard-preview grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-6 mb-20">
       <div className="dash-card bg-purple-600 text-white p-6 rounded-2xl border border-gray-200 shadow-md flex flex-col items-start">
-        <div className="dash-card-icon bg-white/20 rounded-full p-3 mb-2 text-2xl flex items-center justify-center"><svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="40" cy="40" r="40" fill="#1DB954"></circle>
-        <circle cx="40" cy="38" r="24" fill="#F5C9A0"></circle>
-        <path d="M16 34 C16 18 64 18 64 34 L64 26 C64 12 16 12 16 26 Z" fill="#2C1A0E"></path>
-        <circle cx="30" cy="37" r="5" fill="white"></circle>
-        <circle cx="50" cy="37" r="5" fill="white"></circle>
-        <circle cx="30" cy="37.5" r="3.2" fill="#0D1B2A"></circle>
-        <circle cx="50" cy="37.5" r="3.2" fill="#0D1B2A"></circle>
-        <circle cx="31.5" cy="35.8" r="1.5" fill="white"></circle>
-        <circle cx="51.5" cy="35.8" r="1.5" fill="white"></circle>
-        <path d="M29 46 Q40 54 51 46" stroke="#CC7A3A" strokeWidth="2.5" strokeLinecap="round" fill="rgba(255,200,150,0.25)"></path>
-        <ellipse cx="23" cy="43" rx="5" ry="3" fill="#F4A535" opacity="0.3"></ellipse>
-        <ellipse cx="57" cy="43" rx="5" ry="3" fill="#F4A535" opacity="0.3"></ellipse>
-        <ellipse cx="40" cy="70" rx="18" ry="8" fill="rgba(0,0,0,0.25)"></ellipse>
-        <rect x="30" y="62" width="20" height="10" rx="6" fill="#F5C9A0"></rect>
-      </svg></div>
+        <div className="dash-card-icon bg-white/20 rounded-full p-3 mb-2 text-2xl flex items-center justify-center">
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="40" cy="40" r="38" fill="#162334"></circle>
+            <circle cx="40" cy="40" r="36" fill="none" stroke="#1DB954" stroke-width="1.5"></circle>
+            <circle cx="40" cy="37" r="21" fill="#F5C9A0"></circle>
+            <path d="M19 33 C19 19 61 19 61 33 L61 26 C61 14 19 14 19 26 Z" fill="#2C1A0E"></path>
+            <ellipse cx="31" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
+            <ellipse cx="49" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
+            <circle cx="32.5" cy="34.5" r="1.5" fill="white"></circle>
+            <circle cx="50.5" cy="34.5" r="1.5" fill="white"></circle>
+            <path d="M30 43 Q40 50 50 43" stroke="#CC7A3A" stroke-width="2" stroke-linecap="round" fill="none"></path>
+            <ellipse cx="23" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
+            <ellipse cx="57" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
+            <ellipse cx="40" cy="65" rx="16" ry="7" fill="#1DB954" opacity="0.9"></ellipse>
+            <rect x="32" y="58" width="16" height="9" rx="5" fill="#F5C9A0"></rect>
+            <polygon points="36,58 44,58 42,66 38,66" fill="#1DB954"></polygon>
+          </svg>
+        </div>
         <div className="dash-card-label text-xs font-semibold mb-1">Ask Busmo AI</div>
         <div className="ask-bubble bg-white/10 rounded px-3 py-2 mb-1 text-sm">"Did I make profit today?"</div>
         <div className="ask-answer bg-white/20 rounded px-3 py-2 text-xs">✅ Yes! Your net profit today is <strong>₦13,000</strong> — Margin: 29%</div>
