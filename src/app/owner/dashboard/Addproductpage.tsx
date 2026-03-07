@@ -2,6 +2,10 @@
 
 import React, { useState, useCallback } from 'react';
 import { useApp } from './AppContext';
+import { useTranslation } from './LangContext';
+import { useCurrency } from './CurrencyContext';
+import { useFirestore } from '@/firebase/provider';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import styles from './Addproductpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -9,6 +13,11 @@ import styles from './Addproductpage.module.css';
 //  Handles pricing, variants, sales modes,
 //  delivery countries, expiry tracking
 // ═══════════════════════════════════════════
+
+interface AddProductPageProps {
+  onClose?: () => void;
+  onProductAdded?: (product: any) => void;
+}
 
 const AFRICAN_COUNTRIES = [
   { code: 'NG', flag: '🇳🇬', name: 'Nigeria',      default: true  },
@@ -64,8 +73,13 @@ function expiryIsSoon(date: string): boolean {
   return exp <= soon;
 }
 
-export function AddProductPage() {
+export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps) {
   const { showToast } = useApp();
+  const { t } = useTranslation();
+  const { formatMoney, currencySymbol } = useCurrency();
+  const firestore = useFirestore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
 
   const [form, setForm] = useState<ProductForm>({
     name: '', sku: '', category: '', description: '',
@@ -79,6 +93,25 @@ export function AddProductPage() {
   });
 
   const [variantChips, setVariantChips] = useState<string[]>([]);
+
+  // Coming Soon Modal
+  const ComingSoonModal = () => (
+    <div className={styles.modalOverlay} onClick={() => setShowComingSoon(false)}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalIcon}>🚧</div>
+        <h3>Coming Soon</h3>
+        <p>Online storefronts are currently under development. You'll be able to:</p>
+        <ul className={styles.modalList}>
+          <li>✅ Get a professional online storefront</li>
+          <li>✅ Accept payments with BusmoPay</li>
+          <li>✅ Use custom domains (Standard+ plans)</li>
+          <li>✅ Track sales analytics</li>
+        </ul>
+        <p>Stay tuned for updates!</p>
+        <button className={styles.modalBtn} onClick={() => setShowComingSoon(false)}>Got it</button>
+      </div>
+    </div>
+  );
 
   const set = useCallback((key: keyof ProductForm, val: ProductForm[keyof ProductForm]) => {
     setForm(prev => ({ ...prev, [key]: val }));
@@ -107,9 +140,69 @@ export function AddProductPage() {
     setVariantChips(form.variantValues.split(',').map(v => v.trim()).filter(Boolean));
   }
 
-  function handleSave(draft = false) {
-    if (!form.name.trim()) { showToast('⚠️ Please enter a product name'); return; }
-    showToast(draft ? `📝 "${form.name}" saved as draft` : `✅ "${form.name}" saved successfully`);
+  async function handleSave(draft = false) {
+    if (!form.name.trim()) {
+      showToast('⚠️ Please enter a product name');
+      return;
+    }
+    
+    if (!form.sellPrice || parseFloat(form.sellPrice) <= 0) {
+      showToast('⚠️ Please enter a valid selling price');
+      return;
+    }
+
+    if (!firestore) {
+      showToast('⚠️ Database not connected');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Get business ID from user context
+      const businessId = 'default_business'; // TODO: Get from auth context
+      
+      const productData = {
+        name: form.name.trim(),
+        description: form.description,
+        category: form.category,
+        price: parseFloat(form.sellPrice),
+        cost: parseFloat(form.costPrice) || 0, // Use 'cost' field for existing structure
+        stock: parseInt(form.openingStock) || 0,
+        lowStockThreshold: parseInt(form.lowStockAlert) || 5,
+        active: !draft,
+        attributes: {
+          emoji: '📦',
+          sku: form.sku.trim() || `SKU-${Date.now()}`,
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      // Use 'merchants' collection to match existing structure
+      const docRef = await addDoc(collection(firestore, 'merchants', businessId, 'products'), productData);
+      
+      const newProduct = {
+        id: docRef.id,
+        ...productData,
+        sellingPrice: productData.price, // Map back for UI
+        costPrice: productData.cost,
+      };
+
+      if (onProductAdded) {
+        onProductAdded(newProduct);
+      }
+
+      showToast(draft ? `📝 "${form.name}" saved as draft` : `✅ "${form.name}" added to inventory`);
+      
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      showToast('🔥 Error saving product: ' + (error as any).message);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -162,23 +255,23 @@ export function AddProductPage() {
 
         <div className={styles.row3}>
           <div className={styles.group}>
-            <label className={styles.label}>Selling Price (₦) <span className={styles.req}>*</span></label>
+            <label className={styles.label}>Selling Price ({currencySymbol}) <span className={styles.req}>*</span></label>
             <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>₦</span>
+              <span className={styles.prefix}>{currencySymbol}</span>
               <input id="sell-price" className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="0.00" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
             </div>
           </div>
           <div className={styles.group}>
-            <label className={styles.label}>Cost Price (₦) <span className={styles.req}>*</span></label>
+            <label className={styles.label}>Cost Price ({currencySymbol}) <span className={styles.req}>*</span></label>
             <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>₦</span>
+              <span className={styles.prefix}>{currencySymbol}</span>
               <input className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="0.00" value={form.costPrice} onChange={e => set('costPrice', e.target.value)} />
             </div>
           </div>
           <div className={styles.group}>
             <label className={styles.label}>Compare-at Price</label>
             <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>₦</span>
+              <span className={styles.prefix}>{currencySymbol}</span>
               <input className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="(strike-through price)" />
             </div>
           </div>
@@ -187,7 +280,7 @@ export function AddProductPage() {
         {margin && (
           <div className={styles.marginIndicator}>
             <span>📈</span>
-            <span>Profit margin: <strong>{margin.pct}%</strong> &nbsp;|&nbsp; ₦{margin.profit} per unit</span>
+            <span>Profit margin: <strong>{margin.pct}%</strong> &nbsp;|&nbsp; {currencySymbol}{margin.profit} per unit</span>
           </div>
         )}
 
@@ -304,12 +397,24 @@ export function AddProductPage() {
         <div className={`${styles.saleGate} ${styles.unlocked}`} style={{ marginBottom: 10 }}>
           <div className={styles.gateHeader}>
             <div className={styles.gateTitle}><span>🛍️</span> Online Store <span className={`${styles.pill} ${styles.pillPurple}`}>Store Verified</span></div>
-            <label className={styles.toggle}><input type="checkbox" checked={form.onlineStore} onChange={e => set('onlineStore', e.target.checked)} /><span className={styles.toggleTrack} /><span className={styles.toggleThumb} /></label>
+            <label className={styles.toggle}>
+              <input 
+                type="checkbox" 
+                checked={form.onlineStore} 
+                onChange={e => {
+                  e.preventDefault();
+                  setShowComingSoon(true);
+                }} 
+              />
+              <span className={styles.toggleTrack} />
+              <span className={styles.toggleThumb} />
+            </label>
           </div>
           <div className={styles.gateSub}>Product will appear on your public storefront. Customers can browse and purchase online.</div>
         </div>
 
         <div className={styles.saleGateAmber}>
+      </div>
       </div>
 
       {/* ── DELIVERY ── */}
@@ -327,20 +432,7 @@ export function AddProductPage() {
         </div>
 
         {!form.useDefaultDelivery && (
-          </div>
-          {/* ── ACTIONS ── */}
-          <div className={styles.actions}>
-            <button type="button" className={styles.btnPrimary} onClick={() => handleSave(false)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13" /><polyline points="7 3 7 8 15 8" /></svg>
-              Save Product
-            </button>
-            <button type="button" className={styles.btnGhost} onClick={() => handleSave(true)}>Save as Draft</button>
-          </div>
-          {/* Explicitly close main container */}
-        </div>
-      );
-    }
-            </div>
+          <>
             <div className={styles.row2} style={{ marginTop: 16 }}>
               <div className={styles.group}>
                 <label className={styles.label}>Delivery Time</label>
@@ -351,7 +443,7 @@ export function AddProductPage() {
               <div className={styles.group}>
                 <label className={styles.label}>Shipping Fee Override</label>
                 <div className={styles.prefixWrap}>
-                  <span className={styles.prefix}>₦</span>
+                  <span className={styles.prefix}>{currencySymbol}</span>
                   <input type="number" className={styles.input} style={{ paddingLeft: 28 }} placeholder="Leave blank for store default" value={form.shippingFeeOverride} onChange={e => set('shippingFeeOverride', e.target.value)} />
                 </div>
               </div>
@@ -362,12 +454,18 @@ export function AddProductPage() {
 
       {/* ── ACTIONS ── */}
       <div className={styles.actions}>
-        <button type="button" className={styles.btnPrimary} onClick={() => handleSave(false)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13" /><polyline points="7 3 7 8 15 8" /></svg>
-          Save Product
+        <button type="button" className={styles.btnPrimary} onClick={() => handleSave(false)} disabled={isLoading}>
+          {isLoading ? 'Saving...' : 'Save Product'}
         </button>
-        <button type="button" className={styles.btnGhost} onClick={() => handleSave(true)}>Save as Draft</button>
+        <button type="button" className={styles.btnGhost} onClick={() => handleSave(true)} disabled={isLoading}>Save as Draft</button>
+        {onClose && (
+          <button type="button" className={styles.btnGhost} onClick={onClose} disabled={isLoading}>
+            Cancel
+          </button>
+        )}
       </div>
-	</div>
-);
+
+      {showComingSoon && <ComingSoonModal />}
+    </div>
+  );
 }

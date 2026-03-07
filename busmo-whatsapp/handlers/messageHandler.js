@@ -1,6 +1,6 @@
 
 const whatsappService = require('../services/whatsappService');
-const claudeService = require('../services/claudeService');
+const qwenService = require('../services/qwenService');
 const imageService = require('../services/imageService');
 const firebaseService = require('../services/firebaseService');
 const sessionStore = require('../utils/sessionStore');
@@ -27,7 +27,7 @@ async function handleIncomingMessage(message, from) {
       await whatsappService.sendMessage(from, '📸 Got your image! Analysing it now...');
       const mediaUrl = await whatsappService.downloadMedia(message.image.id);
       const caption = message.image.caption || '';
-      const parsed = await claudeService.parseProductFromImage(mediaUrl, caption);
+      const parsed = await qwenService.parseProductFromImage(mediaUrl, caption);
       const quality = await imageService.checkQuality(mediaUrl);
       let finalImageUrl = mediaUrl;
       let imageSource = 'user-uploaded';
@@ -62,7 +62,9 @@ async function handleIncomingMessage(message, from) {
       if ((/^(yes|y)$/i).test(lower) && sessionStore.hasSession(from)) {
         const session = sessionStore.getSession(from);
         await firebaseService.addProduct(session, from);
-        await whatsappService.sendMessage(from, '🎉 Product is now live on Busmo marketplace!');
+        // AI-generated confirmation
+        const confirmation = await qwenService.generateProductConfirmation(session);
+        await whatsappService.sendMessage(from, confirmation);
         sessionStore.clearSession(from);
         return;
       }
@@ -90,12 +92,14 @@ async function handleIncomingMessage(message, from) {
       const handled = await catalogService.handleCustomerBrowse(text, from);
       if (handled) return;
 
-      // Claude intent parsing
-      const parsed = await claudeService.parseIntent(text);
+      // Qwen intent parsing
+      const parsed = await qwenService.parseIntent(text);
       if (parsed.intent === 'add_product') {
         await whatsappService.sendMessage(from, '📦 Sure! Send me a photo of the product with the price in the caption.');
       } else if (parsed.intent === 'record_sale') {
-        const confirmation = await firebaseService.recordSale(parsed.data, from);
+        // AI-generated sale confirmation
+        const confirmation = await qwenService.generateSaleConfirmation(parsed.data);
+        await firebaseService.recordSale(parsed.data, from);
         await whatsappService.sendMessage(from, confirmation);
       } else if (parsed.intent === 'report') {
         const report = await firebaseService.getReport(parsed.data.period, from);

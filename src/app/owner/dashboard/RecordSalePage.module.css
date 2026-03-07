@@ -59,6 +59,11 @@
   gap: 8px;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .productCard {
   position: relative;
   padding: 10px;

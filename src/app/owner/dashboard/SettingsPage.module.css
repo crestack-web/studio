@@ -4,18 +4,21 @@
 ══════════════════════════════════════════ */
 
 .page {
-  max-width: 720px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   padding: 0 0 48px;
   display: flex;
   flex-direction: column;
   gap: 0;
+  overflow-y: auto;
+  height: 100%;
 }
 
 /* ── Header ─────────────────────────────── */
 .header {
   padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-2, #E4E1D8);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
 
@@ -35,7 +38,7 @@
 /* ── Section ─────────────────────────────── */
 .section {
   padding: 24px 0;
-  border-bottom: 1px solid var(--border-2, #E4E1D8);
+  border-bottom: 1px solid var(--border);
 }
 
 .sectionTitle {
@@ -59,6 +62,17 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius);
+  transition: background var(--transition);
+}
+
+.row:hover {
+  background: var(--bg);
+}
+
+.row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
 }
 
 .rowLabel {
@@ -103,22 +117,22 @@
   gap: 2px;
   padding: 10px 12px 10px;
   border-radius: 10px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  background: var(--surface);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   text-align: start;
 }
 
 .langCard:hover {
-  border-color: var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 4%, var(--surface, #fff));
+  border-color: var(--purple);
+  background: var(--purple-lt);
 }
 
 .langCardActive {
-  border-color: var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 8%, var(--surface, #fff));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple, #7B5EA7) 20%, transparent);
+  border-color: var(--purple);
+  background: var(--purple-lt);
+  box-shadow: 0 0 0 3px var(--purple-lt);
 }
 
 .langFlag {
@@ -164,8 +178,8 @@
   gap: 6px;
   font-size: 0.75rem;
   color: var(--text-3);
-  background: var(--surface, #fafafa);
-  border: 1px solid var(--border-2, #E4E1D8);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
 }
@@ -184,8 +198,8 @@
   gap: 8px;
   padding: 10px 18px;
   border-radius: 10px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  background: var(--surface);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-1);
@@ -194,12 +208,12 @@
 }
 
 .themeBtn:hover {
-  border-color: var(--purple, #7B5EA7);
+  border-color: var(--purple);
 }
 
 .themeBtnActive {
-  border-color: var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 8%, var(--surface, #fff));
+  border-color: var(--purple);
+  background: var(--purple-lt);
   font-weight: 700;
 }
 
@@ -231,8 +245,8 @@
 .input {
   padding: 9px 12px;
   border-radius: 8px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--text-1);
   font-size: 0.875rem;
   outline: none;
@@ -240,7 +254,7 @@
 }
 
 .input:focus {
-  border-color: var(--purple, #7B5EA7);
+  border-color: var(--purple);
 }
 
 .saveBtn {
@@ -266,7 +280,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border-2, #E4E1D8);
+  border-bottom: 1px solid var(--border);
 }
 
 .toggleRow:last-child {
@@ -287,7 +301,7 @@
   height: 24px;
   border-radius: 24px;
   border: none;
-  background: var(--border-2, #D1D5DB);
+  background: var(--border);
   cursor: pointer;
   transition: background 0.2s;
   flex-shrink: 0;
@@ -295,7 +309,7 @@
 }
 
 .toggleOn {
-  background: var(--purple, #7B5EA7);
+  background: var(--purple);
 }
 
 .toggleThumb {
@@ -356,6 +370,71 @@
   color: #fff;
 }
 
+/* ── Plan Card ─────────────────────────────── */
+.planCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.planHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.planName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.planEmail {
+  font-size: 0.875rem;
+  color: var(--text-3);
+}
+
+.planBadge {
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.planDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.planDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planDetailLabel {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.planDetailValue {
+  font-size: 0.875rem;
+  color: var(--text-1);
+  font-weight: 500;
+}
+
 /* ── Footer ─────────────────────────────── */
 .footer {
   display: flex;
@@ -374,7 +453,7 @@
 .logoutBtn {
   padding: 9px 20px;
   border-radius: 8px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--text-1);
   font-size: 0.875rem;
@@ -384,8 +463,8 @@
 }
 
 .logoutBtn:hover {
-  border-color: #dc2626;
-  color: #dc2626;
+  border-color: var(--red);
+  color: var(--red);
 }
 
 /* ── RTL support ─────────────────────────── */
@@ -411,6 +490,14 @@
   .footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .planDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .planHeader {
+    flex-direction: column;
   }
 }
 
@@ -466,8 +553,8 @@
   gap: 10px;
   padding: 16px;
   border-radius: 10px;
-  border: 1px solid var(--border-2, #E4E1D8);
-  background: var(--surface, #fafafa);
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .currencyBlockTitle {
@@ -506,8 +593,8 @@
   min-width: 160px;
   padding: 9px 12px;
   border-radius: 8px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--text-1);
   font-size: 0.875rem;
   outline: none;
@@ -515,7 +602,7 @@
   transition: border-color 0.15s;
 }
 
-.select:focus { border-color: var(--purple, #7B5EA7); }
+.select:focus { border-color: var(--purple); }
 
 .autoChip {
   display: inline-flex;
@@ -523,8 +610,8 @@
   gap: 4px;
   padding: 6px 12px;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--green, #22C55E) 12%, var(--surface, #fff));
-  border: 1px solid color-mix(in srgb, var(--green, #22C55E) 30%, transparent);
+  background: var(--green-lt);
+  border: 1px solid var(--green);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-1);
@@ -549,15 +636,15 @@
   width: 100%;
   padding: 9px 36px 9px 32px;
   border-radius: 8px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  background: var(--bg);
   color: var(--text-1);
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.15s;
 }
 
-.currencySearch:focus { border-color: var(--purple, #7B5EA7); }
+.currencySearch:focus { border-color: var(--purple); }
 
 .clearSearch {
   position: absolute;
@@ -581,12 +668,12 @@
   padding: 2px;
   /* custom scrollbar */
   scrollbar-width: thin;
-  scrollbar-color: var(--border-2, #E4E1D8) transparent;
+  scrollbar-color: var(--border) transparent;
 }
 
 .currencyGrid::-webkit-scrollbar { width: 5px; }
 .currencyGrid::-webkit-scrollbar-thumb {
-  background: var(--border-2, #E4E1D8);
+  background: var(--border);
   border-radius: 10px;
 }
 
@@ -597,22 +684,22 @@
   gap: 1px;
   padding: 10px 10px 8px;
   border-radius: 10px;
-  border: 1.5px solid var(--border-2, #E4E1D8);
-  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  background: var(--bg);
   cursor: pointer;
   text-align: start;
   transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
 }
 
 .currencyCard:hover {
-  border-color: var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 4%, var(--bg, #fff));
+  border-color: var(--purple);
+  background: var(--purple-lt);
 }
 
 .currencyCardActive {
-  border-color: var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 9%, var(--bg, #fff));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple, #7B5EA7) 18%, transparent);
+  border-color: var(--purple);
+  background: var(--purple-lt);
+  box-shadow: 0 0 0 3px var(--purple-lt);
 }
 
 .currencyCardTop {
@@ -674,8 +761,8 @@
 /* ── Live Preview ─────────────────────────── */
 .currencyPreview {
   border-radius: 10px;
-  border: 1px solid var(--border-2, #E4E1D8);
-  background: var(--surface, #fafafa);
+  border: 1px solid var(--border);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -687,8 +774,8 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-3);
-  border-bottom: 1px solid var(--border-2, #E4E1D8);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 4%, var(--surface, #fafafa));
+  border-bottom: 1px solid var(--border);
+  background: var(--purple-lt);
 }
 
 .previewGrid {
@@ -702,7 +789,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-2, #E4E1D8);
+  border-bottom: 1px solid var(--border);
 }
 
 .previewRow:last-child {
@@ -733,8 +820,8 @@
   display: flex;
   gap: 16px;
   padding: 9px 14px;
-  background: var(--bg, #fff);
-  border-top: 1px solid var(--border-2, #E4E1D8);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
   flex-wrap: wrap;
   font-size: 0.7rem;
   color: var(--text-3);
@@ -742,7 +829,7 @@
 
 .previewMeta code {
   font-family: monospace;
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 10%, var(--surface, #fafafa));
+  background: var(--purple-lt);
   padding: 1px 5px;
   border-radius: 4px;
   color: var(--purple, #7B5EA7);

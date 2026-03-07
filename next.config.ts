@@ -86,14 +86,22 @@ const nextConfig: NextConfig = {
         source: '/api/adminRecordReferralPayout',
         destination: `${firebaseFunctionsBaseUrl}/adminRecordReferralPayout`,
       },
+      {
+        source: '/api/createProduct',
+        destination: `${firebaseFunctionsBaseUrl}/createProduct`,
+      },
+      {
+        source: '/api/getProducts',
+        destination: `${firebaseFunctionsBaseUrl}/getProducts`,
+      },
+      {
+        source: '/api/sendOtpLogin',
+        destination: `${firebaseFunctionsBaseUrl}/sendOtpLogin`,
+      },
     ];
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Enable React strict mode for better development
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {

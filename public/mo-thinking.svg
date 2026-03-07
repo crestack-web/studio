@@ -1,0 +1,108 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      /* Head tilts left-right while thinking */
+      #mo-head {
+        transform-origin: 40px 58px;
+        animation: headTilt 1.8s ease-in-out infinite;
+      }
+      @keyframes headTilt {
+        0%   { transform: rotate(0deg); }
+        20%  { transform: rotate(-8deg); }
+        50%  { transform: rotate(7deg); }
+        80%  { transform: rotate(-5deg); }
+        100% { transform: rotate(0deg); }
+      }
+
+      /* Eyes look left then right */
+      #eye-left {
+        animation: eyeLeft 1.8s ease-in-out infinite;
+      }
+      #eye-right {
+        animation: eyeRight 1.8s ease-in-out infinite;
+      }
+      @keyframes eyeLeft {
+        0%,100% { transform: translate(0,0); }
+        20%     { transform: translate(-1.5px, 0.5px); }
+        50%     { transform: translate(1.5px, 0px); }
+        80%     { transform: translate(-1px, 0px); }
+      }
+      @keyframes eyeRight {
+        0%,100% { transform: translate(0,0); }
+        20%     { transform: translate(-1.5px, 0.5px); }
+        50%     { transform: translate(1.5px, 0px); }
+        80%     { transform: translate(-1px, 0px); }
+      }
+
+      /* Thinking dots float up and fade */
+      #dot1 { animation: floatDot 1.8s ease-in-out infinite 0s; }
+      #dot2 { animation: floatDot 1.8s ease-in-out infinite 0.3s; }
+      #dot3 { animation: floatDot 1.8s ease-in-out infinite 0.6s; }
+      @keyframes floatDot {
+        0%   { transform: translateY(0px); opacity: 0; }
+        20%  { opacity: 1; }
+        70%  { transform: translateY(-8px); opacity: 0.9; }
+        100% { transform: translateY(-14px); opacity: 0; }
+      }
+
+      /* Mouth changes to a small "hmm" flat line while thinking */
+      #mo-mouth {
+        animation: mouthThink 1.8s ease-in-out infinite;
+      }
+      @keyframes mouthThink {
+        0%,100% { d: path("M30 43 Q40 50 50 43"); }
+        30%,70% { d: path("M32 45 Q40 45 48 45"); }
+      }
+
+      /* Cheek blush pulses */
+      #blush-left, #blush-right {
+        animation: blushPulse 1.8s ease-in-out infinite;
+      }
+      @keyframes blushPulse {
+        0%,100% { opacity: 0.35; }
+        50%     { opacity: 0.6; }
+      }
+    </style>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="40" cy="40" r="38" fill="#162334"/>
+
+  <!-- Thinking dots above head -->
+  <circle id="dot1" cx="55" cy="18" r="2" fill="#1DB954"/>
+  <circle id="dot2" cx="61" cy="13" r="2.5" fill="#1DB954"/>
+  <circle id="dot3" cx="68" cy="7" r="3" fill="#1DB954"/>
+
+  <!-- Head group (everything that tilts) -->
+  <g id="mo-head">
+    <!-- Face -->
+    <circle cx="40" cy="37" r="21" fill="#F5C9A0"/>
+
+    <!-- Hair -->
+    <path d="M19 33 C19 19 61 19 61 33 L61 26 C61 14 19 14 19 26 Z" fill="#2C1A0E"/>
+
+    <!-- Eye whites + irises -->
+    <ellipse cx="31" cy="36" rx="4" ry="4.5" fill="#1A2B3C"/>
+    <ellipse cx="49" cy="36" rx="4" ry="4.5" fill="#1A2B3C"/>
+
+    <!-- Eye glints (move with eye animation) -->
+    <g id="eye-left">
+      <circle cx="32.5" cy="34.5" r="1.5" fill="white"/>
+    </g>
+    <g id="eye-right">
+      <circle cx="50.5" cy="34.5" r="1.5" fill="white"/>
+    </g>
+
+    <!-- Cheek blush -->
+    <ellipse id="blush-left"  cx="23" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"/>
+    <ellipse id="blush-right" cx="57" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"/>
+
+    <!-- Mouth -->
+    <path id="mo-mouth" d="M30 43 Q40 50 50 43" stroke="#CC7A3A" stroke-width="2" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Body (stays still) -->
+  <ellipse cx="40" cy="65" rx="16" ry="7" fill="#1DB954" opacity="0.9"/>
+  <rect x="32" y="58" width="16" height="9" rx="5" fill="#F5C9A0"/>
+  <polygon points="36,58 44,58 42,66 38,66" fill="#1DB954"/>
+</svg>

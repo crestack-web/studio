@@ -2,6 +2,8 @@
 //  BUSMO — Shared TypeScript Types
 // ═══════════════════════════════════════════
 
+import { Key } from 'react';
+
 export type Theme = 'light' | 'dark';
 
 export type PageId =

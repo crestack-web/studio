@@ -1,0 +1,74 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is merchant owner
+    function isMerchantOwner(merchantId) {
+      return isAuthenticated() && 
+             request.auth.uid == get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerId;
+    }
+    
+    // Helper function to check if user is staff member
+    function isStaffMember(merchantId) {
+      return isAuthenticated() && 
+             request.auth.uid in get(/databases/$(database)/documents/merchants/$(merchantId)).data.staff;
+    }
+    
+    // Helper function to check if user has access to merchant data
+    function hasMerchantAccess(merchantId) {
+      return isMerchantOwner(merchantId) || isStaffMember(merchantId);
+    }
+    
+    // =====================
+    // MERCHANT PRODUCT IMAGES
+    // =====================
+    match /merchants/{merchantId}/products/{productId}/{allPaths=**} {
+      allow read: if true; // Public read for product images
+      allow write: if hasMerchantAccess(merchantId) &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB max
+                     request.resource.contentType.matches('image/.*');
+    }
+    
+    // =====================
+    // USER AVATARS
+    // =====================
+    match /users/{userId}/avatar/{allPaths=**} {
+      allow read: if true; // Public read for avatars
+      allow write: if isAuthenticated() && 
+                     request.auth.uid == userId &&
+                     request.resource.size < 2 * 1024 * 1024 && // 2MB max
+                     request.resource.contentType.matches('image/.*');
+    }
+    
+    // =====================
+    // BUSINESS DOCUMENTS
+    // =====================
+    match /merchants/{merchantId}/documents/{docId}/{allPaths=**} {
+      allow read: if hasMerchantAccess(merchantId);
+      allow write: if isMerchantOwner(merchantId) &&
+                     request.resource.size < 10 * 1024 * 1024 && // 10MB max
+                     request.resource.contentType.matches('image/.*|application/pdf');
+    }
+    
+    // =====================
+    // MARKETPLACE IMAGES
+    // =====================
+    match /market/{storeId}/{allPaths=**} {
+      allow read: if true; // Public read for marketplace
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 5 * 1024 * 1024 &&
+                     request.resource.contentType.matches('image/.*');
+    }
+    
+    // =====================
+    // DEFAULT - Deny all
+    // =====================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

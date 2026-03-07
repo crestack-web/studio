@@ -177,44 +177,6 @@
   transform: translateY(-2px);
 }
 
-/* ── Services preview ── */
-.svcSubtext {
-  font-size: 0.73rem;
-  color: var(--text-3);
-  margin-bottom: 12px;
-}
-
-.svcPreviewGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.svcPreviewItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  cursor: pointer;
-  transition: border-color var(--transition);
-}
-
-.svcPreviewItem:hover { border-color: var(--purple); }
-
-.svcPreviewName {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-1);
-}
-
-.svcPreviewDesc {
-  font-size: 0.67rem;
-  color: var(--text-3);
-}
-
 /* ── Insight list ── */
 .insightList { display: flex; flex-direction: column; gap: 6px; }
 

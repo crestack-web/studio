@@ -17,6 +17,8 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { LANGUAGES, LangCode } from './translations';
 import { CURRENCIES_SORTED, COUNTRY_LIST, formatMoney } from './currencies';
+import { initializeFirebase } from '@/firebase';
+import { getAuth, signOut } from 'firebase/auth';
 import styles from './SettingsPage.module.css';
 
 // ── Toggle ─────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 //  MAIN COMPONENT
 // ════════════════════════════════════════════════════════
 export default function SettingsPage() {
-  const { theme, toggleTheme, showToast } = useApp();
+  const { theme, toggleTheme, showToast, user } = useApp();
   const { t, lang, setLang } = useTranslation();
   const {
     currency,
@@ -59,6 +61,20 @@ export default function SettingsPage() {
     setCurrencyByCountry,
     formatMoney: fmt,
   } = useCurrency();
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth(initializeFirebase());
+      await signOut(auth);
+      showToast('👋 Logged out successfully');
+      // Redirect to login page
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      showToast('❌ Failed to logout');
+    }
+  };
 
   // ── Currency section state ─────────────────────────────
   const [currencySearch, setCurrencySearch] = useState('');
@@ -146,10 +162,10 @@ export default function SettingsPage() {
       {/* ════════════════════════════════════════
           SECTION 2 · CURRENCY  ← NEW
       ════════════════════════════════════════ */}
-      <Section title="Currency">
+      <Section title={t('settings.section.currency')}>
 
         <p className={styles.rowDesc}>
-          Set your local currency. All amounts in your dashboard — sales, expenses, cashflow, and statements — will display in the selected currency.
+          {t('settings.currencyDesc')}
         </p>
 
         {/* ── Currently active currency banner ── */}
@@ -168,7 +184,7 @@ export default function SettingsPage() {
         <div className={styles.currencyBlock}>
           <div className={styles.currencyBlockTitle}>
             <span className={styles.stepBadge}>1</span>
-            <span>Auto-detect from your country</span>
+            <span>{t('settings.currencyAutoDetect')}</span>
           </div>
           <div className={styles.countryRow}>
             <select
@@ -191,13 +207,13 @@ export default function SettingsPage() {
         <div className={styles.currencyBlock}>
           <div className={styles.currencyBlockTitle}>
             <span className={styles.stepBadge}>2</span>
-            <span>Or choose any currency manually</span>
+            <span>{t('settings.currencyManual')}</span>
           </div>
           <div className={styles.currencySearchWrap}>
             <span className={styles.currencySearchIcon}>🔍</span>
             <input
               className={styles.currencySearch}
-              placeholder="Search by name, code (NGN, USD…) or region…"
+              placeholder={t('settings.currencySearchPlaceholder')}
               value={currencySearch}
               onChange={e => setCurrencySearch(e.target.value)}
             />
@@ -224,7 +240,7 @@ export default function SettingsPage() {
               </button>
             ))}
             {filteredCurrencies.length === 0 && (
-              <p className={styles.noResults}>No currencies match "{currencySearch}"</p>
+              <p className={styles.noResults}>{t('settings.currencyNoResults')} "{currencySearch}"</p>
             )}
           </div>
         </div>
@@ -233,7 +249,7 @@ export default function SettingsPage() {
         <div className={styles.currencyPreview}>
           <div className={styles.previewHeader}>
             <span>👁</span>
-            <span>Live preview — how amounts appear in your dashboard</span>
+            <span>{t('settings.currencyLivePreview')}</span>
           </div>
           <div className={styles.previewGrid}>
             {PREVIEW.map(amount => (
@@ -245,10 +261,10 @@ export default function SettingsPage() {
             ))}
           </div>
           <div className={styles.previewMeta}>
-            <span>Thousands: <code>{currency.thousandsSep === ' ' ? 'space' : `"${currency.thousandsSep}"`}</code></span>
-            <span>Decimal: <code>"{currency.decimalSep}"</code></span>
-            <span>Places: <code>{currency.decimals}</code></span>
-            <span>Symbol: <code>{currency.symbolBefore ? 'before' : 'after'} amount</code></span>
+            <span>{t('settings.currencyThousands')}: <code>{currency.thousandsSep === ' ' ? 'space' : `"${currency.thousandsSep}"`}</code></span>
+            <span>{t('settings.currencyDecimal')}: <code>"{currency.decimalSep}"</code></span>
+            <span>{t('settings.currencyPlaces')}: <code>{currency.decimals}</code></span>
+            <span>{t('settings.currencySymbol')}: <code>{currency.symbolBefore ? t('settings.currencyBefore') : t('settings.currencyAfter')} amount</code></span>
           </div>
         </div>
 
@@ -273,6 +289,31 @@ export default function SettingsPage() {
               <span>{opt.label}</span>
             </button>
           ))}
+        </div>
+      </Section>
+
+      {/* ════════════════════════════════════════
+          SECTION 3.5 · ACCOUNT & PLAN
+      ════════════════════════════════════════ */}
+      <Section title="Account & Plan">
+        <div className={styles.planCard}>
+          <div className={styles.planHeader}>
+            <div>
+              <div className={styles.planName}>{user.plan || 'Starter'}</div>
+              <div className={styles.planEmail}>{user.email}</div>
+            </div>
+            <div className={styles.planBadge}>Active</div>
+          </div>
+          <div className={styles.planDetails}>
+            <div className={styles.planDetail}>
+              <span className={styles.planDetailLabel}>Role:</span>
+              <span className={styles.planDetailValue}>{user.role || 'Owner'}</span>
+            </div>
+            <div className={styles.planDetail}>
+              <span className={styles.planDetailLabel}>Business:</span>
+              <span className={styles.planDetailValue}>{user.businessId ? 'Connected' : 'Not set'}</span>
+            </div>
+          </div>
         </div>
       </Section>
 
@@ -357,7 +398,7 @@ export default function SettingsPage() {
       {/* Footer */}
       <div className={styles.footer}>
         <div className={styles.version}>Busmo · {t('settings.version')} 2.4.1</div>
-        <button className={styles.logoutBtn} onClick={() => showToast('👋 ' + t('settings.logoutConfirm'))}>
+        <button className={styles.logoutBtn} onClick={handleLogout}>
           {t('settings.logout')}
         </button>
       </div>

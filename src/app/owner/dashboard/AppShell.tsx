@@ -16,8 +16,12 @@ import { StatementPage }   from './Statementpage';
 import { StaffPage }       from './StaffPage';
 import { ReferralsPage }   from './ReferralsPage';
 import { CapitalPage }     from './CapitalPage';
+import InventoryPage       from './InventoryPage';
+import SettingsPage        from './SettingsPage';
+import { BranchesPage }    from './BranchesPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
+import { NotificationBar } from './NotificationBar';
 import styles from './AppShell.module.css';
 
 // ═══════════════════════════════════════════
@@ -28,16 +32,18 @@ import styles from './AppShell.module.css';
 const PAGE_MAP: Record<string, React.ReactNode> = {
   home:         <HomePage />,
   sale:         <RecordSalePage />,
-  mo:           <AskMOPage />,
-  services:     <ServicesPage />,
-  staff:        <StaffPage />,
-  referrals:    <ReferralsPage />,
-  capital:      <CapitalPage />,
-  update:       <StatementPage />,
+  inventory:    <InventoryPage />,
   'add-product': <AddProductPage />,
   'add-expense': <AddExpensePage />,
   cashflow:      <CashflowPage />,
   statement:     <StatementPage />,
+  mo:           <AskMOPage />,
+  services:     <ServicesPage />,
+  staff:        <StaffPage />,
+  settings:     <SettingsPage />,
+  referrals:    <ReferralsPage />,
+  capital:      <CapitalPage />,
+  branches:     <BranchesPage />,
 };
 
 const FULL_HEIGHT_PAGES = new Set(['mo']);
@@ -59,6 +65,7 @@ export function AppShell() {
       <Sidebar />
 
       <div className={styles.main}>
+        <NotificationBar />
         <Topbar />
 
         <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : ''].join(' ')}>

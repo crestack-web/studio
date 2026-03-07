@@ -1,7 +1,9 @@
 'use client';
 
 import { AppProvider } from './AppContext';
+import { CurrencyProvider } from './CurrencyContext';
 import { AppShell }   from './AppShell';
+import { TrialGuard } from './TrialGuard';
 import './tokens.css';
 
 // ═══════════════════════════════════════════
@@ -18,8 +20,12 @@ import './tokens.css';
 
 export function DashboardClient() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <TrialGuard>
+      <CurrencyProvider>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </CurrencyProvider>
+    </TrialGuard>
   );
 }

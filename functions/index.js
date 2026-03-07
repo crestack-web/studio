@@ -209,6 +209,7 @@ const { onSaleWrite, onOrderWriteForRevenue, onRevenueBackfillRequestCreate } = 
 const { onMarketProductCreatedNotifySubscribers } = require('./triggers/marketSubscriptions');
 const { onSubscriptionTransactionCreatedApplyReferralCommission } = require('./triggers/referrals');
 const { sendOwnerDailyDigest } = require('./notifications/ownerDailyDigest');
+const { createProduct } = require("./triggers/products");
 
 function getProjectId() {
     const fromEnv = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
@@ -332,6 +333,10 @@ exports.onSubscriptionTransactionCreatedApplyReferralCommission = onSubscription
 
 // Daily owner email digest
 exports.sendOwnerDailyDigest = sendOwnerDailyDigest;
+
+// Products
+exports.createProduct = createProduct;
+exports.getProducts = require("./triggers/products").getProducts;
 
 // --- AUTH EMAILS (TRANSACTIONAL) ---
 

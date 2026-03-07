@@ -49,12 +49,60 @@
     "saveFailedDesc": "Could not save your transaction. Please try again."
   },
   "statement": {
+    "heading": "Summary & Statement",
+    "subheading": "Your verified business financial record. All data is sourced from transactions recorded on Busmo. This statement carries a Busmo verification stamp and can be used for loan applications, business registration, and partner verification.",
+    "editHeading": "Edit heading",
+    "editHeadingPrompt": "Enter custom heading:",
+    "editSubheading": "Edit subheading",
+    "editSubheadingPrompt": "Enter custom subheading:",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "to": "to",
+    "statementType": "Statement Type",
+    "print": "Print",
+    "downloadPDF": "Download PDF",
+    "preparingPDF": "Preparing…",
+    "verifiedTitle": "Busmo Verified Statement.",
+    "verifiedDesc": "All figures are sourced directly from transactions recorded on Busmo. This document is cryptographically stamped and can be verified by third parties at",
+    "statementIdLabel": "Statement ID",
+    "revenueChange": "↑ 18% vs last month",
+    "expenseChange": "↑ 5% vs last month",
+    "profitChange": "↑ 28% vs last month",
+    "productsTracked": "products tracked",
+    "printHeaderSub": "Verified Business Statement · busmo.io",
+    "busmoVerified": "Busmo Verified",
+    "generated": "Generated",
+    "businessName": "Business Name",
+    "busmoId": "Busmo ID",
+    "reportPeriod": "Report Period",
+    "owner": "Owner",
+    "category": "Category",
+    "country": "Country",
+    "busmoVerifiedStatement": "Busmo Verified Statement",
+    "verifyBoxDesc": "All figures in this statement are sourced directly from transactions recorded on Busmo.",
+    "verifyAt": "Verify at",
+    "financialSummary": "Financial Summary",
+    "closingStockValue": "Closing Stock Value",
+    "productsTrackedShort": "4 products tracked",
+    "vsPriorPeriod": "vs prior period",
+    "profitLossStatement": "Profit & Loss Statement",
+    "totalSalesRevenue": "Total Sales Revenue",
+    "platformCommission": "Platform Commission (Busmo 10%)",
+    "otherOperatingExpenses": "Other Operating Expenses",
+    "netProfitAfterCosts": "Net Profit (After All Costs)",
+    "ownerDrawings": "Owner Drawings",
+    "transactionLedger": "Transaction Ledger",
+    "inventorySummary": "Inventory Summary",
+    "allTransactions": "All transactions",
+    "salesOnly": "Sales only",
+    "expensesOnly": "Expenses only",
+    "stockMovements": "Stock movements",
+    "verifiedBy": "Verified by Busmo Technology Ltd",
     "title": "Business Statement",
     "pickDateRange": "Pick a date range",
     "printCta": "Print / Save PDF",
     "reportDateLabel": "Report Date:",
     "periodLabel": "Period:",
-    "toLabel": "to",
     "nowLabel": "now",
     "summaryTitle": "Financial Summary",
     "totalRevenue": "Total Revenue",
@@ -79,6 +127,8 @@
     "saleDeletedDesc": "The sale has been removed and inventory restored.",
     "deleteSaleErrorTitle": "Error Deleting Sale",
     "dbError": "Could not connect to database.",
+    "noTransactions": "No transactions recorded in this period.",
+    "noProducts": "No products tracked in this period.",
     "table": {
       "date": "Date",
       "product": "Product",
@@ -87,7 +137,18 @@
       "type": "Type",
       "description": "Description",
       "amount": "Amount",
-      "actions": "Actions"
+      "actions": "Actions",
+      "reference": "Reference",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "opening": "Opening",
+      "sold": "Sold",
+      "loss": "Loss",
+      "restock": "Restock",
+      "closing": "Closing",
+      "value": "Value",
+      "total": "Total"
     }
   },
   "ownerHome": {
@@ -468,5 +529,76 @@
     "custom_needs": "Custom Needs?",
     "custom_desc": "For custom integrations and dedicated support, contact our sales team.",
     "contact_sales": "Contact Sales"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "subtitle": "Track and manage your products",
+    "exportCsv": "Export CSV",
+    "addProduct": "Add Product",
+    "searchPlaceholder": "Search products...",
+    "noProducts": "No products found",
+    "status": {
+      "all": "All",
+      "inStock": "In Stock",
+      "low": "Low Stock",
+      "outOfStock": "Out of Stock"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "stock": "Stock",
+      "cost": "Cost",
+      "price": "Price",
+      "profit": "Profit",
+      "stockValue": "Stock Value",
+      "status": "Status",
+      "sold30d": "Sold (30d)",
+      "trend": "Trend",
+      "actions": "Actions"
+    },
+    "soldToday": "Sold today",
+    "soldYesterday": "Sold yesterday",
+    "actions": {
+      "edit": "Edit",
+      "restock": "Restock"
+    }
+  },
+  "insights": {
+    "slowestMovers": {
+      "title": "Slowest Movers",
+      "subtitle": "Products that haven't been selling well",
+      "empty": "All products are moving well"
+    },
+    "lastSold": "Last sold",
+    "lowStock": {
+      "title": "Low Stock Alert",
+      "stockoutNow": "Out of stock now"
+    }
+  },
+  "dashboard": {
+    "invOverview": {
+      "totalProducts": "Total Products",
+      "totalProductsSub": "Unique products in inventory",
+      "unitsInStock": "Units in Stock",
+      "unitsInStockSub": "Total inventory units",
+      "lowStock": "Low Stock Items",
+      "outOfStock": "Out of Stock",
+      "outOfStockSub": "Products to restock",
+      "inventoryValue": "Inventory Value",
+      "inventoryValueSub": "Total stock value",
+      "potentialRevenue": "Potential Revenue",
+      "potentialProfit": "Potential profit if all stock sold"
+    }
+  },
+  "common": {
+    "errorTitle": "Error",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "units": "units",
+    "restock": "Restock",
+    "prev": "Previous",
+    "next": "Next",
+    "daysAgo": "days ago"
   }
 }

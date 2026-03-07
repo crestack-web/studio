@@ -38,7 +38,7 @@ export default function RoleSelectionPage() {
             <span className="ml-2"></span>
             </Link>
             <Link
-              href="/signup"
+              href="/welcome/signup"
               className="flex-1 border border-[#E8E8F0] text-[#6B3FE7] font-semibold rounded-xl h-12 flex items-center justify-center text-base transition hover:bg-[#F4F4F8]"
             >
               Sign Up

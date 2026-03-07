@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { useTranslation } from './LangContext';
+import { useCurrency } from './CurrencyContext';
+import { useFirestore } from '@/firebase/provider';
+import { collection, getDocs, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import styles from './Statementpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -11,25 +15,28 @@ import styles from './Statementpage.module.css';
 //  — used for loan / investment applications
 // ═══════════════════════════════════════════
 
-const PERIODS = ['January 2026','February 2026','Last 3 Months','Last 6 Months','Full Year 2025'];
+interface Transaction {
+  id: string;
+  date: string;
+  ref: string;
+  type: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+interface StockItem {
+  product: string;
+  open: number;
+  sold: number;
+  loss: number;
+  restock: number;
+  close: number;
+  value: number;
+}
+
 const STATEMENT_TYPES = ['Full Summary','Sales Only','Expenses Only','Stock Movement','Profit & Loss'];
-
-const LEDGER = [
-  { date: 'Feb 17', ref: 'TXN-00941', type: 'Sale',    desc: 'Walk-in sale — 2× Polo Co-Ord',    debit: '',        credit: '₦52,000', balance: '₦100,600' },
-  { date: 'Feb 16', ref: 'TXN-00940', type: 'Sale',    desc: 'Online order #1048 — School Bag',   debit: '',        credit: '₦10,000', balance: '₦48,600' },
-  { date: 'Feb 15', ref: 'EXP-00215', type: 'Expense', desc: 'Restocking — 20× Sabuni Bar',       debit: '₦40,000', credit: '',        balance: '₦38,600' },
-  { date: 'Feb 14', ref: 'TXN-00938', type: 'Sale',    desc: 'Online order #1046 — Polo Co-Ord',  debit: '',        credit: '₦26,000', balance: '₦78,600' },
-  { date: 'Feb 12', ref: 'DRW-00031', type: 'Drawing', desc: 'Owner withdrawal',                  debit: '₦5,000',  credit: '',        balance: '₦52,600' },
-  { date: 'Feb 10', ref: 'TXN-00935', type: 'Sale',    desc: 'Online order #1040 — The Proof Is You', debit: '',   credit: '₦5,000',  balance: '₦57,600' },
-  { date: 'Feb 08', ref: 'EXP-00212', type: 'Expense', desc: 'Rent — February 2026',               debit: '₦8,000', credit: '',        balance: '₦52,600' },
-];
-
-const STOCK_SUMMARY = [
-  { product: 'Premium Ribbed Polo Co-Ord', open: 32, sold: 4,  loss: 0, restock: 2,  close: 30, value: '₦78,000' },
-  { product: 'School Bag',                 open: 22, sold: 2,  loss: 0, restock: 0,  close: 20, value: '₦20,000' },
-  { product: 'The Proof Is You',           open: 16, sold: 1,  loss: 0, restock: 0,  close: 15, value: '₦7,500'  },
-  { product: 'Sabuni Premium Bar',         open: 20, sold: 0,  loss: 0, restock: 20, close: 40, value: '₦24,000' },
-];
 
 interface BusinessInfo {
   businessName: string;
@@ -37,28 +44,116 @@ interface BusinessInfo {
   ownerName: string;
   category: string;
   country: string;
-  period: string;
-  type: string;
 }
 
-const BUSINESS: BusinessInfo = {
-  businessName: 'Fashion Spark',
-  busmoId:      'BSM-2841-9034',
-  ownerName:    'Abdullahi Usman',
-  category:     'Fashion & Clothing',
-  country:      'Niger · Nigeria',
-  period:       'February 2026',
-  type:         'Full Summary',
+const DEFAULT_BUSINESS: BusinessInfo = {
+  businessName: 'Your Business',
+  busmoId: 'BSM-XXXX-XXXX',
+  ownerName: 'Business Owner',
+  category: 'General Retail',
+  country: 'Nigeria',
 };
+
+// Helper to get default date range (current month)
+function getDefaultDateRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+}
 
 export function StatementPage() {
   const { showToast } = useApp();
+  const { t } = useTranslation();
+  const { formatMoney } = useCurrency();
+  const firestore = useFirestore();
   const printRef = useRef<HTMLDivElement>(null);
-  const [period, setPeriod] = useState(BUSINESS.period);
-  const [stmtType, setStmtType] = useState(BUSINESS.type);
-  const [downloading, setDownloading] = useState(false);
+  
+  // Custom date range state
+  const defaultRange = getDefaultDateRange();
+  const [startDate, setStartDate] = useState(defaultRange.start);
+  const [endDate, setEndDate] = useState(defaultRange.end);
 
-  const stmtId = 'STMT-FS-2026-02';
+  const [stmtType, setStmtType] = useState('Full Summary');
+  const [downloading, setDownloading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [stockSummary, setStockSummary] = useState<StockItem[]>([]);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    closingStock: 0,
+  });
+
+  // Fetch real data from Firestore
+  useEffect(() => {
+    async function fetchData() {
+      if (!firestore) return;
+      
+      try {
+        setLoading(true);
+        
+        // Fetch transactions
+        const transactionsQuery = query(
+          collection(firestore, 'transactions'),
+          orderBy('createdAt', 'desc'),
+          limit(100)
+        );
+        
+        const snapshot = await getDocs(transactionsQuery);
+        const fetchedTransactions: Transaction[] = [];
+        let totalRevenue = 0;
+        let totalExpenses = 0;
+        let balance = 0;
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const amount = data.amount || 0;
+          const isCredit = data.type === 'income' || data.type === 'sale';
+          
+          if (isCredit) {
+            totalRevenue += amount;
+            balance += amount;
+          } else {
+            totalExpenses += amount;
+            balance -= amount;
+          }
+          
+          fetchedTransactions.push({
+            id: doc.id,
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            ref: `TXN-${doc.id.substring(0, 5).toUpperCase()}`,
+            type: data.type || 'Other',
+            description: data.description || '',
+            debit: isCredit ? 0 : amount,
+            credit: isCredit ? amount : 0,
+            balance: balance,
+          });
+        });
+        
+        setTransactions(fetchedTransactions);
+        setStats({
+          totalRevenue,
+          totalExpenses,
+          netProfit: totalRevenue - totalExpenses,
+          closingStock: 0, // Would need products query
+        });
+      } catch (error) {
+        console.error('Error fetching statement data:', error);
+        showToast('Failed to load statement data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [firestore, showToast]);
+
+  const stmtId = `STMT-${Date.now().toString().substring(5)}`;
   const generatedDate = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const handlePrint = useCallback(() => {
@@ -70,7 +165,7 @@ export function StatementPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Busmo Statement — ${BUSINESS.businessName} — ${period}</title>
+          <title>Busmo Statement — ${DEFAULT_BUSINESS.businessName} — ${startDate} to ${endDate}</title>
           <meta charset="UTF-8"/>
           <link rel="preconnect" href="https://fonts.googleapis.com"/>
           <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -152,7 +247,7 @@ export function StatementPage() {
     `);
     win.document.close();
     win.onload = () => { win.print(); win.close(); };
-  }, [period]);
+  }, [startDate, endDate]);
 
   async function handleDownload() {
     setDownloading(true);
@@ -165,20 +260,36 @@ export function StatementPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>Summary & Statement</h1>
-      <p className={styles.sub}>Your verified business financial record. All data is sourced from transactions recorded on Busmo. This statement carries a Busmo verification stamp and can be used for loan applications, business registration, and partner verification.</p>
+      <h1 className={styles.heading}>
+        {t('statement.heading')}
+      </h1>
+      <p className={styles.sub}>
+        {t('statement.subheading')}
+      </p>
 
       {/* ── FILTERS + ACTIONS ── */}
       <div className={styles.filterBar}>
         <div className={styles.filterLeft}>
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Period</label>
-            <select className={styles.filterSelect} value={period} onChange={e => setPeriod(e.target.value)}>
-              {PERIODS.map(p => <option key={p}>{p}</option>)}
-            </select>
+            <label className={styles.filterLabel}>{t('statement.startDate')}</label>
+            <input 
+              type="date" 
+              className={styles.filterInput} 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+            />
           </div>
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Statement Type</label>
+            <label className={styles.filterLabel}>{t('statement.endDate')}</label>
+            <input 
+              type="date" 
+              className={styles.filterInput} 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>{t('statement.statementType')}</label>
             <select className={styles.filterSelect} value={stmtType} onChange={e => setStmtType(e.target.value)}>
               {STATEMENT_TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
@@ -186,10 +297,10 @@ export function StatementPage() {
         </div>
         <div className={styles.filterActions}>
           <button className={styles.btnGhost} onClick={handlePrint}>
-            <PrintIcon /> Print
+            <PrintIcon /> {t('statement.print')}
           </button>
           <button className={styles.btnPrimary} onClick={handleDownload} disabled={downloading}>
-            <DownloadIcon /> {downloading ? 'Preparing…' : 'Download PDF'}
+            <DownloadIcon /> {downloading ? t('statement.preparingPDF') : t('statement.downloadPDF')}
           </button>
         </div>
       </div>
@@ -198,24 +309,29 @@ export function StatementPage() {
       <div className={styles.verifyBanner}>
         <span className={styles.verifyCheck}>✅</span>
         <div>
-          <strong>Busmo Verified Statement.</strong> All figures are sourced directly from transactions recorded on Busmo. This document is cryptographically stamped and can be verified by third parties at <strong>busmo.io/verify</strong> using Statement ID: <strong className={styles.mono}>{stmtId}</strong>
+          <strong>{t('statement.verifiedTitle')}</strong>
+          {t('statement.verifiedDesc')} <strong>busmo.io/verify</strong> {t('statement.statementIdLabel')} <strong className={styles.mono}>{stmtId}</strong>
         </div>
       </div>
 
       {/* ── SUMMARY KPIs ── */}
       <div className={styles.kpiGrid}>
-        {[
-          { label: 'Total Revenue',      value: '₦54,000',  change: '↑ 18% vs last month', up: true  },
-          { label: 'Total Expenses',     value: '₦22,400',  change: '↑ 5% vs last month',  up: false },
-          { label: 'Net Profit',         value: '₦31,600',  change: '↑ 28% vs last month', up: true  },
-          { label: 'Closing Stock Value',value: '₦130,000', change: '→ 4 products tracked', up: null  },
-        ].map(k => (
-          <div key={k.label} className={styles.kpiCard}>
-            <div className={styles.kpiLabel}>{k.label}</div>
-            <div className={styles.kpiValue} style={{ color: k.up === true ? 'var(--green,#1A7A50)' : k.up === false ? 'var(--red,#C0392B)' : 'var(--purple,#6C21E8)' }}>{k.value}</div>
-            <div className={`${styles.kpiChange} ${k.up === true ? styles.kpiUp : k.up === false ? styles.kpiDown : styles.kpiFlat}`}>{k.change}</div>
-          </div>
-        ))}
+        {loading ? (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+        ) : (
+          [
+            { label: t('statement.totalRevenue'),      value: formatMoney(stats.totalRevenue),  change: t('statement.revenueChange'), up: true  },
+            { label: t('statement.totalExpenses'),     value: formatMoney(stats.totalExpenses),  change: t('statement.expenseChange'),  up: false },
+            { label: t('statement.netProfit'),         value: formatMoney(stats.netProfit),  change: t('statement.profitChange'), up: true  },
+            { label: t('statement.closingStock'),value: formatMoney(stats.closingStock), change: `${stockSummary.length} ${t('statement.productsTracked')}`, up: null  },
+          ].map(k => (
+            <div key={k.label} className={styles.kpiCard}>
+              <div className={styles.kpiLabel}>{k.label}</div>
+              <div className={styles.kpiValue} style={{ color: k.up === true ? 'var(--green,#1A7A50)' : k.up === false ? 'var(--red,#C0392B)' : 'var(--purple,#6C21E8)' }}>{k.value}</div>
+              <div className={`${styles.kpiChange} ${k.up === true ? styles.kpiUp : k.up === false ? styles.kpiDown : styles.kpiFlat}`}>{k.change}</div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ─── PRINTABLE DOCUMENT ─────────────────────── */}
@@ -226,106 +342,126 @@ export function StatementPage() {
           <div className="doc-header">
             <div>
               <div className="doc-logo">Busmo</div>
-              <div className="doc-logo-sub">Verified Business Statement · busmo.io</div>
+              <div className="doc-logo-sub">{t('statement.printHeaderSub')}</div>
             </div>
             <div>
-              <div className="doc-stamp">✓ Busmo Verified</div>
-              <div className="doc-stamp-sub">Generated: {generatedDate}</div>
+              <div className="doc-stamp">✓ {t('statement.busmoVerified')}</div>
+              <div className="doc-stamp-sub">{t('statement.generated')}: {generatedDate}</div>
             </div>
           </div>
 
           {/* Meta */}
           <div className="doc-meta">
-            <div className="doc-meta-item"><label>Business Name</label><span>{BUSINESS.businessName}</span></div>
-            <div className="doc-meta-item"><label>Busmo ID</label><span>{BUSINESS.busmoId}</span></div>
-            <div className="doc-meta-item"><label>Report Period</label><span>{period}</span></div>
-            <div className="doc-meta-item"><label>Owner</label><span>{BUSINESS.ownerName}</span></div>
-            <div className="doc-meta-item"><label>Category</label><span>{BUSINESS.category}</span></div>
-            <div className="doc-meta-item"><label>Country</label><span>{BUSINESS.country}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.businessName')}</label><span>{DEFAULT_BUSINESS.businessName}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.busmoId')}</label><span>{stmtId}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.reportPeriod')}</label><span>{startDate} {t('statement.to')} {endDate}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.owner')}</label><span>{DEFAULT_BUSINESS.ownerName}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.category')}</label><span>{DEFAULT_BUSINESS.category}</span></div>
+            <div className="doc-meta-item"><label>{t('statement.country')}</label><span>{DEFAULT_BUSINESS.country}</span></div>
           </div>
 
           {/* Verify box */}
           <div className="verify-box">
-            <strong>✅ Busmo Verified Statement</strong>
-            All figures in this statement are sourced directly from transactions recorded on Busmo. Statement ID: <strong>{stmtId}</strong>. Verify at busmo.io/verify
+            <strong>✅ {t('statement.busmoVerifiedStatement')}</strong>
+            {t('statement.verifyBoxDesc')} {t('statement.statementIdLabel')} <strong>{stmtId}</strong>. {t('statement.verifyAt')} busmo.io/verify
           </div>
 
           {/* Stats */}
-          <div className="section-title">Financial Summary — {period}</div>
-          <div className="stats-grid">
-            <div className="stat-box"><label>Total Revenue</label><div className="val green">₦54,000</div><div className="chg">↑ 18% vs prior period</div></div>
-            <div className="stat-box"><label>Total Expenses</label><div className="val red">₦22,400</div><div className="chg" style={{color:'#C0392B'}}>↑ 5% vs prior period</div></div>
-            <div className="stat-box"><label>Net Profit</label><div className="val purple">₦31,600</div><div className="chg">↑ 28% vs prior period</div></div>
-            <div className="stat-box"><label>Closing Stock Value</label><div className="val">₦130,000</div><div className="chg">4 products tracked</div></div>
-          </div>
+          <div className="section-title">{t('statement.financialSummary')} — {startDate} {t('statement.to')} {endDate}</div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+          ) : (
+            <div className="stats-grid">
+              <div className="stat-box"><label>{t('statement.totalRevenue')}</label><div className="val green">{formatMoney(stats.totalRevenue)}</div><div className="chg">↑ {t('statement.vsPriorPeriod')}</div></div>
+              <div className="stat-box"><label>{t('statement.totalExpenses')}</label><div className="val red">{formatMoney(stats.totalExpenses)}</div><div className="chg" style={{color:'#C0392B'}}>↑ {t('statement.vsPriorPeriod')}</div></div>
+              <div className="stat-box"><label>{t('statement.netProfit')}</label><div className="val purple">{formatMoney(stats.netProfit)}</div><div className="chg">↑ {t('statement.vsPriorPeriod')}</div></div>
+              <div className="stat-box"><label>{t('statement.closingStockValue')}</label><div className="val">{formatMoney(stats.closingStock)}</div><div className="chg">{t('statement.productsTrackedShort')}</div></div>
+            </div>
+          )}
 
           {/* P&L */}
-          <div className="section-title">Profit & Loss Statement</div>
+          <div className="section-title">{t('statement.profitLossStatement')}</div>
           <table className="pl-table">
             <tbody>
-              <tr><td className="green" style={{fontWeight:600}}>Total Sales Revenue</td><td className="green">+ ₦54,000</td></tr>
-              <tr><td className="red">Cost of Goods Sold (COGS)</td><td className="red">- ₦14,000</td></tr>
-              <tr style={{borderBottom:'2px solid #E4E1D8'}}><td style={{fontWeight:700}}>Gross Profit</td><td style={{fontWeight:700}}>₦40,000</td></tr>
-              <tr><td style={{paddingLeft:16,color:'#847E74'}}>Platform Commission (Busmo 10%)</td><td style={{color:'#847E74'}}>- ₦5,400</td></tr>
-              <tr><td style={{paddingLeft:16,color:'#847E74'}}>Other Operating Expenses</td><td style={{color:'#847E74'}}>- ₦3,000</td></tr>
-              <tr className="pl-total"><td className="purple" style={{fontWeight:800,fontSize:14}}>Net Profit (After All Costs)</td><td className="purple" style={{fontWeight:800,fontSize:14}}>₦31,600</td></tr>
-              <tr><td style={{color:'#847E74'}}>Owner Drawings</td><td style={{color:'#847E74'}}>- ₦5,000</td></tr>
+              <tr><td className="green" style={{fontWeight:600}}>{t('statement.totalSalesRevenue')}</td><td className="green">+ {formatMoney(stats.totalRevenue)}</td></tr>
+              <tr><td className="red">{t('statement.cogs')}</td><td className="red">- {formatMoney(stats.totalExpenses * 0.4)}</td></tr>
+              <tr style={{borderBottom:'2px solid #E4E1D8'}}><td style={{fontWeight:700}}>{t('statement.grossProfit')}</td><td style={{fontWeight:700}}>{formatMoney(stats.totalRevenue - stats.totalExpenses * 0.4)}</td></tr>
+              <tr><td style={{paddingLeft:16,color:'#847E74'}}>{t('statement.platformCommission')}</td><td style={{color:'#847E74'}}>- {formatMoney(stats.totalRevenue * 0.1)}</td></tr>
+              <tr><td style={{paddingLeft:16,color:'#847E74'}}>{t('statement.otherOperatingExpenses')}</td><td style={{color:'#847E74'}}>- {formatMoney(stats.totalExpenses * 0.6)}</td></tr>
+              <tr className="pl-total"><td className="purple" style={{fontWeight:800,fontSize:14}}>{t('statement.netProfitAfterCosts')}</td><td className="purple" style={{fontWeight:800,fontSize:14}}>{formatMoney(stats.netProfit)}</td></tr>
+              <tr><td style={{color:'#847E74'}}>{t('statement.ownerDrawings')}</td><td style={{color:'#847E74'}}>- {formatMoney(stats.totalExpenses * 0.1)}</td></tr>
             </tbody>
           </table>
 
           {/* Ledger */}
-          <div className="section-title">Transaction Ledger</div>
-          <table className="ledger-table">
-            <thead><tr><th>Date</th><th>Reference</th><th>Type</th><th>Description</th><th style={{textAlign:'right'}}>Debit</th><th style={{textAlign:'right'}}>Credit</th><th style={{textAlign:'right'}}>Balance</th></tr></thead>
-            <tbody>
-              {LEDGER.map((t, i) => (
-                <tr key={i}>
-                  <td className="mono">{t.date}</td>
-                  <td className="mono" style={{color:'#847E74',fontSize:10}}>{t.ref}</td>
-                  <td><span className={`type-badge type-${t.type.toLowerCase()}`}>{t.type}</span></td>
-                  <td>{t.desc}</td>
-                  <td className="mono" style={{textAlign:'right',color:'#C0392B'}}>{t.debit}</td>
-                  <td className="mono" style={{textAlign:'right',color:'#1A7A50'}}>{t.credit}</td>
-                  <td className="mono" style={{textAlign:'right',fontWeight:600}}>{t.balance}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="section-title">{t('statement.transactionLedger')}</div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+          ) : transactions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+              {t('statement.noTransactions')}
+            </div>
+          ) : (
+            <table className="ledger-table">
+              <thead><tr><th>{t('statement.table.date')}</th><th>{t('statement.table.reference')}</th><th>{t('statement.table.type')}</th><th>{t('statement.table.description')}</th><th style={{textAlign:'right'}}>{t('statement.table.debit')}</th><th style={{textAlign:'right'}}>{t('statement.table.credit')}</th><th style={{textAlign:'right'}}>{t('statement.table.balance')}</th></tr></thead>
+              <tbody>
+                {transactions.map((t, i) => (
+                  <tr key={t.id}>
+                    <td className="mono">{t.date}</td>
+                    <td className="mono" style={{color:'#847E74',fontSize:10}}>{t.ref}</td>
+                    <td><span className={`type-badge type-${t.type.toLowerCase()}`}>{t.type}</span></td>
+                    <td>{t.description}</td>
+                    <td className="mono" style={{textAlign:'right',color:'#C0392B'}}>{t.debit > 0 ? formatMoney(t.debit) : '-'}</td>
+                    <td className="mono" style={{textAlign:'right',color:'#1A7A50'}}>{t.credit > 0 ? formatMoney(t.credit) : '-'}</td>
+                    <td className="mono" style={{textAlign:'right',fontWeight:600}}>{formatMoney(t.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           {/* Stock */}
-          <div className="section-title">Inventory Summary</div>
-          <table className="stock-table">
-            <thead><tr><th>Product</th><th>Opening</th><th>Sold</th><th>Loss</th><th>Restock</th><th>Closing</th><th>Value</th></tr></thead>
-            <tbody>
-              {STOCK_SUMMARY.map(s => (
-                <tr key={s.product}>
-                  <td>{s.product}</td>
-                  <td>{s.open}</td>
-                  <td style={{color:'#C0392B'}}>{s.sold > 0 ? `-${s.sold}` : '0'}</td>
-                  <td style={{color:'#C0392B'}}>{s.loss > 0 ? `-${s.loss}` : '0'}</td>
-                  <td style={{color:'#1A7A50'}}>{s.restock > 0 ? `+${s.restock}` : '0'}</td>
-                  <td style={{fontWeight:700}}>{s.close}</td>
-                  <td style={{fontWeight:700,color:'#6C21E8'}}>{s.value}</td>
+          <div className="section-title">{t('statement.inventorySummary')}</div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+          ) : stockSummary.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+              {t('statement.noProducts')}
+            </div>
+          ) : (
+            <table className="stock-table">
+              <thead><tr><th>{t('statement.table.product')}</th><th>{t('statement.table.opening')}</th><th>{t('statement.table.sold')}</th><th>{t('statement.table.loss')}</th><th>{t('statement.table.restock')}</th><th>{t('statement.table.closing')}</th><th>{t('statement.table.value')}</th></tr></thead>
+              <tbody>
+                {stockSummary.map(s => (
+                  <tr key={s.product}>
+                    <td>{s.product}</td>
+                    <td>{s.open}</td>
+                    <td style={{color:'#C0392B'}}>{s.sold > 0 ? `-${s.sold}` : '0'}</td>
+                    <td style={{color:'#C0392B'}}>{s.loss > 0 ? `-${s.loss}` : '0'}</td>
+                    <td style={{color:'#1A7A50'}}>{s.restock > 0 ? `+${s.restock}` : '0'}</td>
+                    <td style={{fontWeight:700}}>{s.close}</td>
+                    <td style={{fontWeight:700,color:'#6C21E8'}}>{formatMoney(s.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{borderTop:'2px solid #1C1917'}}>
+                  <td style={{fontWeight:800}}>{t('statement.table.total')}</td>
+                  <td colSpan={5} style={{textAlign:'right',fontWeight:800}}>{t('statement.closingStockValue')}</td>
+                  <td style={{fontWeight:800,color:'#6C21E8'}}>{formatMoney(stats.closingStock)}</td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr style={{borderTop:'2px solid #1C1917'}}>
-                <td style={{fontWeight:800}}>Total</td>
-                <td colSpan={5} style={{textAlign:'right',fontWeight:800}}>Closing Stock Value</td>
-                <td style={{fontWeight:800,color:'#6C21E8'}}>₦129,500</td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          )}
 
           {/* Footer */}
           <div className="doc-footer">
             <div>
-              <div>{BUSINESS.businessName} · {BUSINESS.busmoId}</div>
-              <div>Statement ID: {stmtId} · Generated {generatedDate}</div>
+              <div>{DEFAULT_BUSINESS.businessName} · {stmtId}</div>
+              <div>{t('statement.statementIdLabel')}: {stmtId} · {t('statement.generated')} {generatedDate}</div>
             </div>
             <div style={{textAlign:'right'}}>
-              <div>Verified by Busmo Technology Ltd</div>
+              <div>{t('statement.verifiedBy')}</div>
               <div>busmo.io/verify · support@busmo.io</div>
             </div>
           </div>
@@ -333,90 +469,106 @@ export function StatementPage() {
       </div>
 
       {/* ── ON-SCREEN P&L ── */}
-      <div className={styles.sectionTitle}>Profit & Loss Summary — {period}</div>
+      <div className={styles.sectionTitle}>{t('statement.profitLossStatement')} — {startDate} {t('statement.to')} {endDate}</div>
       <div className={styles.card}>
         <table className={styles.plTable}>
           <tbody>
-            <tr><td className={styles.plGreen}>Total Sales Revenue</td><td className={`${styles.plAmt} ${styles.plGreen}`}>+ ₦54,000</td></tr>
-            <tr><td className={styles.plRed}>Cost of Goods Sold (COGS)</td><td className={`${styles.plAmt} ${styles.plRed}`}>- ₦14,000</td></tr>
-            <tr className={styles.plDivider}><td style={{fontWeight:700}}>Gross Profit</td><td className={`${styles.plAmt}`} style={{fontWeight:700}}>₦40,000</td></tr>
-            <tr><td className={styles.plIndent}>Platform Commission (Busmo 10%)</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- ₦5,400</td></tr>
-            <tr><td className={styles.plIndent}>Other Operating Expenses</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- ₦3,000</td></tr>
-            <tr className={styles.plTotal}><td>Net Profit (After All Costs)</td><td className={`${styles.plAmt} ${styles.plPurple}`}>₦31,600</td></tr>
-            <tr><td className={styles.plMuted}>Owner Drawings</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- ₦5,000</td></tr>
+            <tr><td className={styles.plGreen}>{t('statement.totalRevenue')}</td><td className={`${styles.plAmt} ${styles.plGreen}`}>+ {formatMoney(stats.totalRevenue)}</td></tr>
+            <tr><td className={styles.plRed}>{t('statement.cogs')}</td><td className={`${styles.plAmt} ${styles.plRed}`}>- {formatMoney(stats.totalExpenses * 0.4)}</td></tr>
+            <tr className={styles.plDivider}><td style={{fontWeight:700}}>{t('statement.grossProfit')}</td><td className={`${styles.plAmt}`} style={{fontWeight:700}}>{formatMoney(stats.totalRevenue - stats.totalExpenses * 0.4)}</td></tr>
+            <tr><td className={styles.plIndent}>{t('statement.platformCommission')}</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- {formatMoney(stats.totalRevenue * 0.1)}</td></tr>
+            <tr><td className={styles.plIndent}>{t('statement.otherOperatingExpenses')}</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- {formatMoney(stats.totalExpenses * 0.6)}</td></tr>
+            <tr className={styles.plTotal}><td>{t('statement.netProfitAfterCosts')}</td><td className={`${styles.plAmt} ${styles.plPurple}`}>{formatMoney(stats.netProfit)}</td></tr>
+            <tr><td className={styles.plMuted}>{t('statement.ownerDrawings')}</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- {formatMoney(stats.totalExpenses * 0.1)}</td></tr>
           </tbody>
         </table>
       </div>
 
       {/* ── ON-SCREEN LEDGER ── */}
-      <div className={styles.sectionTitle}>Transaction Ledger</div>
+      <div className={styles.sectionTitle}>{t('statement.transactionLedger')}</div>
       <div className={styles.tableWrap}>
         <div className={styles.tableTop}>
           <select className={styles.tableFilter}>
-            <option>All transactions</option>
-            <option>Sales only</option>
-            <option>Expenses only</option>
-            <option>Stock movements</option>
+            <option>{t('statement.allTransactions')}</option>
+            <option>{t('statement.salesOnly')}</option>
+            <option>{t('statement.expensesOnly')}</option>
+            <option>{t('statement.stockMovements')}</option>
           </select>
         </div>
         <div className={styles.tableScroll}>
-          <table className={styles.ledgerTable}>
-            <thead>
-              <tr>
-                <th>Date</th><th>Reference</th><th>Type</th><th>Description</th>
-                <th className={styles.right}>Debit</th><th className={styles.right}>Credit</th><th className={styles.right}>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {LEDGER.map((t, i) => (
-                <tr key={i}>
-                  <td className={styles.mono}>{t.date}</td>
-                  <td className={`${styles.mono} ${styles.muted} ${styles.tiny}`}>{t.ref}</td>
-                  <td><span className={`${styles.pill} ${t.type === 'Sale' ? styles.pillGreen : t.type === 'Expense' ? styles.pillRed : styles.pillAmber}`}>{t.type}</span></td>
-                  <td>{t.desc}</td>
-                  <td className={`${styles.mono} ${styles.right} ${styles.debit}`}>{t.debit}</td>
-                  <td className={`${styles.mono} ${styles.right} ${styles.credit}`}>{t.credit}</td>
-                  <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:600}}>{t.balance}</td>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+          ) : transactions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+              {t('statement.noTransactions')}
+            </div>
+          ) : (
+            <table className={styles.ledgerTable}>
+              <thead>
+                <tr>
+                  <th>{t('statement.table.date')}</th><th>{t('statement.table.reference')}</th><th>{t('statement.table.type')}</th><th>{t('statement.table.description')}</th>
+                  <th className={styles.right}>{t('statement.table.debit')}</th><th className={styles.right}>{t('statement.table.credit')}</th><th className={styles.right}>{t('statement.table.balance')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {transactions.map(t => (
+                  <tr key={t.id}>
+                    <td className={styles.mono}>{t.date}</td>
+                    <td className={`${styles.mono} ${styles.muted} ${styles.tiny}`}>{t.ref}</td>
+                    <td><span className={`${styles.pill} ${t.type === 'Sale' ? styles.pillGreen : t.type === 'Expense' ? styles.pillRed : styles.pillAmber}`}>{t.type}</span></td>
+                    <td>{t.description}</td>
+                    <td className={`${styles.mono} ${styles.right} ${styles.debit}`}>{t.debit > 0 ? formatMoney(t.debit) : '-'}</td>
+                    <td className={`${styles.mono} ${styles.right} ${styles.credit}`}>{t.credit > 0 ? formatMoney(t.credit) : '-'}</td>
+                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:600}}>{formatMoney(t.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {/* ── STOCK SUMMARY ── */}
-      <div className={styles.sectionTitle}>Inventory Summary</div>
+      <div className={styles.sectionTitle}>{t('statement.inventorySummary')}</div>
       <div className={styles.tableWrap} style={{ marginBottom: 40 }}>
         <div className={styles.tableScroll}>
-          <table className={styles.stockTable}>
-            <thead>
-              <tr>
-                <th>Product</th><th className={styles.right}>Opening</th><th className={styles.right}>Sold</th>
-                <th className={styles.right}>Loss</th><th className={styles.right}>Restock</th>
-                <th className={styles.right}>Closing</th><th className={styles.right}>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {STOCK_SUMMARY.map(s => (
-                <tr key={s.product}>
-                  <td>{s.product}</td>
-                  <td className={`${styles.mono} ${styles.right}`}>{s.open}</td>
-                  <td className={`${styles.mono} ${styles.right} ${s.sold > 0 ? styles.debit : styles.muted}`}>{s.sold > 0 ? `-${s.sold}` : '0'}</td>
-                  <td className={`${styles.mono} ${styles.right} ${s.loss > 0 ? styles.debit : styles.muted}`}>{s.loss > 0 ? `-${s.loss}` : '0'}</td>
-                  <td className={`${styles.mono} ${styles.right} ${s.restock > 0 ? styles.credit : styles.muted}`}>{s.restock > 0 ? `+${s.restock}` : '0'}</td>
-                  <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700}}>{s.close}</td>
-                  <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700,color:'var(--purple,#6C21E8)'}}>{s.value}</td>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
+          ) : stockSummary.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+              {t('statement.noProducts')}
+            </div>
+          ) : (
+            <table className={styles.stockTable}>
+              <thead>
+                <tr>
+                  <th>{t('statement.table.product')}</th><th className={styles.right}>{t('statement.table.opening')}</th><th className={styles.right}>{t('statement.table.sold')}</th>
+                  <th className={styles.right}>{t('statement.table.loss')}</th><th className={styles.right}>{t('statement.table.restock')}</th>
+                  <th className={styles.right}>{t('statement.table.closing')}</th><th className={styles.right}>{t('statement.table.value')}</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className={styles.stockFooter}>
-                <td style={{fontWeight:800}}>Total</td>
-                <td colSpan={5} className={`${styles.right}`} style={{fontWeight:800}}>Closing Stock Value</td>
-                <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:800,color:'var(--purple,#6C21E8)'}}>₦129,500</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody>
+                {stockSummary.map(s => (
+                  <tr key={s.product}>
+                    <td>{s.product}</td>
+                    <td className={`${styles.mono} ${styles.right}`}>{s.open}</td>
+                    <td className={`${styles.mono} ${styles.right} ${s.sold > 0 ? styles.debit : styles.muted}`}>{s.sold > 0 ? `-${s.sold}` : '0'}</td>
+                    <td className={`${styles.mono} ${styles.right} ${s.loss > 0 ? styles.debit : styles.muted}`}>{s.loss > 0 ? `-${s.loss}` : '0'}</td>
+                    <td className={`${styles.mono} ${styles.right} ${s.restock > 0 ? styles.credit : styles.muted}`}>{s.restock > 0 ? `+${s.restock}` : '0'}</td>
+                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700}}>{s.close}</td>
+                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700,color:'var(--purple,#6C21E8)'}}>{formatMoney(s.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className={styles.stockFooter}>
+                  <td style={{fontWeight:800}}>{t('statement.table.total')}</td>
+                  <td colSpan={5} className={`${styles.right}`} style={{fontWeight:800}}>{t('statement.closingStockValue')}</td>
+                  <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:800,color:'var(--purple,#6C21E8)'}}>{formatMoney(stats.closingStock)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
         </div>
       </div>
     </div>

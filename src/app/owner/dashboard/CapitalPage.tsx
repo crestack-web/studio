@@ -1,18 +1,207 @@
-import React from 'react';
-import { useApp } from './AppContext'; // Make sure this path is correct and the file exists at src/app/owner/dashboard/AppContext.tsx
-
-// If the file does not exist, create src/AppContext.tsx with at least the following:
-// import { Button } from '../../shared/Button';
+import React, { useState, useEffect } from 'react';
+import { useApp } from './AppContext';
 import { Button } from './Button';
-import { FUNDING_OPTIONS, CHECKLIST_ITEMS } from './mockData';
+import { initializeFirebase } from '@/firebase';
+import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { useCurrency } from './CurrencyContext';
 import styles from './CapitalPage.module.css';
 
 // ═══════════════════════════════════════════
-//  CapitalPage — Access Capital
+//  CapitalPage — Access Capital (Real Data)
 // ═══════════════════════════════════════════
 
+interface ReadinessStats {
+  dataHistory: number;
+  cashBalance: number;
+  avgMargin: number;
+  requirementsMet: number;
+  totalRequirements: number;
+}
+
+interface ChecklistItem {
+  id: string;
+  label: string;
+  detail: string;
+  status: 'done' | 'pending' | 'todo';
+  action?: string;
+}
+
 export function CapitalPage() {
-  const { navigateTo, showToast } = useApp();
+  const { navigateTo, showToast, user } = useApp();
+  const { formatMoney } = useCurrency();
+  
+  const [loading, setLoading] = useState(true);
+  const [fundabilityScore, setFundabilityScore] = useState(0);
+  const [scoreStatus, setScoreStatus] = useState<'Growing' | 'Strong' | 'Needs Work'>('Needs Work');
+  const [stats, setStats] = useState<ReadinessStats>({
+    dataHistory: 0,
+    cashBalance: 0,
+    avgMargin: 0,
+    requirementsMet: 0,
+    totalRequirements: 6,
+  });
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+
+  useEffect(() => {
+    async function loadCapitalData() {
+      try {
+        setLoading(true);
+        const { auth, firestore } = initializeFirebase();
+        
+        // Get current user
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          showToast('❌ Please log in to view funding options');
+          navigateTo('home');
+          return;
+        }
+
+        // Get user's business ID
+        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        if (!userDoc.exists()) {
+          showToast('❌ User profile not found');
+          return;
+        }
+
+        const userData = userDoc.data();
+        const businessId = userData.businessId || currentUser.uid;
+
+        // Fetch business data
+        const [salesSnapshot, expensesSnapshot] = await Promise.all([
+          getDocs(collection(firestore, 'businesses', businessId, 'sales')),
+          getDocs(collection(firestore, 'businesses', businessId, 'expenses')),
+        ]);
+
+        // Calculate metrics
+        const sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const expenses = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Calculate data history (days since first sale)
+        let dataHistory = 0;
+        if (sales.length > 0) {
+          const firstSale = sales.reduce((min, s) => 
+            s.createdAt?.toDate() < min ? s.createdAt?.toDate() : min, 
+            new Date()
+          );
+          dataHistory = Math.floor((new Date().getTime() - firstSale.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        // Calculate total revenue and profit
+        const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
+        const totalProfit = sales.reduce((sum, s) => sum + (s.profit || 0), 0);
+        const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        
+        // Calculate average margin
+        const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+        // Calculate cash balance (simplified - revenue - expenses)
+        const cashBalance = totalRevenue - totalExpenses;
+
+        // Check requirements
+        const requirements = [
+          sales.length >= 10,           // At least 10 sales
+          dataHistory >= 30,            // 30+ days of data
+          avgMargin >= 15,              // 15%+ profit margin
+          cashBalance > 0,              // Positive cash flow
+          sales.length >= 30,           // Consistent sales
+          avgMargin >= 25,              // Healthy margin
+        ];
+
+        const requirementsMet = requirements.filter(Boolean).length;
+
+        // Calculate fundability score (0-100)
+        let score = 0;
+        score += Math.min(dataHistory / 90, 1) * 25;      // Max 25 points for history
+        score += Math.min(cashBalance / 500000, 1) * 25;  // Max 25 points for cash
+        score += Math.min(avgMargin / 40, 1) * 25;        // Max 25 points for margin
+        score += (requirementsMet / 6) * 25;              // Max 25 points for requirements
+
+        setFundabilityScore(Math.round(score));
+
+        // Determine score status
+        if (score >= 70) setScoreStatus('Strong');
+        else if (score >= 40) setScoreStatus('Growing');
+        else setScoreStatus('Needs Work');
+
+        // Update stats
+        setStats({
+          dataHistory,
+          cashBalance,
+          avgMargin: Math.round(avgMargin),
+          requirementsMet,
+          totalRequirements: 6,
+        });
+
+        // Generate checklist items
+        const items: ChecklistItem[] = [
+          {
+            id: 'sales',
+            label: 'Sales History',
+            detail: `${sales.length} sales recorded`,
+            status: sales.length >= 10 ? 'done' : sales.length >= 3 ? 'pending' : 'todo',
+          },
+          {
+            id: 'profit',
+            label: 'Profit Margin',
+            detail: `${Math.round(avgMargin)}% average margin`,
+            status: avgMargin >= 25 ? 'done' : avgMargin >= 15 ? 'pending' : 'todo',
+          },
+          {
+            id: 'cashflow',
+            label: 'Positive Cash Flow',
+            detail: formatMoney(cashBalance),
+            status: cashBalance > 0 ? 'done' : 'todo',
+          },
+          {
+            id: 'consistency',
+            label: 'Consistent Activity',
+            detail: `${dataHistory} days of data`,
+            status: dataHistory >= 60 ? 'done' : dataHistory >= 30 ? 'pending' : 'todo',
+          },
+          {
+            id: 'inventory',
+            label: 'Inventory Tracking',
+            detail: 'Track your stock levels',
+            status: 'pending',
+            action: () => navigateTo('inventory'),
+          },
+          {
+            id: 'expenses',
+            label: 'Expense Records',
+            detail: `${expenses.length} expenses logged`,
+            status: expenses.length >= 10 ? 'done' : expenses.length >= 3 ? 'pending' : 'todo',
+          },
+        ];
+
+        setChecklistItems(items);
+
+      } catch (error) {
+        console.error('Error loading capital data:', error);
+        showToast('❌ Failed to load funding data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCapitalData();
+  }, [navigateTo, showToast, formatMoney]);
+
+  if (loading) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.pageHeader}>
+          <div>
+            <h2 className={styles.pageTitle}>Access Capital</h2>
+            <p className={styles.pageDesc}>Analyzing your business data...</p>
+          </div>
+          <Button variant="subtle" onClick={() => navigateTo('home')}>← Back</Button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 20px' }}>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.wrapper}>
@@ -59,64 +248,129 @@ export function CapitalPage() {
         </div>
         <div className={styles.heroRight}>
           <div className={styles.scoreLabel}>Fundability Score</div>
-          <div className={styles.score}>62</div>
-          <div className={styles.scoreStatus}>📈 Growing</div>
+          <div className={styles.score}>{fundabilityScore}</div>
+          <div className={styles.scoreStatus}>
+            {scoreStatus === 'Strong' ? '💪 Strong' : scoreStatus === 'Growing' ? '📈 Growing' : '🌱 Needs Work'}
+          </div>
         </div>
       </div>
 
       {/* Readiness stats */}
       <div className={styles.statsGrid}>
-        {READINESS_STATS.map(s => (
-          <div key={s.label} className={styles.statBox}>
-            <div className={styles.statIcon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={18} height={18}>
-                <path d={s.icon}/>
-              </svg>
-            </div>
-            <div className={styles.statValue}>{s.value}</div>
-            <div className={styles.statLabel}>{s.label}</div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={18} height={18}>
+              <path d="M18 20v-10M12 20V4M6 20v-6"/>
+            </svg>
           </div>
-        ))}
+          <div className={styles.statValue}>{stats.dataHistory} days</div>
+          <div className={styles.statLabel}>Data History</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={18} height={18}>
+              <path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{formatMoney(stats.cashBalance)}</div>
+          <div className={styles.statLabel}>Cash Balance</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={18} height={18}>
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{stats.avgMargin}%</div>
+          <div className={styles.statLabel}>Avg Margin</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={18} height={18}>
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{stats.requirementsMet} of {stats.totalRequirements}</div>
+          <div className={styles.statLabel}>Requirements</div>
+        </div>
       </div>
 
       <h3 className={styles.sectionTitle}>Available Funding Options</h3>
       <div className={styles.fundingGrid}>
-        {FUNDING_OPTIONS.map(opt => (
-          <div key={opt.id} className={styles.fundingCard}>
-            <div className={styles.fundingIcon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={22} height={22}>
-                <path d={FUNDING_ICONS[opt.icon] ?? ''} />
-              </svg>
-            </div>
-            <div className={styles.fundingName}>{opt.name}</div>
-            <div className={styles.fundingDesc}>{opt.description}</div>
-            <div className={styles.fundingRange}>
-              <div>
-                <div className={styles.rangeLabel}>{opt.rangeLabel}</div>
-                <div className={styles.rangeValue}>{opt.rangeValue}</div>
-              </div>
-              <div>
-                <div className={styles.rangeLabel}>{opt.secondLabel}</div>
-                <div className={styles.rangeValue}>{opt.secondValue}</div>
-              </div>
-            </div>
-            <span
-              className={[
-                styles.tag,
-                opt.tagType === 'qualify' ? styles.tagGreen :
-                opt.tagType === 'pending' ? styles.tagAmber : styles.tagBlue,
-              ].join(' ')}
-            >
-              {opt.tag}
-            </span>
+        <div className={styles.fundingCard}>
+          <div className={styles.fundingIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={22} height={22}>
+              <path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+            </svg>
           </div>
-        ))}
+          <div className={styles.fundingName}>Microloan</div>
+          <div className={styles.fundingDesc}>Quick cash flow support</div>
+          <div className={styles.fundingRange}>
+            <div>
+              <div className={styles.rangeLabel}>Amount</div>
+              <div className={styles.rangeValue}>₦50K-₦500K</div>
+            </div>
+            <div>
+              <div className={styles.rangeLabel}>Rate</div>
+              <div className={styles.rangeValue}>3-5%/mo</div>
+            </div>
+          </div>
+          <span className={`${styles.tag} ${fundabilityScore >= 40 ? styles.tagGreen : styles.tagAmber}`}>
+            {fundabilityScore >= 40 ? 'Pre-Qualified' : 'Build Score'}
+          </span>
+        </div>
+
+        <div className={styles.fundingCard}>
+          <div className={styles.fundingIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={22} height={22}>
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </div>
+          <div className={styles.fundingName}>Revenue Share</div>
+          <div className={styles.fundingDesc}>Investment for % of revenue</div>
+          <div className={styles.fundingRange}>
+            <div>
+              <div className={styles.rangeLabel}>Amount</div>
+              <div className={styles.rangeValue}>₦500K-₦5M</div>
+            </div>
+            <div>
+              <div className={styles.rangeLabel}>Share</div>
+              <div className={styles.rangeValue}>5-15%</div>
+            </div>
+          </div>
+          <span className={`${styles.tag} ${fundabilityScore >= 60 ? styles.tagGreen : styles.tagBlue}`}>
+            {fundabilityScore >= 60 ? 'Available' : 'Requires 60+ Score'}
+          </span>
+        </div>
+
+        <div className={styles.fundingCard}>
+          <div className={styles.fundingIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={22} height={22}>
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <div className={styles.fundingName}>Equity Investment</div>
+          <div className={styles.fundingDesc}>Long-term growth capital</div>
+          <div className={styles.fundingRange}>
+            <div>
+              <div className={styles.rangeLabel}>Amount</div>
+              <div className={styles.rangeValue}>₦2M-₦20M</div>
+            </div>
+            <div>
+              <div className={styles.rangeLabel}>Equity</div>
+              <div className={styles.rangeValue}>10-30%</div>
+            </div>
+          </div>
+          <span className={`${styles.tag} ${fundabilityScore >= 75 ? styles.tagGreen : styles.tagBlue}`}>
+            {fundabilityScore >= 75 ? 'Eligible' : 'Requires 75+ Score'}
+          </span>
+        </div>
       </div>
 
       {/* Checklist */}
       <div className={styles.checklist}>
         <h3 className={styles.checklistTitle}>Readiness Checklist</h3>
-        {CHECKLIST_ITEMS.map(item => (
+        {checklistItems.map(item => (
           <div key={item.id} className={styles.checkItem}>
             <div
               className={[
@@ -141,8 +395,8 @@ export function CapitalPage() {
               <strong>{item.label}</strong> — {item.detail}
             </div>
             {item.action && (
-              <button className={styles.checkAction} onClick={() => showToast(item.action!)}>
-                {item.action}
+              <button className={styles.checkAction} onClick={item.action}>
+                {item.action === navigateTo('inventory') ? 'Go to Inventory' : item.action}
               </button>
             )}
           </div>
@@ -170,16 +424,3 @@ export function CapitalPage() {
     </div>
   );
 }
-
-const READINESS_STATS = [
-  { label: 'Data History',  value: '45 days', icon: 'M18 20v-10M12 20V4M6 20v-6' },
-  { label: 'Cash Balance',  value: '₦150K',   icon: 'M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16' },
-  { label: 'Avg Margin',    value: '29%',      icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
-  { label: 'Requirements',  value: '3 of 6',   icon: 'M20 6L9 17l-5-5' },
-];
-
-const FUNDING_ICONS: Record<string, string> = {
-  cash:  'M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16',
-  users: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
-  trend: 'M22 12h-4l-3 9L9 3l-3 9H2',
-};

@@ -1,80 +1,255 @@
+'use client';
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
-import { Button } from './Button';
+import { useCurrency } from './CurrencyContext';
+import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
-import { MOMessage } from './types';
-import { MO_SUGGESTIONS } from './mockData';
+import { MoThinking } from '@/components/mo-thinking';
+import { initializeFirebase } from '@/firebase';
+import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import styles from './AskMOPage.module.css';
 
-// ═══════════════════════════════════════════
-//  AskMOPage
-//  Full-page AI chat interface
-// ═══════════════════════════════════════════
+// MO Suggestions - now using translation keys
+const MO_SUGGESTIONS_KEYS = [
+  { label: 'mo.suggest.sales', icon: '💰' },
+  { label: 'mo.suggest.profit', icon: '📈' },
+  { label: 'mo.suggest.stock', icon: '📦' },
+  { label: 'mo.suggest.expenses', icon: '💸' },
+  { label: 'mo.suggest.customers', icon: '👥' },
+  { label: 'mo.suggest.tips', icon: '💡' },
+];
 
-function getMOReply(msg: string): string {
-  const lower = msg.toLowerCase();
-  if (lower.includes('profit') || lower.includes('today'))
-    return "Today's profit is ₦13,050 — a 29% margin. You're above the 20% healthy threshold. 🟢 Bottled Water is your highest margin at 40%. Consider stocking more.";
-  if (lower.includes('restock') || lower.includes('inventory'))
-    return 'Priority 1: Bottled Water (4 units left, runs out in ~2 days). Priority 2: Sabuni (7 units). Order 48 Bottled Water and 30 Sabuni ASAP — they drive 60% of your revenue.';
-  if (lower.includes('expense') || lower.includes('spending'))
-    return 'Expenses this month: ₦28,400 (24% of revenue). Slightly above the 20% healthy threshold. Top: Restocking ₦18K, Logistics ₦6K, Utilities ₦4.4K. Consider reducing logistics cost.';
-  if (lower.includes('cash') || lower.includes('balance'))
-    return 'Cash balance: ₦150,000 — approximately 45 days runway at current burn rate. You can safely invest ₦30K in high-margin restocking this month.';
-  if (lower.includes('add') && lower.includes('product'))
-    return "I've noted that! To add a product properly, go to Inventory → Add Product, or tap Quick Actions → Add Product. I'll help you price it optimally once you add the details.";
-  if (lower.includes('sale') || lower.includes('sold'))
-    return 'Got it! I can help you record that. Head to the Record Sale page, or tap Quick Actions → Record Sale. I can also note it here: tell me the product name and quantity.';
-  return "Great question! Based on your current business data — 45 days of history, ₦150K cash, 29% margin — I'd recommend focusing on restocking high-margin products first. What specific aspect would you like me to analyse?";
+// Plan-based limitations
+const PLAN_LIMITS = {
+  starter: { messagesPerDay: 10, features: ['basic_insights', 'sales_summary'] },
+  standard: { messagesPerDay: 50, features: ['basic_insights', 'sales_summary', 'forecasts', 'inventory_tips'] },
+  pro: { messagesPerDay: -1, features: ['basic_insights', 'sales_summary', 'forecasts', 'inventory_tips', 'premium_consulting', 'custom_reports'] }, // -1 = unlimited
+};
+
+interface MOMessage {
+  id: string;
+  role: 'bot' | 'user';
+  content: string;
+  timestamp: Date;
+  imageUrl?: string;
 }
 
-export function AskMOPage() {
-  const { navigateTo } = useApp();
+// ═══════════════════════════════════════════
+//  AskMOPage - Conversational AI with Plan Limits
+//  Full-page AI chat with Qwen integration
+// ═══════════════════════════════════════════
 
-  const [messages, setMessages] = useState<MOMessage[]>([
-    {
-      id: 'init',
-      role: 'bot',
-      content: "Hey Abdullahi 👋 I'm **MO**, your business AI.\n\nI have full context on your sales, inventory, expenses, and cashflow. Ask me anything or tap a suggestion below.",
-      timestamp: new Date(),
-    },
-  ]);
+export function AskMOPage() {
+  const { user, showToast } = useApp();
+  const { format } = useCurrency();
+  const { t, lang, langMeta } = useTranslation();
+
+  const [messages, setMessages] = useState<MOMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [messagesToday, setMessagesToday] = useState(0);
+  const [planLimit, setPlanLimit] = useState(10);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load user's plan and message history
+  useEffect(() => {
+    const loadPlanLimits = async () => {
+      try {
+        const { firestore } = initializeFirebase();
+        const userPlan = user.plan?.toLowerCase() || 'starter';
+        const limits = PLAN_LIMITS[userPlan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.starter;
+
+        setPlanLimit(limits.messagesPerDay);
+
+        // Count messages sent today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStart = Timestamp.fromDate(today);
+
+        const messagesQuery = query(
+          collection(firestore, 'users', user.id, 'mo_messages'),
+          where('timestamp', '>=', todayStart)
+        );
+
+        const snapshot = await getDocs(messagesQuery);
+        setMessagesToday(snapshot.size);
+
+        // Load conversation history (last 20 messages)
+        const historyQuery = query(
+          collection(firestore, 'users', user.id, 'mo_messages'),
+          where('timestamp', '<=', Timestamp.now())
+        );
+
+        const historySnapshot = await getDocs(historyQuery);
+        const history: MOMessage[] = [];
+        historySnapshot.forEach(doc => {
+          const data = doc.data();
+          history.push({
+            id: doc.id,
+            role: data.role,
+            content: data.content,
+            timestamp: data.timestamp?.toDate() || new Date(),
+            imageUrl: data.imageUrl,
+          });
+        });
+
+        // Sort by timestamp and take last 20
+        history.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        const recentHistory = history.slice(-20);
+
+        if (recentHistory.length === 0) {
+          // Initial greeting based on plan and language
+          const planGreeting = userPlan === 'pro' ? '🌟 Pro' : userPlan === 'standard' ? '⭐ Standard' : '🚀 Starter';
+          const greeting = t('mo.greeting');
+          const intro = t('mo.intro');
+          
+          setMessages([{
+            id: 'init',
+            role: 'bot',
+            content: `${greeting}\n\n${intro}\n\n${getPlanFeaturesMessage(userPlan, t)}`,
+            timestamp: new Date(),
+          }]);
+        } else {
+          setMessages(recentHistory);
+        }
+      } catch (error) {
+        console.error('Error loading plan limits:', error);
+      }
+    };
+
+    if (user.id) {
+      loadPlanLimits();
+    }
+  }, [user, t]);
+
+  const getPlanFeaturesMessage = (plan: string, t: (key: string) => string) => {
+    const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.starter;
+    const msgLimit = limits.messagesPerDay === -1 ? t('common.unlimited') || 'unlimited' : `${limits.messagesPerDay} ${t('mo.messagesPerDay') || 'messages/day'}`;
+
+    if (plan === 'starter') {
+      return t('mo.starterFeatures') || `You have **${msgLimit}**. I can help with basic sales insights and summaries.`;
+    } else if (plan === 'standard') {
+      return t('mo.standardFeatures') || `You have **${msgLimit}**. I can help with forecasts, inventory tips, and advanced insights.`;
+    } else if (plan === 'pro') {
+      return t('mo.proFeatures') || `You have **${msgLimit} messages**. I provide premium consulting and custom reports.`;
+    }
+    return '';
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const send = useCallback((text?: string) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const send = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg) return;
+    
+    // Check plan limits
+    if (planLimit !== -1 && messagesToday >= planLimit) {
+      showToast(`⚠️ You've reached your ${planLimit} message limit for today. Upgrade your plan for more messages!`);
+      return;
+    }
+    
+    if (!msg && !selectedImage) return;
 
     const userMsg: MOMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: msg,
       timestamp: new Date(),
+      imageUrl: imagePreview || undefined,
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setSelectedImage(null);
+    setImagePreview(null);
 
-    setTimeout(() => {
-      const reply = getMOReply(msg);
+    try {
+      // Save user message to Firestore
+      const { firestore } = initializeFirebase();
+      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', userMsg.id), {
+        role: 'user',
+        content: msg,
+        timestamp: Timestamp.now(),
+        imageUrl: imagePreview || null,
+      });
+
+      // Call Qwen API for AI response with comprehensive business context
+      const response = await fetch('/api/ask-mo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          image: imagePreview,
+          merchantId: user.businessId || user.id,
+          conversationHistory: messages.slice(-5).map(m => ({ role: m.role, content: m.content })),
+          userPlan: user.plan || 'starter',
+          language: lang, // Send user's selected language
+          languageName: langMeta.name, // Send language native name
+        }),
+      });
+
+      const data = await response.json();
+
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
-        content: reply,
+        content: data.answer || "I'm analysing your business data...",
+        timestamp: new Date(),
+      };
+
+      setMessages(prev => [...prev, botMsg]);
+
+      // Save bot response to Firestore
+      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsg.id), {
+        role: 'bot',
+        content: botMsg.content,
+        timestamp: Timestamp.now(),
+      });
+
+      // Update messages count
+      setMessagesToday(prev => prev + 1);
+
+      // If sale was recorded, show success
+      if (data.saleRecorded) {
+        showToast(`✅ Sale recorded successfully!`);
+      }
+
+      // If product was added, show success
+      if (data.productAdded) {
+        showToast(`✅ Product added to inventory!`);
+      }
+    } catch (error) {
+      console.error('MO API error:', error);
+      const botMsg: MOMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        content: "I'm having trouble connecting right now. Please try again in a moment.",
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, botMsg]);
+    } finally {
       setIsTyping(false);
-    }, 700 + Math.random() * 400);
-  }, [input]);
+    }
+  }, [input, selectedImage, imagePreview, messages, user, planLimit, messagesToday]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -89,7 +264,6 @@ export function AskMOPage() {
   }
 
   function formatContent(content: string) {
-    // Bold markdown **text**
     return content.split('\n').map((line, i) => (
       <React.Fragment key={i}>
         {line.split(/\*\*([^*]+)\*\*/g).map((part, j) =>
@@ -105,86 +279,155 @@ export function AskMOPage() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.moAvatar}>
-          <MoIcon size={18} />
+          <MoIcon size={28} />
         </div>
         <div className={styles.headerInfo}>
-          <h2 className={styles.headerTitle}>Ask MO</h2>
+          <h1 className={styles.headerTitle}>Ask MO</h1>
           <div className={styles.status}>
-            <span className={styles.statusDot} />
-            Online · ready to help
+            <span className={styles.statusDot}></span>
+            <span>Online</span>
           </div>
+          {planLimit !== -1 && (
+            <div className={styles.planLimit} style={{ fontSize: '11px', color: messagesToday >= planLimit ? '#DC2626' : '#16A34A', marginTop: '4px' }}>
+              {messagesToday} / {planLimit} messages today
+            </div>
+          )}
+          {planLimit === -1 && (
+            <div className={styles.planLimit} style={{ fontSize: '11px', color: '#16A34A', marginTop: '4px' }}>
+              ∞ Unlimited messages
+            </div>
+          )}
         </div>
-        <Button variant="ghost" size="xs" onClick={() => navigateTo('home')}>← Back</Button>
       </div>
 
       {/* Messages */}
       <div className={styles.messages}>
-        {messages.map(msg => (
+        {messages.map(m => (
           <div
-            key={msg.id}
-            className={[styles.message, msg.role === 'bot' ? styles.bot : styles.user].join(' ')}
+            key={m.id}
+            className={`${styles.message} ${m.role === 'user' ? styles.user : styles.bot}`}
           >
-            {msg.role === 'bot' && (
+            {m.role === 'bot' && (
               <div className={styles.moAvatarSm}>
-                <MoIcon size={13} />
+                <MoIcon size={16} />
               </div>
             )}
-            <div>
-              <div className={[styles.bubble, msg.role === 'bot' ? styles.botBubble : styles.userBubble].join(' ')}>
-                {typeof msg.content === 'string' ? formatContent(msg.content) : null}
+            <div className={`${styles.bubble} ${m.role === 'user' ? styles.userBubble : styles.botBubble}`}>
+              {m.imageUrl && (
+                <img
+                  src={m.imageUrl}
+                  alt="Uploaded"
+                  style={{
+                    maxWidth: '200px',
+                    borderRadius: '8px',
+                    marginBottom: '8px',
+                    display: 'block',
+                  }}
+                />
+              )}
+              <div className={styles.msgText}>
+                {formatContent(m.content)}
               </div>
               <div className={styles.time}>
-                {msg.timestamp.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
         ))}
-
-        {/* Typing indicator */}
         {isTyping && (
-          <div className={[styles.message, styles.bot].join(' ')}>
-            <div className={styles.moAvatarSm}><MoIcon size={13} /></div>
+          <div className={`${styles.message} ${styles.bot}`}>
+            <div className={styles.moAvatarSm}>
+              <MoThinking size={24} />
+            </div>
             <div className={styles.typingBubble}>
-              <span className={styles.dot} />
-              <span className={styles.dot} />
-              <span className={styles.dot} />
+              <MoThinking size={32} />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
+      {/* Suggestions */}
+      <div className={styles.suggestions}>
+        {MO_SUGGESTIONS_KEYS.map(s => (
+          <button
+            key={s.label}
+            className={styles.suggestion}
+            onClick={() => send(t(s.label))}
+            title={s.label}
+          >
+            {s.icon} {t(s.label)}
+          </button>
+        ))}
+      </div>
+
+      {/* Input */}
       <div className={styles.inputArea}>
-        {/* Suggestions */}
-        {messages.length <= 1 && (
-          <div className={styles.suggestions}>
-            {MO_SUGGESTIONS.map(s => (
-              <button key={s} className={styles.suggestion} onClick={() => send(s)}>
-                {s}
-              </button>
-            ))}
+        {imagePreview && (
+          <div className={styles.imagePreview}>
+            <img src={imagePreview} alt="Preview" />
+            <button
+              onClick={() => {
+                setSelectedImage(null);
+                setImagePreview(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className={styles.removeImageBtn}
+            >
+              ✕
+            </button>
           </div>
         )}
-
         <div className={styles.inputRow}>
-          <textarea
-            ref={textareaRef}
-            className={styles.textarea}
-            placeholder="Ask anything about your business…"
-            value={input}
-            onChange={e => { setInput(e.target.value); autoResize(e.target); }}
-            onKeyDown={handleKey}
-            rows={1}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            style={{ display: 'none' }}
           />
           <button
-            className={styles.sendBtn}
+            onClick={() => fileInputRef.current?.click()}
+            className={styles.imageUploadBtn}
+            title="Upload image"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--bg)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+          <textarea
+            value={input}
+            onChange={e => {
+              setInput(e.target.value);
+              autoResize(e.target);
+            }}
+            onKeyDown={handleKey}
+            placeholder="Ask MO anything about your business..."
+            ref={textareaRef}
+            rows={1}
+            className={styles.textarea}
+          />
+          <button
             onClick={() => send()}
-            disabled={!input.trim() || isTyping}
-            aria-label="Send message"
+            disabled={!input.trim() && !selectedImage}
+            className={styles.sendBtn}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           </button>
         </div>

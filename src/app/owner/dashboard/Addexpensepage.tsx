@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { useApp } from './AppContext';
+import { useTranslation } from './LangContext';
+import { useCurrency } from './CurrencyContext';
 import styles from './Addexpensepage.module.css';
 
 // ═══════════════════════════════════════════
@@ -57,6 +59,8 @@ interface ExpenseForm {
 
 export function AddExpensePage() {
   const { showToast } = useApp();
+  const { t } = useTranslation();
+  const { currencySymbol } = useCurrency();
 
   const [form, setForm] = useState<ExpenseForm>({
     category: '', amount: '', date: today, paymentMethod: 'Cash',
@@ -76,7 +80,7 @@ export function AddExpensePage() {
     if (!form.category) { showToast('⚠️ Please select a category'); return; }
     if (!form.amount)   { showToast('⚠️ Please enter an amount'); return; }
     const amt = parseFloat(form.amount).toLocaleString();
-    showToast(`✅ Expense of ₦${amt} recorded`);
+    showToast(`✅ Expense of ${currencySymbol}${amt} recorded`);
   }
 
   return (
@@ -105,9 +109,9 @@ export function AddExpensePage() {
             </select>
           </div>
           <div className={styles.group}>
-            <label className={styles.label}>Amount (₦) <span className={styles.req}>*</span></label>
+            <label className={styles.label}>Amount ({currencySymbol}) <span className={styles.req}>*</span></label>
             <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>₦</span>
+              <span className={styles.prefix}>{currencySymbol}</span>
               <input type="number" className={styles.input} style={{ paddingLeft: 28 }} placeholder="0.00" value={form.amount} onChange={e => set('amount', e.target.value)} />
             </div>
           </div>

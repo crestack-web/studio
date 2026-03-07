@@ -1,14 +1,13 @@
-export const metadata = {
-  title: 'Busmo',
-  description: 'The all-in-one workspace for African small businesses.',
-  icons: {
-    icon: '/dashboard-logo.svg',
-    shortcut: '/dashboard-logo.svg',
-    apple: '/dashboard-logo.svg',
-  },
-};
+'use client';
+
+import '@/app/globals.css';
+import { CurrencyProvider } from '@/contexts/currency-context';
+import { FirebaseProvider } from '@/firebase/provider';
+import { initializeFirebase } from '@/firebase';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const { firebaseApp, firestore, auth } = initializeFirebase();
+
   return (
     <html lang="en">
       <head>
@@ -16,7 +15,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="shortcut icon" href="/dashboard-logo.svg" />
         <link rel="apple-touch-icon" href="/dashboard-logo.svg" />
       </head>
-      <body>{children}</body>
+      <body>
+        <FirebaseProvider firebaseApp={firebaseApp} firestore={firestore} auth={auth}>
+          <CurrencyProvider>
+            {children}
+          </CurrencyProvider>
+        </FirebaseProvider>
+      </body>
     </html>
   );
 }

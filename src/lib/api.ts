@@ -1,6 +1,16 @@
 
 'use client';
 
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { firebaseConfig } from '@/firebase/config';
+
+// Initialize Firebase app if not already initialized
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
+const functions = getFunctions(app);
+
 // A mapping of our internal function names to their proxied API paths.
 const functionPathMap: { [key: string]: string } = {
   initializePayment: '/api/initializePayment',
@@ -15,6 +25,8 @@ const functionPathMap: { [key: string]: string } = {
   ensureReferralCode: '/api/ensureReferralCode',
   adminRecordReferralPayout: '/api/adminRecordReferralPayout',
   sendOtpLogin: '/api/sendOtpLogin', // Added for OTP email
+  createProduct: '/api/createProduct',
+  getProducts: '/api/getProducts',
 };
 
 /**
@@ -34,3 +46,39 @@ export function getFunctionUrl(functionName: keyof typeof functionPathMap): stri
 
   return path;
 }
+
+export const addProduct = async (productData: any) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const createProduct = httpsCallable(functions, 'createProduct');
+  try {
+    const result = await createProduct(productData);
+    return result.data;
+  } catch (error) {
+    console.error('Error adding product:', error);
+    throw error;
+  }
+};
+
+export const getProducts = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+
+  const getProducts = httpsCallable(functions, 'getProducts');
+  try {
+    const result = await getProducts();
+    return result.data;
+  } catch (error) {
+    console.error('Error getting products:', error);
+    throw error;
+  }
+};

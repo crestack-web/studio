@@ -4,20 +4,21 @@ export const currencyMap: { [key: string]: { symbol: string; position: 'before' 
   GH: { symbol: 'GH₵', position: 'before', name: 'GHS' },
   NE: { symbol: 'CFA', position: 'after', name: 'XOF' },
   CM: { symbol: 'CFA', position: 'after', name: 'XAF' },
+  US: { symbol: '$', position: 'before', name: 'USD' },
 };
 
 export const markets = [
-    { 
-        code: 'NG', 
-        name: 'Nigeria', 
+    {
+        code: 'NG',
+        name: 'Nigeria',
         currency: 'NGN',
-        cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Kano'] 
+        cities: ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Kano']
     },
-    { 
-        code: 'GH', 
-        name: 'Ghana', 
+    {
+        code: 'GH',
+        name: 'Ghana',
         currency: 'GHS',
-        cities: ['Accra', 'Kumasi', 'Takoradi'] 
+        cities: ['Accra', 'Kumasi', 'Takoradi']
     },
     {
         code: 'NE',
@@ -30,19 +31,26 @@ export const markets = [
         name: 'Cameroon',
         currency: 'XAF',
         cities: ['Douala', 'Yaoundé']
+    },
+    {
+        code: 'US',
+        name: 'United States',
+        currency: 'USD',
+        cities: ['New York', 'Los Angeles', 'Chicago']
     }
 ];
 
-// Rates are how many units of the target currency you get for 1 NGN.
+// Base currency is now USD
 const exchangeRates: { [key: string]: number } = {
-    NGN: 1,
-    GHS: 0.09, // ~1 GHS = 11 NGN
-    XOF: 0.4,  // ~1 NGN = 0.4 XOF
-    XAF: 0.4,  // ~1 NGN = 0.4 XAF
+    USD: 1,
+    NGN: 1550,   // 1 USD = 1,550 NGN
+    GHS: 12,     // 1 USD = 12 GHS
+    XOF: 610,    // 1 USD = 610 XOF
+    XAF: 610,    // 1 USD = 610 XAF
 };
 
 export function getCurrencyName(currencyOrCountryCode?: string): string {
-    if (!currencyOrCountryCode) return 'NGN';
+    if (!currencyOrCountryCode) return 'USD';
      // Check if it's a currency name (e.g., 'NGN', 'GHS')
     const marketByCurrency = markets.find(m => m.currency === currencyOrCountryCode);
     if(marketByCurrency) return marketByCurrency.currency;
@@ -52,83 +60,124 @@ export function getCurrencyName(currencyOrCountryCode?: string): string {
     if (marketByCountry) {
         return marketByCountry.currency;
     }
-    
-    return 'NGN'; // Default to Nigeria
+
+    return 'USD'; // Default to USD
 }
 
 /**
- * Converts a value from a source currency to a target currency.
- * @param value The amount to convert.
- * @param fromCurrencyName The source currency code (e.g., 'NGN').
- * @param toCurrencyName The target currency code (e.g., 'GHS').
- * @returns The converted value.
- */
-export function convertCurrency(value: number, fromCurrencyName?: string, toCurrencyName?: string): number {
-    if (!fromCurrencyName || !toCurrencyName || fromCurrencyName === toCurrencyName) {
-        return value;
-    }
-
-    const fromRate = exchangeRates[fromCurrencyName];
-    const toRate = exchangeRates[toCurrencyName];
-
-    if (fromRate === undefined || toRate === undefined) {
-        // console.warn(`Cannot convert from ${fromCurrencyName} to ${toCurrencyName}. Missing exchange rate.`);
-        return value; // Return original value if conversion is not possible
-    }
-
-    // Convert 'from' currency to base currency (NGN)
-    const valueInNgn = value / fromRate;
-
-    // Convert from base currency (NGN) to 'to' currency
-    const convertedValue = valueInNgn * toRate;
-
-    return convertedValue;
-}
-
-
-/**
- * Converts a value from NGN (the base currency) to a target currency.
- * @param ngnValue The value in Nigerian Naira.
+ * Converts a value from USD (the base currency) to a target currency.
+ * @param usdValue The value in US Dollars.
  * @param targetCurrencyOrCountryCode The currency code ('GHS') or country code ('GH').
  * @returns The converted value in the target currency.
  */
-export function convertFromNgn(ngnValue: number, targetCurrencyOrCountryCode?: string): number {
+export function convertFromUsd(usdValue: number, targetCurrencyOrCountryCode?: string): number {
     const targetCurrencyName = getCurrencyName(targetCurrencyOrCountryCode);
     const rate = exchangeRates[targetCurrencyName];
     if (rate === undefined) {
-        return ngnValue;
+        return usdValue;
     }
-    return ngnValue * rate;
+    return usdValue * rate;
+}
+
+/**
+ * Converts a value from a source currency to USD.
+ * @param value The amount to convert.
+ * @param fromCurrencyOrCountryCode The source currency code or country code.
+ * @returns The value in USD.
+ */
+export function convertToUsd(value: number, fromCurrencyOrCountryCode?: string): number {
+    const fromCurrencyName = getCurrencyName(fromCurrencyOrCountryCode);
+    const rate = exchangeRates[fromCurrencyName];
+    if (rate === undefined) {
+        return value;
+    }
+    return value / rate;
+}
+
+/**
+ * Converts a value from NGN to a target currency.
+ * @param ngnValue The value in Nigerian Naira.
+ * @param targetCurrencyOrCountryCode The target currency code or country code.
+ * @returns The converted value in the target currency.
+ * @deprecated Use convertFromUsd instead as USD is now the base currency
+ */
+export function convertFromNgn(ngnValue: number, targetCurrencyOrCountryCode?: string): number {
+    // First convert NGN to USD, then USD to target currency
+    const usdValue = convertToUsd(ngnValue, 'NG');
+    return convertFromUsd(usdValue, targetCurrencyOrCountryCode);
 }
 
 
 export function getCountryCode(currencyOrCountryCode?: string): string {
-    if (!currencyOrCountryCode) return 'NG';
+    if (!currencyOrCountryCode) return 'US';
 
     // Check if it's a country code (e.g., 'NG', 'GH')
     const marketByCountry = markets.find(m => m.code === currencyOrCountryCode);
     if (marketByCountry) {
         return marketByCountry.code;
     }
-    
+
     // Check if it's a currency name (e.g., 'NGN', 'GHS')
     const marketByCurrency = markets.find(m => m.currency === currencyOrCountryCode);
     if (marketByCurrency) {
       return marketByCurrency.code;
     }
+
+    return 'US'; // Default to US
+}
+
+/**
+ * Detects the user's country code based on browser locale or timezone.
+ * Falls back to 'US' if detection fails.
+ */
+export function getUserCountryCode(): string {
+    if (typeof window === 'undefined') return 'US';
     
-    return 'NG'; // Default to Nigeria
+    try {
+        // Try to get country from browser locale
+        const locale = navigator.language || (navigator as any).userLanguage;
+        if (locale) {
+            const countryCode = locale.split('-')[1];
+            if (countryCode && markets.find(m => m.code === countryCode)) {
+                return countryCode;
+            }
+        }
+        
+        // Try to get country from timezone
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timezone) {
+            // Map common timezones to countries
+            const timezoneToCountry: { [key: string]: string } = {
+                'Africa/Lagos': 'NG',
+                'Africa/Accra': 'GH',
+                'Africa/Niamey': 'NE',
+                'Africa/Douala': 'CM',
+                'Africa/Porto-Novo': 'NG',
+                'Africa/Abuja': 'NG',
+                'America/New_York': 'US',
+                'America/Chicago': 'US',
+                'America/Los_Angeles': 'US',
+                'America/Denver': 'US',
+            };
+            const country = timezoneToCountry[timezone];
+            if (country) return country;
+        }
+    } catch (e) {
+        // Fallback to US if detection fails
+    }
+    
+    return 'US'; // Default to US
 }
 
 
 export function formatCurrency(value: number, currencyOrCountryCode?: string) {
   const countryCode = getCountryCode(currencyOrCountryCode);
-  const config = currencyMap[countryCode] || currencyMap['NG'];
-  
+  const config = currencyMap[countryCode] || currencyMap['US'];
+
   if (value === null || value === undefined) {
       value = 0;
   }
-  
+
   const formattedValue = Math.round(value).toLocaleString();
 
   if (config.position === 'after') {
@@ -139,5 +188,5 @@ export function formatCurrency(value: number, currencyOrCountryCode?: string) {
 
 export function getCurrencySymbol(currencyOrCountryCode?: string) {
     const countryCode = getCountryCode(currencyOrCountryCode);
-    return currencyMap[countryCode]?.symbol || '₦';
+    return currencyMap[countryCode]?.symbol || '$';
 }

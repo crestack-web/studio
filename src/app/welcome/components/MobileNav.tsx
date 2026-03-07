@@ -53,7 +53,7 @@ export function MobileNav() {
             <Link href="/login" className="btn btn-outline font-medium text-sm px-5 py-2 rounded-[10px] w-full text-center mt-4" onClick={() => setOpen(false)}>
               Log In
             </Link>
-            <Link href="/signup" className="btn btn-primary font-semibold text-sm px-6 py-2 rounded-[10px] w-full text-center" onClick={() => setOpen(false)}>
+            <Link href="/welcome/signup" className="btn btn-primary font-semibold text-sm px-6 py-2 rounded-[10px] w-full text-center" onClick={() => setOpen(false)}>
               Start Free Trial
             </Link>
             <div className="mt-4 flex justify-center">

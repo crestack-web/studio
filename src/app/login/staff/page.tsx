@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { initializeFirebase } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 // ── Staff Logo ────────────────────────────────
 function StaffLogo({ size = 32 }: { size?: number }) {
@@ -153,15 +156,26 @@ export default function StaffLogin() {
   const handleLogin = async () => {
     setLoading(true);
     setError("");
-    // TODO: Connect to backend staff authentication
-    setTimeout(() => {
-      setLoading(false);
-      if (staffId === "staff001" && password === "password") {
-        window.location.href = "/staff/dashboard";
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const userCredential = await signInWithEmailAndPassword(auth, staffId, password);
+      const user = userCredential.user;
+
+      const userDocRef = doc(firestore, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists() && userDoc.data().role === 'Staff') {
+        window.location.href = "/staff/home";
       } else {
-        setError("Invalid staff ID or password.");
+        setError("You are not authorized to access the staff portal. Please contact your business owner.");
+        await auth.signOut();
       }
-    }, 1200);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError("Invalid staff ID or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -173,7 +187,7 @@ export default function StaffLogin() {
           fontSize: 17, fontWeight: 800, color: "#16A34A",
           fontFamily: "'Sora', sans-serif", letterSpacing: "-0.03em"
         }}>
-          busmo staff
+         
         </span>
       </div>
 

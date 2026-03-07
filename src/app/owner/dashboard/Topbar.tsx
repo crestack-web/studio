@@ -2,21 +2,23 @@
 
 import React, { useMemo } from 'react';
 import { useApp } from './AppContext';
+import { useTranslation } from './LangContext';
 import { NAV_SECTIONS } from './navItems';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
   const { activePage, openSidebar, toggleTheme, theme, user, openAvatarModal } = useApp();
+  const { t } = useTranslation();
 
   const currentNav = useMemo(() => {
     for (const section of NAV_SECTIONS) {
       const found = section.items.find(i => i.id === activePage);
       if (found) return found;
     }
-    return { label: 'Dashboard', tip: '' };
-  }, [activePage]);
+    return { label: t('nav.home'), tip: '' };
+  }, [activePage, t]);
 
-  const greeting = activePage === 'home' ? `Welcome back, ${user.shortName} 👋` : currentNav.label;
+  const greeting = activePage === 'home' ? `${t('topbar.greeting')}, ${user.shortName} 👋` : currentNav.label;
 
   const today = useMemo(() =>
     new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
@@ -36,7 +38,7 @@ export function Topbar() {
       </div>
 
       <div className={styles.actions}>
-        <button className={styles.iconBtn} onClick={toggleTheme} title="Toggle theme">
+        <button className={styles.iconBtn} onClick={toggleTheme} title={t('topbar.toggleTheme')}>
           {theme === 'light' ? (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
@@ -50,7 +52,7 @@ export function Topbar() {
           )}
         </button>
 
-        <button className={styles.iconBtn} title="Notifications">
+        <button className={styles.iconBtn} title={t('topbar.notifications')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 01-3.46 0"/>

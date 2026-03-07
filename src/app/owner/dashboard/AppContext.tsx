@@ -9,12 +9,16 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
+import { LangProvider } from './LangContext';
+import { initializeFirebase } from '@/firebase';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 type User = {
-  initials: ReactNode;
-  shortName: any;
-  role: ReactNode;
-  plan: ReactNode;
+  initials: string;
+  shortName: string;
+  role: string;
+  plan: string;
   id: string;
   name: string;
   email: string;
@@ -23,9 +27,9 @@ type User = {
     background: string;
     color: string;
   };
-  // Add other fields as needed
+  businessId?: string;
 };
-import { CURRENT_USER } from './mockData';
+
 import { PageId, Theme } from '.';
 
 // Define AvatarOption type locally since it's not exported from './types'
@@ -105,7 +109,57 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 2800);
   }, []);
 
-  const [user, setUser] = useState<User>(CURRENT_USER);
+  // Load user from Firebase Auth
+  const [user, setUser] = useState<User>({
+    initials: '..',
+    shortName: 'Loading...',
+    role: 'Owner',
+    plan: 'Free',
+    id: '',
+    name: '',
+    email: '',
+    avatarContent: '👤',
+    avatarStyle: { background: '#6B3FE7', color: '#fff' },
+    businessId: undefined,
+  });
+
+  useEffect(() => {
+    const { auth, firestore } = initializeFirebase();
+    
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const displayName = firebaseUser.displayName || data.displayName || data.businessName || 'User';
+            const firstName = displayName.split(' ')[0];
+            
+            setUser({
+              initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+              shortName: firstName,
+              role: data.role || 'Owner',
+              plan: data.plan || 'Free',
+              id: firebaseUser.uid,
+              name: displayName,
+              email: firebaseUser.email || '',
+              avatarContent: data.avatarContent || '👤',
+              avatarStyle: { 
+                background: data.avatarBg || '#6B3FE7', 
+                color: data.avatarColor || '#fff' 
+              },
+              businessId: data.businessId,
+            });
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const openAvatarModal  = useCallback(() => setAvatarModalOpen(true), []);
   const closeAvatarModal = useCallback(() => setAvatarModalOpen(false), []);
@@ -120,15 +174,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{
-      theme, toggleTheme,
-      activePage, navigateTo,
-      sidebarCollapsed, sidebarOpen, toggleSidebar, openSidebar, closeSidebar,
-      toast, showToast,
-      user, openAvatarModal, closeAvatarModal, avatarModalOpen, saveAvatar,
-    }}>
-      {children}
-    </AppContext.Provider>
+    <LangProvider>
+      <AppContext.Provider value={{
+        theme, toggleTheme,
+        activePage, navigateTo,
+        sidebarCollapsed, sidebarOpen, toggleSidebar, openSidebar, closeSidebar,
+        toast, showToast,
+        user, openAvatarModal, closeAvatarModal, avatarModalOpen, saveAvatar,
+      }}>
+        {children}
+      </AppContext.Provider>
+    </LangProvider>
   );
 }
 

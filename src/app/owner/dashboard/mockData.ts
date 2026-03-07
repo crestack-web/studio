@@ -91,11 +91,12 @@ export const CURRENT_USER = {
 };
 
 // ── Home metrics ─────────────────────────────
-export const HOME_METRICS: MetricItem[] = [
-  { label: "Today's Sales",  value: '₦45,000', trend: '↑ 12%',  trendType: 'up'      },
-  { label: "Today's Profit", value: '₦13,050', trend: '↑ 8%',   trendType: 'up'      },
-  { label: 'Profit Margin',  value: '29%',      trend: 'Healthy', trendType: 'up'      },
-  { label: 'Cash Balance',   value: '₦150K',    trend: '~45d runway', trendType: 'neutral' },
+// Note: These are mock values. In production, use formatCurrency() from @/lib/currency
+export const HOME_METRICS = [
+  { label: "Today's Sales",  value: '₦45,000', valueNum: 45000, trend: '↑ 12%',  trendType: 'up'      },
+  { label: "Today's Profit", value: '₦13,050', valueNum: 13050, trend: '↑ 8%',   trendType: 'up'      },
+  { label: 'Profit Margin',  value: '29%',      valueNum: 29,    trend: 'Healthy', trendType: 'up'      },
+  { label: 'Cash Balance',   value: '₦150K',    valueNum: 150000, trend: '~45d runway', trendType: 'neutral' },
 ];
 
 export const INSIGHTS = [
@@ -222,8 +223,8 @@ export const MO_SUGGESTIONS = [
 ];
 
 export const MO_ASK_CHIPS = [
-  { label: 'Am I spending too much?',   reply: 'Your expenses this month: ₦28,400 (24% of revenue). Slightly above the 20% healthy threshold. Top: Restocking ₦18K, Logistics ₦6K, Utilities ₦4.4K. Consider reducing logistics cost.' },
+  { label: 'Am I spending too much?',   reply: 'Your expenses this month: ₦28,400 (24% of revenue). Slightly above the 20% healthy threshold. Top: Restocking ₦18K, Logistics ₦6K, Utilities ₦4.4K. Consider reducing logistics cost.', replyNum: { expenses: 28400, percentage: 24, restocking: 18000, logistics: 6000, utilities: 4400 } },
   { label: 'Which product to restock?', reply: 'Priority 1: Bottled Water (4 units, runs out in ~2 days). Priority 2: Sabuni (7 units). Order 48 Bottled Water and 30 Sabuni ASAP. These two drive 60% of your revenue.' },
-  { label: 'Why did profit drop?',      reply: 'Profit dropped 18% vs last week. 2 causes: Cost of goods up ₦4,200 (Bottled Water price hike) + 2 high-margin products out of stock for 1.5 days, losing ~₦6,800 in revenue.' },
-  { label: 'Can I afford to grow?',     reply: 'Yes — ₦150K cash, 45-day runway. You can safely invest up to ₦30K this month. Best ROI: restock high-margin items first, then activate your Busmo Market storefront.' },
+  { label: 'Why did profit drop?',      reply: 'Profit dropped 18% vs last week. 2 causes: Cost of goods up ₦4,200 (Bottled Water price hike) + 2 high-margin products out of stock for 1.5 days, losing ~₦6,800 in revenue.', replyNum: { costIncrease: 4200, lostRevenue: 6800 } },
+  { label: 'Can I afford to grow?',     reply: 'Yes — ₦150K cash, 45-day runway. You can safely invest up to ₦30K this month. Best ROI: restock high-margin items first, then activate your Busmo Market storefront.', replyNum: { cash: 150000, runway: 45, maxInvest: 30000 } },
 ];

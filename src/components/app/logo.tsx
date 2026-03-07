@@ -85,7 +85,7 @@ export function Logo({ className, variant }: { className?: string, variant?: 'de
   }
 
   return (
-    <div className={cn("flex items-center gap-2 text-3xl font-bold font-headline", className)}>
+    <div className={cn("flex items-center gap-2 text-4xl font-bold font-headline", className)}>
       <LogoIcon />
       <div>
         <span className="text-accent whitespace-nowrap">Busmo</span>

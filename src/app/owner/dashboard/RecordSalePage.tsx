@@ -1,9 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { useTranslation } from './LangContext';
+import { useCurrency } from './CurrencyContext';
+import { useFirestore } from '@/firebase/provider';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod } from './types';
-import { PRODUCTS } from './mockData';
 import styles from './RecordSalePage.module.css';
 
 // ═══════════════════════════════════════════
@@ -12,11 +15,16 @@ import styles from './RecordSalePage.module.css';
 
 export function RecordSalePage() {
   const { navigateTo, showToast } = useApp();
+  const { t } = useTranslation();
+  const { formatMoney, currencyCode } = useCurrency();
+  const firestore = useFirestore();
 
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [payment, setPayment] = useState<PaymentMethod>('cash');
   const [note, setNote] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Custom item form
   const [customName, setCustomName] = useState('');
@@ -24,9 +32,49 @@ export function RecordSalePage() {
   const [customPrice, setCustomPrice] = useState('');
   const [customCost, setCustomCost] = useState('');
 
+  // Fetch real products from Firestore
+  useEffect(() => {
+    async function fetchProducts() {
+      if (!firestore) return;
+      
+      try {
+        setLoading(true);
+        const productsQuery = query(
+          collection(firestore, 'products'),
+          where('active', '==', true)
+        );
+        
+        const snapshot = await getDocs(productsQuery);
+        const fetchedProducts: Product[] = [];
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          fetchedProducts.push({
+            id: doc.id,
+            name: data.name || 'Unnamed Product',
+            price: data.price || 0,
+            costPrice: data.costPrice || 0,
+            stock: data.stock || 0,
+            emoji: data.emoji || '📦',
+            lowStockThreshold: data.lowStockThreshold || 10,
+          });
+        });
+        
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        showToast('Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, [firestore, showToast]);
+
   const filtered = useMemo(
-    () => PRODUCTS.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
-    [search]
+    () => products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
+    [products, search]
   );
 
   function addToCart(product: Product) {
@@ -52,7 +100,7 @@ export function RecordSalePage() {
   }
 
   function addCustom() {
-    if (!customName || !customPrice) return showToast('Fill item name and price');
+    if (!customName || !customPrice) return showToast(t('product.name') + ' & ' + t('product.sellingPrice'));
     const item: CartItem = {
       id: Date.now(),
       name: customName,
@@ -64,7 +112,7 @@ export function RecordSalePage() {
     };
     setCart(prev => [...prev, item]);
     setCustomName(''); setCustomQty('1'); setCustomPrice(''); setCustomCost('');
-    showToast(`${item.name} added`);
+    showToast(`${item.name} ${t('product.saved')}`);
   }
 
   function clearCart() {
@@ -73,8 +121,8 @@ export function RecordSalePage() {
   }
 
   function confirmSale() {
-    if (!cart.length) return showToast('Add products first');
-    showToast(`✅ Sale of ₦${subtotal.toLocaleString()} confirmed!`);
+    if (!cart.length) return showToast(t('sale.selectProducts'));
+    showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
     clearCart();
     navigateTo('home');
   }
@@ -86,10 +134,10 @@ export function RecordSalePage() {
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
         <div>
-          <h2 className={styles.pageTitle}>Record a Sale</h2>
-          <p className={styles.pageDesc}>Select products, set quantities and confirm the sale.</p>
+          <h2 className={styles.pageTitle}>{t('sale.title')}</h2>
+          <p className={styles.pageDesc}>{t('sale.subtitle')}</p>
         </div>
-        <Button variant="subtle" onClick={() => navigateTo('home')}>← Back</Button>
+        <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
       </div>
 
       <div className={styles.layout}>
@@ -97,14 +145,14 @@ export function RecordSalePage() {
         <div className={styles.left}>
           <Card style={{ marginBottom: 12 }}>
             <CardHeader
-              action={<span className={styles.selCount}>{cart.length} selected</span>}
+              action={<span className={styles.selCount}>{cart.length} {t('sale.quantity')}</span>}
             >
               <CardIcon bg="var(--green-bg)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2}>
                   <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                 </svg>
               </CardIcon>
-              Select Products
+              {t('sale.selectProducts')}
             </CardHeader>
 
             {/* Search */}
@@ -114,37 +162,64 @@ export function RecordSalePage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search products…"
+                placeholder={t('common.search')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
 
             <div className={styles.productGrid}>
-              {filtered.map(p => {
-                const inCart = cart.find(i => i.id === p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className={[styles.productCard, inCart ? styles.productSelected : ''].join(' ')}
-                    onClick={() => addToCart(p)}
-                  >
-                    <div className={styles.productEmoji}>{p.emoji}</div>
-                    <div className={styles.productName}>{p.name}</div>
-                    <div className={styles.productPrice}>₦{p.price.toLocaleString()}</div>
-                    <div className={styles.productStock}>
-                      {p.stock <= 5 ? (
-                        <span className={styles.lowStock}>Only {p.stock} left</span>
-                      ) : (
-                        <span>{p.stock} in stock</span>
+              {loading ? (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--text-3)' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 32, height: 32, margin: '0 auto 12px', animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25"/>
+                    <path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/>
+                  </svg>
+                  {t('common.loading')}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--text-3)' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.3 }}>
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  {search ? (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('sale.noProductsFound')}</div>
+                      <div style={{ fontSize: '0.8rem' }}>{t('sale.tryDifferentSearch')}</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('sale.noProducts')}</div>
+                      <div style={{ fontSize: '0.8rem' }}>{t('sale.addProductsFirst')}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                filtered.map(p => {
+                  const inCart = cart.find(i => i.id === p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={[styles.productCard, inCart ? styles.productSelected : ''].join(' ')}
+                      onClick={() => addToCart(p)}
+                    >
+                      <div className={styles.productEmoji}>{p.emoji}</div>
+                      <div className={styles.productName}>{p.name}</div>
+                      <div className={styles.productPrice}>{formatMoney(p.price)}</div>
+                      <div className={styles.productStock}>
+                        {p.stock <= 5 ? (
+                          <span className={styles.lowStock}>{t('common.loading').replace('Loading', 'Only')} {p.stock} {t('sale.quantity')}</span>
+                        ) : (
+                          <span>{p.stock} {t('sale.quantity')} {t('product.inStock')}</span>
+                        )}
+                      </div>
+                      {inCart && (
+                        <div className={styles.productQtyBadge}>{inCart.qty}</div>
                       )}
                     </div>
-                    {inCart && (
-                      <div className={styles.productQtyBadge}>{inCart.qty}</div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </Card>
 
@@ -156,36 +231,36 @@ export function RecordSalePage() {
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
               </CardIcon>
-              Add Custom Item
+              {t('sale.addCustomItem')}
             </CardHeader>
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Item Name</label>
-                <input className={styles.formInput} placeholder="e.g. Bottled Water" value={customName} onChange={e => setCustomName(e.target.value)} />
+                <label className={styles.formLabel}>{t('product.name')}</label>
+                <input className={styles.formInput} placeholder={t('product.name')} value={customName} onChange={e => setCustomName(e.target.value)} />
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Qty</label>
+                <label className={styles.formLabel}>{t('sale.quantity')}</label>
                 <input className={styles.formInput} type="number" min={1} placeholder="1" value={customQty} onChange={e => setCustomQty(e.target.value)} />
               </div>
             </div>
             <div className={styles.formRow} style={{ marginTop: 9 }}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Sell Price (₦)</label>
+                <label className={styles.formLabel}>{t('product.sellingPrice')} ({currencyCode})</label>
                 <div className={styles.inputPrefix}>
-                  <span className={styles.prefix}>₦</span>
+                  <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
                   <input className={styles.formInput} type="number" placeholder="0" value={customPrice} onChange={e => setCustomPrice(e.target.value)} />
                 </div>
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Cost Price (₦)</label>
+                <label className={styles.formLabel}>{t('product.costPrice')} ({currencyCode})</label>
                 <div className={styles.inputPrefix}>
-                  <span className={styles.prefix}>₦</span>
+                  <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
                   <input className={styles.formInput} type="number" placeholder="0" value={customCost} onChange={e => setCustomCost(e.target.value)} />
                 </div>
               </div>
             </div>
             <Button variant="ghost" fullWidth style={{ marginTop: 11 }} onClick={addCustom}>
-              + Add to Sale
+              + {t('sale.addToCart')}
             </Button>
           </Card>
         </div>
@@ -193,27 +268,27 @@ export function RecordSalePage() {
         {/* Right — sale summary */}
         <div className={styles.right}>
           <Card>
-            <CardHeader action={<Button variant="danger" size="xs" onClick={clearCart}>Clear</Button>}>
+            <CardHeader action={<Button variant="danger" size="xs" onClick={clearCart}>{t('common.clear')}</Button>}>
               <CardIcon bg="var(--purple-lt)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}>
                   <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
                   <path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.61L23 6H6"/>
                 </svg>
               </CardIcon>
-              Sale Summary
+              {t('sale.cart')}
             </CardHeader>
 
             {/* Cart items */}
             <div className={styles.cartItems}>
               {cart.length === 0 ? (
-                <div className={styles.cartEmpty}>Tap products to add them here</div>
+                <div className={styles.cartEmpty}>{t('sale.emptyCart')}</div>
               ) : (
                 cart.map(item => (
                   <div key={item.id} className={styles.cartItem}>
                     <span className={styles.cartEmoji}>{item.emoji}</span>
                     <div className={styles.cartInfo}>
                       <div className={styles.cartName}>{item.name}</div>
-                      <div className={styles.cartPrice}>₦{(item.price * item.qty).toLocaleString()}</div>
+                      <div className={styles.cartPrice}>{formatMoney(item.price * item.qty)}</div>
                     </div>
                     <div className={styles.cartQtyControl}>
                       <button onClick={() => updateQty(item.id, -1)}>−</button>
@@ -230,20 +305,20 @@ export function RecordSalePage() {
             {cart.length > 0 && (
               <div className={styles.totals}>
                 <div className={styles.totalRow}>
-                  <span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span>
+                  <span>{t('sale.subtotal')}</span><span>{formatMoney(subtotal)}</span>
                 </div>
                 <div className={[styles.totalRow, styles.totalMain].join(' ')}>
-                  <span>Total</span><span>₦{subtotal.toLocaleString()}</span>
+                  <span>{t('sale.grandTotal')}</span><span>{formatMoney(subtotal)}</span>
                 </div>
                 <div className={[styles.totalRow, styles.totalProfit].join(' ')}>
-                  <span>Est. Profit</span><span>₦{profit.toLocaleString()}</span>
+                  <span>{t('sale.profit')}</span><span>{formatMoney(profit)}</span>
                 </div>
               </div>
             )}
 
             {/* Payment method */}
             <div className={styles.paymentSection}>
-              <div className={styles.paymentLabel}>Payment Method</div>
+              <div className={styles.paymentLabel}>{t('sale.paymentMethod')}</div>
               <div className={styles.paymentGrid}>
                 {PAYMENT_METHODS.map(pm => (
                   <button
@@ -254,7 +329,7 @@ export function RecordSalePage() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}>
                       <path d={pm.icon}/>
                     </svg>
-                    <div className={styles.payLabel}>{pm.label}</div>
+                    <div className={styles.payLabel}>{pm.label === 'Cash' ? t('sale.cash') : pm.label === 'Transfer' ? t('sale.transfer') : t('sale.card')}</div>
                   </button>
                 ))}
               </div>
@@ -262,15 +337,15 @@ export function RecordSalePage() {
 
             {/* Note */}
             <div className={styles.formGroup} style={{ marginBottom: 9 }}>
-              <label className={styles.formLabel}>Note (optional)</label>
-              <input className={styles.formInput} placeholder="e.g. Bulk order…" value={note} onChange={e => setNote(e.target.value)} />
+              <label className={styles.formLabel}>{t('sale.note')} ({t('common.optional')})</label>
+              <input className={styles.formInput} placeholder={t('sale.note')} value={note} onChange={e => setNote(e.target.value)} />
             </div>
 
             {/* Actions */}
             <div className={styles.saleActions}>
-              <Button variant="subtle" style={{ flex: 1 }}>Save Draft</Button>
+              <Button variant="subtle" style={{ flex: 1 }}>{t('sale.saveDraft')}</Button>
               <Button variant="primary" size="lg" style={{ flex: 2 }} onClick={confirmSale}>
-                Confirm Sale ✓
+                {t('sale.completeSale')} ✓
               </Button>
             </div>
           </Card>

@@ -227,3 +227,58 @@
 .sendBtn svg { width: 14px; height: 14px; color: #fff; }
 .sendBtn:hover { background: var(--purple-dk); transform: scale(1.05); }
 .sendBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ── Image preview ── */
+.imagePreview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.imagePreview img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.removeImageBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all var(--transition);
+}
+
+.removeImageBtn:hover {
+  background: var(--red-dark);
+  transform: scale(1.1);
+}
+
+.imageUploadBtn {
+  transition: all var(--transition);
+}
+
+.imageUploadBtn:hover {
+  background: var(--purple-lt) !important;
+}
+
+.imageUploadBtn:hover svg {
+  color: var(--purple);
+}
+
+.msgText {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}

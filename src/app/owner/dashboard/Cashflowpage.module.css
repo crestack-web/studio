@@ -40,11 +40,11 @@
  }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
-.transFormHeader { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-2); }
+.transFormHeader { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .transFormIcon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
 .transFormTitle { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .transFormSub { font-size: 12px; color: var(--text-3); }
-.closeBtn { margin-left: auto; display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; background: transparent; color: var(--text-3); border: 1px solid var(--border-2); cursor: pointer; font-family: inherit; transition: all .15s; }
+.closeBtn { margin-left: auto; display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; background: transparent; color: var(--text-3); border: 1px solid var(--border); cursor: pointer; font-family: inherit; transition: all .15s; }
 .closeBtn:hover { background: var(--bg); }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
@@ -76,15 +76,15 @@
 
 /* Transaction table */
 .tableWrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 40px; }
-.tableHeader { padding: 16px 20px; border-bottom: 1px solid var(--border-2); display: flex; align-items: center; justify-content: space-between; }
+.tableHeader { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .tableTitle { font-size: 14px; font-weight: 700; color: var(--text-1); }
 .viewAllBtn { font-size: 12px; font-weight: 600; color: var(--purple); background: none; border: none; cursor: pointer; font-family: inherit; }
 .viewAllBtn:hover { text-decoration: underline; }
 .tableScroll { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table thead tr { border-bottom: 1px solid var(--border-2); }
+.table thead tr { border-bottom: 1px solid var(--border); }
 .table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-3); }
-.table tbody tr { border-bottom: 1px solid var(--border-2); transition: background .1s; }
+.table tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
 .table tbody tr:last-child { border-bottom: none; }
 .table tbody tr:hover { background: var(--bg); }
 .table td { padding: 12px 14px; color: var(--text-1); }

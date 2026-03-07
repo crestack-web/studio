@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { initializeFirebase } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 // ── App Logo ───────────────────────────────────
 function AppLogo({ size = 50 }: { size?: number }) {
@@ -162,15 +164,35 @@ export default function BusmoLogin() {
   const handleLogin = async () => {
     setLoading(true);
     setError("");
-    // TODO: Connect to backend authentication
-    setTimeout(() => {
-      setLoading(false);
-      if (email === "demo@busmo.com" && password === "password") {
-        window.location.href = "/dashboard";
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Fetch user role from Firestore
+      const { doc, getDoc } = await import('firebase/firestore');
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const role = userData?.role || 'Owner';
+
+        // Redirect based on role
+        if (role === 'Staff') {
+          window.location.href = '/staff/home';
+        } else {
+          window.location.href = '/owner';
+        }
       } else {
-        setError("Invalid email or password.");
+        // Default to owner dashboard if user doc not found
+        window.location.href = '/owner';
       }
-    }, 1200);
+    } catch (error: any) {
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -231,7 +253,7 @@ export default function BusmoLogin() {
         </a>
         <span>
           New to Busmo?{" "}
-          <a href="/onboarding"
+          <a href="/welcome/signup"
             style={{ color: "#6B3FE7", fontWeight: 600, textDecoration: "none" }}
             onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
             onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}>

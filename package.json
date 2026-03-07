@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node test-integration.js",
+    "test:watch": "node test-integration.js --watch"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
@@ -38,7 +40,7 @@
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@sendgrid/mail": "^8.1.6",
-    "axios": "^1.13.5",
+    "axios": "^1.13.6",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

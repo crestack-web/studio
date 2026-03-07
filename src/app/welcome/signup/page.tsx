@@ -2,6 +2,10 @@
 
 import { StepId } from "framer-motion";
 import { useState, useCallback } from "react";
+import { initializeFirebase } from "@/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { formatCurrency } from "@/lib/currency";
 
 // If you have these components elsewhere, import them here
 // import Field from "./Field";
@@ -140,7 +144,7 @@ type PrimaryBtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   children: React.ReactNode;
 };
 
-export function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
+function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
   return (
     <button
       {...props}
@@ -262,52 +266,74 @@ const TEAM_SIZES = [
 
 const PLANS = [
   {
-    id: "shop",
-    name: "Shop",
-    price: "₦1,000",
+    id: "starter",
+    name: "Starter",
+    price: "$15",
+    priceNum: 15,
     cycle: "/mo",
     tag: null,
-    features: ["Record Sales, Expenses & Inventory", "Basic AI Insights", "Sell on Busmo Market"],
+    features: [
+      "Record Sales, Expenses & Inventory",
+      "Basic AI Insights (MO)",
+      "Basic Online Storefront",
+      "BusmoPay Payment Integration",
+      "Manage up to 3 Staff",
+      "Basic Sales Analytics",
+    ],
     activeBg: "#F4F4F8",
     activeBorder: "#C4C4D4",
     priceColor: "#0A0A0F",
     tagBg: "",
   },
   {
-    id: "super",
-    name: "Supermarket",
-    price: "₦10,000",
+    id: "standard",
+    name: "Standard",
+    price: "$40",
+    priceNum: 40,
     cycle: "/mo",
-    tag: "Most popular",
-    features: ["Everything in Shop", "Up to 5 Staff Members", "Advanced Forecasting"],
+    tag: "Most Popular",
+    features: [
+      "Everything in Starter",
+      "Advanced AI Insights & Forecasts",
+      "Professional Storefront Themes",
+      "Priority Store Placement",
+      "Manage up to 10 Staff",
+      "Advanced Sales Analytics",
+      "Advanced Forecasting",
+      "Up to 3 Branches",
+      "Custom Domain",
+      "SEO Optimization Tools",
+    ],
     activeBg: "#F3EFFE",
     activeBorder: "#6B3FE7",
     priceColor: "#6B3FE7",
     tagBg: "#6B3FE7",
   },
   {
-    id: "branch",
-    name: "Multi-Branch",
-    price: "₦30,000",
+    id: "pro",
+    name: "Pro",
+    price: "$80",
+    priceNum: 80,
     cycle: "/mo",
-    tag: "For teams",
-    features: ["Everything in Supermarket", "Unlimited Staff Members", "Manage Multiple Branches"],
-    activeBg: "#F0FDF4",
-    activeBorder: "#16A34A",
-    priceColor: "#16A34A",
-    tagBg: "#16A34A",
-  },
-  {
-    id: "company",
-    name: "Company",
-    price: "₦50,000",
-    cycle: "/mo",
-    tag: null,
-    features: ["Everything in Branches", "Production Tracking (Cost of Goods)", "Access to Equity Investment"],
-    activeBg: "#FFF4F4",
-    activeBorder: "#DC2626",
-    priceColor: "#DC2626",
-    tagBg: "#DC2626",
+    tag: "Best Value",
+    features: [
+      "Everything in Standard",
+      "Premium AI Insights & Consulting",
+      "Custom Storefront Design",
+      "Featured Store Placement",
+      "Unlimited Staff",
+      "Custom Reports & Analytics",
+      "Advanced Forecasting",
+      "Unlimited Branches",
+      "Production Tracking",
+      "Access to Equity Investment",
+      "CAC Compliance (if needed)",
+      "Integrated POS & Printer",
+    ],
+    activeBg: "#FEF3C7",
+    activeBorder: "#D97706",
+    priceColor: "#D97706",
+    tagBg: "#D97706",
   },
 ];
 
@@ -611,7 +637,7 @@ function StepThree({ data, onChange }: { data: FormState; onChange: (k: keyof Fo
                 <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
                   <p style={{ fontSize: 18, fontWeight: 800, lineHeight: 1, color: plan.priceColor,
                     fontFamily: "'Sora', sans-serif" }}>
-                    {plan.price}
+                    {formatCurrency(plan.priceNum)}
                   </p>
                   <p style={{ fontSize: 11, color: "#8888A0", marginTop: 2 }}>{plan.cycle}</p>
                 </div>
@@ -640,20 +666,108 @@ const STEP_COPY: Record<number, { title: string; sub: string }> = {
 export default function BusmoOnboarding() {
   const [step, setStep] = useState<number>(1);
   const [done, setDone] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<FormState>({
     fullName: "", email: "", countryCode: "", phone: "", password: "",
     businessName: "", category: "", country: "", description: "",
-    teamSize: "", plan: "growth",
+    teamSize: "", plan: "starter", // Default to free/starter plan
   });
 
   const handleChange = useCallback((key: keyof FormState, value: string) => {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isStepValid(step, data)) {
-      if (step < 3) setStep((s) => s + 1);
-      else setDone(true);
+      if (step < 3) {
+        setStep((s) => s + 1);
+      } else {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const { auth, firestore } = initializeFirebase();
+          
+          // Step 1: Create Firebase Auth user
+          const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+          const user = userCredential.user;
+
+          // Step 2: Create merchant/business document
+          const merchantRef = doc(firestore, "merchants", user.uid);
+          await setDoc(merchantRef, {
+            ownerId: user.uid,
+            businessName: data.businessName,
+            category: data.category,
+            country: data.country,
+            description: data.description || "",
+            plan: data.plan || "starter",
+            teamSize: data.teamSize || "solo",
+            staffIds: [user.uid], // Owner is first staff member
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+            active: true,
+          });
+
+          // Step 3: Create user profile document with business reference
+          await setDoc(doc(firestore, "users", user.uid), {
+            fullName: data.fullName,
+            email: data.email,
+            phone: `${data.countryCode}${data.phone}`,
+            role: 'Owner', // Critical for auth guard
+            businessId: user.uid, // Links user to their merchant document
+            plan: data.plan || "starter",
+            teamSize: data.teamSize || "solo",
+            category: data.category,
+            country: data.country,
+            createdAt: Timestamp.now(),
+            avatarContent: '👤',
+            avatarBg: '#6B3FE7',
+            avatarColor: '#fff',
+            displayName: data.fullName,
+            // Trial information
+            trialStartDate: Timestamp.now(),
+            trialEndDate: Timestamp.fromDate(new Date(Date.now() + (3 * 24 * 60 * 60 * 1000))), // 3 days from now
+            subscriptionStatus: 'trial', // trial, active, cancelled, expired
+          });
+
+          // Step 4: Create initial businesses collection for compatibility
+          // This ensures dashboard pages can find data at businesses/{businessId}
+          const businessRef = doc(firestore, "businesses", user.uid);
+          await setDoc(businessRef, {
+            ownerId: user.uid,
+            businessName: data.businessName,
+            category: data.category,
+            country: data.country,
+            description: data.description || "",
+            plan: data.plan || "starter",
+            teamSize: data.teamSize || "solo",
+            staffIds: [user.uid],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+            active: true,
+          });
+
+          // Success - redirect to dashboard
+          setDone(true);
+        } catch (error: any) {
+          console.error('Signup error:', error);
+          let errorMessage = 'Failed to create account. Please try again.';
+          
+          if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'This email is already registered. Please sign in instead.';
+          } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password should be at least 6 characters.';
+          } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Invalid email address.';
+          } else if (error.message?.includes('permission')) {
+            errorMessage = 'Permission denied. Please try again or contact support.';
+          }
+          
+          setError(errorMessage);
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
   };
 
@@ -669,7 +783,7 @@ export default function BusmoOnboarding() {
         <SuccessScreen
           name={data.fullName}
           bizName={data.businessName}
-          onDashboard={() => { window.location.href = "/dashboard"; }}
+          onDashboard={() => { window.location.href = "/owner"; }}
         />
       </OnboardingShell>
     );
@@ -726,6 +840,8 @@ export default function BusmoOnboarding() {
 
       <div style={{ height: 1, background: "#E8E8F0" }} />
 
+      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+
       {step === 1 && <StepOne data={data} onChange={handleChange} />}
       {step === 2 && <StepTwo data={data} onChange={handleChange} />}
       {step === 3 && <StepThree data={data} onChange={handleChange} />}
@@ -755,8 +871,8 @@ export default function BusmoOnboarding() {
           </button>
         )}
 
-        <PrimaryBtn onClick={handleNext} disabled={!valid}>
-          {step < 3 ? "Continue" : data.plan === "starter" ? "Create free account" : "Start my free trial"}
+        <PrimaryBtn onClick={handleNext} disabled={!valid || isLoading}>
+          {step < 3 ? "Continue" : isLoading ? "Creating Account..." : data.plan === "starter" ? "Create free account" : "Start my free trial"}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 4l4 4-4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

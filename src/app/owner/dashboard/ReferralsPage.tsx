@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
+import { initializeFirebase } from '@/firebase';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import styles from './ReferralsPage.module.css';
 
 // ═══════════════════════════════════════════
 //  ReferralsPage
 // ═══════════════════════════════════════════
 
-const REFERRAL_LINK = 'https://busmo.io/signup?ref=abdullahi';
+const DEFAULT_REFERRAL_LINK = 'https://busmo.io/signup?ref=abdullahi';
 
 const STATS = [
   { label: 'Total Referrals', value: '0' },
@@ -17,11 +19,21 @@ const STATS = [
 ];
 
 export function ReferralsPage() {
-  const { navigateTo, showToast } = useApp();
+  const { navigateTo, showToast, user } = useApp();
+  const [referralLink, setReferralLink] = useState(DEFAULT_REFERRAL_LINK);
+
+  // Generate referral link based on authenticated user
+  useEffect(() => {
+    if (user.id) {
+      // Use user's ID as referral code
+      const userReferralLink = `https://busmo.io/signup?ref=${user.id}`;
+      setReferralLink(userReferralLink);
+    }
+  }, [user.id]);
 
   function copyLink() {
-    navigator.clipboard.writeText(REFERRAL_LINK).then(() =>
-      showToast('📋 Referral link copied!')
+    navigator.clipboard.writeText(referralLink).then(() =>
+      showToast('📋 Referral link copied! Share it with your friends!')
     );
   }
 
@@ -75,7 +87,7 @@ export function ReferralsPage() {
         <div className={styles.linkRow}>
           <input
             className={styles.linkInput}
-            value={REFERRAL_LINK}
+            value={referralLink}
             readOnly
             aria-label="Referral link"
           />

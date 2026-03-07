@@ -9,11 +9,11 @@ import styles from './MobileBottomNav.module.css';
 interface BottomNavItem { id: PageId; label: string; isMO?: boolean; }
 
 const ITEMS: BottomNavItem[] = [
-  { id: 'home' as PageId,     label: 'Home'    },
-  { id: 'sale' as PageId,     label: 'Sale'    },
-  { id: 'mo' as PageId,       label: 'Ask MO', isMO: true },
-  { id: 'staff' as PageId,    label: 'Staff'   },
-  { id: 'services' as PageId, label: 'Services'},
+  { id: 'home' as PageId,     label: 'Home'     },
+  { id: 'sale' as PageId,     label: 'Sale'     },
+  { id: 'mo' as PageId,       label: 'Ask MO',  isMO: true },
+  { id: 'cashflow' as PageId, label: 'Cashflow' },
+  { id: 'staff' as PageId,    label: 'Staff'    },
 ];
 
 export function MobileBottomNav() {
