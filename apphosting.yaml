@@ -1,7 +1,21 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# Specify the framework to use and how to build the app
+build:
+  # Use a predefined framework preset
+  # For Next.js apps, select the appropriate preset
+  framework: nextjs
+
+# Configure how the production-ready artifact is built
+# For Next.js, use the standard build command
+runtime: nodejs18
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  
+  # Define environment variables that your app needs
+  environmentVariables:
+    NODE_ENV: "production"
