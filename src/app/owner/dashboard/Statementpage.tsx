@@ -100,8 +100,7 @@ export function StatementPage() {
         // Fetch transactions
         const transactionsQuery = query(
           collection(firestore, 'transactions'),
-          orderBy('createdAt', 'desc'),
-          limit(100)
+          orderBy('createdAt', 'desc')
         );
         
         const snapshot = await getDocs(transactionsQuery);

@@ -409,9 +409,9 @@ async function getBusinessContext(merchantId: string) {
     
     context.dailyBurnRate = context.totalExpenses / 30;
     context.cashBalance = context.totalSales - context.totalExpenses;
-    context.cashRunway = context.dailyBurnRate > 0 
-      ? Math.round(context.cashBalance / context.dailyBurnRate) 
-      : 999;
+    context.cashRunway = context.dailyBurnRate > 0
+      ? Math.round(context.cashBalance / context.dailyBurnRate)
+      : 0;
 
     // Fetch Products/Inventory
     const productsQuery = query(
@@ -447,9 +447,9 @@ async function getBusinessContext(merchantId: string) {
       // Calculate dead stock (products not sold in 30+ days with stock > 0)
       const lastSold = productSales.get(productId);
       if (stock > 0 && (!lastSold || (now.getTime() - lastSold.getTime()) > (30 * 24 * 60 * 60 * 1000))) {
-        const daysSinceSale = lastSold 
+        const daysSinceSale = lastSold
           ? Math.floor((now.getTime() - lastSold.getTime()) / (24 * 60 * 60 * 1000))
-          : 999;
+          : 0;
         
         if (daysSinceSale >= 30) {
           context.deadStockProducts.push({
