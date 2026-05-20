@@ -32,10 +32,10 @@ service cloud.firestore {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       
       // Allow user to create their own profile during signup
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
       
       // Allow user to update their own data (including subscription)
-      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
     }
     
     // =====================
@@ -43,51 +43,51 @@ service cloud.firestore {
     // =====================
     match /merchants/{merchantId} {
       // Allow read if user is authenticated and is the owner
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow read: if isMerchantOwner(merchantId);
 
       // Allow creation of merchant document during signup
       // User can create their own business profile
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
 
       // Allow write only if user is owner
-      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow update, delete: if isMerchantOwner(merchantId);
 
       // =====================
       // SALES SUBCOLLECTION
       // =====================
       match /sales/{saleId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.merchantId);
+        allow create: if isMerchantOwner(request.resource.data.merchantId);
+        allow update: if isMerchantOwner(resource.data.merchantId);
+        allow delete: if isMerchantOwner(resource.data.merchantId);
       }
 
       // =====================
       // PRODUCTS SUBCOLLECTION
       // =====================
       match /products/{productId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.merchantId);
+        allow create: if isMerchantOwner(request.resource.data.merchantId);
+        allow update: if isMerchantOwner(resource.data.merchantId);
+        allow delete: if isMerchantOwner(resource.data.merchantId);
       }
 
       // =====================
       // EXPENSES SUBCOLLECTION
       // =====================
       match /expenses/{expenseId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.merchantId);
+        allow create: if isMerchantOwner(request.resource.data.merchantId);
+        allow update: if isMerchantOwner(resource.data.merchantId);
+        allow delete: if isMerchantOwner(resource.data.merchantId);
       }
 
       // =====================
       // STAFF SUBCOLLECTION
       // =====================
       match /staff/{staffId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow write: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if isMerchantOwner(resource.data.merchantId);
+        allow write: if isMerchantOwner(request.resource.data.merchantId);
       }
     }
 
@@ -96,57 +96,53 @@ service cloud.firestore {
     // =====================
     match /businesses/{businessId} {
       // Allow read if user is authenticated and is the owner
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow read: if isMerchantOwner(businessId);
 
       // Allow creation of business document during signup
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
 
       // Allow write only if user is owner
-      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+      allow update, delete: if isMerchantOwner(businessId);
 
       // =====================
       // BRANCHES SUBCOLLECTION
       // =====================
       match /branches/{branchId} {
         // Allow read if user is authenticated and owns the parent business
-        allow read: if isAuthenticated() && 
-                       request.auth.uid == get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId;
+        allow read: if isMerchantOwner(businessId);
         
         // Allow create if user is owner and on Pro plan
-        allow create: if isAuthenticated() && 
-                         request.auth.uid == request.resource.data.ownerId &&
+        allow create: if isMerchantOwner(request.resource.data.businessId) &&
                          request.resource.data.plan in ['pro'];
         
         // Allow update/delete if user is owner
-        allow update, delete: if isAuthenticated() && 
-                                 request.auth.uid == get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId;
+        allow update, delete: if isMerchantOwner(businessId);
         
         // Branch staff subcollection
         match /staff/{staffId} {
-          allow read: if isAuthenticated();
-          allow write: if isAuthenticated() && 
-                          request.auth.uid == get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId;
+          allow read: if hasMerchantAccess(businessId);
+          allow write: if isMerchantOwner(businessId);
         }
         
         // Branch sales subcollection
         match /sales/{saleId} {
-          allow read: if isAuthenticated();
-          allow create: if isAuthenticated();
-          allow update, delete: if isAuthenticated();
+          allow read: if hasMerchantAccess(businessId);
+          allow create: if hasMerchantAccess(businessId);
+          allow update, delete: if hasMerchantAccess(businessId);
         }
         
         // Branch products subcollection
         match /products/{productId} {
-          allow read: if isAuthenticated();
-          allow create: if isAuthenticated();
-          allow update, delete: if isAuthenticated();
+          allow read: if hasMerchantAccess(businessId);
+          allow create: if hasMerchantAccess(businessId);
+          allow update, delete: if hasMerchantAccess(businessId);
         }
         
         // Branch expenses subcollection
         match /expenses/{expenseId} {
-          allow read: if isAuthenticated();
-          allow create: if isAuthenticated();
-          allow update, delete: if isAuthenticated();
+          allow read: if hasMerchantAccess(businessId);
+          allow create: if hasMerchantAccess(businessId);
+          allow update, delete: if hasMerchantAccess(businessId);
         }
       }
 
@@ -154,38 +150,38 @@ service cloud.firestore {
       // SALES SUBCOLLECTION
       // =====================
       match /sales/{saleId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.businessId);
+        allow create: if isMerchantOwner(request.resource.data.businessId);
+        allow update: if isMerchantOwner(resource.data.businessId);
+        allow delete: if isMerchantOwner(resource.data.businessId);
       }
 
       // =====================
       // PRODUCTS SUBCOLLECTION
       // =====================
       match /products/{productId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.businessId);
+        allow create: if isMerchantOwner(request.resource.data.businessId);
+        allow update: if isMerchantOwner(resource.data.businessId);
+        allow delete: if isMerchantOwner(resource.data.businessId);
       }
 
       // =====================
       // EXPENSES SUBCOLLECTION
       // =====================
       match /expenses/{expenseId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
-        allow update: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if hasMerchantAccess(resource.data.businessId);
+        allow create: if isMerchantOwner(request.resource.data.businessId);
+        allow update: if isMerchantOwner(resource.data.businessId);
+        allow delete: if isMerchantOwner(resource.data.businessId);
       }
 
       // =====================
       // STAFF SUBCOLLECTION
       // =====================
       match /staff/{staffId} {
-        allow read: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
-        allow write: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+        allow read: if isMerchantOwner(resource.data.businessId);
+        allow write: if isMerchantOwner(request.resource.data.businessId);
       }
     }
     
