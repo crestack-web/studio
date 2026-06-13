@@ -50,9 +50,34 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         const userData = userDoc.data();
         const trialEndDate = userData.trialEndDate?.toDate();
         const subscriptionStatus = userData.subscriptionStatus;
+        const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
+        const now = new Date();
 
-        // If already subscribed, allow access
+        // If already subscribed, check if subscription is still valid
         if (subscriptionStatus === 'active') {
+          if (subscriptionEndDate && subscriptionEndDate < now) {
+            // Subscription has expired
+            setIsExpired(true);
+            await updateDoc(doc(firestore, 'users', user.uid), {
+              subscriptionStatus: 'expired',
+            });
+            return;
+          }
+          // Subscription is still valid
+          setIsLoading(false);
+          return;
+        }
+
+        // If subscription is expired, show expired screen
+        if (subscriptionStatus === 'expired') {
+          setIsExpired(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // If payment is pending, show expired screen
+        if (subscriptionStatus === 'pending_payment') {
+          setIsExpired(true);
           setIsLoading(false);
           return;
         }
@@ -64,7 +89,6 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           return;
         }
 
-        const now = new Date();
         const timeDiff = trialEndDate.getTime() - now.getTime();
         
         if (timeDiff <= 0) {

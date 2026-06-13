@@ -4,7 +4,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -91,7 +90,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const { showToast } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currency } = useCurrency();
-  const firestore = useFirestore();
+  const { firestore } = initializeFirebase();
   const [isLoading, setIsLoading] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -103,12 +102,17 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   useEffect(() => {
     async function fetchBusinessId() {
       try {
-        const { auth } = initializeFirebase();
+        const { auth, firestore: freshFirestore } = initializeFirebase();
         const user = auth.currentUser;
         
         if (!user) return;
 
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        if (!freshFirestore) {
+          console.error('Firestore not initialized');
+          return;
+        }
+
+        const userDoc = await getDoc(doc(freshFirestore, 'users', user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const bid = userData.businessId || null;
@@ -121,8 +125,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
 
             // If restaurant, load available ingredients
             if (restaurantCheck) {
-              const { firestore: fs } = initializeFirebase();
-              const ingredientsQuery = collection(fs, 'businesses', bid, 'products');
+              const ingredientsQuery = collection(freshFirestore, 'businesses', bid, 'products');
               // Note: In a real implementation, we'd filter by productType === 'ingredient'
               // For now, we'll load all products and filter client-side
               const ingredientsSnapshot = await getDocs(ingredientsQuery);
@@ -148,7 +151,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     }
 
     fetchBusinessId();
-  }, [firestore]);
+  }, []);
 
   // Warn user when trying to leave with unsaved changes
   useEffect(() => {
@@ -260,7 +263,9 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       return;
     }
 
-    if (!firestore) {
+    // Get fresh Firestore instance
+    const { firestore: freshFirestore } = initializeFirebase();
+    if (!freshFirestore) {
       showToast('⚠️ Database not connected');
       return;
     }
@@ -333,7 +338,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       console.log('📁 Collection path:', `businesses/${businessId}/products`);
       
       // Use 'businesses' collection to match owner's Firestore structure
-      const docRef = await addDoc(collection(firestore, 'businesses', businessId, 'products'), productData);
+      const docRef = await addDoc(collection(freshFirestore, 'businesses', businessId, 'products'), productData);
       console.log('✅ Product saved successfully with ID:', docRef.id);
       
       const newProduct = {
