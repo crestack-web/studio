@@ -1,0 +1,518 @@
+.page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.pageDesc {
+  font-size: 0.9rem;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.periodSelector {
+  display: flex;
+  gap: 8px;
+  background: var(--surface);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.periodBtn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.periodBtn:hover {
+  background: var(--bg);
+}
+
+.periodBtn.active {
+  background: var(--purple);
+  color: #fff;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 20px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.statCard {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.statContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.statTrend {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.alertsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.alertItem {
+  background: #FEF3C7;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #FCD34D;
+}
+
+.alertIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.alertContent {
+  flex: 1;
+}
+
+.alertType {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #92400E;
+  margin-bottom: 2px;
+}
+
+.alertCount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #B45309;
+}
+
+.salesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saleRow {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border-subtle);
+}
+
+.saleInfo {
+  min-width: 120px;
+}
+
+.saleDate {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.saleTotal {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.salePayments {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.salePayment {
+  background: var(--surface);
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-subtle);
+}
+
+.paymentMethod {
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: capitalize;
+}
+
+.paymentAmount {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.saleReconciliation {
+  min-width: 100px;
+}
+
+.reconStatus {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.reconMatched {
+  background: #DCFCE7;
+  color: #16A34A;
+}
+
+.reconPending {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.actionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.actionBtn {
+  width: 100%;
+}
+
+.loading {
+  text-align: center;
+  padding: 48px;
+  font-size: 0.9rem;
+  color: var(--text-3);
+}
+
+.empty {
+  text-align: center;
+  padding: 48px;
+  font-size: 0.9rem;
+  color: var(--text-3);
+}
+
+/* ── Business Insights & Analytics ── */
+.insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.insightCard {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+}
+
+.insightHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.insightIcon {
+  font-size: 1.5rem;
+}
+
+.insightTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.insightContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insightValue {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.insightDesc {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.trendValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trendUp {
+  color: #16A34A;
+}
+
+.trendDown {
+  color: #DC2626;
+}
+
+.trendLabel {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.noData {
+  font-size: 0.9rem;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.preferenceValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefIcon {
+  font-size: 1.25rem;
+}
+
+.prefName {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.prefPercent {
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.efficiencyValue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.efficiencyGood {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #16A34A;
+}
+
+.efficiencyPoor {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #DC2626;
+}
+
+.efficiencyLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.healthValue {
+  display: flex;
+  align-items: center;
+}
+
+.healthLabel {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* ── Recommendations ── */
+.recommendations {
+  margin-top: 24px;
+}
+
+.recommendationsTitle {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 16px;
+}
+
+.recommendationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recommendation {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.recommendation.high {
+  border-left: 4px solid #DC2626;
+  background: #FEF2F2;
+}
+
+.recommendation.medium {
+  border-left: 4px solid #F59E0B;
+  background: #FFFBEB;
+}
+
+.recommendation.low {
+  border-left: 4px solid #16A34A;
+  background: #F0FDF4;
+}
+
+.recPriority {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.recommendation.high .recPriority {
+  background: #DC2626;
+  color: #fff;
+}
+
+.recommendation.medium .recPriority {
+  background: #F59E0B;
+  color: #fff;
+}
+
+.recommendation.low .recPriority {
+  background: #16A34A;
+  color: #fff;
+}
+
+.recText {
+  font-size: 0.85rem;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .periodSelector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .periodBtn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .alertsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .insightsGrid {
+    grid-template-columns: 1fr;
+  }
+}

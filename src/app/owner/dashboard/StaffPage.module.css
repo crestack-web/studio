@@ -1,0 +1,192 @@
+.wrapper { animation: pageIn 0.2s ease; }
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+/* Tab Navigation */
+.tabNav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.tabBtn {
+  padding: 10px 20px;
+  border-radius: var(--rsm) var(--rsm) 0 0;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tabBtn:hover {
+  background: var(--bg);
+  color: var(--purple);
+}
+
+.tabBtn.active {
+  background: var(--purple);
+  color: #fff;
+}
+
+.pageTitle  { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-1); margin-bottom: 2px; }
+.pageDesc   { font-size: 0.85rem; color: var(--text-3); }
+
+.headerActions { display: flex; gap: 8px; align-items: center; }
+
+.staffGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.staffCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.staffCard:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.staffAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 auto 10px;
+}
+
+.staffName { font-size: 0.95rem; font-weight: 700; color: var(--text-1); margin-bottom: 6px; }
+.staffRole { margin-bottom: 14px; }
+
+.staffStats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.statItem { flex: 1; }
+.statValue { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: var(--text-1); }
+.statLabel { font-size: 0.75rem; color: var(--text-3); margin-top: 1px; }
+.statDivider { width: 1px; height: 28px; background: var(--border); }
+
+.staffActions { 
+  display: flex; 
+  gap: 4px; 
+  justify-content: center; 
+  flex-wrap: wrap;
+}
+
+/* ── Add card ── */
+.addCard {
+  background: var(--bg);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 180px;
+}
+
+.addCard:hover { border-color: var(--purple); }
+
+.addIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--purple-lt);
+  color: var(--purple);
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addLabel { font-size: 0.85rem; font-weight: 600; color: var(--text-2); }
+.addCard:hover .addLabel { color: var(--purple); }
+
+/* ── Table ── */
+.period { margin-left: auto; font-size: 0.75rem; color: var(--text-3); font-weight: 400; font-family: var(--font-body); }
+
+.tableWrapper { overflow-x: auto; }
+
+.table { width: 100%; border-collapse: collapse; min-width: 500px; }
+
+.table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  padding: 9px 11px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 10px 11px;
+  font-size: 0.85rem;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition);
+}
+
+.table tr:hover td { background: var(--bg); }
+.table tr:last-child td { border-bottom: none; }
+.table td strong { color: var(--text-1); font-weight: 600; }
+
+.tableUser { display: flex; align-items: center; gap: 8px; }
+
+.tableAvatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}

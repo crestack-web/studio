@@ -1,0 +1,79 @@
+{
+  "placeholderImages": [
+    {
+      "id": "testimonial-food-vendor",
+      "description": "A street food vendor smiling at her stall in an African market.",
+      "imageUrl": "https://images.unsplash.com/photo-1608686207856-001b95cf60ca?q=80&w=1080&auto=format&fit=crop",
+      "imageHint": "food stall"
+    },
+    {
+      "id": "testimonial-retail-shop",
+      "description": "A shopkeeper surrounded by colorful fabrics in her small retail store.",
+      "imageUrl": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?q=80&w=1080&auto=format&fit=crop",
+      "imageHint": "retail shop"
+    },
+    {
+      "id": "testimonial-supermarket-owner",
+      "description": "A grocery aisle in a supermarket with a shopping cart.",
+      "imageUrl": "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1080&auto=format&fit=crop",
+      "imageHint": "supermarket aisle"
+    },
+    {
+      "id": "sale-banner-1",
+      "description": "Abstract background for a clearance sale.",
+      "imageUrl": "https://images.unsplash.com/photo-1684139517679-032b7213ad2e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxhYnN0cmFjdCUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzY5NDE4ODQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract background"
+    },
+    {
+      "id": "sale-banner-2",
+      "description": "Colorful products arranged for a new arrivals banner.",
+      "imageUrl": "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjbG90aGluZyUyMHN0b3JlfGVufDB8fHx8MTc2OTA5ODE4NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clothing store"
+    },
+    {
+      "id": "shopping-banner",
+      "description": "Stacked boxes of goods in a warehouse, representing stock for wholesale.",
+      "imageUrl": "https://images.unsplash.com/photo-1586528116311-06924151d683?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3YXJlaG91c2UlMjBib3hlc3xlbnwwfHx8fDE3NjkwOTgyMDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "warehouse boxes"
+    }
+  ],
+  "productImages": [
+    {
+      "id": "prod-bag",
+      "description": "A stylish leather bag",
+      "imageUrl": "https://picsum.photos/seed/prod-bag/400/300",
+      "imageHint": "leather bag"
+    },
+    {
+      "id": "prod-bottle",
+      "description": "A bottle of water",
+      "imageUrl": "https://picsum.photos/seed/prod-bottle/400/300",
+      "imageHint": "water bottle"
+    },
+    {
+      "id": "prod-shirt",
+      "description": "A colorful t-shirt",
+      "imageUrl": "https://picsum.photos/seed/prod-shirt/400/300",
+      "imageHint": "t-shirt"
+    },
+    {
+      "id": "prod-shoes",
+      "description": "A pair of running shoes",
+      "imageUrl": "https://picsum.photos/seed/prod-shoes/400/300",
+      "imageHint": "running shoes"
+    },
+    {
+      "id": "prod-tech",
+      "description": "A modern electronic gadget",
+      "imageUrl": "https://picsum.photos/seed/prod-tech/400/300",
+      "imageHint": "electronic gadget"
+    },
+    {
+      "id": "prod-food",
+      "description": "A delicious plate of food",
+      "imageUrl": "https://picsum.photos/seed/prod-food/400/300",
+      "imageHint": "plate food"
+    }
+  ],
+  "categoryImages": []
+}

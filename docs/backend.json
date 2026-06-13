@@ -1,0 +1,1272 @@
+
+{
+  "entities": {
+    "Business": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Business",
+      "type": "object",
+      "description": "Represents a business using the BizAssistant app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Business entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the business."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of business (e.g., shop, supermarket, food, service)."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The currency used by the business (e.g., ₦ / CFA)."
+        },
+        "onboardingCompleted": {
+          "type": "boolean",
+          "description": "A flag to indicate if the business has completed the initial setup."
+        },
+        "slug": {
+          "type": "string",
+          "description": "The unique, URL-friendly slug for the business's market page."
+        },
+        "deliveryType": {
+          "type": "string",
+          "enum": ["nationwide", "cities"],
+          "description": "The delivery scope for the business."
+        },
+        "deliveryCities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "A list of cities the business delivers to."
+        },
+        "branches": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" }
+                },
+                "required": ["id", "name"]
+            },
+            "description": "List of business branches for multi-branch plans."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the BizAssistant app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number. May not be present for all roles."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role (Owner / Staff / Investor / Admin / Delivery Agent)."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N User). Not applicable for all roles."
+        },
+        "branchId": {
+            "type": "string",
+            "description": "The ID of the branch the staff member is assigned to."
+        }
+      },
+      "required": [
+        "id",
+        "displayName",
+        "email",
+        "role"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an admin user's status for efficient security rule checks.",
+      "properties": {
+        "isAdmin": {
+          "type": "boolean",
+          "description": "A flag indicating admin status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["isAdmin"]
+    },
+    "AdminPermission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminPermission",
+      "type": "object",
+      "description": "Granular, department-based permissions for an Admin user.",
+      "properties": {
+        "isSuperAdmin": { "type": "boolean", "description": "Grants access to all sections." },
+        "canManageUsers": { "type": "boolean", "description": "Access to the Users management section." },
+        "canManageVerifications": { "type": "boolean", "description": "Access to business verification requests." },
+        "canManageOrders": { "type": "boolean", "description": "Access to the Orders section." },
+        "canManageMarketplace": { "type": "boolean", "description": "Access to Market Banners, Products, and Categories." },
+        "canManageBlog": { "type": "boolean", "description": "Access to Blog management." },
+        "canManageSupport": { "type": "boolean", "description": "Access to Support chats, tickets, and agent management." },
+        "canManageCoupons": { "type": "boolean", "description": "Access to Coupon management." },
+        "canManageAnnouncements": { "type": "boolean", "description": "Access to Announcement management." },
+        "canManageServices": { "type": "boolean", "description": "Access to manage paid service requests." }
+      }
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product sold by the business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product.",
+          "format": "number"
+        },
+        "stockByBranch": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Inventory count per branch, mapping branchId to quantity."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N Product)"
+        },
+        "averageRating": {
+          "type": "number",
+          "description": "The average customer rating for the product, from 1 to 5."
+        },
+        "reviewCount": {
+          "type": "number",
+          "description": "The total number of reviews for the product."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "businessId"
+      ]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a sale recorded in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Sale entity."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total amount of the sale.",
+          "format": "number"
+        },
+        "paymentType": {
+          "type": "string",
+          "description": "The payment type used for the sale (cash/transfer/POS)."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the sale was recorded.",
+          "format": "date-time"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N Sale)"
+        },
+        "branchId": {
+            "type": "string",
+            "description": "The ID of the branch where the sale was recorded."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who recorded the sale. (Relationship: User 1:N Sale)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. If the sale was for a specific product. (Relationship: Product 1:N Sale)"
+        }
+      },
+      "required": [
+        "id",
+        "amount",
+        "paymentType",
+        "timestamp",
+        "businessId",
+        "userId"
+      ]
+    },
+    "Expense": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Expense",
+        "type": "object",
+        "description": "Represents a business expense.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "category": { "type": "string" },
+            "title": { "type": "string" },
+            "amount": { "type": "number" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "category", "title", "amount", "createdAt"]
+    },
+    "Transaction": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Transaction",
+        "type": "object",
+        "description": "Represents a cash deposit or withdrawal.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "type": { "type": "string", "enum": ["deposit", "withdrawal"] },
+            "amount": { "type": "number" },
+            "description": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "type", "amount", "createdAt"]
+    },
+    "InventoryAdjustment": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "InventoryAdjustment",
+        "type": "object",
+        "description": "Records changes to inventory outside of sales.",
+        "properties": {
+            "id": { "type": "string" },
+            "businessId": { "type": "string" },
+            "branchId": { "type": "string" },
+            "productId": { "type": "string" },
+            "variantId": { "type": "string" },
+            "quantityChange": { "type": "number" },
+            "reason": { "type": "string" },
+            "notes": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["businessId", "productId", "quantityChange", "reason", "createdAt"]
+    },
+    "AiQuestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AiQuestion",
+      "type": "object",
+      "description": "Represents a question asked to the AI.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AI Question entity."
+        },
+        "question": {
+          "type": "string",
+          "description": "The question asked."
+        },
+        "answer": {
+          "type": "string",
+          "description": "The AI's answer to the question."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time when the question was asked.",
+          "format": "date-time"
+        },
+        "businessId": {
+          "type": "string",
+          "description": "Reference to Business. (Relationship: Business 1:N AiQuestion)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User who asked the question. (Relationship: User 1:N AiQuestion)"
+        }
+      },
+      "required": [
+        "id",
+        "question",
+        "answer",
+        "timestamp",
+        "businessId",
+        "userId"
+      ]
+    },
+    "StaffPermission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StaffPermission",
+      "type": "object",
+      "description": "Represents the permissions granted to staff members.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the StaffPermission entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User (staff member). (Relationship: User 1:1 StaffPermission)"
+        },
+        "canRecordSales": {
+          "type": "boolean",
+          "description": "Indicates whether the staff member can record sales."
+        },
+        "canSeeReports": {
+          "type": "boolean",
+          "description": "Indicates whether the staff member can see reports (owner only)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "canRecordSales",
+        "canSeeReports"
+      ]
+    },
+    "Invitation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Invitation",
+      "type": "object",
+      "description": "Represents an invitation for a staff member to join a business.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Invitation (document ID, typically the email)."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the person being invited."
+        },
+        "businessId": {
+          "type": "string",
+          "description": "The ID of the business the invitation is for."
+        },
+        "businessName": {
+          "type": "string",
+          "description": "The name of the business."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending"
+          ],
+          "description": "The status of the invitation."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the invitation was created."
+        }
+      },
+      "required": [
+        "email",
+        "businessId",
+        "status",
+        "createdAt"
+      ]
+    },
+    "MarketCategory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketCategory",
+      "type": "object",
+      "description": "Represents a category in the marketplace.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageHint": { "type": "string" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." }
+      },
+      "required": ["name", "imageUrl"]
+    },
+    "MarketBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketBanner",
+      "type": "object",
+      "description": "Represents a large hero banner for the marketplace homepage.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "imageHint": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "className": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
+    },
+    "MarketGifBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketGifBanner",
+      "type": "object",
+      "description": "Represents a small GIF-style banner for the marketplace homepage.",
+      "properties": {
+        "id": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Direct URL to the image or GIF." },
+        "linkUrl": { "type": "string", "description": "The relative or absolute URL the banner links to." },
+        "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
+    },
+    "MarketTopBanner": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MarketTopBanner",
+      "type": "object",
+      "description": "Represents a small, full-width advertisement banner for the top of the market page.",
+      "properties": {
+        "id": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Direct URL to the image or GIF." },
+        "linkUrl": { "type": "string", "description": "The relative or absolute URL the banner links to." },
+        "isActive": { "type": "boolean" },
+        "country": { "type": "string", "description": "Country code (e.g., NG, GH). Empty string for global." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "isActive"]
+    },
+    "SupportAgent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SupportAgent",
+      "type": "object",
+      "description": "Represents a support agent profile.",
+      "properties": {
+        "userId": { "type": "string", "description": "Reference to the User entity." },
+        "displayName": { "type": "string", "description": "The agent's display name." },
+        "avatarUrl": { "type": "string", "description": "URL for the agent's avatar." },
+        "status": { "type": "string", "enum": ["online", "offline"] },
+        "language": { "type": "string", "enum": ["en", "fr"], "description": "The primary language the agent supports." }
+      },
+      "required": ["userId", "displayName", "status"]
+    },
+    "ChatConversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatConversation",
+      "type": "object",
+      "description": "Represents a single support chat conversation.",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the user who initiated the chat." },
+        "userName": { "type": "string", "description": "The name of the user." },
+        "agentId": { "type": "string", "description": "The ID of the agent handling the chat." },
+        "status": { "type": "string", "enum": ["open", "in-progress", "closed"] },
+        "lastMessage": { "type": "string", "description": "A snippet of the last message for display." },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "status", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents a single message within a chat conversation.",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "A data URI for an uploaded image." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "senderId", "senderName", "createdAt"]
+    },
+    "SellerBankAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SellerBankAccount",
+      "type": "object",
+      "description": "Stores verified bank account details for a seller's payouts.",
+      "properties": {
+        "bankName": { "type": "string" },
+        "bankCode": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "accountName": { "type": "string", "description": "Name verified via Paystack." },
+        "status": { "type": "string", "enum": ["unverified", "pending", "verified", "failed"] }
+      },
+      "required": ["bankCode", "accountNumber", "status"]
+    },
+    "PaymentTransaction": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PaymentTransaction",
+        "type": "object",
+        "description": "Logs a payment attempt for an order.",
+        "properties": {
+            "orderId": { "type": "string" },
+            "amount": { "type": "number" },
+            "currency": { "type": "string" },
+            "status": { "type": "string", "enum": ["pending", "successful", "failed"] },
+            "gateway": { "type": "string", "enum": ["paystack"] },
+            "reference": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["orderId", "amount", "currency", "status", "gateway", "createdAt"]
+    },
+    "PaymentIntent": {
+      "title": "PaymentIntent",
+      "type": "object",
+      "description": "Tracks a payment attempt from initiation to completion.",
+      "properties": {
+        "id": { "type": "string", "description": "Paystack reference, used as document ID." },
+        "userId": { "type": "string" },
+        "businessId": { "type": "string" },
+        "type": { "type": "string", "enum": ["product", "subscription", "service"] },
+        "items": { "type": "array", "items": { "type": "object" }, "description": "For multi-item product orders." },
+        "itemId": { "type": "string", "description": "For single-item types like subscription or service." },
+        "amount": { "type": "number", "description": "Authoritative amount in kobo." },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "successful", "failed"] },
+        "orderId": { "type": "string", "description": "The ID of the final Order document, if applicable." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "currency", "status", "createdAt"]
+    },
+    "ProcessedWebhookEvent": {
+      "title": "ProcessedWebhookEvent",
+      "type": "object",
+      "description": "Stores IDs of processed Paystack webhooks to ensure idempotency.",
+      "properties": {
+        "id": { "type": "string", "description": "The Paystack event ID." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdAt"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "type": "object",
+      "description": "Defines a subscription plan.",
+      "properties": {
+        "id": { "type": "string", "description": "Plan ID, e.g., 'supermarket'." },
+        "name": { "type": "string" },
+        "monthlyPrice": { "type": "number", "description": "Price in NGN kobo." },
+        "yearlyPrice": { "type": "number", "description": "Price in NGN kobo." },
+        "paystack_plan_code_monthly": { "type": "string" },
+        "paystack_plan_code_yearly": { "type": "string" }
+      },
+      "required": ["name", "monthlyPrice", "yearlyPrice"]
+    },
+    "Payout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payout",
+      "type": "object",
+      "description": "Logs a payout to a seller for a completed order.",
+      "properties": {
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["processing", "paid", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "amount", "currency", "status", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "type": "object",
+      "description": "Represents a user's subscription to a Busmo plan.",
+      "properties": {
+        "planId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "cancelled", "past_due", "trialing"] },
+        "currentPeriodStart": { "type": "string", "format": "date-time" },
+        "currentPeriodEnd": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["planId", "status"]
+    },
+    "SubscriptionTransaction": {
+      "title": "SubscriptionTransaction",
+      "type": "object",
+      "description": "Logs a payment for a subscription.",
+      "properties": {
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "amountPaid": { "type": "number" },
+        "currency": { "type": "string" },
+        "couponUsed": { "type": "string" },
+        "paystackReference": { "type": "string" },
+        "status": { "type": "string", "enum": ["successful", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "planId", "amountPaid", "currency", "status", "createdAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "type": "object",
+      "description": "Represents a discount coupon.",
+      "properties": {
+        "code": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["code", "discountType", "discountValue", "isActive"]
+    },
+    "BusinessVerification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BusinessVerification",
+      "type": "object",
+      "description": "Stores documents for business verification to sell on the market.",
+      "properties": {
+        "businessId": { "type": "string", "description": "The ID of the business being verified." },
+        "businessName": { "type": "string", "description": "The name of the business (for display in admin panel)." },
+        "idImageUrl": { "type": "string", "description": "Data URI of the owner's ID document." },
+        "stockImageUrl": { "type": "string", "description": "Data URI of an image showing proof of stock." },
+        "storeImageUrl": { "type": "string", "description": "Data URI of an image of the physical store/shop." },
+        "status": { "type": "string", "enum": ["unverified", "pending", "verified", "rejected"] },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "rejectionReason": { "type": "string" }
+      },
+      "required": ["businessId", "status"]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer order from the marketplace.",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "sellerBusinessId": { "type": "string" },
+        "customer": { "type": "object", "properties": { "name": { "type": "string" }, "phone": { "type": "string" }, "address": { "type": "string" } } },
+        "items": { "type": "array", "items": { "type": "object", "properties": { "productId": { "type": "string" }, "productName": { "type": "string" }, "variantId": { "type": "string" }, "variantName": { "type": "string" }, "quantity": { "type": "number" }, "price": { "type": "number" } } } },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "in progress", "shipped", "delivered", "cancelled", "returned"] },
+        "fulfillment": { "type": "string", "enum": ["delivery", "pickup"] },
+        "payment": { "type": "string", "enum": ["busmopay", "transfer", "delivery"] },
+        "paymentReference": { "type": "string", "description": "The reference ID from the payment gateway." },
+        "payoutStatus": { "type": "string", "enum": ["unpaid", "processing", "paid"] },
+        "deliveryAgentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "sellerBusinessId", "customer", "items", "total", "status", "fulfillment", "payment", "createdAt"]
+    },
+    "DeliveryAgent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DeliveryAgent",
+      "type": "object",
+      "description": "Represents a delivery agent.",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "on-delivery", "unavailable"] },
+        "currentOrderId": { "type": "string" }
+      },
+      "required": ["userId", "displayName", "status"]
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents a promotional announcement banner displayed on certain pages.",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "href": { "type": "string", "description": "The URL the announcement links to." },
+        "page": { "type": "string", "enum": ["welcome", "home", "market"], "description": "The page where the announcement will be displayed." },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "page", "isActive"]
+    },
+    "Service": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Service",
+      "type": "object",
+      "description": "Represents a paid business service offered by Busmo.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "fee": { "type": "number" },
+        "icon": { "type": "string", "description": "The name of a lucide-react icon." },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "fee", "icon", "isActive", "createdAt"]
+    },
+    "ServiceRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServiceRequest",
+      "type": "object",
+      "description": "Represents a request for a paid business service from a merchant.",
+      "properties": {
+        "id": { "type": "string" },
+        "businessId": { "type": "string" },
+        "userId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "serviceFee": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "completed", "cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"] },
+        "paystackReference": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessId", "userId", "serviceName", "serviceFee", "status", "paymentStatus", "createdAt"]
+    },
+    "EmailBranding": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailBranding",
+        "type": "object",
+        "description": "Global branding settings for all transactional emails.",
+        "properties": {
+            "logoUrl": { "type": "string" },
+            "brandColor": { "type": "string" },
+            "accentColor": { "type": "string" },
+            "footerText": { "type": "string" },
+            "senderName": { "type": "string" },
+            "senderEmail": { "type": "string", "format": "email" },
+            "facebookUrl": { "type": "string" },
+            "twitterUrl": { "type": "string" },
+            "instagramUrl": { "type": "string" },
+            "appStoreUrl": { "type": "string" },
+            "playStoreUrl": { "type": "string" }
+        },
+        "required": ["logoUrl", "brandColor", "footerText", "senderName", "senderEmail"]
+    },
+    "EmailTemplate": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailTemplate",
+        "type": "object",
+        "description": "A template for a specific transactional email.",
+        "properties": {
+            "subject": { "type": "string", "description": "Subject line, can contain Handlebars variables." },
+            "htmlBody": { "type": "string", "description": "The main content of the email in HTML, can contain Handlebars variables." },
+            "preheader": { "type": "string", "description": "Short summary text that follows the subject line." }
+        },
+        "required": ["subject", "htmlBody"]
+    },
+    "EmailLog": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "EmailLog",
+        "type": "object",
+        "description": "A log entry for an email that has been sent or attempted.",
+        "properties": {
+            "to": { "type": "string", "format": "email" },
+            "templateId": { "type": "string" },
+            "status": { "type": "string", "enum": ["sent", "failed", "queued"] },
+            "error": { "type": "string" },
+            "sentAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["to", "templateId", "status", "sentAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/businesses/{businessId}",
+        "definition": {
+          "entityName": "Business",
+          "schema": {
+            "$ref": "#/backend/entities/Business"
+          },
+          "description": "Stores general, non-sensitive business information.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information for a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "productId",
+              "description": "The unique identifier of the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Stores sales records associated with a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "saleId",
+              "description": "The unique identifier of the sale."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/expenses/{expenseId}",
+        "definition": {
+          "entityName": "Expense",
+          "schema": { "$ref": "#/backend/entities/Expense" },
+          "description": "Stores expense records for a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "expenseId", "description": "The unique identifier of the expense." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": { "$ref": "#/backend/entities/Transaction" },
+          "description": "Stores cashflow transactions (deposits/withdrawals) for a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "transactionId", "description": "The unique identifier of the transaction." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/inventoryAdjustments/{adjustmentId}",
+        "definition": {
+          "entityName": "InventoryAdjustment",
+          "schema": { "$ref": "#/backend/entities/InventoryAdjustment" },
+          "description": "Stores records of manual inventory changes.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "adjustmentId", "description": "The unique identifier of the adjustment." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": { "$ref": "#/backend/entities/Order" },
+          "description": "Stores all customer orders for a specific business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "orderId", "description": "The unique identifier of the order." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/ai_questions/{aiQuestionId}",
+        "definition": {
+          "entityName": "AiQuestion",
+          "schema": {
+            "$ref": "#/backend/entities/AiQuestion"
+          },
+          "description": "Stores AI questions and answers related to a business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "aiQuestionId",
+              "description": "The unique identifier of the AI question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/invitations/{invitationId}",
+        "definition": {
+          "entityName": "Invitation",
+          "schema": {
+            "$ref": "#/backend/entities/Invitation"
+          },
+          "description": "Stores staff invitations for a specific business.",
+          "params": [
+            {
+              "name": "businessId",
+              "description": "The unique identifier of the business."
+            },
+            {
+              "name": "invitationId",
+              "description": "The unique identifier of the invitation (typically the invited email)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/bankAccount/{accountId}",
+        "definition": {
+          "entityName": "SellerBankAccount",
+          "schema": { "$ref": "#/backend/entities/SellerBankAccount" },
+          "description": "Stores the seller's verified bank account for payouts. `accountId` is typically 'primary'.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "accountId", "description": "The identifier for the bank account." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/paymentTransactions/{transactionId}",
+        "definition": {
+          "entityName": "PaymentTransaction",
+          "schema": { "$ref": "#/backend/entities/PaymentTransaction" },
+          "description": "Logs payment gateway transaction attempts for orders.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "transactionId", "description": "The unique identifier for the transaction." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/payouts/{payoutId}",
+        "definition": {
+          "entityName": "Payout",
+          "schema": { "$ref": "#/backend/entities/Payout" },
+          "description": "Logs payout records to sellers for fulfilled orders.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "payoutId", "description": "The unique identifier for the payout record." }
+          ]
+        }
+      },
+      {
+        "path": "/businesses/{businessId}/serviceRequests/{requestId}",
+        "definition": {
+          "entityName": "ServiceRequest",
+          "schema": { "$ref": "#/backend/entities/ServiceRequest" },
+          "description": "Stores requests for paid services from a business.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." },
+            { "name": "requestId", "description": "The unique identifier of the service request." }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Top-level collection storing all user profiles. Contains sensitive role and business association information used for security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (Firebase Auth UID)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/staff_permissions/{staffPermissionId}",
+        "definition": {
+          "entityName": "StaffPermission",
+          "schema": {
+            "$ref": "#/backend/entities/StaffPermission"
+          },
+          "description": "Stores staff permissions, accessible only by the user (owner) and secured by their UID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (Firebase Auth UID)."
+            },
+            {
+              "name": "staffPermissionId",
+              "description": "The unique identifier of the Staff Permission."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{userId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "A collection to flag users as admins for efficient, non-recursive security rule checks.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user's ID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_permissions/{userId}",
+        "definition": {
+          "entityName": "AdminPermission",
+          "schema": {
+            "$ref": "#/backend/entities/AdminPermission"
+          },
+          "description": "Stores granular permissions for an admin user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The admin user's ID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/deliveryAgents/{agentId}",
+        "definition": {
+          "entityName": "DeliveryAgent",
+          "schema": { "$ref": "#/backend/entities/DeliveryAgent" },
+          "description": "Stores profiles for delivery agents.",
+          "params": [
+            { "name": "agentId", "description": "The user ID of the agent." }
+          ]
+        }
+      },
+      {
+        "path": "/marketCategories/{categoryId}",
+        "definition": {
+          "entityName": "MarketCategory",
+          "schema": {
+            "$ref": "#/backend/entities/MarketCategory"
+          },
+          "description": "Stores categories for the marketplace.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "The unique identifier of the category."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/marketBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketBanner"
+          },
+          "description": "Stores the large hero banners for the market homepage.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the banner." }
+          ]
+        }
+      },
+       {
+        "path": "/marketGifBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketGifBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketGifBanner"
+          },
+          "description": "Stores the small, animated-style banners for the market homepage.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the GIF banner." }
+          ]
+        }
+      },
+      {
+        "path": "/marketTopBanners/{bannerId}",
+        "definition": {
+          "entityName": "MarketTopBanner",
+          "schema": {
+            "$ref": "#/backend/entities/MarketTopBanner"
+          },
+          "description": "Stores the small, full-width advertisement banners for the top of the market page.",
+          "params": [
+            { "name": "bannerId", "description": "The unique ID for the top ad banner." }
+          ]
+        }
+      },
+      {
+        "path": "/supportAgents/{agentId}",
+        "definition": {
+          "entityName": "SupportAgent",
+          "schema": { "$ref": "#/backend/entities/SupportAgent" },
+          "description": "Stores profiles of customer support agents.",
+          "params": [{ "name": "agentId", "description": "The user ID of the agent." }]
+        }
+      },
+      {
+        "path": "/chatConversations/{conversationId}",
+        "definition": {
+          "entityName": "ChatConversation",
+          "schema": { "$ref": "#/backend/entities/ChatConversation" },
+          "description": "Top-level collection for all support chat conversations.",
+          "params": [{ "name": "conversationId", "description": "Unique ID for the conversation." }]
+        }
+      },
+      {
+        "path": "/chatConversations/{conversationId}/messages/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": { "$ref": "#/backend/entities/ChatMessage" },
+          "description": "Subcollection storing all messages for a specific conversation.",
+          "params": [
+            { "name": "conversationId", "description": "The ID of the parent conversation." },
+            { "name": "messageId", "description": "The unique ID of the message." }
+          ]
+        }
+      },
+      {
+        "path": "/coupons/{couponId}",
+        "definition": {
+          "entityName": "Coupon",
+          "schema": { "$ref": "#/backend/entities/Coupon" },
+          "description": "Stores available discount coupons. couponId is the coupon code.",
+          "params": [{ "name": "couponId", "description": "The coupon code." }]
+        }
+      },
+      {
+        "path": "/users/{userId}/subscriptions/{subscriptionId}",
+        "definition": {
+          "entityName": "Subscription",
+          "schema": { "$ref": "#/backend/entities/Subscription" },
+          "description": "Stores user subscriptions.",
+          "params": [
+            { "name": "userId", "description": "The user ID." },
+            { "name": "subscriptionId", "description": "The subscription ID." }
+          ]
+        }
+      },
+      {
+        "path": "/subscriptionTransactions/{transactionId}",
+        "definition": {
+          "entityName": "SubscriptionTransaction",
+          "schema": { "$ref": "#/backend/entities/SubscriptionTransaction" },
+          "description": "Stores all subscription payment transactions.",
+          "params": [{ "name": "transactionId", "description": "The transaction ID." }]
+        }
+      },
+      {
+        "path": "/businessVerifications/{businessId}",
+        "definition": {
+          "entityName": "BusinessVerification",
+          "schema": { "$ref": "#/backend/entities/BusinessVerification" },
+          "description": "Stores verification documents for each business. ID is businessId.",
+          "params": [
+            { "name": "businessId", "description": "The unique identifier of the business." }
+          ]
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Stores site-wide announcements.",
+          "params": [
+            { "name": "announcementId", "description": "The unique ID for the announcement." }
+          ]
+        }
+      },
+      {
+        "path": "/services/{serviceId}",
+        "definition": {
+          "entityName": "Service",
+          "schema": { "$ref": "#/backend/entities/Service" },
+          "description": "Stores the definition of paid services offered to merchants.",
+          "params": [
+            { "name": "serviceId", "description": "The unique ID of the service." }
+          ]
+        }
+      },
+      {
+        "path": "/settings/emailBranding",
+        "definition": {
+            "entityName": "EmailBranding",
+            "schema": { "$ref": "#/backend/entities/EmailBranding" },
+            "description": "A single document containing global branding settings for emails.",
+            "params": []
+        }
+      },
+      {
+          "path": "/emailTemplates/{templateId}",
+          "definition": {
+              "entityName": "EmailTemplate",
+              "schema": { "$ref": "#/backend/entities/EmailTemplate" },
+              "description": "Stores individual email templates (e.g., 'welcome-email').",
+              "params": [{ "name": "templateId", "description": "The unique name of the template." }]
+          }
+      },
+      {
+          "path": "/emailLogs/{logId}",
+          "definition": {
+              "entityName": "EmailLog",
+              "schema": { "$ref": "#/backend/entities/EmailLog" },
+              "description": "Logs all outgoing emails for tracking and debugging.",
+              "params": [{ "name": "logId", "description": "The unique ID of the log entry." }]
+          }
+      },
+      {
+        "path": "/paymentIntents/{intentId}",
+        "definition": {
+          "entityName": "PaymentIntent",
+          "schema": { "$ref": "#/backend/entities/PaymentIntent" },
+          "description": "Stores all payment intents before they are fulfilled. `intentId` is the Paystack reference.",
+          "params": [{ "name": "intentId", "description": "The Paystack transaction reference." }]
+        }
+      },
+      {
+        "path": "/processedWebhookEvents/{eventId}",
+        "definition": {
+          "entityName": "ProcessedWebhookEvent",
+          "schema": { "$ref": "#/backend/entities/ProcessedWebhookEvent" },
+          "description": "Logs processed webhook events to prevent duplicates.",
+          "params": [{ "name": "eventId", "description": "The Paystack event ID." }]
+        }
+      },
+      {
+          "path": "/plans/{planId}",
+          "definition": {
+              "entityName": "Plan",
+              "schema": { "$ref": "#/backend/entities/Plan" },
+              "description": "Stores details for subscription plans.",
+              "params": [{ "name": "planId", "description": "The unique ID of the plan (e.g., 'supermarket')." }]
+          }
+      }
+    ],
+    "reasoning": "The Firestore data structure has been designed for security and scalability, centered around a multi-tenant model where data is partitioned by `businessId`.\n\n**Key Principles**:\n\n1.  **Centralized User Profiles**: A single top-level `/users` collection serves as the source of truth for all user information, including their `role` and the `businessId` they belong to. This is a critical design choice that prevents data duplication.\n\n2.  **Non-Recursive Security Rules**: Security rules for business-specific data (e.g., `/businesses/{businessId}/sales`) rely on a `get()` call to the accessing user's document in the `/users` collection (e.g., `get(/databases/$(database)/documents/users/$(request.auth.uid))`). This pattern is secure and non-recursive because the path being secured is different from the path being read from. It allows rules to check a user's role and business affiliation without needing custom claims.\n\n3.  **Data Silos**: Business-specific data (products, sales, etc.) is nested under `/businesses/{businessId}`. This creates clear data silos, ensuring one business cannot access another's data.\n\n4.  **User-Private Data**: Sensitive, user-specific configurations like staff permissions, subscriptions and transactions are stored under `/users/{userId}/...`. This allows for simple, strict security rules where only the user themselves (`request.auth.uid == userId`) can access their own private documents.\n\n5. **Email System Data:** New collections for the email system (`settings/emailBranding`, `emailTemplates`, `emailLogs`) are added. These are generally managed by admins or the system itself, with strict rules to prevent unauthorized access."
+  }
+}

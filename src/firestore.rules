@@ -1,0 +1,192 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUserOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      // This is now safe and non-recursive
+      return isSignedIn() && (
+        request.auth.token.email == 'crestack@gmail.com'
+        || exists(/databases/$(database)/documents/admin_permissions/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(businessId) {
+      if (businessId == null || !isSignedIn()) {
+        return false;
+      }
+      let businessDocPath = /databases/$(database)/documents/businesses/$(businessId);
+      if (!exists(businessDocPath)) {
+          return false;
+      }
+      let businessDoc = get(businessDocPath);
+      return 'ownerId' in businessDoc.data && businessDoc.data.ownerId == request.auth.uid;
+    }
+
+    function isBusinessMember(businessId) {
+      if (!isSignedIn()) {
+        return false;
+      }
+      let userData = getUserData();
+      return userData != null && userData.businessId == businessId;
+    }
+    
+    function isDeliveryAgent() {
+        return exists(/databases/$(database)/documents/deliveryAgents/$(request.auth.uid));
+    }
+
+    // --- MAIN COLLECTIONS ---
+    match /users/{userId} {
+      allow create: if isUserOwner(userId) && request.resource.data.id == userId;
+      allow get: if isUserOwner(userId) || isAdmin();
+      allow update: if isUserOwner(userId) || isAdmin();
+      allow list: if (isSignedIn() && request.query.businessId == getUserData().businessId) || isAdmin();
+      allow delete: if isAdmin();
+      
+      // In-app notifications are created by backend (Admin SDK). Users can only read their own.
+      match /notifications/{notificationId} {
+        allow read: if isUserOwner(userId);
+        allow write: if false;
+      }
+
+      // Referrals are managed by backend (Admin SDK). Users can only read their own.
+      match /referrals/{referredUid} {
+        allow read: if isUserOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+
+      match /referralEarnings/{earningId} {
+        allow read: if isUserOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+
+      match /referralStats/{docId} {
+        allow read: if isUserOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+
+      match /referralPayouts/{payoutId} {
+        allow read: if isUserOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // Referral code mapping is backend-only.
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+
+    match /businesses/{businessId} {
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow get: if isBusinessMember(businessId);
+      allow update: if isOwner(businessId);
+      allow list, delete: if false;
+
+      // Subcollections
+      match /products/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /sales/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /inventoryAdjustments/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /invitations/{invitationId} { 
+        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
+      }
+
+      match /orders/{orderId} {
+        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+        allow get: if (isSignedIn() && resource.data.buyerId == request.auth.uid) || isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid);
+        allow update: if isBusinessMember(businessId) || (isSignedIn() && resource.data.deliveryAgentId == request.auth.uid); // Agent can update status
+        allow list: if isBusinessMember(businessId);
+        allow delete: if isBusinessMember(businessId) || isAdmin();
+      }
+    }
+    
+    // Rule for collection group queries on 'orders'
+    match /{path=**}/orders/{orderId} {
+      allow list: if isDeliveryAgent() || isAdmin();
+    }
+    
+    // --- MARKETPLACE & OTHER COLLECTIONS ---
+    match /businessProfiles/{businessId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (isOwner(businessId) && request.resource.data.ownerId == resource.data.ownerId) || isAdmin();
+      allow delete: if isOwner(businessId) || isAdmin();
+      
+      // Storefront subscriptions (buyers following a store).
+      match /subscribers/{userId} {
+        allow get: if isSignedIn() && request.auth.uid == userId;
+        allow create, delete: if isSignedIn() && request.auth.uid == userId;
+        allow update: if false;
+        allow list: if isOwner(businessId) || isAdmin();
+      }
+    }
+    
+    match /marketProducts/{productId} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.businessId);
+      allow update: if isOwner(resource.data.businessId) || isAdmin();
+      allow delete: if isOwner(resource.data.businessId) || isAdmin();
+    }
+    
+    match /marketBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /marketGifBanners/{bannerId} { allow read: if true; allow write: if isAdmin(); }
+    match /marketCategories/{categoryId} { allow read: if true; allow write: if isAdmin(); }
+    match /reviews/{reviewId} { allow read: if true; allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow update: if isSignedIn() && resource.data.userId == request.auth.uid; allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid); }
+    match /blogs/{blogId} { allow get: if resource.data.isPublished == true || isAdmin(); allow list: if true; allow write: if isAdmin(); }
+    match /supportTickets/{ticketId} { allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid; allow read, write, list, delete: if isAdmin(); }
+    
+    match /supportAgents/{agentId} { allow read: if true; allow write: if isAdmin(); }
+    
+    match /deliveryAgents/{agentId} {
+        allow get: if isUserOwner(agentId) || isAdmin();
+        allow list, write: if isAdmin();
+    }
+    
+    match /chatConversations/{conversationId} {
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read, write: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid)) || isAdmin();
+    }
+    
+    match /chatConversations/{conversationId}/messages/{messageId} {
+        function isChatParticipant() {
+            let conversationData = get(/databases/$(database)/documents/chatConversations/$(conversationId)).data;
+            return conversationData.userId == request.auth.uid || conversationData.agentId == request.auth.uid;
+        }
+
+        allow read, write: if isChatParticipant() || isAdmin();
+    }
+    
+    match /investments/{investmentId} {
+      allow create: if isSignedIn() && request.resource.data.investorId == request.auth.uid;
+      allow get, list: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+      allow update: if isSignedIn() && (resource.data.investorId == request.auth.uid || isOwner(resource.data.businessId));
+    }
+    
+    match /businessVerifications/{businessId} { allow read, write: if isBusinessMember(businessId) || isAdmin(); }
+    match /coupons/{couponId} { allow read, write: if isAdmin(); }
+    
+    match /subscriptionTransactions/{txId} { allow read: if isUserOwner(resource.data.userId) || isAdmin(); allow write: if true; }
+    match /users/{userId}/subscriptions/{subId} { allow read, write: if isUserOwner(userId); }
+    
+    match /announcements/{announcementId} {
+      allow read: if resource.data.isActive == true;
+      allow write: if isAdmin();
+    }
+  }
+}
+
+    

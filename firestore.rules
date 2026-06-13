@@ -1,0 +1,210 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is business owner
+    function isBusinessOwner(businessId) {
+      return isAuthenticated() && 
+             request.auth.uid == get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId;
+    }
+    
+    // Helper function to check if user is staff member of a business
+    function isBusinessStaff(businessId) {
+      return isAuthenticated() && 
+             request.auth.uid in get(/databases/$(database)/documents/businesses/$(businessId)).data.staffIds;
+    }
+    
+    // Helper function to check if user has access to business data
+    function hasBusinessAccess(businessId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId;
+    }
+    
+    // Helper function to check if user is staff via user document
+    function isStaffViaUserDoc(businessId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId == businessId &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+    
+    // =====================
+    // USERS COLLECTION
+    // =====================
+    match /users/{userId} {
+      // Allow read for authenticated user reading their own data
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Allow user to create their own profile during signup
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Allow user to update their own data (including subscription and credits)
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+
+      // =====================
+      // MO MESSAGES SUBCOLLECTION (for Ask MO chat history)
+      // =====================
+      match /mo_messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if isAuthenticated() && request.auth.uid == userId;
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+    
+    // =====================
+    // BUSINESSES COLLECTION (Main business data structure)
+    // =====================
+    match /businesses/{businessId} {
+      // Temporarily allow read for any authenticated user for debugging
+      allow read: if isAuthenticated();
+
+      // Allow creation if user is authenticated
+      allow create: if isAuthenticated();
+
+      // Allow write if user has access to this business
+      allow update, delete: if hasBusinessAccess(businessId);
+
+      // =====================
+      // PROFILE SUBCOLLECTION
+      // =====================
+      match /profile/{profileId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId);
+        allow update: if hasBusinessAccess(businessId);
+        allow delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // BRANCHES SUBCOLLECTION
+      // =====================
+      match /branches/{branchId} {
+        // Allow read if user has access to parent business
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow create if user has access to parent business
+        allow create: if hasBusinessAccess(businessId);
+        
+        // Allow update/delete if user has access to parent business
+        allow update, delete: if hasBusinessAccess(businessId);
+        
+        // Branch staff subcollection
+        match /staff/{staffId} {
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+          allow write: if hasBusinessAccess(businessId);
+        }
+        
+        // Branch sales subcollection
+        match /sales/{saleId} {
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+          allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+          allow update, delete: if hasBusinessAccess(businessId);
+        }
+        
+        // Branch products subcollection
+        match /products/{productId} {
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+          allow create: if hasBusinessAccess(businessId);
+          allow update, delete: if hasBusinessAccess(businessId);
+        }
+        
+        // Branch expenses subcollection
+        match /expenses/{expenseId} {
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+          allow create: if hasBusinessAccess(businessId);
+          allow update, delete: if hasBusinessAccess(businessId);
+        }
+      }
+
+      // =====================
+      // SALES SUBCOLLECTION
+      // =====================
+      match /sales/{saleId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // PRODUCTS SUBCOLLECTION
+      // =====================
+      match /products/{productId} {
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
+        allow create: if hasBusinessAccess(businessId);
+        allow update: if hasBusinessAccess(businessId);
+        allow delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // EXPENSES SUBCOLLECTION
+      // =====================
+      match /expenses/{expenseId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // STAFF SUBCOLLECTION
+      // =====================
+      match /staff/{staffId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow write: if hasBusinessAccess(businessId);
+      }
+      
+      // =====================
+      // ATTENDANCE SUBCOLLECTION
+      // =====================
+      match /attendance/{attendanceId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow delete: if hasBusinessAccess(businessId);
+      }
+      
+      // =====================
+      // CONVERSATIONS SUBCOLLECTION (for staff messaging)
+      // =====================
+      match /conversations/{conversationId} {
+        // Allow read for business owner and staff
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow create for business owner and staff
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow update for business owner and staff
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow delete only for business owner
+        allow delete: if isBusinessOwner(businessId);
+      }
+    }
+    
+    // =====================
+    // STATEMENTS COLLECTION (for verify statement page)
+    // =====================
+    match /statements/{statementId} {
+      // Allow read for anyone (public verification)
+      allow read: if true;
+      
+      // Allow write only if authenticated and is the business owner
+      allow write: if isAuthenticated() && 
+                    request.auth.uid == resource.data.businessId;
+    }
+    
+    // =====================
+    // AI CONVERSATIONS (for MO chat history)
+    // =====================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      allow write: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+    }
+  }
+}

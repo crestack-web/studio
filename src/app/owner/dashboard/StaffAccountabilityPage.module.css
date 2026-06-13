@@ -1,0 +1,245 @@
+.page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.pageDesc {
+  font-size: 0.9rem;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.periodSelector {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.periodBtn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.periodBtn:hover {
+  background: var(--surface);
+}
+
+.periodBtn.active {
+  background: var(--purple);
+  color: #fff;
+}
+
+.accountabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.accountabilityCard {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.staffName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.reconciliationRate {
+  text-align: right;
+}
+
+.rateLabel {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.rateValue {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.rateValue.excellent {
+  color: #16A34A;
+}
+
+.rateValue.good {
+  color: #F59E0B;
+}
+
+.rateValue.poor {
+  color: #DC2626;
+}
+
+.cardStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  background: var(--surface);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.cardAlerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #FEF3C7;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.alertIcon {
+  font-size: 1rem;
+}
+
+.alertText {
+  color: #92400E;
+  font-weight: 600;
+}
+
+.summaryStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.summaryStat {
+  text-align: center;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.summaryLabel {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.summaryValue {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.summaryValue.negative {
+  color: #DC2626;
+}
+
+.loading {
+  text-align: center;
+  padding: 48px;
+  font-size: 0.9rem;
+  color: var(--text-3);
+}
+
+.empty {
+  text-align: center;
+  padding: 48px;
+  font-size: 0.9rem;
+  color: var(--text-3);
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .periodSelector {
+    flex-wrap: wrap;
+  }
+
+  .periodBtn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .accountabilityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
