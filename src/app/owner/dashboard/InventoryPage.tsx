@@ -95,10 +95,37 @@ const InventoryPage: React.FC = () => {
     fetchProducts();
   }, [user?.id, firestore]);
 
-  const handleProductUpdate = (updated: Product) => {
-    setProducts(prev =>
-      prev.map(p => (p.id === updated.id ? updated : p))
-    );
+  const handleProductUpdate = async (updated: Product) => {
+    try {
+      // Get user's business ID
+      const userSnapshot = await getDocs(query(collection(firestore, 'users'), where('__name__', '==', user.id)));
+      
+      let businessId = user.id;
+      if (!userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data();
+        businessId = userData.businessId || user.id;
+      }
+
+      // Update product in Firestore
+      const productRef = doc(firestore, 'businesses', businessId, 'products', updated.id);
+      await updateDoc(productRef, {
+        price: updated.sellingPrice,
+        cost: updated.costPrice,
+        lowStockThreshold: updated.reorderThreshold,
+        updatedAt: new Date(),
+      });
+
+      console.log('✅ Product updated in Firestore:', updated.id);
+      showToast('✅ Product updated successfully');
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(p => (p.id === updated.id ? updated : p))
+      );
+    } catch (error) {
+      console.error('Error updating product:', error);
+      showToast('❌ Failed to update product');
+    }
   };
 
   // Export to CSV
