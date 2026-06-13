@@ -7,6 +7,8 @@ import { aiRequestQueue } from '@/lib/ai-queue';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
+let adminInitialized = false;
+
 try {
   if (!admin.apps.length) {
     const serviceAccount = {
@@ -19,11 +21,26 @@ try {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
+      adminInitialized = true;
+      console.log('✅ Firebase Admin initialized for Ask MO');
+    } else {
+      console.warn('⚠️ Firebase Admin credentials missing:', {
+        hasProjectId: !!serviceAccount.projectId,
+        hasPrivateKey: !!serviceAccount.privateKey,
+        hasClientEmail: !!serviceAccount.clientEmail,
+      });
     }
+  } else {
+    adminInitialized = true;
+    console.log('✅ Firebase Admin already initialized for Ask MO');
   }
-  db = getFirestore();
+  
+  if (adminInitialized) {
+    db = getFirestore();
+    console.log('✅ Firestore initialized for Ask MO');
+  }
 } catch (error) {
-  console.warn('Firebase Admin not initialized for Ask MO:', error);
+  console.error('❌ Firebase Admin initialization error for Ask MO:', error);
 }
 
 /**
@@ -997,18 +1014,34 @@ export async function POST(req: NextRequest) {
 
     // Fetch comprehensive business context from Firestore
     let businessContext: any = {};
+    let dbError: string | null = null;
+    
     if (authenticatedBusinessId && db) {
-      businessContext = await getBusinessContext(authenticatedBusinessId);
-      // Sanitize business context to reduce token usage
-      businessContext = sanitizeBusinessContext(businessContext);
-      console.log('📊 Business Context:', {
-        totalSales: businessContext.totalSales,
-        totalProfit: businessContext.totalProfit,
-        lowStockCount: businessContext.lowStockProducts?.length,
-        cashRunway: businessContext.cashRunway,
-      });
+      try {
+        businessContext = await getBusinessContext(authenticatedBusinessId);
+        // Check if getBusinessContext returned an error
+        if (businessContext.error) {
+          dbError = businessContext.error;
+          console.warn('⚠️ Business context error:', dbError);
+          businessContext = {};
+        } else {
+          // Sanitize business context to reduce token usage
+          businessContext = sanitizeBusinessContext(businessContext);
+          console.log('📊 Business Context:', {
+            totalSales: businessContext.totalSales,
+            totalProfit: businessContext.totalProfit,
+            lowStockCount: businessContext.lowStockProducts?.length,
+            cashRunway: businessContext.cashRunway,
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error fetching business context:', error);
+        dbError = 'Failed to fetch business context';
+        businessContext = {};
+      }
     } else if (!db) {
       console.warn('⚠️ Firebase Admin not initialized, proceeding without business context');
+      dbError = 'Database not initialized';
     }
 
     // Use GoogleAIService for AI responses
