@@ -27,8 +27,10 @@ interface BusmoTransaction {
   amount: number;
   type: 'sale' | 'expense';
   paymentMethod: string;
+  paymentMethods?: Record<string, number>; // For split payments
   matched: boolean;
   matchedWith?: string;
+  isSplitPayment?: boolean;
 }
 
 export function BankReconciliationPage() {
@@ -100,38 +102,68 @@ export function BankReconciliationPage() {
       );
       const expensesSnapshot = await getDocs(expensesQuery);
 
-      // Convert to Busmo transactions
+      // Convert to Busmo transactions - ONLY include bank-related payments
       const busmoTx: BusmoTransaction[] = [];
 
       salesSnapshot.forEach(doc => {
         const data = doc.data();
-        busmoTx.push({
-          id: doc.id,
-          date: data.createdAt?.toDate() || new Date(),
-          description: `Sale: ${data.products?.[0]?.name || 'Multiple items'}`,
-          amount: data.totalRevenue || data.total || 0,
-          type: 'sale',
-          paymentMethod: data.paymentMethod || 'cash',
-          matched: false,
-        });
+        const paymentMethod = data.paymentMethod || 'cash';
+        const paymentMethods = data.paymentMethods || {};
+        
+        // Only include sales with bank payment methods (transfer, card, or split with bank component)
+        const hasBankPayment = paymentMethod === 'transfer' || 
+                              paymentMethod === 'card' ||
+                              (paymentMethod === 'split' && (paymentMethods['Transfer'] || paymentMethods['Card']));
+        
+        if (hasBankPayment) {
+          let bankAmount = data.totalRevenue || data.total || 0;
+          let isSplit = false;
+          
+          // For split payments, extract only the bank portion
+          if (paymentMethod === 'split' && paymentMethods) {
+            isSplit = true;
+            bankAmount = (paymentMethods['Transfer'] || 0) + (paymentMethods['Card'] || 0);
+          }
+          
+          busmoTx.push({
+            id: doc.id,
+            date: data.createdAt?.toDate() || new Date(),
+            description: isSplit 
+              ? `Sale (Split): ${data.products?.[0]?.name || 'Multiple items'} - Bank portion: ${formatMoney(bankAmount)}`
+              : `Sale: ${data.products?.[0]?.name || 'Multiple items'}`,
+            amount: bankAmount,
+            type: 'sale',
+            paymentMethod: paymentMethod,
+            paymentMethods: paymentMethods,
+            matched: false,
+            isSplitPayment: isSplit,
+          });
+        }
       });
 
       expensesSnapshot.forEach(doc => {
         const data = doc.data();
-        busmoTx.push({
-          id: doc.id,
-          date: data.createdAt?.toDate() || new Date(),
-          description: data.description || data.category || 'Expense',
-          amount: data.amount || 0,
-          type: 'expense',
-          paymentMethod: data.paymentMethod || 'transfer',
-          matched: false,
-        });
+        const paymentMethod = data.paymentMethod || 'transfer';
+        
+        // Only include expenses with bank payment methods
+        const hasBankPayment = paymentMethod === 'transfer' || paymentMethod === 'card';
+        
+        if (hasBankPayment) {
+          busmoTx.push({
+            id: doc.id,
+            date: data.createdAt?.toDate() || new Date(),
+            description: data.description || data.category || 'Expense',
+            amount: data.amount || 0,
+            type: 'expense',
+            paymentMethod: paymentMethod,
+            matched: false,
+          });
+        }
       });
 
       setBusmoTransactions(busmoTx);
 
-      // Calculate summary
+      // Calculate summary - only for bank-related transactions
       const busmoBalance = busmoTx.reduce((acc, tx) => {
         return acc + (tx.type === 'sale' ? tx.amount : -tx.amount);
       }, 0);
@@ -225,8 +257,8 @@ export function BankReconciliationPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.heading}>Bank Reconciliation</h1>
-          <p className={styles.sub}>Match your bank transactions with Busmo sales and expenses</p>
+          <h1 className={styles.heading}>Bank Payment Reconciliation</h1>
+          <p className={styles.sub}>Match bank statement transactions with Busmo bank payments (transfer, card, and split payment bank portions)</p>
         </div>
         <button className={styles.importBtn} onClick={() => setShowImportModal(true)}>
           Import Bank Statement
@@ -314,42 +346,50 @@ export function BankReconciliationPage() {
           {/* Busmo Transactions */}
           <div className={styles.transactionPanel}>
             <div className={styles.panelHeader}>
-              <h3 className={styles.panelTitle}>Busmo Transactions</h3>
+              <h3 className={styles.panelTitle}>Busmo Bank Payments</h3>
               <span className={styles.panelCount}>{busmoTransactions.length} transactions</span>
             </div>
             <div className={styles.transactionList}>
-              {busmoTransactions.map(tx => (
-                <div
-                  key={tx.id}
-                  className={`${styles.transactionItem} ${selectedBusmoTx === tx.id ? styles.selected : ''} ${tx.matched ? styles.matched : ''}`}
-                  onClick={() => setSelectedBusmoTx(tx.id)}
-                >
-                  <div className={styles.txInfo}>
-                    <div className={styles.txDate}>{tx.date.toLocaleDateString()}</div>
-                    <div className={styles.txDescription}>{tx.description}</div>
-                    <div className={styles.txMeta}>
-                      <span className={styles.txType}>{tx.type}</span>
-                      <span className={styles.txMethod}>{tx.paymentMethod}</span>
+              {busmoTransactions.length === 0 ? (
+                <div className={styles.empty}>
+                  <p>No bank payments recorded in Busmo</p>
+                  <p className={styles.emptySub}>Only sales/expenses with transfer, card, or split payments with bank portions are shown</p>
+                </div>
+              ) : (
+                busmoTransactions.map(tx => (
+                  <div
+                    key={tx.id}
+                    className={`${styles.transactionItem} ${selectedBusmoTx === tx.id ? styles.selected : ''} ${tx.matched ? styles.matched : ''}`}
+                    onClick={() => setSelectedBusmoTx(tx.id)}
+                  >
+                    <div className={styles.txInfo}>
+                      <div className={styles.txDate}>{tx.date.toLocaleDateString()}</div>
+                      <div className={styles.txDescription}>{tx.description}</div>
+                      <div className={styles.txMeta}>
+                        <span className={styles.txType}>{tx.type}</span>
+                        <span className={styles.txMethod}>{tx.paymentMethod}</span>
+                        {tx.isSplitPayment && <span className={styles.txSplitBadge}>Split Payment</span>}
+                      </div>
+                    </div>
+                    <div className={styles.txAmount}>
+                      <span className={`${styles.amount} ${tx.type === 'sale' ? styles.credit : styles.debit}`}>
+                        {tx.type === 'sale' ? '+' : '-'}{formatMoney(tx.amount)}
+                      </span>
+                      {tx.matched && (
+                        <button
+                          className={styles.unmatchBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnmatchTransaction(tx.id, 'busmo');
+                          }}
+                        >
+                          Unmatch
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className={styles.txAmount}>
-                    <span className={`${styles.amount} ${tx.type === 'sale' ? styles.credit : styles.debit}`}>
-                      {tx.type === 'sale' ? '+' : '-'}{formatMoney(tx.amount)}
-                    </span>
-                    {tx.matched && (
-                      <button
-                        className={styles.unmatchBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUnmatchTransaction(tx.id, 'busmo');
-                        }}
-                      >
-                        Unmatch
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
