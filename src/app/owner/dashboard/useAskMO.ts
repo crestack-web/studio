@@ -312,15 +312,21 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       const { firestore } = initializeFirebase();
       const title = conversationTitle || generateConversationTitle(messages);
       
-      const conversationData = {
+      const conversationData: any = {
         title,
         messages: messages,
         businessId: businessId || userId,
-        branchId: branchId,
-        branchName: branchName || 'Main Branch',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+
+      // Only include branchId and branchName if they are defined
+      if (branchId) {
+        conversationData.branchId = branchId;
+      }
+      if (branchName) {
+        conversationData.branchName = branchName;
+      }
 
       if (currentConversationId) {
         await setDoc(doc(firestore, 'users', userId, 'mo_conversations', currentConversationId), conversationData, { merge: true });
