@@ -34,33 +34,7 @@ export async function GET(req: NextRequest) {
     initialized: true,
   };
 
-  // 4. List available models
-  try {
-    console.log('🔍 Listing available models...');
-    const models = await genAI.listModels();
-    diagnosticReport.availableModels = models.models.map((m: any) => ({
-      name: m.name,
-      displayName: m.displayName,
-      description: m.description,
-      version: m.version,
-    }));
-    console.log('✅ Available models:', diagnosticReport.availableModels.length);
-  } catch (error: any) {
-    console.error('❌ Failed to list models:', error);
-    diagnosticReport.listModelsError = {
-      message: error.message,
-      name: error.name,
-    };
-  }
-
-  // 5. Test prompt to Gemini with first available model
-  const testPrompt = 'Hello, this is a test. Please respond with "AI is working".';
-  diagnosticReport.testRequest = {
-    prompt: testPrompt,
-    timestamp: new Date().toISOString(),
-  };
-
-  // Try different model names
+  // 4. Skip model listing (not supported by GoogleGenerativeAI SDK)
   const modelNamesToTry = [
     'gemini-1.5-flash',
     'gemini-1.5-flash-latest',
@@ -75,6 +49,18 @@ export async function GET(req: NextRequest) {
     'models/gemini-1.5-flash',
     'models/gemini-1.5-pro',
   ];
+  
+  diagnosticReport.availableModels = {
+    note: 'Model listing not supported by GoogleGenerativeAI SDK',
+    testedModels: modelNamesToTry,
+  };
+
+  // 5. Test prompt to Gemini with first available model
+  const testPrompt = 'Hello, this is a test. Please respond with "AI is working".';
+  diagnosticReport.testRequest = {
+    prompt: testPrompt,
+    timestamp: new Date().toISOString(),
+  };
 
   diagnosticReport.modelTests = [];
 
