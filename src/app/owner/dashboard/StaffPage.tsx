@@ -35,6 +35,12 @@ interface StaffMember {
     msg: boolean;
     earn: boolean;
   };
+  targets?: {
+    revenue: number;
+    transactions: number;
+    period: 'daily' | 'weekly' | 'monthly';
+  };
+  activities?: ActivityLog[];
   // Restaurant-specific fields
   salary?: number;
   hourlyRate?: number;
@@ -58,6 +64,20 @@ interface PayrollRecord {
   overtimePay: number;
   totalPay: number;
   paid: boolean;
+}
+
+interface ActivityLog {
+  id: string;
+  staffId: string;
+  staffName: string;
+  action: string;
+  description: string;
+  timestamp: number;
+  metadata?: {
+    amount?: number;
+    items?: string[];
+    branch?: string;
+  };
 }
 
 interface ChatMessage {
@@ -96,8 +116,12 @@ export function StaffPage() {
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewCredentialsModal, setShowViewCredentialsModal] = useState(false);
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [viewingStaff, setViewingStaff] = useState<StaffMember | null>(null);
+  const [targetStaff, setTargetStaff] = useState<StaffMember | null>(null);
+  const [activityStaff, setActivityStaff] = useState<StaffMember | null>(null);
   const [newStaffCredentials, setNewStaffCredentials] = useState<{ staffId: string; password: string; name: string; email: string } | null>(null);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('');
@@ -110,6 +134,9 @@ export function StaffPage() {
     msg: false,
     earn: false,
   });
+  const [targetRevenue, setTargetRevenue] = useState(0);
+  const [targetTransactions, setTargetTransactions] = useState(0);
+  const [targetPeriod, setTargetPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showPayrollModal, setShowPayrollModal] = useState(false);
@@ -526,6 +553,53 @@ export function StaffPage() {
     setShowViewCredentialsModal(true);
   };
 
+  const handleSetTargets = (staff: StaffMember) => {
+    setTargetStaff(staff);
+    setTargetRevenue(staff.targets?.revenue || 0);
+    setTargetTransactions(staff.targets?.transactions || 0);
+    setTargetPeriod(staff.targets?.period || 'monthly');
+    setShowTargetModal(true);
+  };
+
+  const handleViewActivities = (staff: StaffMember) => {
+    setActivityStaff(staff);
+    setShowActivityModal(true);
+  };
+
+  const handleSaveTargets = async () => {
+    if (!targetStaff) return;
+
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const currentUserId = auth.currentUser?.uid || '';
+      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
+      const businessId = ownerDoc.data()?.businessId || 'default';
+
+      // Update targets in Firestore
+      await setDoc(doc(firestore, 'businesses', businessId, 'staff', targetStaff.id), {
+        targets: {
+          revenue: targetRevenue,
+          transactions: targetTransactions,
+          period: targetPeriod,
+        },
+      }, { merge: true });
+
+      // Update local state
+      setStaffMembers((prev) =>
+        prev.map((s) =>
+          s.id === targetStaff.id ? { ...s, targets: { revenue: targetRevenue, transactions: targetTransactions, period: targetPeriod } } : s
+        )
+      );
+
+      setShowTargetModal(false);
+      setTargetStaff(null);
+      showToast('Targets updated successfully');
+    } catch (error) {
+      console.error('Error updating targets:', error);
+      showToast('Failed to update targets');
+    }
+  };
+
   const handleSavePermissions = async () => {
     if (!editingStaff) return;
 
@@ -732,6 +806,8 @@ export function StaffPage() {
                 <div className={styles.staffActions}>
                   <Button variant="subtle" size="xs" onClick={() => handleEditStaff(member)}>✏️ Edit</Button>
                   <Button variant="subtle" size="xs" onClick={() => handleViewCredentials(member)}>🔑 Credentials</Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleSetTargets(member)}>🎯 Set Targets</Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleViewActivities(member)}>📊 Activities</Button>
                   <Button variant="subtle" size="xs" onClick={() => handleStartChat(member.id)}>💬 Message</Button>
                   <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)}>🚫 Ban</Button>
                   <Button variant="danger" size="xs" onClick={() => handleRemoveStaff(member.id, member.name)}>Remove</Button>
@@ -1916,6 +1992,412 @@ export function StaffPage() {
                   e.currentTarget.style.background = 'var(--purple)';
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Target Setting Modal */}
+      {showTargetModal && targetStaff && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+        }} onClick={() => setShowTargetModal(false)}>
+          <div style={{
+            background: 'var(--surface)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-lg)',
+            width: '100%',
+            maxWidth: '420px',
+            animation: 'modalIn 0.2s ease',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '24px 24px 16px',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: 'var(--blue)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                margin: '0 auto 12px',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+              }}>🎯</div>
+              <h3 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                color: 'var(--text-1)',
+                margin: '0 0 4px 0',
+              }}>Set Targets for {targetStaff.name}</h3>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-3)',
+                margin: 0,
+              }}>Define performance targets for <strong style={{ color: 'var(--text-2)' }}>{targetStaff.name}</strong></p>
+            </div>
+
+            <div style={{ padding: '16px 24px 20px' }}>
+              <div style={{
+                marginBottom: '14px',
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Target Period</span>
+                </div>
+                <select
+                  value={targetPeriod}
+                  onChange={(e) => setTargetPeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--rsm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-1)',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+
+              <div style={{
+                marginBottom: '14px',
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Revenue Target (₦)</span>
+                </div>
+                <input
+                  type="number"
+                  value={targetRevenue}
+                  onChange={(e) => setTargetRevenue(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--rsm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-1)',
+                    fontSize: '0.9rem',
+                  }}
+                  placeholder="0"
+                />
+              </div>
+
+              <div style={{
+                marginBottom: '14px',
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Transaction Target</span>
+                </div>
+                <input
+                  type="number"
+                  value={targetTransactions}
+                  onChange={(e) => setTargetTransactions(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 'var(--rsm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-1)',
+                    fontSize: '0.9rem',
+                  }}
+                  placeholder="0"
+                />
+              </div>
+
+              <div style={{
+                padding: '14px',
+                background: 'var(--blue-bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1px solid var(--blue)',
+              }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '1rem', flexShrink: 0 }}>💡</span>
+                  <div>
+                    <div style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--blue)',
+                      marginBottom: '3px',
+                    }}>
+                      Performance Tracking
+                    </div>
+                    <div style={{
+                      fontSize: '0.72rem',
+                      color: 'var(--text-3)',
+                      lineHeight: 1.5,
+                    }}>
+                      Staff performance will be tracked against these targets. Progress will be visible in the activities dashboard.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--bg)',
+              borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+              display: 'flex',
+              gap: '10px',
+            }}>
+              <button
+                onClick={() => { setShowTargetModal(false); setTargetStaff(null); }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: 'var(--rsm)',
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text-2)',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTargets}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: 'var(--rsm)',
+                  border: 'none',
+                  background: 'var(--blue)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                Save Targets
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Modal */}
+      {showActivityModal && activityStaff && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+        }} onClick={() => setShowActivityModal(false)}>
+          <div style={{
+            background: 'var(--surface)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-lg)',
+            width: '100%',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            animation: 'modalIn 0.2s ease',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              padding: '24px 24px 16px',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: 'var(--green)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                margin: '0 auto 12px',
+                boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)',
+              }}>📊</div>
+              <h3 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                color: 'var(--text-1)',
+                margin: '0 0 4px 0',
+              }}>{activityStaff.name} Activities</h3>
+              <p style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-3)',
+                margin: 0,
+              }}>Recent activities and performance for <strong style={{ color: 'var(--text-2)' }}>{activityStaff.name}</strong></p>
+            </div>
+
+            <div style={{ padding: '16px 24px 20px' }}>
+              <div style={{
+                marginBottom: '20px',
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '12px',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Current Performance</span>
+                </div>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>₦{activityStaff.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>{activityStaff.transactions}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transactions</div>
+                  </div>
+                </div>
+                {activityStaff.targets && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', marginBottom: '8px' }}>
+                      Targets ({activityStaff.targets.period})
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>₦{activityStaff.targets.revenue.toLocaleString()}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue Target</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>{activityStaff.targets.transactions}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transaction Target</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '12px',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Recent Activities</span>
+                </div>
+                {activityStaff.activities && activityStaff.activities.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {activityStaff.activities.slice(0, 5).map((activity) => (
+                      <div key={activity.id} style={{
+                        padding: '12px',
+                        background: 'var(--surface)',
+                        borderRadius: 'var(--rsm)',
+                        border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-1)' }}>{activity.action}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
+                            {new Date(activity.timestamp).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{activity.description}</div>
+                        {activity.metadata && (
+                          <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-3)' }}>
+                            {activity.metadata.amount && <span>Amount: ₦{activity.metadata.amount.toLocaleString()} </span>}
+                            {activity.metadata.items && <span>Items: {activity.metadata.items.join(', ')}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-3)' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
+                    <div style={{ fontSize: '0.85rem' }}>No activities recorded yet</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--bg)',
+              borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+            }}>
+              <button
+                onClick={() => { setShowActivityModal(false); setActivityStaff(null); }}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  borderRadius: 'var(--rsm)',
+                  border: 'none',
+                  background: 'var(--purple)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
                 }}
               >
                 Close
