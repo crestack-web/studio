@@ -1798,7 +1798,7 @@ export function StaffPage() {
                 </div>
               </div>
 
-              {viewingStaff.password && (
+              {viewingStaff.password ? (
                 <div style={{
                   marginBottom: '20px',
                   padding: '16px',
@@ -1823,6 +1823,35 @@ export function StaffPage() {
                     letterSpacing: '0.05em',
                   }}>
                     {viewingStaff.password}
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '16px',
+                  background: 'var(--amber-bg)',
+                  borderRadius: 'var(--rsm)',
+                  border: '1px solid var(--amber)',
+                }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '1rem', flexShrink: 0 }}>🔒</span>
+                    <div>
+                      <div style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'var(--amber)',
+                        marginBottom: '3px',
+                      }}>
+                        Password Not Available
+                      </div>
+                      <div style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--text-3)',
+                        lineHeight: 1.5,
+                      }}>
+                        For security reasons, passwords are only shown immediately after staff creation. You can reset the password if needed.
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
