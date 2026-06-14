@@ -34,6 +34,14 @@ service firebase.storage {
     }
     
     // =====================
+    // APP DOWNLOADS (Windows, macOS, Android)
+    // =====================
+    match /apps/{allPaths=**} {
+      allow read: if true; // Public read for app downloads
+      allow write: if false; // Only allow write via Firebase Console or Admin SDK
+    }
+    
+    // =====================
     // MERCHANT PRODUCT IMAGES (legacy)
     // =====================
     match /merchants/{merchantId}/products/{productId}/{allPaths=**} {
