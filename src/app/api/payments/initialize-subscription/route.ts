@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         email: email,
         amount: amount * 100, // Paystack expects amount in kobo (lowest currency unit)
+        currency: 'NGN', // Explicitly set to Nigerian Naira
         metadata: {
           plan: plan,
           userId: userId,

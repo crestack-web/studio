@@ -9,12 +9,26 @@ import { aiRequestQueue } from '@/lib/ai-queue';
 let db: ReturnType<typeof getFirestore> | null = null;
 let adminInitialized = false;
 
+// Load environment variables explicitly
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+
+console.log('🔍 Firebase Admin Environment Check:', {
+  hasProjectId: !!projectId,
+  hasPrivateKey: !!privateKey,
+  hasClientEmail: !!clientEmail,
+  projectId: projectId || 'missing',
+  clientEmail: clientEmail || 'missing',
+  privateKeyLength: privateKey?.length || 0
+});
+
 try {
   if (!admin.apps.length) {
     const serviceAccount = {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      projectId: projectId,
+      privateKey: privateKey,
+      clientEmail: clientEmail,
     };
     
     if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
@@ -305,6 +319,7 @@ async function addProductToFirestore(businessId: string, productData: any) {
  */
 async function saveSaleToFirestore(businessId: string, saleData: any) {
   if (!db) {
+    console.error('❌ Database not initialized in saveSaleToFirestore');
     throw new Error('Database not initialized');
   }
   

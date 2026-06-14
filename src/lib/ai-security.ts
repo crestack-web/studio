@@ -5,27 +5,58 @@
 
 import { NextRequest } from 'next/server';
 import admin from 'firebase-admin';
-import { getFirestore, doc, getDoc, updateDoc, increment, collection, query, where, getDocs, Timestamp, runTransaction, addDoc } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
+let adminInitialized = false;
+
+// Load environment variables explicitly
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+
+console.log('🔍 AI Security Firebase Admin Environment Check:', {
+  hasProjectId: !!projectId,
+  hasPrivateKey: !!privateKey,
+  hasClientEmail: !!clientEmail,
+  projectId: projectId || 'missing',
+  clientEmail: clientEmail || 'missing',
+  privateKeyLength: privateKey?.length || 0
+});
+
 try {
   if (!admin.apps.length) {
     const serviceAccount = {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      projectId: projectId,
+      privateKey: privateKey,
+      clientEmail: clientEmail,
     };
     
     if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
+      adminInitialized = true;
+      console.log('✅ Firebase Admin initialized for AI Security');
+    } else {
+      console.warn('⚠️ Firebase Admin credentials missing for AI Security:', {
+        hasProjectId: !!serviceAccount.projectId,
+        hasPrivateKey: !!serviceAccount.privateKey,
+        hasClientEmail: !!serviceAccount.clientEmail,
+      });
     }
+  } else {
+    adminInitialized = true;
+    console.log('✅ Firebase Admin already initialized for AI Security');
   }
-  db = getFirestore();
+  
+  if (adminInitialized) {
+    db = getFirestore();
+    console.log('✅ Firestore initialized for AI Security');
+  }
 } catch (error) {
-  console.warn('Firebase Admin not initialized for AI Security:', error);
+  console.error('❌ Firebase Admin initialization error for AI Security:', error);
 }
 
 // Rate limiting storage (in-memory for development, should use Redis in production)
@@ -171,12 +202,15 @@ export async function validateAIRequest(req: NextRequest, body?: any): Promise<{
       return { valid: false, error: 'Database not initialized' };
     }
     
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
       return { valid: false, error: 'User not found' };
     }
     
     const userData = userDoc.data();
+    if (!userData) {
+      return { valid: false, error: 'User data not found' };
+    }
     
     // Check if user is active
     if (userData.status === 'suspended' || userData.status === 'banned') {
@@ -184,22 +218,23 @@ export async function validateAIRequest(req: NextRequest, body?: any): Promise<{
     }
     
     // Verify business ownership or staff access
-    const businessDoc = await getDoc(doc(db, 'businesses', businessId));
-    if (!businessDoc.exists()) {
+    const businessDoc = await db.collection('businesses').doc(businessId).get();
+    if (!businessDoc.exists) {
       return { valid: false, error: 'Business not found' };
     }
     
     const businessData = businessDoc.data();
+    if (!businessData) {
+      return { valid: false, error: 'Business data not found' };
+    }
     
     // Check if user owns the business or is staff
     if (businessData.ownerId !== userId) {
       // Check if user is staff
-      const staffQuery = query(
-        collection(db, 'businesses', businessId, 'staff'),
-        where('userId', '==', userId),
-        where('active', '==', true)
-      );
-      const staffSnapshot = await getDocs(staffQuery);
+      const staffQuery = db.collection('businesses').doc(businessId).collection('staff')
+        .where('userId', '==', userId)
+        .where('active', '==', true);
+      const staffSnapshot = await staffQuery.get();
       
       if (staffSnapshot.empty) {
         return { valid: false, error: 'Unauthorized access to business data' };
@@ -230,12 +265,15 @@ export async function checkAndDeductCredits(
   }
   
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
       return { allowed: false, error: 'User not found' };
     }
     
     const userData = userDoc.data();
+    if (!userData) {
+      return { allowed: false, error: 'User data not found' };
+    }
     const creditsRemaining = userData.moCreditsRemaining || 0;
     
     // Estimate cost (simplified - should use actual token pricing)
@@ -250,17 +288,17 @@ export async function checkAndDeductCredits(
     }
     
     // Deduct credits
-    await updateDoc(doc(db, 'users', userId), {
-      moCreditsRemaining: increment(-estimatedCost),
-      moCreditsUsed: increment(estimatedCost),
+    await db.collection('users').doc(userId).update({
+      moCreditsRemaining: admin.firestore.FieldValue.increment(-estimatedCost),
+      moCreditsUsed: admin.firestore.FieldValue.increment(estimatedCost),
     });
     
     // Log usage
-    await addDoc(collection(db, 'users', userId, 'mo_usage'), {
+    await db.collection('users').doc(userId).collection('mo_usage').add({
       businessId,
       tokensUsed: estimatedTokens,
       cost: estimatedCost,
-      timestamp: Timestamp.now(),
+      timestamp: admin.firestore.Timestamp.now(),
     });
     
     return {

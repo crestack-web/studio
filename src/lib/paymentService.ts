@@ -36,7 +36,7 @@ export async function initializePaystackPayment(config: PaymentConfig): Promise<
     key: PAYSTACK_PUBLIC_KEY,
     email: config.email,
     amount: config.amount * 100, // Paystack expects amount in kobo (smallest currency unit)
-    currency: config.currency,
+    currency: config.currency || 'NGN', // Default to Nigerian Naira for Paystack
     metadata: config.metadata,
     callback: function (response: any) {
       // Payment successful
