@@ -1076,8 +1076,14 @@ export async function POST(req: NextRequest) {
         businessContext = {};
       }
     } else if (!db) {
-      console.warn('⚠️ Firebase Admin not initialized, proceeding without business context');
+      console.warn('⚠️ Firebase Admin not initialized, cannot fetch business context');
+      console.warn('⚠️ To enable business data, configure Firebase Admin environment variables:');
+      console.warn('   - NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+      console.warn('   - FIREBASE_ADMIN_PRIVATE_KEY');
+      console.warn('   - FIREBASE_ADMIN_CLIENT_EMAIL');
       dbError = 'Database not initialized';
+    } else {
+      console.warn('⚠️ No business ID provided, cannot fetch business context');
     }
 
     // Use GoogleAIService for AI responses
