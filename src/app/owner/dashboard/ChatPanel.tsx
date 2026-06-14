@@ -43,6 +43,8 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioProgress, setAudioProgress] = useState<{ [key: string]: number }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,6 +222,37 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatAudioDuration = (url: string) => {
+    const audio = new Audio(url);
+    audio.addEventListener('loadedmetadata', () => {
+      const duration = audio.duration;
+      const mins = Math.floor(duration / 60);
+      const secs = Math.floor(duration % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    });
+    return '0:00';
+  };
+
+  const toggleAudioPlayback = (msgId: string, audioUrl: string) => {
+    if (playingAudioId === msgId) {
+      setPlayingAudioId(null);
+    } else {
+      setPlayingAudioId(msgId);
+      const audio = new Audio(audioUrl);
+      audio.addEventListener('timeupdate', () => {
+        setAudioProgress(prev => ({
+          ...prev,
+          [msgId]: (audio.currentTime / audio.duration) * 100
+        }));
+      });
+      audio.addEventListener('ended', () => {
+        setPlayingAudioId(null);
+        setAudioProgress(prev => ({ ...prev, [msgId]: 0 }));
+      });
+      audio.play();
+    }
   };
 
   const getSelectedConversation = () => {
@@ -502,15 +535,79 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
                           />
                         )}
                         {msg.audioUrl && (
-                          <audio
-                            src={msg.audioUrl}
-                            controls
-                            style={{
-                              width: '100%',
-                              maxWidth: '250px',
-                              marginTop: '8px',
-                            }}
-                          />
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 16px',
+                            background: msg.senderType === 'owner' ? 'rgba(255,255,255,0.1)' : 'var(--bg)',
+                            borderRadius: '12px',
+                            marginTop: '8px',
+                            minWidth: '200px',
+                            maxWidth: '280px',
+                          }}>
+                            <button
+                              onClick={() => toggleAudioPlayback(msg.id, msg.audioUrl!)}
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                border: 'none',
+                                background: msg.senderType === 'owner' ? 'rgba(255,255,255,0.2)' : 'var(--purple)',
+                                color: msg.senderType === 'owner' ? '#fff' : '#fff',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {playingAudioId === msg.id ? (
+                                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16 }}>
+                                  <rect x="6" y="4" width="4" height="16"/>
+                                  <rect x="14" y="4" width="4" height="16"/>
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16 }}>
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              )}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                height: '4px',
+                                background: msg.senderType === 'owner' ? 'rgba(255,255,255,0.3)' : 'var(--border)',
+                                borderRadius: '2px',
+                                overflow: 'hidden',
+                                marginBottom: '6px',
+                              }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${audioProgress[msg.id] || 0}%`,
+                                  background: msg.senderType === 'owner' ? '#fff' : 'var(--purple)',
+                                  borderRadius: '2px',
+                                  transition: 'width 0.1s linear',
+                                }}/>
+                              </div>
+                              <div style={{
+                                fontSize: '0.7rem',
+                                color: msg.senderType === 'owner' ? 'rgba(255,255,255,0.7)' : 'var(--text-3)',
+                              }}>
+                                {formatRecordingTime(recordingTime)}
+                              </div>
+                            </div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ 
+                              width: 20, 
+                              height: 20, 
+                              color: msg.senderType === 'owner' ? 'rgba(255,255,255,0.7)' : 'var(--text-3)',
+                              flexShrink: 0 
+                            }}>
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                              <line x1="12" y1="19" x2="12" y2="23"/>
+                              <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                          </div>
                         )}
                         <div style={{
                           fontSize: '0.65rem',
@@ -613,17 +710,45 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '12px',
                   marginBottom: '12px',
-                  padding: '8px',
+                  padding: '8px 12px',
                   background: 'var(--bg)',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
                 }}>
-                  <audio
-                    src={audioUrl}
-                    controls
-                    style={{ flex: 1, maxWidth: '200px' }}
-                  />
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} style={{ 
+                    width: 20, 
+                    height: 20, 
+                    flexShrink: 0 
+                  }}>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      height: '3px',
+                      background: 'var(--border)',
+                      borderRadius: '2px',
+                      overflow: 'hidden',
+                      marginBottom: '4px',
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: '100%',
+                        background: 'var(--purple)',
+                        borderRadius: '2px',
+                      }}/>
+                    </div>
+                    <div style={{
+                      fontSize: '0.7rem',
+                      color: 'var(--text-3)',
+                    }}>
+                      {formatRecordingTime(recordingTime)}
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       setAudioBlob(null);
@@ -639,6 +764,7 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
                       color: '#fff',
                       cursor: 'pointer',
                       fontSize: '14px',
+                      flexShrink: 0,
                     }}
                   >
                     ✕

@@ -142,8 +142,9 @@ export function StaffPage() {
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   
   // Chat state
-  const [activeTab, setActiveTab] = useState<'staff' | 'chat' | 'attendance' | 'payroll'>('staff');
+  const [activeTab, setActiveTab] = useState<'staff' | 'chat' | 'attendance' | 'payroll' | 'performance'>('staff');
   const [selectedChat, setSelectedChat] = useState<string>('team');
+  const [selectedPerformanceStaff, setSelectedPerformanceStaff] = useState<StaffMember | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [conversations, setConversations] = useState<{ [key: string]: { id: string; messages: ChatMessage[] } }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -562,8 +563,8 @@ export function StaffPage() {
   };
 
   const handleViewActivities = (staff: StaffMember) => {
-    setActivityStaff(staff);
-    setShowActivityModal(true);
+    setSelectedPerformanceStaff(staff);
+    setActiveTab('performance');
   };
 
   const handleSaveTargets = async () => {
@@ -1015,6 +1016,114 @@ export function StaffPage() {
         </Card>
       )}
 
+      {/* Performance Tab */}
+      {activeTab === 'performance' && selectedPerformanceStaff && (
+        <Card>
+          <CardHeader>
+            <CardIcon bg="var(--green-bg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2}>
+                <path d="M12 20V10"/>
+                <path d="M18 20V4"/>
+                <path d="M6 20v-4"/>
+              </svg>
+            </CardIcon>
+            {selectedPerformanceStaff.name} Performance
+          </CardHeader>
+          <div style={{ padding: '20px' }}>
+            <div style={{
+              marginBottom: '20px',
+              padding: '16px',
+              background: 'var(--bg)',
+              borderRadius: '8px',
+              border: '1.5px solid var(--border)',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px',
+              }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Current Performance</span>
+              </div>
+              <div style={{ display: 'flex', gap: '20px' }}>
+                <div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>₦{selectedPerformanceStaff.revenue.toLocaleString()}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>{selectedPerformanceStaff.transactions}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transactions</div>
+                </div>
+              </div>
+              {selectedPerformanceStaff.targets && (
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', marginBottom: '8px' }}>
+                    Targets ({selectedPerformanceStaff.targets.period})
+                  </div>
+                  <div style={{ display: 'flex', gap: '20px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>₦{selectedPerformanceStaff.targets.revenue.toLocaleString()}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue Target</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>{selectedPerformanceStaff.targets.transactions}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transaction Target</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              padding: '16px',
+              background: 'var(--bg)',
+              borderRadius: '8px',
+              border: '1.5px solid var(--border)',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px',
+              }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Recent Activities</span>
+              </div>
+              {selectedPerformanceStaff.activities && selectedPerformanceStaff.activities.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {selectedPerformanceStaff.activities.slice(0, 10).map((activity) => (
+                    <div key={activity.id} style={{
+                      padding: '12px',
+                      background: 'var(--surface)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-1)' }}>{activity.action}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
+                          {new Date(activity.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{activity.description}</div>
+                      {activity.metadata && (
+                        <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-3)' }}>
+                          {activity.metadata.amount && <span>Amount: ₦{activity.metadata.amount.toLocaleString()} </span>}
+                          {activity.metadata.items && <span>Items: {activity.metadata.items.join(', ')}</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-3)' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
+                  <div style={{ fontSize: '0.85rem' }}>No activities recorded yet</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Add Staff Modal */}
       {showAddModal && (
         <div style={{
@@ -1308,7 +1417,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: '1.5px solid var(--border)',
                   background: 'var(--surface)',
                   color: 'var(--text-2)',
@@ -1333,7 +1442,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'var(--purple)',
                   color: '#fff',
@@ -1505,7 +1614,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: '1.5px solid var(--border)',
                   background: 'var(--surface)',
                   color: 'var(--text-2)',
@@ -1530,7 +1639,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'var(--purple)',
                   color: '#fff',
@@ -1736,7 +1845,7 @@ export function StaffPage() {
                 style={{
                   width: '100%',
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'var(--purple)',
                   color: '#fff',
@@ -1874,63 +1983,32 @@ export function StaffPage() {
                 </div>
               </div>
 
-              {viewingStaff.password ? (
+              <div style={{
+                marginBottom: '20px',
+                padding: '16px',
+                background: 'var(--bg)',
+                borderRadius: 'var(--rsm)',
+                border: '1.5px solid var(--border)',
+              }}>
                 <div style={{
-                  marginBottom: '20px',
-                  padding: '16px',
-                  background: 'var(--bg)',
-                  borderRadius: 'var(--rsm)',
-                  border: '1.5px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
                 }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '6px',
-                  }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Password</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>Temporary password</span>
-                  </div>
-                  <div style={{
-                    fontFamily: 'monospace',
-                    fontSize: '1.2rem',
-                    fontWeight: 700,
-                    color: 'var(--text-1)',
-                    letterSpacing: '0.05em',
-                  }}>
-                    {viewingStaff.password}
-                  </div>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Password</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>Staff password</span>
                 </div>
-              ) : (
                 <div style={{
-                  marginBottom: '20px',
-                  padding: '16px',
-                  background: 'var(--amber-bg)',
-                  borderRadius: 'var(--rsm)',
-                  border: '1px solid var(--amber)',
+                  fontFamily: 'monospace',
+                  fontSize: '1.2rem',
+                  fontWeight: 700,
+                  color: 'var(--text-1)',
+                  letterSpacing: '0.05em',
                 }}>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '1rem', flexShrink: 0 }}>🔒</span>
-                    <div>
-                      <div style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        color: 'var(--amber)',
-                        marginBottom: '3px',
-                      }}>
-                        Password Not Available
-                      </div>
-                      <div style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--text-3)',
-                        lineHeight: 1.5,
-                      }}>
-                        For security reasons, passwords are only shown immediately after staff creation. You can reset the password if needed.
-                      </div>
-                    </div>
-                  </div>
+                  {viewingStaff.password || 'Not set'}
                 </div>
-              )}
+              </div>
 
               <div style={{
                 padding: '14px',
@@ -1973,7 +2051,7 @@ export function StaffPage() {
                 style={{
                   width: '100%',
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'var(--purple)',
                   color: '#fff',
@@ -2195,7 +2273,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: '1.5px solid var(--border)',
                   background: 'var(--surface)',
                   color: 'var(--text-2)',
@@ -2212,7 +2290,7 @@ export function StaffPage() {
                 style={{
                   flex: 1,
                   padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
+                  borderRadius: '8px',
                   border: 'none',
                   background: 'var(--blue)',
                   color: '#fff',
@@ -2224,183 +2302,6 @@ export function StaffPage() {
                 }}
               >
                 Save Targets
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Activity Modal */}
-      {showActivityModal && activityStaff && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }} onClick={() => setShowActivityModal(false)}>
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-lg)',
-            width: '100%',
-            maxWidth: '500px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            animation: 'modalIn 0.2s ease',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{
-              padding: '24px 24px 16px',
-              textAlign: 'center',
-            }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                background: 'var(--green)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem',
-                margin: '0 auto 12px',
-                boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)',
-              }}>📊</div>
-              <h3 style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                color: 'var(--text-1)',
-                margin: '0 0 4px 0',
-              }}>{activityStaff.name} Activities</h3>
-              <p style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-3)',
-                margin: 0,
-              }}>Recent activities and performance for <strong style={{ color: 'var(--text-2)' }}>{activityStaff.name}</strong></p>
-            </div>
-
-            <div style={{ padding: '16px 24px 20px' }}>
-              <div style={{
-                marginBottom: '20px',
-                padding: '16px',
-                background: 'var(--bg)',
-                borderRadius: 'var(--rsm)',
-                border: '1.5px solid var(--border)',
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '12px',
-                }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Current Performance</span>
-                </div>
-                <div style={{ display: 'flex', gap: '20px' }}>
-                  <div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>₦{activityStaff.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)' }}>{activityStaff.transactions}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transactions</div>
-                  </div>
-                </div>
-                {activityStaff.targets && (
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', marginBottom: '8px' }}>
-                      Targets ({activityStaff.targets.period})
-                    </div>
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>₦{activityStaff.targets.revenue.toLocaleString()}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Revenue Target</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-1)' }}>{activityStaff.targets.transactions}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>Transaction Target</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{
-                padding: '16px',
-                background: 'var(--bg)',
-                borderRadius: 'var(--rsm)',
-                border: '1.5px solid var(--border)',
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '12px',
-                }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Recent Activities</span>
-                </div>
-                {activityStaff.activities && activityStaff.activities.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {activityStaff.activities.slice(0, 5).map((activity) => (
-                      <div key={activity.id} style={{
-                        padding: '12px',
-                        background: 'var(--surface)',
-                        borderRadius: 'var(--rsm)',
-                        border: '1px solid var(--border)',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-1)' }}>{activity.action}</span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
-                            {new Date(activity.timestamp).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{activity.description}</div>
-                        {activity.metadata && (
-                          <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-3)' }}>
-                            {activity.metadata.amount && <span>Amount: ₦{activity.metadata.amount.toLocaleString()} </span>}
-                            {activity.metadata.items && <span>Items: {activity.metadata.items.join(', ')}</span>}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-3)' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
-                    <div style={{ fontSize: '0.85rem' }}>No activities recorded yet</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={{
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--bg)',
-              borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
-            }}>
-              <button
-                onClick={() => { setShowActivityModal(false); setActivityStaff(null); }}
-                style={{
-                  width: '100%',
-                  padding: '12px 20px',
-                  borderRadius: 'var(--rsm)',
-                  border: 'none',
-                  background: 'var(--purple)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
-                }}
-              >
-                Close
               </button>
             </div>
           </div>
