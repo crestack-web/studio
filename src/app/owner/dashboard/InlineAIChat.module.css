@@ -1001,7 +1001,7 @@
   width: 400px;
   max-width: 90vw;
   max-height: 80vh;
-  background: var(--bg-1);
+  background: #ffffff;
   border-radius: 16px;
   border: 1px solid var(--border);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);

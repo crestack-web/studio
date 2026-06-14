@@ -282,16 +282,45 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       // Upload image to Firebase Storage if a new image was selected
       if (imageFile) {
         console.log('📤 Uploading image to Firebase Storage...');
+        console.log('📤 Image file:', imageFile.name, imageFile.size, imageFile.type);
+        
         const { storage } = initializeFirebase();
         if (!storage) {
-          throw new Error('Firebase Storage not initialized');
+          console.error('❌ Firebase Storage not initialized');
+          showToast('❌ Storage not available. Please check your connection.');
+          return;
         }
-        const imageRef = ref(storage, `products/${businessId}/${Date.now()}_${imageFile.name}`);
-        console.log('📤 Image ref:', imageRef);
-        await uploadBytes(imageRef, imageFile);
-        console.log('✅ Image uploaded successfully');
-        imageUrl = await getDownloadURL(imageRef);
-        console.log('✅ Image URL obtained:', imageUrl);
+        
+        try {
+          const imageRef = ref(storage, `products/${businessId}/${Date.now()}_${imageFile.name}`);
+          console.log('📤 Image ref:', imageRef.fullPath);
+          
+          const uploadResult = await uploadBytes(imageRef, imageFile);
+          console.log('✅ Image uploaded successfully:', uploadResult);
+          
+          imageUrl = await getDownloadURL(imageRef);
+          console.log('✅ Image URL obtained:', imageUrl);
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          console.error('Upload error details:', {
+            code: (uploadError as any).code,
+            message: (uploadError as any).message,
+            serverResponse: (uploadError as any).serverResponse,
+          });
+          
+          // Provide user-friendly error messages based on error type
+          const errorCode = (uploadError as any).code;
+          if (errorCode === 'storage/unauthorized') {
+            showToast('❌ Permission denied. You may not have access to upload images.');
+          } else if (errorCode === 'storage/canceled') {
+            showToast('❌ Upload was cancelled.');
+          } else if (errorCode === 'storage/unknown') {
+            showToast('❌ Upload failed. Please check your internet connection.');
+          } else {
+            showToast('❌ Failed to upload image: ' + (uploadError as any).message);
+          }
+          return;
+        }
       }
 
       const productData: any = {
