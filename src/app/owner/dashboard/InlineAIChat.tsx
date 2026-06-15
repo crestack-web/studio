@@ -11,7 +11,8 @@ import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc
 import styles from './InlineAIChat.module.css';
 import { useAskMO } from './useAskMO';
 
-import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings } from 'lucide-react';
+import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus } from 'lucide-react';
+import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 
 // Dynamic suggestions based on business data
 const BASE_SUGGESTIONS = [
@@ -100,6 +101,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [dynamicSuggestions, setDynamicSuggestions] = useState(BASE_SUGGESTIONS);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingStage, setLoadingStage] = useState<number>(0);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
@@ -148,6 +150,11 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setCurrentConversationId(null);
     setShowHistory(false);
   }, [setCurrentConversationId]);
+
+  const handlePurchaseSuccess = () => {
+    // Refresh credits after successful purchase
+    window.location.reload();
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -500,6 +507,12 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           )}
         </div>
       </div>
+
+      <CreditPurchaseModal 
+        isOpen={showCreditPurchase}
+        onClose={() => setShowCreditPurchase(false)}
+        onSuccess={handlePurchaseSuccess}
+      />
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>

@@ -246,7 +246,7 @@ export function BranchesPage() {
           <div className={styles.upgradeIcon}>🔒</div>
           <h3>Pro Plan Required</h3>
           <p>Branch management is only available on the Pro plan. Upgrade to unlock unlimited branches.</p>
-          <Button variant="primary" onClick={() => navigateTo('subscribe')}>
+          <Button variant="primary" onClick={() => window.location.href = '/pricing'}>
             Upgrade to Pro
           </Button>
         </div>

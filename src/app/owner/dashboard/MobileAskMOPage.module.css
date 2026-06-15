@@ -64,6 +64,26 @@
   color: var(--text-3);
 }
 
+.addCreditsBtn {
+  background: var(--primary);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.addCreditsBtn:hover {
+  background: var(--primary-dark);
+}
+
 .newChatBtn {
   width: 36px;
   height: 36px;

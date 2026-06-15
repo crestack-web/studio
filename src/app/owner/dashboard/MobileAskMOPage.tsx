@@ -7,9 +7,10 @@ import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
-import { Lightbulb, BarChart, DollarSign, Package, Heart } from 'lucide-react';
+import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus } from 'lucide-react';
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
+import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 
 interface MOMessage {
   id: string;
@@ -153,6 +154,11 @@ export function MobileAskMOPage() {
     setCurrentConversationId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
+
+  const handlePurchaseSuccess = () => {
+    // Refresh credits after successful purchase
+    window.location.reload();
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -460,6 +466,12 @@ export function MobileAskMOPage() {
           </button>
         </div>
       </div>
+
+      <CreditPurchaseModal 
+        isOpen={showCreditPurchase}
+        onClose={() => setShowCreditPurchase(false)}
+        onSuccess={handlePurchaseSuccess}
+      />
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
