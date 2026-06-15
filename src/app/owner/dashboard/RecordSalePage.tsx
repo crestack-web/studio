@@ -157,7 +157,7 @@ export function RecordSalePage() {
     });
   }
 
-  function updateQty(id: number, delta: number) {
+  function updateQty(id: string, delta: number) {
     setCart(prev =>
       prev
         .map(i => i.id === id ? { ...i, qty: i.qty + delta } : i)
@@ -165,14 +165,14 @@ export function RecordSalePage() {
     );
   }
 
-  function removeItem(id: number) {
+  function removeItem(id: string) {
     setCart(prev => prev.filter(i => i.id !== id));
   }
 
   function addCustom() {
     if (!customName || !customPrice) return showToast(t('product.name') + ' & ' + t('product.sellingPrice'));
     const item: CartItem = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: customName,
       price: Number(customPrice),
       costPrice: Number(customCost) || 0,

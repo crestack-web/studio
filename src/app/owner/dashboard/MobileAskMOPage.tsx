@@ -83,6 +83,7 @@ export function MobileAskMOPage() {
   ]);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -334,8 +335,9 @@ export function MobileAskMOPage() {
       await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsg.id), botMessageData);
 
       // Calculate and consume credits based on response length (simulating token usage)
-      const estimatedTokens = Math.ceil((botMsg.content.length / 4) * 1.5);
-      const creditsConsumed = Math.max(10, Math.min(500, estimatedTokens));
+      // Reduced to make 2500 credits last a week with 10 messages daily (~35 credits per message average)
+      const estimatedTokens = Math.ceil((botMsg.content.length / 4) * 0.7);
+      const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
       await updateCredits(creditsConsumed);
 
       // Auto-save conversation
@@ -440,7 +442,12 @@ export function MobileAskMOPage() {
           </div>
           <div className={styles.headerInfo}>
             <h3 className={styles.headerTitle}>Ask MO</h3>
-            <div className={styles.tokenCounter}>
+            <div 
+              className={styles.tokenCounter}
+              onClick={() => setShowCreditPurchase(true)}
+              style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
+              title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
+            >
               <img
                 src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
                 alt="Token"
@@ -449,6 +456,9 @@ export function MobileAskMOPage() {
                 style={{ borderRadius: '50%' }}
               />
               <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
+              {creditsRemaining !== -1 && (
+                <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
+              )}
             </div>
           </div>
         </div>

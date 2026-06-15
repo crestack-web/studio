@@ -46,6 +46,13 @@
     --text-muted: #6b7280;
     --purple-mid: #a084e8;
     --purple-light: #ede9fe;
+    /* Additional variables for CreditPurchaseModal */
+    --bg-1: #ffffff;
+    --bg-2: #f3f4f6;
+    --text-1: #1f2937;
+    --text-2: #6b7280;
+    --primary-rgb: 107, 63, 231;
+    --primary-dark: #4B24C1;
   }
 
   .dark {
@@ -85,6 +92,13 @@
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 240 5% 20%;
     --sidebar-ring: 228 100% 98%;
+    /* Additional variables for CreditPurchaseModal */
+    --bg-1: #1f2937;
+    --bg-2: #374151;
+    --text-1: #f9fafb;
+    --text-2: #d1d5db;
+    --primary-rgb: 107, 63, 231;
+    --primary-dark: #4B24C1;
   }
 }
 

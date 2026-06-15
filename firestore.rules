@@ -54,6 +54,16 @@ service cloud.firestore {
         allow update: if isAuthenticated() && request.auth.uid == userId;
         allow delete: if isAuthenticated() && request.auth.uid == userId;
       }
+
+      // =====================
+      // MO CONVERSATIONS SUBCOLLECTION (for Ask MO conversation history)
+      // =====================
+      match /mo_conversations/{conversationId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if isAuthenticated() && request.auth.uid == userId;
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
     
     // =====================

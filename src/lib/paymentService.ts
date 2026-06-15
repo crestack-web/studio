@@ -15,7 +15,7 @@ export interface PaymentConfig {
 }
 
 // Paystack Configuration
-const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY || '';
+const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '';
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
 
 // Whop Configuration
@@ -26,6 +26,12 @@ const WHOP_API_KEY = process.env.WHOP_PAYEMENT_API || '';
  */
 export async function initializePaystackPayment(config: PaymentConfig): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  // Check if Paystack public key is configured
+  if (!PAYSTACK_PUBLIC_KEY) {
+    console.error('Paystack public key not configured');
+    throw new Error('Payment gateway not configured. Please contact support.');
+  }
 
   // Load Paystack script if not already loaded
   if (!(window as any).PaystackPop) {
@@ -56,10 +62,23 @@ export async function initializePaystackPayment(config: PaymentConfig): Promise<
  */
 function loadPaystackScript(): Promise<void> {
   return new Promise((resolve, reject) => {
+    // Check if script is already loaded
+    if ((window as any).PaystackPop) {
+      resolve();
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://js.paystack.co/v1/inline.js';
-    script.onload = () => resolve();
-    script.onerror = reject;
+    script.async = true;
+    script.onload = () => {
+      console.log('Paystack script loaded successfully');
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('Failed to load Paystack script');
+      reject(new Error('Failed to load payment gateway script'));
+    };
     document.body.appendChild(script);
   });
 }
