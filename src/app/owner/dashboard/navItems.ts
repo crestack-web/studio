@@ -230,6 +230,16 @@ export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } 
     pt: 'Controle de Dinheiro', // Portuguese
     pcm: 'Money Control',   // Pidgin
   },
+  'Credit Tracking': {
+    en: 'Credit Tracking',
+    yo: 'Ìṣàkóso Kárẹ́dì', // Yoruba
+    ig: 'Nchịkwa Kredit',   // Igbo
+    ha: 'Sarrafa Kredit',   // Hausa
+    sw: 'Udhibiti wa Mikopo', // Swahili
+    fr: 'Suivi Crédit',     // French
+    pt: 'Rastreamento Crédito', // Portuguese
+    pcm: 'Credit Tracking', // Pidgin
+  },
 };
 
 // Get translation for a text
@@ -257,6 +267,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'reports', label: 'Reports', tip: 'Reports', iconClass: 'ni-chart' },
       { id: 'bank-reconciliation', label: 'Bank Reconciliation', tip: 'Bank Reconciliation', iconClass: 'ni-bank' },
       { id: 'money-control', label: 'Money Control', tip: 'Money Control', iconClass: 'ni-cash' },
+      { id: 'credit-tracking', label: 'Credit Tracking', tip: 'Credit Tracking', iconClass: 'ni-credit' },
     ],
     icon: '',
     id: undefined

@@ -282,3 +282,58 @@
 .saleActions { display: flex; gap: 8px; margin-top: 12px; }
 
 .selCount { font-size: 0.8rem; color: var(--text-3); }
+
+/* ── Credit Section ── */
+.creditSection {
+  background: var(--bg-2);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.creditLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 12px;
+}
+
+.creditDivider {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 12px 0;
+  position: relative;
+}
+
+.creditDivider::before,
+.creditDivider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: var(--border);
+}
+
+.creditDivider::before { left: 0; }
+.creditDivider::after { right: 0; }
+
+.formGroup {
+  margin-bottom: 12px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.formHint {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}

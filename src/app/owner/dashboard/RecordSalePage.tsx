@@ -3,10 +3,10 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
-import { Product, CartItem, PaymentMethod, PaymentBreakdown } from './types';
+import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
 import { BrevoService } from '@/services/email/brevo-service';
 import styles from './RecordSalePage.module.css';
@@ -29,6 +29,14 @@ export function RecordSalePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+
+  // Credit tracking fields
+  const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<string>('');
+  const [creditCustomerName, setCreditCustomerName] = useState('');
+  const [creditCustomerPhone, setCreditCustomerPhone] = useState('');
+  const [creditDueDate, setCreditDueDate] = useState('');
+  const [creditCustomers, setCreditCustomers] = useState<CreditCustomer[]>([]);
+  const [showNewCreditCustomer, setShowNewCreditCustomer] = useState(false);
 
   // Custom item form
   const [customName, setCustomName] = useState('');
@@ -94,6 +102,35 @@ export function RecordSalePage() {
         });
         
         setProducts(fetchedProducts);
+
+        // Load credit customers
+        try {
+          const creditCustomersQuery = query(
+            collection(firestore, 'businesses', bId, 'credit_customers'),
+            orderBy('createdAt', 'desc')
+          );
+          const creditCustomersSnapshot = await getDocs(creditCustomersQuery);
+          const loadedCreditCustomers: CreditCustomer[] = [];
+          creditCustomersSnapshot.forEach(doc => {
+            const data = doc.data();
+            loadedCreditCustomers.push({
+              id: doc.id,
+              name: data.name || '',
+              phone: data.phone || '',
+              email: data.email || '',
+              address: data.address || '',
+              businessType: data.businessType || 'individual',
+              notes: data.notes || '',
+              createdAt: data.createdAt?.toDate() || new Date(),
+              totalCreditLimit: data.totalCreditLimit,
+              currentBalance: data.currentBalance || 0,
+              isRegularCustomer: data.isRegularCustomer || false,
+            });
+          });
+          setCreditCustomers(loadedCreditCustomers);
+        } catch (error) {
+          console.error('Error loading credit customers:', error);
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
         showToast('Failed to load products');
@@ -161,6 +198,14 @@ export function RecordSalePage() {
     if (totalPayment !== subtotal) {
       return showToast(`Payment total (${formatMoney(totalPayment)}) must match sale total (${formatMoney(subtotal)})`);
     }
+
+    // Validate credit payment details
+    const creditPayment = paymentBreakdown.find(pb => pb.method === 'credit');
+    if (creditPayment && creditPayment.amount > 0) {
+      if (!selectedCreditCustomer && !creditCustomerName) {
+        return showToast('Please select an existing customer or enter a new customer name for credit payment');
+      }
+    }
     
     try {
       const { auth, firestore } = initializeFirebase();
@@ -224,6 +269,67 @@ export function RecordSalePage() {
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // If credit payment is used, create credit transaction
+      const creditPayment = paymentBreakdown.find(pb => pb.method === 'credit');
+      if (creditPayment && creditPayment.amount > 0) {
+        let customerId = selectedCreditCustomer;
+
+        // If no customer selected, create a new one
+        if (!customerId && creditCustomerName) {
+          const newCustomerRef = await addDoc(collection(firestore, 'businesses', businessId, 'credit_customers'), {
+            name: creditCustomerName,
+            phone: creditCustomerPhone,
+            email: '',
+            address: '',
+            businessType: 'individual',
+            notes: '',
+            totalCreditLimit: null,
+            currentBalance: creditPayment.amount,
+            isRegularCustomer: false,
+            createdAt: new Date(),
+          });
+          customerId = newCustomerRef.id;
+        }
+
+        if (customerId) {
+          // Calculate due date (default 7 days from now if not specified)
+          const dueDate = creditDueDate ? new Date(creditDueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+          // Create credit transaction
+          await addDoc(collection(firestore, 'businesses', businessId, 'credit_transactions'), {
+            customerId,
+            customerName: creditCustomerName || creditCustomers.find(c => c.id === customerId)?.name || 'Unknown',
+            saleId: saleRef.id,
+            amount: creditPayment.amount,
+            originalAmount: creditPayment.amount,
+            status: 'pending',
+            dueDate,
+            issuedDate: new Date(),
+            paidAmount: 0,
+            remainingAmount: creditPayment.amount,
+            paymentHistory: [],
+            notes: note,
+            reminderSent: false,
+            reminderCount: 0,
+            products: cart.map(item => ({
+              name: item.name,
+              quantity: item.qty,
+              price: item.price,
+            })),
+            branchId: null,
+            recordedBy: user.uid,
+            recordedByName: staffName,
+          });
+
+          // Update customer balance
+          await updateDoc(doc(firestore, 'businesses', businessId, 'credit_customers', customerId), {
+            currentBalance: (creditCustomers.find(c => c.id === customerId)?.currentBalance || 0) + creditPayment.amount,
+          });
+
+          showToast('Credit sale recorded successfully');
+        }
+      }
 
       // Update product stock in a transaction
       await runTransaction(firestore, async (transaction) => {
@@ -306,6 +412,13 @@ export function RecordSalePage() {
       showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
       clearCart();
       setPaymentBreakdown([]);
+      
+      // Clear credit fields
+      setSelectedCreditCustomer('');
+      setCreditCustomerName('');
+      setCreditCustomerPhone('');
+      setCreditDueDate('');
+      
       navigateTo('home');
     } catch (error) {
       console.error('Error saving sale:', error);
@@ -509,6 +622,73 @@ export function RecordSalePage() {
             {/* Payment method - Allow split payments */}
             <div className={styles.paymentSection}>
               <div className={styles.paymentLabel}>{t('sale.paymentMethod')} - Split Payment</div>
+
+              {/* Credit Customer Selection - Show only when credit is selected */}
+              {paymentBreakdown.some(pb => pb.method === 'credit') && (
+                <div className={styles.creditSection}>
+                  <div className={styles.creditLabel}>Credit Customer Details</div>
+                  
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Select Existing Customer</label>
+                    <select 
+                      className={styles.formInput}
+                      value={selectedCreditCustomer}
+                      onChange={e => {
+                        setSelectedCreditCustomer(e.target.value);
+                        const customer = creditCustomers.find(c => c.id === e.target.value);
+                        if (customer) {
+                          setCreditCustomerName(customer.name);
+                          setCreditCustomerPhone(customer.phone || '');
+                        }
+                      }}
+                    >
+                      <option value="">-- Select Customer --</option>
+                      {creditCustomers.map(customer => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name} {customer.currentBalance > 0 ? `(Balance: ${formatMoney(customer.currentBalance)})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!selectedCreditCustomer && (
+                    <>
+                      <div className={styles.creditDivider}>OR</div>
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>New Customer Name *</label>
+                        <input 
+                          className={styles.formInput}
+                          placeholder="Enter customer name"
+                          value={creditCustomerName}
+                          onChange={e => setCreditCustomerName(e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Phone Number</label>
+                        <input 
+                          className={styles.formInput}
+                          placeholder="Enter phone number"
+                          value={creditCustomerPhone}
+                          onChange={e => setCreditCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Due Date</label>
+                    <input 
+                      className={styles.formInput}
+                      type="date"
+                      value={creditDueDate}
+                      onChange={e => setCreditDueDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                    <div className={styles.formHint}>Default: 7 days from today</div>
+                  </div>
+                </div>
+              )}
+
               <div className={styles.paymentGrid}>
                 {PAYMENT_METHODS.map(pm => {
                   const paymentBreakdownItem = paymentBreakdown.find(pb => pb.method === pm.id);

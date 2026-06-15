@@ -278,14 +278,6 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* CTA BANNER */}
-      <div className="cta-banner">
-        <h2>The Future of Your Business<br />Starts With Clarity.</h2>
-        <p>Join smart business owners across Africa who are building their future with Busmo.</p>
-        <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
-        <div className="cta-note">3-day free trial · No credit card · Works offline</div>
-      </div>
-
       {/* DOWNLOAD BUSMO SECTION */}
       <section className="download-section">
         <div className="max-w">
@@ -324,6 +316,14 @@ export default function WelcomePage() {
 
       {/* BUSINESS CATEGORIES SLIDER */}
       <BusinessCategoriesSlider />
+
+      {/* CTA BANNER */}
+      <div className="cta-banner">
+        <h2>The Future of Your Business<br />Starts With Clarity.</h2>
+        <p>Join smart business owners across Africa who are building their future with Busmo.</p>
+        <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
+        <div className="cta-note">3-day free trial · No credit card · Works offline</div>
+      </div>
 
       {/* FOOTER */}
       <Footer onNavigate={handleNavigate} />

@@ -31,7 +31,8 @@ export type PageId =
   | 'recordsale'
   | 'money-control'
   | 'branches'
-  | 'email-campaigns';
+  | 'email-campaigns'
+  | 'credit-tracking';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {
@@ -342,4 +343,72 @@ export interface AvatarOption {
   content: string;
   bg: string;
   color: string;
+}
+
+// ── Credit Tracking (Retailer Focus) ─────────
+export type CreditStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'written_off';
+
+export interface CreditCustomer {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  businessType?: 'individual' | 'business';
+  notes?: string;
+  createdAt: Date;
+  totalCreditLimit?: number;
+  currentBalance: number;
+  isRegularCustomer: boolean;
+}
+
+export interface CreditTransaction {
+  id: string;
+  customerId: string;
+  customerName: string;
+  saleId: string;
+  amount: number;
+  originalAmount: number;
+  status: CreditStatus;
+  dueDate: Date;
+  issuedDate: Date;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentHistory: CreditPayment[];
+  notes?: string;
+  reminderSent: boolean;
+  reminderCount: number;
+  lastReminderDate?: Date;
+  writtenOffAt?: Date;
+  writtenOffReason?: string;
+  products: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+  }>;
+  branchId?: string;
+  recordedBy: string;
+  recordedByName: string;
+}
+
+export interface CreditPayment {
+  id: string;
+  amount: number;
+  paymentDate: Date;
+  paymentMethod: 'cash' | 'transfer' | 'pos' | 'card';
+  reference?: string;
+  notes?: string;
+  recordedBy: string;
+  recordedByName: string;
+}
+
+export interface CreditSummary {
+  totalOutstanding: number;
+  overdueAmount: number;
+  dueThisWeek: number;
+  dueThisMonth: number;
+  totalCustomers: number;
+  activeCredits: number;
+  paidThisMonth: number;
+  averageCollectionDays: number;
 }

@@ -183,6 +183,24 @@ service cloud.firestore {
         // Allow delete only for business owner
         allow delete: if isBusinessOwner(businessId);
       }
+
+      // =====================
+      // CREDIT CUSTOMERS SUBCOLLECTION (for credit tracking)
+      // =====================
+      match /credit_customers/{customerId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // CREDIT TRANSACTIONS SUBCOLLECTION (for credit tracking)
+      // =====================
+      match /credit_transactions/{transactionId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
     }
     
     // =====================

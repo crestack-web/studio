@@ -110,26 +110,13 @@ export function MobileAskMOPage() {
     }
   }, [messages]);
 
-  // Load persisted state from localStorage on mount
+  // Load showHistory from localStorage on mount
   useEffect(() => {
     const savedShowHistory = localStorage.getItem('mo-show-history');
-    const savedConversationId = localStorage.getItem('mo-current-conversation-id');
-    const savedMessages = localStorage.getItem('mo-current-messages');
-    
     if (savedShowHistory === 'true') {
       setShowHistory(true);
     }
-    if (savedConversationId) {
-      setCurrentConversationId(savedConversationId);
-    }
-    if (savedMessages) {
-      try {
-        setMessages(JSON.parse(savedMessages));
-      } catch (e) {
-        console.error('Failed to load saved messages');
-      }
-    }
-  }, [setCurrentConversationId, setMessages]);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

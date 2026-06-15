@@ -154,15 +154,37 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
           setConversations(loadedConversations);
 
-          // Start with empty state instead of auto-loading most recent conversation
-          // Users can select a conversation from history to continue it
-          setMessages([{
-            id: 'init',
-            role: 'bot',
-            content: `Hi, I'm Mo! I'm here to help you understand your business better.\n\nI can help you with sales insights, inventory management, cash flow analysis, and more.\n\nWhat would you like to explore today?`,
-            timestamp: new Date(),
-          }]);
-          setCurrentConversationId(null);
+          // Check if there's a persisted current conversation from localStorage
+          const persistedConversationId = typeof window !== 'undefined' ? localStorage.getItem('mo-current-conversation-id') : null;
+          const persistedMessages = typeof window !== 'undefined' ? localStorage.getItem('mo-current-messages') : null;
+
+          if (persistedConversationId && persistedMessages) {
+            // Restore the persisted conversation
+            try {
+              setMessages(JSON.parse(persistedMessages));
+              setCurrentConversationId(persistedConversationId);
+            } catch (e) {
+              console.error('Failed to restore persisted conversation:', e);
+              // Fall back to welcome message
+              setMessages([{
+                id: 'init',
+                role: 'bot',
+                content: `Hi, I'm Mo! I'm here to help you understand your business better.\n\nI can help you with sales insights, inventory management, cash flow analysis, and more.\n\nWhat would you like to explore today?`,
+                timestamp: new Date(),
+              }]);
+              setCurrentConversationId(null);
+            }
+          } else {
+            // Start with empty state instead of auto-loading most recent conversation
+            // Users can select a conversation from history to continue it
+            setMessages([{
+              id: 'init',
+              role: 'bot',
+              content: `Hi, I'm Mo! I'm here to help you understand your business better.\n\nI can help you with sales insights, inventory management, cash flow analysis, and more.\n\nWhat would you like to explore today?`,
+              timestamp: new Date(),
+            }]);
+            setCurrentConversationId(null);
+          }
         } catch (error) {
           console.error('Error loading conversations:', error);
         }
