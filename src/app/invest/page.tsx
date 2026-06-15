@@ -59,7 +59,7 @@ export default function InvestPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleNavigate = (page: Page) => {
+  const handleNavigate = (page: string) => {
     if (page === 'signup') window.location.href = '/welcome/signup';
     else if (page === 'login') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';
