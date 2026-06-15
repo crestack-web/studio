@@ -7,6 +7,7 @@ import { MarketSection } from './components/MarketSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { MoSection } from './components/MoSection';
 import { FAQSection } from './components/FAQSection';
+import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
@@ -284,6 +285,9 @@ export default function WelcomePage() {
         <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
         <div className="cta-note">3-day free trial · No credit card · Works offline</div>
       </div>
+
+      {/* BUSINESS CATEGORIES SLIDER */}
+      <BusinessCategoriesSlider />
 
       {/* FOOTER */}
       <Footer onNavigate={handleNavigate} />
