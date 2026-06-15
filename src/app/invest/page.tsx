@@ -5,7 +5,7 @@ import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
 import { LangProvider } from '../owner/dashboard/LangContext';
 
-type Page = 'home' | 'pricing' | 'login' | 'signup' | 'seller' | 'invest' | 'busmogo';
+type Page = 'home' | 'pricing' | 'login' | 'signup' | 'seller' | 'invest' | 'invest-signup' | 'invest-login' | 'investor' | 'busmogo';
 
 export default function InvestPage() {
   const [formData, setFormData] = useState({

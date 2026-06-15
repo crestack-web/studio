@@ -78,21 +78,6 @@ export default function WelcomePage() {
               </ul>
               <button className="path-cta" onClick={(e) => { e.stopPropagation(); handleNavigate('seller'); }}>Join Waitlist →</button>
             </div>
-
-            {/* Investors */}
-            <div className="path-card" onClick={() => handleNavigate('invest')}>
-              <div className="path-icon investor"><span>📈</span></div>
-              <div className="path-title">Investors</div>
-              <div className="path-desc">Discover and fund verified African businesses — backed by real-time data you can trust.</div>
-              <ul className="path-list">
-                <li>Data-verified opportunities</li>
-                <li>Transparent business signals</li>
-                <li>Profit-sharing or equity deals</li>
-                <li>Reduced risk via live data</li>
-                <li>Invest in Africa's growth</li>
-              </ul>
-              <button className="path-cta" onClick={(e) => { e.stopPropagation(); handleNavigate('invest'); }}>Explore Investments →</button>
-            </div>
           </div>
         </div>
       </section>
@@ -200,83 +185,8 @@ export default function WelcomePage() {
       {/* TESTIMONIALS */}
       <TestimonialsSection />
 
-      {/* INVESTORS PREVIEW */}
-      <section className="investor-section">
-        <div className="max-w">
-          <div className="investor-grid">
-            <div className="investor-sample">
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Live Opportunities</div>
-              {[
-                { name: "Aisha's Crafts", meta: 'Fashion · Lagos, NG · Verified ✓', roi: '18% ROI' },
-                { name: "Femi's Farm", meta: 'Agriculture · Oyo, NG · Verified ✓', roi: '22% ROI' },
-                { name: 'City Electronics', meta: 'Retail · Abuja, NG · Verified ✓', roi: '15% ROI' },
-              ].map((item, i) => (
-                <div key={i} className="investor-card-item">
-                  <div>
-                    <div className="investor-biz">{item.name}</div>
-                    <div className="investor-meta">{item.meta}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="investor-return">{item.roi}</div>
-                    <div className="investor-tag">Open</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="section-label">For Investors</div>
-              <h2 className="section-title">Invest in Africa's<br /><em>Growth Engine.</em></h2>
-              <p className="section-sub">Discover and fund the next generation of small businesses, backed by real-time, trusted data from Busmo.</p>
-              <ul className="investor-bullets">
-                <li><span className="check">✦</span><span>Explore data-verified opportunities with transparent signals</span></li>
-                <li><span className="check">✦</span><span>Reduce risk with real-time business health data</span></li>
-                <li><span className="check">✦</span><span>Invest in profit-sharing or equity-based deals</span></li>
-                <li><span className="check">✦</span><span>Track returns and portfolio performance in one place</span></li>
-              </ul>
-              <button className="btn-primary" style={{ marginTop: 8 }} onClick={() => handleNavigate('invest')}>Explore Investments →</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <FAQSection />
-
-      {/* DOWNLOAD BUSMO SECTION */}
-      <section className="download-section">
-        <div className="max-w">
-          <div className="section-head center">
-            <div className="section-label">Use Busmo Anywhere</div>
-            <h2 className="section-title">Your Business,<br /><em>Every Device.</em></h2>
-            <p className="section-sub">Whether you're at the office, in-store, on the road, or managing multiple branches, Busmo works wherever your business does.</p>
-          </div>
-          <div className="platform-cards">
-            <div className="platform-card">
-              <div className="platform-icon">💻</div>
-              <div className="platform-name">Windows</div>
-              <div className="platform-desc">Desktop app with offline support</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🍎</div>
-              <div className="platform-name">macOS</div>
-              <div className="platform-desc">Native Mac experience</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🤖</div>
-              <div className="platform-name">Android</div>
-              <div className="platform-desc">Mobile on-the-go management</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🌐</div>
-              <div className="platform-name">Web App</div>
-              <div className="platform-desc">Works on any device</div>
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', marginTop: 32 }}>
-            <button className="btn-primary" onClick={() => handleNavigate('download')}>Download Busmo</button>
-          </div>
-        </div>
-      </section>
 
       {/* DOWNLOAD BUSMO SECTION */}
       <section className="download-section">
