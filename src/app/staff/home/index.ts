@@ -45,7 +45,7 @@ export function useLiveClock() {
 export function useToast() {
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
-  const timerRef = { current: 0 as ReturnType<typeof setTimeout> };
+  const timerRef = { current: 0 as unknown as ReturnType<typeof setTimeout> };
 
   const show = useCallback((msg: string) => {
     setMessage(msg);

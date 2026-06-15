@@ -10,7 +10,8 @@ export type Page =
   | 'invest-login'
   | 'investor'
   | 'verify'
-  | 'download';
+  | 'download'
+  | 'busmogo';
 
 export interface NavLink {
   id: Page;

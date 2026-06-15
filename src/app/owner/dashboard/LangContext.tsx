@@ -148,7 +148,7 @@ interface LangContextValue {
   lang: LangCode;
   langMeta: LangMeta;
   setLang: (code: LangCode) => void;
-  t: (key: keyof TranslationDict) => string;
+  t: (key: keyof TranslationDict, params?: Record<string, any>) => string;
   isRTL: boolean;
   detectLocale: () => void;
 }
@@ -186,10 +186,19 @@ export function LangProvider({ children }: { children: ReactNode }) {
     setLangState(detected);
   }, []);
 
-  // Translation function with English fallback
-  const t = useCallback((key: keyof TranslationDict): string => {
+  // Translation function with English fallback and interpolation
+  const t = useCallback((key: keyof TranslationDict, params?: Record<string, any>): string => {
     const dict = TRANSLATIONS[lang];
-    return dict[key] ?? TRANSLATIONS['en'][key] ?? key;
+    let text = dict[key] ?? TRANSLATIONS['en'][key] ?? key;
+    
+    // Handle interpolation with params
+    if (params) {
+      Object.entries(params).forEach(([param, value]) => {
+        text = text.replace(`{${param}}`, String(value));
+      });
+    }
+    
+    return text;
   }, [lang]);
 
   return (

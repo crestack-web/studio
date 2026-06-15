@@ -30,11 +30,38 @@
   border-bottom: 1px solid var(--border);
 }
 
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.moToken {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.moEmoji {
+  font-size: 28px;
+}
+
 .header h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
   color: var(--text-1);
+}
+
+.headerSubtitle {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: var(--text-3);
 }
 
 .closeButton {
@@ -83,14 +110,26 @@
 .packCard {
   background: var(--bg-2);
   border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
+}
+
+.packCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
 }
 
 .packCard:hover {
@@ -105,7 +144,8 @@
 }
 
 .packCard.popular {
-  border-color: var(--primary);
+  border-color: transparent;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
 }
 
 .popularBadge {
@@ -120,9 +160,20 @@
   font-weight: 600;
 }
 
+.packIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.packEmoji {
+  font-size: 32px;
+}
+
 .packName {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-1);
 }
 

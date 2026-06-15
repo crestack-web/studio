@@ -262,19 +262,19 @@ export function CashflowPage() {
                 <h3>{t('cashflow.addStock')}</h3>
                 <p className={styles.formDesc}>{t('cashflow.addStockDesc')}</p>
                 <div className={styles.formGroup}>
-                  <label>{t('products.selectProduct')}</label>
+                  <label>{t('product.selectProduct')}</label>
                   <select name="productId" required className={styles.formInput}>
-                    <option value="">{t('products.selectProduct')}</option>
+                    <option value="">{t('product.selectProduct')}</option>
                     <option value="1">Product 1</option>
                     <option value="2">Product 2</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
-                  <label>{t('products.quantity')}</label>
+                  <label>{t('product.quantity')}</label>
                   <input type="number" name="quantity" required min="1" className={styles.formInput} placeholder="e.g., 50" />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>{t('products.costPrice')}</label>
+                  <label>{t('product.costPrice')}</label>
                   <input type="number" name="amount" required min="0.01" step="0.01" className={styles.formInput} placeholder="₦0.00" />
                 </div>
                 <div className={styles.formGroup}>
@@ -290,25 +290,25 @@ export function CashflowPage() {
                 <h3>{t('cashflow.reduceStock')}</h3>
                 <p className={styles.formDesc}>{t('cashflow.reduceStockDesc')}</p>
                 <div className={styles.formGroup}>
-                  <label>{t('products.selectProduct')}</label>
+                  <label>{t('product.selectProduct')}</label>
                   <select name="productId" required className={styles.formInput}>
-                    <option value="">{t('products.selectProduct')}</option>
+                    <option value="">{t('product.selectProduct')}</option>
                     <option value="1">Product 1</option>
                     <option value="2">Product 2</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
-                  <label>{t('products.quantity')}</label>
+                  <label>{t('product.quantity')}</label>
                   <input type="number" name="quantity" required min="1" className={styles.formInput} placeholder="e.g., 10" />
                 </div>
                 <div className={styles.formGroup}>
                   <label>{t('common.reason')}</label>
                   <select name="reason" required className={styles.formInput}>
                     <option value="">{t('common.selectReason')}</option>
-                    <option value="damaged">{t('products.damaged')}</option>
-                    <option value="expired">{t('products.expired')}</option>
-                    <option value="theft">{t('products.theft')}</option>
-                    <option value="other">{t('products.other')}</option>
+                    <option value="damaged">{t('product.damaged')}</option>
+                    <option value="expired">{t('product.expired')}</option>
+                    <option value="theft">{t('product.theft')}</option>
+                    <option value="other">{t('product.other')}</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -357,11 +357,11 @@ export function CashflowPage() {
                   <label>{t('common.category')}</label>
                   <select name="category" required className={styles.formInput}>
                     <option value="">{t('common.selectCategory')}</option>
-                    <option value="rent">{t('expenses.rent')}</option>
-                    <option value="utilities">{t('expenses.utilities')}</option>
-                    <option value="salary">{t('expenses.salary')}</option>
-                    <option value="supplies">{t('expenses.supplies')}</option>
-                    <option value="other">{t('expenses.other')}</option>
+                    <option value="rent">{t('expense.rent')}</option>
+                    <option value="utilities">{t('expense.utilities')}</option>
+                    <option value="salary">{t('expense.salary')}</option>
+                    <option value="supplies">{t('expense.supplies')}</option>
+                    <option value="other">{t('expense.other')}</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>

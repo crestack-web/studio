@@ -102,7 +102,7 @@ function RecordExpensePageContent() {
 
 
     return (
-        <MainLayout title="Record Expense" backHref="/owner/home">
+        <MainLayout>
             <div className="w-full max-w-md space-y-6">
                 <Card>
                     <CardHeader>

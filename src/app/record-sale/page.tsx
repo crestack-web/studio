@@ -235,7 +235,7 @@ function RecordSalePageContent() {
   };
 
   return (
-    <MainLayout title={lastSaleDetails ? "Sale Recorded" : "Record Sale"}>
+    <MainLayout>
         {lastSaleDetails ? (
             <div className="w-full max-w-xs text-center">
                  <Card id="receipt-content" className="p-4 text-left bg-white text-black font-mono text-xs">

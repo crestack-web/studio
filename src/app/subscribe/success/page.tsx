@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
-export default function SubscriptionSuccessPage() {
+function SubscriptionSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -117,5 +117,20 @@ export default function SubscriptionSuccessPage() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-4 border-purple-600 mx-auto"></div>
       </div>
     </div>
+  );
+}
+
+export default function SubscriptionSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F4F4F8] to-[#E8E8F0] px-4">
+        <div className="text-center">
+          <BusmoLogoLoadingSpinner size={120} />
+          <h2 className="text-xl font-semibold text-[#0A0A0F] mb-2 mt-4">Loading...</h2>
+        </div>
+      </div>
+    }>
+      <SubscriptionSuccessContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { SaleRecord, PageId } from './types';
+import type { SaleRecord, SalesHistoryItem, PageId } from './types';
 import { DAILY_TARGET } from './data';
 import { LockedPage } from './shared';
 import { useLiveClock } from './hooks';
@@ -161,7 +161,7 @@ interface HistoryPageProps {
 
 export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSales }) => {
   const [filter, setFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
-  const [allRecords, setAllRecords] = useState<SaleRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<SalesHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch real sales history from Firestore
@@ -178,7 +178,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
           const recentSales = await fetchRecentSales(getFirestore(), businessId, 50);
           
           // Convert to SaleRecord format
-          const saleRecords: SaleRecord[] = recentSales.map(sale => ({
+          const saleRecords: SalesHistoryItem[] = recentSales.map(sale => ({
             id: sale.id,
             time: new Date(sale.createdAt.toDate()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             items: sale.products.map(p => `${p.name} ×${p.quantity}`).join(', '),

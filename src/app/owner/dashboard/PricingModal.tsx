@@ -153,7 +153,7 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
                   borderRadius: '16px',
                   cursor: 'pointer',
                   overflow: 'hidden',
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: '"DM Sans", sans-serif',
                   textAlign: 'left',
                   transition: 'all 0.2s',
                   background: active ? plan.activeBg : '#FAFAFC',
@@ -258,7 +258,7 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
               fontSize: '14px',
               fontWeight: 600,
               cursor: 'pointer',
-              fontFamily: "'DM Sans', sans-serif',
+              fontFamily: '"DM Sans", sans-serif',
               transition: 'all 0.2s',
             }}
             onMouseEnter={(e) => {
@@ -282,7 +282,7 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
               fontSize: '14px',
               fontWeight: 600,
               cursor: 'pointer',
-              fontFamily: "'DM Sans', sans-serif',
+              fontFamily: '"DM Sans", sans-serif',
               transition: 'all 0.2s',
             }}
             onMouseEnter={(e) => {
@@ -299,3 +299,4 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
     </div>
   );
 }
+

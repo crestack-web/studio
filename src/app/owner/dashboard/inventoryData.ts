@@ -12,6 +12,11 @@ export interface StockMovementEntry {
   qty: number;
   note: string;
   balance: number;
+  recordedBy?: {
+    displayName?: string;
+    email?: string;
+    timestamp?: number;
+  };
 }
 
 export interface Product {
@@ -31,6 +36,7 @@ export interface Product {
   trend: TrendDir;
   movement: StockMovementEntry[];
   imageUrl?: string;        // product image URL
+  lowStockThreshold?: number; // low stock alert threshold
 }
 
 export const CATEGORIES = ['All', 'Food & Drink', 'Household', 'Personal Care', 'Snacks', 'Beverages', 'Frozen', 'Electronics'];

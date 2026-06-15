@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
 
     const paymentData = paymentDoc.data();
 
+    if (!paymentData || !paymentData.userId || paymentData.credits === undefined) {
+      return NextResponse.redirect(new URL('/owner/dashboard?payment=error', request.url));
+    }
+
     // Update payment status
     await db.collection('creditPurchases').doc(reference).update({
       status: 'completed',
@@ -80,12 +84,12 @@ export async function GET(request: NextRequest) {
       moCreditsRemaining: FieldValue.increment(credits),
     });
 
-    // If unlimited credits, also update plan to pro
-    if (credits === -1) {
-      await userRef.update({
-        plan: 'pro',
-      });
-    }
+    // If unlimited credits, also update plan to pro (removed since we no longer offer unlimited)
+    // if (credits === -1) {
+    //   await userRef.update({
+    //     plan: 'pro',
+    //   });
+    // }
 
     return NextResponse.redirect(new URL('/owner/dashboard?payment=success', request.url));
   } catch (error) {

@@ -25,11 +25,9 @@ try {
 
 // Credit pricing tiers
 const CREDIT_PACKS = {
-  starter: { credits: 500, amount: 500, name: 'Starter Pack' },
-  standard: { credits: 1500, amount: 1200, name: 'Standard Pack' },
-  popular: { credits: 3000, amount: 2000, name: 'Popular Pack' },
-  premium: { credits: 5000, amount: 3000, name: 'Premium Pack' },
-  unlimited: { credits: -1, amount: 5000, name: 'Unlimited (Pro)' },
+  starter: { credits: 1500, amount: 1500, name: 'Starter Pack' },
+  standard: { credits: 3000, amount: 3000, name: 'Standard Pack' },
+  premium: { credits: 5000, amount: 5000, name: 'Premium Pack' },
 };
 
 export async function POST(request: NextRequest) {

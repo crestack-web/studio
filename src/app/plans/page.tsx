@@ -143,9 +143,10 @@ function PlansPageContent() {
         } catch (error) {
             let errorMsg = 'Could not save your plan choice. Please try again.';
             if (error && typeof error === 'object') {
-                if (error.message) errorMsg += `\nError: ${error.message}`;
-                if (error.code) errorMsg += `\nCode: ${error.code}`;
-                if (error.stack) errorMsg += `\nStack: ${error.stack}`;
+                const err = error as any;
+                if (err.message) errorMsg += `\nError: ${err.message}`;
+                if (err.code) errorMsg += `\nCode: ${err.code}`;
+                if (err.stack) errorMsg += `\nStack: ${err.stack}`;
             }
             console.error('Error saving plan:', error);
             toast({ variant: 'destructive', title: 'Save Failed', description: errorMsg });

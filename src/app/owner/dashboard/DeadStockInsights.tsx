@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from './LangContext';
+import { useCurrency } from './CurrencyContext';
 import { Product, getDeadStockProducts, getDaysSinceLastSale } from './inventoryData';
-import { formatMoney } from './currencies';
 
 interface DeadStockInsightsProps {
   products: Product[];
@@ -10,6 +10,7 @@ interface DeadStockInsightsProps {
 
 const DeadStockInsights: React.FC<DeadStockInsightsProps> = ({ products, onProductClick }) => {
   const { t } = useTranslation();
+  const { formatMoney } = useCurrency();
   const deadStock = getDeadStockProducts(products);
 
   return (

@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, getFirestore } from 'firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import type { Product, CartItem, PageId } from '../types';
 import { recordSale, fetchProducts, updateProductStock } from './services/dataService';
-import { LockedPage } from '../components/shared';
+import { LockedPage } from './shared';
 
 interface SalePageProps {
   hasAccess: boolean;

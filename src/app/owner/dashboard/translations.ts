@@ -65,7 +65,7 @@ export type TranslationDict = {
   'common.currency':string; 'common.units':string; 'common.restock':string;
   'common.prev':string; 'common.next':string; 'common.daysAgo':string;
   'common.unlimited':string; 'common.amount':string; 'common.source':string;
-  'common.selectSource':string; 'common.selectCategory':string; 'common.selectReason':string;
+  'common.selectSource':string; 'common.selectCategory':string; 'common.category':string; 'common.selectReason':string;
   'common.reason':string; 'common.description':string;
   'common.free':string; 'common.open':string;
   // Topbar / Sidebar
@@ -112,12 +112,15 @@ export type TranslationDict = {
   'product.salesMode':string; 'product.delivery':string; 'product.save':string;
   'product.saved':string; 'product.unit':string; 'product.margin':string; 'product.perUnit':string;
   'product.inStock':string;
+  'product.selectProduct':string; 'product.quantity':string;
+  'product.damaged':string; 'product.expired':string; 'product.theft':string; 'product.other':string;
   // Expense
   'expense.title':string; 'expense.subtitle':string; 'expense.details':string;
   'expense.category':string; 'expense.amount':string; 'expense.date':string;
   'expense.paymentMethod':string; 'expense.notes':string; 'expense.receipt':string;
   'expense.recurring':string; 'expense.frequency':string; 'expense.record':string;
   'expense.recorded':string; 'expense.whyRecord':string;
+  'expense.rent':string; 'expense.utilities':string; 'expense.salary':string; 'expense.supplies':string; 'expense.other':string;
   // Cashflow
   'cashflow.title':string; 'cashflow.subtitle':string; 'cashflow.cashBalance':string;
   'cashflow.stockValue':string; 'cashflow.monthIn':string; 'cashflow.monthOut':string;
@@ -193,7 +196,8 @@ export type TranslationDict = {
   'inventory.table.profit':string; 'inventory.table.stockValue':string;
   'inventory.table.status':string; 'inventory.table.sold30d':string;
   'inventory.table.trend':string; 'inventory.table.actions':string;
-  'inventory.soldToday':string; 'inventory.soldYesterday':string;
+  'inventory.soldToday':string; 'inventory.soldYesterday':string; 'inventory.soldDaysAgo':string;
+  'inventory.productCount':string; 'inventory.pagination.showing':string;
   'inventory.actions.edit':string; 'inventory.actions.restock':string;
   // Insights
   'insights.slowestMovers.title':string; 'insights.slowestMovers.subtitle':string;
@@ -297,6 +301,7 @@ const en: TranslationDict = {
   'common.units':'units','common.restock':'Restock','common.prev':'Previous','common.next':'Next',
   'common.daysAgo':'days ago','common.unlimited':'Unlimited','common.amount':'Amount',
   'common.source':'Source','common.selectSource':'Select source','common.selectCategory':'Select category',
+  'common.category':'Category',
   'common.selectReason':'Select reason','common.reason':'Reason','common.description':'Description',
   'common.free':'free','common.open':'Open',
   'topbar.greeting':'Welcome back','topbar.toggleTheme':'Toggle theme','topbar.notifications':'Notifications',
@@ -344,6 +349,8 @@ const en: TranslationDict = {
   'product.delivery':'Delivery Countries','product.save':'Save Product',
   'product.saved':'Product saved successfully','product.unit':'Unit of Measure',
   'product.margin':'Profit margin','product.perUnit':'per unit',
+  'product.selectProduct':'Select Product','product.quantity':'Quantity',
+  'product.damaged':'Damaged','product.expired':'Expired','product.theft':'Theft','product.other':'Other',
   'expense.title':'Add Expense','expense.subtitle':'Record a business expense.',
   'expense.details':'Expense Details','expense.category':'Category','expense.amount':'Amount',
   'expense.date':'Date of Expense','expense.paymentMethod':'Payment Method',
@@ -351,6 +358,7 @@ const en: TranslationDict = {
   'expense.recurring':'This is a recurring expense','expense.frequency':'Repeat Frequency',
   'expense.record':'Record Expense','expense.recorded':'Expense recorded successfully',
   'expense.whyRecord':'Why record expenses? Busmo uses your expenses alongside sales to generate verified financial statements for loans and financing.',
+  'expense.rent':'Rent','expense.utilities':'Utilities','expense.salary':'Salary','expense.supplies':'Supplies','expense.other':'Other',
   'cashflow.title':'Cashflow','cashflow.subtitle':'Record all money and stock movements in your business.',
   'cashflow.cashBalance':'Cash Balance','cashflow.stockValue':'Stock Value',
   'cashflow.monthIn':'This Month In','cashflow.monthOut':'This Month Out',
@@ -436,7 +444,8 @@ const en: TranslationDict = {
   'inventory.table.profit':'Profit','inventory.table.stockValue':'Stock Value',
   'inventory.table.status':'Status','inventory.table.sold30d':'Sold (30d)',
   'inventory.table.trend':'Trend','inventory.table.actions':'Actions',
-  'inventory.soldToday':'Sold today','inventory.soldYesterday':'Sold yesterday',
+  'inventory.soldToday':'Sold today','inventory.soldYesterday':'Sold yesterday','inventory.soldDaysAgo':'Sold {days} days ago',
+  'inventory.productCount':'{count} products','inventory.pagination.showing':'Showing {start}-{end} of {total}',
   'inventory.actions.edit':'Edit','inventory.actions.restock':'Restock',
   // Insights
   'insights.slowestMovers.title':'Slowest Movers','insights.slowestMovers.subtitle':'Products that haven\'t been selling well',

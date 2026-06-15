@@ -4,8 +4,8 @@ import { useTranslation } from "@/app/owner/dashboard/LangContext";
 
 // Only English and French for welcome page
 const WELCOME_LANGUAGES = [
-  { code: "en", name: "English", flag: "🌐" },
-  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "en" as const, name: "English", flag: "🌐" },
+  { code: "fr" as const, name: "Français", flag: "🇫🇷" },
 ];
 
 export function Translator() {

@@ -4,8 +4,7 @@ import React, { useState } from 'react';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
 import { LangProvider } from '../owner/dashboard/LangContext';
-
-type Page = 'home' | 'pricing' | 'login' | 'signup' | 'seller' | 'invest' | 'busmogo';
+import { Page } from '../welcome/types';
 
 export default function SellerPage() {
   const [formData, setFormData] = useState({
@@ -18,6 +17,7 @@ export default function SellerPage() {
     monthlyRevenue: '',
     currentlySellingOnline: '',
     hearAboutUs: '',
+    additionalInfo: '',
   });
   const [submitted, setSubmitted] = useState(false);
   const [showForm, setShowForm] = useState(false);

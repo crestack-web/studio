@@ -144,7 +144,7 @@ export function StatementPage() {
         const saleTransactions: Transaction[] = [];
         let runningBalance = 0;
 
-        salesSnapshot.forEach((doc, idx) => {
+        salesSnapshot.forEach((doc) => {
           const data = doc.data();
           const amount = data.total || data.totalRevenue || 0;
           const date = data.createdAt?.toDate() || new Date();

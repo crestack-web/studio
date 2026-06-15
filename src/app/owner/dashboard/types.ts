@@ -80,6 +80,7 @@ export interface Product {
   emoji: string;
   category?: string;
   imageUrl?: string;
+  lowStockThreshold?: number;
 }
 
 export interface CartItem extends Product {

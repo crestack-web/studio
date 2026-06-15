@@ -1,12 +1,16 @@
 "use client";
 import React from "react";
 
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = {
   variant?: "primary" | "outline";
   as?: "button" | "a";
   href?: string;
   children: React.ReactNode;
-};
+  className?: string;
+} & (
+  | ({ as?: "button" } & React.ButtonHTMLAttributes<HTMLButtonElement>)
+  | ({ as: "a"; href: string } & React.AnchorHTMLAttributes<HTMLAnchorElement>)
+);
 
 export function Button({
   variant = "primary",
@@ -26,13 +30,13 @@ export function Button({
 
   if (as === "a" && href) {
     return (
-      <a href={href} className={classes} {...props}>
+      <a href={href} className={classes} {...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
         {children}
       </a>
     );
   }
   return (
-    <button className={classes} {...props}>
+    <button className={classes} {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
       {children}
     </button>
   );

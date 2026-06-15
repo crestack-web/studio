@@ -17,6 +17,9 @@ interface ReadinessStats {
   avgMargin: number;
   requirementsMet: number;
   totalRequirements: number;
+  platformDedicationScore: number;
+  activeDays: number;
+  recordingConsistency: number;
 }
 
 interface ChecklistItem {
@@ -41,7 +44,10 @@ export function CapitalPage() {
     cashBalance: 0,
     avgMargin: 0,
     requirementsMet: 0,
-    totalRequirements: 6,
+    totalRequirements: 10,
+    platformDedicationScore: 0,
+    activeDays: 0,
+    recordingConsistency: 0,
   });
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
 
@@ -74,8 +80,8 @@ export function CapitalPage() {
         ]);
 
         // Calculate metrics
-        const sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const expenses = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        const expenses = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
 
         // Calculate data history (days since first sale)
         let dataHistory = 0;
@@ -111,24 +117,55 @@ export function CapitalPage() {
         // Calculate cash balance (simplified - revenue - expenses)
         const cashBalance = totalRevenue - totalExpenses;
 
-        // Check requirements
+        // Calculate platform dedication metrics
+        // Get unique days with activity (sales or expenses)
+        const activityDays = new Set([
+          ...sales.map((s: any) => s.createdAt?.toDate()?.toDateString()),
+          ...expenses.map((e: any) => e.date?.toDate?.() ? e.date.toDate().toDateString() : null)
+        ].filter(Boolean));
+        const activeDays = activityDays.size;
+
+        // Calculate recording consistency (activity days / data history)
+        const recordingConsistency = dataHistory > 0 ? Math.round((activeDays / dataHistory) * 100) : 0;
+
+        // Calculate platform dedication score (0-100)
+        // Factors: active days, recording consistency, data diversity, account age
+        let dedicationScore = 0;
+        dedicationScore += Math.min(activeDays / 60, 1) * 30;        // Max 30 points for active days
+        dedicationScore += (recordingConsistency / 100) * 25;       // Max 25 points for consistency
+        dedicationScore += Math.min(dataHistory / 90, 1) * 25;      // Max 25 points for data history
+        dedicationScore += (sales.length > 0 && expenses.length > 0) ? 20 : 0; // Max 20 points for data diversity
+
+        // Check requirements - more stringent for fair dedication
         const requirements = [
-          sales.length >= 10,           // At least 10 sales
-          dataHistory >= 30,            // 30+ days of data
-          avgMargin >= 15,              // 15%+ profit margin
-          cashBalance > 0,              // Positive cash flow
-          sales.length >= 30,           // Consistent sales
-          avgMargin >= 25,              // Healthy margin
+          sales.length >= 30,                      // At least 30 sales (increased from 10)
+          dataHistory >= 60,                       // 60+ days of data (increased from 30)
+          avgMargin >= 20,                         // 20%+ profit margin (increased from 15)
+          cashBalance > 0,                         // Positive cash flow
+          activeDays >= 45,                        // 45+ active days (new)
+          recordingConsistency >= 60,              // 60%+ recording consistency (new)
+          expenses.length >= 15,                   // At least 15 expenses (increased from 10)
+          sales.length >= 50,                      // Consistent sales volume (new)
+          avgMargin >= 25,                         // Healthy margin (kept)
+          dedicationScore >= 70,                   // 70%+ platform dedication score (new)
         ];
 
         const requirementsMet = requirements.filter(Boolean).length;
 
-        // Calculate fundability score (0-100)
+        // Calculate fundability score (0-100) - More stringent calculation
+        // SCORING BREAKDOWN:
+        // Data History: (days / 180) * 20 = max 20 points (need 180 days for full points)
+        // Cash Balance: (balance / 1,000,000) * 20 = max 20 points (need 1M for full points)
+        // Profit Margin: (margin% / 50) * 20 = max 20 points (need 50% for full points)
+        // Platform Dedication: (dedicationScore / 100) * 25 = max 25 points (weighted higher)
+        // Requirements Met: (met / 10) * 15 = max 15 points (weighted lower)
+        // TOTAL MAX: 100 points
         let score = 0;
-        score += Math.min(dataHistory / 90, 1) * 25;      // Max 25 points for history
-        score += Math.min(cashBalance / 500000, 1) * 25;  // Max 25 points for cash
-        score += Math.min(avgMargin / 40, 1) * 25;        // Max 25 points for margin
-        score += (requirementsMet / 6) * 25;              // Max 25 points for requirements
+        score += Math.min(dataHistory / 180, 1) * 20;      // Max 20 points for history (need 180 days for max)
+        score += Math.min(cashBalance / 1000000, 1) * 20;  // Max 20 points for cash (need 1M for max)
+        score += Math.min(avgMargin / 50, 1) * 20;        // Max 20 points for margin (need 50% for max)
+        score += (dedicationScore / 100) * 25;           // Max 25 points for dedication (increased weight)
+        score += (requirementsMet / 10) * 15;             // Max 15 points for requirements (decreased weight)
 
         setFundabilityScore(Math.round(score));
 
@@ -143,7 +180,10 @@ export function CapitalPage() {
           cashBalance,
           avgMargin: Math.round(avgMargin),
           requirementsMet,
-          totalRequirements: 6,
+          totalRequirements: 10,
+          platformDedicationScore: Math.round(dedicationScore),
+          activeDays,
+          recordingConsistency,
         });
 
         // Generate checklist items
@@ -151,14 +191,20 @@ export function CapitalPage() {
           {
             id: 'sales',
             label: 'Sales History',
-            detail: `${sales.length} sales recorded`,
-            status: sales.length >= 10 ? 'done' : sales.length >= 3 ? 'pending' : 'todo',
+            detail: `${sales.length} sales recorded (need 30+)`,
+            status: sales.length >= 30 ? 'done' : sales.length >= 15 ? 'pending' : 'todo',
+          },
+          {
+            id: 'salesVolume',
+            label: 'Sales Volume',
+            detail: `${sales.length} total sales (need 50+)`,
+            status: sales.length >= 50 ? 'done' : sales.length >= 30 ? 'pending' : 'todo',
           },
           {
             id: 'profit',
             label: 'Profit Margin',
-            detail: `${Math.round(avgMargin)}% average margin`,
-            status: avgMargin >= 25 ? 'done' : avgMargin >= 15 ? 'pending' : 'todo',
+            detail: `${Math.round(avgMargin)}% average margin (need 20%+)`,
+            status: avgMargin >= 25 ? 'done' : avgMargin >= 20 ? 'pending' : 'todo',
           },
           {
             id: 'cashflow',
@@ -169,8 +215,26 @@ export function CapitalPage() {
           {
             id: 'consistency',
             label: 'Consistent Activity',
-            detail: `${dataHistory} days of data`,
-            status: dataHistory >= 60 ? 'done' : dataHistory >= 30 ? 'pending' : 'todo',
+            detail: `${dataHistory} days of data (need 60+)`,
+            status: dataHistory >= 60 ? 'done' : dataHistory >= 45 ? 'pending' : 'todo',
+          },
+          {
+            id: 'activeDays',
+            label: 'Platform Activity',
+            detail: `${activeDays} active days (need 45+)`,
+            status: activeDays >= 45 ? 'done' : activeDays >= 30 ? 'pending' : 'todo',
+          },
+          {
+            id: 'recordingConsistency',
+            label: 'Recording Consistency',
+            detail: `${recordingConsistency}% consistency (need 60%+)`,
+            status: recordingConsistency >= 60 ? 'done' : recordingConsistency >= 40 ? 'pending' : 'todo',
+          },
+          {
+            id: 'dedication',
+            label: 'Platform Dedication',
+            detail: `${Math.round(dedicationScore)}% dedication score (need 70%+)`,
+            status: dedicationScore >= 70 ? 'done' : dedicationScore >= 50 ? 'pending' : 'todo',
           },
           {
             id: 'inventory',
@@ -183,8 +247,8 @@ export function CapitalPage() {
           {
             id: 'expenses',
             label: 'Expense Records',
-            detail: `${expenses.length} expenses logged`,
-            status: expenses.length >= 10 ? 'done' : expenses.length >= 3 ? 'pending' : 'todo',
+            detail: `${expenses.length} expenses logged (need 15+)`,
+            status: expenses.length >= 15 ? 'done' : expenses.length >= 8 ? 'pending' : 'todo',
           },
         ];
 
@@ -308,6 +372,57 @@ export function CapitalPage() {
           <div className={styles.statValue}>{stats.requirementsMet} of {stats.totalRequirements}</div>
           <div className={styles.statLabel}>Requirements</div>
         </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#F4A535" strokeWidth={2} width={18} height={18}>
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{stats.platformDedicationScore}%</div>
+          <div className={styles.statLabel}>Platform Dedication</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#F4A535" strokeWidth={2} width={18} height={18}>
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{stats.activeDays} days</div>
+          <div className={styles.statLabel}>Active Days</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#F4A535" strokeWidth={2} width={18} height={18}>
+              <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <div className={styles.statValue}>{stats.recordingConsistency}%</div>
+          <div className={styles.statLabel}>Recording Consistency</div>
+        </div>
+      </div>
+
+      <h3 className={styles.sectionTitle}>Platform Dedication Requirements</h3>
+      <div className={styles.dedicationNotice}>
+        <div className={styles.dedicationIcon}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#F4A535" strokeWidth={2} width={24} height={24}>
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div className={styles.dedicationContent}>
+          <h4>Fair Platform Dedication Required</h4>
+          <p>
+            To ensure fair access to capital for businesses genuinely committed to using Busmo, 
+            we require consistent platform dedication. This includes regular recording of sales and expenses, 
+            maintaining data consistency over time, and demonstrating sustained business activity.
+          </p>
+          <ul>
+            <li><strong>45+ active days</strong> — Regular engagement with the platform</li>
+            <li><strong>60%+ recording consistency</strong> — Consistent data recording habits</li>
+            <li><strong>70%+ dedication score</strong> — Overall platform commitment</li>
+            <li><strong>60+ days of data history</strong> — Sufficient business track record</li>
+            <li><strong>30+ sales, 15+ expenses</strong> — Comprehensive business data</li>
+          </ul>
+        </div>
       </div>
 
       <h3 className={styles.sectionTitle}>Available Funding Options</h3>
@@ -330,8 +445,8 @@ export function CapitalPage() {
               <div className={styles.rangeValue}>3-5%/mo</div>
             </div>
           </div>
-          <span className={`${styles.tag} ${fundabilityScore >= 40 ? styles.tagGreen : styles.tagAmber}`}>
-            {fundabilityScore >= 40 ? 'Pre-Qualified' : 'Build Score'}
+          <span className={`${styles.tag} ${fundabilityScore >= 50 ? styles.tagGreen : styles.tagAmber}`}>
+            {fundabilityScore >= 50 ? 'Pre-Qualified' : 'Build Score (Need 50+)'}
           </span>
         </div>
 
@@ -353,8 +468,8 @@ export function CapitalPage() {
               <div className={styles.rangeValue}>5-15%</div>
             </div>
           </div>
-          <span className={`${styles.tag} ${fundabilityScore >= 60 ? styles.tagGreen : styles.tagBlue}`}>
-            {fundabilityScore >= 60 ? 'Available' : 'Requires 60+ Score'}
+          <span className={`${styles.tag} ${fundabilityScore >= 70 ? styles.tagGreen : styles.tagBlue}`}>
+            {fundabilityScore >= 70 ? 'Available' : 'Requires 70+ Score'}
           </span>
         </div>
 
@@ -376,8 +491,8 @@ export function CapitalPage() {
               <div className={styles.rangeValue}>10-30%</div>
             </div>
           </div>
-          <span className={`${styles.tag} ${fundabilityScore >= 75 ? styles.tagGreen : styles.tagBlue}`}>
-            {fundabilityScore >= 75 ? 'Eligible' : 'Requires 75+ Score'}
+          <span className={`${styles.tag} ${fundabilityScore >= 85 ? styles.tagGreen : styles.tagBlue}`}>
+            {fundabilityScore >= 85 ? 'Eligible' : 'Requires 85+ Score'}
           </span>
         </div>
       </div>

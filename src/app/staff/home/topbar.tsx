@@ -4,10 +4,10 @@ import type { PageId, StaffUser } from '../types';
 const PAGE_META: Record<PageId, { title: string; sub: string }> = {
   home:       { title: 'Staff Dashboard',  sub: 'Your shift overview'                    },
   sale:       { title: 'Record a Sale',    sub: 'Select products and confirm the sale'   },
-  inventory:  { title: 'Inventory',        sub: 'View stock levels and alerts'           },
-  history:    { title: 'Sale History',     sub: 'All sales recorded during your shifts'  },
-  attendance: { title: 'Shift & Attendance', sub: 'Track clock-ins and shift hours'      },
-  messages:   { title: 'Messages',         sub: 'Chat with owner and team'               },
+  inv:        { title: 'Inventory',        sub: 'View stock levels and alerts'           },
+  hist:       { title: 'Sale History',     sub: 'All sales recorded during your shifts'  },
+  atd:        { title: 'Shift & Attendance', sub: 'Track clock-ins and shift hours'      },
+  msg:        { title: 'Messages',         sub: 'Chat with owner and team'               },
   settings:   { title: 'Settings',         sub: 'Personalise your portal experience'     },
 };
 
