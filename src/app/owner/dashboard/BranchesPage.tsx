@@ -67,7 +67,7 @@ export function BranchesPage() {
           return;
         }
 
-        const businessId = userDoc.data().businessId || currentUser.uid;
+        const businessId = userDoc.data()?.businessId || currentUser.uid;
 
         // Load branches
         const branchesQuery = query(collection(firestore, 'businesses', businessId, 'branches'));
@@ -137,7 +137,7 @@ export function BranchesPage() {
       if (!currentUser) return;
 
       const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data().businessId || currentUser.uid;
+      const businessId = userDoc.data()?.businessId || currentUser.uid;
 
       await addDoc(collection(firestore, 'businesses', businessId, 'branches'), {
         name: branchData.name,
@@ -169,7 +169,7 @@ export function BranchesPage() {
       if (!currentUser) return;
 
       const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data().businessId || currentUser.uid;
+      const businessId = userDoc.data()?.businessId || currentUser.uid;
 
       await updateDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
         branchId,
@@ -198,7 +198,7 @@ export function BranchesPage() {
       if (!currentUser) return;
 
       const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data().businessId || currentUser.uid;
+      const businessId = userDoc.data()?.businessId || currentUser.uid;
 
       await deleteDoc(doc(firestore, 'businesses', businessId, 'branches', branchId));
 
