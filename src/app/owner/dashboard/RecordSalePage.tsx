@@ -294,12 +294,19 @@ export function RecordSalePage() {
 
         if (customerId) {
           // Calculate due date (default 7 days from now if not specified)
-          const dueDate = creditDueDate ? new Date(creditDueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          let dueDate: Date;
+          if (creditDueDate) {
+            // Parse date string as local time (not UTC) to avoid timezone issues
+            const [year, month, day] = creditDueDate.split('-').map(Number);
+            dueDate = new Date(year, month - 1, day);
+          } else {
+            dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          }
 
           // Create credit transaction
           await addDoc(collection(firestore, 'businesses', businessId, 'credit_transactions'), {
             customerId,
-            customerName: creditCustomerName || creditCustomers.find(c => c.id === customerId)?.name || 'Unknown',
+            customerName: creditCustomerName || (selectedCreditCustomer ? creditCustomers.find(c => c.id === customerId)?.name : null) || 'Unknown',
             saleId: saleRef.id,
             amount: creditPayment.amount,
             originalAmount: creditPayment.amount,
