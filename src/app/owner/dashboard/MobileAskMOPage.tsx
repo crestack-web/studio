@@ -443,6 +443,11 @@ export function MobileAskMOPage() {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          <button className={styles.backBtn} onClick={() => navigateTo('home')} title="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
           <div className={styles.moAvatar}>
             <MoIcon size={28} />
           </div>

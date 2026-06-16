@@ -68,6 +68,7 @@ const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);
 
 export function AppShell() {
   const { activePage } = useApp();
+  const isMobileAskMO = activePage === 'mo-mobile';
 
   const currentPage = PAGE_MAP[activePage] ?? (
     <div className={styles.placeholder}>
@@ -80,11 +81,11 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
-      <Sidebar />
+      {!isMobileAskMO && <Sidebar />}
 
       <div className={styles.main}>
-        <NotificationBar />
-        <Topbar />
+        {!isMobileAskMO && <NotificationBar />}
+        {!isMobileAskMO && <Topbar />}
 
         <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : ''].join(' ')}>
           <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>
@@ -92,7 +93,7 @@ export function AppShell() {
           </div>
         </div>
 
-        <MobileBottomNav />
+        {!isMobileAskMO && <MobileBottomNav />}
       </div>
 
       <AvatarModal />
