@@ -60,6 +60,7 @@ export interface User {
   plan: string;
   avatarContent: string;   // emoji, initials, or img URL
   avatarStyle?: React.CSSProperties;
+  photoURL?: string;       // uploaded profile picture URL
 }
 
 // ── Metrics ─────────────────────────────────

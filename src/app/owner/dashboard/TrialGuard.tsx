@@ -51,7 +51,14 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         const trialEndDate = userData.trialEndDate?.toDate();
         const subscriptionStatus = userData.subscriptionStatus;
         const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
+        const userRole = userData.role;
         const now = new Date();
+
+        // Staff users don't need trial - they can access dashboard
+        if (userRole === 'Staff') {
+          setIsLoading(false);
+          return;
+        }
 
         // If already subscribed, check if subscription is still valid
         if (subscriptionStatus === 'active') {

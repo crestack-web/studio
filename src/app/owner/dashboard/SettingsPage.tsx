@@ -151,34 +151,57 @@ export default function SettingsPage() {
     address: '',
   });
 
-  // Load business profile from Firestore
+  // ── Subscription info ───────────────────────────────────
+  const [subscription, setSubscription] = useState({
+    status: '',
+    plan: '',
+    endDate: null as Date | null,
+    lastPaymentAmount: 0,
+  });
+
+  // Load business profile and subscription from Firestore
   useEffect(() => {
-    const loadBusinessProfile = async () => {
+    const loadData = async () => {
       try {
         const { firestore } = initializeFirebase();
         const auth = getAuth();
         const currentUser = auth.currentUser;
         
-        if (currentUser && user.businessId) {
-          const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
-          if (businessDoc.exists()) {
-            const data = businessDoc.data();
-            setBiz({
-              name: data.businessName || '',
-              category: data.category || '',
-              phone: data.phone || '',
-              email: data.email || '',
-              address: data.address || '',
+        if (currentUser) {
+          // Load business profile
+          if (user.businessId) {
+            const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
+            if (businessDoc.exists()) {
+              const data = businessDoc.data();
+              setBiz({
+                name: data.businessName || '',
+                category: data.category || '',
+                phone: data.phone || '',
+                email: data.email || '',
+                address: data.address || '',
+              });
+            }
+          }
+
+          // Load subscription info
+          const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setSubscription({
+              status: data.subscriptionStatus || 'trial',
+              plan: data.plan || 'starter',
+              endDate: data.subscriptionEndDate?.toDate() || null,
+              lastPaymentAmount: data.lastPaymentAmount || 0,
             });
           }
         }
       } catch (error) {
-        console.error('Failed to load business profile:', error);
+        console.error('Failed to load data:', error);
       }
     };
 
-    loadBusinessProfile();
-  }, [user.businessId]);
+    loadData();
+  }, [user.businessId, user.id]);
 
   // ── Handlers ───────────────────────────────────────────
   const handleCountryChange = (cc: string) => {
@@ -196,6 +219,31 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => showToast(`✅ ${t('settings.changesSaved')}`);
+
+  // Handle cancel subscription
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')) {
+      return;
+    }
+
+    try {
+      const { firestore } = initializeFirebase();
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        await updateDoc(doc(firestore, 'users', currentUser.uid), {
+          subscriptionStatus: 'cancelled',
+          cancellationRequestedAt: new Date(),
+        });
+        showToast('✅ Subscription cancellation requested. You will retain access until the end of your billing period.');
+        setSubscription(prev => ({ ...prev, status: 'cancelled' }));
+      }
+    } catch (error) {
+      console.error('Failed to cancel subscription:', error);
+      showToast('❌ Failed to cancel subscription. Please contact support.');
+    }
+  };
 
   // Live preview amounts
   const PREVIEW = [1000, 25000, 1_250_000];
@@ -371,10 +419,17 @@ export default function SettingsPage() {
         <div className={styles.planCard}>
           <div className={styles.planHeader}>
             <div>
-              <div className={styles.planName}>{user.plan || 'Starter'}</div>
+              <div className={styles.planName}>{subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} Plan</div>
               <div className={styles.planEmail}>{user.email}</div>
             </div>
-            <div className={styles.planBadge}>Active</div>
+            <div className={`${styles.planBadge} ${
+              subscription.status === 'active' ? styles.planBadgeActive :
+              subscription.status === 'trial' ? styles.planBadgeTrial :
+              subscription.status === 'cancelled' ? styles.planBadgeCancelled :
+              styles.planBadgeExpired
+            }`}>
+              {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+            </div>
           </div>
           <div className={styles.planDetails}>
             <div className={styles.planDetail}>
@@ -385,7 +440,36 @@ export default function SettingsPage() {
               <span className={styles.planDetailLabel}>Business:</span>
               <span className={styles.planDetailValue}>{user.businessId ? 'Connected' : 'Not set'}</span>
             </div>
+            {subscription.endDate && (
+              <div className={styles.planDetail}>
+                <span className={styles.planDetailLabel}>Renews on:</span>
+                <span className={styles.planDetailValue}>
+                  {subscription.endDate.toLocaleDateString()}
+                </span>
+              </div>
+            )}
+            {subscription.lastPaymentAmount > 0 && (
+              <div className={styles.planDetail}>
+                <span className={styles.planDetailLabel}>Last payment:</span>
+                <span className={styles.planDetailValue}>
+                  ₦{subscription.lastPaymentAmount.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
+          {(subscription.status === 'active' || subscription.status === 'trial') && (
+            <button
+              className={styles.cancelBtn}
+              onClick={handleCancelSubscription}
+            >
+              Cancel Subscription
+            </button>
+          )}
+          {subscription.status === 'cancelled' && (
+            <div className={styles.cancelledNotice}>
+              Your subscription has been cancelled. You will retain access until {subscription.endDate?.toLocaleDateString()}.
+            </div>
+          )}
         </div>
       </Section>
 

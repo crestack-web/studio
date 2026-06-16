@@ -64,7 +64,7 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'mo-mobile':  <MobileAskMOPage />,
 };
 
-const FULL_HEIGHT_PAGES = new Set<string>([]);
+const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);
 
 export function AppShell() {
   const { activePage } = useApp();

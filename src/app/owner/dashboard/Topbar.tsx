@@ -157,8 +157,16 @@ export function Topbar() {
         <div className={styles.divider} />
 
         <button className={styles.userBtn} onClick={openAvatarModal}>
-          <div className={styles.avatar} style={user.avatarStyle}>
-            <span>{user.avatarContent}</span>
+          <div 
+            className={styles.avatar} 
+            style={{
+              background: user.photoURL 
+                ? `url(${user.photoURL}) center/cover` 
+                : user.avatarStyle?.background,
+              color: user.photoURL ? 'transparent' : user.avatarStyle?.color,
+            }}
+          >
+            {!user.photoURL && <span>{user.avatarContent}</span>}
           </div>
           <div className={styles.userText}>
             <div className={styles.userName}>{user.shortName}</div>

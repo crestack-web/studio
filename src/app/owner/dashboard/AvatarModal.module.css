@@ -109,6 +109,17 @@
   margin-bottom: 8px;
 }
 
+.uploadSection {
+  margin-bottom: 16px;
+}
+
+.uploadHint {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  text-align: center;
+  margin-top: 6px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

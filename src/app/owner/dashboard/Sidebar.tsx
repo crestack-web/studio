@@ -162,7 +162,17 @@ export function Sidebar() {
 
         <div className={styles.userArea}>
           <button className={styles.userInner} onClick={openAvatarModal}>
-            <div className={styles.avatar} style={user.avatarStyle}>{user.avatarContent}</div>
+            <div 
+              className={styles.avatar} 
+              style={{
+                background: user.photoURL 
+                  ? `url(${user.photoURL}) center/cover` 
+                  : user.avatarStyle?.background,
+                color: user.photoURL ? 'transparent' : user.avatarStyle?.color,
+              }}
+            >
+              {!user.photoURL && user.avatarContent}
+            </div>
             <div className={styles.userInfo}>
               <div className={styles.userName}>{user.name}</div>
               <div className={styles.userRole}>{user.role} · {user.plan}</div>

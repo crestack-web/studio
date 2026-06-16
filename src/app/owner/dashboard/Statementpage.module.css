@@ -102,3 +102,11 @@
   .filterBar { flex-direction: column; align-items: stretch; }
   .filterActions { justify-content: flex-end; }
 }
+
+@media (max-width: 480px) {
+  .page { padding: 12px; }
+  .kpiGrid { grid-template-columns: 1fr; }
+  .filterLeft { flex-direction: column; }
+  .filterGroup { width: 100%; }
+  .filterInput, .filterSelect { min-width: 100%; }
+}

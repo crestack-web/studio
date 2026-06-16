@@ -169,12 +169,11 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const langMeta = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0];
   const isRTL = langMeta.rtl;
 
-  // Apply dir attribute to <html> for RTL support
+  // Apply lang attribute to <html> (but NOT dir to prevent layout issues)
   useEffect(() => {
-    document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', lang);
     try { localStorage.setItem('busmo-lang', lang); } catch {}
-  }, [lang, isRTL]);
+  }, [lang]);
 
   const setLang = useCallback((code: LangCode) => {
     setLangState(code);

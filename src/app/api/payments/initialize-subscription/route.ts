@@ -43,6 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert amount from USD to NGN (1 USD = 1,550 NGN)
+    const USD_TO_NGN_RATE = 1550;
+    const amountInNaira = amount * USD_TO_NGN_RATE;
+
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -52,12 +56,14 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         email: email,
-        amount: amount * 100, // Paystack expects amount in kobo (lowest currency unit)
+        amount: amountInNaira * 100, // Paystack expects amount in kobo (lowest currency unit)
         currency: 'NGN', // Explicitly set to Nigerian Naira
         metadata: {
           plan: plan,
           userId: userId,
           payment_type: 'subscription',
+          originalAmountUSD: amount,
+          convertedAmountNGN: amountInNaira,
         },
         callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscribe/success`,
         channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],

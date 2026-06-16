@@ -188,42 +188,6 @@ export default function WelcomePage() {
       {/* FAQ */}
       <FAQSection />
 
-      {/* DOWNLOAD BUSMO SECTION */}
-      <section className="download-section">
-        <div className="max-w">
-          <div className="section-head center">
-            <div className="section-label">Use Busmo Anywhere</div>
-            <h2 className="section-title">Your Business,<br /><em>Every Device.</em></h2>
-            <p className="section-sub">Whether you're at the office, in-store, on the road, or managing multiple branches, Busmo works wherever your business does.</p>
-          </div>
-          <div className="platform-cards">
-            <div className="platform-card">
-              <div className="platform-icon">💻</div>
-              <div className="platform-name">Windows</div>
-              <div className="platform-desc">Desktop app with offline support</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🍎</div>
-              <div className="platform-name">macOS</div>
-              <div className="platform-desc">Native Mac experience</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🤖</div>
-              <div className="platform-name">Android</div>
-              <div className="platform-desc">Mobile on-the-go management</div>
-            </div>
-            <div className="platform-card">
-              <div className="platform-icon">🌐</div>
-              <div className="platform-name">Web App</div>
-              <div className="platform-desc">Works on any device</div>
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', marginTop: 32 }}>
-            <button className="btn-primary" onClick={() => handleNavigate('download')}>Download Busmo</button>
-          </div>
-        </div>
-      </section>
-
       {/* BUSINESS CATEGORIES SLIDER */}
       <BusinessCategoriesSlider />
 

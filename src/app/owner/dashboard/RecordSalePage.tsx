@@ -230,12 +230,17 @@ export function RecordSalePage() {
       const staffName = userData?.displayName || user.displayName || 'Unknown';
 
       // Calculate expected cash and bank collections
+      const splitPayment = paymentBreakdown.find(pb => pb.method === 'split');
+      const splitAmount = splitPayment?.amount || 0;
+      const splitCashPortion = splitAmount * 0.5; // 50% of split goes to cash
+      const splitBankPortion = splitAmount * 0.5; // 50% of split goes to bank
+
       const expectedCash = paymentBreakdown
-        .filter(pb => pb.method === 'cash' || (pb.method === 'split' && pb.amount > 0))
-        .reduce((sum, pb) => sum + pb.amount, 0);
+        .filter(pb => pb.method === 'cash')
+        .reduce((sum, pb) => sum + pb.amount, 0) + splitCashPortion;
       const expectedBank = paymentBreakdown
-        .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method) || (pb.method === 'split' && pb.amount > 0))
-        .reduce((sum, pb) => sum + pb.amount, 0);
+        .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method))
+        .reduce((sum, pb) => sum + pb.amount, 0) + splitBankPortion;
 
       // Create sale document with staff tracking
       const saleData = {

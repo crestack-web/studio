@@ -34,9 +34,9 @@ function SubscriptionSuccessContent() {
           throw new Error(data.error || 'Payment verification failed');
         }
 
-        // Payment verified successfully - redirect to dashboard
+        // Payment verified successfully - redirect to owner dashboard
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/owner/dashboard');
         }, 2000);
 
       } catch (err) {
@@ -87,7 +87,7 @@ function SubscriptionSuccessContent() {
               Try Again
             </button>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/owner/dashboard')}
               className="w-full bg-gray-100 text-[#555568] font-semibold rounded-xl h-12 flex items-center justify-center text-base transition hover:bg-gray-200"
             >
               Return to Dashboard

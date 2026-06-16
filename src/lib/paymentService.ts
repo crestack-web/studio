@@ -38,11 +38,19 @@ export async function initializePaystackPayment(config: PaymentConfig): Promise<
     await loadPaystackScript();
   }
 
+  // Convert amount from USD to NGN if currency is USD
+  let amountInKobo = config.amount * 100; // Default: assume amount is already in target currency
+  if (config.currency === 'USD') {
+    // Convert USD to NGN (1 USD = 1,550 NGN)
+    const USD_TO_NGN_RATE = 1550;
+    amountInKobo = config.amount * USD_TO_NGN_RATE * 100;
+  }
+
   const paystack = (window as any).PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email: config.email,
-    amount: config.amount * 100, // Paystack expects amount in kobo (smallest currency unit)
-    currency: config.currency || 'NGN', // Default to Nigerian Naira for Paystack
+    amount: amountInKobo, // Paystack expects amount in kobo (smallest currency unit)
+    currency: config.currency === 'USD' ? 'NGN' : (config.currency || 'NGN'), // Always use NGN for Paystack
     metadata: config.metadata,
     callback: function (response: any) {
       // Payment successful

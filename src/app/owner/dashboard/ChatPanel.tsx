@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import styles from './ChatPanel.module.css';
 
 interface StaffMember {
   id: string;
@@ -267,37 +268,14 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: '16px',
-      height: 'calc(100vh - 250px)',
-      minHeight: '500px',
-    }}>
+    <div className={styles.chatContainer}>
       {/* Conversations Sidebar */}
-      <div style={{
-        width: '280px',
-        flexShrink: 0,
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          padding: '16px',
-          borderBottom: '1px solid var(--border)',
-        }}>
-          <h3 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            color: 'var(--text-1)',
-            margin: 0,
-          }}>Conversations</h3>
+      <div className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h3 className={styles.sidebarTitle}>Conversations</h3>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className={styles.sidebarContent}>
           {/* Team Chat */}
           <button
             onClick={() => setSelectedChat('team')}
@@ -409,25 +387,11 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
       </div>
 
       {/* Chat Area */}
-      <div style={{
-        flex: 1,
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
+      <div className={styles.chatArea}>
         {getSelectedConversation() ? (
           <>
             {/* Chat Header */}
-            <div style={{
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-            }}>
+            <div className={styles.chatHeader}>
               <div style={{
                 width: '40px',
                 height: '40px',
@@ -456,16 +420,7 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
             {/* Messages */}
             <div
               ref={messagesContainerRef}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                background: 'var(--bg)',
-                scrollBehavior: 'smooth',
-              }}
+              className={styles.messagesContainer}
             >
               {getSelectedConversation().messages.map((msg) => (
                 <div
@@ -659,11 +614,7 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
             </div>
 
             {/* Input Area */}
-            <div style={{
-              padding: '16px 20px 24px 20px',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--surface)',
-            }}>
+            <div className={styles.inputArea}>
               {imagePreview && (
                 <div style={{
                   position: 'relative',

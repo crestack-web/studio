@@ -27,6 +27,7 @@ type User = {
     background: string;
     color: string;
   };
+  photoURL?: string;
   businessId?: string;
 };
 
@@ -125,6 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     email: '',
     avatarContent: '👤',
     avatarStyle: { background: '#6B3FE7', color: '#fff' },
+    photoURL: undefined,
     businessId: undefined,
   });
 
@@ -148,11 +150,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
               id: firebaseUser.uid,
               name: displayName,
               email: firebaseUser.email || data.email || '',
-              avatarContent: data.avatarContent || '👤',
+              avatarContent: data.photoURL || data.avatarContent || '👤',
               avatarStyle: { 
-                background: data.avatarBg || '#6B3FE7', 
+                background: data.photoURL || data.avatarBg || '#6B3FE7', 
                 color: data.avatarColor || '#fff' 
               },
+              photoURL: data.photoURL,
               businessId: data.businessId,
             });
           } else {
@@ -170,6 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               email: firebaseUser.email || '',
               avatarContent: '👤',
               avatarStyle: { background: '#6B3FE7', color: '#fff' },
+              photoURL: undefined,
               businessId: undefined,
             });
           }
@@ -191,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...prev,
       avatarContent: option.content,
       avatarStyle: { background: option.bg, color: option.color },
+      photoURL: option.bg.startsWith('http') ? option.bg : undefined,
     }));
     setAvatarModalOpen(false);
   }, []);

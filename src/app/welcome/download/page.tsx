@@ -37,28 +37,6 @@ export default function DownloadPage() {
 
   const platforms: Platform[] = [
     {
-      id: 'windows',
-      name: 'Windows',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-          <path d="M0 3.449L9.75 2.1v9.451H0V3.449zm10.949-1.603L24 0v11.4h-13.051V1.846zm0 12.654H24V24l-13.051-1.846V14.5zM0 13.449h9.75V21.9L0 20.551V13.449z"/>
-        </svg>
-      ),
-      downloadUrl: 'https://storage.googleapis.com/bizassistant2-62305643-adad7.appspot.com/apps/windows/Busmo-Setup-2.1.0.exe',
-      version: '2.1.0',
-    },
-    {
-      id: 'macos',
-      name: 'macOS',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-        </svg>
-      ),
-      downloadUrl: 'https://storage.googleapis.com/bizassistant2-62305643-adad7.appspot.com/apps/macos/Busmo-2.1.0.dmg',
-      version: '2.1.0',
-    },
-    {
       id: 'android',
       name: 'Android',
       icon: (
@@ -67,17 +45,6 @@ export default function DownloadPage() {
         </svg>
       ),
       downloadUrl: 'https://storage.googleapis.com/bizassistant2-62305643-adad7.appspot.com/apps/android/Busmo-2.1.0.apk',
-      version: '2.1.0',
-    },
-    {
-      id: 'ios',
-      name: 'iPhone/iPad',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-          <path d="M16 1H8C6.34 1 5 2.34 5 4V20C5 21.66 6.34 23 8 23H16C17.66 23 19 21.66 19 20V4C19 2.34 17.66 1 16 1ZM12 22C10.9 22 10 21.1 10 20C10 18.9 10.9 18 12 18C13.1 18 14 18.9 14 20C14 21.1 13.1 22 12 22ZM16 17H8V4H16V17Z"/>
-        </svg>
-      ),
-      downloadUrl: 'https://apps.apple.com/app/busmo/id1234567890',
       version: '2.1.0',
     },
     {
