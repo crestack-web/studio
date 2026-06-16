@@ -303,6 +303,12 @@ export function MobileAskMOPage() {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('MO API error response:', errorData);
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+
       const data = await response.json();
 
       const botMsg: MOMessage = {
@@ -351,13 +357,15 @@ export function MobileAskMOPage() {
       await saveConversation();
     } catch (error) {
       console.error('MO API error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        content: `I'm having trouble connecting right now. ${errorMessage}. Please try again in a moment.`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, botMsg]);
+      showToast(`Error: ${errorMessage}`);
     } finally {
       setIsTyping(false);
       setIsStreaming(false);

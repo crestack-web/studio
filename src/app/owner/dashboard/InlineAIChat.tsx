@@ -347,12 +347,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       });
 
       console.log('📡 API Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ API Error Response:', errorData);
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       console.log('📡 API Response data:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
-      }
 
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
