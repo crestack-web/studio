@@ -215,7 +215,14 @@ export function MobileAskMOPage() {
   };
 
   const transcribeAudio = async (blob: Blob): Promise<string> => {
-    return "Voice message (transcription not available)";
+    try {
+      const { transcribeAudio: transcribe } = await import('@/services/ai/speech-to-text-service');
+      const transcription = await transcribe(blob, lang);
+      return transcription;
+    } catch (error) {
+      console.error('Transcription error:', error);
+      return '🎤 Voice message (transcription failed)';
+    }
   };
 
   const send = useCallback(async (text?: string) => {

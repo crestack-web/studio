@@ -81,4 +81,121 @@ async function updateOrderStatus(orderId, status) {
   await db.collection('orders').doc(orderId).set({ status, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
 }
 
-module.exports = { addProduct, recordSale, getReport, getUserByPhone, updateOrderStatus };
+// Conversation memory functions for WhatsApp MO
+async function getConversationHistory(userPhone, limit = 10) {
+  try {
+    const snap = await db.collection('whatsapp_conversations')
+      .where('userPhone', '==', userPhone)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    
+    const messages = [];
+    snap.forEach(doc => {
+      const data = doc.data();
+      messages.push({
+        role: data.role,
+        content: data.content,
+        timestamp: data.createdAt?.toDate()
+      });
+    });
+    
+    // Return in chronological order (oldest first)
+    return messages.reverse();
+  } catch (err) {
+    console.error('Error fetching conversation history:', err);
+    return [];
+  }
+}
+
+async function saveConversationMessage(userPhone, role, content) {
+  try {
+    await db.collection('whatsapp_conversations').add({
+      userPhone,
+      role,
+      content,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error('Error saving conversation message:', err);
+  }
+}
+
+async function clearOldConversationHistory(userPhone, daysToKeep = 7) {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    
+    const snap = await db.collection('whatsapp_conversations')
+      .where('userPhone', '==', userPhone)
+      .where('createdAt', '<', admin.firestore.Timestamp.fromDate(cutoffDate))
+      .get();
+    
+    const batch = db.batch();
+    snap.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    if (snap.size > 0) {
+      await batch.commit();
+      console.log(`Cleared ${snap.size} old messages for ${userPhone}`);
+    }
+  } catch (err) {
+    console.error('Error clearing old conversation history:', err);
+  }
+}
+
+async function getConversationSummary(userPhone) {
+  try {
+    const recentMessages = await getConversationHistory(userPhone, 20);
+    if (recentMessages.length === 0) return null;
+    
+    // Simple summary based on recent messages
+    const userMessages = recentMessages.filter(m => m.role === 'user');
+    const botMessages = recentMessages.filter(m => m.role === 'bot');
+    
+    return {
+      totalMessages: recentMessages.length,
+      userMessages: userMessages.length,
+      botMessages: botMessages.length,
+      lastInteraction: recentMessages[recentMessages.length - 1]?.timestamp,
+      recentTopics: extractTopics(userMessages.slice(-5))
+    };
+  } catch (err) {
+    console.error('Error getting conversation summary:', err);
+    return null;
+  }
+}
+
+function extractTopics(messages) {
+  const topics = [];
+  const keywords = {
+    'sales': ['sold', 'sale', 'buy', 'purchase', 'revenue'],
+    'products': ['product', 'item', 'inventory', 'stock', 'add'],
+    'reports': ['report', 'summary', 'analytics', 'performance'],
+    'expenses': ['expense', 'cost', 'spending', 'budget']
+  };
+  
+  messages.forEach(msg => {
+    const content = msg.content.toLowerCase();
+    Object.entries(keywords).forEach(([topic, words]) => {
+      if (words.some(word => content.includes(word)) && !topics.includes(topic)) {
+        topics.push(topic);
+      }
+    });
+  });
+  
+  return topics;
+}
+
+module.exports = { 
+  addProduct, 
+  recordSale, 
+  getReport, 
+  getUserByPhone, 
+  updateOrderStatus,
+  getConversationHistory,
+  saveConversationMessage,
+  clearOldConversationHistory,
+  getConversationSummary
+};

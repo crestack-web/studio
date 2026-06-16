@@ -210,9 +210,14 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   };
 
   const transcribeAudio = async (blob: Blob): Promise<string> => {
-    // For now, return a placeholder since we don't have a transcription service
-    // In production, you would use a service like OpenAI Whisper or Google Speech-to-Text
-    return "Voice message (transcription not available)";
+    try {
+      const { transcribeAudio: transcribe } = await import('@/services/ai/speech-to-text-service');
+      const transcription = await transcribe(blob, lang);
+      return transcription;
+    } catch (error) {
+      console.error('Transcription error:', error);
+      return '🎤 Voice message (transcription failed)';
+    }
   };
 
   const send = useCallback(async (text?: string) => {

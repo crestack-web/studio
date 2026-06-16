@@ -607,9 +607,67 @@ async function getBusinessContext(businessId: string) {
 
 
 /**
- * Build system prompt with business context
+ * Summarize conversation history to manage token limits
  */
-function buildSystemPrompt(businessContext: any, language: string, languageName: string): string {
+function summarizeConversationHistory(conversationHistory: any[]): string {
+  if (!conversationHistory || conversationHistory.length === 0) {
+    return '';
+  }
+
+  const recentMessages = conversationHistory.slice(-6); // Keep last 6 messages for context
+  const summary = recentMessages.map(msg => {
+    const role = msg.role === 'user' ? 'User' : 'MO';
+    return `${role}: ${msg.content}`;
+  }).join('\n');
+
+  return summary;
+}
+
+/**
+ * Detect if response would be repetitive based on conversation history
+ */
+function detectRepetition(newResponse: string, conversationHistory: any[]): boolean {
+  if (!conversationHistory || conversationHistory.length === 0) {
+    return false;
+  }
+
+  const recentResponses = conversationHistory
+    .filter(msg => msg.role === 'bot')
+    .slice(-3)
+    .map(msg => msg.content.toLowerCase());
+
+  const newResponseLower = newResponse.toLowerCase();
+
+  // Check if new response is too similar to recent responses
+  for (const recent of recentResponses) {
+    const similarity = calculateSimilarity(newResponseLower, recent);
+    if (similarity > 0.7) { // 70% similarity threshold
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculate similarity between two strings (simple Jaccard similarity)
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = new Set(str1.split(/\s+/));
+  const words2 = new Set(str2.split(/\s+/));
+  
+  const intersection = new Set([...words1].filter(x => words2.has(x)));
+  const union = new Set([...words1, ...words2]);
+  
+  return intersection.size / union.size;
+}
+
+/**
+ * Build system prompt with business context and conversation history
+ */
+function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = [], isFirstMessage: boolean = false): string {
+  const conversationSummary = summarizeConversationHistory(conversationHistory);
+  
   return `You are MO, an intelligent Business Intelligence Assistant for African entrepreneurs.
 You are NOT a chatbot. You are a knowledgeable business advisor who helps owners understand their business, discover opportunities, solve problems, and make better decisions through natural conversation.
 
@@ -623,6 +681,26 @@ You are NOT a chatbot. You are a knowledgeable business advisor who helps owners
 - NEVER answer questions about politics, religion, entertainment, sports, or any non-business topics.
 - If a user asks about non-business topics, politely redirect: "I'm here to help with your business. Let's focus on your sales, inventory, cash flow, or any business-related questions you have."
 - Maintain a professional, business-focused tone at all times.
+
+💬 CONVERSATION MEMORY & ADAPTABILITY:
+- Remember previous context from our conversation
+- Reference earlier topics naturally when relevant
+- Build upon previous discussions instead of repeating
+- Adapt your responses based on what the user has already asked
+- If the user asks about something we discussed before, provide new insights rather than repeating old information
+- Track the user's interests and preferences from conversation history
+
+${conversationSummary ? `
+📝 RECENT CONVERSATION CONTEXT:
+${conversationSummary}
+
+Use this context to:
+- Understand what we've already discussed
+- Avoid repeating information already provided
+- Build upon previous insights
+- Reference earlier topics naturally
+- Provide new, complementary information
+` : ''}
 
 💬 CONVERSATION SCOPE (BUSINESS ONLY):
 You can help users with:
@@ -639,6 +717,15 @@ YOU CANNOT and WILL NOT:
 - Provide advice on non-business topics
 - Tell jokes or share entertainment content
 - Discuss technology, science, or general knowledge unrelated to business
+
+${isFirstMessage ? `
+🎯 PROACTIVE SUGGESTIONS (FIRST MESSAGE):
+Since this is our first conversation, proactively mention:
+- "You can add products to your inventory by sending me product details or images"
+- "I can help you record sales quickly - just tell me what you sold"
+- "Ask me about your sales performance, cash flow, or inventory anytime"
+- "I'm here to help you understand your business data better"
+` : ''}
 
 ═══════════════════════════════════════════
 📊 COMPREHENSIVE BUSINESS CONTEXT
@@ -705,6 +792,8 @@ AVOID:
 - "The system indicates"
 - "Based on records"
 - "I found that"
+- Repeating the same information across responses
+- Starting every response with the same greeting
 
 PREFER:
 - "I noticed"
@@ -712,6 +801,8 @@ PREFER:
 - "It looks like"
 - "You might want to consider"
 - "A possible opportunity here"
+- "Building on what we discussed earlier"
+- "Following up on our previous conversation"
 
 🔮 PROACTIVE INTELLIGENCE:
 When the business data contains important signals, naturally mention them:
@@ -756,6 +847,9 @@ Continuously look for:
 15. EXPLAIN THE "WHY" — don't just state numbers, explain what they mean for their business
 16. CONNECT THE DOTS — show relationships between different metrics (e.g., "Your profit margin dropped because expenses increased faster than sales")
 17. BE PROACTIVE — suggest next steps before the user asks
+18. AVOID REPETITION — don't repeat information already provided in conversation history
+19. BUILD ON CONTEXT — reference previous discussions naturally
+20. ADAPT TO USER — adjust responses based on user's interests and questions
 
 💎 IMPORTANT NUMBERS:
 Highlight key metrics prominently when relevant:
@@ -823,7 +917,7 @@ export async function POST(req: NextRequest) {
   try {
     console.log('🚀 Ask MO API - Request received');
     const body = await req.json();
-    const { message, image, businessId, language = 'en', languageName = 'English', userId } = body;
+    const { message, image, businessId, language = 'en', languageName = 'English', userId, conversationHistory = [] } = body;
 
     console.log('🤖 MO API Request:', {
       message: message?.substring(0, 100),
@@ -831,7 +925,8 @@ export async function POST(req: NextRequest) {
       businessId: businessId || 'not provided',
       language: language || 'en',
       languageName: languageName || 'English',
-      userId: userId || 'not provided'
+      userId: userId || 'not provided',
+      conversationHistoryLength: conversationHistory?.length || 0
     });
 
     // Validate input
@@ -1092,7 +1187,11 @@ export async function POST(req: NextRequest) {
     try {
       console.log('📡 Calling GoogleAIService...');
       const aiService = getGoogleAIService();
-      const systemPrompt = buildSystemPrompt(businessContext, language, languageName);
+      
+      // Determine if this is the first message
+      const isFirstMessage = conversationHistory.length === 0;
+      
+      const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, isFirstMessage);
       
       console.log('� System prompt length:', systemPrompt.length);
       console.log('📝 Message length:', message?.length || 0);
@@ -1105,6 +1204,13 @@ export async function POST(req: NextRequest) {
       });
       
       answer = response.text;
+      
+      // Check for repetition and adjust if needed
+      if (detectRepetition(answer, conversationHistory)) {
+        console.log('⚠️ Response detected as repetitive, adding variation');
+        answer = "Building on our previous discussion, " + answer;
+      }
+      
       console.log('✅ GoogleAIService Success - Response length:', answer?.length || 0);
     } catch (error) {
       console.error('❌ GoogleAIService failed:', error);
