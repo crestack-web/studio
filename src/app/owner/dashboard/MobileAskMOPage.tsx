@@ -7,10 +7,11 @@ import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
-import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus } from 'lucide-react';
+import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings } from 'lucide-react';
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
+import { MobileBottomNav } from './MobileBottomNav';
 
 interface MOMessage {
   id: string;
@@ -84,6 +85,8 @@ export function MobileAskMOPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<number>(0);
+  const [loadingActions, setLoadingActions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,6 +274,46 @@ export function MobileAskMOPage() {
     setIsTyping(true);
     setIsStreaming(true);
     setStreamedContent('');
+    setLoadingStage(1);
+    setLoadingActions([]);
+
+    // Stage 1: Understanding Request
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setLoadingStage(2);
+
+    // Stage 2: MO Thinking (dynamic rotation)
+    const thinkingMessages = [
+      'Reviewing sales data',
+      'Checking cashflow',
+      'Looking at expenses',
+      'Comparing performance',
+      'Identifying opportunities',
+      'Analyzing inventory',
+      'Calculating profitability',
+      'Reviewing branch performance',
+    ];
+    
+    for (let i = 0; i < 3; i++) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+    
+    setLoadingStage(3);
+
+    // Stage 3: MO Actions (progressive display)
+    const actions = [
+      'Retrieved sales records',
+      'Analyzed expenses',
+      'Calculated profitability',
+      'Checked inventory',
+      'Reviewed branch performance',
+    ];
+    
+    for (const action of actions) {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setLoadingActions(prev => [...prev, action]);
+    }
+    
+    setLoadingStage(4);
 
     try {
       const { firestore } = initializeFirebase();
@@ -370,6 +413,8 @@ export function MobileAskMOPage() {
       setIsTyping(false);
       setIsStreaming(false);
       setStreamedContent('');
+      setLoadingStage(0);
+      setLoadingActions([]);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta]);
 
@@ -390,6 +435,11 @@ export function MobileAskMOPage() {
     const lines = content.split('\n');
     
     return lines.map((line, lineIndex) => {
+      // Skip empty lines but preserve spacing
+      if (!line.trim()) {
+        return <div key={lineIndex} style={{ height: '0.5rem' }} />;
+      }
+      
       // Process each line for markdown-like formatting
       const parts = line.split(/\*\*([^*]+)\*\*/g);
       
@@ -404,7 +454,7 @@ export function MobileAskMOPage() {
       
       return (
         <React.Fragment key={lineIndex}>
-          <span style={{ lineHeight: '1.6', display: 'block', marginBottom: lineIndex < lines.length - 1 ? '0.5rem' : '0' }}>
+          <span style={{ lineHeight: '1.7', display: 'block', marginBottom: lineIndex < lines.length - 1 && lines[lineIndex + 1].trim() ? '0.75rem' : '0', color: 'var(--text-1)' }}>
             {formattedLine}
           </span>
         </React.Fragment>
@@ -652,11 +702,38 @@ export function MobileAskMOPage() {
               <MoIcon size={18} />
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
-              <div className={styles.typingIndicator}>
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
+              {loadingStage === 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Cpu size={20} className={styles.loadingIcon} />
+                  <span>Understanding request...</span>
+                </div>
+              )}
+              {loadingStage === 2 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Lightbulb size={20} className={styles.loadingIcon} />
+                  <span>Reviewing business data...</span>
+                </div>
+              )}
+              {loadingStage === 3 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Settings size={20} className={styles.loadingIcon} />
+                    <span>Processing...</span>
+                  </div>
+                  {loadingActions.map((action, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)' }}>
+                      <span>✓</span>
+                      <span>{action}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {loadingStage === 4 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>✨</span>
+                  <span>Generating insights...</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -813,6 +890,9 @@ export function MobileAskMOPage() {
           </div>
         )}
       </div>
+      
+      {/* Bottom Navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

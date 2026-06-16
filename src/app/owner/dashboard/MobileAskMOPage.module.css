@@ -1,10 +1,24 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   background: var(--bg-1);
   overflow: hidden;
   position: relative;
+  padding-bottom: 0;
+}
+
+.loadingIcon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Safe area padding for mobile devices */
@@ -258,9 +272,10 @@
 }
 
 .botBubble {
-  background: var(--bg-2);
+  background: transparent;
   color: var(--text-1);
   border-bottom-left-radius: 4px;
+  padding: 12px 16px;
 }
 
 .msgText {
@@ -803,7 +818,7 @@
   border: none;
   background: transparent;
   color: var(--text-1);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   resize: none;
   min-height: 20px;
