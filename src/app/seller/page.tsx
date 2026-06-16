@@ -109,193 +109,197 @@ export default function SellerPage() {
             </div>
           )}
 
-          {!submitted && showForm ? (
-            <form className="waitlist-form" onSubmit={handleSubmit}>
-              <div className="form-section">
-                <h3 className="form-section-title">Personal Information</h3>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label htmlFor="fullName">Full Name *</label>
+          {!submitted ? (
+            <>
+              {showForm && (
+                <form className="waitlist-form" onSubmit={handleSubmit}>
+                  <div className="form-section">
+                    <h3 className="form-section-title">Personal Information</h3>
+                    <div className="form-grid-2">
+                      <div className="form-group">
+                        <label htmlFor="fullName">Full Name *</label>
+                        <input
+                          type="text"
+                          id="fullName"
+                          name="fullName"
+                          value={formData.fullName}
+                          onChange={handleChange}
+                          required
+                          placeholder="Enter your full name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="email">Email Address *</label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          required
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="phone">Phone Number *</label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          required
+                          placeholder="+234 XXX XXX XXXX"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="businessName">Business Name *</label>
+                        <input
+                          type="text"
+                          id="businessName"
+                          name="businessName"
+                          value={formData.businessName}
+                          onChange={handleChange}
+                          required
+                          placeholder="Your business name"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h3 className="form-section-title">Business Details</h3>
+                    <div className="form-grid-2">
+                      <div className="form-group">
+                        <label htmlFor="businessType">Business Type *</label>
+                        <select
+                          id="businessType"
+                          name="businessType"
+                          value={formData.businessType}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Select business type</option>
+                          <option value="retail">Retail Store</option>
+                          <option value="wholesale">Wholesale</option>
+                          <option value="manufacturing">Manufacturing</option>
+                          <option value="services">Services</option>
+                          <option value="agriculture">Agriculture</option>
+                          <option value="food">Food & Beverage</option>
+                          <option value="fashion">Fashion & Clothing</option>
+                          <option value="electronics">Electronics</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="productsCategory">Main Product Category *</label>
+                        <select
+                          id="productsCategory"
+                          name="productsCategory"
+                          value={formData.productsCategory}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Select category</option>
+                          <option value="food-beverage">Food & Beverage</option>
+                          <option value="fashion">Fashion & Clothing</option>
+                          <option value="electronics">Electronics & Gadgets</option>
+                          <option value="home-living">Home & Living</option>
+                          <option value="beauty">Beauty & Personal Care</option>
+                          <option value="health">Health & Wellness</option>
+                          <option value="baby-kids">Baby & Kids</option>
+                          <option value="sports">Sports & Outdoors</option>
+                          <option value="books">Books & Media</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="monthlyRevenue">Monthly Revenue Range *</label>
+                        <select
+                          id="monthlyRevenue"
+                          name="monthlyRevenue"
+                          value={formData.monthlyRevenue}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Select range</option>
+                          <option value="below-100k">Below ₦100,000</option>
+                          <option value="100k-500k">₦100,000 - ₦500,000</option>
+                          <option value="500k-1m">₦500,000 - ₦1,000,000</option>
+                          <option value="1m-5m">₦1,000,000 - ₦5,000,000</option>
+                          <option value="above-5m">Above ₦5,000,000</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="currentlySellingOnline">Currently Selling Online? *</label>
+                        <select
+                          id="currentlySellingOnline"
+                          name="currentlySellingOnline"
+                          value={formData.currentlySellingOnline}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Select option</option>
+                          <option value="yes-active">Yes, actively selling</option>
+                          <option value="yes-limited">Yes, but limited</option>
+                          <option value="no-never">No, never sold online</option>
+                          <option value="no-interested">No, but interested</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label htmlFor="hearAboutUs">How Did You Hear About Busmo? *</label>
+                      <select
+                        id="hearAboutUs"
+                        name="hearAboutUs"
+                        value={formData.hearAboutUs}
+                        onChange={handleChange}
+                        required
+                      >
+                        <option value="">Select option</option>
+                        <option value="social-media">Social Media (Instagram, Twitter, etc.)</option>
+                        <option value="friend-family">Friend/Family Recommendation</option>
+                        <option value="google-search">Google Search</option>
+                        <option value="busmo-user">Already a Busmo User</option>
+                        <option value="advertisement">Advertisement</option>
+                        <option value="event">Event/Workshop</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label htmlFor="additionalInfo">Additional Information (Optional)</label>
+                      <textarea
+                        id="additionalInfo"
+                        name="additionalInfo"
+                        value={formData.additionalInfo || ''}
+                        onChange={handleChange}
+                        placeholder="Tell us about your products, goals, or any questions you have..."
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-checkbox-group">
                     <input
-                      type="text"
-                      id="fullName"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
+                      type="checkbox"
+                      id="terms"
+                      name="terms"
                       required
-                      placeholder="Enter your full name"
                     />
+                    <label htmlFor="terms">
+                      I agree to receive updates about Busmo Market and understand that I'm joining a waitlist. 
+                      I'll be notified when my spot is ready. *
+                    </label>
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="email">Email Address *</label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      placeholder="you@example.com"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="phone">Phone Number *</label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      required
-                      placeholder="+234 XXX XXX XXXX"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="businessName">Business Name *</label>
-                    <input
-                      type="text"
-                      id="businessName"
-                      name="businessName"
-                      value={formData.businessName}
-                      onChange={handleChange}
-                      required
-                      placeholder="Your business name"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div className="form-section">
-                <h3 className="form-section-title">Business Details</h3>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label htmlFor="businessType">Business Type *</label>
-                    <select
-                      id="businessType"
-                      name="businessType"
-                      value={formData.businessType}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Select business type</option>
-                      <option value="retail">Retail Store</option>
-                      <option value="wholesale">Wholesale</option>
-                      <option value="manufacturing">Manufacturing</option>
-                      <option value="services">Services</option>
-                      <option value="agriculture">Agriculture</option>
-                      <option value="food">Food & Beverage</option>
-                      <option value="fashion">Fashion & Clothing</option>
-                      <option value="electronics">Electronics</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="productsCategory">Main Product Category *</label>
-                    <select
-                      id="productsCategory"
-                      name="productsCategory"
-                      value={formData.productsCategory}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Select category</option>
-                      <option value="food-beverage">Food & Beverage</option>
-                      <option value="fashion">Fashion & Clothing</option>
-                      <option value="electronics">Electronics & Gadgets</option>
-                      <option value="home-living">Home & Living</option>
-                      <option value="beauty">Beauty & Personal Care</option>
-                      <option value="health">Health & Wellness</option>
-                      <option value="baby-kids">Baby & Kids</option>
-                      <option value="sports">Sports & Outdoors</option>
-                      <option value="books">Books & Media</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="monthlyRevenue">Monthly Revenue Range *</label>
-                    <select
-                      id="monthlyRevenue"
-                      name="monthlyRevenue"
-                      value={formData.monthlyRevenue}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Select range</option>
-                      <option value="below-100k">Below ₦100,000</option>
-                      <option value="100k-500k">₦100,000 - ₦500,000</option>
-                      <option value="500k-1m">₦500,000 - ₦1,000,000</option>
-                      <option value="1m-5m">₦1,000,000 - ₦5,000,000</option>
-                      <option value="above-5m">Above ₦5,000,000</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="currentlySellingOnline">Currently Selling Online? *</label>
-                    <select
-                      id="currentlySellingOnline"
-                      name="currentlySellingOnline"
-                      value={formData.currentlySellingOnline}
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="">Select option</option>
-                      <option value="yes-active">Yes, actively selling</option>
-                      <option value="yes-limited">Yes, but limited</option>
-                      <option value="no-never">No, never sold online</option>
-                      <option value="no-interested">No, but interested</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group full-width">
-                  <label htmlFor="hearAboutUs">How Did You Hear About Busmo? *</label>
-                  <select
-                    id="hearAboutUs"
-                    name="hearAboutUs"
-                    value={formData.hearAboutUs}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select option</option>
-                    <option value="social-media">Social Media (Instagram, Twitter, etc.)</option>
-                    <option value="friend-family">Friend/Family Recommendation</option>
-                    <option value="google-search">Google Search</option>
-                    <option value="busmo-user">Already a Busmo User</option>
-                    <option value="advertisement">Advertisement</option>
-                    <option value="event">Event/Workshop</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div className="form-group full-width">
-                  <label htmlFor="additionalInfo">Additional Information (Optional)</label>
-                  <textarea
-                    id="additionalInfo"
-                    name="additionalInfo"
-                    value={formData.additionalInfo || ''}
-                    onChange={handleChange}
-                    placeholder="Tell us about your products, goals, or any questions you have..."
-                    rows={4}
-                  />
-                </div>
-              </div>
-
-              <div className="form-checkbox-group">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  name="terms"
-                  required
-                />
-                <label htmlFor="terms">
-                  I agree to receive updates about Busmo Market and understand that I'm joining a waitlist. 
-                  I'll be notified when my spot is ready. *
-                </label>
-              </div>
-
-              <button type="submit" className="btn-primary btn-large btn-full">
-                Join Waitlist →
-              </button>
-            </form>
+                  <button type="submit" className="btn-primary btn-large btn-full">
+                    Join Waitlist →
+                  </button>
+                </form>
+              )}
+            </>
           ) : (
             <div className="success-message">
               <div className="success-icon">🎉</div>

@@ -48,12 +48,11 @@ export function AvatarModal() {
     setUploading(true);
     try {
       const { storage, firestore } = initializeFirebase();
-      const storageRef = getStorage(storage);
       
       // Create a unique filename
       const timestamp = Date.now();
       const filename = `avatars/${user.id}_${timestamp}`;
-      const imageRef = ref(storageRef, filename);
+      const imageRef = ref(storage, filename);
 
       // Upload the file
       await uploadBytes(imageRef, file);
@@ -88,7 +87,7 @@ export function AvatarModal() {
         });
         
         // Update local state
-        saveAvatar({ id: 'uploaded', type: 'color', content: uploadedImage, bg: uploadedImage, color: '#fff' });
+        saveAvatar({ content: uploadedImage, bg: uploadedImage, color: '#fff' });
       } else if (selected) {
         // For color/emoji avatars, clear photoURL and save the selected option
         await updateDoc(doc(firestore, 'users', user.id), {

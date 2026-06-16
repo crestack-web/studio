@@ -3,32 +3,92 @@ import { useApp } from './AppContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { initializeFirebase } from '@/firebase';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import styles from './ReferralsPage.module.css';
 
 // ═══════════════════════════════════════════
 //  ReferralsPage
 // ═══════════════════════════════════════════
 
-const DEFAULT_REFERRAL_LINK = 'https://busmo.io/signup?ref=abdullahi';
-
-const STATS = [
-  { label: 'Total Referrals', value: '0' },
-  { label: 'Active Subs',     value: '0' },
-  { label: 'Total Earned',    value: '₦0' },
-];
+const DEFAULT_REFERRAL_LINK = 'https://busmo.io/welcome/signup?ref=';
 
 export function ReferralsPage() {
   const { navigateTo, showToast, user } = useApp();
   const [referralLink, setReferralLink] = useState(DEFAULT_REFERRAL_LINK);
+  const [stats, setStats] = useState({
+    totalReferrals: 0,
+    activeSubs: 0,
+    totalEarned: 0,
+    balance: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
   // Generate referral link based on authenticated user
   useEffect(() => {
     if (user.id) {
       // Use user's ID as referral code
-      const userReferralLink = `https://busmo.io/signup?ref=${user.id}`;
+      const userReferralLink = `${DEFAULT_REFERRAL_LINK}${user.id}`;
       setReferralLink(userReferralLink);
     }
+  }, [user.id]);
+
+  // Load real referral data from Firestore
+  useEffect(() => {
+    async function loadReferralData() {
+      if (!user.id) return;
+
+      try {
+        const { firestore } = initializeFirebase();
+        if (!firestore) return;
+
+        setLoading(true);
+
+        // Get user's referral data
+        const userRef = doc(firestore, 'users', user.id);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setStats({
+            totalReferrals: userData.totalReferrals || 0,
+            activeSubs: userData.activeReferrals || 0,
+            totalEarned: userData.totalEarned || 0,
+            balance: userData.referralBalance || 0,
+          });
+        }
+
+        // Load referral transactions for history
+        const referralsQuery = query(
+          collection(firestore, 'referrals'),
+          where('referrerId', '==', user.id)
+        );
+        const referralsSnapshot = await getDocs(referralsQuery);
+
+        // Calculate stats from referrals
+        const totalReferrals = referralsSnapshot.size;
+        const activeSubs = referralsSnapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.status === 'active' || data.hasSubscribed === true;
+        }).length;
+        const totalEarned = referralsSnapshot.docs.reduce((sum, doc) => {
+          const data = doc.data();
+          return sum + (data.commissionEarned || 0);
+        }, 0);
+
+        setStats(prev => ({
+          ...prev,
+          totalReferrals,
+          activeSubs,
+          totalEarned,
+        }));
+      } catch (error) {
+        console.error('Error loading referral data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadReferralData();
   }, [user.id]);
 
   function copyLink() {
@@ -66,19 +126,25 @@ export function ReferralsPage() {
         </div>
         <div className={styles.heroRight}>
           <div className={styles.heroBalanceLabel}>Your Balance</div>
-          <div className={styles.heroBalance}>₦0</div>
+          <div className={styles.heroBalance}>₦{stats.balance.toLocaleString()}</div>
           <div className={styles.heroMinWithdraw}>Withdraw when ≥₦5,000</div>
         </div>
       </div>
 
       {/* Stats row */}
       <div className={styles.statsRow}>
-        {STATS.map(s => (
-          <div key={s.label} className={styles.statBox}>
-            <div className={styles.statValue}>{s.value}</div>
-            <div className={styles.statLabel}>{s.label}</div>
-          </div>
-        ))}
+        <div className={styles.statBox}>
+          <div className={styles.statValue}>{stats.totalReferrals}</div>
+          <div className={styles.statLabel}>Total Referrals</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statValue}>{stats.activeSubs}</div>
+          <div className={styles.statLabel}>Active Subs</div>
+        </div>
+        <div className={styles.statBox}>
+          <div className={styles.statValue}>₦{stats.totalEarned.toLocaleString()}</div>
+          <div className={styles.statLabel}>Total Earned</div>
+        </div>
       </div>
 
       {/* Referral link box */}

@@ -121,6 +121,7 @@ export default function MoneyControlPage() {
         return sum + creditAmount;
       }, 0);
       
+      // Split payments are already divided 50/50 in RecordSalePage, so use splitPayments directly
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       

@@ -147,6 +147,9 @@ export function CreditTrackingPage() {
         });
         setTransactions(loadedTransactions);
 
+        console.log('Loaded credit transactions:', loadedTransactions.length);
+        console.log('Loaded credit customers:', loadedCustomers.length);
+
         // Calculate summary
         calculateSummary(loadedTransactions, loadedCustomers);
       } catch (error) {
