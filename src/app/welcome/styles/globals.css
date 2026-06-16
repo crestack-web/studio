@@ -41,8 +41,8 @@ body { font-family: var(--font-body); background: var(--white); color: var(--tex
 .payment-modal {
   background: var(--white);
   border-radius: var(--radius-lg);
-  max-width: 480px;
-  width: 90%;
+  max-width: 380px;
+  width: 85%;
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s ease-out;
 }
@@ -56,13 +56,13 @@ body { font-family: var(--font-body); background: var(--white); color: var(--tex
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px;
+  padding: 16px;
   border-bottom: 1px solid var(--grey-200);
 }
 
 .payment-modal-header h3 {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -82,14 +82,14 @@ body { font-family: var(--font-body); background: var(--white); color: var(--tex
 }
 
 .payment-modal-body {
-  padding: 24px;
+  padding: 16px;
 }
 
 .selected-plan-info {
   background: var(--grey-50);
-  padding: 16px;
+  padding: 12px;
   border-radius: var(--radius-sm);
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .plan-name {
@@ -140,7 +140,7 @@ body { font-family: var(--font-body); background: var(--white); color: var(--tex
 .payment-modal-footer {
   display: flex;
   gap: 12px;
-  padding: 24px;
+  padding: 16px;
   border-top: 1px solid var(--grey-200);
 }
 

@@ -144,14 +144,8 @@ export async function verifyPaystackTransaction(reference: string): Promise<any>
  * Get appropriate payment gateway based on user country
  */
 export function getPaymentGateway(): 'paystack' | 'whop' {
-  const countryCode = getUserCountryCode();
-  
-  // Use Paystack for Nigeria, Whop for other countries
-  if (countryCode === 'NG') {
-    return 'paystack';
-  }
-  
-  return 'whop';
+  // Always use Paystack for all users
+  return 'paystack';
 }
 
 /**

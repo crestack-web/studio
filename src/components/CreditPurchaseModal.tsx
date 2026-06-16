@@ -14,9 +14,9 @@ interface CreditPack {
 }
 
 const CREDIT_PACKS: CreditPack[] = [
-  { credits: 1500, amount: 5, name: 'Starter Pack', description: 'Perfect for trying out MO' },
-  { credits: 3000, amount: 10, name: 'Standard Pack', description: 'Great for regular use' },
-  { credits: 5000, amount: 15, name: 'Premium Pack', description: 'Best value for businesses', popular: true },
+  { credits: 1500, amount: 5 * 1500, name: 'Starter Pack', description: 'Perfect for trying out MO' },
+  { credits: 3000, amount: 10 * 1500, name: 'Standard Pack', description: 'Great for regular use' },
+  { credits: 5000, amount: 15 * 1500, name: 'Premium Pack', description: 'Best value for businesses', popular: true },
 ];
 
 interface CreditPurchaseModalProps {
