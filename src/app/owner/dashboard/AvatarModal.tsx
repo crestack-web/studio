@@ -49,23 +49,48 @@ export function AvatarModal() {
     try {
       const { storage, firestore } = initializeFirebase();
       
+      if (!storage) {
+        console.error('❌ Firebase Storage not initialized');
+        showToast('❌ Storage not available. Please check your connection.');
+        return;
+      }
+      
       // Create a unique filename
       const timestamp = Date.now();
       const filename = `avatars/${user.id}_${timestamp}`;
       const imageRef = ref(storage, filename);
+      console.log('📤 Image ref:', imageRef.fullPath);
 
       // Upload the file
-      await uploadBytes(imageRef, file);
+      const uploadResult = await uploadBytes(imageRef, file);
+      console.log('✅ Image uploaded successfully:', uploadResult);
       
       // Get the download URL
       const downloadURL = await getDownloadURL(imageRef);
+      console.log('✅ Image URL obtained:', downloadURL);
       
       setUploadedImage(downloadURL);
       setSelected({ id: 'uploaded', type: 'color', content: downloadURL, bg: downloadURL, color: '#fff' });
       showToast('✅ Image uploaded successfully!');
     } catch (error) {
-      console.error('Error uploading image:', error);
-      showToast('Failed to upload image. Please try again.');
+      console.error('❌ Image upload failed:', error);
+      console.error('Upload error details:', {
+        code: (error as any).code,
+        message: (error as any).message,
+        serverResponse: (error as any).serverResponse,
+      });
+      
+      // Provide user-friendly error messages based on error type
+      const errorCode = (error as any).code;
+      if (errorCode === 'storage/unauthorized') {
+        showToast('❌ Permission denied. You may not have access to upload images.');
+      } else if (errorCode === 'storage/canceled') {
+        showToast('❌ Upload was cancelled.');
+      } else if (errorCode === 'storage/unknown') {
+        showToast('❌ Upload failed. Please check your internet connection.');
+      } else {
+        showToast('❌ Failed to upload image: ' + (error as any).message);
+      }
     } finally {
       setUploading(false);
     }

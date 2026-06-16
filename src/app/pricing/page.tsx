@@ -14,6 +14,7 @@ export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer' | 'ussd'>('card');
 
   useEffect(() => {
     // Detect user's country on mount
@@ -119,6 +120,32 @@ export default function PricingPage() {
     setShowPaymentModal(true);
   };
 
+  const handleStartFreeTrial = async () => {
+    if (!userEmail || !userEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      // Store trial information in localStorage for use during signup
+      const trialInfo = {
+        plan: selectedPlan.name,
+        billing: mode,
+        country: userCountry,
+        trialStart: new Date().toISOString(),
+        trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        email: userEmail,
+      };
+      localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
+      
+      // Redirect to signup to complete registration with trial
+      window.location.href = '/welcome/signup?trial=true';
+    } catch (error) {
+      console.error('Error starting free trial:', error);
+      alert('Failed to start free trial. Please try again.');
+    }
+  };
+
   const handlePayment = async () => {
     if (!userEmail || !userEmail.includes('@')) {
       alert('Please enter a valid email address');
@@ -134,6 +161,7 @@ export default function PricingPage() {
         amount: localPrice,
         currency: currency,
         email: userEmail,
+        paymentMethod: paymentMethod,
         metadata: {
           plan: selectedPlan.name,
           billing: mode,
@@ -325,10 +353,39 @@ export default function PricingPage() {
                   onChange={(e) => setUserEmail(e.target.value)}
                 />
               </div>
+              <div className="payment-method-group">
+                <label>Payment Method</label>
+                <div className="payment-method-options">
+                  <button
+                    className={`payment-method-option ${paymentMethod === 'card' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('card')}
+                  >
+                    <span className="payment-method-icon">💳</span>
+                    <span className="payment-method-label">Card</span>
+                  </button>
+                  <button
+                    className={`payment-method-option ${paymentMethod === 'bank_transfer' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('bank_transfer')}
+                  >
+                    <span className="payment-method-icon">🏦</span>
+                    <span className="payment-method-label">Bank Transfer</span>
+                  </button>
+                  <button
+                    className={`payment-method-option ${paymentMethod === 'ussd' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('ussd')}
+                  >
+                    <span className="payment-method-icon">📱</span>
+                    <span className="payment-method-label">USSD</span>
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="payment-modal-footer">
               <button className="btn-secondary" onClick={() => setShowPaymentModal(false)}>
                 Cancel
+              </button>
+              <button className="btn-trial" onClick={handleStartFreeTrial}>
+                🎁 Start 3-Day Free Trial
               </button>
               <button className="btn-primary" onClick={handlePayment}>
                 Proceed to Payment

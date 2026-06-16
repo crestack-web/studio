@@ -24,7 +24,7 @@ export function MobileBottomNav() {
       {ITEMS.map(item =>
         item.isMO ? (
           <button key={item.id} className={styles.moBtn} onClick={() => navigateTo('mo-mobile')}>
-            <div className={styles.moIcon}><MoIcon size={32} /></div>
+            <div className={styles.moIcon}><MoIcon size={40} /></div>
             <span className={styles.moLabel}>Ask MO</span>
           </button>
         ) : (

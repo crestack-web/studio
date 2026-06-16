@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { convertFromUsd, getCurrencyName } from '@/lib/currency';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -25,7 +26,7 @@ try {
 
 export async function POST(request: NextRequest) {
   try {
-    const { plan, userId, email, amount } = await request.json();
+    const { plan, userId, email, amount, currency, countryCode } = await request.json();
 
     if (!plan || !userId || !email || !amount) {
       return NextResponse.json(
@@ -43,9 +44,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert amount from USD to NGN (1 USD = 1,550 NGN)
-    const USD_TO_NGN_RATE = 1550;
-    const amountInNaira = amount * USD_TO_NGN_RATE;
+    // Convert amount from USD to local currency based on user's location
+    const targetCurrency = currency || getCurrencyName(countryCode);
+    const amountInLocalCurrency = convertFromUsd(amount, countryCode);
+
+    // Paystack only supports NGN and GHS currencies
+    // For unsupported currencies, default to NGN
+    const paystackCurrency = (targetCurrency === 'NGN' || targetCurrency === 'GHS') ? targetCurrency : 'NGN';
+    const paystackAmount = paystackCurrency === 'NGN' ? convertFromUsd(amount, 'NG') : convertFromUsd(amount, 'GH');
 
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -56,14 +62,17 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         email: email,
-        amount: amountInNaira * 100, // Paystack expects amount in kobo (lowest currency unit)
-        currency: 'NGN', // Explicitly set to Nigerian Naira
+        amount: paystackAmount * 100, // Paystack expects amount in kobo (lowest currency unit)
+        currency: paystackCurrency, // Use Paystack-supported currency
         metadata: {
           plan: plan,
           userId: userId,
           payment_type: 'subscription',
           originalAmountUSD: amount,
-          convertedAmountNGN: amountInNaira,
+          convertedAmount: paystackAmount,
+          currency: paystackCurrency,
+          countryCode: countryCode,
+          requestedCurrency: targetCurrency, // Store the originally requested currency
         },
         callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscribe/success`,
         channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],

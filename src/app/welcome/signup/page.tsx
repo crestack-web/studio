@@ -1,7 +1,7 @@
 "use client";
 
 import { StepId } from "framer-motion";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
@@ -580,6 +580,7 @@ export default function BusmoOnboarding() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trialInfo, setTrialInfo] = useState<any>(null);
   const [data, setData] = useState<FormState>({
     businessName: "", description: "", email: "", password: "",
     fullName: "", countryCode: "+234", phone: "", country: "nigeria",
@@ -589,23 +590,52 @@ export default function BusmoOnboarding() {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // Check for trial information from pricing page
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isTrial = searchParams.get('trial');
+    
+    if (isTrial === 'true') {
+      const trialInfoStr = localStorage.getItem('busmo_trial_info');
+      if (trialInfoStr) {
+        try {
+          const trialInfo = JSON.parse(trialInfoStr);
+          console.log('Trial info found:', trialInfo);
+          // Store trial info in state for use during account creation
+          setTrialInfo(trialInfo);
+        } catch (error) {
+          console.error('Error parsing trial info:', error);
+        }
+      }
+    }
+  }, []);
+
   const handleNext = async () => {
     if (isStepValid(step, data)) {
       if (step === 2) {
-        // Moving to step 3 - call business analysis API
+        // Moving to step 3 - call business analysis API with timeout and fallback
         setIsAnalyzing(true);
         setError(null);
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Analysis timeout')), 15000)
+        );
+        
         try {
-          const response = await fetch('/api/analyze-business', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              businessName: data.businessName,
-              description: data.description,
+          const response = await Promise.race([
+            fetch('/api/analyze-business', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                businessName: data.businessName,
+                description: data.description,
+              }),
             }),
-          });
+            timeoutPromise
+          ]) as Response;
           
-          const result = await response.json();
+          const result = await response.json() as { success: boolean; analysis?: any; error?: string };
           
           if (result.success && result.analysis) {
             setData(prev => ({ ...prev, businessAnalysis: result.analysis }));
@@ -615,7 +645,17 @@ export default function BusmoOnboarding() {
           }
         } catch (error: any) {
           console.error('Business analysis error:', error);
-          setError(error.message || 'Failed to analyze business. Please try again.');
+          // Use fallback analysis and continue onboarding
+          const fallbackAnalysis = {
+            businessType: 'Other',
+            businessTypeConfidence: 0.5,
+            operationalNeeds: ['Inventory Management', 'Staff Management'],
+            productTypes: ['Products'],
+            recommendedCategories: ['General'],
+            recommendedFeatures: ['Inventory', 'Staff Management']
+          };
+          setData(prev => ({ ...prev, businessAnalysis: fallbackAnalysis }));
+          setStep(3);
         } finally {
           setIsAnalyzing(false);
         }
@@ -688,13 +728,18 @@ export default function BusmoOnboarding() {
                 const userDoc = await getDoc(userDocRef);
                 
                 if (!userDoc.exists()) {
+                  // Use trial info from pricing page if available, otherwise use default 3-day trial
+                  const trialStart = trialInfo?.trialStart ? new Date(trialInfo.trialStart) : new Date();
+                  const trialEnd = trialInfo?.trialEnd ? new Date(trialInfo.trialEnd) : new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
+                  const selectedPlan = trialInfo?.plan || "starter";
+                  
                   await setDoc(userDocRef, {
                     fullName: data.fullName,
                     email: data.email,
                     phone: `${data.countryCode}${data.phone}`,
                     role: 'Owner',
                     businessId: userId,
-                    plan: "starter", // Always start with starter
+                    plan: selectedPlan,
                     category: data.businessAnalysis?.businessType || "Other",
                     country: data.country,
                     createdAt: Timestamp.now(),
@@ -702,12 +747,12 @@ export default function BusmoOnboarding() {
                     avatarBg: '#6B3FE7',
                     avatarColor: '#fff',
                     displayName: data.fullName,
-                    trialStartDate: Timestamp.now(),
-                    trialEndDate: Timestamp.fromDate(new Date(Date.now() + (3 * 24 * 60 * 60 * 1000))),
+                    trialStartDate: Timestamp.fromDate(trialStart),
+                    trialEndDate: Timestamp.fromDate(trialEnd),
                     subscriptionStatus: 'trial',
                     businessAnalysis: data.businessAnalysis,
                   });
-                  console.log('User profile created');
+                  console.log('User profile created with trial info');
                 } else {
                   console.log('User profile already exists, skipping');
                 }

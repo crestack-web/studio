@@ -54,18 +54,18 @@
 }
 
 .moIcon {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, #7C3AED, #6B3FE7);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
-  margin-top: -10px;
+  margin-top: -12px;
 }
 
-.moIcon svg { width: 20px; height: 20px; }
+.moIcon svg { width: 24px; height: 24px; }
 
 .moLabel {
   font-size: 0.6rem;

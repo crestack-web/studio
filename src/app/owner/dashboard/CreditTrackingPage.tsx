@@ -33,6 +33,8 @@ export function CreditTrackingPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<CreditTransaction | null>(null);
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
 
   // Add customer form
@@ -216,6 +218,9 @@ export function CreditTrackingPage() {
 
   async function handleAddCustomer() {
     if (!newCustomer.name || !businessId) return showToast('Customer name is required');
+    if (isAddingCustomer) return; // Prevent duplicate submissions
+
+    setIsAddingCustomer(true);
 
     try {
       const { firestore } = initializeFirebase();
@@ -252,11 +257,16 @@ export function CreditTrackingPage() {
     } catch (error) {
       console.error('Error adding customer:', error);
       showToast('Failed to add customer');
+    } finally {
+      setIsAddingCustomer(false);
     }
   }
 
   async function handleRecordPayment() {
     if (!selectedTransaction || !paymentForm.amount || !businessId) return showToast('Amount is required');
+    if (isRecordingPayment) return; // Prevent duplicate submissions
+
+    setIsRecordingPayment(true);
 
     try {
       const { firestore } = initializeFirebase();
@@ -320,6 +330,8 @@ export function CreditTrackingPage() {
     } catch (error) {
       console.error('Error recording payment:', error);
       showToast('Failed to record payment');
+    } finally {
+      setIsRecordingPayment(false);
     }
   }
 
@@ -382,6 +394,41 @@ export function CreditTrackingPage() {
     } catch (error) {
       console.error('Error writing off credit:', error);
       showToast('Failed to write off credit');
+    }
+  }
+
+  async function handleDeleteCustomer(customerId: string) {
+    if (!businessId) return;
+
+    // Check if customer has associated transactions
+    const customerTransactions = transactions.filter(t => t.customerId === customerId);
+    
+    if (customerTransactions.length > 0) {
+      const activeTransactions = customerTransactions.filter(t => t.status !== 'paid' && t.status !== 'written_off');
+      
+      if (activeTransactions.length > 0) {
+        showToast(`Cannot delete customer with ${activeTransactions.length} active credit transactions`);
+        return;
+      }
+    }
+
+    const confirmed = window.confirm(
+      customerTransactions.length > 0
+        ? 'This customer has historical transactions but no active credits. Delete anyway?'
+        : 'Are you sure you want to delete this customer?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const { firestore } = initializeFirebase();
+      await deleteDoc(doc(firestore, 'businesses', businessId, 'credit_customers', customerId));
+
+      setCustomers(prev => prev.filter(c => c.id !== customerId));
+      showToast('Customer deleted successfully');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      showToast('Failed to delete customer');
     }
   }
 
@@ -579,6 +626,14 @@ export function CreditTrackingPage() {
                     <span className={styles.customerType}>{customer.businessType}</span>
                     {customer.isRegularCustomer && <span className={styles.regularBadge}>Regular</span>}
                   </div>
+                  <Button 
+                    size="xs" 
+                    variant="ghost" 
+                    onClick={() => handleDeleteCustomer(customer.id)}
+                    style={{ color: 'var(--red)' }}
+                  >
+                    Delete
+                  </Button>
                 </div>
               ))
             )}
@@ -727,8 +782,10 @@ export function CreditTrackingPage() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <Button variant="subtle" onClick={() => setShowAddCustomer(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleAddCustomer}>Add Customer</Button>
+              <Button variant="subtle" onClick={() => setShowAddCustomer(false)} disabled={isAddingCustomer}>Cancel</Button>
+              <Button variant="primary" onClick={handleAddCustomer} disabled={isAddingCustomer}>
+                {isAddingCustomer ? 'Adding...' : 'Add Customer'}
+              </Button>
             </div>
           </div>
         </div>
@@ -801,8 +858,10 @@ export function CreditTrackingPage() {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <Button variant="subtle" onClick={() => setShowRecordPayment(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleRecordPayment}>Record Payment</Button>
+              <Button variant="subtle" onClick={() => setShowRecordPayment(false)} disabled={isRecordingPayment}>Cancel</Button>
+              <Button variant="primary" onClick={handleRecordPayment} disabled={isRecordingPayment}>
+                {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+              </Button>
             </div>
           </div>
         </div>

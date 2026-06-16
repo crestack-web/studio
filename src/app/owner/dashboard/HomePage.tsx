@@ -598,18 +598,6 @@ export function HomePage() {
           </div>
         </Card>
 
-        {/* Sell Online CTA */}
-        <div className={styles.miniCard}>
-          <div className={styles.miniTitle}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth={2} width={14} height={14}>
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
-            </svg>
-            {t('home.sellOnline')}
-          </div>
-          <div className={styles.miniDesc}>{t('home.sellOnlineDesc')}</div>
-          <button className={styles.miniBtn}>{t('home.setUpStore')} →</button>
-        </div>
-
         <div className={styles.miniCard} onClick={() => navigateTo(`referrals`)} style={{ cursor: 'pointer' }}>
           <div className={styles.miniTitle}>
             <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2} width={14} height={14}>
@@ -847,10 +835,10 @@ const QUICK_ACTIONS = [
   { labelKey: 'nav.addProduct', page: 'add-product', primary: false, icon: 'add-product' },
   { labelKey: 'nav.cashflow', page: 'cashflow', primary: false, icon: 'cashflow' },
   { labelKey: 'nav.addExpense', page: 'add-expense', primary: false, icon: 'add-expense' },
-  { labelKey: 'nav.askMO', page: 'mo', primary: false,
-    icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
-  { labelKey: 'nav.referrals', page: 'referrals', primary: false,
-    icon: 'M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z' },
+  { labelKey: 'nav.reports', page: 'statement', primary: false,
+    icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8' },
+  { labelKey: 'nav.moneyControl', page: 'money-control', primary: false,
+    icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
 ];
 
 /**

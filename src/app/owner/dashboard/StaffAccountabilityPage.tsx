@@ -30,7 +30,7 @@ export default function StaffAccountabilityPage() {
     setLoading(true);
     try {
       const { firestore } = initializeFirebase();
-      const salesRef = collection(firestore, 'merchants', user.businessId, 'sales');
+      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
       
       let startDate = new Date();
       if (selectedPeriod === 'week') {

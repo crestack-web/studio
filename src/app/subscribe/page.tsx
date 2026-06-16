@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, getUserCountryCode, convertFromUsd, getCurrencyName } from '@/lib/currency';
 
 const PLANS = [
   {
@@ -21,7 +21,7 @@ const PLANS = [
       'Manage up to 3 Staff',
       'Basic Reports & Analytics',
     ],
-    moUsage: 'N/A',
+    moUsage: '2,500 credits',
     activeBg: '#F4F4F8',
     activeBorder: '#C4C4D4',
     priceColor: '#0A0A0F',
@@ -44,7 +44,7 @@ const PLANS = [
       'SEO for Seller Store',
       'Custom Domain',
     ],
-    moUsage: 'N/A',
+    moUsage: '10,000 credits',
     activeBg: '#F3EFFE',
     activeBorder: '#6B3FE7',
     priceColor: '#6B3FE7',
@@ -70,7 +70,7 @@ const PLANS = [
       'CAC Compliance (if needed)',
       'Integrated POS & Printer',
     ],
-    moUsage: 'N/A',
+    moUsage: 'Unlimited',
     activeBg: '#FEF3C7',
     activeBorder: '#D97706',
     priceColor: '#D97706',
@@ -84,6 +84,7 @@ export default function SubscribePage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('starter');
   const [userPlan, setUserPlan] = useState<string>('starter');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userCountryCode, setUserCountryCode] = useState<string>('US');
 
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
@@ -111,6 +112,12 @@ export default function SubscribePage() {
     return () => unsubscribe();
   }, [router]);
 
+  // Detect user country code on mount
+  useEffect(() => {
+    const countryCode = getUserCountryCode();
+    setUserCountryCode(countryCode);
+  }, []);
+
   const handleContinue = async () => {
     setIsProcessing(true);
     try {
@@ -134,6 +141,10 @@ export default function SubscribePage() {
       const userData = userDoc.data();
       const userEmail = userData?.email || user.email;
 
+      // Convert amount to local currency based on user's location
+      const localCurrency = getCurrencyName(userCountryCode);
+      const amountInLocalCurrency = convertFromUsd(selectedPlanData.priceNum, userCountryCode);
+
       // Call Paystack API to initialize subscription payment
       const response = await fetch('/api/payments/initialize-subscription', {
         method: 'POST',
@@ -142,7 +153,9 @@ export default function SubscribePage() {
           plan: selectedPlan,
           userId: user.uid,
           email: userEmail,
-          amount: selectedPlanData.priceNum,
+          amount: selectedPlanData.priceNum, // Send USD amount
+          currency: localCurrency, // Send target currency code
+          countryCode: userCountryCode, // Send country code for reference
         }),
       });
 

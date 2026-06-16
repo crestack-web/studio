@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, orderBy, limit, addDoc, Timestamp, doc, getDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, addDoc, Timestamp, doc, getDoc, where, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import styles from './Cashflowpage.module.css';
 
@@ -38,6 +38,9 @@ export function CashflowPage() {
   const [activeAction, setActiveAction] = useState<ActionId>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [stats, setStats] = useState({
     cashBalance: 0,
     stockValue: 0,
@@ -76,6 +79,8 @@ export function CashflowPage() {
           setLoading(false);
           return;
         }
+
+        setBusinessId(businessId);
 
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -149,20 +154,30 @@ export function CashflowPage() {
           return dateB.getTime() - dateA.getTime();
         });
 
-        // Fetch products to calculate stock value
+        // Fetch products to calculate stock value and populate dropdowns
         const productsQuery = query(
           collection(firestore, 'businesses', businessId, 'products'),
           where('active', '==', true)
         );
 
         const productsSnapshot = await getDocs(productsQuery);
+        const fetchedProducts: any[] = [];
         let stockValue = 0;
         productsSnapshot.forEach(doc => {
           const data = doc.data();
           const stock = data.stock || 0;
-          const costPrice = data.cost || data.costPrice || 0; // Read from 'cost' field (what Addproductpage saves)
+          const costPrice = data.cost || data.costPrice || 0;
           stockValue += stock * costPrice;
+          
+          fetchedProducts.push({
+            id: doc.id,
+            name: data.name || 'Unnamed Product',
+            stock: stock,
+            costPrice: costPrice,
+          });
         });
+        
+        setProducts(fetchedProducts);
 
         setTransactions(fetchedTransactions);
         setStats({
@@ -191,7 +206,7 @@ export function CashflowPage() {
     setActiveAction(null);
   }
 
-  function handleSubmit(e: React.FormEvent, action: string) {
+  async function handleSubmit(e: React.FormEvent, action: string) {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const amount = formData.get('amount') as string;
@@ -202,7 +217,226 @@ export function CashflowPage() {
       return;
     }
     
-    confirm(`${action}: ${description} - ${formatMoney(parseFloat(amount))}`);
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const user = auth.currentUser;
+      
+      if (!user || !firestore || !businessId) {
+        showToast('❌ Authentication required');
+        return;
+      }
+
+      // Create transaction record based on action type
+      const transactionData: any = {
+        amount: parseFloat(amount),
+        description: description,
+        type: action,
+        createdAt: new Date(),
+        recordedBy: {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'Unknown',
+          timestamp: new Date(),
+        },
+      };
+
+      // Handle different action types
+      if (action === t('cashflow.addStock')) {
+        const productId = formData.get('productId') as string;
+        const quantity = parseInt(formData.get('quantity') as string);
+        
+        if (productId && quantity) {
+          // Update product stock
+          const productRef = doc(firestore, 'businesses', businessId, 'products', productId);
+          const productDoc = await getDoc(productRef);
+          
+          if (productDoc.exists()) {
+            const currentStock = productDoc.data().stock || 0;
+            await updateDoc(productRef, { stock: currentStock + quantity });
+          }
+          
+          transactionData.productId = productId;
+          transactionData.quantity = quantity;
+        }
+      } else if (action === t('cashflow.reduceStock')) {
+        const productId = formData.get('productId') as string;
+        const quantity = parseInt(formData.get('quantity') as string);
+        const reason = formData.get('reason') as string;
+        
+        if (productId && quantity) {
+          // Update product stock
+          const productRef = doc(firestore, 'businesses', businessId, 'products', productId);
+          const productDoc = await getDoc(productRef);
+          
+          if (productDoc.exists()) {
+            const currentStock = productDoc.data().stock || 0;
+            await updateDoc(productRef, { stock: Math.max(0, currentStock - quantity) });
+          }
+          
+          transactionData.productId = productId;
+          transactionData.quantity = quantity;
+          transactionData.reason = reason;
+        }
+      } else if (action === t('cashflow.addMoney')) {
+        const source = formData.get('source') as string;
+        transactionData.source = source;
+        transactionData.category = 'income';
+      } else if (action === t('cashflow.takeMoney')) {
+        const category = formData.get('category') as string;
+        transactionData.category = category;
+      }
+
+      // Save transaction to Firestore
+      await addDoc(collection(firestore, 'businesses', businessId, 'transactions'), transactionData);
+      
+      showToast(`✅ ${action}: ${description} - ${formatMoney(parseFloat(amount))}`);
+      setActiveAction(null);
+      
+      // Refresh data
+      fetchData();
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      showToast('❌ Failed to save transaction');
+    }
+  }
+
+  // Helper function to refresh data
+  async function fetchData() {
+    if (!firestore) return;
+    
+    try {
+      setLoading(true);
+
+      // Get user's business ID
+      const { auth } = initializeFirebase();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      if (!userDoc.exists()) {
+        setLoading(false);
+        return;
+      }
+
+      const businessId = userDoc.data().businessId;
+      if (!businessId) {
+        setLoading(false);
+        return;
+      }
+
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const fetchedTransactions: Transaction[] = [];
+      let cashBalance = 0;
+      let monthIn = 0;
+      let monthOut = 0;
+
+      // Fetch sales (income)
+      const salesQuery = query(
+        collection(firestore, 'businesses', businessId, 'sales'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      const salesSnapshot = await getDocs(salesQuery);
+      
+      salesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const amount = data.total || data.totalRevenue || 0;
+        const date = data.createdAt?.toDate() || new Date();
+
+        fetchedTransactions.push({
+          id: doc.id,
+          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          type: 'Sale',
+          description: `Sale - ${data.products?.length || 0} items`,
+          amount: amount,
+          credit: true,
+          recordedBy: data.recordedBy,
+        });
+
+        cashBalance += amount;
+        if (date >= monthStart) monthIn += amount;
+      });
+
+      // Fetch expenses (outflows)
+      const expensesQuery = query(
+        collection(firestore, 'businesses', businessId, 'expenses'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      const expensesSnapshot = await getDocs(expensesQuery);
+
+      expensesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const amount = data.amount || 0;
+        const date = data.createdAt?.toDate() || new Date();
+
+        fetchedTransactions.push({
+          id: doc.id,
+          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          type: data.category || 'Expense',
+          description: data.title || data.description || 'Expense',
+          amount: amount,
+          credit: false,
+          recordedBy: data.recordedBy,
+        });
+
+        cashBalance -= amount;
+        if (date >= monthStart) monthOut += amount;
+      });
+
+      // Sort by date
+      fetchedTransactions.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // Fetch products to calculate stock value
+      const productsQuery = query(
+        collection(firestore, 'businesses', businessId, 'products'),
+        where('active', '==', true)
+      );
+
+      const productsSnapshot = await getDocs(productsQuery);
+      const fetchedProducts: any[] = [];
+      let stockValue = 0;
+      productsSnapshot.forEach(doc => {
+        const data = doc.data();
+        const stock = data.stock || 0;
+        const costPrice = data.cost || data.costPrice || 0;
+        stockValue += stock * costPrice;
+        
+        fetchedProducts.push({
+          id: doc.id,
+          name: data.name || 'Unnamed Product',
+          stock: stock,
+          costPrice: costPrice,
+        });
+      });
+      
+      setProducts(fetchedProducts);
+
+      setTransactions(fetchedTransactions);
+      setStats({
+        cashBalance,
+        stockValue,
+        monthIn,
+        monthOut,
+      });
+    } catch (error) {
+      console.error('Error fetching cashflow data:', error);
+      showToast('Failed to load cashflow data');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -265,8 +499,9 @@ export function CashflowPage() {
                   <label>{t('product.selectProduct')}</label>
                   <select name="productId" required className={styles.formInput}>
                     <option value="">{t('product.selectProduct')}</option>
-                    <option value="1">Product 1</option>
-                    <option value="2">Product 2</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -293,8 +528,9 @@ export function CashflowPage() {
                   <label>{t('product.selectProduct')}</label>
                   <select name="productId" required className={styles.formInput}>
                     <option value="">{t('product.selectProduct')}</option>
-                    <option value="1">Product 1</option>
-                    <option value="2">Product 2</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
+                    ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
@@ -396,12 +632,8 @@ export function CashflowPage() {
               <div 
                 key={t.id} 
                 className={styles.transactionItem}
-                onClick={() => {
-                  if (t.recordedBy) {
-                    alert(`Recorded by: ${t.recordedBy.displayName || t.recordedBy.email || 'Unknown'}\nDate: ${t.recordedBy.timestamp ? new Date(t.recordedBy.timestamp).toLocaleString() : 'Unknown'}`);
-                  }
-                }}
-                style={{ cursor: t.recordedBy ? 'pointer' : 'default' }}
+                onClick={() => setSelectedTransaction(t)}
+                style={{ cursor: 'pointer' }}
               >
                 <div className={styles.transDate}>{t.date}</div>
                 <div className={styles.transInfo}>
@@ -424,6 +656,53 @@ export function CashflowPage() {
           </div>
         )}
       </div>
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedTransaction(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <button className={styles.modalClose} onClick={() => setSelectedTransaction(null)}>✕</button>
+            <h3 className={styles.modalTitle}>Transaction Details</h3>
+            <div className={styles.modalContent}>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>Type:</span>
+                <span className={styles.modalValue} style={{ color: selectedTransaction.credit ? 'var(--green)' : 'var(--red)' }}>
+                  {selectedTransaction.credit ? '↑' : '↓'} {selectedTransaction.type}
+                </span>
+              </div>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>Amount:</span>
+                <span className={styles.modalValue} style={{ color: selectedTransaction.credit ? 'var(--green)' : 'var(--red)' }}>
+                  {selectedTransaction.credit ? '+' : '-'}{formatMoney(selectedTransaction.amount)}
+                </span>
+              </div>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>Date:</span>
+                <span className={styles.modalValue}>{selectedTransaction.date}</span>
+              </div>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>Description:</span>
+                <span className={styles.modalValue}>{selectedTransaction.description}</span>
+              </div>
+              {selectedTransaction.recordedBy && (
+                <>
+                  <div className={styles.modalDivider}></div>
+                  <div className={styles.modalRow}>
+                    <span className={styles.modalLabel}>Recorded By:</span>
+                    <span className={styles.modalValue}>{selectedTransaction.recordedBy.displayName || selectedTransaction.recordedBy.email || 'Unknown'}</span>
+                  </div>
+                  {selectedTransaction.recordedBy.timestamp && (
+                    <div className={styles.modalRow}>
+                      <span className={styles.modalLabel}>Recorded At:</span>
+                      <span className={styles.modalValue}>{new Date(selectedTransaction.recordedBy.timestamp).toLocaleString()}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

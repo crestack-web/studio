@@ -9,6 +9,7 @@ export interface PaymentConfig {
   amount: number;
   currency: string;
   email: string;
+  paymentMethod?: 'card' | 'bank_transfer' | 'ussd';
   metadata?: Record<string, any>;
   onSuccess?: (reference: string) => void;
   onClose?: () => void;

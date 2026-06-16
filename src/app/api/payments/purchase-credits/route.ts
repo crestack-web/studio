@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { convertFromUsd, getCurrencyName } from '@/lib/currency';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -23,16 +24,16 @@ try {
   console.warn('Firebase Admin not initialized for credit purchase:', error);
 }
 
-// Credit pricing tiers
+// Credit pricing tiers (in USD)
 const CREDIT_PACKS = {
-  starter: { credits: 1500, amount: 1500, name: 'Starter Pack' },
-  standard: { credits: 3000, amount: 3000, name: 'Standard Pack' },
-  premium: { credits: 5000, amount: 5000, name: 'Premium Pack' },
+  starter: { credits: 1500, amount: 1, name: 'Starter Pack' },
+  standard: { credits: 3000, amount: 2, name: 'Standard Pack' },
+  premium: { credits: 5000, amount: 3, name: 'Premium Pack' },
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const { pack, userId, email } = await request.json();
+    const { pack, userId, email, countryCode } = await request.json();
 
     if (!pack || !userId || !email) {
       return NextResponse.json(
@@ -58,6 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert amount from USD to local currency based on user's location
+    const targetCurrency = getCurrencyName(countryCode);
+    const amountInLocalCurrency = convertFromUsd(creditPack.amount, countryCode);
+
+    // Paystack only supports NGN and GHS currencies
+    // For unsupported currencies, default to NGN
+    const paystackCurrency = (targetCurrency === 'NGN' || targetCurrency === 'GHS') ? targetCurrency : 'NGN';
+    const paystackAmount = paystackCurrency === 'NGN' ? convertFromUsd(creditPack.amount, 'NG') : convertFromUsd(creditPack.amount, 'GH');
+
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -67,13 +77,17 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         email: email,
-        amount: creditPack.amount * 100, // Paystack expects amount in kobo (lowest currency unit)
-        currency: 'NGN',
+        amount: paystackAmount * 100, // Paystack expects amount in kobo (lowest currency unit)
+        currency: paystackCurrency, // Use Paystack-supported currency
         metadata: {
           pack: pack,
           credits: creditPack.credits,
           userId: userId,
           payment_type: 'credit_purchase',
+          originalAmountUSD: creditPack.amount,
+          convertedAmount: paystackAmount,
+          currency: paystackCurrency,
+          countryCode: countryCode,
         },
         callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/credit-purchase-callback`,
         channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],

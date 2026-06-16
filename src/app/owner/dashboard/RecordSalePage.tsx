@@ -29,6 +29,7 @@ export function RecordSalePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [isProcessingSale, setIsProcessingSale] = useState(false);
 
   // Credit tracking fields
   const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<string>('');
@@ -192,6 +193,7 @@ export function RecordSalePage() {
 
   async function confirmSale() {
     if (!cart.length) return showToast(t('sale.selectProducts'));
+    if (isProcessingSale) return; // Prevent duplicate submissions
     
     // Validate payment amounts match total
     const totalPayment = paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0);
@@ -207,18 +209,22 @@ export function RecordSalePage() {
       }
     }
     
+    setIsProcessingSale(true);
+    
     try {
       const { auth, firestore } = initializeFirebase();
       const user = auth.currentUser;
       
       if (!user || !firestore) {
         showToast('Authentication required');
+        setIsProcessingSale(false);
         return;
       }
 
       // Use the businessId from state (already fetched in useEffect)
       if (!businessId) {
         showToast('Business ID not found. Please ensure you are associated with a business.');
+        setIsProcessingSale(false);
         return;
       }
 
@@ -435,6 +441,8 @@ export function RecordSalePage() {
     } catch (error) {
       console.error('Error saving sale:', error);
       showToast('Failed to save sale. Please try again.');
+    } finally {
+      setIsProcessingSale(false);
     }
   }
 
@@ -760,8 +768,24 @@ export function RecordSalePage() {
             {/* Actions */}
             <div className={styles.saleActions}>
               <Button variant="subtle" style={{ flex: 1 }}>{t('sale.saveDraft')}</Button>
-              <Button variant="primary" size="lg" style={{ flex: 2 }} onClick={confirmSale}>
-                {t('sale.completeSale')} ✓
+              <Button 
+                variant="primary" 
+                size="lg" 
+                style={{ flex: 2 }} 
+                onClick={confirmSale}
+                disabled={isProcessingSale || cart.length === 0}
+              >
+                {isProcessingSale ? (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, marginRight: 8, animation: 'spin 1s linear infinite' }}>
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.25"/>
+                      <path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>{t('sale.completeSale')} ✓</>
+                )}
               </Button>
             </div>
           </Card>

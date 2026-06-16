@@ -2,6 +2,9 @@
   padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header {
@@ -182,6 +185,8 @@
   align-items: center;
   gap: 16px;
   border: 1px solid var(--border-subtle);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .saleInfo {
@@ -206,6 +211,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .salePayment {
@@ -240,6 +247,22 @@
   font-size: 0.8rem;
   font-weight: 600;
   text-align: center;
+}
+
+.deleteSaleBtn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.deleteSaleBtn:hover {
+  opacity: 1;
+  background: var(--red-bg);
 }
 
 .reconMatched {
@@ -480,6 +503,20 @@
   line-height: 1.5;
 }
 
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .alertsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .insightsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .page {
     padding: 16px;
@@ -498,6 +535,8 @@
   .periodBtn {
     flex: 1;
     text-align: center;
+    font-size: 0.75rem;
+    padding: 6px 12px;
   }
 
   .statsGrid {
@@ -514,5 +553,20 @@
 
   .insightsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .saleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .salePayments {
+    width: 100%;
+  }
+
+  .saleReconciliation {
+    width: 100%;
+    min-width: auto;
   }
 }

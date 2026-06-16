@@ -6,6 +6,7 @@ import { useTranslation } from './LangContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Pill } from './Badge';
+import { NavIcons } from './NavIcons';
 import styles from './StaffPage.module.css';
 import { ChatPanel } from './ChatPanel';
 import { initializeFirebase } from '@/firebase';
@@ -118,6 +119,9 @@ export function StaffPage() {
   const [showViewCredentialsModal, setShowViewCredentialsModal] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showRemoveConfirmationModal, setShowRemoveConfirmationModal] = useState(false);
+  const [staffToRemove, setStaffToRemove] = useState<StaffMember | null>(null);
+  const credentialsRef = useRef<HTMLDivElement>(null);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [viewingStaff, setViewingStaff] = useState<StaffMember | null>(null);
   const [targetStaff, setTargetStaff] = useState<StaffMember | null>(null);
@@ -316,91 +320,36 @@ export function StaffPage() {
       let isNewUser = true;
 
       try {
-        // Try to create Firebase Auth user
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          newStaffEmail.trim(),
-          password
-        );
-        firebaseUser = userCredential.user;
-      } catch (authError: any) {
-        isNewUser = false;
-        // If auth/email-already-in-use, check if this user is already linked to this business
-        if (authError.code === 'auth/email-already-in-use') {
-          // Check if user exists in users collection
-          const usersQuery = query(
-            collection(firestore, 'users'),
-            where('email', '==', newStaffEmail.trim())
-          );
-          const userSnapshot = await getDocs(usersQuery);
-          
-          if (!userSnapshot.empty) {
-            const existingUserDoc = userSnapshot.docs[0];
-            const existingUserData = existingUserDoc.data();
-            
-            // Check if this user is already a staff member for this business
-            const existingStaffDoc = await getDoc(doc(firestore, 'businesses', businessId, 'staff', existingUserDoc.id));
-            
-            if (existingStaffDoc.exists()) {
-              showToast('This email is already registered as a staff member for this business.');
-              return;
-            }
-            
-            // User exists but not as staff for this business - link them
-            firebaseUser = { uid: existingUserDoc.id };
-            
-            // Update user profile to add staff role and business ID
-            await setDoc(doc(firestore, 'users', existingUserDoc.id), {
-              role: existingUserData.role === 'Owner' ? 'Owner' : 'Staff',
-              staffId: existingUserData.staffId || staffId,
-              businessId: existingUserData.businessId || businessId,
-              permissions: newStaffPermissions,
-              initials: getInitials(newStaffName.trim()),
-            }, { merge: true });
-          } else {
-            // Email exists in Auth but not in users collection - create user profile
-            // This is a rare case, but we need to handle it
-            showToast('This email is already registered. Please use a different email or contact support.');
-            return;
-          }
-        } else if (authError.code === 'auth/invalid-email') {
-          showToast('Invalid email address. Please check and try again.');
-          return;
-        } else if (authError.code === 'auth/weak-password') {
-          showToast('Password is too weak. Please use a stronger password.');
-          return;
-        } else {
-          throw authError;
-        }
-      }
-
-      // Create user profile in Firestore if we created a new auth user
-      if (firebaseUser.uid && isNewUser) {
-        await setDoc(doc(firestore, 'users', firebaseUser.uid), {
-          displayName: newStaffName.trim(),
-          email: newStaffEmail.trim(),
-          role: 'Staff',
-          staffId: staffId,
-          businessId: businessId,
-          permissions: newStaffPermissions,
-          initials: getInitials(newStaffName.trim()),
-          createdAt: new Date(),
+        // Call API route to create staff user using admin SDK
+        // This prevents the owner from being signed out
+        const response = await fetch('/api/staff/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: newStaffEmail.trim(),
+            password: password,
+            name: newStaffName.trim(),
+            role: newStaffRole.trim(),
+            staffId: staffId,
+            businessId: businessId,
+            permissions: newStaffPermissions,
+          }),
         });
-      }
 
-      // Create staff member in businesses collection
-      await setDoc(doc(firestore, 'businesses', businessId, 'staff', firebaseUser.uid), {
-        name: newStaffName.trim(),
-        email: newStaffEmail.trim(),
-        role: newStaffRole.trim(),
-        staffId: staffId,
-        permissions: newStaffPermissions,
-        status: 'active',
-        createdAt: new Date(),
-        revenue: 0,
-        transactions: 0,
-        online: false,
-      });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create staff user');
+        }
+
+        firebaseUser = { uid: data.uid };
+        isNewUser = data.isNewUser;
+      } catch (authError: any) {
+        console.error('Error creating staff:', authError);
+        const errorMessage = authError.message || 'Failed to create staff member. Please try again.';
+        showToast(errorMessage);
+        return;
+      }
 
       const newStaff: StaffMember = {
         id: firebaseUser.uid,
@@ -476,37 +425,44 @@ export function StaffPage() {
     }
   };
 
-  const handleRemoveStaff = async (staffId: string, staffName: string) => {
-    if (confirm(`Are you sure you want to remove ${staffName}? This will permanently delete their account.`)) {
-      try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
-        const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-        const businessId = ownerDoc.data()?.businessId || 'default';
+  const handleRemoveStaff = (staff: StaffMember) => {
+    setStaffToRemove(staff);
+    setShowRemoveConfirmationModal(true);
+  };
 
-        // Remove from businesses/staff collection
-        await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
-          status: 'removed',
-          removedAt: new Date(),
-        }, { merge: true });
+  const confirmRemoveStaff = async () => {
+    if (!staffToRemove) return;
 
-        // Update user role in users collection
-        await setDoc(doc(firestore, 'users', staffId), {
-          role: 'Removed',
-          businessId: null,
-        }, { merge: true });
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const currentUserId = auth.currentUser?.uid || '';
+      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
+      const businessId = ownerDoc.data()?.businessId || 'default';
 
-        setStaffMembers((prev) => prev.filter((s) => s.id !== staffId));
-        setConversations((prev) => {
-          const newConvos = { ...prev };
-          delete newConvos[staffId];
-          return newConvos;
-        });
-        showToast(`${staffName} has been removed`);
-      } catch (error) {
-        console.error('Error removing staff:', error);
-        showToast('Failed to remove staff member');
-      }
+      // Remove from businesses/staff collection
+      await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffToRemove.id), {
+        status: 'removed',
+        removedAt: new Date(),
+      }, { merge: true });
+
+      // Update user role in users collection
+      await setDoc(doc(firestore, 'users', staffToRemove.id), {
+        role: 'Removed',
+        businessId: null,
+      }, { merge: true });
+
+      setStaffMembers((prev) => prev.filter((s) => s.id !== staffToRemove.id));
+      setConversations((prev) => {
+        const newConvos = { ...prev };
+        delete newConvos[staffToRemove.id];
+        return newConvos;
+      });
+      showToast(`${staffToRemove.name} has been removed`);
+      setShowRemoveConfirmationModal(false);
+      setStaffToRemove(null);
+    } catch (error) {
+      console.error('Error removing staff:', error);
+      showToast('Failed to remove staff member');
     }
   };
 
@@ -682,6 +638,42 @@ export function StaffPage() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const copyCredentials = () => {
+    if (!newStaffCredentials) return;
+    const credentials = `Staff Login Credentials\n\nName: ${newStaffCredentials.name}\nEmail: ${newStaffCredentials.email}\nStaff ID: ${newStaffCredentials.staffId}\nPassword: ${newStaffCredentials.password}`;
+    navigator.clipboard.writeText(credentials);
+    showToast('Credentials copied to clipboard');
+  };
+
+  const downloadCredentialsAsImage = async () => {
+    if (!newStaffCredentials || !credentialsRef.current) return;
+    
+    try {
+      // Use html2canvas to capture the credentials card as an image
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(credentialsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+      
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${newStaffCredentials.name.replace(/\s+/g, '_')}_credentials.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+          showToast('Credentials image downloaded');
+        }
+      });
+    } catch (error) {
+      console.error('Error generating credentials image:', error);
+      showToast('Failed to generate credentials image');
+    }
+  };
+
   const getSelectedConversation = () => {
     return conversations[selectedChat];
   };
@@ -694,7 +686,6 @@ export function StaffPage() {
           <p className={styles.pageDesc}>{t('staff.subtitle')}</p>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
           <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>+ {t('staff.addMember')}</Button>
         </div>
       </div>
@@ -705,7 +696,8 @@ export function StaffPage() {
           className={`${styles.tabBtn} ${activeTab === 'staff' ? styles.active : ''}`}
           onClick={() => setActiveTab('staff')}
         >
-          👥 {t('nav.staff')}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          {t('nav.staff')}
         </button>
         {isRestaurant && (
           <>
@@ -713,13 +705,15 @@ export function StaffPage() {
               className={`${styles.tabBtn} ${activeTab === 'attendance' ? styles.active : ''}`}
               onClick={() => setActiveTab('attendance')}
             >
-              📅 Attendance
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Attendance
             </button>
             <button
               className={`${styles.tabBtn} ${activeTab === 'payroll' ? styles.active : ''}`}
               onClick={() => setActiveTab('payroll')}
             >
-              💰 Payroll
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              Payroll
             </button>
           </>
         )}
@@ -727,7 +721,8 @@ export function StaffPage() {
           className={`${styles.tabBtn} ${activeTab === 'chat' ? styles.active : ''}`}
           onClick={() => setActiveTab('chat')}
         >
-          💬 {t('nav.chat')}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          {t('nav.chat')}
         </button>
       </div>
 
@@ -805,13 +800,34 @@ export function StaffPage() {
                   </div>
                 </div>
                 <div className={styles.staffActions}>
-                  <Button variant="subtle" size="xs" onClick={() => handleEditStaff(member)}>✏️ Edit</Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleViewCredentials(member)}>🔑 Credentials</Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleSetTargets(member)}>🎯 Set Targets</Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleViewActivities(member)}>📊 Activities</Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleStartChat(member.id)}>💬 Message</Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)}>🚫 Ban</Button>
-                  <Button variant="danger" size="xs" onClick={() => handleRemoveStaff(member.id, member.name)}>Remove</Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleEditStaff(member)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                  </Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleViewCredentials(member)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    Credentials
+                  </Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleSetTargets(member)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Set Targets
+                  </Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleViewActivities(member)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    Activities
+                  </Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleStartChat(member.id)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    Message
+                  </Button>
+                  <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    Ban
+                  </Button>
+                  <Button variant="danger" size="xs" onClick={() => handleRemoveStaff(member)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    Remove
+                  </Button>
                 </div>
               </div>
             ))}
@@ -1680,7 +1696,9 @@ export function StaffPage() {
           zIndex: 1000,
           padding: '20px',
         }} onClick={() => setShowCredentialsModal(false)}>
-          <div style={{
+          <div 
+            ref={credentialsRef}
+            style={{
             background: 'var(--surface)',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--border)',
@@ -1840,6 +1858,56 @@ export function StaffPage() {
               background: 'var(--bg)',
               borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
             }}>
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '10px',
+              }}>
+                <button
+                  onClick={copyCredentials}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-2)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  Copy
+                </button>
+                <button
+                  onClick={downloadCredentialsAsImage}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-2)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Image
+                </button>
+              </div>
               <button
                 onClick={() => { setShowCredentialsModal(false); setNewStaffCredentials(null); }}
                 style={{
@@ -2303,6 +2371,74 @@ export function StaffPage() {
               >
                 Save Targets
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {showRemoveConfirmationModal && staffToRemove && (
+        <div className={styles.modalOverlay} onClick={() => setShowRemoveConfirmationModal(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <button className={styles.modalClose} onClick={() => setShowRemoveConfirmationModal(false)}>✕</button>
+            <h2 className={styles.modalTitle}>Remove Staff Member</h2>
+            <div className={styles.modalContent}>
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-2)', marginBottom: '12px' }}>
+                  Are you sure you want to remove <strong>{staffToRemove.name}</strong>? This will permanently delete their account and they will lose access to the dashboard.
+                </p>
+                <div style={{
+                  padding: '12px',
+                  background: 'var(--red-bg)',
+                  border: '1px solid var(--red)',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  color: 'var(--red)',
+                }}>
+                  ⚠️ This action cannot be undone. The staff member will be permanently removed from your business.
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginTop: '20px',
+              }}>
+                <button
+                  onClick={() => setShowRemoveConfirmationModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-2)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRemoveStaff}
+                  style={{
+                    flex: 1,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--red)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                  }}
+                >
+                  Remove Staff
+                </button>
+              </div>
             </div>
           </div>
         </div>

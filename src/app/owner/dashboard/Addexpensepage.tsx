@@ -7,6 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addexpensepage.module.css';
 
 // ═══════════════════════════════════════════
@@ -73,6 +74,9 @@ export function AddExpensePage() {
   });
 
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const set = useCallback((key: keyof ExpenseForm, val: string | boolean) => {
     setForm(prev => ({ ...prev, [key]: val }));
@@ -80,9 +84,50 @@ export function AddExpensePage() {
 
   const showStockLink = form.category === 'stock' || form.category === 'raw';
 
+  async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('⚠️ File size exceeds 5MB limit');
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      showToast('⚠️ Only JPG, PNG, and PDF files are allowed');
+      return;
+    }
+
+    setIsUploadingReceipt(true);
+
+    try {
+      const { storage } = initializeFirebase();
+      const storageRef = ref(storage, `expense_receipts/${Date.now()}_${file.name}`);
+      
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      setReceipt(downloadURL);
+      showToast('✅ Receipt uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      showToast('🔥 Failed to upload receipt');
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  }
+
+  function handleReceiptClick() {
+    fileInputRef.current?.click();
+  }
+
   async function handleSave() {
     if (!form.category) { showToast('⚠️ Please select a category'); return; }
     if (!form.amount)   { showToast('⚠️ Please enter an amount'); return; }
+    if (isSubmitting) return; // Prevent duplicate submissions
 
     if (!firestore) {
       showToast('⚠️ Database not connected');
@@ -93,6 +138,8 @@ export function AddExpensePage() {
       showToast('⚠️ User not authenticated');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       // Get business ID from user document
@@ -148,6 +195,8 @@ export function AddExpensePage() {
     } catch (error) {
       console.error('Failed to save expense:', error);
       showToast('🔥 Error saving expense: ' + (error as any).message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -261,20 +310,41 @@ export function AddExpensePage() {
         <hr className={styles.divider} />
         <div className={styles.cardTitle} style={{ marginBottom: 4 }}>Receipt / Proof of Payment</div>
         <div className={styles.cardSub} style={{ marginBottom: 12 }}>Upload a photo of your receipt. This strengthens the credibility of your financial statements when used for loan or verification purposes.</div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,application/pdf"
+          onChange={handleReceiptUpload}
+          style={{ display: 'none' }}
+        />
         <div
           className={`${styles.uploadZone} ${receipt ? styles.uploadZoneFilled : ''}`}
-          onClick={() => { showToast('📎 Receipt upload coming soon'); setReceipt('demo'); }}
+          onClick={handleReceiptClick}
+          style={{ cursor: isUploadingReceipt ? 'not-allowed' : 'pointer', opacity: isUploadingReceipt ? 0.6 : 1 }}
         >
-          <div className={styles.uploadIcon}>{receipt ? '✅' : '🧾'}</div>
-          <div className={styles.uploadLabel}>{receipt ? 'Receipt uploaded' : 'Upload receipt (optional)'}</div>
+          <div className={styles.uploadIcon}>
+            {isUploadingReceipt ? '⏳' : receipt ? '✅' : '🧾'}
+          </div>
+          <div className={styles.uploadLabel}>
+            {isUploadingReceipt ? 'Uploading...' : receipt ? 'Receipt uploaded' : 'Upload receipt (optional)'}
+          </div>
           <div className={styles.uploadHint}>JPG, PNG, PDF · Max 5MB</div>
         </div>
       </div>
 
       <div className={styles.actions}>
-        <button type="button" className={styles.btnPrimary} onClick={handleSave}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-          Record Expense
+        <button type="button" className={styles.btnPrimary} onClick={handleSave} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+              Recording...
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              Record Expense
+            </>
+          )}
         </button>
         <button type="button" className={styles.btnGhost}>Cancel</button>
       </div>

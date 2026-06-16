@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/app/owner/dashboard/AppContext';
-import { initializePaystackPayment } from '@/lib/paymentService';
+import { getUserCountryCode } from '@/lib/currency';
 import styles from './CreditPurchaseModal.module.css';
 
 interface CreditPack {
@@ -14,9 +14,9 @@ interface CreditPack {
 }
 
 const CREDIT_PACKS: CreditPack[] = [
-  { credits: 1500, amount: 1500, name: 'Starter Pack', description: 'Perfect for trying out MO' },
-  { credits: 3000, amount: 3000, name: 'Standard Pack', description: 'Great for regular use' },
-  { credits: 5000, amount: 5000, name: 'Premium Pack', description: 'Best value for businesses', popular: true },
+  { credits: 1500, amount: 5, name: 'Starter Pack', description: 'Perfect for trying out MO' },
+  { credits: 3000, amount: 10, name: 'Standard Pack', description: 'Great for regular use' },
+  { credits: 5000, amount: 15, name: 'Premium Pack', description: 'Best value for businesses', popular: true },
 ];
 
 interface CreditPurchaseModalProps {
@@ -30,6 +30,13 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
   const [selectedPack, setSelectedPack] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [countryCode, setCountryCode] = useState<string>('US');
+
+  // Detect user country code on mount
+  useEffect(() => {
+    const detectedCountry = getUserCountryCode();
+    setCountryCode(detectedCountry);
+  }, []);
 
   const handlePurchase = async (packKey: string, pack: CreditPack) => {
     if (!user?.email) {
@@ -44,28 +51,30 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
     try {
       console.log('Initializing payment for pack:', packKey, 'amount:', pack.amount);
       
-      // Initialize payment with Paystack
-      await initializePaystackPayment({
-        amount: pack.amount,
-        currency: 'NGN',
-        email: user.email,
-        metadata: {
+      // Call API route to initialize payment
+      const response = await fetch('/api/payments/purchase-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           pack: packKey,
           userId: user.id,
-          credits: pack.credits,
-        },
-        onSuccess: async (reference: string) => {
-          console.log('Payment successful with reference:', reference);
-          // Payment successful - callback will handle credit update
-          onSuccess?.();
-          onClose();
-        },
-        onClose: () => {
-          console.log('Payment modal closed');
-          setIsProcessing(false);
-          setSelectedPack(null);
-        },
+          email: user.email,
+          countryCode: countryCode,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initialize payment');
+      }
+
+      // Redirect to Paystack checkout
+      if (data.data && data.data.authorization_url) {
+        window.location.href = data.data.authorization_url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (err) {
       console.error('Payment initialization error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment. Please try again.';
@@ -83,7 +92,7 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.moToken}>
-              <span className={styles.moEmoji}>🤖</span>
+              <img src="/mo-thinking.svg" alt="MO" className={styles.moLogo} />
             </div>
             <div>
               <h2>Purchase MO Credits</h2>
@@ -103,47 +112,37 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
           <div className={styles.packGrid}>
             {CREDIT_PACKS.map((pack, index) => {
               const packKey = ['starter', 'standard', 'premium'][index];
-              const gradientColors = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              ];
               return (
                 <div
                   key={packKey}
-                  className={`${styles.packCard} ${pack.popular ? styles.popular : ''} ${selectedPack === packKey ? styles.selected : ''}`}
-                  style={{ background: pack.popular ? gradientColors[index] : 'var(--bg-2)' }}
+                  className={`${styles.packCard} ${pack.popular ? styles.popular : ''}`}
                   onClick={() => !isProcessing && handlePurchase(packKey, pack)}
                 >
                   {pack.popular && <div className={styles.popularBadge}>Most Popular</div>}
 
-                  <div className={styles.packIcon}>
-                    <span className={styles.packEmoji}>{index === 0 ? '🌱' : index === 1 ? '🚀' : '💎'}</span>
-                  </div>
+                  <div className={styles.packName}>{pack.name}</div>
 
-                  <div className={styles.packName} style={{ color: pack.popular ? 'white' : 'var(--text-1)' }}>{pack.name}</div>
-
-                  <div className={styles.packCredits} style={{ color: pack.popular ? 'white' : 'var(--primary)' }}>
+                  <div className={styles.packCredits}>
                     {pack.credits.toLocaleString()}
-                    <span className={styles.creditsLabel} style={{ color: pack.popular ? 'rgba(255,255,255,0.8)' : 'var(--text-2)' }}>credits</span>
+                    <span className={styles.creditsLabel}>credits</span>
                   </div>
 
-                  <div className={styles.packPrice} style={{ color: pack.popular ? 'white' : 'var(--text-1)' }}>
+                  <div className={styles.packPrice}>
                     ₦{pack.amount.toLocaleString()}
                   </div>
 
                   {pack.description && (
-                    <div className={styles.packDescription} style={{ color: pack.popular ? 'rgba(255,255,255,0.9)' : 'var(--text-2)' }}>
+                    <div className={styles.packDescription}>
                       {pack.description}
                     </div>
                   )}
 
                   {isProcessing && selectedPack === packKey ? (
-                    <button className={styles.purchaseButton} disabled style={{ background: 'rgba(255,255,255,0.3)', color: 'white' }}>
+                    <button className={styles.purchaseButton} disabled>
                       Processing...
                     </button>
                   ) : (
-                    <button className={styles.purchaseButton} style={{ background: pack.popular ? 'white' : 'var(--primary)', color: pack.popular ? 'var(--primary)' : 'white' }}>
+                    <button className={styles.purchaseButton}>
                       Purchase
                     </button>
                   )}
