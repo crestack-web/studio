@@ -24,16 +24,21 @@ const CREDIT_LAYER_EXCLUDED_TYPES = [
 // Features that require Pro plan
 const PRO_ONLY_FEATURES = [
   'bankAccounts',
-  'cashFlow',
   'auditTrail',
   'staffActivity',
   'multiLocation',
+];
+
+// Features that require Standard or Pro plan (not available to starters)
+const STANDARD_OR_PRO_FEATURES = [
+  'cashFlow',
 ];
 
 export interface FeatureRestrictionResult {
   eligible: boolean;
   reason?: string;
   requiresPro?: boolean;
+  requiresStandardOrPro?: boolean;
 }
 
 /**
@@ -69,6 +74,13 @@ export function requiresProPlan(feature: string): boolean {
 }
 
 /**
+ * Check if a feature requires Standard or Pro plan (not available to starters)
+ */
+export function requiresStandardOrProPlan(feature: string): boolean {
+  return STANDARD_OR_PRO_FEATURES.includes(feature);
+}
+
+/**
  * Check if a user has access to a specific feature
  */
 export async function checkFeatureAccess(
@@ -86,13 +98,22 @@ export async function checkFeatureAccess(
     const userData = userDoc.data();
     const plan = userData?.plan || 'starter';
     const businessType = userData?.category || userData?.businessType;
-    
+
+    // Check if feature requires Standard or Pro plan (not available to starters)
+    if (requiresStandardOrProPlan(feature) && plan === 'starter') {
+      return {
+        eligible: false,
+        reason: 'This feature requires a Standard or Pro plan',
+        requiresStandardOrPro: true
+      };
+    }
+
     // Check if feature requires Pro plan
     if (requiresProPlan(feature) && plan !== 'pro') {
-      return { 
-        eligible: false, 
+      return {
+        eligible: false,
         reason: 'This feature requires a Pro plan',
-        requiresPro: true 
+        requiresPro: true
       };
     }
     
