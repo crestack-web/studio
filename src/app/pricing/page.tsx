@@ -248,7 +248,22 @@ export default function PricingPage() {
                 </ul>
                 <button
                   className={`plan-cta ${plan.popular ? 'primary' : ''}`}
-                  onClick={() => handlePlanSelect(plan)}
+                  onClick={() => {
+                    if (plan.cta === 'Start Free Trial') {
+                      // Store trial information in localStorage for use during signup
+                      const trialInfo = {
+                        plan: plan.name,
+                        billing: mode,
+                        country: 'NG',
+                        trialStart: new Date().toISOString(),
+                        trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+                      };
+                      localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
+                      window.location.href = '/welcome/signup?trial=true';
+                    } else {
+                      handlePlanSelect(plan);
+                    }
+                  }}
                 >
                   {plan.cta}
                 </button>
