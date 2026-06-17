@@ -280,7 +280,179 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
               }
             });
 
-            // Build business summary with restaurant-specific data
+            // Load operations data (suppliers, stock receipts, transfers)
+            let suppliersCount = 0;
+            let totalSpentOnSuppliers = 0;
+            let stockReceiptsCount = 0;
+            let stockTransfersCount = 0;
+            
+            try {
+              const suppliersQuery = query(
+                collection(firestore, 'businesses', businessId, 'suppliers'),
+                where('active', '==', true)
+              );
+              const suppliersSnapshot = await getDocs(suppliersQuery);
+              suppliersCount = suppliersSnapshot.size;
+              suppliersSnapshot.forEach(doc => {
+                const data = doc.data();
+                totalSpentOnSuppliers += data.totalAmountSpent || 0;
+              });
+            } catch (error) {
+              console.error('Error loading suppliers:', error);
+            }
+            
+            try {
+              const receiptsQuery = query(
+                collection(firestore, 'businesses', businessId, 'stockReceipts'),
+                where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+              );
+              const receiptsSnapshot = await getDocs(receiptsQuery);
+              stockReceiptsCount = receiptsSnapshot.size;
+            } catch (error) {
+              console.error('Error loading stock receipts:', error);
+            }
+            
+            try {
+              const transfersQuery = query(
+                collection(firestore, 'businesses', businessId, 'stockTransfers'),
+                where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+              );
+              const transfersSnapshot = await getDocs(transfersQuery);
+              stockTransfersCount = transfersSnapshot.size;
+            } catch (error) {
+              console.error('Error loading stock transfers:', error);
+            }
+
+            // Load credit data (supplier credit, customer credit)
+            let supplierCreditBalance = 0;
+            let customerCreditBalance = 0;
+            let pendingCreditPayments = 0;
+            
+            try {
+              const supplierCreditQuery = query(
+                collection(firestore, 'businesses', businessId, 'supplier_credit'),
+                where('status', '==', 'active')
+              );
+              const supplierCreditSnapshot = await getDocs(supplierCreditQuery);
+              supplierCreditSnapshot.forEach(doc => {
+                const data = doc.data();
+                supplierCreditBalance += data.outstandingBalance || 0;
+              });
+            } catch (error) {
+              console.error('Error loading supplier credit:', error);
+            }
+            
+            try {
+              const customerCreditQuery = query(
+                collection(firestore, 'businesses', businessId, 'credit_customers')
+              );
+              const customerCreditSnapshot = await getDocs(customerCreditQuery);
+              customerCreditSnapshot.forEach(doc => {
+                const data = doc.data();
+                customerCreditBalance += data.currentBalance || 0;
+              });
+            } catch (error) {
+              console.error('Error loading customer credit:', error);
+            }
+            
+            try {
+              const creditTransactionsQuery = query(
+                collection(firestore, 'businesses', businessId, 'credit_transactions'),
+                where('status', '==', 'pending')
+              );
+              const creditTransactionsSnapshot = await getDocs(creditTransactionsQuery);
+              creditTransactionsSnapshot.forEach(doc => {
+                const data = doc.data();
+                pendingCreditPayments += data.remainingAmount || 0;
+              });
+            } catch (error) {
+              console.error('Error loading credit transactions:', error);
+            }
+
+            // Load banking data
+            let totalBankBalance = 0;
+            let bankAccountsCount = 0;
+            let recentBankTransactions = 0;
+            
+            try {
+              const bankAccountsQuery = query(
+                collection(firestore, 'businesses', businessId, 'bankAccounts'),
+                where('isActive', '==', true)
+              );
+              const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+              bankAccountsCount = bankAccountsSnapshot.size;
+              bankAccountsSnapshot.forEach(doc => {
+                const data = doc.data();
+                totalBankBalance += data.balance || 0;
+              });
+            } catch (error) {
+              console.error('Error loading bank accounts:', error);
+            }
+            
+            try {
+              const bankTransactionsQuery = query(
+                collection(firestore, 'businesses', businessId, 'bankTransactions'),
+                where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+              );
+              const bankTransactionsSnapshot = await getDocs(bankTransactionsQuery);
+              recentBankTransactions = bankTransactionsSnapshot.size;
+            } catch (error) {
+              console.error('Error loading bank transactions:', error);
+            }
+
+            // Load staff activity data
+            let staffCount = 0;
+            let totalStaffActions = 0;
+            let staffSalesCount = 0;
+            let staffRevenue = 0;
+            
+            try {
+              const staffQuery = query(
+                collection(firestore, 'businesses', businessId, 'staff'),
+                where('isActive', '==', true)
+              );
+              const staffSnapshot = await getDocs(staffQuery);
+              staffCount = staffSnapshot.size;
+              staffSnapshot.forEach(doc => {
+                const data = doc.data();
+                staffSalesCount += data.transactions || 0;
+                staffRevenue += data.revenue || 0;
+              });
+            } catch (error) {
+              console.error('Error loading staff:', error);
+            }
+            
+            try {
+              const staffActivityQuery = query(
+                collection(firestore, 'businesses', businessId, 'staffActivity'),
+                where('timestamp', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+              );
+              const staffActivitySnapshot = await getDocs(staffActivityQuery);
+              totalStaffActions = staffActivitySnapshot.size;
+            } catch (error) {
+              console.error('Error loading staff activity:', error);
+            }
+
+            // Load cash flow data
+            let totalMoneyIn = 0;
+            let totalMoneyOut = 0;
+            
+            try {
+              const cashFlowQuery = query(
+                collection(firestore, 'businesses', businessId, 'cashFlow'),
+                where('date', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+              );
+              const cashFlowSnapshot = await getDocs(cashFlowQuery);
+              cashFlowSnapshot.forEach(doc => {
+                const data = doc.data();
+                totalMoneyIn += data.moneyIn || 0;
+                totalMoneyOut += data.moneyOut || 0;
+              });
+            } catch (error) {
+              console.error('Error loading cash flow:', error);
+            }
+
+            // Build business summary with restaurant-specific data and operations data
             const summary: any = {
               totalSales,
               totalProfit,
@@ -291,6 +463,28 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
               totalInventoryValue,
               totalExpenses,
               pendingCollections,
+              // Operations data
+              suppliersCount,
+              totalSpentOnSuppliers,
+              stockReceiptsCount,
+              stockTransfersCount,
+              // Credit data
+              supplierCreditBalance,
+              customerCreditBalance,
+              pendingCreditPayments,
+              // Banking data
+              totalBankBalance,
+              bankAccountsCount,
+              recentBankTransactions,
+              // Staff activity data
+              staffCount,
+              totalStaffActions,
+              staffSalesCount,
+              staffRevenue,
+              // Cash flow data
+              totalMoneyIn,
+              totalMoneyOut,
+              netCashFlow: totalMoneyIn - totalMoneyOut,
             };
 
             // Add restaurant-specific context

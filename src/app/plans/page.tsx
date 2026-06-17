@@ -18,33 +18,26 @@ import { useAuth } from '@/firebase';
 
 const plans = [
     {
-        id: 'shop',
-        name: 'Shop',
+        id: 'starter',
+        name: 'Starter',
         description: 'For small retailers',
-        monthlyPrice: 1500,
-        yearlyPrice: 15000,
+        monthlyPrice: 5000,
+        yearlyPrice: 50000,
     },
     {
-        id: 'supermarket',
-        name: 'Supermarket',
-        description: 'For larger stores',
+        id: 'standard',
+        name: 'Standard',
+        description: 'For growing businesses',
         monthlyPrice: 10000,
         yearlyPrice: 100000,
         isPopular: true,
     },
     {
-        id: 'multi-branch',
-        name: 'Multiple Branches',
+        id: 'pro',
+        name: 'Pro',
         description: 'For chains & franchises',
-        monthlyPrice: 30000,
-        yearlyPrice: 300000,
-    },
-    {
-        id: 'company',
-        name: 'Company',
-        description: 'For manufacturers',
-        monthlyPrice: 50000,
-        yearlyPrice: 500000,
+        monthlyPrice: 25000,
+        yearlyPrice: 250000,
     }
 ];
 
@@ -94,7 +87,7 @@ function PlansPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [selectedPlan, setSelectedPlan] = useState('supermarket');
+  const [selectedPlan, setSelectedPlan] = useState('standard');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const firestore = useFirestore();

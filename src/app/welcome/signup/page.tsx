@@ -509,6 +509,17 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
     );
   }
 
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'starter': return { bg: '#F4F4F8', border: '#C4C4D4', text: '#0A0A0F' };
+      case 'standard': return { bg: '#F3EFFE', border: '#6B3FE7', text: '#6B3FE7' };
+      case 'pro': return { bg: '#FEF3C7', border: '#D97706', text: '#D97706' };
+      default: return { bg: '#F4F4F8', border: '#C4C4D4', text: '#0A0A0F' };
+    }
+  };
+
+  const planColors = getPlanColor(analysis.recommendedPlan || 'starter');
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -531,6 +542,35 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
 
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Recommended Plan
+          </span>
+          <div style={{ 
+            padding: "12px 16px", 
+            background: planColors.bg, 
+            border: `2px solid ${planColors.border}`, 
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div>
+              <span style={{ fontSize: 16, fontWeight: 700, color: planColors.text, textTransform: "capitalize" }}>
+                {analysis.recommendedPlan} Plan
+              </span>
+              {analysis.recommendedPlanReason && (
+                <p style={{ fontSize: 12, color: "#555568", marginTop: 4 }}>
+                  {analysis.recommendedPlanReason}
+                </p>
+              )}
+            </div>
+            <div style={{ fontSize: 24 }}>💡</div>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8F0" }} />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Recommended Setup
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -542,6 +582,20 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
             ))}
           </div>
         </div>
+
+        {analysis.teamSizeEstimate && (
+          <>
+            <div style={{ height: 1, background: "#E8E8F0" }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Team Size Estimate
+              </span>
+              <span style={{ fontSize: 14, color: "#0A0A0F", textTransform: "capitalize" }}>
+                {analysis.teamSizeEstimate}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       <button

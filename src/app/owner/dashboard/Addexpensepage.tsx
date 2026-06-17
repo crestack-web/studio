@@ -104,8 +104,28 @@ export function AddExpensePage() {
     setIsUploadingReceipt(true);
 
     try {
+      // Get business ID for storage path
+      const { auth } = initializeFirebase();
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        showToast('⚠️ User not authenticated');
+        return;
+      }
+
+      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+      if (!userDoc.exists()) {
+        showToast('⚠️ User document not found');
+        return;
+      }
+
+      const businessId = userDoc.data().businessId;
+      if (!businessId) {
+        showToast('⚠️ Business ID not found');
+        return;
+      }
+
       const { storage } = initializeFirebase();
-      const storageRef = ref(storage, `expense_receipts/${Date.now()}_${file.name}`);
+      const storageRef = ref(storage, `merchants/${businessId}/documents/${Date.now()}_${file.name}`);
       
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);

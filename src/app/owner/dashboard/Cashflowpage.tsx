@@ -4,652 +4,448 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, orderBy, limit, addDoc, Timestamp, doc, getDoc, where, updateDoc } from 'firebase/firestore';
+import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
+import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Pagination } from '@/components/Pagination';
+import { getUserPlan } from '@/lib/featureRestrictions';
 import styles from './Cashflowpage.module.css';
 
 // ═══════════════════════════════════════════
-//  CashflowPage — 4 action forms + transaction log
+//  CashflowPage — Cash flow tracking with bank integration
 // ═══════════════════════════════════════════
 
-type ActionId = 'add-stock' | 'reduce-stock' | 'add-money' | 'take-money' | null;
+type ViewPeriod = 'daily' | 'weekly' | 'monthly';
 
-interface Transaction {
+interface BankAccount {
   id: string;
-  date: string;
-  type: string;
-  description: string;
-  amount: number;
-  credit: boolean;
-  recordedBy?: {
-    uid: string;
-    email?: string;
-    displayName?: string;
-    timestamp?: Date;
+  accountName: string;
+  bankName: string;
+  currentBalance: number;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+interface CashFlowRecord {
+  id: string;
+  date: Timestamp;
+  moneyIn: {
+    sales: number;
+    collections: number;
+    deposits: number;
+    transfers: number;
+    other: number;
+    total: number;
   };
+  moneyOut: {
+    expenses: number;
+    supplierPayments: number;
+    withdrawals: number;
+    transfers: number;
+    purchases: number;
+    other: number;
+    total: number;
+  };
+  netCashFlow: number;
+  openingBalance: number;
+  closingBalance: number;
+}
+
+interface BankTransaction {
+  id: string;
+  transactionNumber: string;
+  bankAccountId: string;
+  accountName: string;
+  type: 'money_in' | 'money_out';
+  category: string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  createdAt: Timestamp;
 }
 
 export function CashflowPage() {
-  const { showToast, navigateTo } = useApp();
-  const { t } = useTranslation();
+  const { showToast, user } = useApp();
   const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
-  const [activeAction, setActiveAction] = useState<ActionId>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState<any[]>([]);
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [stats, setStats] = useState({
-    cashBalance: 0,
-    stockValue: 0,
-    monthIn: 0,
-    monthOut: 0,
-  });
+  const { businessId } = useBranch();
+  const { firestore } = initializeFirebase();
+  
+  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('daily');
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [cashFlowRecords, setCashFlowRecords] = useState<CashFlowRecord[]>([]);
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [isProUser, setIsProUser] = useState<boolean | null>(null);
 
-  // Fetch real transactions from Firestore
   useEffect(() => {
-    async function fetchData() {
-      if (!firestore) return;
-      
-      try {
-        setLoading(true);
+    checkPlan();
+    setCurrentPage(1);
+    loadData();
+  }, [businessId, firestore, viewPeriod]);
 
-        // Get user's business ID
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
-        
-        if (!user) {
-          console.warn('User not authenticated');
-          setLoading(false);
-          return;
-        }
-
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        if (!userDoc.exists()) {
-          console.warn('User document not found');
-          setLoading(false);
-          return;
-        }
-
-        const businessId = userDoc.data().businessId;
-        if (!businessId) {
-          console.warn('Business ID not found');
-          setLoading(false);
-          return;
-        }
-
-        setBusinessId(businessId);
-
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthStartTs = Timestamp.fromDate(monthStart);
-
-        const fetchedTransactions: Transaction[] = [];
-        let cashBalance = 0;
-        let monthIn = 0;
-        let monthOut = 0;
-
-        // Fetch sales (income)
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          orderBy('createdAt', 'desc'),
-          limit(50)
-        );
-
-        const salesSnapshot = await getDocs(salesQuery);
-        
-        salesSnapshot.forEach(doc => {
-          const data = doc.data();
-          const amount = data.total || data.totalRevenue || 0;
-          const date = data.createdAt?.toDate() || new Date();
-
-          fetchedTransactions.push({
-            id: doc.id,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            type: 'Sale',
-            description: `Sale - ${data.products?.length || 0} items`,
-            amount: amount,
-            credit: true,
-            recordedBy: data.recordedBy,
-          });
-
-          cashBalance += amount;
-          if (date >= monthStart) monthIn += amount;
-        });
-
-        // Fetch expenses (outflows)
-        const expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          orderBy('createdAt', 'desc'),
-          limit(50)
-        );
-
-        const expensesSnapshot = await getDocs(expensesQuery);
-
-        expensesSnapshot.forEach(doc => {
-          const data = doc.data();
-          const amount = data.amount || 0;
-          const date = data.createdAt?.toDate() || new Date();
-
-          fetchedTransactions.push({
-            id: doc.id,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            type: data.category || 'Expense',
-            description: data.title || data.description || 'Expense',
-            amount: amount,
-            credit: false,
-            recordedBy: data.recordedBy,
-          });
-
-          cashBalance -= amount;
-          if (date >= monthStart) monthOut += amount;
-        });
-
-        // Sort by date
-        fetchedTransactions.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          return dateB.getTime() - dateA.getTime();
-        });
-
-        // Fetch products to calculate stock value and populate dropdowns
-        const productsQuery = query(
-          collection(firestore, 'businesses', businessId, 'products'),
-          where('active', '==', true)
-        );
-
-        const productsSnapshot = await getDocs(productsQuery);
-        const fetchedProducts: any[] = [];
-        let stockValue = 0;
-        productsSnapshot.forEach(doc => {
-          const data = doc.data();
-          const stock = data.stock || 0;
-          const costPrice = data.cost || data.costPrice || 0;
-          stockValue += stock * costPrice;
-          
-          fetchedProducts.push({
-            id: doc.id,
-            name: data.name || 'Unnamed Product',
-            stock: stock,
-            costPrice: costPrice,
-          });
-        });
-        
-        setProducts(fetchedProducts);
-
-        setTransactions(fetchedTransactions);
-        setStats({
-          cashBalance,
-          stockValue,
-          monthIn,
-          monthOut,
-        });
-      } catch (error) {
-        console.error('Error fetching cashflow data:', error);
-        showToast('Failed to load cashflow data');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [firestore, showToast]);
-
-  function toggle(id: ActionId) {
-    setActiveAction(prev => prev === id ? null : id);
-  }
-
-  function confirm(msg: string) {
-    showToast(`✅ ${msg}`);
-    setActiveAction(null);
-  }
-
-  async function handleSubmit(e: React.FormEvent, action: string) {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const amount = formData.get('amount') as string;
-    const description = formData.get('description') as string;
+  const checkPlan = async () => {
+    if (!user?.id) return;
     
-    if (!amount || !description) {
-      showToast('❌ Please fill all fields');
+    try {
+      const plan = await getUserPlan(user.id);
+      const isPro = plan === 'pro';
+      setIsProUser(isPro);
+      
+      if (!isPro) {
+        showToast('⚠️ Cash Flow tracking requires a Pro plan');
+      }
+    } catch (error) {
+      console.error('Error checking plan:', error);
+      setIsProUser(false);
+    }
+  };
+
+  const loadData = async () => {
+    if (!businessId || !firestore) {
+      setIsLoading(false);
       return;
     }
-    
+
     try {
-      const { auth, firestore } = initializeFirebase();
-      const user = auth.currentUser;
+      setIsLoading(true);
       
-      if (!user || !firestore || !businessId) {
-        showToast('❌ Authentication required');
-        return;
+      // Load bank accounts
+      const accountsQuery = query(
+        collection(firestore, 'businesses', businessId, 'bankAccounts'),
+        where('isActive', '==', true)
+      );
+      
+      const accountsSnapshot = await getDocs(accountsQuery);
+      const accountsList: BankAccount[] = [];
+      
+      accountsSnapshot.forEach(doc => {
+        const data = doc.data();
+        accountsList.push({
+          id: doc.id,
+          accountName: data.accountName,
+          bankName: data.bankName,
+          currentBalance: data.currentBalance,
+          isActive: data.isActive,
+          isDefault: data.isDefault,
+        });
+      });
+      
+      setBankAccounts(accountsList);
+      
+      // Load cash flow records based on view period
+      const now = new Date();
+      let startDate: Date;
+      
+      if (viewPeriod === 'daily') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (viewPeriod === 'weekly') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+      } else {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       }
-
-      // Create transaction record based on action type
-      const transactionData: any = {
-        amount: parseFloat(amount),
-        description: description,
-        type: action,
-        createdAt: new Date(),
-        recordedBy: {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || 'Unknown',
-          timestamp: new Date(),
-        },
-      };
-
-      // Handle different action types
-      if (action === t('cashflow.addStock')) {
-        const productId = formData.get('productId') as string;
-        const quantity = parseInt(formData.get('quantity') as string);
-        
-        if (productId && quantity) {
-          // Update product stock
-          const productRef = doc(firestore, 'businesses', businessId, 'products', productId);
-          const productDoc = await getDoc(productRef);
-          
-          if (productDoc.exists()) {
-            const currentStock = productDoc.data().stock || 0;
-            await updateDoc(productRef, { stock: currentStock + quantity });
-          }
-          
-          transactionData.productId = productId;
-          transactionData.quantity = quantity;
-        }
-      } else if (action === t('cashflow.reduceStock')) {
-        const productId = formData.get('productId') as string;
-        const quantity = parseInt(formData.get('quantity') as string);
-        const reason = formData.get('reason') as string;
-        
-        if (productId && quantity) {
-          // Update product stock
-          const productRef = doc(firestore, 'businesses', businessId, 'products', productId);
-          const productDoc = await getDoc(productRef);
-          
-          if (productDoc.exists()) {
-            const currentStock = productDoc.data().stock || 0;
-            await updateDoc(productRef, { stock: Math.max(0, currentStock - quantity) });
-          }
-          
-          transactionData.productId = productId;
-          transactionData.quantity = quantity;
-          transactionData.reason = reason;
-        }
-      } else if (action === t('cashflow.addMoney')) {
-        const source = formData.get('source') as string;
-        transactionData.source = source;
-        transactionData.category = 'income';
-      } else if (action === t('cashflow.takeMoney')) {
-        const category = formData.get('category') as string;
-        transactionData.category = category;
-      }
-
-      // Save transaction to Firestore
-      await addDoc(collection(firestore, 'businesses', businessId, 'transactions'), transactionData);
       
-      showToast(`✅ ${action}: ${description} - ${formatMoney(parseFloat(amount))}`);
-      setActiveAction(null);
+      const cashFlowQuery = query(
+        collection(firestore, 'businesses', businessId, 'cashFlow'),
+        where('date', '>=', Timestamp.fromDate(startDate)),
+        orderBy('date', 'desc')
+      );
       
-      // Refresh data
-      fetchData();
+      const cashFlowSnapshot = await getDocs(cashFlowQuery);
+      const cashFlowList: CashFlowRecord[] = [];
+      
+      cashFlowSnapshot.forEach(doc => {
+        const data = doc.data();
+        cashFlowList.push({
+          id: doc.id,
+          date: data.date,
+          moneyIn: data.moneyIn,
+          moneyOut: data.moneyOut,
+          netCashFlow: data.netCashFlow,
+          openingBalance: data.openingBalance,
+          closingBalance: data.closingBalance,
+        });
+      });
+      
+      setCashFlowRecords(cashFlowList);
+      
+      // Load recent bank transactions
+      const transactionsQuery = query(
+        collection(firestore, 'businesses', businessId, 'bankTransactions'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+      
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const transactionsList: BankTransaction[] = [];
+      
+      transactionsSnapshot.forEach(doc => {
+        const data = doc.data();
+        transactionsList.push({
+          id: doc.id,
+          transactionNumber: data.transactionNumber,
+          bankAccountId: data.bankAccountId,
+          accountName: data.accountName,
+          type: data.type,
+          category: data.category,
+          amount: data.amount,
+          balanceAfter: data.balanceAfter,
+          description: data.description,
+          createdAt: data.createdAt,
+        });
+      });
+      
+      setBankTransactions(transactionsList);
     } catch (error) {
-      console.error('Error saving transaction:', error);
-      showToast('❌ Failed to save transaction');
+      console.error('Error loading cash flow data:', error);
+      showToast('❌ Failed to load cash flow data');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const getTotalBalance = () => {
+    return bankAccounts.reduce((sum, a) => sum + a.currentBalance, 0);
+  };
+
+  const getTotalMoneyIn = () => {
+    return cashFlowRecords.reduce((sum, r) => sum + r.moneyIn.total, 0);
+  };
+
+  const getTotalMoneyOut = () => {
+    return cashFlowRecords.reduce((sum, r) => sum + r.moneyOut.total, 0);
+  };
+
+  const getNetCashFlow = () => {
+    return getTotalMoneyIn() - getTotalMoneyOut();
+  };
+
+  const formatDate = (timestamp: Timestamp) => {
+    if (!timestamp) return 'N/A';
+    return new Date(timestamp.toDate()).toLocaleDateString();
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(bankTransactions.length / itemsPerPage);
+  const paginatedTransactions = bankTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  if (isLoading) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.pageHeader}>
+          <h2 className={styles.pageTitle}>Cash Flow</h2>
+          <p className={styles.pageDesc}>Loading...</p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px' }}>
+          <div className={styles.spinner}></div>
+        </div>
+      </div>
+    );
   }
 
-  // Helper function to refresh data
-  async function fetchData() {
-    if (!firestore) return;
+  if (isProUser === false) {
+    // Freemium model: Show limited data with upgrade prompts
+    const limitedTransactions = bankTransactions.slice(0, 5); // Show only 5 transactions
+    const limitedMoneyIn = getTotalMoneyIn();
+    const limitedMoneyOut = getTotalMoneyOut();
+    const limitedNetFlow = limitedMoneyIn - limitedMoneyOut;
     
-    try {
-      setLoading(true);
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.pageHeader}>
+          <div>
+            <h2 className={styles.pageTitle}>Cash Flow</h2>
+            <p className={styles.pageDesc}>Track money in and out across all accounts</p>
+          </div>
+          <div className={styles.freemiumBadge}>
+            <span className={styles.freemiumBadgeText}>Starter Plan</span>
+          </div>
+        </div>
 
-      // Get user's business ID
-      const { auth } = initializeFirebase();
-      const user = auth.currentUser;
-      
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+        {/* Upgrade Banner */}
+        <div className={styles.upgradeBanner}>
+          <div className={styles.upgradeBannerContent}>
+            <div className={styles.upgradeBannerIcon}>�</div>
+            <div className={styles.upgradeBannerText}>
+              <h3 className={styles.upgradeBannerTitle}>Unlock Full Cash Flow Insights</h3>
+              <p className={styles.upgradeBannerMessage}>
+                You're viewing limited data. Upgrade to Pro for complete tracking, analytics, and bank integration.
+              </p>
+            </div>
+            <button className={styles.upgradeButton}>Upgrade to Pro</button>
+          </div>
+        </div>
 
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-      if (!userDoc.exists()) {
-        setLoading(false);
-        return;
-      }
+        {/* Limited Summary Cards */}
+        <div className={styles.summaryGrid}>
+          <div className={styles.summaryCard}>
+            <span className={styles.summaryLabel}>Money In</span>
+            <span className={`${styles.summaryValue} ${styles.moneyIn}`}>
+              {formatMoney(limitedMoneyIn)}
+            </span>
+            <span className={styles.summaryNote}>Limited view</span>
+          </div>
+          <div className={styles.summaryCard}>
+            <span className={styles.summaryLabel}>Money Out</span>
+            <span className={`${styles.summaryValue} ${styles.moneyOut}`}>
+              {formatMoney(limitedMoneyOut)}
+            </span>
+            <span className={styles.summaryNote}>Limited view</span>
+          </div>
+          <div className={styles.summaryCard}>
+            <span className={styles.summaryLabel}>Net Flow</span>
+            <span className={`${styles.summaryValue} ${limitedNetFlow >= 0 ? styles.moneyIn : styles.moneyOut}`}>
+              {formatMoney(limitedNetFlow)}
+            </span>
+            <span className={styles.summaryNote}>Limited view</span>
+          </div>
+        </div>
 
-      const businessId = userDoc.data().businessId;
-      if (!businessId) {
-        setLoading(false);
-        return;
-      }
+        {/* Limited Transactions */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>Recent Transactions</h3>
+            <span className={styles.limitedBadge}>Showing 5 of {bankTransactions.length}</span>
+          </div>
+          {limitedTransactions.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>No transactions recorded</p>
+            </div>
+          ) : (
+            <div className={styles.transactionList}>
+              {limitedTransactions.map(txn => (
+                <div key={txn.id} className={styles.transactionCard}>
+                  <div className={styles.transactionIcon}>
+                    {txn.type === 'money_in' ? '💰' : '💸'}
+                  </div>
+                  <div className={styles.transactionDetails}>
+                    <div className={styles.transactionHeader}>
+                      <span className={styles.transactionName}>{txn.accountName}</span>
+                      <span className={`${styles.transactionAmount} ${txn.type === 'money_in' ? styles.moneyIn : styles.moneyOut}`}>
+                        {txn.type === 'money_in' ? '+' : '-'}{formatMoney(txn.amount)}
+                      </span>
+                    </div>
+                    <div className={styles.transactionInfo}>
+                      <span className={styles.transactionCategory}>{txn.category}</span>
+                      <span className={styles.transactionDate}>{formatDate(txn.createdAt)}</span>
+                    </div>
+                    <p className={styles.transactionDescription}>{txn.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const fetchedTransactions: Transaction[] = [];
-      let cashBalance = 0;
-      let monthIn = 0;
-      let monthOut = 0;
-
-      // Fetch sales (income)
-      const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
-      const salesSnapshot = await getDocs(salesQuery);
-      
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
-        const amount = data.total || data.totalRevenue || 0;
-        const date = data.createdAt?.toDate() || new Date();
-
-        fetchedTransactions.push({
-          id: doc.id,
-          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-          type: 'Sale',
-          description: `Sale - ${data.products?.length || 0} items`,
-          amount: amount,
-          credit: true,
-          recordedBy: data.recordedBy,
-        });
-
-        cashBalance += amount;
-        if (date >= monthStart) monthIn += amount;
-      });
-
-      // Fetch expenses (outflows)
-      const expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
-      const expensesSnapshot = await getDocs(expensesQuery);
-
-      expensesSnapshot.forEach(doc => {
-        const data = doc.data();
-        const amount = data.amount || 0;
-        const date = data.createdAt?.toDate() || new Date();
-
-        fetchedTransactions.push({
-          id: doc.id,
-          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-          type: data.category || 'Expense',
-          description: data.title || data.description || 'Expense',
-          amount: amount,
-          credit: false,
-          recordedBy: data.recordedBy,
-        });
-
-        cashBalance -= amount;
-        if (date >= monthStart) monthOut += amount;
-      });
-
-      // Sort by date
-      fetchedTransactions.sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return dateB.getTime() - dateA.getTime();
-      });
-
-      // Fetch products to calculate stock value
-      const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      );
-
-      const productsSnapshot = await getDocs(productsQuery);
-      const fetchedProducts: any[] = [];
-      let stockValue = 0;
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        const stock = data.stock || 0;
-        const costPrice = data.cost || data.costPrice || 0;
-        stockValue += stock * costPrice;
-        
-        fetchedProducts.push({
-          id: doc.id,
-          name: data.name || 'Unnamed Product',
-          stock: stock,
-          costPrice: costPrice,
-        });
-      });
-      
-      setProducts(fetchedProducts);
-
-      setTransactions(fetchedTransactions);
-      setStats({
-        cashBalance,
-        stockValue,
-        monthIn,
-        monthOut,
-      });
-    } catch (error) {
-      console.error('Error fetching cashflow data:', error);
-      showToast('Failed to load cashflow data');
-    } finally {
-      setLoading(false);
-    }
+        {/* Upgrade Prompt at Bottom */}
+        <div className={styles.upgradePrompt}>
+          <div className={styles.upgradePromptContent}>
+            <h4 className={styles.upgradePromptTitle}>Need More Cash Flow Data?</h4>
+            <p className={styles.upgradePromptMessage}>
+              Upgrade to Pro to see all transactions, filter by date range, export reports, and connect your bank accounts for automatic tracking.
+            </p>
+            <button className={styles.upgradeButton}>Upgrade Now</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.heading}>{t('cashflow.title')}</h1>
-      <p className={styles.sub}>{t('cashflow.subtitle')}</p>
-
-      {/* ── QUICK STATS ── */}
-      <div className={styles.statsGrid}>
-        {loading ? (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-            {t('common.loading')}...
-          </div>
-        ) : (
-          [
-            { label: t('cashflow.cashBalance'),    value: formatMoney(stats.cashBalance),  color: 'var(--green,#1A7A50)' },
-            { label: t('cashflow.stockValue'),     value: formatMoney(stats.stockValue), color: 'var(--text-1)' },
-            { label: t('cashflow.monthIn'),   value: '+' + formatMoney(stats.monthIn), color: 'var(--green,#1A7A50)' },
-            { label: t('cashflow.monthOut'),  value: '-' + formatMoney(stats.monthOut), color: 'var(--red,#C0392B)' },
-          ].map(s => (
-            <div key={s.label} className={styles.statCard}>
-              <div className={styles.statLabel}>{s.label}</div>
-              <div className={styles.statValue} style={{ color: s.color }}>{s.value}</div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ── ACTION CARDS ── */}
-      <div className={styles.actionGrid}>
-        {[
-          { id: 'add-stock' as ActionId, icon: '📦', name: t('cashflow.addStock'), desc: t('cashflow.addStockDesc'), color: 'var(--green-bg,#E6F5EE)' },
-          { id: 'reduce-stock' as ActionId, icon: '📉', name: t('cashflow.reduceStock'), desc: t('cashflow.reduceStockDesc'), color: 'var(--amber-bg,#FEF3C7)' },
-          { id: 'add-money' as ActionId, icon: '💰', name: t('cashflow.addMoney'), desc: t('cashflow.addMoneyDesc'), color: 'rgba(107,63,231,.08)' },
-          { id: 'take-money' as ActionId, icon: '💸', name: t('cashflow.takeMoney'), desc: t('cashflow.takeMoneyDesc'), color: 'var(--red-bg,#FDECEA)' },
-        ].map(a => (
+    <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2 className={styles.pageTitle}>Cash Flow</h2>
+          <p className={styles.pageDesc}>Track money in and out across all accounts</p>
+        </div>
+        <div className={styles.viewPeriodToggle}>
           <button
-            key={a.id}
-            className={`${styles.actionCard} ${activeAction === a.id ? styles.actionCardActive : ''}`}
-            onClick={() => toggle(a.id)}
+            className={`${styles.periodButton} ${viewPeriod === 'daily' ? styles.active : ''}`}
+            onClick={() => setViewPeriod('daily')}
           >
-            <div className={styles.actionIcon} style={{ background: a.color }}>{a.icon}</div>
-            <div className={styles.actionName}>{a.name}</div>
-            <div className={styles.actionDesc}>{a.desc}</div>
+            Daily
           </button>
-        ))}
+          <button
+            className={`${styles.periodButton} ${viewPeriod === 'weekly' ? styles.active : ''}`}
+            onClick={() => setViewPeriod('weekly')}
+          >
+            Weekly
+          </button>
+          <button
+            className={`${styles.periodButton} ${viewPeriod === 'monthly' ? styles.active : ''}`}
+            onClick={() => setViewPeriod('monthly')}
+          >
+            Monthly
+          </button>
+        </div>
       </div>
 
-      {/* ── ACTION FORMS (shown when active) ── */}
-      {activeAction && (
-        <div className={styles.actionFormOverlay} onClick={() => setActiveAction(null)}>
-          <div className={styles.actionForm} onClick={e => e.stopPropagation()}>
-            <button className={styles.closeFormBtn} onClick={() => setActiveAction(null)}>✕</button>
-            
-            {activeAction === 'add-stock' && (
-              <form onSubmit={e => handleSubmit(e, t('cashflow.addStock'))}>
-                <h3>{t('cashflow.addStock')}</h3>
-                <p className={styles.formDesc}>{t('cashflow.addStockDesc')}</p>
-                <div className={styles.formGroup}>
-                  <label>{t('product.selectProduct')}</label>
-                  <select name="productId" required className={styles.formInput}>
-                    <option value="">{t('product.selectProduct')}</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('product.quantity')}</label>
-                  <input type="number" name="quantity" required min="1" className={styles.formInput} placeholder="e.g., 50" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('product.costPrice')}</label>
-                  <input type="number" name="amount" required min="0.01" step="0.01" className={styles.formInput} placeholder="₦0.00" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.description')}</label>
-                  <textarea name="description" required className={styles.formInput} placeholder={t('cashflow.addStockDesc')} rows={3} />
-                </div>
-                <button type="submit" className={styles.submitBtn}>{t('common.confirm')}</button>
-              </form>
-            )}
-
-            {activeAction === 'reduce-stock' && (
-              <form onSubmit={e => handleSubmit(e, t('cashflow.reduceStock'))}>
-                <h3>{t('cashflow.reduceStock')}</h3>
-                <p className={styles.formDesc}>{t('cashflow.reduceStockDesc')}</p>
-                <div className={styles.formGroup}>
-                  <label>{t('product.selectProduct')}</label>
-                  <select name="productId" required className={styles.formInput}>
-                    <option value="">{t('product.selectProduct')}</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('product.quantity')}</label>
-                  <input type="number" name="quantity" required min="1" className={styles.formInput} placeholder="e.g., 10" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.reason')}</label>
-                  <select name="reason" required className={styles.formInput}>
-                    <option value="">{t('common.selectReason')}</option>
-                    <option value="damaged">{t('product.damaged')}</option>
-                    <option value="expired">{t('product.expired')}</option>
-                    <option value="theft">{t('product.theft')}</option>
-                    <option value="other">{t('product.other')}</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.description')}</label>
-                  <textarea name="description" required className={styles.formInput} placeholder={t('cashflow.reduceStockDesc')} rows={3} />
-                </div>
-                <button type="submit" className={styles.submitBtn}>{t('common.confirm')}</button>
-              </form>
-            )}
-
-            {activeAction === 'add-money' && (
-              <form onSubmit={e => handleSubmit(e, t('cashflow.addMoney'))}>
-                <h3>{t('cashflow.addMoney')}</h3>
-                <p className={styles.formDesc}>{t('cashflow.addMoneyDesc')}</p>
-                <div className={styles.formGroup}>
-                  <label>{t('common.amount')}</label>
-                  <input type="number" name="amount" required min="0.01" step="0.01" className={styles.formInput} placeholder="₦0.00" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.source')}</label>
-                  <select name="source" required className={styles.formInput}>
-                    <option value="">{t('common.selectSource')}</option>
-                    <option value="loan">{t('cashflow.loan')}</option>
-                    <option value="investment">{t('cashflow.investment')}</option>
-                    <option value="personal">{t('cashflow.personal')}</option>
-                    <option value="other">{t('cashflow.other')}</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.description')}</label>
-                  <textarea name="description" required className={styles.formInput} placeholder={t('cashflow.addMoneyDesc')} rows={3} />
-                </div>
-                <button type="submit" className={styles.submitBtn}>{t('common.confirm')}</button>
-              </form>
-            )}
-
-            {activeAction === 'take-money' && (
-              <form onSubmit={e => handleSubmit(e, t('cashflow.takeMoney'))}>
-                <h3>{t('cashflow.takeMoney')}</h3>
-                <p className={styles.formDesc}>{t('cashflow.takeMoneyDesc')}</p>
-                <div className={styles.formGroup}>
-                  <label>{t('common.amount')}</label>
-                  <input type="number" name="amount" required min="0.01" step="0.01" className={styles.formInput} placeholder="₦0.00" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.category')}</label>
-                  <select name="category" required className={styles.formInput}>
-                    <option value="">{t('common.selectCategory')}</option>
-                    <option value="rent">{t('expense.rent')}</option>
-                    <option value="utilities">{t('expense.utilities')}</option>
-                    <option value="salary">{t('expense.salary')}</option>
-                    <option value="supplies">{t('expense.supplies')}</option>
-                    <option value="other">{t('expense.other')}</option>
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>{t('common.description')}</label>
-                  <textarea name="description" required className={styles.formInput} placeholder={t('cashflow.takeMoneyDesc')} rows={3} />
-                </div>
-                <button type="submit" className={styles.submitBtn}>{t('common.confirm')}</button>
-              </form>
-            )}
+      {/* Summary Cards */}
+      <div className={styles.summaryGrid}>
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryIcon}>💰</div>
+          <div className={styles.summaryInfo}>
+            <span className={styles.summaryLabel}>Total Balance</span>
+            <span className={styles.summaryValue}>{formatMoney(getTotalBalance())}</span>
           </div>
         </div>
-      )}
-
-      {/* ── TRANSACTIONS LIST ── */}
-      <div className={styles.transactionsSection}>
-        <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-            {t('common.loading')}...
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryIcon}>📥</div>
+          <div className={styles.summaryInfo}>
+            <span className={styles.summaryLabel}>Money In</span>
+            <span className={`${styles.summaryValue} ${styles.moneyIn}`}>+{formatMoney(getTotalMoneyIn())}</span>
           </div>
-        ) : transactions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.3 }}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
-            </svg>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('cashflow.noTransactions')}</div>
-            <div style={{ fontSize: '0.8rem' }}>{t('cashflow.addTransactionsFirst')}</div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryIcon}>📤</div>
+          <div className={styles.summaryInfo}>
+            <span className={styles.summaryLabel}>Money Out</span>
+            <span className={`${styles.summaryValue} ${styles.moneyOut}`}>-{formatMoney(getTotalMoneyOut())}</span>
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.summaryIcon}>📊</div>
+          <div className={styles.summaryInfo}>
+            <span className={styles.summaryLabel}>Net Cash Flow</span>
+            <span className={`${styles.summaryValue} ${getNetCashFlow() >= 0 ? styles.moneyIn : styles.moneyOut}`}>
+              {getNetCashFlow() >= 0 ? '+' : ''}{formatMoney(getNetCashFlow())}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bank Accounts Summary */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Bank Accounts</h3>
+        {bankAccounts.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No bank accounts added yet</p>
           </div>
         ) : (
-          <div className={styles.transactionList}>
-            {transactions.map(t => (
-              <div 
-                key={t.id} 
-                className={styles.transactionItem}
-                onClick={() => setSelectedTransaction(t)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className={styles.transDate}>{t.date}</div>
-                <div className={styles.transInfo}>
-                  <div className={styles.transType} style={{ color: t.credit ? 'var(--green)' : 'var(--red)' }}>
-                    {t.credit ? '↑' : '↓'} {t.type}
+          <div className={styles.accountsGrid}>
+            {bankAccounts.map(account => (
+              <div key={account.id} className={styles.accountCard}>
+                <div className={styles.accountHeader}>
+                  <div className={styles.accountIcon}>🏦</div>
+                  <div className={styles.accountInfo}>
+                    <h4 className={styles.accountName}>{account.accountName}</h4>
+                    <span className={styles.accountBank}>{account.bankName}</span>
                   </div>
-                  <div className={styles.transDesc}>{t.description}</div>
-                  {t.recordedBy && (
-                    <div className={styles.transRecordedBy}>
-                      <span>👤</span>
-                      <span>{t.recordedBy.displayName || t.recordedBy.email?.split('@')[0] || 'Unknown'}</span>
-                    </div>
+                  {account.isDefault && (
+                    <div className={styles.defaultBadge}>Default</div>
                   )}
                 </div>
-                <div className={styles.transAmount} style={{ color: t.credit ? 'var(--green)' : 'var(--red)' }}>
-                  {t.credit ? '+' : '-'}{formatMoney(t.amount)}
+                <div className={styles.accountBalance}>
+                  {formatMoney(account.currentBalance)}
                 </div>
               </div>
             ))}
@@ -657,52 +453,100 @@ export function CashflowPage() {
         )}
       </div>
 
-      {/* Transaction Details Modal */}
-      {selectedTransaction && (
-        <div className={styles.modalOverlay} onClick={() => setSelectedTransaction(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <button className={styles.modalClose} onClick={() => setSelectedTransaction(null)}>✕</button>
-            <h3 className={styles.modalTitle}>Transaction Details</h3>
-            <div className={styles.modalContent}>
-              <div className={styles.modalRow}>
-                <span className={styles.modalLabel}>Type:</span>
-                <span className={styles.modalValue} style={{ color: selectedTransaction.credit ? 'var(--green)' : 'var(--red)' }}>
-                  {selectedTransaction.credit ? '↑' : '↓'} {selectedTransaction.type}
-                </span>
-              </div>
-              <div className={styles.modalRow}>
-                <span className={styles.modalLabel}>Amount:</span>
-                <span className={styles.modalValue} style={{ color: selectedTransaction.credit ? 'var(--green)' : 'var(--red)' }}>
-                  {selectedTransaction.credit ? '+' : '-'}{formatMoney(selectedTransaction.amount)}
-                </span>
-              </div>
-              <div className={styles.modalRow}>
-                <span className={styles.modalLabel}>Date:</span>
-                <span className={styles.modalValue}>{selectedTransaction.date}</span>
-              </div>
-              <div className={styles.modalRow}>
-                <span className={styles.modalLabel}>Description:</span>
-                <span className={styles.modalValue}>{selectedTransaction.description}</span>
-              </div>
-              {selectedTransaction.recordedBy && (
-                <>
-                  <div className={styles.modalDivider}></div>
-                  <div className={styles.modalRow}>
-                    <span className={styles.modalLabel}>Recorded By:</span>
-                    <span className={styles.modalValue}>{selectedTransaction.recordedBy.displayName || selectedTransaction.recordedBy.email || 'Unknown'}</span>
-                  </div>
-                  {selectedTransaction.recordedBy.timestamp && (
-                    <div className={styles.modalRow}>
-                      <span className={styles.modalLabel}>Recorded At:</span>
-                      <span className={styles.modalValue}>{new Date(selectedTransaction.recordedBy.timestamp).toLocaleString()}</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+      {/* Cash Flow Records */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Cash Flow History</h3>
+        {cashFlowRecords.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No cash flow records for this period</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className={styles.cashFlowList}>
+            {cashFlowRecords.map(record => (
+              <div key={record.id} className={styles.cashFlowCard}>
+                <div className={styles.cashFlowDate}>
+                  {formatDate(record.date)}
+                </div>
+                <div className={styles.cashFlowDetails}>
+                  <div className={styles.cashFlowItem}>
+                    <span className={styles.cashFlowLabel}>Money In:</span>
+                    <span className={`${styles.cashFlowValue} ${styles.moneyIn}`}>
+                      +{formatMoney(record.moneyIn.total)}
+                    </span>
+                  </div>
+                  <div className={styles.cashFlowItem}>
+                    <span className={styles.cashFlowLabel}>Money Out:</span>
+                    <span className={`${styles.cashFlowValue} ${styles.moneyOut}`}>
+                      -{formatMoney(record.moneyOut.total)}
+                    </span>
+                  </div>
+                  <div className={styles.cashFlowItem}>
+                    <span className={styles.cashFlowLabel}>Net Flow:</span>
+                    <span className={`${styles.cashFlowValue} ${record.netCashFlow >= 0 ? styles.moneyIn : styles.moneyOut}`}>
+                      {record.netCashFlow >= 0 ? '+' : ''}{formatMoney(record.netCashFlow)}
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.cashFlowBalance}>
+                  {formatMoney(record.closingBalance)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Bank Transactions */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Recent Transactions</h3>
+        {bankTransactions.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>No recent transactions</p>
+          </div>
+        ) : (
+          <>
+            <div className={styles.transactionsList}>
+              {paginatedTransactions.map(transaction => (
+                <div key={transaction.id} className={styles.transactionCard}>
+                  <div className={styles.transactionHeader}>
+                    <span className={styles.transactionNumber}>{transaction.transactionNumber}</span>
+                    <span className={`${styles.transactionType} ${transaction.type === 'money_in' ? styles.moneyIn : styles.moneyOut}`}>
+                      {transaction.type === 'money_in' ? '↑' : '↓'} {transaction.category}
+                    </span>
+                  </div>
+                  <div className={styles.transactionDetails}>
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Account:</span>
+                      <span className={styles.transactionValue}>{transaction.accountName}</span>
+                    </div>
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Description:</span>
+                      <span className={styles.transactionValue}>{transaction.description}</span>
+                    </div>
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Date:</span>
+                      <span className={styles.transactionValue}>{formatDate(transaction.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.transactionAmount} ${transaction.type === 'money_in' ? styles.moneyIn : styles.moneyOut}`}>
+                    {transaction.type === 'money_in' ? '+' : '-'}{formatMoney(transaction.amount)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalItems={bankTransactions.length}
+                itemsPerPage={itemsPerPage}
+              />
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

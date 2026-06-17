@@ -45,6 +45,10 @@ export function RecordSalePage() {
   const [customPrice, setCustomPrice] = useState('');
   const [customCost, setCustomCost] = useState('');
 
+  // Warehouse source selection
+  const [sourceLocation, setSourceLocation] = useState('main_store');
+  const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
+
   // Fetch real products from Firestore
   useEffect(() => {
     async function fetchProducts() {
@@ -103,6 +107,44 @@ export function RecordSalePage() {
         });
         
         setProducts(fetchedProducts);
+
+        // Load stock locations
+        try {
+          const locationsQuery = query(
+            collection(firestore, 'businesses', bId, 'stockLocations'),
+            where('isActive', '==', true)
+          );
+          const locationsSnapshot = await getDocs(locationsQuery);
+          const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+          
+          // Add default locations if none exist
+          if (locationsSnapshot.empty) {
+            loadedLocations.push(
+              { id: 'main_store', name: 'Main Store', type: 'main_store' },
+              { id: 'back_store', name: 'Back Store', type: 'back_store' },
+              { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
+            );
+          } else {
+            locationsSnapshot.forEach(doc => {
+              const data = doc.data();
+              loadedLocations.push({
+                id: doc.id,
+                name: data.name,
+                type: data.type,
+              });
+            });
+          }
+          
+          setStockLocations(loadedLocations);
+        } catch (error) {
+          console.error('Error loading stock locations:', error);
+          // Set default locations on error
+          setStockLocations([
+            { id: 'main_store', name: 'Main Store', type: 'main_store' },
+            { id: 'back_store', name: 'Back Store', type: 'back_store' },
+            { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
+          ]);
+        }
 
         // Load credit customers
         try {
@@ -248,7 +290,11 @@ export function RecordSalePage() {
         .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method))
         .reduce((sum, pb) => sum + pb.amount, 0) + splitBankPortion;
 
-      // Create sale document with staff tracking
+      // Get source location name
+      const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
+      const sourceLocationName = selectedLocation?.name || 'Main Store';
+
+      // Create sale document with staff tracking and source location
       const saleData = {
         products: cart.map(item => ({
           productId: item.id,
@@ -267,6 +313,8 @@ export function RecordSalePage() {
         expectedBank,
         note: note,
         businessId: businessId,
+        sourceLocation: sourceLocation,
+        sourceLocationName: sourceLocationName,
         recordedBy: {
           uid: user.uid,
           email: user.email,
@@ -349,16 +397,39 @@ export function RecordSalePage() {
         }
       }
 
-      // Update product stock in a transaction
+      // Update product stock in a transaction (deduct from specific location)
       await runTransaction(firestore, async (transaction) => {
         for (const item of cart) {
           const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
           const productDoc = await transaction.get(productRef);
           
           if (productDoc.exists()) {
-            const currentStock = productDoc.data().stock || 0;
+            const data = productDoc.data();
+            const currentStock = data.stock || 0;
             const newStock = Math.max(0, currentStock - item.qty);
-            transaction.update(productRef, { stock: newStock });
+            
+            // Update stockByLocation
+            const stockByLocation = data.stockByLocation || {
+              main_store: 0,
+              back_store: 0,
+              warehouse: 0,
+            };
+            
+            const locationKey = sourceLocation === 'main_store' ? 'main_store' :
+                              sourceLocation === 'back_store' ? 'back_store' :
+                              sourceLocation === 'warehouse' ? 'warehouse' : sourceLocation;
+            
+            const currentLocationStock = stockByLocation[locationKey] || 0;
+            const newLocationStock = Math.max(0, currentLocationStock - item.qty);
+            
+            stockByLocation[locationKey] = newLocationStock;
+            
+            transaction.update(productRef, {
+              stock: newStock,
+              stockByLocation: stockByLocation,
+              lastSaleLocation: sourceLocation,
+              lastSaleLocationName: sourceLocationName,
+            });
           }
         }
       });
@@ -635,6 +706,27 @@ export function RecordSalePage() {
                 </div>
                 <div className={[styles.totalRow, styles.totalProfit].join(' ')}>
                   <span>{t('sale.profit')}</span><span>{formatMoney(profit)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Source Location Selection */}
+            {cart.length > 0 && (
+              <div className={styles.sourceLocationSection}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Stock Source</label>
+                  <select
+                    className={styles.formInput}
+                    value={sourceLocation}
+                    onChange={e => setSourceLocation(e.target.value)}
+                  >
+                    {stockLocations.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className={styles.formHint}>Select where stock is being deducted from</div>
                 </div>
               </div>
             )}

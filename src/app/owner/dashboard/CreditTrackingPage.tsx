@@ -8,6 +8,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { CreditCustomer, CreditTransaction, CreditPayment, CreditStatus, CreditSummary } from './types';
 import { initializeFirebase } from '@/firebase';
+import { isCreditLayerEligible, getBusinessType } from '@/lib/featureRestrictions';
 import styles from './CreditTrackingPage.module.css';
 
 export function CreditTrackingPage() {
@@ -36,6 +37,8 @@ export function CreditTrackingPage() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [isEligible, setIsEligible] = useState<boolean | null>(null);
+  const [businessType, setBusinessType] = useState<string>('');
 
   // Add customer form
   const [newCustomer, setNewCustomer] = useState({
@@ -56,7 +59,26 @@ export function CreditTrackingPage() {
     notes: '',
   });
 
+  const checkEligibility = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const type = await getBusinessType(user.id);
+      setBusinessType(type);
+      const eligible = isCreditLayerEligible(type);
+      setIsEligible(eligible);
+      
+      if (!eligible) {
+        showToast('⚠️ Credit Tracking is available for wholesale and retail businesses only');
+      }
+    } catch (error) {
+      console.error('Error checking eligibility:', error);
+      setIsEligible(false);
+    }
+  };
+
   useEffect(() => {
+    checkEligibility();
     async function loadData() {
       if (!firestore || !user) return;
 
@@ -458,6 +480,33 @@ export function CreditTrackingPage() {
             <path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/>
           </svg>
           <div>Loading credit data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEligible === false) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.pageHeader}>
+          <div>
+            <h2 className={styles.pageTitle}>Credit Tracking</h2>
+            <p className={styles.pageDesc}>Manage customer credits and track payments</p>
+          </div>
+          <Button variant="subtle" onClick={() => navigateTo('home')}>← Back</Button>
+        </div>
+        <div className={styles.notEligible}>
+          <div className={styles.notEligibleIcon}>🔒</div>
+          <h3 className={styles.notEligibleTitle}>Feature Not Available</h3>
+          <p className={styles.notEligibleMessage}>
+            Credit Tracking is available for wholesale and retail businesses only.
+          </p>
+          <p className={styles.notEligibleSubMessage}>
+            Your business type: <strong>{businessType}</strong>
+          </p>
+          <p className={styles.notEligibleHelp}>
+            Eligible business types: Wholesale, Retail, Whole Seller, Big Retailer, Manufacturer, Distributor
+          </p>
         </div>
       </div>
     );

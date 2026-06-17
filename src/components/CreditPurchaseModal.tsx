@@ -40,7 +40,7 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
 
   const handlePurchase = async (packKey: string, pack: CreditPack) => {
     if (!user?.email) {
-      setError('User email not found');
+      setError('Unable to process payment. Please try again.');
       return;
     }
 
@@ -77,8 +77,7 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
       }
     } catch (err) {
       console.error('Payment initialization error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment. Please try again.';
-      setError(errorMessage);
+      setError('We are having issues connecting with payment processors. Please try again later.');
       setIsProcessing(false);
       setSelectedPack(null);
     }

@@ -15,10 +15,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 const plans = [
-  { id: 'shop', name: 'Shop', monthlyPrice: 1500, yearlyPrice: 15000 },
-  { id: 'supermarket', name: 'Supermarket', monthlyPrice: 10000, yearlyPrice: 100000 },
-  { id: 'multi-branch', name: 'Multiple Branches', monthlyPrice: 30000, yearlyPrice: 300000 },
-  { id: 'company', name: 'Company', monthlyPrice: 50000, yearlyPrice: 500000 }
+  { id: 'starter', name: 'Starter', monthlyPrice: 5000, yearlyPrice: 50000 },
+  { id: 'standard', name: 'Standard', monthlyPrice: 10000, yearlyPrice: 100000 },
+  { id: 'pro', name: 'Pro', monthlyPrice: 25000, yearlyPrice: 250000 }
 ];
 
 interface Coupon {
@@ -31,7 +30,7 @@ interface Coupon {
 
 interface Business {
   currency?: string;
-  plan: 'shop' | 'supermarket' | 'multi-branch' | 'company';
+  plan: 'starter' | 'standard' | 'pro';
 }
 
 function SubscribePageContent() {

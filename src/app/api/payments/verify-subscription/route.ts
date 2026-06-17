@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
 
-    if (!data.status) {
+    if (!data.status || data.data.status !== 'success') {
       return NextResponse.json(
         { error: 'Transaction verification failed' },
         { status: 400 }
@@ -95,13 +95,8 @@ export async function POST(request: NextRequest) {
         const subscriptionEndDate = new Date();
         
         // Set subscription end date based on plan
-        if (plan === 'starter') {
-          subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
-        } else if (plan === 'standard') {
-          subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 6);
-        } else if (plan === 'pro') {
-          subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
-        }
+        // All plans are monthly subscriptions, so add 1 month
+        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
 
         await userRef.update({
           subscriptionStatus: 'active',

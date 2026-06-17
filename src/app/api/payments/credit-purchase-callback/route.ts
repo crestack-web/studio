@@ -69,6 +69,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/owner/dashboard?payment=error', request.url));
     }
 
+    // Check if payment is already completed to prevent duplicate credit allocation
+    if (paymentData.status === 'completed') {
+      console.log('Payment already completed, skipping duplicate processing:', reference);
+      return NextResponse.redirect(new URL('/owner/dashboard?payment=success', request.url));
+    }
+
     // Update payment status
     await db.collection('creditPurchases').doc(reference).update({
       status: 'completed',

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { convertFromUsd, getCurrencyName } from '@/lib/currency';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -24,11 +23,11 @@ try {
   console.warn('Firebase Admin not initialized for credit purchase:', error);
 }
 
-// Credit pricing tiers (in USD)
+// Credit pricing tiers (in NGN)
 const CREDIT_PACKS = {
-  starter: { credits: 1500, amount: 1, name: 'Starter Pack' },
-  standard: { credits: 3000, amount: 2, name: 'Standard Pack' },
-  premium: { credits: 5000, amount: 3, name: 'Premium Pack' },
+  starter: { credits: 1500, amount: 7500, name: 'Starter Pack' },
+  standard: { credits: 3000, amount: 15000, name: 'Standard Pack' },
+  premium: { credits: 5000, amount: 22500, name: 'Premium Pack' },
 };
 
 export async function POST(request: NextRequest) {
@@ -59,14 +58,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert amount from USD to local currency based on user's location
-    const targetCurrency = getCurrencyName(countryCode);
-    const amountInLocalCurrency = convertFromUsd(creditPack.amount, countryCode);
-
-    // Paystack only supports NGN and GHS currencies
-    // For unsupported currencies, default to NGN
-    const paystackCurrency = (targetCurrency === 'NGN' || targetCurrency === 'GHS') ? targetCurrency : 'NGN';
-    const paystackAmount = paystackCurrency === 'NGN' ? convertFromUsd(creditPack.amount, 'NG') : convertFromUsd(creditPack.amount, 'GH');
+    // Credit packs are priced in NGN
+    const paystackCurrency = 'NGN';
+    const paystackAmount = creditPack.amount;
 
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -84,8 +78,7 @@ export async function POST(request: NextRequest) {
           credits: creditPack.credits,
           userId: userId,
           payment_type: 'credit_purchase',
-          originalAmountUSD: creditPack.amount,
-          convertedAmount: paystackAmount,
+          amount: paystackAmount,
           currency: paystackCurrency,
           countryCode: countryCode,
         },
@@ -99,15 +92,16 @@ export async function POST(request: NextRequest) {
     if (!data.status) {
       console.error('Paystack initialization error:', data);
       return NextResponse.json(
-        { error: 'Failed to initialize payment' },
+        { error: 'We are having issues connecting with payment processors. Please try again later.' },
         { status: 400 }
       );
     }
 
     // Save payment reference to Firestore
     if (!db) {
+      console.error('Firebase not initialized for credit purchase');
       return NextResponse.json(
-        { error: 'Firebase not initialized' },
+        { error: 'We are having issues processing your payment. Please try again later.' },
         { status: 500 }
       );
     }
@@ -119,7 +113,7 @@ export async function POST(request: NextRequest) {
       authorization_url: data.data.authorization_url,
       pack: pack,
       credits: creditPack.credits,
-      amount: creditPack.amount,
+      amount: paystackAmount,
       userId: userId,
       email: email,
       status: 'pending',
@@ -133,7 +127,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error initializing credit purchase payment:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We are having issues connecting with payment processors. Please try again later.' },
       { status: 500 }
     );
   }

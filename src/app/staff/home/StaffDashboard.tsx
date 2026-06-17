@@ -89,6 +89,12 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           {page === 'hist' && <HistoryPage hasAccess={permissions!.hist} sessionSales={[]} />}
           {page === 'atd' && <AttendancePage hasAccess={permissions!.atd} />}
           {page === 'msg' && <MessagesPage hasAccess={permissions!.msg} />}
+          {page === 'products' && <InventoryPage hasAccess={permissions!.products} />}
+          {page === 'customers' && <HistoryPage hasAccess={permissions!.customers} sessionSales={[]} />}
+          {page === 'reports' && <HistoryPage hasAccess={permissions!.reports} sessionSales={[]} />}
+          {page === 'expenses' && <HistoryPage hasAccess={permissions!.expenses} sessionSales={[]} />}
+          {page === 'suppliers' && <InventoryPage hasAccess={permissions!.suppliers} />}
+          {page === 'credit' && <HistoryPage hasAccess={permissions!.credit} sessionSales={[]} />}
           {page === 'settings' && (
             <SettingsPage
               staff={staff!}

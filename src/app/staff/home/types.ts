@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'sale' | 'inv' | 'hist' | 'atd' | 'msg' | 'settings';
+export type PageId = 'home' | 'sale' | 'inv' | 'hist' | 'atd' | 'msg' | 'settings' | 'products' | 'customers' | 'reports' | 'expenses' | 'suppliers' | 'credit';
 
 export interface Permissions {
   sale: boolean;
@@ -7,6 +7,15 @@ export interface Permissions {
   atd: boolean;
   msg: boolean;
   earn: boolean;
+  products: boolean;
+  customers: boolean;
+  reports: boolean;
+  expenses: boolean;
+  suppliers: boolean;
+  credit: boolean;
+  refunds: boolean;
+  discounts: boolean;
+  priceEdit: boolean;
 }
 
 export interface StaffUser {

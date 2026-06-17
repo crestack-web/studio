@@ -122,6 +122,12 @@ export function SuppliersPage() {
     setIsLoadingDetails(true);
     
     try {
+      if (!businessId) {
+        showToast('⚠️ Business ID not found');
+        setIsLoadingDetails(false);
+        return;
+      }
+
       // Load stock receipts for this supplier
       const receiptsQuery = query(
         collection(firestore, 'businesses', businessId, 'stockReceipts'),

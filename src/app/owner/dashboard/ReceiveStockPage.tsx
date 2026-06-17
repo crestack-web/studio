@@ -198,6 +198,12 @@ export function ReceiveStockPage() {
     setIsSubmitting(true);
     
     try {
+      if (!businessId) {
+        showToast('⚠️ Business ID not found');
+        setIsSubmitting(false);
+        return;
+      }
+
       let supplierId = selectedSupplier;
       let supplierName = suppliers.find(s => s.id === selectedSupplier)?.name || '';
       
@@ -243,7 +249,7 @@ export function ReceiveStockPage() {
           paidAmount: paid,
           creditAmount: credit,
           receivedBy: user.id,
-          receivedByName: user.displayName || user.email || 'Unknown',
+          receivedByName: user.name || user.email || 'Unknown',
           notes: notes.trim() || undefined,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
@@ -293,7 +299,7 @@ export function ReceiveStockPage() {
             
             // Update suppliers list
             const suppliers = productData.suppliers || [];
-            const existingSupplierIndex = suppliers.findIndex(s => s.supplierId === supplierId);
+            const existingSupplierIndex = suppliers.findIndex((s: any) => s.supplierId === supplierId);
             
             if (existingSupplierIndex >= 0) {
               suppliers[existingSupplierIndex] = {

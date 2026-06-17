@@ -29,8 +29,9 @@ export async function POST(request: NextRequest) {
     const { plan, userId, email, amount, currency, countryCode } = await request.json();
 
     if (!plan || !userId || !email || !amount) {
+      console.error('Missing required fields for subscription payment:', { plan, userId, email, amount });
       return NextResponse.json(
-        { error: 'Missing required fields: plan, userId, email, amount' },
+        { error: 'Unable to process payment request. Please try again.' },
         { status: 400 }
       );
     }
@@ -38,8 +39,9 @@ export async function POST(request: NextRequest) {
     const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
     if (!PAYSTACK_SECRET_KEY) {
+      console.error('Paystack secret key not configured');
       return NextResponse.json(
-        { error: 'Paystack secret key not configured' },
+        { error: 'We are having issues connecting with payment processors. Please try again later.' },
         { status: 500 }
       );
     }
@@ -84,15 +86,16 @@ export async function POST(request: NextRequest) {
     if (!data.status) {
       console.error('Paystack initialization error:', data);
       return NextResponse.json(
-        { error: 'Failed to initialize payment' },
+        { error: 'We are having issues connecting with payment processors. Please try again later.' },
         { status: 400 }
       );
     }
 
     // Save payment reference to Firestore
     if (!db) {
+      console.error('Firebase not initialized for subscription payment');
       return NextResponse.json(
-        { error: 'Firebase not initialized' },
+        { error: 'We are having issues processing your payment. Please try again later.' },
         { status: 500 }
       );
     }
@@ -117,7 +120,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error initializing subscription payment:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We are having issues connecting with payment processors. Please try again later.' },
       { status: 500 }
     );
   }

@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
+import { X, Check } from 'lucide-react';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -13,9 +14,9 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 'Free',
-    priceNum: 0,
-    cycle: 'forever',
+    price: '₦5,000',
+    priceNum: 5000,
+    cycle: '/mo',
     tag: null,
     features: [
       'Basic inventory tracking',
@@ -32,8 +33,8 @@ const PLANS = [
   {
     id: 'standard',
     name: 'Standard',
-    price: '$25',
-    priceNum: 25,
+    price: '₦10,000',
+    priceNum: 10000,
     cycle: '/mo',
     tag: 'Popular',
     features: [
@@ -52,8 +53,8 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '$80',
-    priceNum: 80,
+    price: '₦25,000',
+    priceNum: 25000,
     cycle: '/mo',
     tag: 'Best Value',
     features: [
@@ -90,16 +91,16 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '16px',
       }}
       onClick={onClose}
     >
       <div
         style={{
           background: 'white',
-          borderRadius: '20px',
-          padding: '32px',
-          maxWidth: '600px',
+          borderRadius: '16px',
+          padding: '24px',
+          maxWidth: '500px',
           width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
@@ -121,13 +122,12 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
               background: '#F4F4F8',
               color: '#8888A0',
               cursor: 'pointer',
-              fontSize: '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -135,7 +135,7 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
           Upgrade to unlock premium features and grow your business.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {PLANS.map((plan) => {
             const active = selectedPlan === plan.id;
             return (
@@ -146,18 +146,18 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
                 style={{
                   position: 'relative',
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  padding: '16px 20px',
-                  borderRadius: '16px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
                   cursor: 'pointer',
                   overflow: 'hidden',
                   fontFamily: '"DM Sans", sans-serif',
                   textAlign: 'left',
                   transition: 'all 0.2s',
                   background: active ? plan.activeBg : '#FAFAFC',
-                  border: `1.5px solid ${active ? plan.activeBorder : '#E8E8F0'}`,
+                  border: `1px solid ${active ? plan.activeBorder : '#E8E8F0'}`,
                   boxShadow: active ? `0 0 0 1px ${plan.activeBorder}30` : 'none',
                 }}
               >
@@ -165,27 +165,27 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
                   <span
                     style={{
                       position: 'absolute',
-                      top: '10px',
-                      right: '14px',
+                      top: '8px',
+                      right: '12px',
                       background: plan.tagBg,
                       color: 'white',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      letterSpacing: '0.07em',
+                      fontSize: '9px',
+                      fontWeight: 600,
+                      letterSpacing: '0.05em',
                       textTransform: 'uppercase',
-                      padding: '2px 9px',
-                      borderRadius: '100',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
                     }}
                   >
                     {plan.tag}
                   </span>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0, flex: 1 }}>
                   <div
                     style={{
-                      width: '20px',
-                      height: '20px',
+                      width: '18px',
+                      height: '18px',
                       borderRadius: '50%',
                       flexShrink: 0,
                       display: 'flex',
@@ -194,33 +194,33 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
                       border: `2px solid ${active ? plan.activeBorder : '#E8E8F0'}`,
                       background: active ? plan.activeBorder : 'white',
                       transition: 'all 0.2s',
+                      marginTop: '2px',
                     }}
                   >
                     {active && (
-                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                        <polyline points="1.5,5 4,7.5 8.5,2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <Check size={10} color="white" strokeWidth={3} />
                     )}
                   </div>
 
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p
                       style={{
-                        fontSize: '15px',
-                        fontWeight: 700,
+                        fontSize: '14px',
+                        fontWeight: 600,
                         color: '#0A0A0F',
-                        lineHeight: 1,
-                        marginBottom: '6px',
+                        lineHeight: 1.3,
+                        marginBottom: '8px',
                         fontFamily: "'Sora', sans-serif",
                       }}
                     >
                       {plan.name}
                     </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                       {plan.features.slice(0, 3).map((f) => (
-                        <span key={f} style={{ fontSize: '11px', color: '#8888A0' }}>
-                          • {f}
-                        </span>
+                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#8888A0', lineHeight: 1.3 }}>
+                          <Check size={10} />
+                          <span style={{ flex: 1 }}>{f}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -245,18 +245,18 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
           })}
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button
             onClick={onClose}
             style={{
               flex: 1,
-              padding: '14px',
-              borderRadius: '12px',
-              border: '1.5px solid #E8E8F0',
+              padding: '12px',
+              borderRadius: '10px',
+              border: '1px solid #E8E8F0',
               background: 'white',
               color: '#555568',
-              fontSize: '14px',
-              fontWeight: 600,
+              fontSize: '13px',
+              fontWeight: 500,
               cursor: 'pointer',
               fontFamily: '"DM Sans", sans-serif',
               transition: 'all 0.2s',
@@ -268,18 +268,18 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
               e.currentTarget.style.background = 'white';
             }}
           >
-            Continue with Free
+            Continue with Current Plan
           </button>
           <button
             onClick={() => onUpgrade(selectedPlan)}
             style={{
               flex: 1,
-              padding: '14px',
-              borderRadius: '12px',
+              padding: '12px',
+              borderRadius: '10px',
               border: 'none',
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
-              fontSize: '14px',
+              fontSize: '13px',
               fontWeight: 600,
               cursor: 'pointer',
               fontFamily: '"DM Sans", sans-serif',
@@ -299,4 +299,5 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
     </div>
   );
 }
+
 

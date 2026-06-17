@@ -5,6 +5,22 @@ import { fetchTodaysSales, fetchProducts } from './services/dataService';
 import type { Permissions, PageId } from './types';
 import { DAILY_TARGET } from './data';
 import { formatCurrency } from '@/lib/currency';
+import { 
+  ShoppingCart, 
+  Package, 
+  History, 
+  Calendar, 
+  MessageSquare, 
+  DollarSign,
+  Box,
+  Users,
+  BarChart3,
+  Receipt,
+  Truck,
+  CreditCard,
+  RotateCcw,
+  Percent
+} from 'lucide-react';
 
 interface HomePageProps {
   greeting: string;
@@ -34,42 +50,81 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     permKey: 'sale', page: 'sale', label: 'Record Sale', prime: true,
     bg: 'var(--brand-lt)', stroke: 'var(--brand)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.61L23 6H6"/></svg>,
+    icon: <ShoppingCart size={24} />,
   },
   {
     permKey: 'inv', page: 'inv', label: 'Check Stock',
     bg: 'var(--amber-bg)', stroke: 'var(--amber)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
+    icon: <Package size={24} />,
   },
   {
     permKey: 'hist', page: 'hist', label: 'Sale History',
     bg: 'var(--blue-bg)', stroke: 'var(--blue)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+    icon: <History size={24} />,
   },
   {
     permKey: 'atd', page: 'atd', label: 'Clock In/Out',
     bg: 'var(--teal-bg)', stroke: 'var(--teal)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    icon: <Calendar size={24} />,
   },
   {
     permKey: 'msg', page: 'msg', label: 'Message Owner',
     bg: 'var(--purple-bg)', stroke: 'var(--purple)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+    icon: <MessageSquare size={24} />,
   },
   {
     permKey: 'earn', page: 'hist', label: 'My Earnings',
     bg: 'var(--brand-lt)', stroke: 'var(--brand)',
-    icon: <svg viewBox="0 0 24 24" fill="none" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+    icon: <DollarSign size={24} />,
+  },
+  {
+    permKey: 'products', page: 'products', label: 'Manage Products',
+    bg: 'var(--amber-bg)', stroke: 'var(--amber)',
+    icon: <Box size={24} />,
+  },
+  {
+    permKey: 'customers', page: 'customers', label: 'Customers',
+    bg: 'var(--blue-bg)', stroke: 'var(--blue)',
+    icon: <Users size={24} />,
+  },
+  {
+    permKey: 'reports', page: 'reports', label: 'Reports',
+    bg: 'var(--teal-bg)', stroke: 'var(--teal)',
+    icon: <BarChart3 size={24} />,
+  },
+  {
+    permKey: 'expenses', page: 'expenses', label: 'Expenses',
+    bg: 'var(--purple-bg)', stroke: 'var(--purple)',
+    icon: <Receipt size={24} />,
+  },
+  {
+    permKey: 'suppliers', page: 'suppliers', label: 'Suppliers',
+    bg: 'var(--brand-lt)', stroke: 'var(--brand)',
+    icon: <Truck size={24} />,
+  },
+  {
+    permKey: 'credit', page: 'credit', label: 'Credit',
+    bg: 'var(--amber-bg)', stroke: 'var(--amber)',
+    icon: <CreditCard size={24} />,
   },
 ];
 
 const PERM_LABELS: Array<{ key: keyof Permissions; label: string; color: string }> = [
-  { key: 'sale',  label: 'Record Sales',       color: 'var(--brand)'  },
-  { key: 'inv',   label: 'View Inventory',      color: 'var(--amber)'  },
-  { key: 'hist',  label: 'Sale History',        color: 'var(--blue)'   },
-  { key: 'atd',   label: 'Attendance',          color: 'var(--teal)'   },
-  { key: 'msg',   label: 'Messages',            color: 'var(--purple)' },
-  { key: 'earn',  label: 'See Own Earnings',    color: 'var(--brand)'  },
+  { key: 'sale',       label: 'Record Sales',         color: 'var(--brand)'  },
+  { key: 'inv',        label: 'View Inventory',        color: 'var(--amber)'  },
+  { key: 'hist',       label: 'Sale History',          color: 'var(--blue)'   },
+  { key: 'atd',        label: 'Attendance',            color: 'var(--teal)'   },
+  { key: 'msg',        label: 'Messages',              color: 'var(--purple)' },
+  { key: 'earn',       label: 'See Own Earnings',      color: 'var(--brand)'  },
+  { key: 'products',   label: 'Manage Products',       color: 'var(--amber)'  },
+  { key: 'customers',  label: 'Manage Customers',      color: 'var(--blue)'   },
+  { key: 'reports',    label: 'View Reports',          color: 'var(--teal)'   },
+  { key: 'expenses',   label: 'Record Expenses',       color: 'var(--purple)' },
+  { key: 'suppliers',  label: 'Manage Suppliers',      color: 'var(--brand)'  },
+  { key: 'credit',     label: 'Credit Management',      color: 'var(--amber)'  },
+  { key: 'refunds',    label: 'Process Refunds',       color: 'var(--blue)'   },
+  { key: 'discounts',  label: 'Apply Discounts',        color: 'var(--teal)'   },
+  { key: 'priceEdit',  label: 'Edit Prices',            color: 'var(--purple)' },
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({

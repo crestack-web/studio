@@ -1,4 +1,19 @@
 import React from 'react';
+import { 
+  Home, 
+  ShoppingCart, 
+  Package, 
+  History, 
+  Calendar, 
+  MessageSquare, 
+  Settings,
+  Box,
+  Users,
+  BarChart3,
+  Receipt,
+  Truck,
+  CreditCard
+} from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 
 interface SidebarProps {
@@ -10,13 +25,19 @@ interface SidebarProps {
 
 export function Sidebar({ page, onChangePage, permissions, open = false }: SidebarProps) {
   const navItems = [
-    { id: 'home' as PageId, label: 'Home', icon: '🏠', class: 'ni-home' },
-    { id: 'sale' as PageId, label: 'Sale', icon: '🛒', class: 'ni-sale' },
-    ...(permissions.inv ? [{ id: 'inv' as PageId, label: 'Inventory', icon: '📦', class: 'ni-inv' }] : []),
-    ...(permissions.hist ? [{ id: 'hist' as PageId, label: 'History', icon: '📜', class: 'ni-hist' }] : []),
-    ...(permissions.atd ? [{ id: 'atd' as PageId, label: 'Attendance', icon: '📍', class: 'ni-atd' }] : []),
-    ...(permissions.msg ? [{ id: 'msg' as PageId, label: 'Messages', icon: '💬', class: 'ni-msg' }] : []),
-    { id: 'settings' as PageId, label: 'Settings', icon: '⚙️', class: 'ni-set' },
+    { id: 'home' as PageId, label: 'Home', icon: <Home size={20} />, class: 'ni-home' },
+    { id: 'sale' as PageId, label: 'Sale', icon: <ShoppingCart size={20} />, class: 'ni-sale' },
+    ...(permissions.inv ? [{ id: 'inv' as PageId, label: 'Inventory', icon: <Package size={20} />, class: 'ni-inv' }] : []),
+    ...(permissions.hist ? [{ id: 'hist' as PageId, label: 'History', icon: <History size={20} />, class: 'ni-hist' }] : []),
+    ...(permissions.atd ? [{ id: 'atd' as PageId, label: 'Attendance', icon: <Calendar size={20} />, class: 'ni-atd' }] : []),
+    ...(permissions.msg ? [{ id: 'msg' as PageId, label: 'Messages', icon: <MessageSquare size={20} />, class: 'ni-msg' }] : []),
+    ...(permissions.products ? [{ id: 'products' as PageId, label: 'Products', icon: <Box size={20} />, class: 'ni-products' }] : []),
+    ...(permissions.customers ? [{ id: 'customers' as PageId, label: 'Customers', icon: <Users size={20} />, class: 'ni-customers' }] : []),
+    ...(permissions.reports ? [{ id: 'reports' as PageId, label: 'Reports', icon: <BarChart3 size={20} />, class: 'ni-reports' }] : []),
+    ...(permissions.expenses ? [{ id: 'expenses' as PageId, label: 'Expenses', icon: <Receipt size={20} />, class: 'ni-expenses' }] : []),
+    ...(permissions.suppliers ? [{ id: 'suppliers' as PageId, label: 'Suppliers', icon: <Truck size={20} />, class: 'ni-suppliers' }] : []),
+    ...(permissions.credit ? [{ id: 'credit' as PageId, label: 'Credit', icon: <CreditCard size={20} />, class: 'ni-credit' }] : []),
+    { id: 'settings' as PageId, label: 'Settings', icon: <Settings size={20} />, class: 'ni-set' },
   ];
 
   return (

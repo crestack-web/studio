@@ -9,36 +9,28 @@ const db = admin.firestore();
 
 const plans = [
   {
-    id: 'shop',
-    name: 'Shop',
-    monthlyPrice: 1500,
-    yearlyPrice: 15000,
+    id: 'starter',
+    name: 'Starter',
+    monthlyPrice: 5000,
+    yearlyPrice: 50000,
     paystack_plan_code_monthly: 'PLN_79p5yysj5q5z1qz',
     paystack_plan_code_yearly: 'PLN_k9c24tyc4g5x8v9',
   },
   {
-    id: 'supermarket',
-    name: 'Supermarket',
+    id: 'standard',
+    name: 'Standard',
     monthlyPrice: 10000,
     yearlyPrice: 100000,
     paystack_plan_code_monthly: 'PLN_x5vbs3rigk8g9q2',
     paystack_plan_code_yearly: 'PLN_0z6g4j3j6a59v04',
   },
   {
-    id: 'multi-branch',
-    name: 'Multiple Branches',
-    monthlyPrice: 30000,
-    yearlyPrice: 300000,
+    id: 'pro',
+    name: 'Pro',
+    monthlyPrice: 25000,
+    yearlyPrice: 250000,
     paystack_plan_code_monthly: 'PLN_p0j2j9y6f7a6g9v',
     paystack_plan_code_yearly: 'PLN_2s4q2y0g1m1c8s7',
-  },
-  {
-    id: 'company',
-    name: 'Company',
-    monthlyPrice: 50000,
-    yearlyPrice: 500000,
-    paystack_plan_code_monthly: 'PLN_w8t4c0j7d8f9a2s',
-    paystack_plan_code_yearly: 'PLN_3d5f8g0h2k1l4m9',
   },
 ];
 

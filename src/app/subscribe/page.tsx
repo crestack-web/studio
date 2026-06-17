@@ -125,14 +125,13 @@ export default function SubscribePage() {
       const user = auth.currentUser;
 
       if (!user) {
-        alert('Please log in to continue');
         router.replace('/login');
         return;
       }
 
       const selectedPlanData = PLANS.find(p => p.id === selectedPlan);
       if (!selectedPlanData) {
-        alert('Invalid plan selected');
+        alert('Unable to process payment. Please try again.');
         return;
       }
 
@@ -174,7 +173,7 @@ export default function SubscribePage() {
 
     } catch (error) {
       console.error('Subscription error:', error);
-      alert(`Failed to process subscription: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      alert('We are having issues connecting with payment processors. Please try again later.');
     } finally {
       setIsProcessing(false);
     }

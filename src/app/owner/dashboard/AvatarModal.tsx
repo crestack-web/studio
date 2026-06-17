@@ -57,7 +57,7 @@ export function AvatarModal() {
       
       // Create a unique filename
       const timestamp = Date.now();
-      const filename = `avatars/${user.id}_${timestamp}`;
+      const filename = `users/${user.id}/avatar/${timestamp}`;
       const imageRef = ref(storage, filename);
       console.log('📤 Image ref:', imageRef.fullPath);
 

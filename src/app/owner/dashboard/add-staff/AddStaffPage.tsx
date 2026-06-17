@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import { Button } from '../Button';
 import { collection, addDoc, doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
@@ -7,6 +7,14 @@ import { useFirestore } from '@/firebase/provider';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import styles from './AddStaffPage.module.css';
+import { 
+  ROLES, 
+  PERMISSIONS, 
+  getRecommendedPermissions, 
+  getRecommendedRoles,
+  getPermissionsByCategory,
+  createPermissionsObject 
+} from '@/lib/staffPermissions';
 
 const generateStaffId = () => {
   return 'STF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -32,8 +40,49 @@ export default function AddStaffPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, boolean>>({});
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [staffCredentials, setStaffCredentials] = useState<{ staffId: string; password: string; name: string; email: string } | null>(null);
+
+  // Fetch business type from current user's business
+  useEffect(() => {
+    async function fetchBusinessType() {
+      try {
+        const { auth, firestore } = initializeFirebase();
+        const currentUserId = auth.currentUser?.uid || '';
+        
+        if (currentUserId) {
+          const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
+          const businessId = ownerDoc.data()?.businessId || 'default';
+          
+          const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+          if (businessDoc.exists()) {
+            const category = businessDoc.data()?.category || 'other';
+            setBusinessType(category);
+            
+            // Get recommended roles for this business type
+            const recommendedRoles = getRecommendedRoles(category);
+            if (recommendedRoles.length > 0 && !role) {
+              setRole(recommendedRoles[0]);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching business type:', error);
+      }
+    }
+    
+    fetchBusinessType();
+  }, []);
+
+  // Update permissions when role changes
+  useEffect(() => {
+    if (role) {
+      const recommendedPermissions = getRecommendedPermissions(role);
+      setSelectedPermissions(createPermissionsObject(recommendedPermissions));
+    }
+  }, [role]);
 
   const handleAddStaff = async () => {
     if (!name || !email || !role) {
@@ -89,14 +138,7 @@ export default function AddStaffPage() {
           role: 'Staff',
           staffId: staffId,
           businessId: businessId,
-          permissions: {
-            sale: true,
-            inv: false,
-            hist: false,
-            atd: false,
-            msg: false,
-            earn: false,
-          },
+          permissions: selectedPermissions,
           initials: getInitials(name.trim()),
           createdAt: new Date(),
         });
@@ -108,14 +150,7 @@ export default function AddStaffPage() {
         email: email.trim(),
         role: role.trim(),
         staffId: staffId,
-        permissions: {
-          sale: true,
-          inv: false,
-          hist: false,
-          atd: false,
-          msg: false,
-          earn: false,
-        },
+        permissions: selectedPermissions,
         status: 'active',
         createdAt: new Date(),
         revenue: 0,
@@ -145,12 +180,27 @@ export default function AddStaffPage() {
     navigateTo('staff');
   };
 
+  const togglePermission = (key: string) => {
+    setSelectedPermissions(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const permissionsByCategory = getPermissionsByCategory();
+  const allRoles = Object.entries(ROLES).map(([id, config]) => ({ id, ...config }));
+
   return (
     <div className={styles.addStaffPage}>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>Add Staff</h2>
           <p className={styles.pageDesc}>Add a new member to your team.</p>
+          {businessType && (
+            <p className={styles.pageDesc} style={{ fontSize: '0.85rem', color: 'var(--brand)' }}>
+              Business Type: {businessType.charAt(0).toUpperCase() + businessType.slice(1)}
+            </p>
+          )}
         </div>
         <Button variant="subtle" onClick={() => navigateTo('staff')}>← Back</Button>
       </div>
@@ -158,16 +208,92 @@ export default function AddStaffPage() {
       <div className={styles.form}>
         <div className={styles.formGroup}>
           <label htmlFor="name">Name</label>
-          <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} />
+          <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Enter staff member's name" />
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
-          <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter email address" />
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="role">Role</label>
-          <input type="text" id="role" value={role} onChange={e => setRole(e.target.value)} />
+          <select 
+            id="role" 
+            value={role} 
+            onChange={e => setRole(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: '1.5px solid #E8E8F0',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }}
+          >
+            <option value="">Select a role</option>
+            {allRoles.map(r => (
+              <option key={r.id} value={r.id}>{r.label}</option>
+            ))}
+          </select>
+          {role && ROLES[role] && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--t3)', marginTop: '4px' }}>
+              {ROLES[role].description}
+            </p>
+          )}
         </div>
+
+        {role && (
+          <div className={styles.formGroup} style={{ marginTop: '24px' }}>
+            <label>Permissions</label>
+            <p style={{ fontSize: '0.8rem', color: 'var(--t3)', marginBottom: '12px' }}>
+              Permissions are automatically recommended based on the selected role. You can customize them below.
+            </p>
+            {Object.entries(permissionsByCategory).map(([category, perms]) => (
+              <div key={category} style={{ marginBottom: '16px' }}>
+                <h4 style={{ 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600', 
+                  color: 'var(--t1)', 
+                  marginBottom: '8px',
+                  textTransform: 'capitalize',
+                  letterSpacing: '0.05em'
+                }}>
+                  {category}
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {perms.map(perm => (
+                    <label key={perm.label} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      background: 'var(--bg)',
+                      cursor: 'pointer',
+                      border: selectedPermissions[perm.label] ? '1.5px solid var(--brand)' : '1px solid #E8E8F0',
+                    }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedPermissions[perm.label] || false}
+                        onChange={() => togglePermission(perm.label)}
+                        style={{ accentColor: 'var(--brand)' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--t1)' }}>
+                          {perm.label}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
+                          {perm.description}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <Button variant="primary" onClick={handleAddStaff}>Add Staff Member</Button>
       </div>
 
