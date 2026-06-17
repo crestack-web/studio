@@ -1089,7 +1089,7 @@ export function MobileAskMOPage() {
             className={styles.micBtn}
             onClick={isRecording ? stopRecording : startRecording}
             title={isRecording ? "Stop recording" : "Record voice"}
-            style={{ background: isRecording ? 'var(--red)' : 'var(--bg-2)', color: isRecording ? '#fff' : 'var(--text-2)' }}
+            style={{ background: isRecording ? 'var(--red)' : 'var(--bg-2)', color: isRecording ? 'var(--white)' : 'var(--text-2)' }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
