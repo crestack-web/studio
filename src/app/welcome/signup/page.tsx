@@ -347,6 +347,8 @@ type FormState = {
   phone: string;
   country: string;
   businessAnalysis?: any;
+  selectedCategory?: string;
+  selectedFeatures?: string[];
 };
 
 // ── Step Progress Bar ─────────────────────────
@@ -425,9 +427,71 @@ function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof Form
 }
 
 // ── Step 2 ─────────────────────────────────────
-function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string) => void }) {
+function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string | string[]) => void }) {
+  const [selectedCategory, setSelectedCategory] = useState(data.selectedCategory || "retail");
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
+    Array.isArray(data.selectedFeatures) ? data.selectedFeatures : 
+    (typeof data.selectedFeatures === 'string' ? JSON.parse(data.selectedFeatures) : ["Sales Recording", "Inventory Tracking", "Staff Management"])
+  );
+
+  const ALL_FEATURES = [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Multi-branch Support",
+    "Menu Management",
+    "Ingredient Tracking",
+    "Expiry Alerts",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Production Tracking",
+    "E-commerce Storefront",
+    "Payroll Management",
+  ];
+
+  const getRecommendedPlan = (features: string[]): { plan: string; reason: string } => {
+    const hasAdvancedFeatures = features.some(f => 
+      ["Multi-branch Support", "Production Tracking", "E-commerce Storefront", "Payroll Management"].includes(f)
+    );
+    const hasManyFeatures = features.length >= 8;
+    
+    if (hasAdvancedFeatures || hasManyFeatures) {
+      return {
+        plan: "standard",
+        reason: "Your selected features require advanced capabilities available in the Standard plan."
+      };
+    }
+    return {
+      plan: "starter",
+      reason: "The Starter plan covers all your selected features perfectly."
+    };
+  };
+
+  const { plan: recommendedPlan, reason: planReason } = getRecommendedPlan(selectedFeatures);
+
+  const toggleFeature = (feature: string) => {
+    const newFeatures = selectedFeatures.includes(feature)
+      ? selectedFeatures.filter(f => f !== feature)
+      : [...selectedFeatures, feature];
+    setSelectedFeatures(newFeatures);
+    // Update parent state
+    onChange("selectedFeatures", newFeatures);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    onChange("selectedCategory", category);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Business Description */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <label htmlFor="description" style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
           Tell MO about your business
@@ -437,7 +501,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
           value={data.description}
           onChange={(e) => onChange("description", e.target.value)}
           placeholder="We sell jollof rice, grilled chicken and drinks."
-          rows={4}
+          rows={3}
           style={{
             resize: "none", borderRadius: 12, padding: "16px", fontSize: 15,
             color: "#0A0A0F", background: "white", outline: "none", lineHeight: 1.6,
@@ -454,43 +518,97 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         />
       </div>
 
+      {/* Category Selection */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          Examples
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+          Select your business category
         </span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[
-            "We sell jollof rice, grilled chicken and drinks.",
-            "I own a pharmacy and sell medications.",
-            "We bake cakes and handle catering events.",
-            "I run a salon and beauty studio.",
-            "We sell phones and accessories.",
-          ].map((example, i) => (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {CATEGORIES.map((cat) => (
             <button
-              key={i}
+              key={cat.id}
               type="button"
-              onClick={() => onChange("description", example)}
+              onClick={() => handleCategoryChange(cat.id)}
               style={{
-                padding: "10px 14px", borderRadius: 8, cursor: "pointer",
-                fontSize: 13, color: "#555568", background: "#FAFAFC",
-                border: "1px solid #E8E8F0", textAlign: "left",
+                padding: "12px 16px", borderRadius: 10, cursor: "pointer",
+                fontSize: 14, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
+                background: selectedCategory === cat.id ? "#F3EFFE" : "white",
+                border: selectedCategory === cat.id ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
+                textAlign: "left", display: "flex", alignItems: "center", gap: 8,
                 fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#F3EFFE";
-                e.currentTarget.style.borderColor = "#6B3FE7";
-                e.currentTarget.style.color = "#6B3FE7";
+                if (selectedCategory !== cat.id) {
+                  e.currentTarget.style.borderColor = "#6B3FE7";
+                  e.currentTarget.style.background = "#FAFAFC";
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#FAFAFC";
-                e.currentTarget.style.borderColor = "#E8E8F0";
-                e.currentTarget.style.color = "#555568";
+                if (selectedCategory !== cat.id) {
+                  e.currentTarget.style.borderColor = "#E8E8F0";
+                  e.currentTarget.style.background = "white";
+                }
               }}
             >
-              {example}
+              <span style={{ fontSize: 18 }}>{cat.icon}</span>
+              <span>{cat.label}</span>
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Feature Selection */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+          Select features you need ({selectedFeatures.length} selected)
+        </span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, maxHeight: 200, overflowY: "auto", padding: 4 }}>
+          {ALL_FEATURES.map((feature) => (
+            <button
+              key={feature}
+              type="button"
+              onClick={() => toggleFeature(feature)}
+              style={{
+                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                fontSize: 13, color: selectedFeatures.includes(feature) ? "#6B3FE7" : "#555568",
+                background: selectedFeatures.includes(feature) ? "#F3EFFE" : "white",
+                border: selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "1px solid #E8E8F0",
+                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#6B3FE7";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = selectedFeatures.includes(feature) ? "#1.5px solid #6B3FE7" : "#E8E8F0";
+              }}
+            >
+              <span style={{ fontSize: 14 }}>
+                {selectedFeatures.includes(feature) ? "✓" : "○"}
+              </span>
+              <span>{feature}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Plan Recommendation */}
+      <div style={{ 
+        padding: "16px", borderRadius: 12, background: "#F3EFFE", 
+        border: "1.5px solid #6B3FE7", display: "flex", flexDirection: "column", gap: 8 
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 20 }}>💡</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#6B3FE7", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Recommended Plan
+          </span>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#0A0A0F", textTransform: "capitalize" }}>
+          {recommendedPlan} Plan
+        </div>
+        <p style={{ fontSize: 13, color: "#555568", margin: 0, lineHeight: 1.5 }}>
+          {planReason}
+        </p>
       </div>
     </div>
   );
@@ -520,21 +638,34 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
 
   const planColors = getPlanColor(analysis.recommendedPlan || 'starter');
 
+  // Parse selected features if stored as string
+  let selectedFeatures = data.selectedFeatures;
+  if (typeof selectedFeatures === 'string') {
+    try {
+      selectedFeatures = JSON.parse(selectedFeatures);
+    } catch (e) {
+      selectedFeatures = [];
+    }
+  }
+
+  // Get category label
+  const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || analysis.businessType;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0A0A0F", marginBottom: 4 }}>
-          MO analyzed your business:
+          Your Busmo setup:
         </h3>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px", background: "#F3EFFE", borderRadius: 12, border: "1px solid #E8E8F0" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Business Type
+            Business Category
           </span>
           <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
-            {analysis.businessType}
+            {categoryLabel}
           </span>
         </div>
 
@@ -571,10 +702,10 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
 
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Recommended Setup
+            Selected Features ({selectedFeatures?.length || 0})
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {analysis.recommendedFeatures?.map((feature: string, i: number) => (
+            {(selectedFeatures || analysis.recommendedFeatures || []).map((feature: string, i: number) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: "#1DB954", fontSize: 16 }}>✓</span>
                 <span style={{ fontSize: 14, color: "#0A0A0F" }}>{feature}</span>
@@ -583,16 +714,21 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
           </div>
         </div>
 
-        {analysis.teamSizeEstimate && (
+        {analysis.recommendedCategories && analysis.recommendedCategories.length > 0 && (
           <>
             <div style={{ height: 1, background: "#E8E8F0" }} />
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Team Size Estimate
+                Product Categories
               </span>
-              <span style={{ fontSize: 14, color: "#0A0A0F", textTransform: "capitalize" }}>
-                {analysis.teamSizeEstimate}
-              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {analysis.recommendedCategories.map((category: string, i: number) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ color: "#6B3FE7", fontSize: 16 }}>📁</span>
+                    <span style={{ fontSize: 14, color: "#0A0A0F" }}>{category}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -614,7 +750,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
           e.currentTarget.style.background = "white";
         }}
       >
-        Edit Description
+        Edit Selections
       </button>
     </div>
   );
@@ -623,8 +759,8 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
 // ── Step Copy ─────────────────────────────────
 const STEP_COPY: Record<number, { title: string; sub: string }> = {
   1: { title: "What's your business name?", sub: "Start by telling us your business name." },
-  2: { title: "Tell MO about your business", sub: "Describe what you do and MO will configure Busmo for you." },
-  3: { title: "Confirm MO's understanding", sub: "Review MO's analysis and enter Busmo." },
+  2: { title: "Configure your Busmo", sub: "Select your business category and features you need." },
+  3: { title: "Review your setup", sub: "Review your selections and enter Busmo." },
 };
 
 // ── Main Onboarding Component ─────────────────
@@ -638,9 +774,11 @@ export default function BusmoOnboarding() {
   const [data, setData] = useState<FormState>({
     businessName: "", description: "", email: "", password: "",
     fullName: "", countryCode: "+234", phone: "", country: "nigeria",
+    selectedCategory: "retail",
+    selectedFeatures: ["Sales Recording", "Inventory Tracking", "Staff Management"],
   });
 
-  const handleChange = useCallback((key: keyof FormState, value: string) => {
+  const handleChange = useCallback((key: keyof FormState, value: string | string[]) => {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -667,46 +805,59 @@ export default function BusmoOnboarding() {
   const handleNext = async () => {
     if (isStepValid(step, data)) {
       if (step === 2) {
-        // Moving to step 3 - call business analysis API with timeout and fallback
+        // Moving to step 3 - create business analysis from manual selections
         setIsAnalyzing(true);
         setError(null);
         
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Analysis timeout')), 15000)
-        );
-        
         try {
-          const response = await Promise.race([
-            fetch('/api/analyze-business', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                businessName: data.businessName,
-                description: data.description,
-              }),
-            }),
-            timeoutPromise
-          ]) as Response;
-          
-          const result = await response.json() as { success: boolean; analysis?: any; error?: string };
-          
-          if (result.success && result.analysis) {
-            setData(prev => ({ ...prev, businessAnalysis: result.analysis }));
-            setStep(3);
-          } else {
-            throw new Error(result.error || 'Failed to analyze business');
+          // Parse selected features from JSON string if needed
+          let selectedFeatures = data.selectedFeatures;
+          if (typeof selectedFeatures === 'string') {
+            selectedFeatures = JSON.parse(selectedFeatures);
           }
+          
+          // Get category label from ID
+          const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || 'Retail Shop';
+          
+          // Determine recommended plan based on selected features
+          const hasAdvancedFeatures = selectedFeatures?.some((f: string) => 
+            ["Multi-branch Support", "Production Tracking", "E-commerce Storefront", "Payroll Management"].includes(f)
+          );
+          const hasManyFeatures = (selectedFeatures?.length ?? 0) >= 8;
+          const recommendedPlan = (hasAdvancedFeatures || hasManyFeatures) ? 'standard' : 'starter';
+          
+          // Create business analysis from manual selections
+          const manualAnalysis = {
+            businessType: categoryLabel,
+            businessTypeConfidence: 1.0, // High confidence since user manually selected
+            operationalNeeds: selectedFeatures?.slice(0, 4) || ['Inventory Management', 'Staff Management'],
+            productTypes: ['Products'],
+            recommendedCategories: [categoryLabel, 'General'],
+            recommendedFeatures: selectedFeatures || ['Sales Recording', 'Inventory Tracking', 'Staff Management'],
+            recommendedPlan: recommendedPlan,
+            recommendedPlanReason: recommendedPlan === 'standard' 
+              ? 'Your selected features require advanced capabilities available in the Standard plan.'
+              : 'The Starter plan covers all your selected features perfectly.',
+            teamSizeEstimate: 'solo',
+            complexityScore: (selectedFeatures?.length ?? 0) >= 8 ? 6 : 3
+          };
+          
+          setData(prev => ({ ...prev, businessAnalysis: manualAnalysis }));
+          setStep(3);
         } catch (error: any) {
-          console.error('Business analysis error:', error);
+          console.error('Error creating manual analysis:', error);
           // Use fallback analysis and continue onboarding
           const fallbackAnalysis = {
-            businessType: 'Other',
+            businessType: 'Retail Store',
             businessTypeConfidence: 0.5,
-            operationalNeeds: ['Inventory Management', 'Staff Management'],
-            productTypes: ['Products'],
-            recommendedCategories: ['General'],
-            recommendedFeatures: ['Inventory', 'Staff Management']
+            operationalNeeds: ['Inventory Management', 'Staff Management', 'Sales Tracking', 'Expense Tracking'],
+            productTypes: ['Products', 'Services'],
+            recommendedCategories: ['General', 'Featured Items', 'Services'],
+            recommendedFeatures: ['Sales Recording', 'Inventory Tracking', 'Staff Management', 'Cash Flow Analysis', 'Expense Management', 'Business Analytics'],
+            recommendedPlan: 'starter',
+            recommendedPlanReason: 'Based on limited information, Starter plan is recommended as a starting point. You can upgrade anytime as your business grows.',
+            teamSizeEstimate: 'solo',
+            complexityScore: 3
           };
           setData(prev => ({ ...prev, businessAnalysis: fallbackAnalysis }));
           setStep(3);
@@ -794,7 +945,7 @@ export default function BusmoOnboarding() {
                     role: 'Owner',
                     businessId: userId,
                     plan: selectedPlan,
-                    category: data.businessAnalysis?.businessType || "Other",
+                    category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                     country: data.country,
                     createdAt: Timestamp.now(),
                     avatarContent: '👤',
@@ -805,6 +956,8 @@ export default function BusmoOnboarding() {
                     trialEndDate: Timestamp.fromDate(trialEnd),
                     subscriptionStatus: 'trial',
                     businessAnalysis: data.businessAnalysis,
+                    selectedCategory: data.selectedCategory,
+                    selectedFeatures: data.selectedFeatures,
                   });
                   console.log('User profile created with trial info');
                 } else {
@@ -826,7 +979,7 @@ export default function BusmoOnboarding() {
                   await setDoc(businessRef, {
                     ownerId: userId,
                     businessName: data.businessName,
-                    category: data.businessAnalysis?.businessType || "Other",
+                    category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                     country: data.country,
                     description: data.description || "",
                     plan: "starter",
@@ -838,6 +991,8 @@ export default function BusmoOnboarding() {
                     recommendedFeatures: data.businessAnalysis?.recommendedFeatures || [],
                     operationalNeeds: data.businessAnalysis?.operationalNeeds || [],
                     productTypes: data.businessAnalysis?.productTypes || [],
+                    selectedCategory: data.selectedCategory,
+                    selectedFeatures: data.selectedFeatures,
                   });
                   businessCreated = true;
                   console.log('Business profile created');
@@ -1001,7 +1156,7 @@ export default function BusmoOnboarding() {
         )}
 
         <PrimaryBtn onClick={handleNext} disabled={!valid || isLoading || isAnalyzing}>
-          {step < 2 ? "Continue" : step === 2 ? (isAnalyzing ? "Analyzing..." : "Analyze Business") : isLoading ? "Setting up..." : "Enter Busmo"}
+          {step < 2 ? "Continue" : step === 2 ? "Continue" : isLoading ? "Setting up..." : "Enter Busmo"}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 4l4 4-4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

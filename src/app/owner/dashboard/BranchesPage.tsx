@@ -37,6 +37,9 @@ export function BranchesPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isProPlan, setIsProPlan] = useState(false);
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [isAssigningStaff, setIsAssigningStaff] = useState(false);
+  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
 
   // Check if user is on Pro plan
   useEffect(() => {
@@ -130,6 +133,7 @@ export function BranchesPage() {
   }, [isProPlan, showToast]);
 
   const handleCreateBranch = async (branchData: any) => {
+    setIsCreatingBranch(true);
     try {
       const { auth, firestore } = initializeFirebase();
       const currentUser = auth.currentUser;
@@ -158,10 +162,13 @@ export function BranchesPage() {
     } catch (error) {
       console.error('Error creating branch:', error);
       showToast('❌ Failed to create branch');
+    } finally {
+      setIsCreatingBranch(false);
     }
   };
 
   const handleAssignStaff = async (staffId: string, branchId: string) => {
+    setIsAssigningStaff(true);
     try {
       const { firestore } = initializeFirebase();
       const currentUser = getAuth().currentUser;
@@ -183,6 +190,8 @@ export function BranchesPage() {
     } catch (error) {
       console.error('Error assigning staff:', error);
       showToast('❌ Failed to assign staff');
+    } finally {
+      setIsAssigningStaff(false);
     }
   };
 
@@ -191,6 +200,7 @@ export function BranchesPage() {
       return;
     }
 
+    setIsDeletingBranch(true);
     try {
       const { firestore } = initializeFirebase();
       const currentUser = getAuth().currentUser;
@@ -208,6 +218,8 @@ export function BranchesPage() {
     } catch (error) {
       console.error('Error deleting branch:', error);
       showToast('❌ Failed to delete branch');
+    } finally {
+      setIsDeletingBranch(false);
     }
   };
 
@@ -334,12 +346,13 @@ export function BranchesPage() {
                 >
                   Assign Staff
                 </Button>
-                <Button 
-                  variant="danger" 
+                <Button
+                  variant="danger"
                   size="sm"
                   onClick={() => handleDeleteBranch(branch.id)}
+                  disabled={isDeletingBranch}
                 >
-                  Delete
+                  {isDeletingBranch ? 'Deleting...' : 'Delete'}
                 </Button>
               </div>
             </div>

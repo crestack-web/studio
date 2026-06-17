@@ -10,6 +10,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 const RATE_LIMIT_DELAY_MS = 500;
 const DEFAULT_MODEL = 'gemini-pro-latest';
+const FALLBACK_MODELS = ['gemini-pro', 'gemini-1.5-pro'];
 
 // Error types
 class GoogleAIError extends Error {
@@ -27,6 +28,7 @@ export interface AIRequest {
   branchId?: string;
   model?: string;
   stream?: boolean;
+  enableFallback?: boolean;
 }
 
 export interface AIResponse {
@@ -256,69 +258,87 @@ Important rules:
     }
   }
 
-  // Generate streaming AI response
+  // Generate streaming AI response with fallback support
   async generateStream(request: AIRequest): Promise<AIStreamResponse> {
     const requestId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const modelsToTry = request.enableFallback !== false 
+      ? [request.model || DEFAULT_MODEL, ...FALLBACK_MODELS] 
+      : [request.model || DEFAULT_MODEL];
     
     console.log(`🚀 [${requestId}] AI Streaming Request`);
+    console.log(`🔄 [${requestId}] Models to try:`, modelsToTry);
 
-    try {
-      this.validateRequest(request);
-
-      await this.rateLimiter.wait();
-
-      const systemPrompt = this.buildSystemPrompt(
-        request.context,
-        request.businessData,
-        request.branchId
-      );
-
-      let businessDataStr = '';
-      if (request.businessData) {
-        const sanitizedData = this.sanitizeBusinessData(request.businessData);
-        businessDataStr = JSON.stringify(sanitizedData, null, 2);
-      }
-
-      const fullPrompt = `${systemPrompt}\n\n${businessDataStr ? `Business data:\n${businessDataStr}\n\n` : ''}User question: ${request.prompt}`;
-
-      const result = await this.retryWithBackoff(async () => {
-        const response = await model.generateContentStream(fullPrompt);
-        return response.stream;
-      });
-
-      const stream = new ReadableStream<string>({
-        async start(controller) {
-          try {
-            for await (const chunk of await result) {
-              const text = chunk.text();
-              if (text) {
-                controller.enqueue(text);
-              }
-            }
-            controller.close();
-          } catch (error) {
-            controller.error(error);
-          }
-        },
-      });
-
-      console.log(`✅ [${requestId}] AI Streaming successful`);
-
-      return {
-        stream,
-        model: request.model || DEFAULT_MODEL,
-      };
-    } catch (error) {
-      console.error(`❌ [${requestId}] AI Streaming failed`);
-      console.error(`🔍 [${requestId}] Error details:`, this.extractErrorDetails(error));
+    for (let modelIndex = 0; modelIndex < modelsToTry.length; modelIndex++) {
+      const currentModel = modelsToTry[modelIndex];
       
-      throw new GoogleAIError(
-        process.env.NODE_ENV === 'development' 
-          ? `AI Streaming Error: ${this.extractErrorDetails(error).message}` 
-          : 'I\'m having trouble accessing AI services right now. Please try again.',
-        error
-      );
+      try {
+        this.validateRequest(request);
+        await this.rateLimiter.wait();
+
+        const systemPrompt = this.buildSystemPrompt(
+          request.context,
+          request.businessData,
+          request.branchId
+        );
+
+        let businessDataStr = '';
+        if (request.businessData) {
+          const sanitizedData = this.sanitizeBusinessData(request.businessData);
+          businessDataStr = JSON.stringify(sanitizedData, null, 2);
+        }
+
+        const fullPrompt = `${systemPrompt}\n\n${businessDataStr ? `Business data:\n${businessDataStr}\n\n` : ''}User question: ${request.prompt}`;
+
+        console.log(`🎯 [${requestId}] Attempting model: ${currentModel}`);
+        
+        const result = await this.retryWithBackoff(async () => {
+          const response = await model.generateContentStream(fullPrompt);
+          return response.stream;
+        });
+
+        const stream = new ReadableStream<string>({
+          async start(controller) {
+            try {
+              for await (const chunk of await result) {
+                const text = chunk.text();
+                if (text) {
+                  controller.enqueue(text);
+                }
+              }
+              controller.close();
+            } catch (error) {
+              controller.error(error);
+            }
+          },
+        });
+
+        console.log(`✅ [${requestId}] AI Streaming successful with model: ${currentModel}`);
+
+        return {
+          stream,
+          model: currentModel,
+        };
+      } catch (error) {
+        console.error(`❌ [${requestId}] Model ${currentModel} failed:`, this.extractErrorDetails(error));
+        
+        if (modelIndex < modelsToTry.length - 1) {
+          console.log(`� [${requestId}] Trying fallback model...`);
+          continue;
+        }
+        
+        // All models failed
+        console.error(`❌ [${requestId}] All models failed`);
+        throw new GoogleAIError(
+          process.env.NODE_ENV === 'development' 
+            ? `AI Streaming Error: ${this.extractErrorDetails(error).message}` 
+            : 'I\'m having trouble accessing AI services right now. Please try again.',
+          error
+        );
+      }
     }
+    
+    // Should never reach here, but TypeScript needs it
+    throw new GoogleAIError('Unexpected error in streaming');
   }
 
   // Health check

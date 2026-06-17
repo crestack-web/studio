@@ -144,6 +144,11 @@ export function StaffPage() {
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showPayrollModal, setShowPayrollModal] = useState(false);
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+  const [isSavingTargets, setIsSavingTargets] = useState(false);
+  const [isBanningStaff, setIsBanningStaff] = useState(false);
+  const [isRemovingStaff, setIsRemovingStaff] = useState(false);
   
   // Chat state
   const [activeTab, setActiveTab] = useState<'staff' | 'chat' | 'attendance' | 'payroll' | 'performance'>('staff');
@@ -299,6 +304,8 @@ export function StaffPage() {
       return;
     }
 
+    setIsAddingStaff(true);
+
     const staffId = generateStaffId();
     const password = generateStaffPassword();
     const avatarBg = ['#D1FAE5', '#EDE8FC', '#EFF6FF', '#FEF3C7', '#FEE2E2', '#CCFBF1'][
@@ -348,6 +355,7 @@ export function StaffPage() {
         console.error('Error creating staff:', authError);
         const errorMessage = authError.message || 'Failed to create staff member. Please try again.';
         showToast(errorMessage);
+        setIsAddingStaff(false);
         return;
       }
 
@@ -383,6 +391,7 @@ export function StaffPage() {
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
       setShowCredentialsModal(true);
       showToast('Staff member added successfully!');
+      setIsAddingStaff(false);
       
       // Send staff invitation email using Brevo
       try {
@@ -422,6 +431,7 @@ export function StaffPage() {
     } catch (error: any) {
       console.error('Error creating staff member:', error);
       showToast('Failed to create staff member. Please try again.');
+      setIsAddingStaff(false);
     }
   };
 
@@ -432,6 +442,8 @@ export function StaffPage() {
 
   const confirmRemoveStaff = async () => {
     if (!staffToRemove) return;
+
+    setIsRemovingStaff(true);
 
     try {
       const { auth, firestore } = initializeFirebase();
@@ -460,14 +472,17 @@ export function StaffPage() {
       showToast(`${staffToRemove.name} has been removed`);
       setShowRemoveConfirmationModal(false);
       setStaffToRemove(null);
+      setIsRemovingStaff(false);
     } catch (error) {
       console.error('Error removing staff:', error);
       showToast('Failed to remove staff member');
+      setIsRemovingStaff(false);
     }
   };
 
   const handleBanStaff = async (staffId: string, staffName: string) => {
     if (confirm(`Are you sure you want to ban ${staffName}? They will not be able to access the dashboard.`)) {
+      setIsBanningStaff(true);
       try {
         const { auth, firestore } = initializeFirebase();
         const currentUserId = auth.currentUser?.uid || '';
@@ -492,9 +507,11 @@ export function StaffPage() {
           )
         );
         showToast(`${staffName} has been banned`);
+        setIsBanningStaff(false);
       } catch (error) {
         console.error('Error banning staff:', error);
         showToast('Failed to ban staff member');
+        setIsBanningStaff(false);
       }
     }
   };
@@ -526,6 +543,8 @@ export function StaffPage() {
   const handleSaveTargets = async () => {
     if (!targetStaff) return;
 
+    setIsSavingTargets(true);
+
     try {
       const { auth, firestore } = initializeFirebase();
       const currentUserId = auth.currentUser?.uid || '';
@@ -551,14 +570,18 @@ export function StaffPage() {
       setShowTargetModal(false);
       setTargetStaff(null);
       showToast('Targets updated successfully');
+      setIsSavingTargets(false);
     } catch (error) {
       console.error('Error updating targets:', error);
       showToast('Failed to update targets');
+      setIsSavingTargets(false);
     }
   };
 
   const handleSavePermissions = async () => {
     if (!editingStaff) return;
+
+    setIsSavingPermissions(true);
 
     try {
       const { auth, firestore } = initializeFirebase();
@@ -586,9 +609,11 @@ export function StaffPage() {
       setShowEditModal(false);
       setEditingStaff(null);
       showToast('Permissions updated successfully');
+      setIsSavingPermissions(false);
     } catch (error) {
       console.error('Error updating permissions:', error);
       showToast('Failed to update permissions');
+      setIsSavingPermissions(false);
     }
   };
 
@@ -820,9 +845,9 @@ export function StaffPage() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                     Message
                   </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)}>
+                  <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)} disabled={isBanningStaff}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    Ban
+                    {isBanningStaff ? 'Banning...' : 'Ban'}
                   </Button>
                   <Button variant="danger" size="xs" onClick={() => handleRemoveStaff(member)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -1455,31 +1480,37 @@ export function StaffPage() {
               </button>
               <button
                 onClick={handleAddStaff}
+                disabled={isAddingStaff}
                 style={{
                   flex: 1,
                   padding: '12px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: 'var(--purple)',
+                  background: isAddingStaff ? 'var(--purple-dark)' : 'var(--purple)',
                   color: '#fff',
                   fontWeight: 600,
                   fontSize: '0.85rem',
-                  cursor: 'pointer',
+                  cursor: isAddingStaff ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                   boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+                  opacity: isAddingStaff ? 0.7 : 1,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--purple-dark)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.35)';
+                  if (!isAddingStaff) {
+                    e.currentTarget.style.background = 'var(--purple-dark)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.35)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--purple)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
+                  if (!isAddingStaff) {
+                    e.currentTarget.style.background = 'var(--purple)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
+                  }
                 }}
               >
-                Add Staff Member
+                {isAddingStaff ? 'Adding...' : 'Add Staff Member'}
               </button>
             </div>
           </div>
@@ -1652,31 +1683,37 @@ export function StaffPage() {
               </button>
               <button
                 onClick={handleSavePermissions}
+                disabled={isSavingPermissions}
                 style={{
                   flex: 1,
                   padding: '12px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: 'var(--purple)',
+                  background: isSavingPermissions ? 'var(--purple-dark)' : 'var(--purple)',
                   color: '#fff',
                   fontWeight: 600,
                   fontSize: '0.85rem',
-                  cursor: 'pointer',
+                  cursor: isSavingPermissions ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                   boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+                  opacity: isSavingPermissions ? 0.7 : 1,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--purple-dark)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.35)';
+                  if (!isSavingPermissions) {
+                    e.currentTarget.style.background = 'var(--purple-dark)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.35)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--purple)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
+                  if (!isSavingPermissions) {
+                    e.currentTarget.style.background = 'var(--purple)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
+                  }
                 }}
               >
-                Save Changes
+                {isSavingPermissions ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -2355,21 +2392,23 @@ export function StaffPage() {
               </button>
               <button
                 onClick={handleSaveTargets}
+                disabled={isSavingTargets}
                 style={{
                   flex: 1,
                   padding: '12px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: 'var(--blue)',
+                  background: isSavingTargets ? 'var(--blue-dark)' : 'var(--blue)',
                   color: '#fff',
                   fontWeight: 600,
                   fontSize: '0.85rem',
-                  cursor: 'pointer',
+                  cursor: isSavingTargets ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                   boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                  opacity: isSavingTargets ? 0.7 : 1,
                 }}
               >
-                Save Targets
+                {isSavingTargets ? 'Saving...' : 'Save Targets'}
               </button>
             </div>
           </div>
@@ -2422,21 +2461,23 @@ export function StaffPage() {
                 </button>
                 <button
                   onClick={confirmRemoveStaff}
+                  disabled={isRemovingStaff}
                   style={{
                     flex: 1,
                     padding: '12px 20px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: 'var(--red)',
+                    background: isRemovingStaff ? 'var(--red-dark)' : 'var(--red)',
                     color: '#fff',
                     fontWeight: 600,
                     fontSize: '0.85rem',
-                    cursor: 'pointer',
+                    cursor: isRemovingStaff ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
                     boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                    opacity: isRemovingStaff ? 0.7 : 1,
                   }}
                 >
-                  Remove Staff
+                  {isRemovingStaff ? 'Removing...' : 'Remove Staff'}
                 </button>
               </div>
             </div>

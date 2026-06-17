@@ -86,16 +86,16 @@ Rules:
       }
     } catch (error) {
       console.error('Failed to parse AI response:', result.text);
-      // Fallback analysis if AI fails
+      // Fallback analysis if AI fails - provide more comprehensive defaults
       analysis = {
-        businessType: 'Other',
+        businessType: 'Retail Store',
         businessTypeConfidence: 0.5,
-        operationalNeeds: ['Inventory Management', 'Staff Management'],
-        productTypes: ['Products'],
-        recommendedCategories: ['General'],
-        recommendedFeatures: ['Sales Recording', 'Inventory Tracking', 'Staff Management'],
+        operationalNeeds: ['Inventory Management', 'Staff Management', 'Sales Tracking', 'Expense Tracking'],
+        productTypes: ['Products', 'Services'],
+        recommendedCategories: ['General', 'Featured Items', 'Services'],
+        recommendedFeatures: ['Sales Recording', 'Inventory Tracking', 'Staff Management', 'Cash Flow Analysis', 'Expense Management', 'Business Analytics'],
         recommendedPlan: 'starter',
-        recommendedPlanReason: 'Based on limited information, Starter plan is recommended as a starting point',
+        recommendedPlanReason: 'Based on limited information, Starter plan is recommended as a starting point. You can upgrade anytime as your business grows.',
         teamSizeEstimate: 'solo',
         complexityScore: 3
       };

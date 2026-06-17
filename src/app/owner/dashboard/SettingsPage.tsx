@@ -158,6 +158,7 @@ export default function SettingsPage() {
     endDate: null as Date | null,
     lastPaymentAmount: 0,
   });
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
 
   // Load business profile and subscription from Firestore
   useEffect(() => {
@@ -226,6 +227,8 @@ export default function SettingsPage() {
       return;
     }
 
+    setIsCancellingSubscription(true);
+
     try {
       const { firestore } = initializeFirebase();
       const auth = getAuth();
@@ -242,6 +245,8 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Failed to cancel subscription:', error);
       showToast('❌ Failed to cancel subscription. Please contact support.');
+    } finally {
+      setIsCancellingSubscription(false);
     }
   };
 
@@ -461,8 +466,10 @@ export default function SettingsPage() {
             <button
               className={styles.cancelBtn}
               onClick={handleCancelSubscription}
+              disabled={isCancellingSubscription}
+              style={{ opacity: isCancellingSubscription ? 0.7 : 1, cursor: isCancellingSubscription ? 'not-allowed' : 'pointer' }}
             >
-              Cancel Subscription
+              {isCancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
             </button>
           )}
           {subscription.status === 'cancelled' && (

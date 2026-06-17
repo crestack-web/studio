@@ -913,6 +913,7 @@ Format the health summary with clear sections and actionable insights. Use the O
  */
 export async function POST(req: NextRequest) {
   let requestId: string | undefined;
+  const requestStartTime = Date.now();
   
   try {
     console.log('🚀 Ask MO API - Request received');
@@ -926,7 +927,8 @@ export async function POST(req: NextRequest) {
       language: language || 'en',
       languageName: languageName || 'English',
       userId: userId || 'not provided',
-      conversationHistoryLength: conversationHistory?.length || 0
+      conversationHistoryLength: conversationHistory?.length || 0,
+      timestamp: new Date().toISOString(),
     });
 
     // Validate input
@@ -1196,38 +1198,101 @@ export async function POST(req: NextRequest) {
       console.log('� System prompt length:', systemPrompt.length);
       console.log('📝 Message length:', message?.length || 0);
       
-      const response = await aiService.generate({
+      // Use streaming for better UX
+      const aiStartTime = Date.now();
+      console.log('📡 [DIAGNOSTICS] Starting AI generation', {
+        provider: 'Google Gen AI',
+        model: 'gemini-pro-latest',
+        promptLength: (message || '').length,
+        contextLength: systemPrompt.length,
+        businessDataSize: JSON.stringify(businessContext).length,
+      });
+      
+      const streamResponse = await aiService.generateStream({
         prompt: message || 'Analyse this business image and provide insights based on my business data above.',
         context: systemPrompt,
         businessData: businessContext,
-        stream: false,
       });
       
-      answer = response.text;
+      const aiInitTime = Date.now() - aiStartTime;
+      console.log('✅ [DIAGNOSTICS] AI stream initialized', {
+        timeToFirstByte: aiInitTime,
+        provider: 'Google Gen AI',
+        model: 'gemini-pro-latest',
+      });
       
-      // Check for repetition and adjust if needed
-      if (detectRepetition(answer, conversationHistory)) {
-        console.log('⚠️ Response detected as repetitive, adding variation');
-        answer = "Building on our previous discussion, " + answer;
-      }
+      // Handle streaming response
+      const encoder = new TextEncoder();
+      let totalChars = 0;
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const reader = streamResponse.stream.getReader();
+            const streamStartTime = Date.now();
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              // value is already a string from Google AI service
+              if (value) {
+                totalChars += value.length;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: value })}\n\n`));
+              }
+            }
+            
+            const streamDuration = Date.now() - streamStartTime;
+            const totalRequestTime = Date.now() - requestStartTime;
+            
+            console.log('✅ [DIAGNOSTICS] Streaming completed', {
+              totalChars,
+              streamDuration,
+              charsPerSecond: Math.round((totalChars / streamDuration) * 1000),
+              totalRequestTime,
+              provider: 'Google Gen AI',
+              model: 'gemini-pro-latest',
+            });
+            
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          } catch (error) {
+            console.error('❌ [DIAGNOSTICS] Streaming error:', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              provider: 'Google Gen AI',
+              model: 'gemini-pro-latest',
+            });
+            controller.error(error);
+          }
+        },
+      });
       
-      console.log('✅ GoogleAIService Success - Response length:', answer?.length || 0);
+      aiRequestQueue.completeRequest(requestId);
+      
+      return new NextResponse(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
     } catch (error) {
-      console.error('❌ GoogleAIService failed:', error);
-      answer = null;
-    }
-
-    if (!answer) {
-      console.error('❌ Google AI service failed to generate response');
+      const errorTime = Date.now() - requestStartTime;
+      console.error('❌ [DIAGNOSTICS] AI Service failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timeUntilError: errorTime,
+        provider: 'Google Gen AI',
+        model: 'gemini-pro-latest',
+        errorDetails: error instanceof Error ? {
+          name: error.name,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        } : undefined,
+      });
       aiRequestQueue.failRequest(requestId, 'AI generation failed');
       return NextResponse.json(
         { error: 'Failed to generate AI response. Please check your Google Gen AI API key configuration.' },
         { status: 500 }
       );
     }
-
-    aiRequestQueue.completeRequest(requestId);
-    return NextResponse.json({ answer });
 
   } catch (error: any) {
     console.error('Ask MO API error:', error);

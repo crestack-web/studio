@@ -87,14 +87,14 @@ export function CashflowPage() {
 
   const checkPlan = async () => {
     if (!user?.id) return;
-    
+
     try {
       const plan = await getUserPlan(user.id);
-      const isPro = plan === 'pro';
-      setIsProUser(isPro);
-      
-      if (!isPro) {
-        showToast('⚠️ Cash Flow tracking requires a Pro plan');
+      const isStandardOrPro = plan === 'standard' || plan === 'pro';
+      setIsProUser(isStandardOrPro);
+
+      if (!isStandardOrPro) {
+        showToast('⚠️ Cash Flow tracking requires a Standard or Pro plan');
       }
     } catch (error) {
       console.error('Error checking plan:', error);

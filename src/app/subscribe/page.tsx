@@ -11,15 +11,14 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 15,
-    priceNum: 15,
-    cycle: '/mo',
+    monthlyPrice: 5000,
+    yearlyPrice: 50000,
     features: [
-      'Record Sales, Expenses & Inventory',
+      'Sales, Expenses & Inventory',
       'Basic AI Insights (MO)',
-      'Sell on Busmo Market',
       'Manage up to 3 Staff',
-      'Basic Reports & Analytics',
+      'Basic Analytics',
+      'Online Store (Waitlist)',
     ],
     moUsage: '2,500 credits',
     activeBg: '#F4F4F8',
@@ -29,19 +28,15 @@ const PLANS = [
   {
     id: 'standard',
     name: 'Standard',
-    price: 40,
-    priceNum: 40,
-    cycle: '/mo',
+    monthlyPrice: 10000,
+    yearlyPrice: 100000,
     tag: 'Most Popular',
     features: [
       'Everything in Starter',
-      'Advanced AI Insights & Forecasts',
-      'Priority Busmo Market Placement',
+      'Advanced AI & Forecasts',
       'Manage up to 10 Staff',
-      'Advanced Reports & Analytics',
-      'Advanced Forecasting',
       'Up to 3 Branches',
-      'SEO for Seller Store',
+      'BusmoPay Integration',
       'Custom Domain',
     ],
     moUsage: '10,000 credits',
@@ -53,22 +48,16 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: 80,
-    priceNum: 80,
-    cycle: '/mo',
+    monthlyPrice: 25000,
+    yearlyPrice: 250000,
     tag: 'Best Value',
     features: [
       'Everything in Standard',
-      'Premium AI Insights & Consulting',
-      'Featured Busmo Market Store',
-      'Unlimited Staff',
-      'Custom Reports & Analytics',
-      'Advanced Forecasting',
-      'Unlimited Branches',
+      'Unlimited Staff & Branches',
       'Production Tracking',
-      'Access to Equity Investment',
-      'CAC Compliance (if needed)',
-      'Integrated POS & Printer',
+      'Access to Investment',
+      'POS Integration',
+      'Dedicated Account Manager',
     ],
     moUsage: 'Unlimited',
     activeBg: '#FEF3C7',
@@ -84,7 +73,8 @@ export default function SubscribePage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('starter');
   const [userPlan, setUserPlan] = useState<string>('starter');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [userCountryCode, setUserCountryCode] = useState<string>('US');
+  const [userCountryCode, setUserCountryCode] = useState<string>('NG');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
@@ -140,21 +130,24 @@ export default function SubscribePage() {
       const userData = userDoc.data();
       const userEmail = userData?.email || user.email;
 
-      // Convert amount to local currency based on user's location
-      const localCurrency = getCurrencyName(userCountryCode);
-      const amountInLocalCurrency = convertFromUsd(selectedPlanData.priceNum, userCountryCode);
+      // Get amount based on billing cycle
+      const amount = billingCycle === 'monthly' ? selectedPlanData.monthlyPrice : selectedPlanData.yearlyPrice;
 
       // Call Paystack API to initialize subscription payment
-      const response = await fetch('/api/payments/initialize-subscription', {
+      const response = await fetch('/api/payments/initialize-paystack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: selectedPlan,
           userId: user.uid,
           email: userEmail,
-          amount: selectedPlanData.priceNum, // Send USD amount
-          currency: localCurrency, // Send target currency code
-          countryCode: userCountryCode, // Send country code for reference
+          amount: amount, // Send amount in Naira
+          currency: 'NGN',
+          billing: billingCycle,
+          metadata: {
+            plan: selectedPlan,
+            billing: billingCycle,
+          },
         }),
       });
 
@@ -205,6 +198,32 @@ export default function SubscribePage() {
           <p className="text-[#555568] max-w-2xl mx-auto">
             Your free trial has ended. Select a plan to continue using Busmo and keep access to all your business data.
           </p>
+          
+          {/* Billing Cycle Toggle */}
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                billingCycle === 'monthly'
+                  ? 'bg-[#6B3FE7] text-white'
+                  : 'bg-white text-[#555568] hover:bg-gray-50'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('yearly')}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                billingCycle === 'yearly'
+                  ? 'bg-[#6B3FE7] text-white'
+                  : 'bg-white text-[#555568] hover:bg-gray-50'
+              }`}
+            >
+              Yearly
+              <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Save 17%</span>
+            </button>
+          </div>
+          
           {userPlan !== selectedPlan && (
             <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-800 rounded-lg text-sm">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -279,13 +298,13 @@ export default function SubscribePage() {
                       fontWeight: 800,
                       color: plan.priceColor,
                     }}>
-                      ${plan.price}
+                      ₦{(billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice).toLocaleString()}
                     </span>
                     <span style={{
                       fontSize: '0.875rem',
                       color: '#8888A0',
                     }}>
-                      {plan.cycle}
+                      / {billingCycle === 'monthly' ? 'month' : 'year'}
                     </span>
                   </div>
                 </div>
@@ -366,7 +385,7 @@ export default function SubscribePage() {
             disabled={isProcessing}
             className="px-12 py-4 bg-[#6B3FE7] text-white font-semibold rounded-xl text-base transition hover:bg-[#4B27B0] disabled:opacity-50 disabled:cursor-not-allowed min-w-[280px]"
           >
-            {isProcessing ? 'Processing...' : `Continue with ${PLANS.find(p => p.id === selectedPlan)?.name} - $${PLANS.find(p => p.id === selectedPlan)?.price}/mo`}
+            {isProcessing ? 'Processing...' : `Continue with ${PLANS.find(p => p.id === selectedPlan)?.name} - ₦${(billingCycle === 'monthly' ? PLANS.find(p => p.id === selectedPlan)?.monthlyPrice : PLANS.find(p => p.id === selectedPlan)?.yearlyPrice)?.toLocaleString()}/${billingCycle === 'monthly' ? 'mo' : 'yr'}`}
           </button>
         </div>
 

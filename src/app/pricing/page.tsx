@@ -32,29 +32,19 @@ export default function PricingPage() {
     else window.location.href = '/welcome';
   };
 
-  // Base prices in USD
+  // Fixed prices in Naira
   const plans = [
     {
       name: 'Starter',
       tagline: 'For small retailers & startups',
-      monthlyPriceUsd: 15,
-      yearlyPriceUsd: 150,
+      monthlyPrice: 5000,
+      yearlyPrice: 50000,
       features: [
-        { text: 'Record Sales, Expenses & Inventory', included: true },
-        { text: '2,500 MO Credits/month (~25 AI responses)', included: true },
-        { text: 'Basic Sales Analytics', included: true },
+        { text: 'Sales, Expenses & Inventory', included: true },
+        { text: 'Basic AI Insights (MO)', included: true },
         { text: 'Manage up to 3 Staff', included: true },
-        { text: 'Offline-first recording', included: true },
-        { text: 'Basic Forecasts', included: true },
+        { text: 'Basic Analytics', included: true },
         { text: 'Online Store (Waitlist)', included: true },
-        { text: 'BusmoPay Integration', included: false },
-        { text: 'Advanced AI Insights', included: false },
-        { text: 'Multiple Branches', included: false },
-        { text: 'Production Tracking', included: false },
-        { text: 'Access to Investment', included: false },
-        { text: 'Custom Domain', included: false },
-        { text: 'POS Integration', included: false },
-        { text: 'Unlimited MO Use', included: false },
       ],
       cta: 'Start Free Trial',
       popular: false,
@@ -62,23 +52,15 @@ export default function PricingPage() {
     {
       name: 'Standard',
       tagline: 'For growing businesses',
-      monthlyPriceUsd: 40,
-      yearlyPriceUsd: 400,
+      monthlyPrice: 10000,
+      yearlyPrice: 100000,
       features: [
         { text: 'Everything in Starter', included: true },
-        { text: '10,000 MO Credits/month (~100 AI responses)', included: true },
-        { text: 'Advanced AI Insights & Forecasts', included: true },
+        { text: 'Advanced AI & Forecasts', included: true },
         { text: 'Manage up to 10 Staff', included: true },
-        { text: 'Advanced Sales Analytics', included: true },
         { text: 'Up to 3 Branches', included: true },
-        { text: 'Online Store (Early Access)', included: true },
         { text: 'BusmoPay Integration', included: true },
         { text: 'Custom Domain', included: true },
-        { text: 'Priority Support', included: true },
-        { text: 'Production Tracking', included: false },
-        { text: 'Access to Investment', included: false },
-        { text: 'POS Integration', included: false },
-        { text: 'Unlimited MO Use', included: false },
       ],
       cta: 'Start Free Trial',
       popular: true,
@@ -86,33 +68,23 @@ export default function PricingPage() {
     {
       name: 'Pro',
       tagline: 'For established businesses & chains',
-      monthlyPriceUsd: 80,
-      yearlyPriceUsd: 800,
+      monthlyPrice: 25000,
+      yearlyPrice: 250000,
       features: [
         { text: 'Everything in Standard', included: true },
-        { text: 'Unlimited MO Credits', included: true },
-        { text: 'Premium AI Consulting', included: true },
-        { text: 'Unlimited Staff', included: true },
-        { text: 'Unlimited Branches', included: true },
+        { text: 'Unlimited Staff & Branches', included: true },
         { text: 'Production Tracking', included: true },
-        { text: 'Online Store (Full Access)', included: true },
         { text: 'Access to Investment', included: true },
         { text: 'POS Integration', included: true },
-        { text: 'Custom Reports', included: true },
         { text: 'Dedicated Account Manager', included: true },
-        { text: 'API Access', included: true },
       ],
       cta: 'Contact Sales',
       popular: false,
     },
   ];
 
-  const getPriceInLocalCurrency = (usdAmount: number) => {
-    return convertFromUsd(usdAmount, userCountry);
-  };
-
   const formatMoney = (amount: number) => {
-    return formatCurrency(amount, userCountry);
+    return `₦${amount.toLocaleString()}`;
   };
 
   const handlePlanSelect = (plan: any) => {
@@ -131,7 +103,7 @@ export default function PricingPage() {
       const trialInfo = {
         plan: selectedPlan.name,
         billing: mode,
-        country: userCountry,
+        country: 'NG',
         trialStart: new Date().toISOString(),
         trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
         email: userEmail,
@@ -152,31 +124,36 @@ export default function PricingPage() {
       return;
     }
 
-    const price = mode === 'monthly' ? selectedPlan.monthlyPriceUsd : selectedPlan.yearlyPriceUsd;
-    const localPrice = getPriceInLocalCurrency(price);
-    const currency = getCurrencyName(userCountry);
+    const price = mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice;
 
     try {
-      await initializePayment({
-        amount: localPrice,
-        currency: currency,
-        email: userEmail,
-        paymentMethod: paymentMethod,
-        metadata: {
+      const response = await fetch('/api/payments/initialize-paystack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          amount: price,
           plan: selectedPlan.name,
           billing: mode,
-          country: userCountry,
-        },
-        onSuccess: (reference) => {
-          alert(`Payment successful! Reference: ${reference}`);
-          setShowPaymentModal(false);
-          // Redirect to signup or dashboard
-          window.location.href = '/welcome/signup';
-        },
-        onClose: () => {
-          console.log('Payment modal closed');
-        },
+          metadata: {
+            plan: selectedPlan.name,
+            billing: mode,
+          },
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initialize payment');
+      }
+
+      // Redirect to Paystack checkout
+      if (data.data && data.data.authorization_url) {
+        window.location.href = data.data.authorization_url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (error) {
       console.error('Payment error:', error);
       alert('Payment failed. Please try again.');
@@ -243,7 +220,7 @@ export default function PricingPage() {
                 </div>
                 <div className="plan-price">
                   <span className="price-amount">
-                    {formatMoney(getPriceInLocalCurrency(mode === 'monthly' ? plan.monthlyPriceUsd : plan.yearlyPriceUsd))}
+                    {formatMoney(mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice)}
                   </span>
                   <span className="price-period">
                     / {mode === 'monthly' ? 'month' : 'year'}
@@ -251,7 +228,7 @@ export default function PricingPage() {
                 </div>
                 {mode === 'yearly' && (
                   <div className="yearly-savings">
-                    Billed {formatMoney(getPriceInLocalCurrency(plan.yearlyPriceUsd))}/yr — save {formatMoney(getPriceInLocalCurrency(plan.monthlyPriceUsd * 12 - plan.yearlyPriceUsd))}
+                    Billed {formatMoney(plan.yearlyPrice)}/yr — save {formatMoney(plan.monthlyPrice * 12 - plan.yearlyPrice)}
                   </div>
                 )}
                 <hr className="plan-divider" />
@@ -337,10 +314,10 @@ export default function PricingPage() {
               <div className="selected-plan-info">
                 <div className="plan-name">{selectedPlan.name} Plan</div>
                 <div className="plan-price">
-                  {formatMoney(getPriceInLocalCurrency(mode === 'monthly' ? selectedPlan.monthlyPriceUsd : selectedPlan.yearlyPriceUsd))} / {mode === 'monthly' ? 'month' : 'year'}
+                  {formatMoney(mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)} / {mode === 'monthly' ? 'month' : 'year'}
                 </div>
                 <div className="payment-gateway">
-                  Paying with {getPaymentGatewayName()}
+                  Paying with Paystack
                 </div>
               </div>
               <div className="email-input-group">

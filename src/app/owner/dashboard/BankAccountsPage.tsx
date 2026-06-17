@@ -407,21 +407,27 @@ export function BankAccountsPage() {
                   <button
                     className={styles.actionButton}
                     onClick={() => handleSetDefault(account.id)}
+                    disabled={isProcessing}
+                    style={{ opacity: isProcessing ? 0.7 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                   >
-                    Set as Default
+                    {isProcessing ? 'Setting...' : 'Set as Default'}
                   </button>
                 )}
                 <button
                   className={styles.actionButton}
                   onClick={() => handleToggleActive(account.id, account.isActive)}
+                  disabled={isProcessing}
+                  style={{ opacity: isProcessing ? 0.7 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                 >
-                  {account.isActive ? 'Deactivate' : 'Activate'}
+                  {isProcessing ? 'Updating...' : (account.isActive ? 'Deactivate' : 'Activate')}
                 </button>
                 <button
                   className={`${styles.actionButton} ${styles.deleteButton}`}
                   onClick={() => handleDeleteAccount(account.id)}
+                  disabled={isProcessing}
+                  style={{ opacity: isProcessing ? 0.7 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
                 >
-                  Delete
+                  {isProcessing ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>

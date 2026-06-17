@@ -87,6 +87,7 @@ export function MobileAskMOPage() {
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [loadingStage, setLoadingStage] = useState<number>(0);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
+  const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -229,8 +230,16 @@ export function MobileAskMOPage() {
   };
 
   const send = useCallback(async (text?: string) => {
+    // Prevent duplicate requests
+    if (isSending) {
+      console.log('Request already in progress, ignoring duplicate');
+      return;
+    }
+    
     const msg = (text ?? input).trim();
     if (!msg && !selectedImage && !audioBlob) return;
+    
+    setIsSending(true);
 
     // Check credits: -1 means unlimited (pro plan), 0 or negative means no credits
     if (creditsRemaining !== -1 && creditsRemaining <= 0) {
@@ -278,38 +287,35 @@ export function MobileAskMOPage() {
     setLoadingActions([]);
 
     // Stage 1: Understanding Request
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 600));
     setLoadingStage(2);
 
-    // Stage 2: MO Thinking (dynamic rotation)
-    const thinkingMessages = [
-      'Reviewing sales data',
-      'Checking cashflow',
-      'Looking at expenses',
-      'Comparing performance',
-      'Identifying opportunities',
-      'Analyzing inventory',
-      'Calculating profitability',
-      'Reviewing branch performance',
+    // Stage 2: Analyzing Business Data (dynamic rotation)
+    const analysisMessages = [
+      'Analyzing your business...',
+      'Retrieving sales data',
+      'Checking inventory levels',
+      'Reviewing cash flow',
+      'Calculating performance metrics',
     ];
     
     for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     setLoadingStage(3);
 
-    // Stage 3: MO Actions (progressive display)
+    // Stage 3: Progressive Business Actions
     const actions = [
-      'Retrieved sales records',
-      'Analyzed expenses',
-      'Calculated profitability',
-      'Checked inventory',
-      'Reviewed branch performance',
+      '✓ Retrieved sales records',
+      '✓ Analyzed inventory data',
+      '✓ Calculated profitability',
+      '✓ Identified trends',
+      '✓ Generating insights...',
     ];
     
     for (const action of actions) {
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 350));
       setLoadingActions(prev => [...prev, action]);
     }
     
@@ -331,9 +337,24 @@ export function MobileAskMOPage() {
       }
       await setDoc(doc(firestore, 'users', user.id, 'mo_messages', userMsg.id), messageData);
 
+      // Create a placeholder bot message for streaming
+      const botMsgId = (Date.now() + 1).toString();
+      const botMsg: MOMessage = {
+        id: botMsgId,
+        role: 'bot',
+        content: '',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, botMsg]);
+
+      // Fetch with streaming and timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
       const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           message: finalMessage,
           image: finalImageUrl,
@@ -345,6 +366,8 @@ export function MobileAskMOPage() {
           languageName: langMeta.name,
         }),
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -352,47 +375,63 @@ export function MobileAskMOPage() {
         throw new Error(errorData.error || `API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
 
-      const botMsg: MOMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'bot',
-        content: data.answer || "I'm analysing your business data...",
-        timestamp: new Date(),
-        metrics: data.metrics,
-        quickActions: data.quickActions,
-        followUpSuggestions: data.followUpSuggestions,
-        expandableSections: data.expandableSections,
-        alerts: data.alerts,
-      };
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      setMessages(prev => [...prev, botMsg]);
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) {
+                  fullContent += parsed.text;
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === botMsgId 
+                        ? { ...msg, content: fullContent }
+                        : msg
+                    )
+                  );
+                }
+              } catch (e) {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+      }
+
+      // Update the final message
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === botMsgId 
+            ? { ...msg, content: fullContent || "I'm analysing your business data..." }
+            : msg
+        )
+      );
 
       const botMessageData: any = {
-        role: botMsg.role,
-        content: botMsg.content,
+        role: 'bot',
+        content: fullContent || "I'm analysing your business data...",
         timestamp: Timestamp.now(),
       };
-      if (botMsg.metrics) {
-        botMessageData.metrics = botMsg.metrics;
-      }
-      if (botMsg.quickActions) {
-        botMessageData.quickActions = botMsg.quickActions;
-      }
-      if (botMsg.followUpSuggestions) {
-        botMessageData.followUpSuggestions = botMsg.followUpSuggestions;
-      }
-      if (botMsg.expandableSections) {
-        botMessageData.expandableSections = botMsg.expandableSections;
-      }
-      if (botMsg.alerts) {
-        botMessageData.alerts = botMsg.alerts;
-      }
-      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsg.id), botMessageData);
+      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsgId), botMessageData);
 
       // Calculate and consume credits based on response length (simulating token usage)
       // Reduced to make 2500 credits last a week with 10 messages daily (~35 credits per message average)
-      const estimatedTokens = Math.ceil((botMsg.content.length / 4) * 0.7);
+      const estimatedTokens = Math.ceil((fullContent.length / 4) * 0.7);
       const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
       await updateCredits(creditsConsumed);
 
@@ -400,7 +439,20 @@ export function MobileAskMOPage() {
       await saveConversation();
     } catch (error) {
       console.error('MO API error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out. Please check your connection and try again.';
+          console.error('Request timeout after 60 seconds');
+        } else if (error.message.includes('fetch') || error.message.includes('Network')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+          console.error('Network error:', error);
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
@@ -415,6 +467,7 @@ export function MobileAskMOPage() {
       setStreamedContent('');
       setLoadingStage(0);
       setLoadingActions([]);
+      setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta]);
 
@@ -440,26 +493,89 @@ export function MobileAskMOPage() {
         return <div key={lineIndex} style={{ height: '0.5rem' }} />;
       }
       
-      // Process each line for markdown-like formatting
-      const parts = line.split(/\*\*([^*]+)\*\*/g);
+      // Check for table row (starts with |)
+      if (line.trim().startsWith('|')) {
+        const cells = line.split('|').filter(cell => cell.trim() !== '');
+        return (
+          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '13px', overflowX: 'auto' }}>
+            {cells.map((cell, cellIndex) => (
+              <div key={cellIndex} style={{
+                flex: 1,
+                minWidth: '80px',
+                padding: '6px 8px',
+                background: cellIndex === 0 ? 'var(--bg-3)' : 'var(--bg-2)',
+                borderRadius: '4px',
+                color: 'var(--text-1)',
+                fontWeight: cellIndex === 0 ? 600 : 400,
+                fontSize: cellIndex === 0 ? '12px' : '13px'
+              }}>
+                {cell.trim()}
+              </div>
+            ))}
+          </div>
+        );
+      }
       
-      const formattedLine = parts.map((part, partIndex) => {
-        if (partIndex % 2 === 1) {
-          // Bold text
-          return <strong key={partIndex} style={{ fontWeight: 600, color: 'var(--text-1)' }}>{part}</strong>;
-        }
-        // Regular text - handle other formatting
-        return part;
-      });
+      // Check for list items (starts with - or *)
+      if (line.trim().match(/^[-*]\s+/)) {
+        const listContent = line.trim().replace(/^[-*]\s+/, '');
+        return (
+          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '6px', color: 'var(--text-1)' }}>
+            <span style={{ color: 'var(--primary)', fontWeight: 600 }}>•</span>
+            <span style={{ lineHeight: '1.6' }}>{formatInlineMarkdown(listContent)}</span>
+          </div>
+        );
+      }
       
+      // Check for headers (starts with #)
+      if (line.trim().startsWith('#')) {
+        const headerContent = line.trim().replace(/^#+\s+/, '');
+        const headerLevel = line.match(/^#+/)?.[0].length || 1;
+        const fontSize = headerLevel === 1 ? '18px' : headerLevel === 2 ? '16px' : '14px';
+        return (
+          <div key={lineIndex} style={{
+            fontSize,
+            fontWeight: 600,
+            color: 'var(--text-1)',
+            marginBottom: '12px',
+            marginTop: '8px'
+          }}>
+            {formatInlineMarkdown(headerContent)}
+          </div>
+        );
+      }
+      
+      // Regular paragraph with inline markdown
       return (
         <React.Fragment key={lineIndex}>
           <span style={{ lineHeight: '1.7', display: 'block', marginBottom: lineIndex < lines.length - 1 && lines[lineIndex + 1].trim() ? '0.75rem' : '0', color: 'var(--text-1)' }}>
-            {formattedLine}
+            {formatInlineMarkdown(line)}
           </span>
         </React.Fragment>
       );
     });
+  }
+  
+  function formatInlineMarkdown(text: string) {
+    // Bold with **text**
+    let parts = text.split(/\*\*([^*]+)\*\*/g);
+    const formatted = parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={index} style={{ fontWeight: 600, color: 'var(--text-1)' }}>{part}</strong>;
+      }
+      // Italic with *text*
+      const italicParts = part.split(/\*([^*]+)\*/g);
+      if (italicParts.length > 1) {
+        return italicParts.map((italicPart, i) => {
+          if (i % 2 === 1) {
+            return <em key={i} style={{ fontStyle: 'italic' }}>{italicPart}</em>;
+          }
+          return italicPart;
+        });
+      }
+      return part;
+    });
+    return formatted;
   }
 
   function formatRecordingTime(seconds: number) {
@@ -552,6 +668,28 @@ export function MobileAskMOPage() {
         onSuccess={handlePurchaseSuccess}
       />
 
+      {/* Business Context Header */}
+      {businessSummary && messages.length > 0 && (
+        <div className={styles.businessContextHeader}>
+          <div className={styles.contextItem}>
+            <span className={styles.contextIcon}>💰</span>
+            <span className={styles.contextValue}>₦{(businessSummary.totalSales || 0).toLocaleString()}</span>
+          </div>
+          <div className={styles.contextItem}>
+            <span className={styles.contextIcon}>📊</span>
+            <span className={styles.contextValue}>₦{(businessSummary.totalProfit || 0).toLocaleString()}</span>
+          </div>
+          <div className={styles.contextItem}>
+            <span className={styles.contextIcon}>📦</span>
+            <span className={styles.contextValue}>{(businessSummary.totalProducts || 0).toLocaleString()}</span>
+          </div>
+          <div className={styles.contextItem}>
+            <span className={styles.contextIcon}>⚡</span>
+            <span className={styles.contextValue}>{creditsRemaining === -1 ? '∞' : creditsRemaining.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
         {messages.length === 0 && (
@@ -561,7 +699,100 @@ export function MobileAskMOPage() {
                 <MoIcon size={48} />
               </div>
               <h3>Hi, I'm Mo</h3>
-              <p>Your AI business assistant. I can help you understand your sales, cash flow, inventory, customer trends, and overall business performance. What would you like to explore today?</p>
+              {businessSummary ? (
+                <div style={{ marginTop: '16px' }}>
+                  <p style={{ marginBottom: '12px', fontSize: '14px' }}>Here's your business snapshot:</p>
+                  <div className={styles.businessSnapshot}>
+                    <div className={styles.snapshotItem}>
+                      <span className={styles.snapshotLabel}>Total Sales</span>
+                      <span className={styles.snapshotValue}>₦{(businessSummary.totalSales || 0).toLocaleString()}</span>
+                    </div>
+                    <div className={styles.snapshotItem}>
+                      <span className={styles.snapshotLabel}>Total Profit</span>
+                      <span className={styles.snapshotValue}>₦{(businessSummary.totalProfit || 0).toLocaleString()}</span>
+                    </div>
+                    <div className={styles.snapshotItem}>
+                      <span className={styles.snapshotLabel}>Products</span>
+                      <span className={styles.snapshotValue}>{(businessSummary.totalProducts || 0).toLocaleString()}</span>
+                    </div>
+                    <div className={styles.snapshotItem}>
+                      <span className={styles.snapshotLabel}>Low Stock</span>
+                      <span className={styles.snapshotValue} style={{ color: 'var(--red)' }}>{(businessSummary.lowStockProducts || []).length}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Business Insight Cards */}
+                  <div className={styles.insightCards}>
+                    <div className={styles.insightCard}>
+                      <div className={styles.insightCardHeader}>
+                        <span className={styles.insightCardIcon}>🏆</span>
+                        <span className={styles.insightCardTitle}>Top Products</span>
+                      </div>
+                      <div className={styles.insightCardContent}>
+                        {(businessSummary.topProducts || []).slice(0, 3).map((product: any, idx: number) => (
+                          <div key={idx} className={styles.insightCardItem}>
+                            <span className={styles.insightCardItemName}>{product.name}</span>
+                            <span className={styles.insightCardItemValue}>₦{(product.sales || 0).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className={styles.insightCard}>
+                      <div className={styles.insightCardHeader}>
+                        <span className={styles.insightCardIcon}>💵</span>
+                        <span className={styles.insightCardTitle}>Cash Flow</span>
+                      </div>
+                      <div className={styles.insightCardContent}>
+                        <div className={styles.insightCardItem}>
+                          <span className={styles.insightCardItemName}>This Month</span>
+                          <span className={styles.insightCardItemValue}>₦{(businessSummary.monthlyCashFlow || 0).toLocaleString()}</span>
+                        </div>
+                        <div className={styles.insightCardItem}>
+                          <span className={styles.insightCardItemName}>Runway</span>
+                          <span className={styles.insightCardItemValue}>{businessSummary.cashRunway || 'N/A'} days</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className={styles.insightCard}>
+                      <div className={styles.insightCardHeader}>
+                        <span className={styles.insightCardIcon}>📦</span>
+                        <span className={styles.insightCardTitle}>Inventory Health</span>
+                      </div>
+                      <div className={styles.insightCardContent}>
+                        <div className={styles.insightCardItem}>
+                          <span className={styles.insightCardItemName}>Total Stock</span>
+                          <span className={styles.insightCardItemValue}>{(businessSummary.totalStock || 0).toLocaleString()}</span>
+                        </div>
+                        <div className={styles.insightCardItem}>
+                          <span className={styles.insightCardItemName}>Low Stock Items</span>
+                          <span className={styles.insightCardItemValue} style={{ color: 'var(--red)' }}>{(businessSummary.lowStockProducts || []).length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p style={{ marginTop: '12px', fontSize: '14px' }}>Ask me about your sales, cash flow, inventory, or any business questions!</p>
+                  <div className={styles.quickActions}>
+                    {dynamicSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        className={styles.quickActionChip}
+                        onClick={() => {
+                          setInput(suggestion.label);
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        {suggestion.icon}
+                        <span>{suggestion.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p>Your AI business assistant. I can help you understand your sales, cash flow, inventory, customer trends, and overall business performance. What would you like to explore today?</p>
+              )}
             </div>
           </div>
         )}
@@ -572,19 +803,10 @@ export function MobileAskMOPage() {
             className={`${styles.message} ${m.role === 'user' ? styles.user : styles.bot}`}
           >
             {m.role === 'bot' && (
-              <div className={styles.botHeader}>
+              <div className={styles.botAvatarContainer}>
                 <div className={styles.moAvatarSm}>
                   <MoIcon size={18} />
                 </div>
-                <span className={styles.botStatus}>
-                  {isTyping ? (
-                    <div className={styles.typingIndicator}>
-                      <span className={styles.typingDot}></span>
-                      <span className={styles.typingDot}></span>
-                      <span className={styles.typingDot}></span>
-                    </div>
-                  ) : 'MO'}
-                </span>
               </div>
             )}
             <div className={`${styles.bubble} ${m.role === 'user' ? styles.userBubble : styles.botBubble}`}>
@@ -657,6 +879,43 @@ export function MobileAskMOPage() {
                   ))}
                 </div>
               )}
+              {m.role === 'bot' && (
+                <div className={styles.followUpSuggestions}>
+                  <span className={styles.followUpLabel}>Explore:</span>
+                  {m.followUpSuggestions && m.followUpSuggestions.length > 0 ? (
+                    m.followUpSuggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        className={styles.followUpSuggestion}
+                        onClick={() => send(suggestion)}
+                      >
+                        {suggestion}
+                      </button>
+                    ))
+                  ) : (
+                    <>
+                      <button
+                        className={styles.followUpSuggestion}
+                        onClick={() => send('Tell me more about this')}
+                      >
+                        Tell me more
+                      </button>
+                      <button
+                        className={styles.followUpSuggestion}
+                        onClick={() => send('What should I focus on next?')}
+                      >
+                        What should I focus on next?
+                      </button>
+                      <button
+                        className={styles.followUpSuggestion}
+                        onClick={() => send('Show me the data')}
+                      >
+                        Show me the data
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {m.role === 'bot' && m.expandableSections && m.expandableSections.length > 0 && (
                 <div className={styles.expandableSections}>
                   {m.expandableSections.map((section, idx) => {
@@ -698,14 +957,16 @@ export function MobileAskMOPage() {
 
         {isTyping && (
           <div className={`${styles.message} ${styles.bot}`}>
-            <div className={styles.moAvatarSm}>
-              <MoIcon size={18} />
+            <div className={styles.botAvatarContainer}>
+              <div className={styles.moAvatarSm}>
+                <MoIcon size={18} />
+              </div>
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
               {loadingStage === 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Cpu size={20} className={styles.loadingIcon} />
-                  <span>Understanding request...</span>
+                  <span>Analyzing your request...</span>
                 </div>
               )}
               {loadingStage === 2 && (
@@ -715,22 +976,22 @@ export function MobileAskMOPage() {
                 </div>
               )}
               {loadingStage === 3 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Settings size={20} className={styles.loadingIcon} />
-                    <span>Processing...</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Processing business data</span>
                   </div>
                   {loadingActions.map((action, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)' }}>
-                      <span>✓</span>
-                      <span>{action}</span>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)', paddingLeft: '28px' }}>
+                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>✓</span>
+                      <span>{action.replace('✓ ', '')}</span>
                     </div>
                   ))}
                 </div>
               )}
               {loadingStage === 4 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>✨</span>
+                  <span style={{ fontSize: '18px' }}>✨</span>
                   <span>Generating insights...</span>
                 </div>
               )}
@@ -863,6 +1124,7 @@ export function MobileAskMOPage() {
             onKeyDown={handleKey}
             rows={1}
             disabled={isRecording || isTranscribing}
+            inputMode="text"
           />
           {isRecording && (
             <button
