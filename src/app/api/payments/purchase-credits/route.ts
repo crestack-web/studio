@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           currency: paystackCurrency,
           countryCode: countryCode,
         },
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/credit-purchase-callback`,
+        callback_url: `${process.env.PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/credit-purchase-callback`,
         channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
       }),
     });
@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      status: 'success',
       data: data.data,
     });
   } catch (error) {

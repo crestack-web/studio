@@ -77,11 +77,42 @@ export function CashflowPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
+  // Modal states
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
+  const [showTakeMoneyModal, setShowTakeMoneyModal] = useState(false);
+  const [showReduceStockModal, setShowReduceStockModal] = useState(false);
+
+  // Form states
+  const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0 });
+  const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
+  const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
+  const [products, setProducts] = useState<any[]>([]);
+
   useEffect(() => {
     setCurrentPage(1);
     loadData();
+    loadProducts();
   }, [businessId, firestore, viewPeriod]);
 
+
+  const loadProducts = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const productsQuery = query(
+        collection(firestore, 'businesses', businessId, 'products'),
+        where('isActive', '==', true)
+      );
+      const productsSnapshot = await getDocs(productsQuery);
+      const productsList: any[] = [];
+      productsSnapshot.forEach(doc => {
+        productsList.push({ id: doc.id, ...doc.data() });
+      });
+      setProducts(productsList);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
+  };
 
   const loadData = async () => {
     if (!businessId || !firestore) {
@@ -219,6 +250,156 @@ export function CashflowPage() {
     setCurrentPage(page);
   };
 
+  // Add Account
+  const handleAddAccount = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const accountData = {
+        accountName: newAccount.accountName,
+        bankName: newAccount.bankName,
+        currentBalance: newAccount.initialBalance,
+        isActive: true,
+        isDefault: bankAccounts.length === 0,
+        createdAt: Timestamp.now(),
+      };
+      await addDoc(collection(firestore, 'businesses', businessId, 'bankAccounts'), accountData);
+      showToast('✅ Account added successfully');
+      setShowAddAccountModal(false);
+      setNewAccount({ accountName: '', bankName: '', initialBalance: 0 });
+      loadData();
+    } catch (error) {
+      console.error('Error adding account:', error);
+      showToast('❌ Failed to add account');
+    }
+  };
+
+  // Add Money
+  const handleAddMoney = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
+      if (!account) {
+        showToast('❌ Please select an account');
+        return;
+      }
+
+      const newBalance = account.currentBalance + moneyTransaction.amount;
+      await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', moneyTransaction.accountId), {
+        currentBalance: newBalance,
+      });
+
+      const transactionData = {
+        transactionNumber: `TXN-${Date.now()}`,
+        bankAccountId: moneyTransaction.accountId,
+        accountName: account.accountName,
+        type: 'money_in' as const,
+        category: moneyTransaction.category || 'Deposit',
+        amount: moneyTransaction.amount,
+        balanceAfter: newBalance,
+        description: moneyTransaction.description,
+        createdAt: Timestamp.now(),
+      };
+      await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      showToast('✅ Money added successfully');
+      setShowAddMoneyModal(false);
+      setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
+      loadData();
+    } catch (error) {
+      console.error('Error adding money:', error);
+      showToast('❌ Failed to add money');
+    }
+  };
+
+  // Take Money
+  const handleTakeMoney = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
+      if (!account) {
+        showToast('❌ Please select an account');
+        return;
+      }
+
+      if (account.currentBalance < moneyTransaction.amount) {
+        showToast('❌ Insufficient balance');
+        return;
+      }
+
+      const newBalance = account.currentBalance - moneyTransaction.amount;
+      await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', moneyTransaction.accountId), {
+        currentBalance: newBalance,
+      });
+
+      const transactionData = {
+        transactionNumber: `TXN-${Date.now()}`,
+        bankAccountId: moneyTransaction.accountId,
+        accountName: account.accountName,
+        type: 'money_out' as const,
+        category: moneyTransaction.category || 'Withdrawal',
+        amount: moneyTransaction.amount,
+        balanceAfter: newBalance,
+        description: moneyTransaction.description,
+        createdAt: Timestamp.now(),
+      };
+      await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      showToast('✅ Money taken successfully');
+      setShowTakeMoneyModal(false);
+      setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
+      loadData();
+    } catch (error) {
+      console.error('Error taking money:', error);
+      showToast('❌ Failed to take money');
+    }
+  };
+
+  // Reduce Stock
+  const handleReduceStock = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const product = products.find(p => p.id === stockReduction.productId);
+      if (!product) {
+        showToast('❌ Please select a product');
+        return;
+      }
+
+      if (product.stock < stockReduction.quantity) {
+        showToast('❌ Insufficient stock');
+        return;
+      }
+
+      const newStock = product.stock - stockReduction.quantity;
+      await updateDoc(doc(firestore, 'businesses', businessId, 'products', stockReduction.productId), {
+        stock: newStock,
+      });
+
+      // Record as expense transaction
+      if (bankAccounts.length > 0) {
+        const defaultAccount = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
+        const transactionData = {
+          transactionNumber: `STK-${Date.now()}`,
+          bankAccountId: defaultAccount.id,
+          accountName: defaultAccount.accountName,
+          type: 'money_out' as const,
+          category: 'Stock Reduction',
+          amount: product.costPrice * stockReduction.quantity,
+          balanceAfter: defaultAccount.currentBalance,
+          description: `Stock reduction: ${product.name} - ${stockReduction.quantity} units. Reason: ${stockReduction.reason}`,
+          createdAt: Timestamp.now(),
+        };
+        await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      }
+
+      showToast('✅ Stock reduced successfully');
+      setShowReduceStockModal(false);
+      setStockReduction({ productId: '', quantity: 0, reason: '' });
+      loadProducts();
+      loadData();
+    } catch (error) {
+      console.error('Error reducing stock:', error);
+      showToast('❌ Failed to reduce stock');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.wrapper}>
@@ -294,6 +475,26 @@ export function CashflowPage() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className={styles.actionButtons}>
+        <button className={styles.actionButton} onClick={() => setShowAddAccountModal(true)}>
+          <span className={styles.actionIcon}>🏦</span>
+          <span>Add Account</span>
+        </button>
+        <button className={styles.actionButton} onClick={() => setShowAddMoneyModal(true)}>
+          <span className={styles.actionIcon}>📥</span>
+          <span>Add Money</span>
+        </button>
+        <button className={styles.actionButton} onClick={() => setShowTakeMoneyModal(true)}>
+          <span className={styles.actionIcon}>📤</span>
+          <span>Take Money</span>
+        </button>
+        <button className={styles.actionButton} onClick={() => setShowReduceStockModal(true)}>
+          <span className={styles.actionIcon}>📦</span>
+          <span>Reduce Stock</span>
+        </button>
       </div>
 
       {/* Bank Accounts Summary */}
@@ -420,6 +621,213 @@ export function CashflowPage() {
           </>
         )}
       </div>
+
+      {/* Modals */}
+      {showAddAccountModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAddAccountModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Add Bank Account</h3>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Account Name</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={newAccount.accountName}
+                onChange={(e) => setNewAccount({ ...newAccount, accountName: e.target.value })}
+                placeholder="e.g., Main Account"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Bank Name</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={newAccount.bankName}
+                onChange={(e) => setNewAccount({ ...newAccount, bankName: e.target.value })}
+                placeholder="e.g., GTBank"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Initial Balance</label>
+              <input
+                type="number"
+                className={styles.formInput}
+                value={newAccount.initialBalance}
+                onChange={(e) => setNewAccount({ ...newAccount, initialBalance: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalButton} onClick={() => setShowAddAccountModal(false)}>Cancel</button>
+              <button className={styles.modalButtonPrimary} onClick={handleAddAccount}>Add Account</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddMoneyModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAddMoneyModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Add Money</h3>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Select Account</label>
+              <select
+                className={styles.formInput}
+                value={moneyTransaction.accountId}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, accountId: e.target.value })}
+              >
+                <option value="">Select an account</option>
+                {bankAccounts.map(account => (
+                  <option key={account.id} value={account.id}>{account.accountName} - {account.bankName}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Amount</label>
+              <input
+                type="number"
+                className={styles.formInput}
+                value={moneyTransaction.amount}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, amount: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Category</label>
+              <select
+                className={styles.formInput}
+                value={moneyTransaction.category}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, category: e.target.value })}
+              >
+                <option value="">Select category</option>
+                <option value="Sales">Sales</option>
+                <option value="Deposit">Deposit</option>
+                <option value="Transfer">Transfer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Description</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={moneyTransaction.description}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, description: e.target.value })}
+                placeholder="Enter description"
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalButton} onClick={() => setShowAddMoneyModal(false)}>Cancel</button>
+              <button className={styles.modalButtonPrimary} onClick={handleAddMoney}>Add Money</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTakeMoneyModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowTakeMoneyModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Take Money</h3>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Select Account</label>
+              <select
+                className={styles.formInput}
+                value={moneyTransaction.accountId}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, accountId: e.target.value })}
+              >
+                <option value="">Select an account</option>
+                {bankAccounts.map(account => (
+                  <option key={account.id} value={account.id}>{account.accountName} - {account.bankName}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Amount</label>
+              <input
+                type="number"
+                className={styles.formInput}
+                value={moneyTransaction.amount}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, amount: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Category</label>
+              <select
+                className={styles.formInput}
+                value={moneyTransaction.category}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, category: e.target.value })}
+              >
+                <option value="">Select category</option>
+                <option value="Expense">Expense</option>
+                <option value="Withdrawal">Withdrawal</option>
+                <option value="Transfer">Transfer</option>
+                <option value="Purchase">Purchase</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Description</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={moneyTransaction.description}
+                onChange={(e) => setMoneyTransaction({ ...moneyTransaction, description: e.target.value })}
+                placeholder="Enter description"
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalButton} onClick={() => setShowTakeMoneyModal(false)}>Cancel</button>
+              <button className={styles.modalButtonPrimary} onClick={handleTakeMoney}>Take Money</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReduceStockModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowReduceStockModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Reduce Stock</h3>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Select Product</label>
+              <select
+                className={styles.formInput}
+                value={stockReduction.productId}
+                onChange={(e) => setStockReduction({ ...stockReduction, productId: e.target.value })}
+              >
+                <option value="">Select a product</option>
+                {products.map(product => (
+                  <option key={product.id} value={product.id}>{product.name} (Stock: {product.stock})</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Quantity to Reduce</label>
+              <input
+                type="number"
+                className={styles.formInput}
+                value={stockReduction.quantity}
+                onChange={(e) => setStockReduction({ ...stockReduction, quantity: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Reason</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={stockReduction.reason}
+                onChange={(e) => setStockReduction({ ...stockReduction, reason: e.target.value })}
+                placeholder="e.g., Damaged, Expired, etc."
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalButton} onClick={() => setShowReduceStockModal(false)}>Cancel</button>
+              <button className={styles.modalButtonPrimary} onClick={handleReduceStock}>Reduce Stock</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

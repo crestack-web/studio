@@ -35,6 +35,15 @@ interface Supplier {
   email?: string;
 }
 
+interface BankAccount {
+  id: string;
+  accountName: string;
+  bankName: string;
+  currentBalance: number;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
 export function ReceiveStockPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
@@ -43,6 +52,7 @@ export function ReceiveStockPage() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -51,6 +61,7 @@ export function ReceiveStockPage() {
   const [newSupplierName, setNewSupplierName] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<'main_store' | 'back_store' | 'warehouse'>('main_store');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'credit'>('cash');
+  const [bankAccountId, setBankAccountId] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
@@ -117,6 +128,35 @@ export function ReceiveStockPage() {
       });
       
       setSuppliers(suppliersList);
+      
+      // Load bank accounts
+      const accountsQuery = query(
+        collection(firestore, 'businesses', businessId, 'bankAccounts'),
+        where('isActive', '==', true)
+      );
+      
+      const accountsSnapshot = await getDocs(accountsQuery);
+      const accountsList: BankAccount[] = [];
+      
+      accountsSnapshot.forEach(doc => {
+        const data = doc.data();
+        accountsList.push({
+          id: doc.id,
+          accountName: data.accountName,
+          bankName: data.bankName,
+          currentBalance: data.currentBalance,
+          isActive: data.isActive,
+          isDefault: data.isDefault,
+        });
+      });
+      
+      setBankAccounts(accountsList);
+      
+      // Set default bank account
+      const defaultAccount = accountsList.find(a => a.isDefault);
+      if (defaultAccount) {
+        setBankAccountId(defaultAccount.id);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       showToast('❌ Failed to load data');
@@ -326,6 +366,45 @@ export function ReceiveStockPage() {
             });
           }
         }
+        
+        // Create bank transaction if payment method is transfer
+        if (paymentMethod === 'transfer' && bankAccountId) {
+          const bankRef = doc(firestore, 'businesses', businessId, 'bankAccounts', bankAccountId);
+          const bankDoc = await transaction.get(bankRef);
+          
+          if (bankDoc.exists()) {
+            const bankData = bankDoc.data();
+            const currentBalance = bankData.currentBalance || 0;
+            const newBankBalance = currentBalance - paid;
+            
+            transaction.update(bankRef, {
+              currentBalance: newBankBalance,
+              totalMoneyOut: (bankData.totalMoneyOut || 0) + paid,
+              updatedAt: Timestamp.now(),
+            });
+            
+            // Create bank transaction record
+            const txnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+            const transactionNumber = `TXN-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+            transaction.set(txnRef, {
+              transactionNumber,
+              bankAccountId,
+              accountName: bankData.accountName,
+              type: 'money_out',
+              category: 'purchase',
+              amount: paid,
+              balanceAfter: newBankBalance,
+              referenceId: receiptRef.id,
+              referenceType: 'stock_receipt',
+              description: `Stock purchase from ${supplierName}`,
+              paymentMethod,
+              performedBy: user.id,
+              performedByName: user.name || user.email || 'Unknown',
+              notes: notes.trim() || undefined,
+              createdAt: Timestamp.now(),
+            });
+          }
+        }
       });
       
       showToast('✅ Stock received successfully');
@@ -335,6 +414,7 @@ export function ReceiveStockPage() {
       setNewSupplierName('');
       setSelectedLocation('main_store');
       setPaymentMethod('cash');
+      setBankAccountId('');
       setPaidAmount('');
       setNotes('');
       setReceiptItems([]);
@@ -552,6 +632,24 @@ export function ReceiveStockPage() {
                 <option value="credit">Credit</option>
               </select>
             </div>
+            
+            {paymentMethod === 'transfer' && (
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Bank Account</label>
+                <select
+                  className={styles.select}
+                  value={bankAccountId}
+                  onChange={(e) => setBankAccountId(e.target.value)}
+                >
+                  <option value="">Select an account</option>
+                  {bankAccounts.map(account => (
+                    <option key={account.id} value={account.id}>
+                      {account.accountName} ({account.bankName}) - {formatMoney(account.currentBalance)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             
             {paymentMethod === 'credit' && (
               <div className={styles.formGroup}>

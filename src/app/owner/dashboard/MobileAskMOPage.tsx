@@ -230,20 +230,35 @@ export function MobileAskMOPage() {
   };
 
   const send = useCallback(async (text?: string) => {
+    const requestStartTime = Date.now();
+    console.log('🚀 [MobileAskMO] send() called', { 
+      hasText: !!text, 
+      hasInput: !!input, 
+      hasImage: !!selectedImage, 
+      hasAudio: !!audioBlob,
+      isSending 
+    });
+
     // Prevent duplicate requests
     if (isSending) {
-      console.log('Request already in progress, ignoring duplicate');
+      console.log('⚠️ [MobileAskMO] Request already in progress, ignoring duplicate');
       return;
     }
     
     const msg = (text ?? input).trim();
-    if (!msg && !selectedImage && !audioBlob) return;
+    if (!msg && !selectedImage && !audioBlob) {
+      console.log('⚠️ [MobileAskMO] No content to send');
+      return;
+    }
     
     setIsSending(true);
+    console.log('✅ [MobileAskMO] Request validation passed', { time: Date.now() - requestStartTime });
 
     // Check credits: -1 means unlimited (pro plan), 0 or negative means no credits
     if (creditsRemaining !== -1 && creditsRemaining <= 0) {
+      console.log('⚠️ [MobileAskMO] Insufficient credits', { creditsRemaining });
       showToast('You have run out of MO Credits. Please purchase more credits to continue.');
+      setIsSending(false);
       return;
     }
 
@@ -252,12 +267,15 @@ export function MobileAskMOPage() {
     let finalAudioUrl = audioUrl || undefined;
 
     if (audioBlob && !msg) {
+      console.log('🎤 [MobileAskMO] Starting audio transcription');
       setIsTranscribing(true);
       try {
         const transcription = await transcribeAudio(audioBlob);
         finalMessage = transcription;
         setInput(transcription);
+        console.log('✅ [MobileAskMO] Audio transcription completed', { length: transcription.length });
       } catch (error) {
+        console.error('❌ [MobileAskMO] Audio transcription failed:', error);
         finalMessage = '🎤 Voice message (transcription failed)';
       } finally {
         setIsTranscribing(false);
@@ -273,6 +291,13 @@ export function MobileAskMOPage() {
       audioUrl: finalAudioUrl,
     };
 
+    console.log('📝 [MobileAskMO] User message created', { 
+      messageId: userMsg.id, 
+      contentLength: finalMessage.length,
+      hasImage: !!finalImageUrl,
+      hasAudio: !!finalAudioUrl
+    });
+
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setSelectedImage(null);
@@ -287,10 +312,12 @@ export function MobileAskMOPage() {
     setLoadingActions([]);
 
     // Stage 1: Understanding Request
+    console.log('🔄 [MobileAskMO] Stage 1: Understanding Request');
     await new Promise(resolve => setTimeout(resolve, 600));
     setLoadingStage(2);
 
     // Stage 2: Analyzing Business Data (dynamic rotation)
+    console.log('🔄 [MobileAskMO] Stage 2: Analyzing Business Data');
     const analysisMessages = [
       'Analyzing your business...',
       'Retrieving sales data',
@@ -306,6 +333,7 @@ export function MobileAskMOPage() {
     setLoadingStage(3);
 
     // Stage 3: Progressive Business Actions
+    console.log('🔄 [MobileAskMO] Stage 3: Progressive Business Actions');
     const actions = [
       '✓ Retrieved sales records',
       '✓ Analyzed inventory data',
@@ -320,8 +348,11 @@ export function MobileAskMOPage() {
     }
     
     setLoadingStage(4);
+    console.log('✅ [MobileAskMO] Loading stages completed', { time: Date.now() - requestStartTime });
 
     try {
+      console.log('💾 [MobileAskMO] Saving user message to Firestore');
+      const firestoreSaveStart = Date.now();
       const { firestore } = initializeFirebase();
 
       const messageData: any = {
@@ -336,6 +367,7 @@ export function MobileAskMOPage() {
         messageData.audioUrl = userMsg.audioUrl;
       }
       await setDoc(doc(firestore, 'users', user.id, 'mo_messages', userMsg.id), messageData);
+      console.log('✅ [MobileAskMO] User message saved to Firestore', { time: Date.now() - firestoreSaveStart });
 
       // Create a placeholder bot message for streaming
       const botMsgId = (Date.now() + 1).toString();
@@ -346,44 +378,71 @@ export function MobileAskMOPage() {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, botMsg]);
+      console.log('📝 [MobileAskMO] Bot message placeholder created', { botMsgId });
 
       // Fetch with streaming and timeout
+      console.log('📡 [MobileAskMO] Starting API call to /api/ask-mo');
+      const apiCallStart = Date.now();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
+      const requestBody = {
+        message: finalMessage,
+        image: finalImageUrl,
+        businessId: user.businessId || user.id,
+        userId: user.id,
+        conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+        userPlan: user.plan || 'starter',
+        language: lang,
+        languageName: langMeta.name,
+      };
+      
+      console.log('📤 [MobileAskMO] Request payload:', {
+        messageLength: finalMessage.length,
+        hasImage: !!finalImageUrl,
+        businessId: requestBody.businessId,
+        conversationHistoryLength: requestBody.conversationHistory.length,
+      });
+
       const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          message: finalMessage,
-          image: finalImageUrl,
-          businessId: user.businessId || user.id,
-          userId: user.id,
-          conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-          userPlan: user.plan || 'starter',
-          language: lang,
-          languageName: langMeta.name,
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       clearTimeout(timeoutId);
+      const apiCallTime = Date.now() - apiCallStart;
+      console.log('✅ [MobileAskMO] API call completed', { 
+        status: response.status, 
+        time: apiCallTime 
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('MO API error response:', errorData);
+        console.error('❌ [MobileAskMO] API error response:', errorData);
         throw new Error(errorData.error || `API error: ${response.status}`);
       }
 
       // Handle streaming response
+      console.log('📡 [MobileAskMO] Starting streaming response');
+      const streamStart = Date.now();
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
+      let chunkCount = 0;
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('✅ [MobileAskMO] Streaming completed', { 
+              totalChunks: chunkCount, 
+              totalChars: fullContent.length,
+              time: Date.now() - streamStart 
+            });
+            break;
+          }
 
           const chunk = decoder.decode(value, { stream: true });
           const lines = chunk.split('\n');
@@ -397,6 +456,13 @@ export function MobileAskMOPage() {
                 const parsed = JSON.parse(data);
                 if (parsed.text) {
                   fullContent += parsed.text;
+                  chunkCount++;
+                  
+                  // Log every 10 chunks for debugging
+                  if (chunkCount % 10 === 0) {
+                    console.log(`📡 [MobileAskMO] Streaming progress: ${chunkCount} chunks, ${fullContent.length} chars`);
+                  }
+                  
                   setMessages(prev => 
                     prev.map(msg => 
                       msg.id === botMsgId 
@@ -407,6 +473,7 @@ export function MobileAskMOPage() {
                 }
               } catch (e) {
                 // Ignore parse errors for incomplete chunks
+                console.warn('⚠️ [MobileAskMO] Parse error for chunk:', e);
               }
             }
           }
@@ -422,6 +489,7 @@ export function MobileAskMOPage() {
         )
       );
 
+      console.log('💾 [MobileAskMO] Saving bot message to Firestore');
       const botMessageData: any = {
         role: 'bot',
         content: fullContent || "I'm analysing your business data...",
@@ -433,25 +501,40 @@ export function MobileAskMOPage() {
       // Reduced to make 2500 credits last a week with 10 messages daily (~35 credits per message average)
       const estimatedTokens = Math.ceil((fullContent.length / 4) * 0.7);
       const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
+      console.log('💰 [MobileAskMO] Consuming credits', { estimatedTokens, creditsConsumed });
       await updateCredits(creditsConsumed);
 
       // Auto-save conversation
+      console.log('💾 [MobileAskMO] Auto-saving conversation');
       await saveConversation();
+      
+      const totalTime = Date.now() - requestStartTime;
+      console.log('✅ [MobileAskMO] Request completed successfully', { 
+        totalTime,
+        responseLength: fullContent.length,
+        creditsConsumed 
+      });
     } catch (error) {
-      console.error('MO API error:', error);
+      const errorTime = Date.now() - requestStartTime;
+      console.error('❌ [MobileAskMO] Request failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        time: errorTime,
+      });
+      
       let errorMessage = 'Unknown error occurred';
       
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           errorMessage = 'Request timed out. Please check your connection and try again.';
-          console.error('Request timeout after 60 seconds');
+          console.error('❌ [MobileAskMO] Request timeout after 60 seconds');
         } else if (error.message.includes('fetch') || error.message.includes('Network')) {
           errorMessage = 'Network error. Please check your internet connection and try again.';
-          console.error('Network error:', error);
+          console.error('❌ [MobileAskMO] Network error:', error);
         } else if (error.message.includes('Google') || error.message.includes('genai') || error.message.includes('API')) {
           // Filter out Google Gen AI specific errors
           errorMessage = 'I apologize, but I encountered an issue processing your request. Please try again.';
-          console.error('Google Gen AI error:', error);
+          console.error('❌ [MobileAskMO] Google Gen AI error:', error);
         } else {
           errorMessage = error.message;
         }
@@ -588,6 +671,25 @@ export function MobileAskMOPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
+  function shouldShowActionChips(message: MOMessage): boolean {
+    // Only show action chips for bot messages with analytics/data content
+    if (message.role !== 'bot') return false;
+    
+    const content = message.content.toLowerCase();
+    const analyticsKeywords = ['sales', 'revenue', 'profit', 'inventory', 'stock', 'forecast', 'report', 'analytics', 'data', 'trend', 'growth', 'performance'];
+    
+    // Check if content contains analytics-related keywords
+    const hasAnalyticsContent = analyticsKeywords.some(keyword => content.includes(keyword));
+    
+    // Don't show for greetings, confirmations, short answers, or errors
+    const isShortResponse = message.content.length < 100;
+    const isGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening)/i.test(content);
+    const isConfirmation = /^(yes|no|ok|sure|certainly|absolutely|of course|understood|got it)/i.test(content);
+    const isError = content.includes('error') || content.includes('sorry') || content.includes('apologize');
+    
+    return hasAnalyticsContent && !isShortResponse && !isGreeting && !isConfirmation && !isError;
+  }
+
   function handleHistory() {
     setShowHistory(!showHistory);
   }
@@ -657,25 +759,11 @@ export function MobileAskMOPage() {
         onSuccess={handlePurchaseSuccess}
       />
 
-      {/* Business Context Header */}
-      {businessSummary && messages.length > 0 && (
-        <div className={styles.businessContextHeader}>
-          <div className={styles.contextItem}>
-            <span className={styles.contextIcon}>💰</span>
-            <span className={styles.contextValue}>₦{(businessSummary.totalSales || 0).toLocaleString()}</span>
-          </div>
-          <div className={styles.contextItem}>
-            <span className={styles.contextIcon}>📊</span>
-            <span className={styles.contextValue}>₦{(businessSummary.totalProfit || 0).toLocaleString()}</span>
-          </div>
-          <div className={styles.contextItem}>
-            <span className={styles.contextIcon}>📦</span>
-            <span className={styles.contextValue}>{(businessSummary.totalProducts || 0).toLocaleString()}</span>
-          </div>
-          <div className={styles.contextItem}>
-            <span className={styles.contextIcon}>⚡</span>
-            <span className={styles.contextValue}>{creditsRemaining === -1 ? '∞' : creditsRemaining.toLocaleString()}</span>
-          </div>
+      {/* Credits Only Header */}
+      {messages.length > 0 && (
+        <div className={styles.creditsHeader}>
+          <span className={styles.creditsIcon}>⚡</span>
+          <span className={styles.creditsValue}>{creditsRemaining === -1 ? '∞' : creditsRemaining.toLocaleString()} credits</span>
         </div>
       )}
 
@@ -688,99 +776,24 @@ export function MobileAskMOPage() {
                 <MoIcon size={48} />
               </div>
               <h3>Hi, I'm Mo</h3>
-              {businessSummary ? (
-                <div style={{ marginTop: '16px' }}>
-                  <p style={{ marginBottom: '12px', fontSize: '14px' }}>Here's your business snapshot:</p>
-                  <div className={styles.businessSnapshot}>
-                    <div className={styles.snapshotItem}>
-                      <span className={styles.snapshotLabel}>Total Sales</span>
-                      <span className={styles.snapshotValue}>₦{(businessSummary.totalSales || 0).toLocaleString()}</span>
-                    </div>
-                    <div className={styles.snapshotItem}>
-                      <span className={styles.snapshotLabel}>Total Profit</span>
-                      <span className={styles.snapshotValue}>₦{(businessSummary.totalProfit || 0).toLocaleString()}</span>
-                    </div>
-                    <div className={styles.snapshotItem}>
-                      <span className={styles.snapshotLabel}>Products</span>
-                      <span className={styles.snapshotValue}>{(businessSummary.totalProducts || 0).toLocaleString()}</span>
-                    </div>
-                    <div className={styles.snapshotItem}>
-                      <span className={styles.snapshotLabel}>Low Stock</span>
-                      <span className={styles.snapshotValue} style={{ color: 'var(--red)' }}>{(businessSummary.lowStockProducts || []).length}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Business Insight Cards */}
-                  <div className={styles.insightCards}>
-                    <div className={styles.insightCard}>
-                      <div className={styles.insightCardHeader}>
-                        <span className={styles.insightCardIcon}>🏆</span>
-                        <span className={styles.insightCardTitle}>Top Products</span>
-                      </div>
-                      <div className={styles.insightCardContent}>
-                        {(businessSummary.topProducts || []).slice(0, 3).map((product: any, idx: number) => (
-                          <div key={idx} className={styles.insightCardItem}>
-                            <span className={styles.insightCardItemName}>{product.name}</span>
-                            <span className={styles.insightCardItemValue}>₦{(product.sales || 0).toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className={styles.insightCard}>
-                      <div className={styles.insightCardHeader}>
-                        <span className={styles.insightCardIcon}>💵</span>
-                        <span className={styles.insightCardTitle}>Cash Flow</span>
-                      </div>
-                      <div className={styles.insightCardContent}>
-                        <div className={styles.insightCardItem}>
-                          <span className={styles.insightCardItemName}>This Month</span>
-                          <span className={styles.insightCardItemValue}>₦{(businessSummary.monthlyCashFlow || 0).toLocaleString()}</span>
-                        </div>
-                        <div className={styles.insightCardItem}>
-                          <span className={styles.insightCardItemName}>Runway</span>
-                          <span className={styles.insightCardItemValue}>{businessSummary.cashRunway || 'N/A'} days</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className={styles.insightCard}>
-                      <div className={styles.insightCardHeader}>
-                        <span className={styles.insightCardIcon}>📦</span>
-                        <span className={styles.insightCardTitle}>Inventory Health</span>
-                      </div>
-                      <div className={styles.insightCardContent}>
-                        <div className={styles.insightCardItem}>
-                          <span className={styles.insightCardItemName}>Total Stock</span>
-                          <span className={styles.insightCardItemValue}>{(businessSummary.totalStock || 0).toLocaleString()}</span>
-                        </div>
-                        <div className={styles.insightCardItem}>
-                          <span className={styles.insightCardItemName}>Low Stock Items</span>
-                          <span className={styles.insightCardItemValue} style={{ color: 'var(--red)' }}>{(businessSummary.lowStockProducts || []).length}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <p style={{ marginTop: '12px', fontSize: '14px' }}>Ask me about your sales, cash flow, inventory, or any business questions!</p>
-                  <div className={styles.quickActions}>
-                    {dynamicSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        className={styles.quickActionChip}
-                        onClick={() => {
-                          setInput(suggestion.label);
-                          textareaRef.current?.focus();
-                        }}
-                      >
-                        {suggestion.icon}
-                        <span>{suggestion.label}</span>
-                      </button>
-                    ))}
-                  </div>
+              <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--text-2)' }}>Your AI business assistant. Ask me anything about your business.</p>
+              
+              {dynamicSuggestions.length > 0 && (
+                <div className={styles.quickActions}>
+                  {dynamicSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      className={styles.quickActionChip}
+                      onClick={() => {
+                        setInput(suggestion.label);
+                        textareaRef.current?.focus();
+                      }}
+                    >
+                      {suggestion.icon}
+                      <span>{suggestion.label}</span>
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <p>Your AI business assistant. I can help you understand your sales, cash flow, inventory, customer trends, and overall business performance. What would you like to explore today?</p>
               )}
             </div>
           </div>
@@ -841,7 +854,7 @@ export function MobileAskMOPage() {
                   ))}
                 </div>
               )}
-              {m.role === 'bot' && m.quickActions && m.quickActions.length > 0 && (
+              {m.role === 'bot' && shouldShowActionChips(m) && m.quickActions && m.quickActions.length > 0 && (
                 <div className={styles.quickActions}>
                   {m.quickActions.map((action, idx) => (
                     <button
@@ -854,7 +867,7 @@ export function MobileAskMOPage() {
                   ))}
                 </div>
               )}
-              {m.role === 'bot' && m.followUpSuggestions && m.followUpSuggestions.length > 0 && (
+              {m.role === 'bot' && shouldShowActionChips(m) && m.followUpSuggestions && m.followUpSuggestions.length > 0 && (
                 <div className={styles.followUpSuggestions}>
                   <span className={styles.followUpLabel}>Explore:</span>
                   {m.followUpSuggestions.map((suggestion, idx) => (
@@ -866,43 +879,6 @@ export function MobileAskMOPage() {
                       {suggestion}
                     </button>
                   ))}
-                </div>
-              )}
-              {m.role === 'bot' && (
-                <div className={styles.followUpSuggestions}>
-                  <span className={styles.followUpLabel}>Explore:</span>
-                  {m.followUpSuggestions && m.followUpSuggestions.length > 0 ? (
-                    m.followUpSuggestions.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        className={styles.followUpSuggestion}
-                        onClick={() => send(suggestion)}
-                      >
-                        {suggestion}
-                      </button>
-                    ))
-                  ) : (
-                    <>
-                      <button
-                        className={styles.followUpSuggestion}
-                        onClick={() => send('Tell me more about this')}
-                      >
-                        Tell me more
-                      </button>
-                      <button
-                        className={styles.followUpSuggestion}
-                        onClick={() => send('What should I focus on next?')}
-                      >
-                        What should I focus on next?
-                      </button>
-                      <button
-                        className={styles.followUpSuggestion}
-                        onClick={() => send('Show me the data')}
-                      >
-                        Show me the data
-                      </button>
-                    </>
-                  )}
                 </div>
               )}
               {m.role === 'bot' && m.expandableSections && m.expandableSections.length > 0 && (

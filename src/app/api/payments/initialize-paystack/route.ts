@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { convertFromUsd, getCurrencyName } from '@/lib/currency';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -26,10 +25,10 @@ try {
 
 export async function POST(request: NextRequest) {
   try {
-    const { plan, userId, email, amount, currency, countryCode } = await request.json();
+    const { plan, userId, email, amount, currency, billing, metadata } = await request.json();
 
-    if (!plan || !userId || !email || !amount) {
-      console.error('Missing required fields for subscription payment:', { plan, userId, email, amount });
+    if (!plan || !email || !amount) {
+      console.error('Missing required fields for payment:', { plan, email, amount });
       return NextResponse.json(
         { error: 'Unable to process payment request. Please try again.' },
         { status: 400 }
@@ -46,14 +45,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert amount from USD to local currency based on user's location
-    const targetCurrency = currency || getCurrencyName(countryCode);
-    const amountInLocalCurrency = convertFromUsd(amount, countryCode);
-
-    // Paystack only supports NGN and GHS currencies
-    // For unsupported currencies, default to NGN
-    const paystackCurrency = (targetCurrency === 'NGN' || targetCurrency === 'GHS') ? targetCurrency : 'NGN';
-    const paystackAmount = paystackCurrency === 'NGN' ? convertFromUsd(amount, 'NG') : convertFromUsd(amount, 'GH');
+    // Amount is already in Naira, convert to kobo for Paystack
+    const paystackAmount = Math.round(amount * 100);
+    const paystackCurrency = currency || 'NGN';
 
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -64,20 +58,19 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         email: email,
-        amount: paystackAmount * 100, // Paystack expects amount in kobo (lowest currency unit)
-        currency: paystackCurrency, // Use Paystack-supported currency
+        amount: paystackAmount,
+        currency: paystackCurrency,
         metadata: {
           plan: plan,
-          userId: userId,
-          payment_type: 'subscription',
-          originalAmountUSD: amount,
-          convertedAmount: paystackAmount,
+          userId: userId || 'guest',
+          payment_type: billing === 'yearly' ? 'yearly_subscription' : 'monthly_subscription',
+          billing: billing || 'monthly',
+          originalAmount: amount,
           currency: paystackCurrency,
-          countryCode: countryCode,
-          requestedCurrency: targetCurrency, // Store the originally requested currency
+          ...metadata,
         },
         callback_url: `${process.env.PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscribe/success`,
-        channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
+        channels: ['card', 'bank_transfer', 'ussd', 'qr'],
       }),
     });
 
@@ -91,34 +84,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save payment reference to Firestore
-    if (!db) {
-      console.error('Firebase not initialized for subscription payment');
-      return NextResponse.json(
-        { error: 'We are having issues processing your payment. Please try again later.' },
-        { status: 500 }
-      );
+    // Save payment reference to Firestore if userId is provided
+    if (db && userId) {
+      const paymentRef = db.collection('payments').doc(data.data.reference);
+      await paymentRef.set({
+        reference: data.data.reference,
+        access_code: data.data.access_code,
+        authorization_url: data.data.authorization_url,
+        plan: plan,
+        userId: userId,
+        email: email,
+        amount: amount,
+        currency: paystackCurrency,
+        billing: billing || 'monthly',
+        status: 'pending',
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
-    
-    const paymentRef = db.collection('subscriptionPayments').doc(data.data.reference);
-    await paymentRef.set({
-      reference: data.data.reference,
-      access_code: data.data.access_code,
-      authorization_url: data.data.authorization_url,
-      plan: plan,
-      userId: userId,
-      email: email,
-      amount: amount,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
 
     return NextResponse.json({
-      status: 'success',
       data: data.data,
     });
   } catch (error) {
-    console.error('Error initializing subscription payment:', error);
+    console.error('Error initializing payment:', error);
     return NextResponse.json(
       { error: 'We are having issues connecting with payment processors. Please try again later.' },
       { status: 500 }

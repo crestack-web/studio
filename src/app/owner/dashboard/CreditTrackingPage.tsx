@@ -32,7 +32,9 @@ export function CreditTrackingPage() {
   const [selectedTab, setSelectedTab] = useState<'overview' | 'customers' | 'transactions'>('overview');
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [showCustomerDetail, setShowCustomerDetail] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<CreditTransaction | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CreditCustomer | null>(null);
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -449,6 +451,15 @@ export function CreditTrackingPage() {
            transaction.dueDate < new Date();
   }
 
+  function handleCustomerClick(customer: CreditCustomer) {
+    setSelectedCustomer(customer);
+    setShowCustomerDetail(true);
+  }
+
+  function getCustomerTransactions(customerId: string): CreditTransaction[] {
+    return transactions.filter(t => t.customerId === customerId);
+  }
+
   if (loading) {
     return (
       <div className={styles.wrapper}>
@@ -613,7 +624,7 @@ export function CreditTrackingPage() {
               <div className={styles.emptyState}>No credit customers yet</div>
             ) : (
               customers.map(customer => (
-                <div key={customer.id} className={styles.customerItem}>
+                <div key={customer.id} className={styles.customerItem} onClick={() => handleCustomerClick(customer)} style={{ cursor: 'pointer' }}>
                   <div className={styles.customerMain}>
                     <div className={styles.customerName}>{customer.name}</div>
                     <div className={styles.customerBalance}>{formatMoney(customer.currentBalance)} outstanding</div>
@@ -625,11 +636,12 @@ export function CreditTrackingPage() {
                   <div className={styles.customerMeta}>
                     <span className={styles.customerType}>{customer.businessType}</span>
                     {customer.isRegularCustomer && <span className={styles.regularBadge}>Regular</span>}
+                    <span className={styles.transactionCount}>{getCustomerTransactions(customer.id).length} credits</span>
                   </div>
                   <Button 
                     size="xs" 
                     variant="ghost" 
-                    onClick={() => handleDeleteCustomer(customer.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(customer.id); }}
                     style={{ color: 'var(--red)' }}
                   >
                     Delete
@@ -786,6 +798,138 @@ export function CreditTrackingPage() {
               <Button variant="primary" onClick={handleAddCustomer} disabled={isAddingCustomer}>
                 {isAddingCustomer ? 'Adding...' : 'Add Customer'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Detail Modal */}
+      {showCustomerDetail && selectedCustomer && (
+        <div className={styles.modalOverlay} onClick={() => setShowCustomerDetail(false)}>
+          <div className={styles.modal} style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Credit Summary - {selectedCustomer.name}</h3>
+              <button className={styles.modalClose} onClick={() => setShowCustomerDetail(false)}>✕</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.customerSummary}>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Total Outstanding:</span>
+                  <span className={styles.summaryValue} style={{ color: 'var(--red)' }}>{formatMoney(selectedCustomer.currentBalance)}</span>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Total Credits:</span>
+                  <span className={styles.summaryValue}>{getCustomerTransactions(selectedCustomer.id).length}</span>
+                </div>
+                {selectedCustomer.phone && (
+                  <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Phone:</span>
+                    <span className={styles.summaryValue}>{selectedCustomer.phone}</span>
+                  </div>
+                )}
+                {selectedCustomer.email && (
+                  <div className={styles.summaryItem}>
+                    <span className={styles.summaryLabel}>Email:</span>
+                    <span className={styles.summaryValue}>{selectedCustomer.email}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.creditHistory}>
+                <h4>Credit History</h4>
+                {getCustomerTransactions(selectedCustomer.id).length === 0 ? (
+                  <div className={styles.emptyState}>No credit transactions found</div>
+                ) : (
+                  getCustomerTransactions(selectedCustomer.id).map(transaction => (
+                    <div key={transaction.id} className={styles.creditDetailCard}>
+                      <div className={styles.creditDetailHeader}>
+                        <div className={styles.creditDetailMain}>
+                          <span className={styles.creditDetailAmount}>{formatMoney(transaction.amount)}</span>
+                          <span className={styles.creditDetailStatus} style={{ color: getStatusColor(transaction.status) }}>
+                            {transaction.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className={styles.creditDetailDates}>
+                          <span>Issued: {transaction.issuedDate.toLocaleDateString()}</span>
+                          <span>Due: {transaction.dueDate.toLocaleDateString()}</span>
+                          {isOverdue(transaction) && <span className={styles.overdueBadge}>OVERDUE</span>}
+                        </div>
+                      </div>
+                      
+                      <div className={styles.creditDetailProducts}>
+                        <span className={styles.productsLabel}>Items Purchased:</span>
+                        <div className={styles.productsList}>
+                          {transaction.products && transaction.products.length > 0 ? (
+                            transaction.products.map((product, idx) => (
+                              <div key={idx} className={styles.productItem}>
+                                {product.name} × {product.quantity} ({formatMoney(product.price)})
+                              </div>
+                            ))
+                          ) : (
+                            <span className={styles.noProducts}>No product details</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={styles.creditDetailProgress}>
+                        <div className={styles.progressInfo}>
+                          <span>Paid: {formatMoney(transaction.paidAmount)}</span>
+                          <span>Remaining: {formatMoney(transaction.remainingAmount)}</span>
+                        </div>
+                        <div className={styles.progressBar}>
+                          <div 
+                            className={styles.progressFill} 
+                            style={{ 
+                              width: `${(transaction.paidAmount / transaction.amount) * 100}%`,
+                              backgroundColor: getStatusColor(transaction.status)
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {transaction.paymentHistory && transaction.paymentHistory.length > 0 && (
+                        <div className={styles.paymentHistorySection}>
+                          <span className={styles.paymentHistoryLabel}>Payment History:</span>
+                          <div className={styles.paymentHistoryList}>
+                            {transaction.paymentHistory.map((payment, idx) => (
+                              <div key={idx} className={styles.paymentHistoryItem}>
+                                <div className={styles.paymentHistoryMain}>
+                                  <span className={styles.paymentAmount}>{formatMoney(payment.amount)}</span>
+                                  <span className={styles.paymentDate}>{payment.paymentDate.toLocaleDateString()}</span>
+                                </div>
+                                <div className={styles.paymentHistoryDetails}>
+                                  <span>Method: {payment.paymentMethod}</span>
+                                  {payment.reference && <span>Ref: {payment.reference}</span>}
+                                  {payment.recordedByName && <span>By: {payment.recordedByName}</span>}
+                                </div>
+                                {payment.notes && <div className={styles.paymentNotes}>{payment.notes}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {transaction.status !== 'paid' && transaction.status !== 'written_off' && (
+                        <div className={styles.creditDetailActions}>
+                          <Button 
+                            size="xs" 
+                            variant="primary" 
+                            onClick={() => { setSelectedTransaction(transaction); setShowRecordPayment(true); setShowCustomerDetail(false); }}
+                          >
+                            Record Payment
+                          </Button>
+                          <Button size="xs" variant="ghost" onClick={() => handleSendReminder(transaction)}>
+                            Remind
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <Button variant="subtle" onClick={() => setShowCustomerDetail(false)}>Close</Button>
             </div>
           </div>
         </div>

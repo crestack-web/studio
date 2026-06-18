@@ -708,7 +708,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
           Select your business category
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}

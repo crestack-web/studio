@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getGoogleAIService } from '@/services/ai/google-ai-service';
 import { validateAIRequest, checkRateLimit, checkAbuse, getClientIP, validateInput, sanitizeBusinessContext } from '@/lib/ai-security';
 import { aiRequestQueue } from '@/lib/ai-queue';
+import { AskMOErrorFactory, ErrorSource, ErrorCode, logError, errorToResponse } from '@/lib/ask-mo-errors';
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -353,9 +354,12 @@ async function saveSaleToFirestore(businessId: string, saleData: any) {
 }
 
 /**
- * Fetch comprehensive business data from Firestore
+ * Fetch comprehensive business data from Firestore with robust error handling
  */
 async function getBusinessContext(businessId: string) {
+  const contextStartTime = Date.now();
+  console.log('📊 [Ask MO API] Starting business context fetch for:', businessId);
+  
   if (!db) {
     return {
       error: 'Database not initialized',
@@ -407,11 +411,17 @@ async function getBusinessContext(businessId: string) {
       // Recent Activity
       recentSales: [] as Array<{ product: string; amount: number; date: string }>,
       profitMargin: 0,
+      
+      // Query timing info
+      queryTimings: {} as Record<string, number>,
     };
 
     // Fetch Business Profile
     try {
+      const profileStart = Date.now();
       const businessDoc = await db.collection('businesses').doc(businessId).collection('profile').get();
+      context.queryTimings.profile = Date.now() - profileStart;
+      
       if (!businessDoc.empty) {
         const data = businessDoc.docs[0].data();
         context.businessName = data.businessName || 'Your Business';
@@ -420,21 +430,27 @@ async function getBusinessContext(businessId: string) {
         context.city = data.city || '';
         context.marketPresence = data.hasStorefront || false;
         context.hasStorefront = data.hasStorefront || false;
+        console.log('✅ [Ask MO API] Business profile loaded', { time: context.queryTimings.profile });
+      } else {
+        console.warn('⚠️ [Ask MO API] Business profile collection empty');
       }
     } catch (e) {
-      console.warn('Could not fetch business profile:', e);
+      console.error('❌ [Ask MO API] Could not fetch business profile:', e);
       context.businessName = 'Your Business';
       context.businessCategory = 'General Retail';
       context.country = 'Nigeria';
+      context.queryTimings.profile = -1; // Error indicator
     }
 
     // Fetch Staff
     try {
+      const staffStart = Date.now();
       const staffQuery = db.collection('businesses').doc(businessId).collection('staff')
         .where('active', '==', true)
         .limit(50);
       
       const staffSnapshot = await staffQuery.get();
+      context.queryTimings.staff = Date.now() - staffStart;
       context.staffCount = staffSnapshot.size;
       
       staffSnapshot.forEach(doc => {
@@ -444,163 +460,217 @@ async function getBusinessContext(businessId: string) {
           role: data.role || 'Employee',
         });
       });
+      console.log('✅ [Ask MO API] Staff data loaded', { count: context.staffCount, time: context.queryTimings.staff });
     } catch (e) {
-      console.warn('Could not fetch staff:', e);
+      console.error('❌ [Ask MO API] Could not fetch staff:', e);
+      context.queryTimings.staff = -1;
     }
 
     // Fetch Sales (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-      .orderBy('createdAt', 'desc')
-      .limit(100);
-    
-    const salesSnapshot = await salesQuery.get();
-    const productRevenue = new Map<string, { name: string; revenue: number; quantity: number; lastSold?: Date }>();
-    const productSales = new Map<string, Date>();
-    
-    salesSnapshot.forEach(doc => {
-      const data = doc.data();
-      const saleDate = data.createdAt?.toDate() || new Date();
-      const isToday = saleDate >= today;
+    try {
+      const salesStart = Date.now();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const total = data.total || 0;
-      context.totalSales += total;
-      context.totalProfit += data.profit || 0;
-      context.transactionCount += 1;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      if (isToday) {
-        context.todaySales += total;
-        context.todayProfit += data.profit || 0;
-      }
+      const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .orderBy('createdAt', 'desc')
+        .limit(100);
       
-      // Track product performance and last sold date
-      if (data.products && Array.isArray(data.products)) {
-        data.products.forEach((p: any) => {
-          const existing = productRevenue.get(p.productId || p.name) || {
-            name: p.name,
-            revenue: 0,
-            quantity: 0,
-            lastSold: undefined as Date | undefined,
-          };
-          existing.revenue += (p.price || 0) * (p.quantity || 1);
-          existing.quantity += p.quantity || 1;
-          existing.lastSold = saleDate;
-          productRevenue.set(p.productId || p.name, existing);
-          productSales.set(p.productId || p.name, saleDate);
-        });
-      }
+      const salesSnapshot = await salesQuery.get();
+      context.queryTimings.sales = Date.now() - salesStart;
       
-      // Recent sales (last 5)
-      if (context.recentSales.length < 5) {
-        context.recentSales.push({
-          product: data.products?.[0]?.name || 'Sale',
-          amount: total,
-          date: saleDate.toLocaleDateString(),
-        });
-      }
-    });
-    
-    context.topProducts = Array.from(productRevenue.values())
-      .sort((a: any, b: any) => b.revenue - a.revenue)
-      .slice(0, 5);
-    
-    context.weekSales = context.totalSales * 0.23; // Approximate
-    context.monthSales = context.totalSales;
-    context.averageTransactionValue = context.transactionCount > 0 
-      ? context.totalSales / context.transactionCount 
-      : 0;
-    context.profitMargin = context.totalSales > 0 
-      ? ((context.totalProfit / context.totalSales) * 100) 
-      : 0;
-
-    // Fetch Expenses (last 30 days)
-    const expensesQuery = db.collection('businesses').doc(businessId).collection('expenses')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-      .orderBy('createdAt', 'desc')
-      .limit(100);
-    
-    const categoryExpenses = new Map<string, number>();
-    const expensesSnapshot = await expensesQuery.get();
-    
-    expensesSnapshot.forEach(doc => {
-      const data = doc.data();
-      const amount = data.amount || 0;
-      context.totalExpenses += amount;
+      const productRevenue = new Map<string, { name: string; revenue: number; quantity: number; lastSold?: Date }>();
+      const productSales = new Map<string, Date>();
       
-      const category = data.category || 'Other';
-      categoryExpenses.set(category, (categoryExpenses.get(category) || 0) + amount);
-    });
-    
-    context.monthExpenses = context.totalExpenses;
-    context.topExpenseCategory = Array.from(categoryExpenses.entries())
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-    
-    context.dailyBurnRate = context.totalExpenses / 30;
-    context.cashBalance = context.totalSales - context.totalExpenses;
-    context.cashRunway = context.dailyBurnRate > 0
-      ? Math.round(context.cashBalance / context.dailyBurnRate)
-      : 0;
-
-    // Fetch Products/Inventory
-    const productsQuery = db.collection('businesses').doc(businessId).collection('products')
-      .where('active', '==', true)
-      .limit(200);
-    
-    const productsSnapshot = await productsQuery.get();
-    context.totalProducts = productsSnapshot.size;
-    
-    const now = new Date();
-    
-    productsSnapshot.forEach(doc => {
-      const data = doc.data();
-      const stock = data.stock || 0;
-      const threshold = data.lowStockThreshold || 10;
-      const costPrice = data.costPrice || 0;
-      const productId = doc.id;
-      
-      context.totalInventoryValue += stock * costPrice;
-      
-      if (stock === 0) {
-        context.outOfStockProducts.push(data.name || 'Unknown Product');
-      } else if (stock <= threshold) {
-        context.lowStockProducts.push({
-          name: data.name || 'Unknown Product',
-          stock: stock,
-          threshold: threshold,
-        });
-      }
-      
-      // Calculate dead stock (products not sold in 30+ days with stock > 0)
-      const lastSold = productSales.get(productId);
-      if (stock > 0 && (!lastSold || (now.getTime() - lastSold.getTime()) > (30 * 24 * 60 * 60 * 1000))) {
-        const daysSinceSale = lastSold
-          ? Math.floor((now.getTime() - lastSold.getTime()) / (24 * 60 * 60 * 1000))
-          : 0;
+      salesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const saleDate = data.createdAt?.toDate() || new Date();
+        const isToday = saleDate >= today;
         
-        if (daysSinceSale >= 30) {
-          context.deadStockProducts.push({
-            name: data.name || 'Unknown Product',
-            lastSold: lastSold?.toLocaleDateString() || 'Never',
-            daysSinceSale: daysSinceSale,
-            stock: stock,
-            value: stock * (data.price || 0),
+        const total = data.total || 0;
+        context.totalSales += total;
+        context.totalProfit += data.profit || 0;
+        context.transactionCount += 1;
+        
+        if (isToday) {
+          context.todaySales += total;
+          context.todayProfit += data.profit || 0;
+        }
+        
+        // Track product performance and last sold date
+        if (data.products && Array.isArray(data.products)) {
+          data.products.forEach((p: any) => {
+            const existing = productRevenue.get(p.productId || p.name) || {
+              name: p.name,
+              revenue: 0,
+              quantity: 0,
+              lastSold: undefined as Date | undefined,
+            };
+            existing.revenue += (p.price || 0) * (p.quantity || 1);
+            existing.quantity += p.quantity || 1;
+            existing.lastSold = saleDate;
+            productRevenue.set(p.productId || p.name, existing);
+            productSales.set(p.productId || p.name, saleDate);
           });
         }
-      }
-    });
+        
+        // Recent sales (last 5)
+        if (context.recentSales.length < 5) {
+          context.recentSales.push({
+            product: data.products?.[0]?.name || 'Sale',
+            amount: total,
+            date: saleDate.toLocaleDateString(),
+          });
+        }
+      });
+      
+      context.topProducts = Array.from(productRevenue.values())
+        .sort((a: any, b: any) => b.revenue - a.revenue)
+        .slice(0, 5);
+      
+      context.weekSales = context.totalSales * 0.23; // Approximate
+      context.monthSales = context.totalSales;
+      context.averageTransactionValue = context.transactionCount > 0 
+        ? context.totalSales / context.transactionCount 
+        : 0;
+      context.profitMargin = context.totalSales > 0 
+        ? ((context.totalProfit / context.totalSales) * 100) 
+        : 0;
+      
+      console.log('✅ [Ask MO API] Sales data loaded', { 
+        totalSales: context.totalSales, 
+        transactionCount: context.transactionCount,
+        time: context.queryTimings.sales 
+      });
+    } catch (e) {
+      console.error('❌ [Ask MO API] Could not fetch sales:', e);
+      context.queryTimings.sales = -1;
+    }
+
+    // Fetch Expenses (last 30 days)
+    try {
+      const expensesStart = Date.now();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const expensesQuery = db.collection('businesses').doc(businessId).collection('expenses')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .orderBy('createdAt', 'desc')
+        .limit(100);
+      
+      const categoryExpenses = new Map<string, number>();
+      const expensesSnapshot = await expensesQuery.get();
+      context.queryTimings.expenses = Date.now() - expensesStart;
+      
+      expensesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const amount = data.amount || 0;
+        context.totalExpenses += amount;
+        
+        const category = data.category || 'Other';
+        categoryExpenses.set(category, (categoryExpenses.get(category) || 0) + amount);
+      });
+      
+      context.monthExpenses = context.totalExpenses;
+      context.topExpenseCategory = Array.from(categoryExpenses.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+      
+      context.dailyBurnRate = context.totalExpenses / 30;
+      context.cashBalance = context.totalSales - context.totalExpenses;
+      context.cashRunway = context.dailyBurnRate > 0
+        ? Math.round(context.cashBalance / context.dailyBurnRate)
+        : 0;
+      
+      console.log('✅ [Ask MO API] Expenses data loaded', { 
+        totalExpenses: context.totalExpenses,
+        time: context.queryTimings.expenses 
+      });
+    } catch (e) {
+      console.error('❌ [Ask MO API] Could not fetch expenses:', e);
+      context.queryTimings.expenses = -1;
+    }
+
+    // Fetch Products/Inventory
+    try {
+      const productsStart = Date.now();
+      const productsQuery = db.collection('businesses').doc(businessId).collection('products')
+        .where('active', '==', true)
+        .limit(200);
+      
+      const productsSnapshot = await productsQuery.get();
+      context.queryTimings.products = Date.now() - productsStart;
+      context.totalProducts = productsSnapshot.size;
+      
+      const now = new Date();
+      
+      // Need to re-declare productSales here since it was in the sales try block
+      const productSales = new Map<string, Date>();
+      
+      productsSnapshot.forEach(doc => {
+        const data = doc.data();
+        const stock = data.stock || 0;
+        const threshold = data.lowStockThreshold || 10;
+        const costPrice = data.costPrice || 0;
+        const productId = doc.id;
+        
+        context.totalInventoryValue += stock * costPrice;
+        
+        if (stock === 0) {
+          context.outOfStockProducts.push(data.name || 'Unknown Product');
+        } else if (stock <= threshold) {
+          context.lowStockProducts.push({
+            name: data.name || 'Unknown Product',
+            stock: stock,
+            threshold: threshold,
+          });
+        }
+        
+        // Calculate dead stock (products not sold in 30+ days with stock > 0)
+        const lastSold = productSales.get(productId);
+        if (stock > 0 && (!lastSold || (now.getTime() - lastSold.getTime()) > (30 * 24 * 60 * 60 * 1000))) {
+          const daysSinceSale = lastSold
+            ? Math.floor((now.getTime() - lastSold.getTime()) / (24 * 60 * 60 * 1000))
+            : 0;
+          
+          if (daysSinceSale >= 30) {
+            context.deadStockProducts.push({
+              name: data.name || 'Unknown Product',
+              lastSold: lastSold?.toLocaleDateString() || 'Never',
+              daysSinceSale: daysSinceSale,
+              stock: stock,
+              value: stock * (data.price || 0),
+            });
+          }
+        }
+      });
+      
+      context.lowStockProducts.sort((a: any, b: any) => a.stock - b.stock);
+      context.deadStockProducts.sort((a: any, b: any) => b.daysSinceSale - a.daysSinceSale);
+      
+      console.log('✅ [Ask MO API] Products data loaded', { 
+        totalProducts: context.totalProducts,
+        lowStockCount: context.lowStockProducts.length,
+        outOfStockCount: context.outOfStockProducts.length,
+        time: context.queryTimings.products 
+      });
+    } catch (e) {
+      console.error('❌ [Ask MO API] Could not fetch products:', e);
+      context.queryTimings.products = -1;
+    }
     
-    context.lowStockProducts.sort((a: any, b: any) => a.stock - b.stock);
-    context.deadStockProducts.sort((a: any, b: any) => b.daysSinceSale - a.daysSinceSale);
+    const totalTime = Date.now() - contextStartTime;
+    console.log('✅ [Ask MO API] Business context fetch completed', { 
+      totalTime,
+      queryTimings: context.queryTimings 
+    });
     
     return context;
   } catch (error) {
-    console.error('Error fetching business context:', error);
+    console.error('❌ [Ask MO API] Error fetching business context:', error);
     return { error: 'Failed to fetch business data' };
   }
 }
@@ -914,13 +984,18 @@ Format the health summary with clear sections and actionable insights. Use the O
 export async function POST(req: NextRequest) {
   let requestId: string | undefined;
   const requestStartTime = Date.now();
+  const timings: Record<string, number> = {};
   
   try {
-    console.log('🚀 Ask MO API - Request received');
+    console.log('🚀 [Ask MO API] Request received');
+    timings.requestReceived = Date.now();
+    
     const body = await req.json();
+    timings.bodyParsed = Date.now();
+    
     const { message, image, businessId, language = 'en', languageName = 'English', userId, conversationHistory = [] } = body;
 
-    console.log('🤖 MO API Request:', {
+    console.log('🤖 [Ask MO API] Request details:', {
       message: message?.substring(0, 100),
       hasImage: !!image,
       businessId: businessId || 'not provided',
@@ -929,51 +1004,69 @@ export async function POST(req: NextRequest) {
       userId: userId || 'not provided',
       conversationHistoryLength: conversationHistory?.length || 0,
       timestamp: new Date().toISOString(),
+      parseTime: timings.bodyParsed - timings.requestReceived,
     });
 
     // Validate input
+    const inputValidationStart = Date.now();
     const inputValidation = validateInput(message, image);
+    timings.inputValidation = Date.now() - inputValidationStart;
+    
     if (!inputValidation.valid) {
-      return NextResponse.json(
-        { error: inputValidation.error },
-        { status: 400 }
-      );
+      const error = AskMOErrorFactory.invalidInput(inputValidation.error || 'Invalid input');
+      logError(error, 'Input Validation');
+      return errorToResponse(error);
     }
+    console.log('✅ [Ask MO API] Input validation passed', { time: timings.inputValidation });
 
     // Validate and authenticate AI request
-    console.log('🔐 Validating AI request...');
+    console.log('🔐 [Ask MO API] Starting authentication...');
+    const authStart = Date.now();
     
     let authenticatedUserId: string;
     let authenticatedBusinessId: string;
     
     // Skip authentication if database is not initialized (for development/testing)
     if (!db) {
-      console.warn('⚠️ Database not initialized, skipping authentication validation');
-      // Proceed without authentication for development/testing
-      const { userId, businessId } = body;
+      console.warn('⚠️ [Ask MO API] Database not initialized, skipping authentication validation');
+      const error = AskMOErrorFactory.databaseNotInitialized();
+      logError(error, 'Authentication');
       
-      if (!userId || !businessId) {
-        return NextResponse.json(
-          { error: 'User ID and Business ID are required' },
-          { status: 400 }
-        );
+      // Proceed without authentication for development/testing
+      const { userId, devUserId, businessId: devBusinessId } = body;
+      
+      if (!devUserId && !userId) {
+        return errorToResponse(AskMOErrorFactory.invalidInput('User ID is required'));
+      }
+      if (!devBusinessId && !businessId) {
+        return errorToResponse(AskMOErrorFactory.invalidInput('Business ID is required'));
       }
       
-      authenticatedUserId = userId;
-      authenticatedBusinessId = businessId;
+      authenticatedUserId = devUserId || userId;
+      authenticatedBusinessId = devBusinessId || businessId;
+      console.log('⚠️ [Ask MO API] Using development mode authentication');
     } else {
       const authValidation = await validateAIRequest(req, body);
+      timings.authentication = Date.now() - authStart;
+      
       if (!authValidation.valid) {
-        console.error('❌ Authentication failed:', authValidation.error);
-        return NextResponse.json(
-          { error: authValidation.error },
-          { status: 401 }
-        );
+        console.error('❌ [Ask MO API] Authentication failed:', authValidation.error);
+        const error = authValidation.error?.includes('User not found') 
+          ? AskMOErrorFactory.userNotFound(userId || 'unknown')
+          : authValidation.error?.includes('Business not found')
+          ? AskMOErrorFactory.businessNotFound(businessId || 'unknown')
+          : authValidation.error?.includes('Unauthorized')
+          ? AskMOErrorFactory.unauthorized(userId || 'unknown', businessId || 'unknown')
+          : AskMOErrorFactory.fromError(new Error(authValidation.error), ErrorSource.AUTHENTICATION, ErrorCode.AUTH_USER_NOT_FOUND);
+        
+        logError(error, 'Authentication');
+        return errorToResponse(error);
       }
 
-      console.log('✅ Authentication successful:', {
+      console.log('✅ [Ask MO API] Authentication successful:', {
         userId: authValidation.userId,
-        businessId: authValidation.businessId
+        businessId: authValidation.businessId,
+        time: timings.authentication,
       });
 
       authenticatedUserId = authValidation.userId!;
@@ -981,75 +1074,88 @@ export async function POST(req: NextRequest) {
     }
 
     // Check rate limiting for user
+    const rateLimitStart = Date.now();
     const userRateLimit = await checkRateLimit(authenticatedUserId, 'USER');
     if (!userRateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please try again later.', retryAfter: userRateLimit.retryAfter },
-        { status: 429 }
-      );
+      const error = AskMOErrorFactory.rateLimitUserExceeded(userRateLimit.retryAfter || 60);
+      logError(error, 'Rate Limiting');
+      return errorToResponse(error);
     }
 
     // Check rate limiting for business
     const businessRateLimit = await checkRateLimit(authenticatedBusinessId, 'BUSINESS');
     if (!businessRateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'Business rate limit exceeded. Please try again later.', retryAfter: businessRateLimit.retryAfter },
-        { status: 429 }
-      );
+      const error = AskMOErrorFactory.rateLimitBusinessExceeded(businessRateLimit.retryAfter || 60);
+      logError(error, 'Rate Limiting');
+      return errorToResponse(error);
     }
 
     // Check rate limiting for IP
     const clientIP = getClientIP(req);
     const ipRateLimit = await checkRateLimit(clientIP, 'IP');
+    timings.rateLimiting = Date.now() - rateLimitStart;
+    
     if (!ipRateLimit.allowed) {
-      return NextResponse.json(
-        { error: 'IP rate limit exceeded. Please try again later.', retryAfter: ipRateLimit.retryAfter },
-        { status: 429 }
-      );
+      const error = AskMOErrorFactory.rateLimitIpExceeded(ipRateLimit.retryAfter || 60);
+      logError(error, 'Rate Limiting');
+      return errorToResponse(error);
     }
+    console.log('✅ [Ask MO API] Rate limiting checks passed', { time: timings.rateLimiting });
 
     // Check for abuse
     const abuseCheck = checkAbuse(authenticatedUserId);
     if (!abuseCheck.allowed) {
-      return NextResponse.json(
-        { error: abuseCheck.message },
-        { status: 429 }
-      );
+      const error = AskMOErrorFactory.fromError(new Error(abuseCheck.message || 'Abuse detected'), ErrorSource.VALIDATION, ErrorCode.VALIDATION_INVALID_INPUT);
+      logError(error, 'Abuse Check');
+      return errorToResponse(error);
     }
 
     // Check request queue to prevent duplicate/concurrent requests
+    const queueStart = Date.now();
     const queueCheck = aiRequestQueue.addRequest(authenticatedUserId, authenticatedBusinessId);
+    timings.queueCheck = Date.now() - queueStart;
+    
     if (!queueCheck.allowed) {
-      return NextResponse.json(
-        { error: queueCheck.message },
-        { status: 429 }
-      );
+      const error = queueCheck.message?.includes('in progress') 
+        ? AskMOErrorFactory.requestInProgress()
+        : AskMOErrorFactory.duplicateRequest();
+      logError(error, 'Request Queue');
+      return errorToResponse(error);
     }
 
     const requestId = queueCheck.requestId!;
     aiRequestQueue.startProcessing(requestId);
+    console.log('✅ [Ask MO API] Request queue check passed', { requestId, time: timings.queueCheck });
 
     // Check if user wants to record a sale
+    const intentDetectionStart = Date.now();
     const saleIntent = detectSaleIntent(message);
+    timings.intentDetection = Date.now() - intentDetectionStart;
     
     if (saleIntent.isSaleIntent && authenticatedBusinessId) {
-      console.log('💰 Sale intent detected:', saleIntent);
+      console.log('💰 [Ask MO API] Sale intent detected:', saleIntent);
       
       if (!db) {
-        console.warn('⚠️ Firebase Admin not initialized, cannot record sale');
+        console.warn('⚠️ [Ask MO API] Firebase Admin not initialized, cannot record sale');
+        const error = AskMOErrorFactory.databaseNotInitialized();
+        logError(error, 'Sale Recording');
         aiRequestQueue.completeRequest(requestId);
-        return NextResponse.json({
-          answer: `⚠️ I detected you want to record a sale, but the database is not available.\n\n` +
-                  `Please use the Record Sale page instead.`,
-          saleRecorded: false,
-        });
+        return errorToResponse(error);
       }
       
       try {
         // Save sale to Firestore
+        const saleSaveStart = Date.now();
         const result = await saveSaleToFirestore(authenticatedBusinessId, saleIntent);
+        timings.saleSave = Date.now() - saleSaveStart;
         
         aiRequestQueue.completeRequest(requestId);
+        
+        console.log('✅ [Ask MO API] Sale recorded successfully', { 
+          saleId: result.id, 
+          amount: result.subtotal,
+          time: timings.saleSave 
+        });
         
         return NextResponse.json({
           answer: `✅ **Sale Recorded Successfully!**\n\n` +
@@ -1063,14 +1169,11 @@ export async function POST(req: NextRequest) {
           saleId: result.id,
         });
       } catch (error) {
-        console.error('Failed to record sale:', error);
+        console.error('❌ [Ask MO API] Failed to record sale:', error);
+        const err = AskMOErrorFactory.fromError(error, ErrorSource.FIRESTORE, ErrorCode.FIRESTORE_CONTEXT_LOAD_FAILED);
+        logError(err, 'Sale Recording');
         aiRequestQueue.failRequest(requestId, 'Sale recording failed');
-        return NextResponse.json({
-          answer: `⚠️ I detected you want to record a sale, but I couldn't save it.\n\n` +
-                  `Please use the Record Sale page instead, or try again with more details:\n` +
-                  `Example: "Sold 2 bags of rice for 5000 naira cash"`,
-          saleRecorded: false,
-        });
+        return errorToResponse(err);
       }
     }
 
@@ -1078,23 +1181,29 @@ export async function POST(req: NextRequest) {
     const productIntent = detectProductIntent(message, image);
     
     if (productIntent.isProductIntent && authenticatedBusinessId) {
-      console.log('📦 Product intent detected:', productIntent);
+      console.log('📦 [Ask MO API] Product intent detected:', productIntent);
       
       if (!db) {
-        console.warn('⚠️ Firebase Admin not initialized, cannot add product');
+        console.warn('⚠️ [Ask MO API] Firebase Admin not initialized, cannot add product');
+        const error = AskMOErrorFactory.databaseNotInitialized();
+        logError(error, 'Product Addition');
         aiRequestQueue.completeRequest(requestId);
-        return NextResponse.json({
-          answer: `⚠️ I detected you want to add a product, but the database is not available.\n\n` +
-                  `Please use the Add Product page instead.`,
-          productAdded: false,
-        });
+        return errorToResponse(error);
       }
       
       try {
         // Add product to Firestore
+        const productSaveStart = Date.now();
         const result = await addProductToFirestore(authenticatedBusinessId, { ...productIntent, image });
+        timings.productSave = Date.now() - productSaveStart;
         
         aiRequestQueue.completeRequest(requestId);
+        
+        console.log('✅ [Ask MO API] Product added successfully', { 
+          productId: result.id, 
+          name: result.name,
+          time: timings.productSave 
+        });
         
         let responseMessage = `✅ **Product Added Successfully!**\n\n` +
                   `📦 Name: ${result.name}\n` +
@@ -1116,15 +1225,11 @@ export async function POST(req: NextRequest) {
           productId: result.id,
         });
       } catch (error) {
-        console.error('Failed to add product:', error);
+        console.error('❌ [Ask MO API] Failed to add product:', error);
+        const err = AskMOErrorFactory.fromError(error, ErrorSource.FIRESTORE, ErrorCode.FIRESTORE_CONTEXT_LOAD_FAILED);
+        logError(err, 'Product Addition');
         aiRequestQueue.failRequest(requestId, 'Product addition failed');
-        return NextResponse.json({
-          answer: `⚠️ I detected you want to add a product, but I couldn't save it.\n\n` +
-                  `Please use the Add Product page instead, or try again with more details:\n` +
-                  `Example: "Add rice at 25000 with 50 stock"\n` +
-                  `Or send an image of the product with a description.`,
-          productAdded: false,
-        });
+        return errorToResponse(err);
       }
     }
 
@@ -1133,74 +1238,86 @@ export async function POST(req: NextRequest) {
 
     // Validate API key is present
     if (!GOOGLE_GENAI_API_KEY) {
-      console.error('❌ GOOGLE_GENAI_API_KEY not configured');
-      return NextResponse.json(
-        { error: 'Google Gen AI API key is not configured. Please add GOOGLE_GENAI_API_KEY to your environment variables.' },
-        { status: 500 }
-      );
+      console.error('❌ [Ask MO API] GOOGLE_GENAI_API_KEY not configured');
+      const error = AskMOErrorFactory.googleAIKeyMissing();
+      logError(error, 'Environment Validation');
+      aiRequestQueue.failRequest(requestId, 'API key missing');
+      return errorToResponse(error);
     }
 
-    console.log('🔑 API Key Status:', {
+    console.log('🔑 [Ask MO API] API Key Status:', {
       hasGoogleGenAI: !!GOOGLE_GENAI_API_KEY,
       keyLength: GOOGLE_GENAI_API_KEY?.length
     });
 
     // Fetch comprehensive business context from Firestore
+    const contextLoadStart = Date.now();
     let businessContext: any = {};
     let dbError: string | null = null;
     
     if (authenticatedBusinessId && db) {
       try {
+        console.log('📊 [Ask MO API] Loading business context for:', authenticatedBusinessId);
         businessContext = await getBusinessContext(authenticatedBusinessId);
+        timings.contextLoad = Date.now() - contextLoadStart;
+        
         // Check if getBusinessContext returned an error
         if (businessContext.error) {
           dbError = businessContext.error;
-          console.warn('⚠️ Business context error:', dbError);
+          console.warn('⚠️ [Ask MO API] Business context error:', dbError);
           businessContext = {};
         } else {
           // Sanitize business context to reduce token usage
           businessContext = sanitizeBusinessContext(businessContext);
-          console.log('📊 Business Context:', {
+          console.log('📊 [Ask MO API] Business Context loaded:', {
             totalSales: businessContext.totalSales,
             totalProfit: businessContext.totalProfit,
             lowStockCount: businessContext.lowStockProducts?.length,
             cashRunway: businessContext.cashRunway,
+            time: timings.contextLoad,
           });
         }
       } catch (error) {
-        console.error('❌ Error fetching business context:', error);
+        console.error('❌ [Ask MO API] Error fetching business context:', error);
+        const err = AskMOErrorFactory.contextLoadFailed(error instanceof Error ? error.message : 'Unknown error', { businessId: authenticatedBusinessId });
+        logError(err, 'Firestore Context Loading');
         dbError = 'Failed to fetch business context';
         businessContext = {};
+        timings.contextLoad = Date.now() - contextLoadStart;
       }
     } else if (!db) {
-      console.warn('⚠️ Firebase Admin not initialized, cannot fetch business context');
-      console.warn('⚠️ To enable business data, configure Firebase Admin environment variables:');
+      console.warn('⚠️ [Ask MO API] Firebase Admin not initialized, cannot fetch business context');
+      console.warn('⚠️ [Ask MO API] To enable business data, configure Firebase Admin environment variables:');
       console.warn('   - NEXT_PUBLIC_FIREBASE_PROJECT_ID');
       console.warn('   - FIREBASE_ADMIN_PRIVATE_KEY');
       console.warn('   - FIREBASE_ADMIN_CLIENT_EMAIL');
       dbError = 'Database not initialized';
+      timings.contextLoad = Date.now() - contextLoadStart;
     } else {
-      console.warn('⚠️ No business ID provided, cannot fetch business context');
+      console.warn('⚠️ [Ask MO API] No business ID provided, cannot fetch business context');
+      timings.contextLoad = Date.now() - contextLoadStart;
     }
 
     // Use GoogleAIService for AI responses
     let answer: string | null = null;
 
     try {
-      console.log('📡 Calling GoogleAIService...');
+      console.log('📡 [Ask MO API] Calling GoogleAIService...');
       const aiService = getGoogleAIService();
       
       // Determine if this is the first message
       const isFirstMessage = conversationHistory.length === 0;
       
+      const systemPromptStart = Date.now();
       const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, isFirstMessage);
+      timings.systemPromptBuild = Date.now() - systemPromptStart;
       
-      console.log('� System prompt length:', systemPrompt.length);
-      console.log('📝 Message length:', message?.length || 0);
+      console.log('📝 [Ask MO API] System prompt length:', systemPrompt.length, { time: timings.systemPromptBuild });
+      console.log('📝 [Ask MO API] Message length:', message?.length || 0);
       
       // Use streaming for better UX
       const aiStartTime = Date.now();
-      console.log('📡 [DIAGNOSTICS] Starting AI generation', {
+      console.log('📡 [Ask MO API] Starting AI generation', {
         provider: 'Google Gen AI',
         model: 'gemini-pro-latest',
         promptLength: (message || '').length,
@@ -1215,7 +1332,8 @@ export async function POST(req: NextRequest) {
       });
       
       const aiInitTime = Date.now() - aiStartTime;
-      console.log('✅ [DIAGNOSTICS] AI stream initialized', {
+      timings.aiInit = aiInitTime;
+      console.log('✅ [Ask MO API] AI stream initialized', {
         timeToFirstByte: aiInitTime,
         provider: 'Google Gen AI',
         model: 'gemini-pro-latest',
@@ -1229,6 +1347,7 @@ export async function POST(req: NextRequest) {
           try {
             const reader = streamResponse.stream.getReader();
             const streamStartTime = Date.now();
+            let chunkCount = 0;
             
             while (true) {
               const { done, value } = await reader.read();
@@ -1237,30 +1356,42 @@ export async function POST(req: NextRequest) {
               // value is already a string from Google AI service
               if (value) {
                 totalChars += value.length;
+                chunkCount++;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: value })}\n\n`));
+                
+                // Log every 10 chunks for debugging
+                if (chunkCount % 10 === 0) {
+                  console.log(`📡 [Ask MO API] Streaming progress: ${chunkCount} chunks, ${totalChars} chars`);
+                }
               }
             }
             
             const streamDuration = Date.now() - streamStartTime;
             const totalRequestTime = Date.now() - requestStartTime;
+            timings.streaming = streamDuration;
+            timings.total = totalRequestTime;
             
-            console.log('✅ [DIAGNOSTICS] Streaming completed', {
+            console.log('✅ [Ask MO API] Streaming completed', {
               totalChars,
+              chunkCount,
               streamDuration,
               charsPerSecond: Math.round((totalChars / streamDuration) * 1000),
               totalRequestTime,
               provider: 'Google Gen AI',
               model: 'gemini-pro-latest',
+              timings,
             });
             
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
             controller.close();
           } catch (error) {
-            console.error('❌ [DIAGNOSTICS] Streaming error:', {
+            console.error('❌ [Ask MO API] Streaming error:', {
               error: error instanceof Error ? error.message : 'Unknown error',
               provider: 'Google Gen AI',
               model: 'gemini-pro-latest',
             });
+            const err = AskMOErrorFactory.streamInterrupted({ error: error instanceof Error ? error.message : 'Unknown error' });
+            logError(err, 'Streaming');
             controller.error(error);
           }
         },
@@ -1277,31 +1408,35 @@ export async function POST(req: NextRequest) {
       });
     } catch (error) {
       const errorTime = Date.now() - requestStartTime;
-      console.error('❌ [DIAGNOSTICS] AI Service failed:', {
+      timings.total = errorTime;
+      console.error('❌ [Ask MO API] AI Service failed:', {
         error: error instanceof Error ? error.message : 'Unknown error',
         timeUntilError: errorTime,
         provider: 'Google Gen AI',
         model: 'gemini-pro-latest',
-        errorDetails: error instanceof Error ? {
-          name: error.name,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        } : undefined,
+        timings,
       });
+      
+      const err = AskMOErrorFactory.fromError(error, ErrorSource.GEMINI_API, ErrorCode.GEMINI_MODEL_FAILED);
+      logError(err, 'AI Service');
       aiRequestQueue.failRequest(requestId, 'AI generation failed');
-      return NextResponse.json(
-        { error: 'Failed to generate AI response. Please check your Google Gen AI API key configuration.' },
-        { status: 500 }
-      );
+      return errorToResponse(err);
     }
 
   } catch (error: any) {
-    console.error('Ask MO API error:', error);
+    const errorTime = Date.now() - requestStartTime;
+    console.error('❌ [Ask MO API] Unhandled error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timeUntilError: errorTime,
+      timings,
+    });
+    
+    const err = AskMOErrorFactory.fromError(error, ErrorSource.MOBILE_CLIENT, ErrorCode.CLIENT_NETWORK_ERROR);
+    logError(err, 'Unhandled Error');
+    
     if (requestId) {
       aiRequestQueue.failRequest(requestId, 'API error');
     }
-    return NextResponse.json(
-      { error: 'An error occurred while processing your request. Please try again.' },
-      { status: 500 }
-    );
+    return errorToResponse(err);
   }
 }

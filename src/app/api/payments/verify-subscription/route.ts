@@ -111,7 +111,6 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      status: 'success',
       data: transactionData,
     });
   } catch (error) {

@@ -352,15 +352,16 @@ export function RecordSalePage() {
         }
 
         if (customerId) {
-          // Calculate due date (default 7 days from now if not specified)
-          let dueDate: Date;
-          if (creditDueDate) {
-            // Parse date string as local time (not UTC) to avoid timezone issues
-            const [year, month, day] = creditDueDate.split('-').map(Number);
-            dueDate = new Date(year, month - 1, day);
-          } else {
-            dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          // Require due date for credit sales
+          if (!creditDueDate) {
+            showToast('Please specify a due date for credit sales');
+            setIsProcessingSale(false);
+            return;
           }
+
+          // Parse date string as local time (not UTC) to avoid timezone issues
+          const [year, month, day] = creditDueDate.split('-').map(Number);
+          const dueDate = new Date(year, month - 1, day);
 
           // Create credit transaction
           await addDoc(collection(firestore, 'businesses', businessId, 'credit_transactions'), {

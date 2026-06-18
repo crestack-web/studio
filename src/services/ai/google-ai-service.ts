@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════
 
 import { model } from '@/ai/genkit';
+import { AskMOErrorFactory, ErrorSource, ErrorCode, logError } from '@/lib/ask-mo-errors';
 
 // Configuration
 const MAX_RETRIES = 3;
@@ -11,6 +12,8 @@ const RETRY_DELAY_MS = 1000;
 const RATE_LIMIT_DELAY_MS = 500;
 const DEFAULT_MODEL = 'gemini-pro-latest';
 const FALLBACK_MODELS = ['gemini-pro', 'gemini-1.5-pro'];
+const MAX_TOKEN_LIMIT = 100000; // Conservative token limit
+const CONTEXT_TRUNCATION_THRESHOLD = 80000; // Truncate context if it exceeds this
 
 // Error types
 class GoogleAIError extends Error {
@@ -62,60 +65,137 @@ class GoogleAIService {
 
   constructor() {
     this.rateLimiter = new RateLimiter();
-    console.log('🔍 GoogleAIService initialized');
+    console.log('🔍 [GoogleAIService] Initializing');
+    this.validateEnvironment();
     this.logEnvironmentStatus();
+  }
+
+  // Validate environment variables
+  private validateEnvironment(): void {
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
+    
+    if (!apiKey) {
+      const error = AskMOErrorFactory.googleAIKeyMissing();
+      logError(error, 'GoogleAIService Initialization');
+      throw new Error('Google Gen AI API key is missing');
+    }
+    
+    if (apiKey === 'your-google-ai-api-key' || apiKey === 'your-api-key') {
+      console.warn('⚠️ [GoogleAIService] API key appears to be a placeholder value');
+    }
+    
+    console.log('✅ [GoogleAIService] Environment validation passed');
   }
 
   // Log environment status
   private logEnvironmentStatus() {
-    console.log('🔑 Environment Status:');
+    console.log('🔑 [GoogleAIService] Environment Status:');
     console.log('  GOOGLE_GENAI_API_KEY:', process.env.GOOGLE_GENAI_API_KEY ? 'PRESENT' : 'MISSING');
     console.log('  GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'PRESENT' : 'MISSING');
     console.log('  NODE_ENV:', process.env.NODE_ENV || 'undefined');
+    console.log('  DEFAULT_MODEL:', DEFAULT_MODEL);
+    console.log('  FALLBACK_MODELS:', FALLBACK_MODELS.join(', '));
   }
 
   // Validate request payload
   private validateRequest(request: AIRequest): void {
+    console.log('🔍 [GoogleAIService] Validating request');
+    
     if (!request.prompt || typeof request.prompt !== 'string') {
-      throw new Error('Invalid prompt: must be a non-empty string');
+      const error = AskMOErrorFactory.invalidInput('Invalid prompt: must be a non-empty string');
+      logError(error, 'GoogleAIService Request Validation');
+      throw error;
     }
 
     if (request.prompt.trim().length === 0) {
-      throw new Error('Invalid prompt: cannot be empty or whitespace');
+      const error = AskMOErrorFactory.invalidInput('Invalid prompt: cannot be empty or whitespace');
+      logError(error, 'GoogleAIService Request Validation');
+      throw error;
     }
 
     if (request.prompt.length > 100000) {
-      throw new Error('Invalid prompt: exceeds maximum length of 100000 characters');
+      const error = AskMOErrorFactory.messageTooLong(request.prompt.length, 100000);
+      logError(error, 'GoogleAIService Request Validation');
+      throw error;
     }
 
     if (request.businessData) {
       try {
-        JSON.stringify(request.businessData);
+        const businessDataStr = JSON.stringify(request.businessData);
+        if (businessDataStr.length > MAX_TOKEN_LIMIT) {
+          console.warn('⚠️ [GoogleAIService] Business data exceeds token limit, truncation may occur');
+        }
       } catch (e) {
-        throw new Error('Invalid businessData: cannot be serialized');
+        const error = AskMOErrorFactory.invalidInput('Invalid businessData: cannot be serialized');
+        logError(error, 'GoogleAIService Request Validation');
+        throw error;
       }
     }
+    
+    console.log('✅ [GoogleAIService] Request validation passed');
+  }
+
+  // Detect token overflow and truncate context if needed
+  private detectAndHandleTokenOverflow(fullPrompt: string): string {
+    const promptLength = fullPrompt.length;
+    
+    if (promptLength > MAX_TOKEN_LIMIT) {
+      console.warn('⚠️ [GoogleAIService] Token overflow detected:', {
+        promptLength,
+        maxLimit: MAX_TOKEN_LIMIT,
+        overflow: promptLength - MAX_TOKEN_LIMIT,
+      });
+      
+      const error = AskMOErrorFactory.tokenLimitExceeded({
+        promptLength,
+        maxLimit: MAX_TOKEN_LIMIT,
+        overflow: promptLength - MAX_TOKEN_LIMIT,
+      });
+      logError(error, 'GoogleAIService Token Detection');
+      
+      // Truncate context to fit within limits
+      const truncatedPrompt = fullPrompt.substring(0, CONTEXT_TRUNCATION_THRESHOLD);
+      console.warn('⚠️ [GoogleAIService] Context truncated to fit token limits', {
+        originalLength: promptLength,
+        truncatedLength: truncatedPrompt.length,
+      });
+      
+      const truncationError = AskMOErrorFactory.contextTruncated({
+        originalLength: promptLength,
+        truncatedLength: truncatedPrompt.length,
+      });
+      logError(truncationError, 'GoogleAIService Context Truncation');
+      
+      return truncatedPrompt;
+    }
+    
+    return fullPrompt;
   }
 
   // Retry logic with exponential backoff
   private async retryWithBackoff<T>(
     fn: () => Promise<T>,
     retries = MAX_RETRIES,
-    delay = RETRY_DELAY_MS
+    delay = RETRY_DELAY_MS,
+    context = 'unknown'
   ): Promise<T> {
     try {
       return await fn();
     } catch (error) {
       if (retries <= 0) {
+        console.error(`❌ [GoogleAIService] All retry attempts failed for ${context}`);
         throw error;
       }
       
       // Log retry attempt with full error details
-      console.warn(`Google AI request failed, retrying... (${retries} attempts remaining)`);
-      console.error('Retry error details:', this.extractErrorDetails(error));
+      console.warn(`⚠️ [GoogleAIService] Request failed, retrying... (${retries} attempts remaining)`, {
+        context,
+        delay,
+      });
+      console.error('❌ [GoogleAIService] Retry error details:', this.extractErrorDetails(error));
       
       await new Promise(resolve => setTimeout(resolve, delay));
-      return this.retryWithBackoff(fn, retries - 1, delay * 2);
+      return this.retryWithBackoff(fn, retries - 1, delay * 2, context);
     }
   }
 
@@ -265,13 +345,23 @@ Important rules:
       ? [request.model || DEFAULT_MODEL, ...FALLBACK_MODELS] 
       : [request.model || DEFAULT_MODEL];
     
-    console.log(`🚀 [${requestId}] AI Streaming Request`);
-    console.log(`🔄 [${requestId}] Models to try:`, modelsToTry);
+    console.log(`🚀 [GoogleAIService] AI Streaming Request`, { requestId });
+    console.log(`🔄 [GoogleAIService] Models to try:`, modelsToTry);
+    console.log(`📊 [GoogleAIService] Request details:`, {
+      promptLength: request.prompt?.length || 0,
+      hasContext: !!request.context,
+      hasBusinessData: !!request.businessData,
+      branchId: request.branchId || 'none',
+      enableFallback: request.enableFallback !== false,
+    });
 
     for (let modelIndex = 0; modelIndex < modelsToTry.length; modelIndex++) {
       const currentModel = modelsToTry[modelIndex];
+      const modelAttemptStart = Date.now();
       
       try {
+        console.log(`🎯 [GoogleAIService] Attempting model: ${currentModel} (${modelIndex + 1}/${modelsToTry.length})`);
+        
         this.validateRequest(request);
         await this.rateLimiter.wait();
 
@@ -288,46 +378,111 @@ Important rules:
         }
 
         const fullPrompt = `${systemPrompt}\n\n${businessDataStr ? `Business data:\n${businessDataStr}\n\n` : ''}User question: ${request.prompt}`;
-
-        console.log(`🎯 [${requestId}] Attempting model: ${currentModel}`);
+        
+        // Detect and handle token overflow
+        const finalPrompt = this.detectAndHandleTokenOverflow(fullPrompt);
+        
+        console.log(`📝 [GoogleAIService] Prompt details for ${currentModel}:`, {
+          systemPromptLength: systemPrompt.length,
+          businessDataLength: businessDataStr.length,
+          fullPromptLength: finalPrompt.length,
+          wasTruncated: finalPrompt.length !== fullPrompt.length,
+        });
         
         const result = await this.retryWithBackoff(async () => {
-          const response = await model.generateContentStream(fullPrompt);
+          console.log(`🌐 [GoogleAIService] Calling Gemini API with model: ${currentModel}`);
+          const response = await model.generateContentStream(finalPrompt);
           return response.stream;
+        }, MAX_RETRIES, RETRY_DELAY_MS, `model-${currentModel}`);
+
+        const modelAttemptTime = Date.now() - modelAttemptStart;
+        console.log(`✅ [GoogleAIService] Model ${currentModel} succeeded`, { 
+          attemptTime: modelAttemptTime,
+          attemptNumber: modelIndex + 1,
         });
 
         const stream = new ReadableStream<string>({
           async start(controller) {
             try {
+              let chunkCount = 0;
+              let totalChars = 0;
+              const streamStart = Date.now();
+              
+              console.log(`📡 [GoogleAIService] Starting stream for ${currentModel}`);
+              
               for await (const chunk of await result) {
                 const text = chunk.text();
                 if (text) {
+                  totalChars += text.length;
+                  chunkCount++;
                   controller.enqueue(text);
+                  
+                  // Log every 10 chunks for debugging
+                  if (chunkCount % 10 === 0) {
+                    console.log(`📡 [GoogleAIService] Stream progress: ${chunkCount} chunks, ${totalChars} chars`);
+                  }
                 }
               }
+              
+              const streamDuration = Date.now() - streamStart;
+              console.log(`✅ [GoogleAIService] Streaming completed for ${currentModel}`, {
+                totalChunks: chunkCount,
+                totalChars,
+                streamDuration,
+                charsPerSecond: Math.round((totalChars / streamDuration) * 1000),
+              });
+              
               controller.close();
             } catch (error) {
+              console.error(`❌ [GoogleAIService] Stream error for ${currentModel}:`, error);
+              const streamError = AskMOErrorFactory.streamInterrupted({ 
+                model: currentModel, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+              });
+              logError(streamError, 'GoogleAIService Streaming');
               controller.error(error);
             }
           },
         });
 
-        console.log(`✅ [${requestId}] AI Streaming successful with model: ${currentModel}`);
+        console.log(`✅ [GoogleAIService] AI Streaming successful with model: ${currentModel}`, {
+          requestId,
+          totalAttemptTime: Date.now() - modelAttemptStart,
+          modelIndex: modelIndex + 1,
+        });
 
         return {
           stream,
           model: currentModel,
         };
       } catch (error) {
-        console.error(`❌ [${requestId}] Model ${currentModel} failed:`, this.extractErrorDetails(error));
+        const modelAttemptTime = Date.now() - modelAttemptStart;
+        console.error(`❌ [GoogleAIService] Model ${currentModel} failed`, {
+          error: this.extractErrorDetails(error),
+          attemptTime: modelAttemptTime,
+          attemptNumber: modelIndex + 1,
+        });
+        
+        const modelError = AskMOErrorFactory.modelFailed(currentModel, error);
+        logError(modelError, 'GoogleAIService Model Attempt');
         
         if (modelIndex < modelsToTry.length - 1) {
-          console.log(`� [${requestId}] Trying fallback model...`);
+          console.log(`🔄 [GoogleAIService] Trying fallback model...`, {
+            currentModel,
+            nextModel: modelsToTry[modelIndex + 1],
+          });
           continue;
         }
         
         // All models failed
-        console.error(`❌ [${requestId}] All models failed`);
+        console.error(`❌ [GoogleAIService] All models failed`, {
+          attemptedModels: modelsToTry,
+          totalAttempts: modelsToTry.length,
+        });
+        
+        const allModelsError = AskMOErrorFactory.allModelsFailed(modelsToTry);
+        logError(allModelsError, 'GoogleAIService All Models Failed');
+        
         throw new GoogleAIError(
           process.env.NODE_ENV === 'development' 
             ? `AI Streaming Error: ${this.extractErrorDetails(error).message}` 
@@ -338,6 +493,12 @@ Important rules:
     }
     
     // Should never reach here, but TypeScript needs it
+    const unexpectedError = AskMOErrorFactory.fromError(
+      new Error('Unexpected error in streaming'), 
+      ErrorSource.GEMINI_API, 
+      ErrorCode.GEMINI_MODEL_FAILED
+    );
+    logError(unexpectedError, 'GoogleAIService Unexpected Error');
     throw new GoogleAIError('Unexpected error in streaming');
   }
 
