@@ -2,9 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../AppContext';
 import { Button } from '../Button';
-import { collection, addDoc, doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 import styles from './AddStaffPage.module.css';
 import { 
@@ -107,56 +106,36 @@ export default function AddStaffPage() {
       let isNewUser = true;
 
       try {
-        // Try to create Firebase Auth user
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          email.trim(),
-          password
-        );
-        firebaseUser = userCredential.user;
-      } catch (authError: any) {
-        isNewUser = false;
-        if (authError.code === 'auth/email-already-in-use') {
-          showToast('This email is already registered. Please use a different email.');
-          return;
-        } else if (authError.code === 'auth/invalid-email') {
-          showToast('Invalid email address. Please check and try again.');
-          return;
-        } else if (authError.code === 'auth/weak-password') {
-          showToast('Password is too weak. Please use a stronger password.');
-          return;
-        } else {
-          throw authError;
-        }
-      }
-
-      // Create user profile in Firestore
-      if (firebaseUser.uid && isNewUser) {
-        await setDoc(doc(firestore, 'users', firebaseUser.uid), {
-          displayName: name.trim(),
-          email: email.trim(),
-          role: 'Staff',
-          staffId: staffId,
-          businessId: businessId,
-          permissions: selectedPermissions,
-          initials: getInitials(name.trim()),
-          createdAt: new Date(),
+        // Call API route to create staff user using admin SDK
+        // This prevents the owner from being signed out
+        const response = await fetch('/api/staff/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password,
+            name: name.trim(),
+            role: role.trim(),
+            staffId: staffId,
+            businessId: businessId,
+            permissions: selectedPermissions,
+          }),
         });
-      }
 
-      // Create staff member in businesses collection
-      await setDoc(doc(firestore, 'businesses', businessId, 'staff', firebaseUser.uid), {
-        name: name.trim(),
-        email: email.trim(),
-        role: role.trim(),
-        staffId: staffId,
-        permissions: selectedPermissions,
-        status: 'active',
-        createdAt: new Date(),
-        revenue: 0,
-        transactions: 0,
-        online: false,
-      });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create staff user');
+        }
+
+        firebaseUser = { uid: data.uid };
+        isNewUser = data.isNewUser;
+      } catch (authError: any) {
+        console.error('Error creating staff:', authError);
+        const errorMessage = authError.message || 'Failed to create staff member. Please try again.';
+        showToast(errorMessage);
+        return;
+      }
 
       showToast('Staff member added successfully!');
       

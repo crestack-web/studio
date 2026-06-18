@@ -5,6 +5,46 @@ import { NavSection } from './types';
 //  With Multi-language Support
 // ═══════════════════════════════════════════
 
+// Mapping of nav items to required features and categories
+export const NAV_ITEM_REQUIREMENTS: Record<string, { 
+  requiredFeatures?: string[]; 
+  requiredCategories?: string[];
+  excludedCategories?: string[];
+  requiredPlan?: 'starter' | 'standard' | 'pro';
+}> = {
+  'credit-tracking': {
+    requiredFeatures: ['Credit Tracking'],
+    excludedCategories: ['restaurant', 'cafe', 'pharmacy', 'healthcare', 'education'],
+    requiredPlan: 'standard',
+  },
+  'menu-management': {
+    requiredCategories: ['restaurant', 'cafe'],
+    requiredPlan: 'standard',
+  },
+  'ingredient-tracking': {
+    requiredCategories: ['restaurant', 'cafe'],
+    requiredPlan: 'standard',
+  },
+  'production-tracking': {
+    requiredFeatures: ['Production Tracking'],
+    requiredCategories: ['manufacturing'],
+    requiredPlan: 'pro',
+  },
+  'ecommerce-storefront': {
+    requiredFeatures: ['E-commerce Storefront'],
+    requiredCategories: ['retail', 'fashion', 'electronics'],
+    requiredPlan: 'pro',
+  },
+  'branches': {
+    requiredFeatures: ['Multi-branch Support'],
+    requiredPlan: 'pro',
+  },
+  'payroll': {
+    requiredFeatures: ['Payroll Management'],
+    requiredPlan: 'pro',
+  },
+};
+
 // Translation dictionary for sidebar items
 export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } = {
   // Section Labels

@@ -180,13 +180,234 @@ function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
 // ── Constants and Types ──────────────────────
 const CATEGORIES = [
   { id: "retail", label: "Retail Shop", icon: "🏪" },
-  { id: "food", label: "Food & Drink", icon: "🍽️" },
+  { id: "restaurant", label: "Restaurant", icon: "🍽️" },
   { id: "grocery", label: "Grocery Store", icon: "🛒" },
   { id: "fashion", label: "Fashion", icon: "👗" },
   { id: "electronics", label: "Electronics", icon: "📱" },
   { id: "manufacturing", label: "Manufacturing", icon: "🏭" },
   { id: "services", label: "Services", icon: "🛠️" },
+  { id: "pharmacy", label: "Pharmacy", icon: "💊" },
+  { id: "supermarket", label: "Supermarket", icon: "🏬" },
+  { id: "cafe", label: "Cafe", icon: "☕" },
+  { id: "wholesale", label: "Wholesale", icon: "📦" },
+  { id: "distributor", label: "Distributor", icon: "🚚" },
+  { id: "healthcare", label: "Healthcare", icon: "🏥" },
+  { id: "education", label: "Education", icon: "🎓" },
   { id: "other", label: "Other", icon: "📦" },
+];
+
+// Features available for each category
+const CATEGORY_FEATURES: Record<string, string[]> = {
+  retail: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  restaurant: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Menu Management",
+    "Ingredient Tracking",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  grocery: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  fashion: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "E-commerce Storefront",
+  ],
+  electronics: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "E-commerce Storefront",
+  ],
+  manufacturing: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Production Tracking",
+    "Expense Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  services: [
+    "Sales Recording",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  pharmacy: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  supermarket: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  cafe: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Menu Management",
+    "Ingredient Tracking",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  wholesale: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  distributor: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  healthcare: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  education: [
+    "Sales Recording",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  other: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+};
+
+// Features that require Pro plan
+const PRO_ONLY_FEATURES = [
+  "Multi-branch Support",
+  "Production Tracking",
+  "Payroll Management",
+  "E-commerce Storefront",
+];
+
+// Features that require Standard or Pro plan
+const STANDARD_OR_PRO_FEATURES = [
+  "Credit Tracking",
+  "Menu Management",
+  "Ingredient Tracking",
 ];
 
 const COUNTRIES = [
@@ -431,37 +652,24 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   const [selectedCategory, setSelectedCategory] = useState(data.selectedCategory || "retail");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
     Array.isArray(data.selectedFeatures) ? data.selectedFeatures : 
-    (typeof data.selectedFeatures === 'string' ? JSON.parse(data.selectedFeatures) : ["Sales Recording", "Inventory Tracking", "Staff Management"])
+    (typeof data.selectedFeatures === 'string' ? JSON.parse(data.selectedFeatures) : CATEGORY_FEATURES["retail"])
   );
 
-  const ALL_FEATURES = [
-    "Sales Recording",
-    "Inventory Tracking",
-    "Staff Management",
-    "Cash Flow Analysis",
-    "Credit Tracking",
-    "Expense Management",
-    "Multi-branch Support",
-    "Menu Management",
-    "Ingredient Tracking",
-    "Expiry Alerts",
-    "Customer Management",
-    "Supplier Management",
-    "Profit/Loss Reports",
-    "Business Analytics",
-    "Ask MO AI Assistant",
-    "Production Tracking",
-    "E-commerce Storefront",
-    "Payroll Management",
-  ];
+  // Get features for selected category
+  const availableFeatures = CATEGORY_FEATURES[selectedCategory] || CATEGORY_FEATURES["retail"];
 
   const getRecommendedPlan = (features: string[]): { plan: string; reason: string } => {
-    const hasAdvancedFeatures = features.some(f => 
-      ["Multi-branch Support", "Production Tracking", "E-commerce Storefront", "Payroll Management"].includes(f)
-    );
+    const hasProFeatures = features.some(f => PRO_ONLY_FEATURES.includes(f));
+    const hasStandardOrProFeatures = features.some(f => STANDARD_OR_PRO_FEATURES.includes(f));
     const hasManyFeatures = features.length >= 8;
     
-    if (hasAdvancedFeatures || hasManyFeatures) {
+    if (hasProFeatures) {
+      return {
+        plan: "pro",
+        reason: "Your selected features require advanced capabilities available in the Pro plan."
+      };
+    }
+    if (hasStandardOrProFeatures || hasManyFeatures) {
       return {
         plan: "standard",
         reason: "Your selected features require advanced capabilities available in the Standard plan."
@@ -487,54 +695,31 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     onChange("selectedCategory", category);
+    // Reset features to category defaults when category changes
+    const categoryDefaults = CATEGORY_FEATURES[category] || CATEGORY_FEATURES["retail"];
+    setSelectedFeatures(categoryDefaults);
+    onChange("selectedFeatures", categoryDefaults);
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* Business Description */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <label htmlFor="description" style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
-          Tell MO about your business
-        </label>
-        <textarea
-          id="description"
-          value={data.description}
-          onChange={(e) => onChange("description", e.target.value)}
-          placeholder="We sell jollof rice, grilled chicken and drinks."
-          rows={3}
-          style={{
-            resize: "none", borderRadius: 12, padding: "16px", fontSize: 15,
-            color: "#0A0A0F", background: "white", outline: "none", lineHeight: 1.6,
-            fontFamily: "'DM Sans', sans-serif", border: "1.5px solid #E8E8F0", transition: "all 0.2s",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "#6B3FE7";
-            e.target.style.boxShadow = "0 0 0 3px rgba(107,63,231,0.12)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "#E8E8F0";
-            e.target.style.boxShadow = "none";
-          }}
-        />
-      </div>
-
       {/* Category Selection */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
           Select your business category
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => handleCategoryChange(cat.id)}
               style={{
-                padding: "12px 16px", borderRadius: 10, cursor: "pointer",
-                fontSize: 14, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
+                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                fontSize: 13, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
                 background: selectedCategory === cat.id ? "#F3EFFE" : "white",
                 border: selectedCategory === cat.id ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
                 fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -550,7 +735,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
                 }
               }}
             >
-              <span style={{ fontSize: 18 }}>{cat.icon}</span>
+              <span style={{ fontSize: 16 }}>{cat.icon}</span>
               <span>{cat.label}</span>
             </button>
           ))}
@@ -562,8 +747,8 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
           Select features you need ({selectedFeatures.length} selected)
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, maxHeight: 200, overflowY: "auto", padding: 4 }}>
-          {ALL_FEATURES.map((feature) => (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, maxHeight: 250, overflowY: "auto", padding: 4 }}>
+          {availableFeatures.map((feature) => (
             <button
               key={feature}
               type="button"
@@ -580,13 +765,20 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
                 e.currentTarget.style.borderColor = "#6B3FE7";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = selectedFeatures.includes(feature) ? "#1.5px solid #6B3FE7" : "#E8E8F0";
+                e.currentTarget.style.borderColor = selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "#E8E8F0";
               }}
+              title={
+                PRO_ONLY_FEATURES.includes(feature) ? "Pro plan feature" :
+                STANDARD_OR_PRO_FEATURES.includes(feature) ? "Standard or Pro plan feature" :
+                ""
+              }
             >
               <span style={{ fontSize: 14 }}>
                 {selectedFeatures.includes(feature) ? "✓" : "○"}
               </span>
               <span>{feature}</span>
+              {PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#D97706", marginLeft: "auto" }}>PRO</span>}
+              {STANDARD_OR_PRO_FEATURES.includes(feature) && !PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#6B3FE7", marginLeft: "auto" }}>STD+</span>}
             </button>
           ))}
         </div>
@@ -819,12 +1011,21 @@ export default function BusmoOnboarding() {
           // Get category label from ID
           const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || 'Retail Shop';
           
-          // Determine recommended plan based on selected features
-          const hasAdvancedFeatures = selectedFeatures?.some((f: string) => 
-            ["Multi-branch Support", "Production Tracking", "E-commerce Storefront", "Payroll Management"].includes(f)
-          );
+          // Determine recommended plan based on selected features using new logic
+          const hasProFeatures = selectedFeatures?.some((f: string) => PRO_ONLY_FEATURES.includes(f));
+          const hasStandardOrProFeatures = selectedFeatures?.some((f: string) => STANDARD_OR_PRO_FEATURES.includes(f));
           const hasManyFeatures = (selectedFeatures?.length ?? 0) >= 8;
-          const recommendedPlan = (hasAdvancedFeatures || hasManyFeatures) ? 'standard' : 'starter';
+          
+          let recommendedPlan = 'starter';
+          let recommendedPlanReason = 'The Starter plan covers all your selected features perfectly.';
+          
+          if (hasProFeatures) {
+            recommendedPlan = 'pro';
+            recommendedPlanReason = 'Your selected features require advanced capabilities available in the Pro plan.';
+          } else if (hasStandardOrProFeatures || hasManyFeatures) {
+            recommendedPlan = 'standard';
+            recommendedPlanReason = 'Your selected features require advanced capabilities available in the Standard plan.';
+          }
           
           // Create business analysis from manual selections
           const manualAnalysis = {
@@ -835,9 +1036,7 @@ export default function BusmoOnboarding() {
             recommendedCategories: [categoryLabel, 'General'],
             recommendedFeatures: selectedFeatures || ['Sales Recording', 'Inventory Tracking', 'Staff Management'],
             recommendedPlan: recommendedPlan,
-            recommendedPlanReason: recommendedPlan === 'standard' 
-              ? 'Your selected features require advanced capabilities available in the Standard plan.'
-              : 'The Starter plan covers all your selected features perfectly.',
+            recommendedPlanReason: recommendedPlanReason,
             teamSizeEstimate: 'solo',
             complexityScore: (selectedFeatures?.length ?? 0) >= 8 ? 6 : 3
           };

@@ -1,10 +1,14 @@
 const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || 'sk-27af2a883f5c4aca8f08ff33a4418d1d';
-const BASE_URL = 'https://dashscope-intl.aliyuncs.com/api/v1';
+// Use Google GenAI instead of Qwen
+const GOOGLE_GENAI_API_KEY = process.env.GOOGLE_GENAI_API_KEY;
+const genAI = new GoogleGenerativeAI(GOOGLE_GENAI_API_KEY);
+const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
+const visionModel = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
 
 /**
- * Parse user intent from text message using Qwen
+ * Parse user intent from text message using Google GenAI
  * Handles: add_product, record_sale, report, unknown
  */
 async function parseIntent(textMessage) {
@@ -27,47 +31,25 @@ Rules:
 - Handle mixed languages (English + local languages)
 - If unsure, return intent: "unknown"`;
 
-    const response = await axios.post(
-      `${BASE_URL}/services/aigc/text-generation/generation`,
-      {
-        model: 'qwen-max',
-        input: {
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: textMessage }
-          ]
-        },
-        parameters: {
-          result_format: 'message',
-          max_tokens: 512,
-          temperature: 0.3
-        }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000
-      }
-    );
-
-    const content = response.data.output.text.trim();
+    const prompt = `${systemPrompt}\n\nUser message: ${textMessage}`;
+    const response = await model.generateContent(prompt);
+    const content = response.response.text().trim();
+    
     // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
     const json = JSON.parse(jsonStr);
     
-    console.log('✅ Qwen Intent Parsed:', json);
+    console.log('✅ Google GenAI Intent Parsed:', json);
     return json;
   } catch (err) {
-    console.error('❌ Qwen intent parsing error:', err.message);
+    console.error('❌ Google GenAI intent parsing error:', err.message);
     return { intent: 'unknown', data: {} };
   }
 }
 
 /**
- * Parse product details from image using Qwen-VL (Vision Language)
+ * Parse product details from image using Google GenAI Vision
  */
 async function parseProductFromImage(imageUrl, caption) {
   try {
@@ -87,46 +69,32 @@ Rules:
 - confidence is how sure you are about the product name (0-100)
 - search_query should be simple and in English for best Pexels results`;
 
-    // Use Qwen-VL for image analysis
-    const response = await axios.post(
-      `${BASE_URL}/services/aigc/multimodal-generation/generation`,
+    // Use Google GenAI Vision for image analysis
+    const prompt = `${systemPrompt}\n\nCaption from seller: "${caption}". Analyse this product image and extract product details.`;
+    
+    // Fetch image and convert to base64
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const base64Image = Buffer.from(imageResponse.data).toString('base64');
+    
+    const response = await visionModel.generateContent([
       {
-        model: 'qwen-vl-max',
-        input: {
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'image', image: imageUrl },
-                { type: 'text', text: `Caption from seller: "${caption}". Analyse this product image and extract product details.` }
-              ]
-            }
-          ]
-        },
-        parameters: {
-          result_format: 'message',
-          max_tokens: 512,
-          temperature: 0.3
+        inlineData: {
+          data: base64Image,
+          mimeType: 'image/jpeg'
         }
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 60000
-      }
-    );
+      prompt
+    ]);
 
-    const content = response.data.output.text.trim();
+    const content = response.response.text().trim();
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : content;
     const json = JSON.parse(jsonStr);
     
-    console.log('✅ Qwen-VL Product Parsed:', json);
+    console.log('✅ Google GenAI Vision Product Parsed:', json);
     return json;
   } catch (err) {
-    console.error('❌ Qwen-VL image analysis error:', err.message);
+    console.error('❌ Google GenAI Vision image analysis error:', err.message);
     return {
       product_name: null,
       price: null,
@@ -138,7 +106,7 @@ Rules:
 }
 
 /**
- * Generate sale confirmation message with AI enhancement
+ * Generate sale confirmation message with Google GenAI
  */
 async function generateSaleConfirmation(saleData) {
   try {
@@ -150,32 +118,8 @@ Sale details:
 
 Return ONLY the confirmation message (2-3 sentences max). Make it celebratory and motivational!`;
 
-    const response = await axios.post(
-      `${BASE_URL}/services/aigc/text-generation/generation`,
-      {
-        model: 'qwen-plus',
-        input: {
-          messages: [
-            { role: 'system', content: 'You are a friendly, motivational business assistant for African entrepreneurs.' },
-            { role: 'user', content: prompt }
-          ]
-        },
-        parameters: {
-          result_format: 'message',
-          max_tokens: 200,
-          temperature: 0.7
-        }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000
-      }
-    );
-
-    return response.data.output.text.trim();
+    const response = await model.generateContent(prompt);
+    return response.response.text().trim();
   } catch (err) {
     // Fallback to simple confirmation
     return `✅ Sale Recorded!\n\n📦 Product: ${saleData.name || 'Item'}\n🔢 Quantity: ${saleData.quantity || 1}\n💰 Amount: ₦${saleData.price || 0}\n\nKeep it up! 💪`;
@@ -183,7 +127,7 @@ Return ONLY the confirmation message (2-3 sentences max). Make it celebratory an
 }
 
 /**
- * Generate product addition confirmation with AI enhancement
+ * Generate product addition confirmation with Google GenAI
  */
 async function generateProductConfirmation(productData) {
   try {
@@ -195,32 +139,8 @@ Product details:
 
 Return ONLY the confirmation message (2-3 sentences max). Make it exciting!`;
 
-    const response = await axios.post(
-      `${BASE_URL}/services/aigc/text-generation/generation`,
-      {
-        model: 'qwen-plus',
-        input: {
-          messages: [
-            { role: 'system', content: 'You are a friendly, motivational business assistant for African entrepreneurs.' },
-            { role: 'user', content: prompt }
-          ]
-        },
-        parameters: {
-          result_format: 'message',
-          max_tokens: 200,
-          temperature: 0.7
-        }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000
-      }
-    );
-
-    return response.data.output.text.trim();
+    const response = await model.generateContent(prompt);
+    return response.response.text().trim();
   } catch (err) {
     // Fallback to simple confirmation
     return `🎉 Product is now live on Busmo marketplace!\n\n📦 ${productData.name || 'Product'}\n💰 ₦${productData.price || 0}\n\nBuyers can now discover and purchase your product! 🚀`;

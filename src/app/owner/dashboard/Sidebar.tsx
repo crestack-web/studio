@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
-import { NAV_SECTIONS } from './navItems';
+import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
 import type { PageId } from './index';
 import { MoIcon, NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
@@ -17,10 +17,13 @@ export function Sidebar() {
   } = useApp();
   const { t } = useTranslation();
   const [staffCount, setStaffCount] = useState(0);
+  const [userCategory, setUserCategory] = useState<string | null>(null);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [userPlan, setUserPlan] = useState<string>('starter');
 
-  // Load staff count from Firestore
+  // Load staff count, category, features, and plan from Firestore
   useEffect(() => {
-    const loadStaffCount = async () => {
+    const loadUserData = async () => {
       try {
         const { auth, firestore } = initializeFirebase();
         const currentUserId = auth.currentUser?.uid || '';
@@ -29,9 +32,16 @@ export function Sidebar() {
           return;
         }
 
-        // Get owner's business ID
+        // Get owner's business ID and user data
         const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
         const businessId = ownerDoc.data()?.businessId || 'default';
+        const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
+        const features = ownerDoc.data()?.selectedFeatures || [];
+        const plan = ownerDoc.data()?.plan || 'starter';
+        
+        setUserCategory(category.toLowerCase());
+        setSelectedFeatures(Array.isArray(features) ? features : []);
+        setUserPlan(plan);
 
         // Load staff from Firestore
         const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
@@ -45,7 +55,7 @@ export function Sidebar() {
 
         setStaffCount(activeStaffCount);
       } catch (error) {
-        console.error('Error loading staff count:', error);
+        console.error('Error loading user data:', error);
         // Fallback to localStorage
         const savedStaff = localStorage.getItem('staff-members');
         if (savedStaff) {
@@ -59,7 +69,7 @@ export function Sidebar() {
       }
     };
 
-    loadStaffCount();
+    loadUserData();
   }, []);
 
   // Detect mobile device
@@ -93,6 +103,46 @@ export function Sidebar() {
     return map[key] || key;
   };
 
+  // Check if a nav item should be visible based on user's category, features, and plan
+  const isNavItemVisible = (itemId: string): boolean => {
+    const requirements = NAV_ITEM_REQUIREMENTS[itemId];
+    if (!requirements) return true; // No restrictions
+
+    // Check plan requirements
+    if (requirements.requiredPlan) {
+      const planHierarchy = { 'starter': 1, 'standard': 2, 'pro': 3 };
+      const userPlanLevel = planHierarchy[userPlan as keyof typeof planHierarchy] || 1;
+      const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
+      if (userPlanLevel < requiredPlanLevel) return false;
+    }
+
+    // Check category requirements
+    if (requirements.requiredCategories && userCategory) {
+      if (!requirements.requiredCategories.includes(userCategory)) return false;
+    }
+
+    // Check category exclusions
+    if (requirements.excludedCategories && userCategory) {
+      if (requirements.excludedCategories.includes(userCategory)) return false;
+    }
+
+    // Check feature requirements
+    if (requirements.requiredFeatures && selectedFeatures.length > 0) {
+      const hasRequiredFeature = requirements.requiredFeatures.some(feature => 
+        selectedFeatures.includes(feature)
+      );
+      if (!hasRequiredFeature) return false;
+    }
+
+    return true;
+  };
+
+  // Filter nav sections based on visibility
+  const filteredNavSections = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => isNavItemVisible(item.id))
+  })).filter(section => section.items.length > 0);
+
   const handleNavigate = (pageId: PageId) => {
     // On mobile, navigate to mo-mobile instead of mo
     if (isMobile && pageId === 'mo') {
@@ -125,7 +175,7 @@ export function Sidebar() {
         </div>
 
         <div className={styles.scroll}>
-          {NAV_SECTIONS.map(section => (
+          {filteredNavSections.map(section => (
             <div key={section.label}>
               <div className={styles.sectionWrap}>
                 <span className={styles.sectionLabel} suppressHydrationWarning>

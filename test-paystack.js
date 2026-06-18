@@ -123,9 +123,9 @@ async function testAuthenticatedRequest() {
   });
 }
 
-// Test 3: Test transaction initialization (requires secret key)
+// Test 3: Test transaction initialization with Naira pricing (requires secret key)
 async function testTransactionInitialization() {
-  console.log('\n💳 Test 3: Transaction Initialization');
+  console.log('\n💳 Test 3: Transaction Initialization (Naira Pricing)');
   
   if (!PAYSTACK_SECRET_KEY) {
     console.log('⚠️  PAYSTACK_SECRET_KEY not found - skipping');
@@ -135,10 +135,14 @@ async function testTransactionInitialization() {
   return new Promise((resolve, reject) => {
     const testData = {
       email: 'test@example.com',
-      amount: 1000, // 10 Naira in kobo
+      amount: 500000, // ₦5,000 in kobo (5000 * 100)
+      currency: 'NGN',
       metadata: {
         test: true,
-        userId: 'test_user_123'
+        userId: 'test_user_123',
+        plan: 'starter',
+        billing: 'monthly',
+        payment_type: 'monthly_subscription'
       }
     };
 
@@ -165,6 +169,8 @@ async function testTransactionInitialization() {
           const response = JSON.parse(data);
           if (response.status) {
             console.log('✅ Transaction initialization successful');
+            console.log(`   Amount: ₦${(testData.amount / 100).toLocaleString()}`);
+            console.log(`   Currency: ${testData.currency}`);
             console.log(`   Reference: ${response.data.reference}`);
             console.log(`   Access Code: ${response.data.access_code}`);
             console.log(`   Authorization URL: ${response.data.authorization_url}`);
@@ -191,24 +197,99 @@ async function testTransactionInitialization() {
   });
 }
 
+// Test 4: Test yearly pricing
+async function testYearlyPricing() {
+  console.log('\n💳 Test 4: Yearly Pricing (₦50,000)');
+  
+  if (!PAYSTACK_SECRET_KEY) {
+    console.log('⚠️  PAYSTACK_SECRET_KEY not found - skipping');
+    return null;
+  }
+  
+  return new Promise((resolve, reject) => {
+    const testData = {
+      email: 'test@example.com',
+      amount: 5000000, // ₦50,000 in kobo (50000 * 100)
+      currency: 'NGN',
+      metadata: {
+        test: true,
+        userId: 'test_user_123',
+        plan: 'starter',
+        billing: 'yearly',
+        payment_type: 'yearly_subscription'
+      }
+    };
+
+    const options = {
+      hostname: 'api.paystack.co',
+      port: 443,
+      path: '/transaction/initialize',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          if (response.status) {
+            console.log('✅ Yearly pricing initialization successful');
+            console.log(`   Amount: ₦${(testData.amount / 100).toLocaleString()}`);
+            console.log(`   Currency: ${testData.currency}`);
+            console.log(`   Billing: ${testData.metadata.billing}`);
+            console.log(`   Reference: ${response.data.reference}`);
+            resolve(true);
+          } else {
+            console.log('❌ Yearly pricing initialization failed');
+            console.log(`   Message: ${response.message}`);
+            resolve(false);
+          }
+        } catch (error) {
+          console.error('❌ Error parsing response:', error.message);
+          resolve(false);
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      console.error('❌ Yearly pricing error:', error.message);
+      resolve(false);
+    });
+
+    req.write(JSON.stringify(testData));
+    req.end();
+  });
+}
+
 // Run all tests
 async function runTests() {
   const connectivityTest = await testPaystackConnectivity();
   const authTest = await testAuthenticatedRequest();
   const initTest = await testTransactionInitialization();
+  const yearlyTest = await testYearlyPricing();
   
   console.log('\n📊 Test Results Summary:');
   console.log(`   Basic Connectivity: ${connectivityTest ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`   Authenticated Request: ${authTest === null ? '⏭️  SKIPPED' : authTest ? '✅ PASS' : '❌ FAIL'}`);
-  console.log(`   Transaction Init: ${initTest === null ? '⏭️  SKIPPED' : initTest ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`   Monthly Pricing (₦5,000): ${initTest === null ? '⏭️  SKIPPED' : initTest ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`   Yearly Pricing (₦50,000): ${yearlyTest === null ? '⏭️  SKIPPED' : yearlyTest ? '✅ PASS' : '❌ FAIL'}`);
   
   if (connectivityTest) {
     console.log('\n✅ Paystack API is reachable and responding');
     if (authTest === null) {
       console.log('⚠️  Add PAYSTACK_SECRET_KEY to .env to test authenticated operations');
-    } else if (authTest && initTest) {
+    } else if (authTest && initTest && yearlyTest) {
       console.log('🎉 All Paystack API tests passed!');
-      console.log('The Paystack integration is fully functional.');
+      console.log('The Paystack integration with Naira pricing is fully functional.');
     }
   } else {
     console.log('\n❌ Paystack API is not reachable');
