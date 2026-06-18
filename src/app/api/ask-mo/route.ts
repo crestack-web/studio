@@ -1,16 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getGoogleAIService } from '@/services/ai/google-ai-service';
+import { getGoogleAIService, AIStreamResponse } from '@/services/ai/google-ai-service';
 import { validateAIRequest, checkRateLimit, checkAbuse, getClientIP, validateInput, sanitizeBusinessContext } from '@/lib/ai-security';
 import { aiRequestQueue } from '@/lib/ai-queue';
 import { AskMOErrorFactory, ErrorSource, ErrorCode, logError, errorToResponse } from '@/lib/ask-mo-errors';
 
-// Development mode flag
-const ASK_MO_DEV_MODE = process.env.ASK_MO_DEV_MODE === 'true';
+// Development mode flag - only allowed in non-production environments
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const ASK_MO_DEV_MODE = process.env.ASK_MO_DEV_MODE === 'true' && isDevelopment;
+
+// Sanitized logging helper
+function safeLog(message: string, data?: any) {
+  if (isDevelopment) {
+    console.log(message, data);
+  } else {
+    // In production, log only non-sensitive data
+    const sanitized = data ? {
+      ...data,
+      projectId: data.projectId ? '[REDACTED]' : undefined,
+      clientEmail: data.clientEmail ? '[REDACTED]' : undefined,
+      privateKey: data.privateKey ? '[REDACTED]' : undefined,
+      businessId: data.businessId ? '[REDACTED]' : undefined,
+      userId: data.userId ? '[REDACTED]' : undefined,
+      email: data.email ? '[REDACTED]' : undefined,
+      totalSales: data.totalSales ? '[REDACTED]' : undefined,
+      totalProfit: data.totalProfit ? '[REDACTED]' : undefined,
+      cashBalance: data.cashBalance ? '[REDACTED]' : undefined,
+    } : {};
+    console.log(message, sanitized);
+  }
+}
 
 console.log('🚀 [Ask MO API] Initialization');
 console.log('🔧 [Ask MO API] Development Mode:', ASK_MO_DEV_MODE ? 'ENABLED' : 'DISABLED');
+console.log('🌍 [Ask MO API] Environment:', process.env.NODE_ENV || 'unknown');
 
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
@@ -22,7 +46,7 @@ const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n')
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 const googleApiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
 
-console.log('🔍 [Ask MO API] Firebase Admin Environment Check:', {
+safeLog('🔍 [Ask MO API] Firebase Admin Environment Check:', {
   hasProjectId: !!projectId,
   hasPrivateKey: !!privateKey,
   hasClientEmail: !!clientEmail,
@@ -31,7 +55,7 @@ console.log('🔍 [Ask MO API] Firebase Admin Environment Check:', {
   privateKeyLength: privateKey?.length || 0
 });
 
-console.log('🔍 [Ask MO API] Google AI Environment Check:', {
+safeLog('🔍 [Ask MO API] Google AI Environment Check:', {
   hasGoogleApiKey: !!googleApiKey,
   apiKeyLength: googleApiKey?.length || 0,
   isPlaceholder: googleApiKey === 'your-google-ai-api-key' || googleApiKey === 'your-api-key'
@@ -384,10 +408,42 @@ async function saveSaleToFirestore(businessId: string, saleData: any) {
 async function getBusinessContext(businessId: string) {
   const contextStartTime = Date.now();
   console.log('📊 [Ask MO API] Starting business context fetch for:', businessId);
-  
+
   if (!db) {
+    console.warn('⚠️ [Ask MO API] Database not initialized, returning fallback context');
+    // Return fallback context instead of crashing
     return {
-      error: 'Database not initialized',
+      businessName: 'Your Business',
+      businessCategory: 'General Retail',
+      country: 'Nigeria',
+      city: '',
+      marketPresence: false,
+      hasStorefront: false,
+      staffCount: 0,
+      staffMembers: [],
+      totalSales: 0,
+      todaySales: 0,
+      weekSales: 0,
+      monthSales: 0,
+      totalProfit: 0,
+      todayProfit: 0,
+      transactionCount: 0,
+      averageTransactionValue: 0,
+      totalExpenses: 0,
+      monthExpenses: 0,
+      topExpenseCategory: 'N/A',
+      cashBalance: 0,
+      dailyBurnRate: 0,
+      cashRunway: 0,
+      totalProducts: 0,
+      totalInventoryValue: 0,
+      outOfStockProducts: [],
+      lowStockProducts: [],
+      deadStockProducts: [],
+      topProducts: [],
+      recentSales: [],
+      queryTimings: { profile: -1, staff: -1, sales: -1, expenses: -1, products: -1 },
+      partialFailure: true,
     };
   }
 
@@ -467,17 +523,20 @@ async function getBusinessContext(businessId: string) {
       context.queryTimings.profile = -1; // Error indicator
     }
 
+    // Shared maps for cross-query data (dead stock calculation)
+    const productSales = new Map<string, Date>();
+
     // Fetch Staff
     try {
       const staffStart = Date.now();
       const staffQuery = db.collection('businesses').doc(businessId).collection('staff')
         .where('active', '==', true)
         .limit(50);
-      
+
       const staffSnapshot = await staffQuery.get();
       context.queryTimings.staff = Date.now() - staffStart;
       context.staffCount = staffSnapshot.size;
-      
+
       staffSnapshot.forEach(doc => {
         const data = doc.data();
         context.staffMembers.push({
@@ -496,36 +555,35 @@ async function getBusinessContext(businessId: string) {
       const salesStart = Date.now();
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
         .orderBy('createdAt', 'desc')
         .limit(100);
-      
+
       const salesSnapshot = await salesQuery.get();
       context.queryTimings.sales = Date.now() - salesStart;
-      
+
       const productRevenue = new Map<string, { name: string; revenue: number; quantity: number; lastSold?: Date }>();
-      const productSales = new Map<string, Date>();
-      
+
       salesSnapshot.forEach(doc => {
         const data = doc.data();
         const saleDate = data.createdAt?.toDate() || new Date();
         const isToday = saleDate >= today;
-        
+
         const total = data.total || 0;
         context.totalSales += total;
         context.totalProfit += data.profit || 0;
         context.transactionCount += 1;
-        
+
         if (isToday) {
           context.todaySales += total;
           context.todayProfit += data.profit || 0;
         }
-        
+
         // Track product performance and last sold date
         if (data.products && Array.isArray(data.products)) {
           data.products.forEach((p: any) => {
@@ -542,7 +600,7 @@ async function getBusinessContext(businessId: string) {
             productSales.set(p.productId || p.name, saleDate);
           });
         }
-        
+
         // Recent sales (last 5)
         if (context.recentSales.length < 5) {
           context.recentSales.push({
@@ -552,11 +610,11 @@ async function getBusinessContext(businessId: string) {
           });
         }
       });
-      
+
       context.topProducts = Array.from(productRevenue.values())
         .sort((a: any, b: any) => b.revenue - a.revenue)
         .slice(0, 5);
-      
+
       context.weekSales = context.totalSales * 0.23; // Approximate
       context.monthSales = context.totalSales;
       context.averageTransactionValue = context.transactionCount > 0 
@@ -629,11 +687,10 @@ async function getBusinessContext(businessId: string) {
       const productsSnapshot = await productsQuery.get();
       context.queryTimings.products = Date.now() - productsStart;
       context.totalProducts = productsSnapshot.size;
-      
+
       const now = new Date();
-      
-      // Need to re-declare productSales here since it was in the sales try block
-      const productSales = new Map<string, Date>();
+
+      // productSales is shared from sales block for dead stock calculation
       
       productsSnapshot.forEach(doc => {
         const data = doc.data();
@@ -696,7 +753,40 @@ async function getBusinessContext(businessId: string) {
     return context;
   } catch (error) {
     console.error('❌ [Ask MO API] Error fetching business context:', error);
-    return { error: 'Failed to fetch business data' };
+    // Return fallback context instead of crashing - allow AI to continue with minimal data
+    return {
+      businessName: 'Your Business',
+      businessCategory: 'General Retail',
+      country: 'Nigeria',
+      city: '',
+      marketPresence: false,
+      hasStorefront: false,
+      staffCount: 0,
+      staffMembers: [],
+      totalSales: 0,
+      todaySales: 0,
+      weekSales: 0,
+      monthSales: 0,
+      totalProfit: 0,
+      todayProfit: 0,
+      transactionCount: 0,
+      averageTransactionValue: 0,
+      totalExpenses: 0,
+      monthExpenses: 0,
+      topExpenseCategory: 'N/A',
+      cashBalance: 0,
+      dailyBurnRate: 0,
+      cashRunway: 0,
+      totalProducts: 0,
+      totalInventoryValue: 0,
+      outOfStockProducts: [],
+      lowStockProducts: [],
+      deadStockProducts: [],
+      topProducts: [],
+      recentSales: [],
+      queryTimings: { profile: -1, staff: -1, sales: -1, expenses: -1, products: -1 },
+      partialFailure: true,
+    };
   }
 }
 
@@ -854,17 +944,17 @@ ${businessContext.staffMembers?.length > 0 ? businessContext.staffMembers.map((s
 • Total Products: ${businessContext.totalProducts || 0}
 • Total Inventory Value: ₦${(businessContext.totalInventoryValue || 0).toLocaleString()}
 • ⚠️ OUT OF STOCK: ${businessContext.outOfStockProducts?.length || 0} products
-${businessContext.outOfStockProducts?.length > 0 ? businessContext.outOfStockProducts.map((p: any) => `   - ${p}`).join('\n') : '   None'}
+${businessContext.outOfStockProducts?.length > 0 ? businessContext.outOfStockProducts.slice(0, 5).map((p: any) => `   - ${p}`).join('\n') : '   None'}
 • 🔴 LOW STOCK: ${businessContext.lowStockProducts?.length || 0} products
-${businessContext.lowStockProducts?.length > 0 ? businessContext.lowStockProducts.map((p: any) => `   - ${p.name}: ${p.stock} left (threshold: ${p.threshold})`).join('\n') : '   None'}
+${businessContext.lowStockProducts?.length > 0 ? businessContext.lowStockProducts.slice(0, 5).map((p: any) => `   - ${p.name}: ${p.stock} left (threshold: ${p.threshold})`).join('\n') : '   None'}
 • 💀 DEAD STOCK: ${businessContext.deadStockProducts?.length || 0} products (not sold in 30+ days)
 ${businessContext.deadStockProducts?.length > 0 ? businessContext.deadStockProducts.slice(0, 5).map((p: any) => `   - ${p.name}: ${p.stock} units, last sold ${p.lastSold} (${p.daysSinceSale} days ago), value: ₦${(p.value || 0).toLocaleString()}`).join('\n') : '   None'}
 
 🏆 TOP PRODUCTS (by revenue):
-${businessContext.topProducts?.length > 0 ? businessContext.topProducts.map((p: any, i: number) => `${i + 1}. ${p.name}: ₦${(p.revenue || 0).toLocaleString()} (${p.quantity} units)`).join('\n') : 'No sales data'}
+${businessContext.topProducts?.length > 0 ? businessContext.topProducts.slice(0, 5).map((p: any, i: number) => `${i + 1}. ${p.name}: ₦${(p.revenue || 0).toLocaleString()} (${p.quantity} units)`).join('\n') : 'No sales data'}
 
 📈 RECENT SALES:
-${businessContext.recentSales?.length > 0 ? businessContext.recentSales.map((s: any) => `• ${s.product} - ₦${(s.amount || 0).toLocaleString()} (${s.date})`).join('\n') : 'No recent sales'}
+${businessContext.recentSales?.length > 0 ? businessContext.recentSales.slice(0, 5).map((s: any) => `• ${s.product} - ₦${(s.amount || 0).toLocaleString()} (${s.date})`).join('\n') : 'No recent sales'}
 
 ═══════════════════════════════════════════
 
@@ -1055,26 +1145,34 @@ export async function POST(req: NextRequest) {
     
     let authenticatedUserId: string;
     let authenticatedBusinessId: string;
-    
-    // Skip authentication if development mode is enabled OR database is not initialized
-    if (ASK_MO_DEV_MODE || !db || !adminInitialized) {
-      console.log('⚠️ [Ask MO API] Using development mode bypass', {
-        reason: ASK_MO_DEV_MODE ? 'DEV_MODE_ENABLED' : (!db ? 'DB_NOT_INITIALIZED' : 'ADMIN_NOT_INITIALIZED'),
-        devMode: ASK_MO_DEV_MODE,
+
+    // In production, Firebase Admin must be initialized for security
+    if (!isDevelopment && (!db || !adminInitialized)) {
+      console.error('❌ [Ask MO API] Firebase Admin not initialized in production', {
         dbInitialized: !!db,
-        adminInitialized
+        adminInitialized,
+        environment: process.env.NODE_ENV
       });
-      
+      return errorToResponse(AskMOErrorFactory.databaseNotInitialized());
+    }
+
+    // Skip authentication only in development mode with explicit flag
+    if (ASK_MO_DEV_MODE) {
+      console.log('⚠️ [Ask MO API] Using development mode bypass', {
+        devMode: ASK_MO_DEV_MODE,
+        environment: process.env.NODE_ENV
+      });
+
       // Proceed without authentication for development/testing
       const { userId, devUserId, businessId: devBusinessId } = body;
-      
+
       console.log('🔍 [Ask MO API] Development mode auth check:', {
         hasUserId: !!userId,
         hasDevUserId: !!devUserId,
         hasBusinessId: !!businessId,
         hasDevBusinessId: !!devBusinessId,
       });
-      
+
       if (!devUserId && !userId) {
         console.error('❌ [Ask MO API] No user ID provided in development mode');
         return errorToResponse(AskMOErrorFactory.invalidInput('User ID is required'));
@@ -1083,7 +1181,7 @@ export async function POST(req: NextRequest) {
         console.error('❌ [Ask MO API] No business ID provided in development mode');
         return errorToResponse(AskMOErrorFactory.invalidInput('Business ID is required'));
       }
-      
+
       authenticatedUserId = devUserId || userId;
       authenticatedBusinessId = devBusinessId || businessId;
       timings.authentication = Date.now() - authStart;
@@ -1362,22 +1460,42 @@ export async function POST(req: NextRequest) {
       
       console.log('📝 [Ask MO API] System prompt length:', systemPrompt.length, { time: timings.systemPromptBuild });
       console.log('📝 [Ask MO API] Message length:', message?.length || 0);
-      
-      // Use streaming for better UX
+
+      // Use streaming for better UX with timeout protection
       const aiStartTime = Date.now();
+      const aiTimeout = 60000; // 60 second timeout for AI generation
+
       console.log('📡 [Ask MO API] Starting AI generation', {
         provider: 'Google Gen AI',
         model: 'gemini-pro-latest',
         promptLength: (message || '').length,
         contextLength: systemPrompt.length,
         businessDataSize: JSON.stringify(businessContext).length,
+        timeout: aiTimeout,
       });
-      
-      const streamResponse = await aiService.generateStream({
-        prompt: message || 'Analyse this business image and provide insights based on my business data above.',
-        context: systemPrompt,
-        businessData: businessContext,
-      });
+
+      let streamResponse;
+      try {
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('AI generation timeout')), aiTimeout);
+        });
+
+        streamResponse = await Promise.race([
+          aiService.generateStream({
+            prompt: message || 'Analyse this business image and provide insights based on my business data above.',
+            context: systemPrompt,
+            businessData: businessContext,
+          }),
+          timeoutPromise,
+        ]) as AIStreamResponse;
+      } catch (error: any) {
+        if (error.message === 'AI generation timeout') {
+          console.error('❌ [Ask MO API] AI generation timeout');
+          aiRequestQueue.failRequest(requestId, 'AI generation timeout');
+          return errorToResponse(AskMOErrorFactory.timeout({ timeout: aiTimeout }));
+        }
+        throw error;
+      }
       
       const aiInitTime = Date.now() - aiStartTime;
       timings.aiInit = aiInitTime;
@@ -1396,29 +1514,29 @@ export async function POST(req: NextRequest) {
             const reader = streamResponse.stream.getReader();
             const streamStartTime = Date.now();
             let chunkCount = 0;
-            
+
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
-              
+
               // value is already a string from Google AI service
               if (value) {
                 totalChars += value.length;
                 chunkCount++;
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: value })}\n\n`));
-                
+
                 // Log every 10 chunks for debugging
                 if (chunkCount % 10 === 0) {
                   console.log(`📡 [Ask MO API] Streaming progress: ${chunkCount} chunks, ${totalChars} chars`);
                 }
               }
             }
-            
+
             const streamDuration = Date.now() - streamStartTime;
             const totalRequestTime = Date.now() - requestStartTime;
             timings.streaming = streamDuration;
             timings.total = totalRequestTime;
-            
+
             console.log('✅ [Ask MO API] Streaming completed', {
               totalChars,
               chunkCount,
@@ -1429,9 +1547,12 @@ export async function POST(req: NextRequest) {
               model: 'gemini-pro-latest',
               timings,
             });
-            
+
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
             controller.close();
+
+            // Complete queue request only after stream successfully finishes
+            aiRequestQueue.completeRequest(requestId);
           } catch (error) {
             console.error('❌ [Ask MO API] Streaming error:', {
               error: error instanceof Error ? error.message : 'Unknown error',
@@ -1441,12 +1562,13 @@ export async function POST(req: NextRequest) {
             const err = AskMOErrorFactory.streamInterrupted({ error: error instanceof Error ? error.message : 'Unknown error' });
             logError(err, 'Streaming');
             controller.error(error);
+
+            // Fail queue request on streaming error
+            aiRequestQueue.failRequest(requestId, error instanceof Error ? error.message : 'Unknown streaming error');
           }
         },
       });
-      
-      aiRequestQueue.completeRequest(requestId);
-      
+
       return new NextResponse(stream, {
         headers: {
           'Content-Type': 'text/event-stream',

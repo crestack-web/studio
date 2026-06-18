@@ -31,6 +31,7 @@ interface Coupon {
 interface Business {
   currency?: string;
   plan: 'starter' | 'standard' | 'pro';
+  country?: string;
 }
 
 function SubscribePageContent() {
@@ -113,32 +114,26 @@ function SubscribePageContent() {
       // You may want to update this import if you move getFunctionUrl
       const { getFunctionUrl } = await import('@/lib/api');
       const initializePaymentUrl = getFunctionUrl('initializePayment');
-      const callbackUrl = `${window.location.origin}/market/order-confirmation?source=subscription`;
 
       const response = await fetch(initializePaymentUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'subscription',
-          payload: {
-            planId: planId,
-            billingCycle: billingCycle,
-            couponCode: appliedCoupon?.code,
-          },
+          plan: planId,
           userId: authUser.uid,
-          businessId: businessId,
           email: userProfile.email,
           amount: finalAmount,
-          callback_url: callbackUrl,
+          currency: businessData?.currency,
+          countryCode: businessData?.country || 'NG',
         }),
       });
 
       const paymentData = await response.json();
 
       const authorizationUrl =
-        paymentData?.authorization_url || paymentData?.data?.authorization_url;
+        paymentData?.data?.authorization_url || paymentData?.authorization_url;
       const isSuccess =
-        paymentData?.success === true || paymentData?.status === true;
+        paymentData?.status === 'success' || paymentData?.success === true;
 
       if (response.ok && isSuccess && authorizationUrl) {
         window.location.href = authorizationUrl;

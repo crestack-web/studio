@@ -13,8 +13,8 @@ const functions = getFunctions(app, 'us-central1');
 
 // A mapping of our internal function names to their proxied API paths.
 const functionPathMap: { [key: string]: string } = {
-  initializePayment: '/api/initializePayment',
-  verifyPayment: '/api/verifyPayment',
+  initializePayment: '/api/payments/initialize-subscription',
+  verifyPayment: '/api/payments/verify-subscription',
   fetchBankList: '/api/fetchBankList',
   verifyBankAccount: '/api/verifyBankAccount',
   sendAdminSignInLink: '/api/sendAdminSignInLink',

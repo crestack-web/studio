@@ -2,28 +2,34 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const TESTIMONIALS = [
   {
-    quote: '"For the first time, I can see my daily profit in seconds. No more counting cash and guessing. Busmo is my new business partner."',
-    biz: "Femi's Suya Spot, Lagos",
-  },
-  {
-    quote: '"I used to run out of my best-selling fabrics. Now, Busmo tells me when to restock. My customers are happier, and my sales are up."',
+    quote: '"Reduced stock shortages by 40%. Busmo\'s alerts tell me exactly when to restock before I run out. My customers are never disappointed anymore."',
     biz: "Aisha's Textiles, Abuja",
+    outcome: "40% fewer stock shortages",
   },
   {
-    quote: '"Managing expenses was a headache. With Busmo, I can see exactly where my money is going. It\'s simple, powerful, and built for people like me."',
-    biz: 'Everyday Needs Grocers, PH',
+    quote: '"Identified ₦50,000 in monthly losses I didn\'t know about. Busmo showed me exactly where my money was going. Now I\'m actually profitable."',
+    biz: "Femi's Suya Spot, Lagos",
+    outcome: "₦50,000 monthly savings",
   },
   {
-    quote: '"Ask Mo is like having a smart business advisor on my phone. I just ask "How is my business doing?" and get instant insights about my profit and inventory."',
+    quote: '"Increased sales by 35% in 3 months. Ask MO told me which products to promote and when. My revenue has never been better."',
     biz: "Chidi's Electronics, Kano",
+    outcome: "35% sales increase",
   },
   {
-    quote: '"I can finally track my cash flow in real-time. Busmo shows me when money comes in and goes out, so I never run into cash shortages anymore."',
+    quote: '"Cut accounting time from 4 hours to 15 minutes per week. I spend more time growing my business and less time on paperwork."',
     biz: "Mama Nkechi's Supermarket, Ibadan",
+    outcome: "94% time saved",
   },
   {
-    quote: '"My staff can now record sales from their phones. I see everything in my dashboard instantly. It\'s made managing my business so much easier."',
+    quote: '"Recovered ₦120,000 in unpaid customer credit. Busmo reminded me who owed money and when. My cash flow is finally stable."',
     biz: "Olu's Pharmacy, Lagos",
+    outcome: "₦120,000 recovered",
+  },
+  {
+    quote: '"Staff productivity increased by 50%. My team records sales instantly on their phones. No more lost receipts or missing data."',
+    biz: "Everyday Needs Grocers, PH",
+    outcome: "50% productivity boost",
   },
 ];
 
@@ -65,6 +71,7 @@ export const TestimonialsSection: React.FC = () => {
           <div key={i} className="testi-card">
             <div className="testi-stars">★★★★★</div>
             <div className="testi-quote">{t.quote}</div>
+            {t.outcome && <div className="testi-outcome">{t.outcome}</div>}
             <div className="testi-biz">{t.biz}</div>
           </div>
         ))}

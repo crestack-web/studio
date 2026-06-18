@@ -17,8 +17,8 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
         Built for African Business Owners
       </div>
       <h1>
-        Know Your Numbers.<br />
-        <em>Grow Your Business.</em>
+        Know Your Profit Every Day.<br />
+        <em>Track sales, expenses, inventory and profit in one simple platform built for African businesses.</em>
       </h1>
       <p>
         Busmo gives you instant profit clarity, smart forecasts, and AI-powered insights —

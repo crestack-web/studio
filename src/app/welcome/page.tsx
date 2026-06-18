@@ -9,6 +9,12 @@ import { MoSection } from './components/MoSection';
 import { FAQSection } from './components/FAQSection';
 import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
+import { InteractiveAskMODemo } from './components/InteractiveAskMODemo';
+import { HowBusmoWorks } from './components/HowBusmoWorks';
+import { IndustryUseCases } from './components/IndustryUseCases';
+import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { MobileAppShowcase } from './components/MobileAppShowcase';
+import { ProductScreenshots } from './components/ProductScreenshots';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -41,6 +47,9 @@ export default function WelcomePage() {
 
       {/* HERO */}
       <Hero onNavigate={handleNavigate} />
+
+      {/* INTERACTIVE ASK MO DEMO */}
+      <InteractiveAskMODemo />
 
       {/* WHO IS BUSMO FOR */}
       <section>
@@ -141,6 +150,15 @@ export default function WelcomePage() {
         </div>
       </section>
 
+      {/* HOW BUSMO WORKS */}
+      <HowBusmoWorks />
+
+      {/* PRODUCT SCREENSHOTS */}
+      <ProductScreenshots />
+
+      {/* INDUSTRY USE CASES */}
+      <IndustryUseCases />
+
       {/* SELL ONLINE / STOREFRONT */}
       <MarketSection onNavigate={handleNavigate} />
 
@@ -149,8 +167,8 @@ export default function WelcomePage() {
         <div className="max-w">
           <div className="section-head center">
             <div className="section-label">Why Busmo</div>
-            <h2 className="section-title">Not another <em>accounting app.</em></h2>
-            <p className="section-sub">Busmo is a decision-making tool built for the reality of your business — not for accountants.</p>
+            <h2 className="section-title">Everything you need to track and grow your business <em>without complicated accounting.</em></h2>
+            <p className="section-sub">Get the benefits of accounting software without the complexity. Built for business owners, not accountants.</p>
           </div>
           <div className="comparison-grid">
             <div className="cmp-card cmp-old">
@@ -179,11 +197,17 @@ export default function WelcomePage() {
         </div>
       </section>
 
+      {/* BEFORE VS AFTER COMPARISON */}
+      <BeforeAfterComparison />
+
       {/* MO AI MOCKUP */}
       <MoSection />
 
       {/* TESTIMONIALS */}
       <TestimonialsSection />
+
+      {/* MOBILE APP SHOWCASE */}
+      <MobileAppShowcase />
 
       {/* FAQ */}
       <FAQSection />

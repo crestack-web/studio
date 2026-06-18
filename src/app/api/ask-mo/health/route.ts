@@ -9,8 +9,35 @@ import { getAdminDb, isAdminInitialized } from '@/lib/firebase-admin';
 /**
  * GET /api/ask-mo/health
  * Health check endpoint for Ask MO pipeline
+ * In production, only returns basic health status
+ * Detailed diagnostics require admin authentication
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // In production, only return basic health status without diagnostics
+  if (isProduction) {
+    try {
+      const initialized = isAdminInitialized();
+      const db = getAdminDb();
+      const aiService = getGoogleAIService();
+      const aiHealth = await aiService.healthCheck();
+
+      const overallHealth = initialized && db && aiHealth;
+
+      return NextResponse.json({
+        healthy: overallHealth,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      return NextResponse.json({
+        healthy: false,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  // In development, return full diagnostics
   const healthCheck = {
     firebaseAdmin: false,
     firestore: false,

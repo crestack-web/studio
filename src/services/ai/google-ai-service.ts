@@ -32,6 +32,7 @@ export interface AIRequest {
   model?: string;
   stream?: boolean;
   enableFallback?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface AIResponse {
@@ -341,10 +342,10 @@ Important rules:
   // Generate streaming AI response with fallback support
   async generateStream(request: AIRequest): Promise<AIStreamResponse> {
     const requestId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const modelsToTry = request.enableFallback !== false 
-      ? [request.model || DEFAULT_MODEL, ...FALLBACK_MODELS] 
+    const modelsToTry = request.enableFallback !== false
+      ? [request.model || DEFAULT_MODEL, ...FALLBACK_MODELS]
       : [request.model || DEFAULT_MODEL];
-    
+
     console.log(`🚀 [GoogleAIService] AI Streaming Request`, { requestId });
     console.log(`🔄 [GoogleAIService] Models to try:`, modelsToTry);
     console.log(`📊 [GoogleAIService] Request details:`, {
@@ -353,15 +354,21 @@ Important rules:
       hasBusinessData: !!request.businessData,
       branchId: request.branchId || 'none',
       enableFallback: request.enableFallback !== false,
+      hasSignal: !!request.signal,
     });
+
+    // Check if request was already aborted
+    if (request.signal?.aborted) {
+      throw new DOMException('Request aborted', 'AbortError');
+    }
 
     for (let modelIndex = 0; modelIndex < modelsToTry.length; modelIndex++) {
       const currentModel = modelsToTry[modelIndex];
       const modelAttemptStart = Date.now();
-      
+
       try {
         console.log(`🎯 [GoogleAIService] Attempting model: ${currentModel} (${modelIndex + 1}/${modelsToTry.length})`);
-        
+
         this.validateRequest(request);
         await this.rateLimiter.wait();
 
@@ -378,19 +385,25 @@ Important rules:
         }
 
         const fullPrompt = `${systemPrompt}\n\n${businessDataStr ? `Business data:\n${businessDataStr}\n\n` : ''}User question: ${request.prompt}`;
-        
+
         // Detect and handle token overflow
         const finalPrompt = this.detectAndHandleTokenOverflow(fullPrompt);
-        
+
         console.log(`📝 [GoogleAIService] Prompt details for ${currentModel}:`, {
           systemPromptLength: systemPrompt.length,
           businessDataLength: businessDataStr.length,
           fullPromptLength: finalPrompt.length,
           wasTruncated: finalPrompt.length !== fullPrompt.length,
         });
-        
+
         const result = await this.retryWithBackoff(async () => {
           console.log(`🌐 [GoogleAIService] Calling Gemini API with model: ${currentModel}`);
+
+          // Check abort signal before API call
+          if (request.signal?.aborted) {
+            throw new DOMException('Request aborted', 'AbortError');
+          }
+
           const response = await model.generateContentStream(finalPrompt);
           return response.stream;
         }, MAX_RETRIES, RETRY_DELAY_MS, `model-${currentModel}`);
