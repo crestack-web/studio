@@ -19,7 +19,8 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
-functions/.env
+# Allow functions/.env for Firebase Functions deployment
+!functions/.env
 busmo-whatsapp/.env
 
 # Logs

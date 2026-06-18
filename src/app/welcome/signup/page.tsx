@@ -1429,7 +1429,7 @@ function isStepValid(step: number, data: FormState) {
     );
   }
   if (step === 2) {
-    return !!data.description.trim();
+    return !!data.selectedCategory && !!data.selectedFeatures && data.selectedFeatures.length > 0;
   }
   if (step === 3) {
     return !!data.businessAnalysis;
