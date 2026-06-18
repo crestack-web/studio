@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where, deleteDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import styles from './Statementpage.module.css';
 
@@ -273,6 +273,93 @@ export function StatementPage() {
   const stmtId = `STMT-${Date.now().toString().substring(5)}`;
   const generatedDate = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  const handleDeleteSale = async (saleId: string, saleAmount: number) => {
+    if (!firestore) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this sale of ${formatMoney(saleAmount)}?\n\nThis will:\n- Delete the sale record\n- Restore product quantities\n- Remove any related credit transactions`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const { auth } = initializeFirebase();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        showToast('User not authenticated');
+        return;
+      }
+
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      if (!userDoc.exists()) {
+        showToast('User document not found');
+        return;
+      }
+
+      const businessId = userDoc.data().businessId;
+      if (!businessId) {
+        showToast('Business ID not found');
+        return;
+      }
+
+      // Get sale details to restore product quantities
+      const saleDoc = await getDoc(doc(firestore, 'businesses', businessId, 'sales', saleId));
+      if (!saleDoc.exists()) {
+        showToast('Sale not found');
+        return;
+      }
+
+      const saleData = saleDoc.data();
+
+      // Restore product quantities
+      if (saleData.products && Array.isArray(saleData.products)) {
+        await runTransaction(firestore, async (transaction) => {
+          for (const product of saleData.products) {
+            const productRef = doc(firestore, 'businesses', businessId, 'products', product.productId.toString());
+            const productDoc = await transaction.get(productRef);
+            
+            if (productDoc.exists()) {
+              const currentStock = productDoc.data().stock || 0;
+              transaction.update(productRef, { stock: currentStock + product.quantity });
+            }
+          }
+        });
+      }
+      
+      // Delete related credit transactions
+      const creditTransactionsQuery = query(
+        collection(firestore, 'businesses', businessId, 'credit_transactions'),
+        where('saleId', '==', saleId)
+      );
+      const creditSnapshot = await getDocs(creditTransactionsQuery);
+      
+      for (const creditDoc of creditSnapshot.docs) {
+        await deleteDoc(doc(firestore, 'businesses', businessId, 'credit_transactions', creditDoc.id));
+        
+        // Update customer balance
+        const creditData = creditDoc.data();
+        if (creditData.customerId) {
+          const customerRef = doc(firestore, 'businesses', businessId, 'credit_customers', creditData.customerId);
+          const customerDoc = await getDoc(customerRef);
+          
+          if (customerDoc.exists()) {
+            const currentBalance = customerDoc.data().currentBalance || 0;
+            await updateDoc(customerRef, { currentBalance: Math.max(0, currentBalance - creditData.amount) });
+          }
+        }
+      }
+      
+      // Delete the sale
+      await deleteDoc(doc(firestore, 'businesses', businessId, 'sales', saleId));
+      
+      showToast('Sale deleted successfully. Please refresh the page to see updated data.');
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      showToast('Failed to delete sale');
+    }
+  };
+
   const handlePrint = useCallback(() => {
     const printContents = printRef.current?.innerHTML || '';
     const win = window.open('', '_blank', 'width=900,height=700');
@@ -518,7 +605,7 @@ export function StatementPage() {
             </div>
           ) : (
             <table className="ledger-table">
-              <thead><tr><th>{t('statement.table.date')}</th><th>{t('statement.table.reference')}</th><th>{t('statement.table.type')}</th><th>{t('statement.table.description')}</th><th style={{textAlign:'right'}}>{t('statement.table.debit')}</th><th style={{textAlign:'right'}}>{t('statement.table.credit')}</th><th style={{textAlign:'right'}}>{t('statement.table.balance')}</th></tr></thead>
+              <thead><tr><th>{t('statement.table.date')}</th><th>{t('statement.table.reference')}</th><th>{t('statement.table.type')}</th><th>{t('statement.table.description')}</th><th style={{textAlign:'right'}}>{t('statement.table.debit')}</th><th style={{textAlign:'right'}}>{t('statement.table.credit')}</th><th style={{textAlign:'right'}}>{t('statement.table.balance')}</th><th></th></tr></thead>
               <tbody>
                 {transactions.map((t, i) => (
                   <tr key={t.id}>
@@ -529,6 +616,27 @@ export function StatementPage() {
                     <td className="mono" style={{textAlign:'right',color:'#C0392B'}}>{t.debit > 0 ? formatMoney(t.debit) : '-'}</td>
                     <td className="mono" style={{textAlign:'right',color:'#1A7A50'}}>{t.credit > 0 ? formatMoney(t.credit) : '-'}</td>
                     <td className="mono" style={{textAlign:'right',fontWeight:600}}>{formatMoney(t.balance)}</td>
+                    <td>
+                      {t.type === 'Sale' && (
+                        <button
+                          onClick={() => handleDeleteSale(t.id, t.credit)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            transition: 'background 0.2s'
+                          }}
+                          title="Delete sale"
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#fee'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

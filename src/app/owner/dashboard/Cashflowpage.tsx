@@ -8,7 +8,6 @@ import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Pagination } from '@/components/Pagination';
-import { getUserPlan } from '@/lib/featureRestrictions';
 import styles from './Cashflowpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -77,30 +76,12 @@ export function CashflowPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-  const [isProUser, setIsProUser] = useState<boolean | null>(null);
 
   useEffect(() => {
-    checkPlan();
     setCurrentPage(1);
     loadData();
   }, [businessId, firestore, viewPeriod]);
 
-  const checkPlan = async () => {
-    if (!user?.id) return;
-
-    try {
-      const plan = await getUserPlan(user.id);
-      const isStandardOrPro = plan === 'standard' || plan === 'pro';
-      setIsProUser(isStandardOrPro);
-
-      if (!isStandardOrPro) {
-        showToast('⚠️ Cash Flow tracking requires a Standard or Pro plan');
-      }
-    } catch (error) {
-      console.error('Error checking plan:', error);
-      setIsProUser(false);
-    }
-  };
 
   const loadData = async () => {
     if (!businessId || !firestore) {
@@ -247,114 +228,6 @@ export function CashflowPage() {
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px' }}>
           <div className={styles.spinner}></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isProUser === false) {
-    // Freemium model: Show limited data with upgrade prompts
-    const limitedTransactions = bankTransactions.slice(0, 5); // Show only 5 transactions
-    const limitedMoneyIn = getTotalMoneyIn();
-    const limitedMoneyOut = getTotalMoneyOut();
-    const limitedNetFlow = limitedMoneyIn - limitedMoneyOut;
-    
-    return (
-      <div className={styles.wrapper}>
-        <div className={styles.pageHeader}>
-          <div>
-            <h2 className={styles.pageTitle}>Cash Flow</h2>
-            <p className={styles.pageDesc}>Track money in and out across all accounts</p>
-          </div>
-          <div className={styles.freemiumBadge}>
-            <span className={styles.freemiumBadgeText}>Starter Plan</span>
-          </div>
-        </div>
-
-        {/* Upgrade Banner */}
-        <div className={styles.upgradeBanner}>
-          <div className={styles.upgradeBannerContent}>
-            <div className={styles.upgradeBannerIcon}>�</div>
-            <div className={styles.upgradeBannerText}>
-              <h3 className={styles.upgradeBannerTitle}>Unlock Full Cash Flow Insights</h3>
-              <p className={styles.upgradeBannerMessage}>
-                You're viewing limited data. Upgrade to Pro for complete tracking, analytics, and bank integration.
-              </p>
-            </div>
-            <button className={styles.upgradeButton}>Upgrade to Pro</button>
-          </div>
-        </div>
-
-        {/* Limited Summary Cards */}
-        <div className={styles.summaryGrid}>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Money In</span>
-            <span className={`${styles.summaryValue} ${styles.moneyIn}`}>
-              {formatMoney(limitedMoneyIn)}
-            </span>
-            <span className={styles.summaryNote}>Limited view</span>
-          </div>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Money Out</span>
-            <span className={`${styles.summaryValue} ${styles.moneyOut}`}>
-              {formatMoney(limitedMoneyOut)}
-            </span>
-            <span className={styles.summaryNote}>Limited view</span>
-          </div>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Net Flow</span>
-            <span className={`${styles.summaryValue} ${limitedNetFlow >= 0 ? styles.moneyIn : styles.moneyOut}`}>
-              {formatMoney(limitedNetFlow)}
-            </span>
-            <span className={styles.summaryNote}>Limited view</span>
-          </div>
-        </div>
-
-        {/* Limited Transactions */}
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Recent Transactions</h3>
-            <span className={styles.limitedBadge}>Showing 5 of {bankTransactions.length}</span>
-          </div>
-          {limitedTransactions.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No transactions recorded</p>
-            </div>
-          ) : (
-            <div className={styles.transactionList}>
-              {limitedTransactions.map(txn => (
-                <div key={txn.id} className={styles.transactionCard}>
-                  <div className={styles.transactionIcon}>
-                    {txn.type === 'money_in' ? '💰' : '💸'}
-                  </div>
-                  <div className={styles.transactionDetails}>
-                    <div className={styles.transactionHeader}>
-                      <span className={styles.transactionName}>{txn.accountName}</span>
-                      <span className={`${styles.transactionAmount} ${txn.type === 'money_in' ? styles.moneyIn : styles.moneyOut}`}>
-                        {txn.type === 'money_in' ? '+' : '-'}{formatMoney(txn.amount)}
-                      </span>
-                    </div>
-                    <div className={styles.transactionInfo}>
-                      <span className={styles.transactionCategory}>{txn.category}</span>
-                      <span className={styles.transactionDate}>{formatDate(txn.createdAt)}</span>
-                    </div>
-                    <p className={styles.transactionDescription}>{txn.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Upgrade Prompt at Bottom */}
-        <div className={styles.upgradePrompt}>
-          <div className={styles.upgradePromptContent}>
-            <h4 className={styles.upgradePromptTitle}>Need More Cash Flow Data?</h4>
-            <p className={styles.upgradePromptMessage}>
-              Upgrade to Pro to see all transactions, filter by date range, export reports, and connect your bank accounts for automatic tracking.
-            </p>
-            <button className={styles.upgradeButton}>Upgrade Now</button>
-          </div>
         </div>
       </div>
     );

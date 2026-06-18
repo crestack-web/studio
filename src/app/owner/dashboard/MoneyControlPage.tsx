@@ -265,67 +265,6 @@ export default function MoneyControlPage() {
     // TODO: Fetch actual reconciliation status from database
     const isReconciled = true; // Placeholder - will be replaced with actual reconciliation data
     
-    const handleDeleteSale = async () => {
-      if (!user.businessId) return;
-      
-      const confirmed = window.confirm(
-        `Are you sure you want to delete this sale of ${formatMoney(total)}?\n\nThis will:\n- Delete the sale record\n- Restore product quantities\n- Remove any related credit transactions`
-      );
-      
-      if (!confirmed) return;
-      
-      try {
-        const { firestore } = initializeFirebase();
-        
-        // Restore product quantities
-        if (sale.products && Array.isArray(sale.products)) {
-          await runTransaction(firestore, async (transaction) => {
-            for (const product of sale.products) {
-              const productRef = doc(firestore, 'businesses', user.businessId!, 'products', product.productId.toString());
-              const productDoc = await transaction.get(productRef);
-              
-              if (productDoc.exists()) {
-                const currentStock = productDoc.data().stock || 0;
-                transaction.update(productRef, { stock: currentStock + product.quantity });
-              }
-            }
-          });
-        }
-        
-        // Delete related credit transactions
-        const creditTransactionsQuery = query(
-          collection(firestore, 'businesses', user.businessId!, 'credit_transactions'),
-          where('saleId', '==', sale.id)
-        );
-        const creditSnapshot = await getDocs(creditTransactionsQuery);
-        
-        for (const creditDoc of creditSnapshot.docs) {
-          await deleteDoc(doc(firestore, 'businesses', user.businessId!, 'credit_transactions', creditDoc.id));
-          
-          // Update customer balance
-          const creditData = creditDoc.data();
-          if (creditData.customerId) {
-            const customerRef = doc(firestore, 'businesses', user.businessId!, 'credit_customers', creditData.customerId);
-            const customerDoc = await getDoc(customerRef);
-            
-            if (customerDoc.exists()) {
-              const currentBalance = customerDoc.data().currentBalance || 0;
-              await updateDoc(customerRef, { currentBalance: Math.max(0, currentBalance - creditData.amount) });
-            }
-          }
-        }
-        
-        // Delete the sale
-        await deleteDoc(doc(firestore, 'businesses', user.businessId!, 'sales', sale.id));
-        
-        showToast('Sale deleted successfully');
-        loadSummary(); // Refresh data
-      } catch (error) {
-        console.error('Error deleting sale:', error);
-        showToast('Failed to delete sale');
-      }
-    };
-    
     return (
       <div className={styles.saleRow}>
         <div className={styles.saleInfo}>
@@ -345,13 +284,6 @@ export default function MoneyControlPage() {
             {isReconciled ? '✓ Matched' : '⏳ Pending'}
           </div>
         </div>
-        <button 
-          className={styles.deleteSaleBtn}
-          onClick={handleDeleteSale}
-          title="Delete sale"
-        >
-          🗑️
-        </button>
       </div>
     );
   };
