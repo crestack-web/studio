@@ -20,6 +20,7 @@ export function Sidebar() {
   const [userCategory, setUserCategory] = useState<string | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [userPlan, setUserPlan] = useState<string>('starter');
+  const [isInTrial, setIsInTrial] = useState(false);
 
   // Load staff count, category, features, and plan from Firestore
   useEffect(() => {
@@ -38,10 +39,17 @@ export function Sidebar() {
         const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
         const features = ownerDoc.data()?.selectedFeatures || [];
         const plan = ownerDoc.data()?.plan || 'starter';
+        const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
+        const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
         
         setUserCategory(category.toLowerCase());
         setSelectedFeatures(Array.isArray(features) ? features : []);
         setUserPlan(plan);
+        
+        // Check if user is in trial
+        const now = new Date();
+        const inTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+        setIsInTrial(inTrial);
 
         // Load staff from Firestore
         const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
@@ -108,12 +116,15 @@ export function Sidebar() {
     const requirements = NAV_ITEM_REQUIREMENTS[itemId];
     if (!requirements) return true; // No restrictions
 
-    // Check plan requirements
-    if (requirements.requiredPlan) {
-      const planHierarchy = { 'starter': 1, 'standard': 2, 'pro': 3 };
-      const userPlanLevel = planHierarchy[userPlan as keyof typeof planHierarchy] || 1;
-      const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
-      if (userPlanLevel < requiredPlanLevel) return false;
+    // During trial, skip plan requirements if feature was selected
+    if (!isInTrial) {
+      // Check plan requirements (only enforced outside trial)
+      if (requirements.requiredPlan) {
+        const planHierarchy = { 'starter': 1, 'standard': 2, 'pro': 3 };
+        const userPlanLevel = planHierarchy[userPlan as keyof typeof planHierarchy] || 1;
+        const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
+        if (userPlanLevel < requiredPlanLevel) return false;
+      }
     }
 
     // Check category requirements

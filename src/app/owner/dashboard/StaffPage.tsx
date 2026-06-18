@@ -137,6 +137,7 @@ export function StaffPage() {
     atd: false,
     msg: false,
     earn: false,
+    invoiceVerification: false,
   });
   const [targetRevenue, setTargetRevenue] = useState(0);
   const [targetTransactions, setTargetTransactions] = useState(0);
@@ -386,6 +387,7 @@ export function StaffPage() {
         atd: false,
         msg: false,
         earn: false,
+        invoiceVerification: false,
       });
       setShowAddModal(false);
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
@@ -1379,6 +1381,7 @@ export function StaffPage() {
                     { key: 'atd', label: '📅 Attendance' },
                     { key: 'msg', label: '💬 Messages' },
                     { key: 'earn', label: '💵 Earnings' },
+                    { key: 'invoiceVerification', label: '🧾 Invoice Verification' },
                   ].map((perm) => (
                     <label key={perm.key} style={{
                       display: 'flex',
@@ -1611,6 +1614,7 @@ export function StaffPage() {
                     { key: 'atd', label: '📅 Attendance' },
                     { key: 'msg', label: '💬 Messages' },
                     { key: 'earn', label: '💵 Earnings' },
+                    { key: 'invoiceVerification', label: '🧾 Invoice Verification' },
                   ].map((perm) => (
                     <label key={perm.key} style={{
                       display: 'flex',

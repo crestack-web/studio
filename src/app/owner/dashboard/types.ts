@@ -32,7 +32,8 @@ export type PageId =
   | 'money-control'
   | 'branches'
   | 'email-campaigns'
-  | 'credit-tracking';
+  | 'credit-tracking'
+  | 'invoice-verification';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

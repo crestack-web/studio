@@ -20,6 +20,7 @@ import { CURRENCIES_SORTED, COUNTRY_LIST, formatMoney } from './currencies';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { ReceiptThemeConfig } from './ReceiptThemeConfig';
 import styles from './SettingsPage.module.css';
 
 // ── Toggle ─────────────────────────────────────────────────────────
@@ -509,7 +510,15 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════════════════════════
-          SECTION 5 · NOTIFICATIONS
+          SECTION 5 · RECEIPT CUSTOMIZATION
+      ════════════════════════════════════════ */}
+      <Section title="Receipt Customization">
+        <p className={styles.rowDesc}>Customize the appearance of your sales receipts and invoices.</p>
+        <ReceiptThemeConfig />
+      </Section>
+
+      {/* ════════════════════════════════════════
+          SECTION 6 · NOTIFICATIONS
       ════════════════════════════════════════ */}
       <Section title={t('settings.section.notifications')}>
         {[

@@ -10,6 +10,7 @@ import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
 import { BrevoService } from '@/services/email/brevo-service';
+import { ReceiptGenerator } from './ReceiptGenerator';
 import styles from './RecordSalePage.module.css';
 
 // ═══════════════════════════════════════════
@@ -52,6 +53,10 @@ export function RecordSalePage() {
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [businessCategory, setBusinessCategory] = useState<string>('');
   const [showStockSource, setShowStockSource] = useState(false);
+
+  // Receipt printing
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastSaleData, setLastSaleData] = useState<any>(null);
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -353,6 +358,32 @@ export function RecordSalePage() {
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
 
+      // Create invoice for wholesale/distributor businesses
+      if (businessCategory === 'wholesale' || businessCategory === 'distributor') {
+        const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`;
+        const invoiceData = {
+          invoiceNumber,
+          saleId: saleRef.id,
+          customerName: note ? note.split('\n')[0] : 'Walk-in Customer',
+          customerPhone: '',
+          items: cart.map(item => ({
+            productId: item.id.toString(),
+            name: item.name,
+            quantity: item.qty,
+            price: item.price,
+            total: item.price * item.qty,
+          })),
+          totalAmount: subtotal,
+          sourceLocation: sourceLocationName,
+          status: 'pending',
+          createdAt: new Date(),
+          pickupStatus: 'pending',
+          pickupWarehouse: sourceLocationName,
+        };
+
+        await addDoc(collection(firestore, 'businesses', businessId, 'invoices'), invoiceData);
+      }
+
       // If credit payment is used, create credit transaction
       const creditPayment = paymentBreakdown.find(pb => pb.method === 'credit');
       if (creditPayment && creditPayment.amount > 0) {
@@ -524,6 +555,47 @@ export function RecordSalePage() {
       }
 
       showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
+      
+      // Fetch business data for receipt
+      let businessName = 'Business';
+      let businessAddress = '';
+      let businessPhone = '';
+      
+      try {
+        const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+        if (businessDoc.exists()) {
+          const bizData = businessDoc.data();
+          businessName = bizData.name || 'Business';
+          businessAddress = bizData.address || '';
+          businessPhone = bizData.phone || '';
+        }
+      } catch (error) {
+        console.error('Error fetching business data:', error);
+      }
+      
+      // Prepare receipt data for all categories
+      const receiptData = {
+        businessName,
+        businessAddress,
+        businessPhone,
+        saleNumber: `SALE-${Date.now().toString().slice(-8)}`,
+        date: new Date().toLocaleDateString(),
+        items: cart.map(item => ({
+          name: item.name,
+          quantity: item.qty,
+          price: item.price,
+          total: item.price * item.qty,
+        })),
+        subtotal: subtotal,
+        amountPaid: paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0),
+        outstandingBalance: subtotal - paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0),
+        paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
+        sourceLocation: sourceLocationName,
+      };
+
+      setLastSaleData(receiptData);
+      setShowReceipt(true);
+      
       clearCart();
       setPaymentBreakdown([]);
       
@@ -533,7 +605,8 @@ export function RecordSalePage() {
       setCreditCustomerPhone('');
       setCreditDueDate('');
       
-      navigateTo('home');
+      // Don't navigate away - show receipt first
+      // navigateTo('home');
     } catch (error) {
       console.error('Error saving sale:', error);
       showToast('Failed to save sale. Please try again.');
@@ -908,6 +981,76 @@ export function RecordSalePage() {
           </Card>
         </div>
       </div>
+
+      {/* Receipt Modal */}
+      {showReceipt && lastSaleData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '24px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Receipt</h3>
+              <button
+                onClick={() => {
+                  setShowReceipt(false);
+                  navigateTo('home');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <ReceiptGenerator 
+              receiptData={lastSaleData} 
+              onClose={() => {
+                setShowReceipt(false);
+                navigateTo('home');
+              }}
+            />
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <Button
+                variant="primary"
+                onClick={() => window.print()}
+                style={{ flex: 1 }}
+              >
+                Print Receipt
+              </Button>
+              <Button
+                variant="subtle"
+                onClick={() => {
+                  setShowReceipt(false);
+                  navigateTo('home');
+                }}
+                style={{ flex: 1 }}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

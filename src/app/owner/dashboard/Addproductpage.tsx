@@ -74,6 +74,14 @@ interface ProductForm {
   expiryDateIngredient?: string;
   branch?: string;
   ingredients?: Array<{ ingredientId: string; name: string; quantity: string; unit: string }>;
+  // Warehouse assignment
+  warehouseLocation?: string;
+  stockByLocation?: {
+    main_store: number;
+    back_store: number;
+    warehouse: number;
+    [key: string]: number;
+  };
 }
 
 const today = new Date().toISOString().split('T')[0];
@@ -97,6 +105,8 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [availableIngredients, setAvailableIngredients] = useState<any[]>([]);
   const [formDirty, setFormDirty] = useState(false);
+  const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [businessCategory, setBusinessCategory] = useState<string>('');
 
   // Fetch businessId from user document and check if restaurant
   useEffect(() => {
@@ -118,8 +128,14 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           const bid = userData.businessId || null;
           setBusinessId(bid);
 
-          // Check if business is a restaurant
+          // Check if business is a restaurant and get category
           if (bid) {
+            const businessDoc = await getDoc(doc(freshFirestore, 'businesses', bid));
+            if (businessDoc.exists()) {
+              const category = businessDoc.data()?.category || '';
+              setBusinessCategory(category.toLowerCase());
+            }
+
             const restaurantCheck = await isRestaurantBusiness(bid);
             setIsRestaurant(restaurantCheck);
 
@@ -142,6 +158,41 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
                 }
               });
               setAvailableIngredients(ingredientsList);
+            }
+
+            // Load stock locations for warehouse assignment
+            try {
+              const locationsQuery = collection(freshFirestore, 'businesses', bid, 'stockLocations');
+              const locationsSnapshot = await getDocs(locationsQuery);
+              const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+              
+              // Add default locations if none exist
+              if (locationsSnapshot.empty) {
+                loadedLocations.push(
+                  { id: 'main_store', name: 'Main Store', type: 'main_store' },
+                  { id: 'back_store', name: 'Back Store', type: 'back_store' },
+                  { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
+                );
+              } else {
+                locationsSnapshot.forEach(doc => {
+                  const data = doc.data();
+                  loadedLocations.push({
+                    id: doc.id,
+                    name: data.name,
+                    type: data.type,
+                  });
+                });
+              }
+              
+              setStockLocations(loadedLocations);
+            } catch (error) {
+              console.error('Error loading stock locations:', error);
+              // Set default locations on error
+              setStockLocations([
+                { id: 'main_store', name: 'Main Store', type: 'main_store' },
+                { id: 'back_store', name: 'Back Store', type: 'back_store' },
+                { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
+              ]);
             }
           }
         }
@@ -186,6 +237,13 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     expiryDateIngredient: undefined,
     branch: undefined,
     ingredients: [],
+    // Warehouse assignment
+    warehouseLocation: 'main_store',
+    stockByLocation: {
+      main_store: 0,
+      back_store: 0,
+      warehouse: 0,
+    },
   });
 
   const [variantChips, setVariantChips] = useState<string[]>([]);
@@ -340,6 +398,24 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
+
+      // Add stockByLocation for warehouse assignment
+      if (businessCategory === 'wholesale' || businessCategory === 'distributor') {
+        const openingStock = parseInt(form.openingStock) || 0;
+        const warehouseLocation = form.warehouseLocation || 'main_store';
+        const stockByLocation: any = {
+          main_store: warehouseLocation === 'main_store' ? openingStock : 0,
+          back_store: warehouseLocation === 'back_store' ? openingStock : 0,
+          warehouse: warehouseLocation === 'warehouse' ? openingStock : 0,
+        };
+        
+        // Add custom warehouse location if it's not one of the defaults
+        if (!['main_store', 'back_store', 'warehouse'].includes(warehouseLocation)) {
+          stockByLocation[warehouseLocation] = openingStock;
+        }
+        
+        productData.stockByLocation = stockByLocation;
+      }
 
       // Add restaurant-specific fields
       if (isRestaurant) {
@@ -693,6 +769,25 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
             <span className={styles.hint}>Busmo alerts you when stock drops to this level</span>
           </div>
         </div>
+
+        {/* Warehouse Assignment - Show for wholesale/distributor businesses */}
+        {(businessCategory === 'wholesale' || businessCategory === 'distributor') && (
+          <div className={styles.group} style={{ marginTop: 14 }}>
+            <label className={styles.label}>Warehouse Location</label>
+            <select 
+              className={styles.select} 
+              value={form.warehouseLocation} 
+              onChange={e => set('warehouseLocation', e.target.value)}
+            >
+              {stockLocations.map(location => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+            <span className={styles.hint}>Assign stock to this warehouse location</span>
+          </div>
+        )}
       </div>
 
       {/* ── EXPIRY ── */}

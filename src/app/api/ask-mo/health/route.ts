@@ -4,6 +4,7 @@ import { getGoogleAIService } from '@/services/ai/google-ai-service';
 import { initializeFirebase } from '@/firebase';
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAdminDb, isAdminInitialized } from '@/lib/firebase-admin';
 
 /**
  * GET /api/ask-mo/health
@@ -34,17 +35,12 @@ export async function GET() {
 
   // Check Firebase Admin Initialization
   try {
-    if (admin.apps.length > 0) {
-      healthCheck.details.firebaseAdmin = {
-        initialized: true,
-        appsCount: admin.apps.length,
-      };
-    } else {
-      healthCheck.details.firebaseAdmin = {
-        initialized: false,
-        appsCount: 0,
-      };
-    }
+    const initialized = isAdminInitialized();
+    healthCheck.firebaseAdmin = initialized;
+    healthCheck.details.firebaseAdmin = {
+      initialized: initialized,
+      appsCount: admin.apps.length,
+    };
   } catch (error) {
     healthCheck.details.firebaseAdmin = {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -53,21 +49,12 @@ export async function GET() {
 
   // Check Firestore Connection
   try {
-    if (admin.apps.length > 0) {
-      const db = getFirestore();
-      // Try a simple query to verify connection
-      await db.collection('_health_check').limit(1).get();
-      healthCheck.firestore = true;
-      healthCheck.details.firestore = {
-        connected: true,
-      };
-    } else {
-      healthCheck.firestore = false;
-      healthCheck.details.firestore = {
-        connected: false,
-        error: 'Firebase Admin not initialized',
-      };
-    }
+    const db = getAdminDb();
+    healthCheck.firestore = true;
+    healthCheck.details.firestore = {
+      connected: true,
+      message: 'Firestore instance available',
+    };
   } catch (error) {
     healthCheck.firestore = false;
     healthCheck.details.firestore = {

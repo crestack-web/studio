@@ -56,9 +56,8 @@ service firebase.storage {
     // =====================
     match /users/{userId}/avatar/{allPaths=**} {
       allow read: if true; // Public read for avatars
-      allow write: if isAuthenticated() && 
-                     request.auth.uid == userId &&
-                     request.resource.size < 2 * 1024 * 1024 && // 2MB max
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB max
                      request.resource.contentType.matches('image/.*');
     }
     

@@ -34,7 +34,8 @@ export type PageId =
   | 'update'
   | 'recordsale'
   | 'settings'
-  | 'branches';
+  | 'branches'
+  | 'invoice-verification';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

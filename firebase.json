@@ -3,6 +3,10 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "hosting": {
     "public": "out",
     "ignore": [
@@ -11,6 +15,10 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/api/ask-mo",
+        "function": "askMo"
+      },
       {
         "source": "/api/**",
         "function": "api"

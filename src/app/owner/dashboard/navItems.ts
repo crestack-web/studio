@@ -12,18 +12,78 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   excludedCategories?: string[];
   requiredPlan?: 'starter' | 'standard' | 'pro';
 }> = {
+  // Main navigation items
+  'sale': {
+    requiredFeatures: ['Sales Recording'],
+  },
+  'inventory': {
+    requiredFeatures: ['Inventory Tracking'],
+    excludedCategories: ['education', 'services'],
+  },
+  'add-expense': {
+    requiredFeatures: ['Expense Management'],
+  },
+  'cashflow': {
+    requiredFeatures: ['Cash Flow Analysis'],
+  },
+  'reports': {
+    requiredFeatures: ['Profit/Loss Reports', 'Business Analytics'],
+  },
+  'bank-reconciliation': {
+    requiredPlan: 'pro',
+  },
+  'money-control': {
+    requiredPlan: 'standard',
+  },
   'credit-tracking': {
     requiredFeatures: ['Credit Tracking'],
     excludedCategories: ['restaurant', 'cafe', 'pharmacy', 'healthcare', 'education'],
     requiredPlan: 'standard',
   },
+  
+  // Growth navigation items
+  'capital': {
+    requiredCategories: ['wholesale', 'retail', 'manufacturing', 'distributor'],
+  },
+  'referrals': {
+    // Available to all users
+  },
+  
+  // Account navigation items
+  'mo': {
+    requiredFeatures: ['Ask MO AI Assistant'],
+  },
+  'services': {
+    // Available to all users
+  },
+  'staff': {
+    requiredFeatures: ['Staff Management'],
+  },
+  'invoice-verification': {
+    requiredFeatures: ['Credit Tracking'],
+    requiredCategories: ['wholesale', 'distributor'],
+    requiredPlan: 'standard',
+  },
+  'branches': {
+    requiredFeatures: ['Multi-branch Support'],
+    requiredPlan: 'pro',
+    excludedCategories: ['wholesale', 'distributor'],
+  },
+  
+  // Specialized features (not yet in main nav but mapped for future use)
   'menu-management': {
+    requiredFeatures: ['Menu Management'],
     requiredCategories: ['restaurant', 'cafe'],
     requiredPlan: 'standard',
   },
   'ingredient-tracking': {
+    requiredFeatures: ['Ingredient Tracking'],
     requiredCategories: ['restaurant', 'cafe'],
     requiredPlan: 'standard',
+  },
+  'expiry-alerts': {
+    requiredFeatures: ['Expiry Alerts'],
+    requiredCategories: ['grocery', 'pharmacy', 'supermarket', 'restaurant', 'cafe', 'healthcare'],
   },
   'production-tracking': {
     requiredFeatures: ['Production Tracking'],
@@ -35,13 +95,16 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
     requiredCategories: ['retail', 'fashion', 'electronics'],
     requiredPlan: 'pro',
   },
-  'branches': {
-    requiredFeatures: ['Multi-branch Support'],
-    requiredPlan: 'pro',
-  },
   'payroll': {
     requiredFeatures: ['Payroll Management'],
     requiredPlan: 'pro',
+  },
+  'customer-management': {
+    requiredFeatures: ['Customer Management'],
+  },
+  'supplier-management': {
+    requiredFeatures: ['Supplier Management'],
+    excludedCategories: ['education', 'services'],
   },
 };
 
@@ -330,6 +393,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'home', label: 'Ask MO', tip: 'Ask MO', iconClass: 'ni-mo' },
       { id: 'services', label: 'Business Services', tip: 'Business Services', iconClass: 'ni-svc' },
       { id: 'staff', label: 'Staff', tip: 'Staff', iconClass: 'ni-staff', badge: 0 },
+      { id: 'invoice-verification', label: 'Invoice Verification', tip: 'Invoice Verification', iconClass: 'ni-invoice' },
       { id: 'branches', label: 'Branches', tip: 'Branches', iconClass: 'ni-branch', badge: 'Pro' },
       { id: 'settings', label: 'Settings', tip: 'Settings', iconClass: 'ni-set' },
     ],

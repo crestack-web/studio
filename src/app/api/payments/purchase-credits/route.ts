@@ -11,7 +11,10 @@ const CREDIT_PACKS = {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Credit purchase initialization request received');
     const { pack, userId, email, countryCode } = await request.json();
+
+    console.log('Request data:', { pack, userId, email, countryCode });
 
     if (!pack || !userId || !email) {
       return NextResponse.json(
@@ -28,18 +31,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Credit pack:', creditPack);
+
     const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
     if (!PAYSTACK_SECRET_KEY) {
+      console.error('Paystack secret key not configured');
       return NextResponse.json(
         { error: 'Paystack secret key not configured' },
         { status: 500 }
       );
     }
 
+    console.log('Paystack secret key configured');
+
     // Credit packs are priced in NGN
     const paystackCurrency = 'NGN';
     const paystackAmount = creditPack.amount;
+
+    console.log('Paystack request:', { email, amount: paystackAmount * 100, currency: paystackCurrency });
 
     // Initialize transaction with Paystack
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -61,12 +71,14 @@ export async function POST(request: NextRequest) {
           currency: paystackCurrency,
           countryCode: countryCode,
         },
-        callback_url: `${process.env.PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payments/credit-purchase-callback`,
+        callback_url: `${process.env.PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://busmo.io'}/api/payments/credit-purchase-callback`,
         channels: ['card', 'bank_transfer', 'ussd', 'qr', 'mobile_money'],
       }),
     });
 
+    console.log('Paystack response status:', response.status);
     const data = await response.json();
+    console.log('Paystack response data:', data);
 
     if (!data.status) {
       console.error('Paystack initialization error:', data);
@@ -76,35 +88,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save payment reference to Firestore
-    if (!isAdminInitialized()) {
-      console.error('Firebase not initialized for credit purchase');
-      return NextResponse.json(
-        { error: 'We are having issues processing your payment. Please try again later.' },
-        { status: 500 }
-      );
+    console.log('Paystack initialization successful');
+
+    // Save payment reference to Firestore (optional - payment will work even if this fails)
+    if (isAdminInitialized()) {
+      try {
+        console.log('Saving credit purchase to Firestore');
+        const db = getAdminDb();
+        const paymentRef = db.collection('creditPurchases').doc(data.data.reference);
+        await paymentRef.set({
+          reference: data.data.reference,
+          access_code: data.data.access_code,
+          authorization_url: data.data.authorization_url,
+          pack: pack,
+          credits: creditPack.credits,
+          amount: paystackAmount,
+          userId: userId,
+          email: email,
+          status: 'pending',
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        console.log('Credit purchase saved to Firestore');
+      } catch (firestoreError) {
+        console.error('Firestore save failed (non-critical):', firestoreError);
+        // Don't fail the payment if Firestore save fails
+      }
+    } else {
+      console.log('Skipping Firestore save - Firebase not initialized');
     }
-    
-    const db = getAdminDb();
-    const paymentRef = db.collection('creditPurchases').doc(data.data.reference);
-    await paymentRef.set({
-      reference: data.data.reference,
-      access_code: data.data.access_code,
-      authorization_url: data.data.authorization_url,
-      pack: pack,
-      credits: creditPack.credits,
-      amount: paystackAmount,
-      userId: userId,
-      email: email,
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
-    });
 
     return NextResponse.json({
       data: data.data,
     });
   } catch (error) {
     console.error('Error initializing credit purchase payment:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      name: error instanceof Error ? error.name : 'Unknown error type'
+    });
     return NextResponse.json(
       { error: 'We are having issues connecting with payment processors. Please try again later.' },
       { status: 500 }

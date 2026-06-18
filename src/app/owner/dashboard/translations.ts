@@ -45,7 +45,7 @@ export type TranslationDict = {
   'nav.reports':string; 'nav.bankReconciliation':string; 'nav.moneyControl':string;
   'nav.salesHistory':string; 'nav.inventory':string; 'nav.expenses':string;
   'nav.capital':string; 'nav.referrals':string; 'nav.askMO':string;
-  'nav.services':string; 'nav.staff':string; 'nav.branches':string; 'nav.settings':string;
+  'nav.services':string; 'nav.staff':string; 'nav.invoiceVerification':string; 'nav.branches':string; 'nav.settings':string;
   'nav.chat':string;
   'nav.market':string; 'nav.pay':string;
   'nav.section.main':string; 'nav.section.money':string;
@@ -284,7 +284,7 @@ const en: TranslationDict = {
   'nav.reports':'Reports','nav.bankReconciliation':'Bank Reconciliation','nav.moneyControl':'Money Control',
   'nav.salesHistory':'Sales History','nav.inventory':'Inventory','nav.expenses':'Expenses',
   'nav.capital':'Capital','nav.referrals':'Referrals','nav.askMO':'Ask MO',
-  'nav.services':'Services','nav.staff':'Staff','nav.branches':'Branches','nav.settings':'Settings',
+  'nav.services':'Services','nav.staff':'Staff','nav.invoiceVerification':'Invoice Verification','nav.branches':'Branches','nav.settings':'Settings',
   'nav.chat':'Team Chat','nav.market':'Marketplace','nav.pay':'BusmoPay',
   'nav.section.main':'Main','nav.section.money':'Money',
   'nav.section.team':'Team','nav.section.grow':'Grow','nav.section.account':'Account',
@@ -576,7 +576,7 @@ const fr: TranslationDict = {
   'nav.reports':'Rapports','nav.bankReconciliation':'Rapprochement Bancaire','nav.moneyControl':'Contrôle d\'Argent',
   'nav.salesHistory':'Historique des Ventes','nav.inventory':'Inventaire','nav.expenses':'Dépenses',
   'nav.capital':'Capital','nav.referrals':'Parrainages','nav.askMO':'Demander à MO',
-  'nav.services':'Services','nav.staff':'Personnel','nav.branches':'Succursales','nav.settings':'Paramètres',
+  'nav.services':'Services','nav.staff':'Personnel','nav.invoiceVerification':'Vérification Facture','nav.branches':'Succursales','nav.settings':'Paramètres',
   'nav.chat':'Discussion d\'Équipe','nav.market':'Marché','nav.pay':'BusmoPay',
   'nav.section.main':'Principal','nav.section.money':'Argent',
   'nav.section.team':'Équipe','nav.section.grow':'Croissance','nav.section.account':'Compte',
@@ -810,7 +810,7 @@ const ha: TranslationDict = {
   'nav.reports':'Rahoto','nav.bankReconciliation':'Daidaita Banki','nav.moneyControl':'Sarrafa Kuɗi',
   'nav.salesHistory':'Tarihin Siyarwa','nav.inventory':'Kayan Ajiya','nav.expenses':'Kashe-kashe',
   'nav.capital':'Jari','nav.referrals':'Shawarwari','nav.askMO':'Tambaya MO',
-  'nav.services':'Ayyuka','nav.staff':"Ma'aikata",'nav.settings':'Saiti',
+  'nav.services':'Ayyuka','nav.staff':"Ma'aikata",'nav.invoiceVerification':'Bincike Bayanin Fatura','nav.settings':'Saiti',
   'nav.chat':'Tattaunawar Ƙungiya','nav.market':'Kasuwa','nav.section.main':'Babba','nav.section.money':'Kuɗi',
   'nav.section.team':'Ƙungiya','nav.section.grow':'Ci Gaba','nav.section.account':'Asusun',
   'branch.switcher.label':'Sashin:','branch.switcher.allBranches':'Dukkan Sashin',
@@ -975,7 +975,7 @@ const sw: TranslationDict = {
   'nav.reports':'Ripoti','nav.bankReconciliation':'Urejeshaji wa Benki','nav.moneyControl':'Udhibiti wa Fedha',
   'nav.salesHistory':'Historia ya Mauzo','nav.inventory':'Hesabu ya Bidhaa','nav.expenses':'Gharama',
   'nav.capital':'Mtaji','nav.referrals':'Mapendekezo','nav.askMO':'Uliza MO',
-  'nav.services':'Huduma','nav.staff':'Wafanyakazi','nav.settings':'Mipangilio',
+  'nav.services':'Huduma','nav.staff':'Wafanyakazi','nav.invoiceVerification':'Uthibitishaji Ankara','nav.settings':'Mipangilio',
   'nav.chat':'Majadiliano ya Timu','nav.market':'Soko','nav.section.main':'Kuu','nav.section.money':'Fedha',
   'nav.section.team':'Timu','nav.section.grow':'Kukua','nav.section.account':'Akaunti',
   'branch.switcher.label':'Tawi:','branch.switcher.allBranches':'Matawi Yote',
@@ -1121,7 +1121,7 @@ const yo: TranslationDict = {
   'nav.reports':'Riportì','nav.bankReconciliation':'Ìṣòwò Báǹkì','nav.moneyControl':'Ìṣàkóso Owó',
   'nav.salesHistory':'Itan Tita','nav.inventory':'Akojọ Ọja','nav.expenses':'Inawo',
   'nav.capital':'Olu-owo','nav.referrals':'Itọkasi','nav.askMO':'Beere MO',
-  'nav.services':'Iṣẹ','nav.staff':'Awọn Oṣiṣẹ','nav.settings':'Ètò',
+  'nav.services':'Iṣẹ','nav.staff':'Awọn Oṣiṣẹ','nav.invoiceVerification':'Ìṣàkóso Fìwéránṣẹ','nav.settings':'Ètò',
   'nav.chat':'Iwiregbe Ẹgbẹ','nav.market':'Ọja','nav.section.main':'Akọkọ','nav.section.money':'Owo',
   'nav.section.team':'Ẹgbẹ','nav.section.grow':'Idagbasoke','nav.section.account':'Akọọlẹ',
   'branch.switcher.label':'Ipo:','branch.switcher.allBranches':'Gbogbo Ipo',
@@ -1231,7 +1231,7 @@ const ig: TranslationDict = {
   'nav.reports':'Akụkọ','nav.bankReconciliation':'Njikọta Bank','nav.moneyControl':'Nchịkwa Ego',
   'nav.salesHistory':'Akụkọ Ire Ahia','nav.inventory':'Ọnụọgụ Ngwongwo','nav.expenses':'Mmefu',
   'nav.capital':'Ego Ntọala','nav.referrals':'Ntụziaka','nav.askMO':'Jụọ MO',
-  'nav.services':'Ọrụ','nav.staff':'Ndị ọrụ','nav.settings':'Ntọala',
+  'nav.services':'Ọrụ','nav.staff':'Ndị ọrụ','nav.invoiceVerification':'Nchekwa Fworo','nav.settings':'Ntọala',
   'nav.chat':'Mkparịta Ụka Otu','nav.market':'Ahịa','nav.section.main':'Isi','nav.section.money':'Ego',
   'nav.section.team':'Otu','nav.section.grow':'Uto','nav.section.account':'Akaụntụ',
   'branch.switcher.label':'Alaka:','branch.switcher.allBranches':'Alaka Nile',
@@ -1292,7 +1292,7 @@ const am: TranslationDict = {
   'nav.reports':'ሪፖርቶች','nav.bankReconciliation':'የባንክ ማስማማት','nav.moneyControl':'የገንዘብ ቁጠባ',
   'nav.salesHistory':'የሽያጭ ታሪክ','nav.inventory':'ዕቃ ክምችት','nav.expenses':'ወጪዎች',
   'nav.capital':'ካፒታል','nav.referrals':'ምክሮች','nav.askMO':'MO ጠይቅ',
-  'nav.services':'አገልግሎቶች','nav.staff':'ሠራተኞች','nav.settings':'ቅንጅቶች',
+  'nav.services':'አገልግሎቶች','nav.staff':'ሠራተኞች','nav.invoiceVerification':'የእሴት ማረጋገጥ','nav.settings':'ቅንጅቶች',
   'nav.market':'ገበያ','nav.section.main':'ዋና','nav.section.money':'ገንዘብ',
   'nav.section.team':'ቡድን','nav.section.grow':'ዕድገት','nav.section.account':'መለያ',
   'branch.switcher.label':'ቅርንጫፔ:','branch.switcher.allBranches':'ሁሉም ቅርንጫፔ',
@@ -1342,7 +1342,7 @@ const ar: TranslationDict = {
   'nav.reports':'التقارير','nav.bankReconciliation':'مطابقة البنك','nav.moneyControl':'التحكم في المال',
   'nav.salesHistory':'سجل المبيعات','nav.inventory':'المخزون','nav.expenses':'المصروفات',
   'nav.capital':'رأس المال','nav.referrals':'الإحالات','nav.askMO':'اسأل MO',
-  'nav.services':'الخدمات','nav.staff':'الموظفون','nav.settings':'الإعدادات',
+  'nav.services':'الخدمات','nav.staff':'الموظفون','nav.invoiceVerification':'التحقق من الفاتورة','nav.settings':'الإعدادات',
   'nav.market':'السوق','nav.section.main':'رئيسي','nav.section.money':'المال',
   'nav.section.team':'الفريق','nav.section.grow':'النمو','nav.section.account':'الحساب',
   'branch.switcher.label':'الفرع:','branch.switcher.allBranches':'جميع الفروع',
@@ -1386,7 +1386,7 @@ const zu: TranslationDict = {
   'nav.reports':'Izibalo','nav.bankReconciliation':'Ukulinganisa Kwabenki','nav.moneyControl':'Lawula Imali',
   'nav.salesHistory':'Umlando Wokuthengisa','nav.inventory':'Ukubalwa Kwempahla','nav.expenses':'Izindleko',
   'nav.capital':'Inkunzi','nav.referrals':'Izincomo','nav.askMO':'Buza MO',
-  'nav.services':'Izinsizakalo','nav.staff':'Abasebenzi','nav.settings':'Izilungiselelo',
+  'nav.services':'Izinsizakalo','nav.staff':'Abasebenzi','nav.invoiceVerification':'Ukuqinisekisa Kwazipho','nav.settings':'Izilungiselelo',
   'nav.market':'Imakethe','nav.section.main':'Oyinhloko','nav.section.money':'Imali',
   'nav.section.team':'Ithimba','nav.section.grow':'Ukukhula','nav.section.account':'I-akhawunti',
   'branch.switcher.label':'Isigaba:','branch.switcher.allBranches':'Zonke Izigaba',
@@ -1429,7 +1429,7 @@ const af: TranslationDict = {
   'nav.reports':'Verslae','nav.bankReconciliation':'Bank Versoening','nav.moneyControl':'Geld Beheer',
   'nav.salesHistory':'Verkoopgeskiedenis','nav.inventory':'Voorraad','nav.expenses':'Uitgawes',
   'nav.capital':'Kapitaal','nav.referrals':'Verwysings','nav.askMO':'Vra MO',
-  'nav.services':'Dienste','nav.staff':'Personeel','nav.settings':'Instellings',
+  'nav.services':'Dienste','nav.staff':'Personeel','nav.invoiceVerification':'Faktuur Verifikasie','nav.settings':'Instellings',
   'nav.market':'Markplek','nav.section.main':'Hoofmenu','nav.section.money':'Geld',
   'nav.section.team':'Span','nav.section.grow':'Groei','nav.section.account':'Rekening',
   'branch.switcher.label':'Tak:','branch.switcher.allBranches':'Alle Takke',
