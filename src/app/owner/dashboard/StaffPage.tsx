@@ -520,7 +520,10 @@ export function StaffPage() {
 
   const handleEditStaff = (staff: StaffMember) => {
     setEditingStaff(staff);
-    setNewStaffPermissions({ ...staff.permissions });
+    setNewStaffPermissions({ 
+      ...staff.permissions, 
+      invoiceVerification: (staff.permissions as any).invoiceVerification || false 
+    });
     setShowEditModal(true);
   };
 
