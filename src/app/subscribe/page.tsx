@@ -109,29 +109,40 @@ export default function SubscribePage() {
   }, []);
 
   const handleContinue = async () => {
+    console.log('Payment button clicked');
     setIsProcessing(true);
     try {
       const { auth, firestore } = initializeFirebase();
       const user = auth.currentUser;
 
+      console.log('User:', user?.uid);
+
       if (!user) {
+        console.error('No user found');
         router.replace('/login');
         return;
       }
 
       const selectedPlanData = PLANS.find(p => p.id === selectedPlan);
       if (!selectedPlanData) {
+        console.error('No plan data found for:', selectedPlan);
         alert('Unable to process payment. Please try again.');
         return;
       }
+
+      console.log('Selected plan:', selectedPlanData);
 
       // Get user email
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       const userData = userDoc.data();
       const userEmail = userData?.email || user.email;
 
+      console.log('User email:', userEmail);
+
       // Get amount based on billing cycle
       const amount = billingCycle === 'monthly' ? selectedPlanData.monthlyPrice : selectedPlanData.yearlyPrice;
+
+      console.log('Amount:', amount, 'Billing cycle:', billingCycle);
 
       // Call Paystack API to initialize subscription payment
       const response = await fetch('/api/payments/initialize-paystack', {
@@ -151,16 +162,21 @@ export default function SubscribePage() {
         }),
       });
 
+      console.log('API response status:', response.status);
       const data = await response.json();
+      console.log('API response data:', data);
 
       if (!response.ok) {
+        console.error('Payment initialization failed:', data);
         throw new Error(data.error || 'Failed to initialize payment');
       }
 
       // Redirect to Paystack checkout
       if (data.data && data.data.authorization_url) {
+        console.log('Redirecting to Paystack:', data.data.authorization_url);
         window.location.href = data.data.authorization_url;
       } else {
+        console.error('No authorization URL in response');
         throw new Error('No checkout URL returned');
       }
 
@@ -381,9 +397,15 @@ export default function SubscribePage() {
             ← Back to Dashboard
           </button>
           <button
-            onClick={handleContinue}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Button clicked directly');
+              handleContinue();
+            }}
             disabled={isProcessing}
-            className="px-12 py-4 bg-[#6B3FE7] text-white font-semibold rounded-xl text-base transition hover:bg-[#4B27B0] disabled:opacity-50 disabled:cursor-not-allowed min-w-[280px]"
+            className="px-12 py-4 bg-[#6B3FE7] text-white font-semibold rounded-xl text-base transition hover:bg-[#4B27B0] disabled:opacity-50 disabled:cursor-not-allowed min-w-[280px] relative z-10"
           >
             {isProcessing ? 'Processing...' : `Continue with ${PLANS.find(p => p.id === selectedPlan)?.name} - ₦${(billingCycle === 'monthly' ? PLANS.find(p => p.id === selectedPlan)?.monthlyPrice : PLANS.find(p => p.id === selectedPlan)?.yearlyPrice)?.toLocaleString()}/${billingCycle === 'monthly' ? 'mo' : 'yr'}`}
           </button>

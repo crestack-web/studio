@@ -6,6 +6,12 @@ import { validateAIRequest, checkRateLimit, checkAbuse, getClientIP, validateInp
 import { aiRequestQueue } from '@/lib/ai-queue';
 import { AskMOErrorFactory, ErrorSource, ErrorCode, logError, errorToResponse } from '@/lib/ask-mo-errors';
 
+// Development mode flag
+const ASK_MO_DEV_MODE = process.env.ASK_MO_DEV_MODE === 'true';
+
+console.log('🚀 [Ask MO API] Initialization');
+console.log('🔧 [Ask MO API] Development Mode:', ASK_MO_DEV_MODE ? 'ENABLED' : 'DISABLED');
+
 // Initialize Firebase Admin for server-side use
 let db: ReturnType<typeof getFirestore> | null = null;
 let adminInitialized = false;
@@ -14,6 +20,7 @@ let adminInitialized = false;
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+const googleApiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
 
 console.log('🔍 [Ask MO API] Firebase Admin Environment Check:', {
   hasProjectId: !!projectId,
@@ -22,6 +29,12 @@ console.log('🔍 [Ask MO API] Firebase Admin Environment Check:', {
   projectId: projectId || 'missing',
   clientEmail: clientEmail || 'missing',
   privateKeyLength: privateKey?.length || 0
+});
+
+console.log('🔍 [Ask MO API] Google AI Environment Check:', {
+  hasGoogleApiKey: !!googleApiKey,
+  apiKeyLength: googleApiKey?.length || 0,
+  isPlaceholder: googleApiKey === 'your-google-ai-api-key' || googleApiKey === 'your-api-key'
 });
 
 try {
@@ -61,6 +74,14 @@ try {
   db = null;
   adminInitialized = false;
 }
+
+// Log final initialization status
+console.log('📊 [Ask MO API] Final Initialization Status:', {
+  adminInitialized,
+  dbInitialized: !!db,
+  devMode: ASK_MO_DEV_MODE,
+  googleApiKeyPresent: !!googleApiKey
+});
 
 /**
  * Detect if user wants to record a sale and extract sale data
@@ -1025,18 +1046,24 @@ export async function POST(req: NextRequest) {
 
     // Validate and authenticate AI request
     console.log('🔐 [Ask MO API] Starting authentication...');
-    console.log('🔍 [Ask MO API] Database status:', { dbInitialized: !!db, adminInitialized });
+    console.log('🔍 [Ask MO API] Pre-authentication check:', { 
+      dbInitialized: !!db, 
+      adminInitialized,
+      devMode: ASK_MO_DEV_MODE 
+    });
     const authStart = Date.now();
     
     let authenticatedUserId: string;
     let authenticatedBusinessId: string;
     
-    // Skip authentication if database is not initialized (for development/testing)
-    // Check both db and adminInitialized to ensure bypass works correctly
-    if (!db || !adminInitialized) {
-      console.warn('⚠️ [Ask MO API] Database not initialized, skipping authentication validation');
-      const error = AskMOErrorFactory.databaseNotInitialized();
-      logError(error, 'Authentication');
+    // Skip authentication if development mode is enabled OR database is not initialized
+    if (ASK_MO_DEV_MODE || !db || !adminInitialized) {
+      console.log('⚠️ [Ask MO API] Using development mode bypass', {
+        reason: ASK_MO_DEV_MODE ? 'DEV_MODE_ENABLED' : (!db ? 'DB_NOT_INITIALIZED' : 'ADMIN_NOT_INITIALIZED'),
+        devMode: ASK_MO_DEV_MODE,
+        dbInitialized: !!db,
+        adminInitialized
+      });
       
       // Proceed without authentication for development/testing
       const { userId, devUserId, businessId: devBusinessId } = body;
@@ -1059,9 +1086,11 @@ export async function POST(req: NextRequest) {
       
       authenticatedUserId = devUserId || userId;
       authenticatedBusinessId = devBusinessId || businessId;
-      console.log('⚠️ [Ask MO API] Using development mode authentication', {
+      timings.authentication = Date.now() - authStart;
+      console.log('✅ [Ask MO API] Development mode authentication successful', {
         authenticatedUserId,
         authenticatedBusinessId,
+        time: timings.authentication
       });
     } else {
       console.log('🔐 [Ask MO API] Database initialized, performing full authentication');

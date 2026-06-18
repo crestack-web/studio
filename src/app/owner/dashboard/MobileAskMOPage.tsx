@@ -720,32 +720,47 @@ export function MobileAskMOPage() {
 
   return (
     <div className={styles.container}>
-      {/* App Bar */}
-      <div className={styles.appBar}>
-        <div className={styles.appBarLeft}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
           <button className={styles.backBtn} onClick={() => navigateTo('home')} title="Back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
-          <div className={styles.appBarTitle}>
-            <div className={styles.moAvatarSm}>
-              <MoIcon size={24} />
-            </div>
-            <div>
-              <h3 className={styles.appBarTitleText}>Ask MO</h3>
-              <p className={styles.appBarSubtitle}>Your AI Business Assistant</p>
+          <div className={styles.moAvatar}>
+            <MoIcon size={24} />
+          </div>
+          <div className={styles.headerInfo}>
+            <h3 className={styles.headerTitle}>Ask MO</h3>
+            <div 
+              className={styles.tokenCounter}
+              onClick={() => setShowCreditPurchase(true)}
+              style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
+              title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
+            >
+              <img
+                src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
+                alt="Token"
+                width={14}
+                height={14}
+                style={{ borderRadius: '50%' }}
+              />
+              <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
+              {creditsRemaining !== -1 && (
+                <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
+              )}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className={styles.appBarBtn} onClick={handleNewChat} title="New chat">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+          <button className={styles.newChatBtn} onClick={handleNewChat} title="New chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </button>
-          <button className={styles.appBarBtn} onClick={handleHistory} title="Chat history">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+          <button className={styles.historyBtn} onClick={handleHistory} title="Chat history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
               <circle cx="12" cy="12" r="10"/>
               <polyline points="12 6 12 12 16 14"/>
             </svg>
@@ -758,14 +773,6 @@ export function MobileAskMOPage() {
         onClose={() => setShowCreditPurchase(false)}
         onSuccess={handlePurchaseSuccess}
       />
-
-      {/* Credits Only Header */}
-      {messages.length > 0 && (
-        <div className={styles.creditsHeader}>
-          <span className={styles.creditsIcon}>⚡</span>
-          <span className={styles.creditsValue}>{creditsRemaining === -1 ? '∞' : creditsRemaining.toLocaleString()} credits</span>
-        </div>
-      )}
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>

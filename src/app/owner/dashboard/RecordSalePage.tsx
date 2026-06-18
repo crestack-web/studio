@@ -3,6 +3,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
+import { useBranch } from '@/context/BranchContext';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
@@ -20,6 +21,7 @@ export function RecordSalePage() {
   const { t } = useTranslation();
   const { formatMoney, currencyCode } = useCurrency();
   const firestore = useFirestore();
+  const { branches, isProUser } = useBranch();
 
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -48,6 +50,8 @@ export function RecordSalePage() {
   // Warehouse source selection
   const [sourceLocation, setSourceLocation] = useState('main_store');
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [businessCategory, setBusinessCategory] = useState<string>('');
+  const [showStockSource, setShowStockSource] = useState(false);
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -82,6 +86,26 @@ export function RecordSalePage() {
         }
 
         setBusinessId(bId);
+
+        // Fetch business category
+        try {
+          const businessDoc = await getDoc(doc(firestore, 'businesses', bId));
+          if (businessDoc.exists()) {
+            const category = businessDoc.data()?.category || '';
+            setBusinessCategory(category.toLowerCase());
+            
+            // Determine if stock source should be shown
+            // Show if: (pro user with multiple branches) OR (retail/wholesale category)
+            const isRetailOrWholesale = category.toLowerCase().includes('retail') || 
+                                       category.toLowerCase().includes('wholesale') ||
+                                       category.toLowerCase().includes('distributor');
+            const hasMultipleBranches = isProUser && branches.length > 1;
+            setShowStockSource(hasMultipleBranches || isRetailOrWholesale);
+          }
+        } catch (error) {
+          console.error('Error loading business category:', error);
+          setShowStockSource(false);
+        }
 
         // Now fetch products from the business-specific collection
         const productsQuery = query(
@@ -711,8 +735,8 @@ export function RecordSalePage() {
               </div>
             )}
 
-            {/* Source Location Selection */}
-            {cart.length > 0 && (
+            {/* Source Location Selection - Only show for retail/wholesale or pro users with multiple branches */}
+            {cart.length > 0 && showStockSource && (
               <div className={styles.sourceLocationSection}>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Stock Source</label>

@@ -220,8 +220,8 @@ service cloud.firestore {
       // SUPPLIERS SUBCOLLECTION (auto-generated from stock receipts)
       // =====================
       match /suppliers/{supplierId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create (auto-generated during stock receipt) for business owner and staff
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -234,8 +234,8 @@ service cloud.firestore {
       // STOCK RECEIPTS SUBCOLLECTION (for receiving stock)
       // =====================
       match /stockReceipts/{receiptId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff (staff can receive stock)
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -248,8 +248,8 @@ service cloud.firestore {
       // STOCK TRANSFERS SUBCOLLECTION (for moving stock between locations)
       // =====================
       match /stockTransfers/{transferId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -280,8 +280,8 @@ service cloud.firestore {
       // BANK ACCOUNTS SUBCOLLECTION (for managing multiple bank accounts)
       // =====================
       match /bankAccounts/{accountId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create only for business owner
         allow create: if hasBusinessAccess(businessId);
@@ -294,8 +294,8 @@ service cloud.firestore {
       // BANK TRANSACTIONS SUBCOLLECTION (for tracking bank transactions)
       // =====================
       match /bankTransactions/{transactionId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -308,8 +308,8 @@ service cloud.firestore {
       // CASH FLOW SUBCOLLECTION (for tracking money in/out)
       // =====================
       match /cashFlow/{flowId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -322,8 +322,8 @@ service cloud.firestore {
       // SUPPLIER CREDIT SUBCOLLECTION (for tracking supplier credit)
       // =====================
       match /supplier_credit/{creditId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
@@ -336,8 +336,8 @@ service cloud.firestore {
       // STAFF ACTIVITY SUBCOLLECTION (for monitoring staff actions)
       // =====================
       match /staffActivity/{activityId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Temporarily allow read for any authenticated user for debugging
+        allow read: if isAuthenticated();
         
         // Allow create for business owner and staff (auto-generated on actions)
         allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);

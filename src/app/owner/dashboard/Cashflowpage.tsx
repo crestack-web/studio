@@ -101,7 +101,7 @@ export function CashflowPage() {
     try {
       const productsQuery = query(
         collection(firestore, 'businesses', businessId, 'products'),
-        where('isActive', '==', true)
+        where('active', '==', true)
       );
       const productsSnapshot = await getDocs(productsQuery);
       const productsList: any[] = [];

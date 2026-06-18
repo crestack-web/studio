@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAdminDb, isAdminInitialized } from '@/lib/firebase-admin';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { convertFromUsd, getCurrencyName } from '@/lib/currency';
-
-// Initialize Firebase Admin for server-side use
-let db: ReturnType<typeof getFirestore> | null = null;
-try {
-  if (!admin.apps.length) {
-    const serviceAccount = {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-    };
-    
-    if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    }
-  }
-  db = getFirestore();
-} catch (error) {
-  console.warn('Firebase Admin not initialized for Paystack:', error);
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save payment reference to Firestore
-    if (!db) {
+    if (!isAdminInitialized()) {
       console.error('Firebase not initialized for subscription payment');
       return NextResponse.json(
         { error: 'We are having issues processing your payment. Please try again later.' },
@@ -100,6 +79,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    const db = getAdminDb();
     const paymentRef = db.collection('subscriptionPayments').doc(data.data.reference);
     await paymentRef.set({
       reference: data.data.reference,

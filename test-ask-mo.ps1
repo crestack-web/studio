@@ -1,6 +1,7 @@
 $body = @{
     message = "Hello, how is my business doing?"
-    businessId = "test"
+    businessId = "test-business"
+    devUserId = "test-user"
     language = "en"
     languageName = "English"
 } | ConvertTo-Json

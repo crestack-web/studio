@@ -1,27 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin
-let db: ReturnType<typeof getFirestore> | null = null;
-try {
-  if (!admin.apps.length) {
-    const serviceAccount = {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-    };
-    
-    if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    }
-  }
-  db = getFirestore();
-} catch (error) {
-  console.warn('Firebase Admin not initialized for staff creation:', error);
-}
+import { getAdminDb, getAdminAuth, isAdminInitialized } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,12 +12,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!db) {
+    if (!isAdminInitialized()) {
       return NextResponse.json(
-        { error: 'Firebase Admin not initialized' },
+        { error: 'Firebase Admin not initialized. Check environment variables: NEXT_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_ADMIN_PRIVATE_KEY, FIREBASE_ADMIN_CLIENT_EMAIL' },
         { status: 500 }
       );
     }
+
+    const db = getAdminDb();
+    const auth = getAdminAuth();
 
     // Check if user already exists
     const usersQuery = db.collection('users').where('email', '==', email);
@@ -86,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new Firebase Auth user using Admin SDK
-    const userRecord = await admin.auth().createUser({
+    const userRecord = await auth.createUser({
       email: email,
       password: password,
       displayName: name,

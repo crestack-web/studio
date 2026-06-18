@@ -1137,13 +1137,16 @@ export default function BusmoOnboarding() {
                   const trialEnd = trialInfo?.trialEnd ? new Date(trialInfo.trialEnd) : new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
                   const selectedPlan = trialInfo?.plan || "starter";
                   
+                  // Calculate recommended plan based on selected features
+                  const recommendedPlan = data.businessAnalysis?.recommendedPlan || 'starter';
+                  
                   await setDoc(userDocRef, {
                     fullName: data.fullName,
                     email: data.email,
                     phone: `${data.countryCode}${data.phone}`,
                     role: 'Owner',
                     businessId: userId,
-                    plan: selectedPlan,
+                    plan: recommendedPlan, // Save recommended plan for after trial
                     category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                     country: data.country,
                     createdAt: Timestamp.now(),
@@ -1154,9 +1157,10 @@ export default function BusmoOnboarding() {
                     trialStartDate: Timestamp.fromDate(trialStart),
                     trialEndDate: Timestamp.fromDate(trialEnd),
                     subscriptionStatus: 'trial',
+                    trialPlan: recommendedPlan, // Store the plan to use after trial ends
                     businessAnalysis: data.businessAnalysis,
                     selectedCategory: data.selectedCategory,
-                    selectedFeatures: data.selectedFeatures,
+                    selectedFeatures: data.selectedFeatures, // All selected features available during trial
                   });
                   console.log('User profile created with trial info');
                 } else {

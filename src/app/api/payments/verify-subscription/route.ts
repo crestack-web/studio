@@ -1,27 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin for server-side use
-let db: ReturnType<typeof getFirestore> | null = null;
-try {
-  if (!admin.apps.length) {
-    const serviceAccount = {
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-    };
-    
-    if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    }
-  }
-  db = getFirestore();
-} catch (error) {
-  console.warn('Firebase Admin not initialized for Paystack verification:', error);
-}
+import { getAdminDb, isAdminInitialized } from '@/lib/firebase-admin';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,15 +46,26 @@ export async function POST(request: NextRequest) {
     const metadata = transactionData.metadata;
 
     // Update payment record in Firestore
-    if (!db) {
+    if (!isAdminInitialized()) {
       return NextResponse.json(
         { error: 'Firebase not initialized' },
         { status: 500 }
       );
     }
     
-    const paymentRef = db.collection('subscriptionPayments').doc(reference);
-    const paymentDoc = await paymentRef.get();
+    const db = getAdminDb();
+    
+    // Check both subscriptionPayments and payments collections
+    let paymentRef = db.collection('subscriptionPayments').doc(reference);
+    let paymentDoc = await paymentRef.get();
+    let paymentCollection = 'subscriptionPayments';
+
+    // If not found in subscriptionPayments, check payments collection
+    if (!paymentDoc.exists) {
+      paymentRef = db.collection('payments').doc(reference);
+      paymentDoc = await paymentRef.get();
+      paymentCollection = 'payments';
+    }
 
     if (paymentDoc.exists) {
       await paymentRef.update({
@@ -86,23 +76,50 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user subscription status
-    if (metadata && metadata.userId) {
-      const userRef = db.collection('users').doc(metadata.userId);
+    // Get userId from metadata or from payment document
+    let userId = metadata?.userId;
+    
+    // If userId not in metadata, try to get it from the payment document
+    if (!userId && paymentDoc.exists) {
+      const paymentData = paymentDoc.data();
+      userId = paymentData?.userId;
+    }
+
+    if (userId) {
+      const userRef = db.collection('users').doc(userId);
       const userDoc = await userRef.get();
 
       if (userDoc.exists) {
-        const plan = metadata.plan || 'starter';
+        // Get plan from metadata or payment document
+        let plan = metadata?.plan;
+        if (!plan && paymentDoc.exists) {
+          const paymentData = paymentDoc.data();
+          plan = paymentData?.plan;
+        }
+        
+        // Get billing cycle from metadata or payment document
+        let billing = metadata?.billing;
+        if (!billing && paymentDoc.exists) {
+          const paymentData = paymentDoc.data();
+          billing = paymentData?.billing;
+        }
+
+        plan = plan || 'starter';
         const subscriptionEndDate = new Date();
         
-        // Set subscription end date based on plan
-        // All plans are monthly subscriptions, so add 1 month
-        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+        // Set subscription end date based on billing cycle
+        if (billing === 'yearly') {
+          subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+        } else {
+          // Default to monthly
+          subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+        }
 
         await userRef.update({
           subscriptionStatus: 'active',
           subscriptionPlan: plan,
           subscriptionStartDate: FieldValue.serverTimestamp(),
-          subscriptionEndDate: admin.firestore.Timestamp.fromDate(subscriptionEndDate),
+          subscriptionEndDate: Timestamp.fromDate(subscriptionEndDate),
           lastPaymentReference: reference,
           lastPaymentAmount: transactionData.amount / 100,
           lastPaymentDate: FieldValue.serverTimestamp(),

@@ -99,11 +99,13 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         const timeDiff = trialEndDate.getTime() - now.getTime();
         
         if (timeDiff <= 0) {
-          // Trial expired
+          // Trial expired - downgrade to recommended plan
+          const trialPlan = userData.trialPlan || userData.plan || 'starter';
           setIsExpired(true);
-          // Update subscription status to expired
+          // Update subscription status and downgrade to recommended plan
           await updateDoc(doc(firestore, 'users', user.uid), {
             subscriptionStatus: 'expired',
+            plan: trialPlan, // Downgrade to the recommended plan based on selected features
           });
         } else {
           // Trial still active - calculate remaining time

@@ -98,6 +98,34 @@ export async function checkFeatureAccess(
     const userData = userDoc.data();
     const plan = userData?.plan || 'starter';
     const businessType = userData?.category || userData?.businessType;
+    const subscriptionStatus = userData?.subscriptionStatus;
+    const trialEndDate = userData?.trialEndDate?.toDate();
+    const selectedFeatures = userData?.selectedFeatures || [];
+    const now = new Date();
+
+    // Check if user is in trial mode
+    const isInTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+
+    // If in trial, check if feature is in selected features
+    if (isInTrial) {
+      // Map feature names to selected feature names
+      const featureMap: Record<string, string> = {
+        'bankAccounts': 'Bank Accounts Integration',
+        'auditTrail': 'Audit Trail',
+        'staffActivity': 'Staff Activity Tracking',
+        'multiLocation': 'Multi-branch Support',
+        'cashFlow': 'Cash Flow Tracking',
+      };
+
+      const selectedFeatureName = featureMap[feature] || feature;
+      
+      // If feature is in selected features, allow access during trial
+      if (selectedFeatures.includes(selectedFeatureName)) {
+        return { eligible: true };
+      }
+      
+      // If not in selected features, fall back to plan-based restrictions
+    }
 
     // Check if feature requires Standard or Pro plan (not available to starters)
     if (requiresStandardOrProPlan(feature) && plan === 'starter') {
