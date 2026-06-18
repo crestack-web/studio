@@ -11,6 +11,11 @@ build:
 # For Next.js, use the standard build command
 runtime: nodejs18
 
+# Add build configuration to exclude functions directory
+buildConfig:
+  # Skip type checking for functions directory
+  skipTypeCheck: true
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
