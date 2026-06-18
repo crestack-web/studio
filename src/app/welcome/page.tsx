@@ -9,11 +9,9 @@ import { MoSection } from './components/MoSection';
 import { FAQSection } from './components/FAQSection';
 import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
-import { InteractiveAskMODemo } from './components/InteractiveAskMODemo';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
-import { MobileAppShowcase } from './components/MobileAppShowcase';
 import { ProductScreenshots } from './components/ProductScreenshots';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
@@ -47,9 +45,6 @@ export default function WelcomePage() {
 
       {/* HERO */}
       <Hero onNavigate={handleNavigate} />
-
-      {/* INTERACTIVE ASK MO DEMO */}
-      <InteractiveAskMODemo />
 
       {/* WHO IS BUSMO FOR */}
       <section>
@@ -205,9 +200,6 @@ export default function WelcomePage() {
 
       {/* TESTIMONIALS */}
       <TestimonialsSection />
-
-      {/* MOBILE APP SHOWCASE */}
-      <MobileAppShowcase />
 
       {/* FAQ */}
       <FAQSection />

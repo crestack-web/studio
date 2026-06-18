@@ -18,7 +18,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
       </div>
       <h1>
         Know Your Profit Every Day.<br />
-        <em>Track sales, expenses, inventory and profit in one simple platform built for African businesses.</em>
+        <em>Simple business tracking for African entrepreneurs.</em>
       </h1>
       <p>
         Busmo gives you instant profit clarity, smart forecasts, and AI-powered insights —
