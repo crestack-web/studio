@@ -100,8 +100,16 @@
   color: #10b981;
 }
 
+[data-theme='dark'] .moneyIn {
+  color: #34d399;
+}
+
 .moneyOut {
   color: #ef4444;
+}
+
+[data-theme='dark'] .moneyOut {
+  color: #f87171;
 }
 
 .section {
@@ -171,6 +179,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+[data-theme='dark'] .defaultBadge {
+  background: #064e3b;
+  color: #6ee7b7;
 }
 
 .accountBalance {
@@ -392,6 +405,11 @@
   box-shadow: 0 4px 12px rgba(107, 63, 231, 0.15);
 }
 
+[data-theme='dark'] .upgradeBanner {
+  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
+  box-shadow: 0 4px 12px rgba(107, 63, 231, 0.3);
+}
+
 .upgradeBannerContent {
   display: flex;
   align-items: center;
@@ -434,9 +452,18 @@
   flex-shrink: 0;
 }
 
+[data-theme='dark'] .upgradeButton {
+  background: var(--bg-1);
+  color: var(--primary);
+}
+
 .upgradeButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='dark'] .upgradeButton:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .summaryNote {
@@ -630,6 +657,10 @@
 .modalButtonPrimary:hover {
   background: #5a2fd9;
   transform: translateY(-1px);
+}
+
+[data-theme='dark'] .modalButtonPrimary:hover {
+  background: #7c3aed;
 }
 
 /* Mobile responsive */

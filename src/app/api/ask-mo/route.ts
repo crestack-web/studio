@@ -15,7 +15,7 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-console.log('🔍 Firebase Admin Environment Check:', {
+console.log('🔍 [Ask MO API] Firebase Admin Environment Check:', {
   hasProjectId: !!projectId,
   hasPrivateKey: !!privateKey,
   hasClientEmail: !!clientEmail,
@@ -37,9 +37,9 @@ try {
         credential: admin.credential.cert(serviceAccount),
       });
       adminInitialized = true;
-      console.log('✅ Firebase Admin initialized for Ask MO');
+      console.log('✅ [Ask MO API] Firebase Admin initialized');
     } else {
-      console.warn('⚠️ Firebase Admin credentials missing:', {
+      console.warn('⚠️ [Ask MO API] Firebase Admin credentials missing:', {
         hasProjectId: !!serviceAccount.projectId,
         hasPrivateKey: !!serviceAccount.privateKey,
         hasClientEmail: !!serviceAccount.clientEmail,
@@ -47,15 +47,19 @@ try {
     }
   } else {
     adminInitialized = true;
-    console.log('✅ Firebase Admin already initialized for Ask MO');
+    console.log('✅ [Ask MO API] Firebase Admin already initialized');
   }
   
   if (adminInitialized) {
     db = getFirestore();
-    console.log('✅ Firestore initialized for Ask MO');
+    console.log('✅ [Ask MO API] Firestore initialized, db is set');
+  } else {
+    console.log('⚠️ [Ask MO API] Firebase Admin not initialized, db remains null');
   }
 } catch (error) {
-  console.error('❌ Firebase Admin initialization error for Ask MO:', error);
+  console.error('❌ [Ask MO API] Firebase Admin initialization error:', error);
+  db = null;
+  adminInitialized = false;
 }
 
 /**
@@ -1021,13 +1025,15 @@ export async function POST(req: NextRequest) {
 
     // Validate and authenticate AI request
     console.log('🔐 [Ask MO API] Starting authentication...');
+    console.log('🔍 [Ask MO API] Database status:', { dbInitialized: !!db, adminInitialized });
     const authStart = Date.now();
     
     let authenticatedUserId: string;
     let authenticatedBusinessId: string;
     
     // Skip authentication if database is not initialized (for development/testing)
-    if (!db) {
+    // Check both db and adminInitialized to ensure bypass works correctly
+    if (!db || !adminInitialized) {
       console.warn('⚠️ [Ask MO API] Database not initialized, skipping authentication validation');
       const error = AskMOErrorFactory.databaseNotInitialized();
       logError(error, 'Authentication');
@@ -1035,17 +1041,30 @@ export async function POST(req: NextRequest) {
       // Proceed without authentication for development/testing
       const { userId, devUserId, businessId: devBusinessId } = body;
       
+      console.log('🔍 [Ask MO API] Development mode auth check:', {
+        hasUserId: !!userId,
+        hasDevUserId: !!devUserId,
+        hasBusinessId: !!businessId,
+        hasDevBusinessId: !!devBusinessId,
+      });
+      
       if (!devUserId && !userId) {
+        console.error('❌ [Ask MO API] No user ID provided in development mode');
         return errorToResponse(AskMOErrorFactory.invalidInput('User ID is required'));
       }
       if (!devBusinessId && !businessId) {
+        console.error('❌ [Ask MO API] No business ID provided in development mode');
         return errorToResponse(AskMOErrorFactory.invalidInput('Business ID is required'));
       }
       
       authenticatedUserId = devUserId || userId;
       authenticatedBusinessId = devBusinessId || businessId;
-      console.log('⚠️ [Ask MO API] Using development mode authentication');
+      console.log('⚠️ [Ask MO API] Using development mode authentication', {
+        authenticatedUserId,
+        authenticatedBusinessId,
+      });
     } else {
+      console.log('🔐 [Ask MO API] Database initialized, performing full authentication');
       const authValidation = await validateAIRequest(req, body);
       timings.authentication = Date.now() - authStart;
       
