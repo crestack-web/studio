@@ -1246,57 +1246,260 @@
 }
 
 /* Dark mode specific styles */
-[data-theme='dark'] .botBubble {
-  background: var(--bg-3);
+[data-theme='dark'] .container {
+  background: var(--bg-1);
+}
+
+[data-theme='dark'] .header {
+  background: var(--bg-1);
   border-color: var(--border);
 }
 
+[data-theme='dark'] .headerTitle {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .backBtn {
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .backBtn:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .newChatBtn {
+  background: var(--primary-gradient);
+}
+
+[data-theme='dark'] .historyBtn {
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .historyBtn:hover {
+  background: var(--bg-3);
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .messages {
+  background: var(--bg-1);
+}
+
+[data-theme='dark'] .emptyChatContent h3 {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .emptyChatContent p {
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .businessSnapshot {
+  background: var(--bg-2);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] .snapshotLabel {
+  color: var(--text-3);
+}
+
+[data-theme='dark'] .snapshotValue {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .creditsHeader {
+  background: var(--bg-2);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] .creditsValue {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .quickActionChip {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
 [data-theme='dark'] .quickActionChip:hover {
-  background: var(--bg-4);
+  background: var(--bg-3);
   border-color: var(--primary);
 }
 
 [data-theme='dark'] .insightCard {
-  background: var(--bg-3);
+  background: var(--bg-2);
   border-color: var(--border);
 }
 
 [data-theme='dark'] .insightCardHeader {
-  background: var(--bg-4);
+  background: var(--bg-3);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] .insightCardTitle {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .insightCardItemName {
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .insightCardItemValue {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .botBubble {
+  background: var(--bg-2);
+  color: var(--text-1);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] .msgText {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .metric {
+  background: var(--bg-2);
+}
+
+[data-theme='dark'] .metricLabel {
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .metricValue {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .quickAction {
+  background: var(--bg-1);
+  border-color: var(--border);
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .quickAction:hover {
+  background: var(--bg-2);
+  border-color: var(--border-hover);
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .followUpLabel {
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .followUpSuggestion {
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .followUpSuggestion:hover {
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+[data-theme='dark'] .expandableSection {
   border-color: var(--border);
 }
 
 [data-theme='dark'] .expandableHeader {
-  background: var(--bg-2);
+  background: var(--bg-1);
 }
 
 [data-theme='dark'] .expandableHeader:hover {
-  background: var(--bg-3);
+  background: var(--bg-2);
+}
+
+[data-theme='dark'] .expandableTitle {
+  color: var(--text-1);
 }
 
 [data-theme='dark'] .expandableContent {
-  background: var(--bg-3);
+  background: var(--bg-2);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .historyModal {
+  background: var(--bg-1);
+}
+
+[data-theme='dark'] .historyHeader {
+  background: var(--bg-2);
   border-color: var(--border);
 }
 
-[data-theme='dark'] .historyItem {
+[data-theme='dark'] .historyTitle {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .closeHistoryBtn {
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+
+[data-theme='dark'] .closeHistoryBtn:hover {
   background: var(--bg-3);
+}
+
+[data-theme='dark'] .historyItem {
+  background: var(--bg-2);
 }
 
 [data-theme='dark'] .historyItem:hover {
-  background: var(--bg-4);
+  background: var(--bg-3);
+}
+
+[data-theme='dark'] .historyItemActive {
+  background: var(--primary-lt);
+  border-color: var(--primary);
+}
+
+[data-theme='dark'] .historyItemTitle {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .historyItemDate {
+  color: var(--text-3);
+}
+
+[data-theme='dark'] .historyItemDelete {
+  background: transparent;
+  color: var(--text-3);
+}
+
+[data-theme='dark'] .historyItemDelete:hover {
+  background: var(--red-lt);
+  color: var(--red);
+}
+
+[data-theme='dark'] .actionBtn {
+  background: transparent;
+  color: var(--text-3);
+}
+
+[data-theme='dark'] .actionBtn:hover {
+  background: var(--bg-1);
+  color: var(--text-2);
 }
 
 [data-theme='dark'] .typingIndicator {
-  background: var(--bg-3);
+  background: var(--bg-2);
 }
 
 [data-theme='dark'] .typingDot {
   background: var(--text-2);
 }
 
+[data-theme='dark'] .inputArea {
+  background: var(--bg-1);
+  border-color: var(--border);
+}
+
 [data-theme='dark'] .inputWrapper {
-  background: var(--bg-3);
+  background: var(--bg-2);
   border-color: var(--border);
 }
 
@@ -1305,23 +1508,35 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
+[data-theme='dark'] .input {
+  color: var(--text-1);
+}
+
+[data-theme='dark'] .input::placeholder {
+  color: var(--text-3);
+}
+
 [data-theme='dark'] .attachBtn,
 [data-theme='dark'] .micBtn {
-  background: var(--bg-4);
+  background: var(--bg-3);
   color: var(--text-2);
 }
 
 [data-theme='dark'] .attachBtn:hover,
 [data-theme='dark'] .micBtn:hover {
-  background: var(--bg-5);
+  background: var(--bg-4);
   color: var(--text-1);
 }
 
 [data-theme='dark'] .audioPreview {
-  background: var(--bg-3);
+  background: var(--bg-2);
 }
 
 [data-theme='dark'] .cancelRecordingBtn {
-  background: var(--bg-4);
+  background: var(--bg-3);
   color: var(--text-2);
+}
+
+[data-theme='dark'] .planLimit {
+  color: var(--text-3);
 }

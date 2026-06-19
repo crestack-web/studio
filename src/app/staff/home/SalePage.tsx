@@ -280,7 +280,11 @@ export const SalePage: React.FC<SalePageProps> = ({
                         aria-label={`Add ${p.name}`}
                       >
                         {qty > 0 && <div className="p-qt">{qty}</div>}
-                        <div className="p-em">{p.emoji}</div>
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="p-img" />
+                        ) : (
+                          <div className="p-em">{p.emoji}</div>
+                        )}
                         <div className="p-nm">{p.name}</div>
                         <div className="p-pr">₦{p.price.toLocaleString()}</div>
                         {p.low && <div className="p-ls">⚠️ Low stock</div>}

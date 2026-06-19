@@ -16,7 +16,7 @@ const db = admin.firestore();
  * Handles AI-powered business intelligence queries
  */
 export const askMo = functions.https.onRequest(
-  { secrets: [googleAiKeySecret], cors: true },
+  { secrets: [googleAiKeySecret] },
   async (req, res) => {
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');
@@ -290,7 +290,7 @@ AVOID: "According to the data", "The system indicates", "Based on records"
  * Initializes Paystack payment transaction
  */
 export const initializePayment = functions.https.onRequest(
-  { secrets: [paystackSecretKeySecret], cors: true },
+  { secrets: [paystackSecretKeySecret] },
   async (req, res) => {
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');

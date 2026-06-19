@@ -591,9 +591,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                   }}
                 />
               )}
-              <div className={styles.msgText}>
-                {formatContent(m.content)}
-              </div>
+              {formatContent(m.content)}
               {m.role === 'bot' && m.metrics && m.metrics.length > 0 && (
                 <div className={styles.metrics}>
                   {m.metrics.map((metric, idx) => (

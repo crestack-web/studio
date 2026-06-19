@@ -379,9 +379,13 @@ export function SalePage({ onComplete }: SalePageProps) {
                   onClick={() => !isOutOfStock && addToCart(product.id)}
                   style={{ cursor: isOutOfStock ? 'not-allowed' : 'pointer', opacity: isOutOfStock ? 0.5 : 1 }}
                 >
-                  <div className="p-em" style={{ fontSize: '2rem', marginBottom: '8px' }}>
-                    {product.emoji || '📦'}
-                  </div>
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="p-img" style={{ width: '100%', height: '80px', borderRadius: 'var(--rsm)', objectFit: 'cover', marginBottom: '6px' }} />
+                  ) : (
+                    <div className="p-em" style={{ fontSize: '2rem', marginBottom: '8px' }}>
+                      {product.emoji || '📦'}
+                    </div>
+                  )}
                   <div className="p-nm" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>
                     {product.name}
                   </div>

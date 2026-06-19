@@ -1721,6 +1721,14 @@ svg {
   margin-bottom: 4px;
 }
 
+.p-img {
+  width: 100%;
+  height: 80px;
+  border-radius: var(--rsm);
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+
 .p-nm {
   font-size: 0.68rem;
   font-weight: 600;
