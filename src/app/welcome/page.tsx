@@ -11,7 +11,6 @@ import { Footer } from './components/Footer';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
-import { DashboardMockup } from './components/DashboardMockup';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -146,9 +145,6 @@ export default function WelcomePage() {
 
       {/* HOW BUSMO WORKS */}
       <HowBusmoWorks />
-
-      {/* DASHBOARD MOCKUP - SEE BUSMO IN ACTION */}
-      <DashboardMockup />
 
       {/* INDUSTRY USE CASES */}
       <IndustryUseCases />
