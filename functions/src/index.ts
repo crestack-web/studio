@@ -16,12 +16,12 @@ const db = admin.firestore();
  * Handles AI-powered business intelligence queries
  */
 export const askMo = functions.https.onRequest(
-  { secrets: [googleAiKeySecret] },
+  { secrets: [googleAiKeySecret], cors: true },
   async (req, res) => {
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -290,12 +290,12 @@ AVOID: "According to the data", "The system indicates", "Based on records"
  * Initializes Paystack payment transaction
  */
 export const initializePayment = functions.https.onRequest(
-  { secrets: [paystackSecretKeySecret] },
+  { secrets: [paystackSecretKeySecret], cors: true },
   async (req, res) => {
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
       res.status(204).send('');

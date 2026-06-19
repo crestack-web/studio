@@ -145,7 +145,7 @@ export default function SubscribePage() {
       console.log('Amount:', amount, 'Billing cycle:', billingCycle);
 
       // Call Firebase Function to initialize subscription payment
-      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment', {
+      const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
