@@ -40,12 +40,14 @@ export default function PricingPage() {
       monthlyPrice: 5000,
       yearlyPrice: 50000,
       features: [
-        { text: 'Sales & Inventory Tracking', included: true },
-        { text: 'Expense Management', included: true },
-        { text: 'Basic AI Insights (MO)', included: true },
+        { text: 'Sales & Inventory Tracking', included: true, highlight: true },
+        { text: 'Expense Management', included: true, highlight: true },
+        { text: 'Basic Reports (Profit/Loss)', included: true, highlight: true },
+        { text: 'Ask MO AI (10 msgs/day, 2,500 credits)', included: true, highlight: true },
         { text: 'Up to 50 Products', included: true },
-        { text: 'Basic Reports', included: true },
-        { text: '1 Staff Member', included: true },
+        { text: 'Staff Management (1 staff)', included: true },
+        { text: 'Statement/Transaction History', included: true },
+        { text: 'Business Services Directory', included: true },
       ],
       cta: 'Start Free Trial',
       popular: false,
@@ -57,11 +59,16 @@ export default function PricingPage() {
       yearlyPrice: 100000,
       features: [
         { text: 'Everything in Starter', included: true },
+        { text: 'Cash Flow Tracking', included: true, highlight: true },
+        { text: 'Money Control & Operations', included: true, highlight: true },
+        { text: 'Credit Tracking (Debtors/Creditors)', included: true, highlight: true },
+        { text: 'Ask MO AI (50 msgs/day, 10,000 credits)', included: true, highlight: true },
         { text: 'Up to 500 Products', included: true },
-        { text: 'Advanced Analytics', included: true },
-        { text: 'Staff Management (up to 10)', included: true },
-        { text: 'Cash Flow Tracking', included: true },
-        { text: 'Multi-branch Support (up to 3)', included: true },
+        { text: 'Staff Management (up to 10 staff)', included: true },
+        { text: 'Multi-branch Support (up to 3 branches)', included: true },
+        { text: 'Advanced Analytics & Reports', included: true },
+        { text: 'Supplier Management', included: true },
+        { text: 'Invoice Verification', included: true },
       ],
       cta: 'Start Free Trial',
       popular: true,
@@ -73,13 +80,16 @@ export default function PricingPage() {
       yearlyPrice: 250000,
       features: [
         { text: 'Everything in Standard', included: true },
-        { text: 'Unlimited Products', included: true },
-        { text: 'Unlimited Staff', included: true },
-        { text: 'Unlimited Branches', included: true },
-        { text: 'Bank Accounts Integration', included: true },
-        { text: 'Audit Trail', included: true },
-        { text: 'Staff Activity Tracking', included: true },
+        { text: 'Unlimited Products', included: true, highlight: true },
+        { text: 'Unlimited Staff', included: true, highlight: true },
+        { text: 'Unlimited Branches', included: true, highlight: true },
+        { text: 'Bank Accounts Integration', included: true, highlight: true },
+        { text: 'Bank Reconciliation', included: true, highlight: true },
+        { text: 'Ask MO AI (Unlimited messages & credits)', included: true, highlight: true },
+        { text: 'Audit Trail & Activity Logs', included: true, highlight: true },
+        { text: 'Staff Activity Tracking', included: true, highlight: true },
         { text: 'Priority Support', included: true },
+        { text: 'Access Capital & Funding', included: true },
       ],
       cta: 'Contact Sales',
       popular: false,
@@ -240,12 +250,13 @@ export default function PricingPage() {
                   {plan.features.map((feature, idx) => (
                     <li
                       key={idx}
-                      className={`feature-item ${!feature.included ? 'inactive' : ''}`}
+                      className={`feature-item ${!feature.included ? 'inactive' : ''} ${feature.highlight ? 'highlight' : ''}`}
                     >
                       <span className="feature-icon">
                         {feature.included ? '✓' : '✗'}
                       </span>
                       <span className="feature-text">{feature.text}</span>
+                      {feature.highlight && <span className="feature-badge">Popular</span>}
                     </li>
                   ))}
                 </ul>

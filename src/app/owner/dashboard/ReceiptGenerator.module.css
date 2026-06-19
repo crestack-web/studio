@@ -53,9 +53,9 @@
 }
 
 .modalClose:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .modalBody {
@@ -72,7 +72,7 @@
   max-width: 300px;
   margin-left: auto;
   margin-right: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
 }
 
 .receiptHeader {
@@ -93,7 +93,7 @@
 }
 
 .receiptDivider {
-  border-top: 1px dashed #000;
+  border-top: 1px dashed black;
   margin: 12px 0;
 }
 
@@ -108,7 +108,7 @@
   font-weight: bold;
   margin-bottom: 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid black;
 }
 
 .receiptItem {

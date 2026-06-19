@@ -554,8 +554,8 @@ export function CashflowPage() {
                   />
                 </div>
                 <div className={styles.modalActions}>
-                  <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button className={styles.modalButtonPrimary}>Add Stock</button>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Add Stock</button>
                 </div>
               </form>
             )}
@@ -611,8 +611,8 @@ export function CashflowPage() {
                   />
                 </div>
                 <div className={styles.modalActions}>
-                  <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button className={styles.modalButtonPrimary}>Reduce Stock</button>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Reduce Stock</button>
                 </div>
               </form>
             )}
@@ -668,8 +668,8 @@ export function CashflowPage() {
                   />
                 </div>
                 <div className={styles.modalActions}>
-                  <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button className={styles.modalButtonPrimary}>Add Money</button>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Add Money</button>
                 </div>
               </form>
             )}
@@ -726,8 +726,8 @@ export function CashflowPage() {
                   />
                 </div>
                 <div className={styles.modalActions}>
-                  <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button className={styles.modalButtonPrimary}>Take Money</button>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Take Money</button>
                 </div>
               </form>
             )}

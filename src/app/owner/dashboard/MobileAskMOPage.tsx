@@ -11,7 +11,6 @@ import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings } 
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
-import { MobileBottomNav } from './MobileBottomNav';
 
 interface MOMessage {
   id: string;
@@ -1119,9 +1118,6 @@ export function MobileAskMOPage() {
           </button>
         </div>
       </div>
-      
-      {/* Bottom Navigation */}
-      <MobileBottomNav />
     </div>
   );
 }

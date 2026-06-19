@@ -8,7 +8,7 @@
     "runtime": "nodejs20"
   },
   "hosting": {
-    "public": "out",
+    "public": ".next",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -16,12 +16,60 @@
     ],
     "rewrites": [
       {
-        "source": "/api/ask-mo",
-        "function": "askMo"
+        "source": "/api/initializePayment",
+        "function": "initializePayment"
       },
       {
-        "source": "/api/**",
-        "function": "api"
+        "source": "/api/verifyPayment",
+        "function": "verifyPayment"
+      },
+      {
+        "source": "/api/fetchBankList",
+        "function": "fetchBankList"
+      },
+      {
+        "source": "/api/verifyBankAccount",
+        "function": "verifyBankAccount"
+      },
+      {
+        "source": "/api/sendAdminSignInLink",
+        "function": "sendAdminSignInLink"
+      },
+      {
+        "source": "/api/sendStaffSignInLink",
+        "function": "sendStaffSignInLink"
+      },
+      {
+        "source": "/api/sendEmailVerification",
+        "function": "sendEmailVerification"
+      },
+      {
+        "source": "/api/sendPasswordReset",
+        "function": "sendPasswordReset"
+      },
+      {
+        "source": "/api/claimReferral",
+        "function": "claimReferral"
+      },
+      {
+        "source": "/api/ensureReferralCode",
+        "function": "ensureReferralCode"
+      },
+      {
+        "source": "/api/adminRecordReferralPayout",
+        "function": "adminRecordReferralPayout"
+      },
+      {
+        "source": "/api/createProduct",
+        "function": "createProduct"
+      },
+      {
+        "source": "/api/getProducts",
+        "function": "getProducts"
+      },
+      {
+        "source": "/api/sendOtpLogin",
+        "function": "sendOtpLogin"
       }
     ],
     "cleanUrls": true,

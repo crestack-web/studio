@@ -17,7 +17,7 @@
 
 .group { display: flex; flex-direction: column; gap: 5px; }
 .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); }
-.req { color: var(--red,#C0392B); }
+.req { color: var(--red); }
 .hint { font-size: 11px; color: var(--text-3); line-height: 1.5; }
 
  .input, .select, .textarea {
@@ -105,7 +105,7 @@
   transition: all .15s;
 }
 .removeImageBtn:hover {
-  background: #a93226;
+  background: var(--red);
   transform: scale(1.1);
 }
 .textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
@@ -119,8 +119,8 @@
 .marginIndicator {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-radius: 10px;
-  background: #E6F5EE; border: 1px solid #A7D9BF;
-  font-size: 12px; color: #1A7A50;
+  background: var(--green-bg); border: 1px solid var(--green);
+  font-size: 12px; color: var(--green);
 }
 
 .toggleRow { display: flex; align-items: center; justify-content: space-between; }
@@ -136,8 +136,8 @@
 .expiryWarn {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-radius: 8px;
-  background: #FEF3C7; border: 1px solid #F8D99B;
-  font-size: 12px; color: #B45309; margin-top: 8px;
+  background: var(--amber-bg); border: 1px solid var(--amber);
+  font-size: 12px; color: var(--amber); margin-top: 8px;
 }
 
 .chipRow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -158,16 +158,16 @@
 /* Sale gates */
 .saleGate { border: 1px solid var(--border-2); border-radius: 10px; padding: 16px 18px; background: var(--bg); margin-bottom: 10px; }
 .unlocked { border-color: rgba(107,63,231,.3); background: rgba(107,63,231,.04); }
-.saleGateAmber { border: 1px solid #F59E0B; border-radius: 10px; padding: 16px 18px; background: #FEF3C7; }
+.saleGateAmber { border: 1px solid var(--amber); border-radius: 10px; padding: 16px 18px; background: var(--amber-bg); }
 .gateHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .gateTitle { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-1); }
 .gateSub { font-size: 12px; color: var(--text-3); line-height: 1.6; }
-.gateSubAmber { font-size: 12px; color: #B45309; line-height: 1.6; }
+.gateSubAmber { font-size: 12px; color: var(--amber); line-height: 1.6; }
 
 .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
-.pillGreen { background: #E6F5EE; color: #1A7A50; }
+.pillGreen { background: var(--green-bg); color: var(--green); }
 .pillPurple { background: rgba(107,63,231,.1); color: var(--purple); }
-.pillAmber { background: #FEF3C7; color: #B45309; }
+.pillAmber { background: var(--amber-bg); color: var(--amber); }
 
 .countryGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
 .countryChip {
@@ -205,7 +205,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 8px;
   font-size: 11px; font-weight: 700;
-  background: #B45309; color: #fff;
+  background: var(--amber); color: #fff;
   border: none; cursor: pointer; font-family: inherit;
 }
 

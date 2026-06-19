@@ -6,7 +6,8 @@ const SCREENSHOTS = [
   {
     title: "Dashboard",
     description: "See your profit, sales, and inventory at a glance",
-    icon: "📊"
+    icon: "📊",
+    image: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1781877823/busmo_dashboad_sh1vzq.png"
   },
   {
     title: "Inventory",
@@ -41,15 +42,21 @@ export const ProductScreenshots: React.FC = () => (
       <div className="screenshots-grid">
         {SCREENSHOTS.map((screenshot, index) => (
           <div key={index} className="screenshot-card">
-            <div className="screenshot-placeholder">
-              <div className="screenshot-icon">{screenshot.icon}</div>
-              <div className="screenshot-placeholder-text">
-                {screenshot.title} Screenshot
+            {screenshot.image ? (
+              <div className="screenshot-image">
+                <img src={screenshot.image} alt={screenshot.title} />
               </div>
-              <div className="screenshot-placeholder-sub">
-                Add your screenshot here
+            ) : (
+              <div className="screenshot-placeholder">
+                <div className="screenshot-icon">{screenshot.icon}</div>
+                <div className="screenshot-placeholder-text">
+                  {screenshot.title} Screenshot
+                </div>
+                <div className="screenshot-placeholder-sub">
+                  Add your screenshot here
+                </div>
               </div>
-            </div>
+            )}
             <div className="screenshot-info">
               <h3 className="screenshot-title">{screenshot.title}</h3>
               <p className="screenshot-desc">{screenshot.description}</p>

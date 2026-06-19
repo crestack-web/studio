@@ -257,6 +257,16 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  transition: all 0.2s;
+}
+
+.transactionCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .transactionCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .transactionHeader {
@@ -576,6 +586,11 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+}
+
+[data-theme='dark'] .modal {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .modalTitle {
@@ -688,6 +703,11 @@
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   position: relative;
+  border: 1px solid var(--border);
+}
+
+[data-theme='dark'] .actionForm {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .closeFormBtn {
@@ -711,6 +731,10 @@
 .closeFormBtn:hover {
   background: var(--bg-3);
   color: var(--text-1);
+}
+
+[data-theme='dark'] .closeFormBtn:hover {
+  background: var(--bg-4);
 }
 
 .transactionsSection {

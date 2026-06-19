@@ -89,13 +89,13 @@ export function AppShell() {
         {!isMobileAskMO && <NotificationBar />}
         {!isMobileAskMO && <Topbar />}
 
-        <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : ''].join(' ')}>
+        <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : '', isMobileAskMO ? styles.mobileAskMOPageArea : ''].join(' ')}>
           <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>
             {currentPage}
           </div>
         </div>
 
-        {!isMobileAskMO && <MobileBottomNav />}
+        <MobileBottomNav />
       </div>
 
       <AvatarModal />

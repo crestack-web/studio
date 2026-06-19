@@ -30,8 +30,12 @@
   flex-direction: column;
 }
 
+.mobileAskMOPageArea {
+  background: var(--bg-1);
+}
+
 @media (max-width: 768px) {
-  .pageArea { padding-bottom: var(--bottom-nav-height); }
+  .pageArea:not(.mobileAskMOPageArea) { padding-bottom: var(--bottom-nav-height); }
 }
 
 /* ── Page container ── */

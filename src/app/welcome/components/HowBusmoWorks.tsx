@@ -35,12 +35,6 @@ const STEPS = [
   }
 ];
 
-const EXAMPLE_QUESTIONS = [
-  "How much profit did I make this week?",
-  "What products should I restock?",
-  "Who owes me money?"
-];
-
 export const HowBusmoWorks: React.FC = () => (
   <section className="how-busmo-works-section">
     <div className="max-w">
@@ -66,26 +60,6 @@ export const HowBusmoWorks: React.FC = () => (
             {index < STEPS.length - 1 && <div className="step-connector">→</div>}
           </div>
         ))}
-      </div>
-
-      <div className="ask-mo-examples">
-        <div className="ask-mo-examples-header">
-          <span className="ask-mo-badge">Ask MO Examples</span>
-          <h3 className="ask-mo-examples-title">
-            Your AI Business Assistant
-          </h3>
-          <p className="ask-mo-examples-sub">
-            After recording your data, ask MO anything about your business:
-          </p>
-        </div>
-        <div className="example-questions">
-          {EXAMPLE_QUESTIONS.map((question, index) => (
-            <div key={index} className="example-question">
-              <span className="example-icon">💬</span>
-              <span className="example-text">{question}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   </section>
