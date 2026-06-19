@@ -5,14 +5,13 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { MarketSection } from './components/MarketSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
-import { MoSection } from './components/MoSection';
 import { FAQSection } from './components/FAQSection';
 import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
-import { ProductScreenshots } from './components/ProductScreenshots';
+import { DashboardMockup } from './components/DashboardMockup';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -148,8 +147,8 @@ export default function WelcomePage() {
       {/* HOW BUSMO WORKS */}
       <HowBusmoWorks />
 
-      {/* PRODUCT SCREENSHOTS */}
-      <ProductScreenshots />
+      {/* DASHBOARD MOCKUP - SEE BUSMO IN ACTION */}
+      <DashboardMockup />
 
       {/* INDUSTRY USE CASES */}
       <IndustryUseCases />
@@ -194,9 +193,6 @@ export default function WelcomePage() {
 
       {/* BEFORE VS AFTER COMPARISON */}
       <BeforeAfterComparison />
-
-      {/* MO AI MOCKUP */}
-      <MoSection />
 
       {/* TESTIMONIALS */}
       <TestimonialsSection />
