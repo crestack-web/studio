@@ -403,7 +403,7 @@ export function MobileAskMOPage() {
         conversationHistoryLength: requestBody.conversationHistory.length,
       });
 
-      const response = await fetch('/api/ask-mo', {
+      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/askMo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,

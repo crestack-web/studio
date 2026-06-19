@@ -144,8 +144,8 @@ export default function SubscribePage() {
 
       console.log('Amount:', amount, 'Billing cycle:', billingCycle);
 
-      // Call Paystack API to initialize subscription payment
-      const response = await fetch('/api/payments/initialize-paystack', {
+      // Call Firebase Function to initialize subscription payment
+      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
