@@ -162,7 +162,12 @@ export function ReceiptThemeConfig() {
     try {
       setIsSaving(true);
       const businessId = user.businessId;
-      
+
+      if (!businessId) {
+        showToast('Business ID not found');
+        return;
+      }
+
       await updateDoc(doc(firestore, 'businesses', businessId), {
         receiptTheme: currentTheme,
       });
