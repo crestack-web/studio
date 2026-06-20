@@ -57,6 +57,8 @@ export function RecordSalePage() {
   // Receipt printing
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSaleData, setLastSaleData] = useState<any>(null);
+  const [receiptTheme, setReceiptTheme] = useState<any>(null);
+  const [businessLogo, setBusinessLogo] = useState<string>('');
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -92,12 +94,23 @@ export function RecordSalePage() {
 
         setBusinessId(bId);
 
-        // Fetch business category
+        // Fetch business category and receipt theme
         try {
           const businessDoc = await getDoc(doc(firestore, 'businesses', bId));
           if (businessDoc.exists()) {
-            const category = businessDoc.data()?.category || '';
+            const data = businessDoc.data();
+            const category = data?.category || '';
             setBusinessCategory(category.toLowerCase());
+            
+            // Load receipt theme
+            if (data?.receiptTheme) {
+              setReceiptTheme(data.receiptTheme);
+            }
+            
+            // Load business logo
+            if (data?.logoUrl) {
+              setBusinessLogo(data.logoUrl);
+            }
             
             // Determine if stock source should be shown
             // Show if: (pro user with multiple branches) OR (retail/wholesale category)
@@ -591,6 +604,8 @@ export function RecordSalePage() {
         outstandingBalance: subtotal - paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0),
         paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
         sourceLocation: sourceLocationName,
+        logoUrl: businessLogo,
+        theme: receiptTheme,
       };
 
       setLastSaleData(receiptData);
@@ -1028,6 +1043,7 @@ export function RecordSalePage() {
                 setShowReceipt(false);
                 navigateTo('home');
               }}
+              isWholesale={businessCategory.includes('wholesale') || businessCategory.includes('distributor')}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <Button

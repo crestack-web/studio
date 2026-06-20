@@ -51,15 +51,19 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
     try {
       console.log('Initializing payment for pack:', packKey, 'amount:', pack.amount);
       
-      // Call API route to initialize payment
-      const response = await fetch('/api/payments/purchase-credits', {
+      // Call Firebase Function to initialize payment
+      const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pack: packKey,
-          userId: user.id,
           email: user.email,
-          countryCode: countryCode,
+          amount: pack.amount,
+          userId: user.id,
+          metadata: {
+            payment_type: 'credit_purchase',
+            pack: packKey,
+            credits: pack.credits,
+          },
         }),
       });
 

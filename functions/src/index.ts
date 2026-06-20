@@ -327,7 +327,13 @@ export const initializePayment = functions.https.onRequest(
     const paystackAmount = Math.round(amount * 100);
     const paystackCurrency = 'NGN';
 
-    console.log('💳 [Initialize Payment] Paystack request:', { email, amount: paystackAmount, currency: paystackCurrency });
+    // Determine callback URL based on payment type
+    const paymentType = metadata?.payment_type || (billing === 'yearly' ? 'yearly_subscription' : 'monthly_subscription');
+    const callbackUrl = paymentType === 'credit_purchase'
+      ? `${process.env.PUBLIC_APP_URL || 'https://busmo.io'}/dashboard`
+      : `${process.env.PUBLIC_APP_URL || 'https://busmo.io'}/subscribe/success`;
+
+    console.log('💳 [Initialize Payment] Paystack request:', { email, amount: paystackAmount, currency: paystackCurrency, paymentType, callbackUrl });
 
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -342,13 +348,13 @@ export const initializePayment = functions.https.onRequest(
         metadata: {
           plan,
           userId: userId || 'guest',
-          payment_type: billing === 'yearly' ? 'yearly_subscription' : 'monthly_subscription',
+          payment_type: paymentType,
           billing: billing || 'monthly',
           originalAmount: amount,
           currency: paystackCurrency,
           ...metadata,
         },
-        callback_url: `${process.env.PUBLIC_APP_URL || 'https://busmo.io'}/subscribe/success`,
+        callback_url: callbackUrl,
         channels: ['card', 'bank_transfer', 'ussd', 'qr'],
       }),
     });

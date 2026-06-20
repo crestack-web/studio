@@ -3,6 +3,7 @@ import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { fetchProducts, recordSale } from '../services/dataService';
 import { formatCurrency } from '@/lib/currency';
+import { ReceiptGenerator } from '../../../owner/dashboard/ReceiptGenerator';
 
 interface SalePageProps {
   onComplete?: (saleData?: any) => void;
@@ -27,6 +28,29 @@ interface PrintedReceipt {
   date: string;
 }
 
+interface ReceiptData {
+  businessName: string;
+  businessAddress?: string;
+  businessPhone?: string;
+  customerName?: string;
+  customerPhone?: string;
+  saleNumber: string;
+  date: string;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }[];
+  subtotal: number;
+  amountPaid: number;
+  outstandingBalance: number;
+  paymentMethod: string;
+  sourceLocation?: string;
+  logoUrl?: string;
+  theme?: any;
+}
+
 export function SalePage({ onComplete }: SalePageProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -34,10 +58,16 @@ export function SalePage({ onComplete }: SalePageProps) {
     { method: 'cash', amount: 0, received: true }
   ]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastSale, setLastSale] = useState<PrintedReceipt | null>(null);
+  const [lastSale, setLastSale] = useState<ReceiptData | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [businessCurrency, setBusinessCurrency] = useState('₦');
+  const [receiptTheme, setReceiptTheme] = useState<any>(null);
+  const [businessLogo, setBusinessLogo] = useState<string>('');
+  const [businessName, setBusinessName] = useState<string>('');
+  const [businessAddress, setBusinessAddress] = useState<string>('');
+  const [businessPhone, setBusinessPhone] = useState<string>('');
+  const [businessCategory, setBusinessCategory] = useState<string>('');
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch real products and business currency
@@ -88,7 +118,7 @@ export function SalePage({ onComplete }: SalePageProps) {
         console.log('Fetched products:', fetchedProducts);
         setProducts(fetchedProducts);
         
-        // Fetch business profile to get currency
+        // Fetch business profile to get currency and receipt theme
         try {
           const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
           if (businessDoc.exists()) {
@@ -97,6 +127,22 @@ export function SalePage({ onComplete }: SalePageProps) {
             const currency = businessData.currency || businessData.businessCurrency || businessData.defaultCurrency || '₦';
             setBusinessCurrency(currency);
             console.log('Business currency set to:', currency);
+            
+            // Load receipt theme
+            if (businessData.receiptTheme) {
+              setReceiptTheme(businessData.receiptTheme);
+            }
+            
+            // Load business logo
+            if (businessData.logoUrl) {
+              setBusinessLogo(businessData.logoUrl);
+            }
+            
+            // Load business details for receipt
+            setBusinessName(businessData.businessName || '');
+            setBusinessAddress(businessData.address || '');
+            setBusinessPhone(businessData.phone || '');
+            setBusinessCategory(businessData.category || '');
           } else {
             console.warn('Business document not found, using default currency');
             setBusinessCurrency('₦');
@@ -269,7 +315,30 @@ export function SalePage({ onComplete }: SalePageProps) {
         }),
       };
 
-      setLastSale(receipt);
+      const receiptData = {
+        businessName,
+        businessAddress,
+        businessPhone,
+        saleNumber: receipt.id,
+        date: receipt.date,
+        items: receipt.items.map(item => {
+          const product = getProduct(item.productId);
+          return {
+            name: product?.name || 'Unknown Product',
+            quantity: item.quantity,
+            price: product?.price || 0,
+            total: (product?.price || 0) * item.quantity,
+          };
+        }),
+        subtotal: total,
+        amountPaid: paymentMethods.reduce((sum, pm) => sum + pm.amount, 0),
+        outstandingBalance: total - paymentMethods.reduce((sum, pm) => sum + pm.amount, 0),
+        paymentMethod: paymentMethods.length === 1 ? paymentMethods[0].method : 'split',
+        logoUrl: businessLogo,
+        theme: receiptTheme,
+      };
+
+      setLastSale(receiptData as any);
       setShowPrintDialog(true);
       setCart([]);
       setSearchQuery('');
@@ -281,48 +350,6 @@ export function SalePage({ onComplete }: SalePageProps) {
     }
   };
 
-  const handlePrint = () => {
-    if (printRef.current) {
-      const printContent = printRef.current.innerHTML;
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Receipt - ${lastSale?.id}</title>
-            <style>
-              body { font-family: 'Courier New', monospace; padding: 20px; font-size: 12px; }
-              .receipt { max-width: 300px; margin: 0 auto; }
-              .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-              .store-name { font-size: 16px; font-weight: bold; }
-              .items { border-bottom: 1px dashed #000; padding: 10px 0; }
-              .item { display: flex; justify-content: space-between; margin: 5px 0; }
-              .item-name { flex: 1; }
-              .item-qty { margin: 0 10px; }
-              .item-total { font-weight: bold; }
-              .totals { padding: 10px 0; }
-              .total-row { display: flex; justify-content: space-between; margin: 3px 0; }
-              .grand-total { font-size: 14px; font-weight: bold; border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; }
-              .footer { text-align: center; font-size: 10px; margin-top: 10px; }
-              @media print { body { padding: 0; } }
-            </style>
-          </head>
-          <body>
-            <div class="receipt">${printContent}</div>
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 250);
-      }
-    }
-    setShowPrintDialog(false);
-  };
 
   const getProduct = (productId: string) => {
     return products.find((p: any) => p.id === productId);
@@ -589,111 +616,14 @@ export function SalePage({ onComplete }: SalePageProps) {
 
       {/* Print Dialog */}
       {showPrintDialog && lastSale && (
-        <div className="modal-ov" style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }} onClick={() => setShowPrintDialog(false)}>
-          <div className="card" style={{
-            maxWidth: '320px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div className="chd">
-              <div className="cttl">Print Receipt</div>
-              <button
-                className="btn bxs bamb"
-                onClick={() => setShowPrintDialog(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Receipt Preview */}
-            <div ref={printRef} className="receipt-preview" style={{
-              fontFamily: "'Courier New', monospace",
-              fontSize: '11px',
-              padding: '10px',
-              background: '#fff',
-              color: '#000',
-            }}>
-              <div style={{ textAlign: 'center', borderBottom: '1px dashed #000', paddingBottom: '10px', marginBottom: '10px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>🏪 Busmo Store</div>
-                <div style={{ fontSize: '9px', color: '#666' }}>123 Business Street</div>
-                <div style={{ fontSize: '9px', color: '#666' }}>Lagos, Nigeria</div>
-                <div style={{ fontSize: '9px', color: '#666', marginTop: '4px' }}>{lastSale.date}</div>
-                <div style={{ fontSize: '9px', color: '#666' }}>Receipt: {lastSale.id}</div>
-              </div>
-
-              <div style={{ borderBottom: '1px dashed #000', padding: '10px 0', marginBottom: '10px' }}>
-                {lastSale.items.map((item, idx) => {
-                  const product = getProduct(item.productId);
-                  if (!product) return null;
-                  return (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ flex: 1 }}>{product.name}</span>
-                      <span style={{ margin: '0 8px' }}>x{item.quantity}</span>
-                      <span style={{ fontWeight: 'bold' }}>{formatCurrency(product.price * item.quantity, businessCurrency)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ padding: '10px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(lastSale.total, businessCurrency)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span>Tax (0%)</span>
-                  <span>{formatCurrency(0, businessCurrency)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #000', paddingTop: '5px', marginTop: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                  <span>TOTAL</span>
-                  <span>{formatCurrency(lastSale.total, businessCurrency)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '10px' }}>
-                  <span>Payment</span>
-                  <span>
-                    {lastSale.paymentMethods.map((pm, idx) => (
-                      <span key={idx}>
-                        {idx > 0 && ', '}
-                        {pm.method === 'cash' ? '💵 Cash' : pm.method === 'transfer' ? '📱 Transfer' : pm.method === 'pos' ? '💳 POS' : '📝 Credit'}: {formatCurrency(pm.amount, businessCurrency)}
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center', fontSize: '9px', marginTop: '10px', color: '#666' }}>
-                <div>Thank you for your business!</div>
-                <div>Powered by Busmo</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <button
-                className="btn bpw"
-                onClick={handlePrint}
-                style={{ flex: 1 }}
-              >
-                🖨️ Print Receipt
-              </button>
-              <button
-                className="btn bgh"
-                onClick={() => setShowPrintDialog(false)}
-                style={{ flex: 1, background: 'var(--bg)', color: 'var(--t1)' }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReceiptGenerator
+          receiptData={lastSale}
+          onClose={() => {
+            setShowPrintDialog(false);
+            onComplete?.();
+          }}
+          isWholesale={businessCategory.toLowerCase().includes('wholesale') || businessCategory.toLowerCase().includes('distributor')}
+        />
       )}
     </div>
   );

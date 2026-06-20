@@ -123,7 +123,7 @@
 
 .confirmPickupButton {
   flex: 1;
-  background: #1DB954;
+  background: var(--green);
   color: white;
   font-weight: 600;
   padding: 12px;
@@ -134,7 +134,7 @@
 }
 
 .confirmPickupButton:hover {
-  background: #169C46;
+  background: var(--green-dk);
 }
 
 .requestList {
@@ -172,7 +172,7 @@
 }
 
 .approveButton {
-  background: #1DB954;
+  background: var(--green);
   color: white;
   font-weight: 600;
   padding: 8px 16px;
@@ -183,11 +183,11 @@
 }
 
 .approveButton:hover {
-  background: #169C46;
+  background: var(--green-dk);
 }
 
 .rejectButton {
-  background: #DC2626;
+  background: var(--red);
   color: white;
   font-weight: 600;
   padding: 8px 16px;
@@ -198,7 +198,7 @@
 }
 
 .rejectButton:hover {
-  background: #B91C1C;
+  background: var(--red-dk);
 }
 
 .modal {

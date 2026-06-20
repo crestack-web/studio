@@ -27,6 +27,20 @@ interface ReceiptData {
   outstandingBalance: number;
   paymentMethod: string;
   sourceLocation?: string;
+  logoUrl?: string;
+  theme?: {
+    primaryColor: string;
+    secondaryColor: string;
+    textColor: string;
+    backgroundColor: string;
+    fontSize: 'small' | 'medium' | 'large';
+    showLogo: boolean;
+    showBusinessAddress: boolean;
+    showCustomerDetails: boolean;
+    showBarcode: boolean;
+    customHeader?: string;
+    customFooter?: string;
+  };
 }
 
 interface ReceiptGeneratorProps {
@@ -130,10 +144,30 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
 
         <div className={styles.modalBody}>
           {/* Receipt Preview */}
-          <div className={styles.receiptPreview} ref={receiptRef}>
+          <div 
+            className={styles.receiptPreview} 
+            ref={receiptRef}
+            style={{
+              backgroundColor: receiptData.theme?.backgroundColor || 'white',
+              color: receiptData.theme?.textColor || 'black',
+            }}
+          >
+            {receiptData.theme?.showLogo && receiptData.logoUrl && (
+              <div className={styles.receiptLogo}>
+                <img src={receiptData.logoUrl} alt="Logo" className={styles.logoImage} />
+              </div>
+            )}
             <div className={styles.receiptHeader}>
-              <div className={styles.receiptTitle}>{receiptData.businessName}</div>
-              {receiptData.businessAddress && (
+              {receiptData.theme?.customHeader && (
+                <div className={styles.receiptCustomHeader}>{receiptData.theme.customHeader}</div>
+              )}
+              <div 
+                className={styles.receiptTitle}
+                style={{ color: receiptData.theme?.primaryColor || 'black' }}
+              >
+                {receiptData.businessName}
+              </div>
+              {receiptData.theme?.showBusinessAddress && receiptData.businessAddress && (
                 <div className={styles.receiptInfo}>{receiptData.businessAddress}</div>
               )}
               {receiptData.businessPhone && (
@@ -141,15 +175,18 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               )}
             </div>
 
-            <div className={styles.receiptDivider}></div>
+            <div 
+              className={styles.receiptDivider}
+              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
+            ></div>
 
             <div className={styles.receiptInfo}>
               <div>Receipt #: {receiptData.saleNumber}</div>
               <div>Date: {receiptData.date}</div>
-              {receiptData.customerName && (
+              {receiptData.theme?.showCustomerDetails && receiptData.customerName && (
                 <div>Customer: {receiptData.customerName}</div>
               )}
-              {receiptData.customerPhone && (
+              {receiptData.theme?.showCustomerDetails && receiptData.customerPhone && (
                 <div>Phone: {receiptData.customerPhone}</div>
               )}
               {receiptData.sourceLocation && (
@@ -157,17 +194,27 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               )}
             </div>
 
-            <div className={styles.receiptDivider}></div>
+            <div 
+              className={styles.receiptDivider}
+              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
+            ></div>
 
             <div className={styles.receiptItems}>
-              <div className={styles.receiptItemHeader}>
+              <div 
+                className={styles.receiptItemHeader}
+                style={{ color: receiptData.theme?.secondaryColor || 'black' }}
+              >
                 <span>ITEM</span>
                 <span>QTY</span>
                 <span>PRICE</span>
                 <span>TOTAL</span>
               </div>
               {receiptData.items.map((item, index) => (
-                <div key={index} className={styles.receiptItem}>
+                <div 
+                  key={index} 
+                  className={styles.receiptItem}
+                  style={{ fontSize: receiptData.theme?.fontSize === 'large' ? '14px' : receiptData.theme?.fontSize === 'small' ? '11px' : '12px' }}
+                >
                   <span className={styles.itemName}>{item.name}</span>
                   <span>{item.quantity}</span>
                   <span>{formatMoney(item.price)}</span>
@@ -176,10 +223,16 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               ))}
             </div>
 
-            <div className={styles.receiptDivider}></div>
+            <div 
+              className={styles.receiptDivider}
+              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
+            ></div>
 
             <div className={styles.receiptTotals}>
-              <div className={styles.receiptTotal}>
+              <div 
+                className={styles.receiptTotal}
+                style={{ fontSize: receiptData.theme?.fontSize === 'large' ? '16px' : receiptData.theme?.fontSize === 'small' ? '13px' : '14px' }}
+              >
                 <span>Subtotal:</span>
                 <span>{formatMoney(receiptData.subtotal)}</span>
               </div>
@@ -199,11 +252,21 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               </div>
             </div>
 
-            <div className={styles.receiptDivider}></div>
+            <div 
+              className={styles.receiptDivider}
+              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
+            ></div>
 
             <div className={styles.receiptFooter}>
-              <div>Thank you for your business!</div>
+              {receiptData.theme?.customFooter ? (
+                <div>{receiptData.theme.customFooter}</div>
+              ) : (
+                <div>Thank you for your business!</div>
+              )}
               <div>{new Date().toLocaleDateString()}</div>
+              {receiptData.theme?.showBarcode && (
+                <div className={styles.barcode}>||||| ||||| |||||</div>
+              )}
             </div>
           </div>
 
