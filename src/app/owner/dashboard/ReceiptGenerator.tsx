@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
+import { Printer, FileText, X, Share2 } from 'lucide-react';
 import styles from './ReceiptGenerator.module.css';
 
 interface ReceiptItem {
@@ -31,9 +32,10 @@ interface ReceiptData {
 interface ReceiptGeneratorProps {
   receiptData: ReceiptData;
   onClose: () => void;
+  isWholesale?: boolean;
 }
 
-export function ReceiptGenerator({ receiptData, onClose }: ReceiptGeneratorProps) {
+export function ReceiptGenerator({ receiptData, onClose, isWholesale = false }: ReceiptGeneratorProps) {
   const { showToast } = useApp();
   const { formatMoney, currencyCode } = useCurrency();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -90,29 +92,6 @@ export function ReceiptGenerator({ receiptData, onClose }: ReceiptGeneratorProps
     }
   };
 
-  const handleWhatsAppShare = () => {
-    const message = `
-${receiptData.businessName}
-${receiptData.businessAddress ? receiptData.businessAddress + '\n' : ''}
-
-RECEIPT - ${receiptData.saleNumber}
-Date: ${receiptData.date}
-${receiptData.customerName ? 'Customer: ' + receiptData.customerName + '\n' : ''}
-
-ITEMS:
-${receiptData.items.map(item => `${item.name} x${item.quantity} = ${formatMoney(item.total)}`).join('\n')}
-
-Subtotal: ${formatMoney(receiptData.subtotal)}
-Paid: ${formatMoney(receiptData.amountPaid)}
-${receiptData.outstandingBalance > 0 ? `Outstanding: ${formatMoney(receiptData.outstandingBalance)}\n` : ''}Payment: ${receiptData.paymentMethod}
-${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Thank you for your business!
-    `.trim();
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-    showToast('✅ Opening WhatsApp...');
-  };
-
   const handleCopyToClipboard = () => {
     const message = `
 ${receiptData.businessName}
@@ -138,12 +117,15 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
     });
   };
 
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Receipt</h3>
-          <button className={styles.modalClose} onClick={onClose}>✕</button>
+          <button className={styles.modalClose} onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         <div className={styles.modalBody}>
@@ -232,27 +214,26 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               onClick={handlePrint}
               disabled={isPrinting}
             >
-              {isPrinting ? 'Printing...' : '🖨️ Print'}
+              <Printer size={18} />
+              {isPrinting ? 'Printing...' : 'Print'}
             </button>
             <button
               className={styles.actionButton}
               onClick={handleDownloadPDF}
               disabled={isGeneratingPDF}
             >
-              {isGeneratingPDF ? 'Generating...' : '📄 PDF'}
+              <FileText size={18} />
+              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </button>
-            <button
-              className={styles.actionButton}
-              onClick={handleWhatsAppShare}
-            >
-              📱 WhatsApp
-            </button>
-            <button
-              className={styles.actionButton}
-              onClick={handleCopyToClipboard}
-            >
-              📋 Copy
-            </button>
+            {isWholesale && (
+              <button
+                className={styles.actionButton}
+                onClick={handleCopyToClipboard}
+              >
+                <Share2 size={18} />
+                Share
+              </button>
+            )}
           </div>
         </div>
       </div>

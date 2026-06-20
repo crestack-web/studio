@@ -42,7 +42,7 @@
 }
 
 .exportBtn:hover:not(:disabled) {
-  background: #4B27B0;
+  background: var(--purple-dk);
 }
 
 .exportBtn:disabled {
@@ -170,11 +170,11 @@
 }
 
 .cardValue.positive {
-  color: #1A7A50;
+  color: var(--green);
 }
 
 .cardValue.negative {
-  color: #C0392B;
+  color: var(--red);
 }
 
 .cardSub {
@@ -246,7 +246,7 @@
 }
 
 .itemAmount.negative {
-  color: #C0392B;
+  color: var(--red);
 }
 
 /* P&L Table */
@@ -303,11 +303,11 @@
 }
 
 .amountCol.positive {
-  color: #1A7A50;
+  color: var(--green);
 }
 
 .amountCol.negative {
-  color: #C0392B;
+  color: var(--red);
 }
 
 .sectionRow {

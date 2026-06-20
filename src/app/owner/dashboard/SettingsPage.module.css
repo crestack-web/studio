@@ -155,8 +155,8 @@
 .rtlBadge {
   font-size: 0.6rem;
   font-weight: 700;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--amber-bg);
+  color: var(--amber);
   border-radius: 4px;
   padding: 1px 5px;
   margin-top: 2px;
@@ -168,7 +168,7 @@
   right: 8px;
   font-size: 0.75rem;
   font-weight: 800;
-  color: var(--purple, #7B5EA7);
+  color: var(--purple);
 }
 
 .langHint {
@@ -262,7 +262,7 @@
   align-self: flex-start;
   padding: 9px 20px;
   border-radius: 8px;
-  background: var(--purple, #7B5EA7);
+  background: var(--purple);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 700;
@@ -319,7 +319,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   transition: transform 0.2s;
 }
 
@@ -335,28 +335,23 @@
   gap: 16px;
   padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid #fecaca;
-  background: #fff5f5;
+  border: 1px solid var(--red);
+  background: var(--red-bg);
   margin-top: 8px;
-}
-
-[data-theme='dark'] .dangerZone {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.25);
 }
 
 .dangerTitle {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #dc2626;
+  color: var(--red);
 }
 
 .dangerBtn {
   padding: 8px 16px;
   border-radius: 8px;
-  border: 1.5px solid #dc2626;
+  border: 1.5px solid var(--red);
   background: transparent;
-  color: #dc2626;
+  color: var(--red);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -366,7 +361,7 @@
 }
 
 .dangerBtn:hover {
-  background: #dc2626;
+  background: var(--red);
   color: #fff;
 }
 
@@ -410,32 +405,32 @@
 }
 
 .planBadgeActive {
-  background: #d1fae5;
-  color: #059669;
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .planBadgeTrial {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .planBadgeCancelled {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .planBadgeExpired {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-3);
+  color: var(--text-3);
 }
 
 .cancelBtn {
   margin-top: 16px;
   padding: 10px 20px;
   border-radius: 8px;
-  border: 1.5px solid #dc2626;
+  border: 1.5px solid var(--red);
   background: transparent;
-  color: #dc2626;
+  color: var(--red);
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
@@ -444,7 +439,7 @@
 }
 
 .cancelBtn:hover {
-  background: #dc2626;
+  background: var(--red);
   color: #fff;
 }
 
@@ -452,9 +447,9 @@
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: 8px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--red-bg);
+  border: 1px solid var(--red);
+  color: var(--red);
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -552,8 +547,8 @@
   gap: 14px;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 2px solid var(--purple, #7B5EA7);
-  background: color-mix(in srgb, var(--purple, #7B5EA7) 6%, var(--surface, #fff));
+  border: 2px solid var(--purple);
+  background: var(--purple-lt);
   margin-bottom: 4px;
 }
 
@@ -581,7 +576,7 @@
 .activeCurrencyExample {
   font-size: 1.25rem;
   font-weight: 800;
-  color: var(--purple, #7B5EA7);
+  color: var(--purple);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
@@ -613,7 +608,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--purple, #7B5EA7);
+  background: var(--purple);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 800;
@@ -764,7 +759,7 @@
 .currencyCheck {
   font-size: 0.6875rem;
   font-weight: 800;
-  color: var(--purple, #7B5EA7);
+  color: var(--purple);
   margin-left: auto;
 }
 
@@ -872,7 +867,7 @@
   background: var(--purple-lt);
   padding: 1px 5px;
   border-radius: 4px;
-  color: var(--purple, #7B5EA7);
+  color: var(--purple);
   font-size: 0.7rem;
 }
 

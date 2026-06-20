@@ -171,9 +171,9 @@
 }
 
 .removeButton:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .submitButton {
@@ -240,23 +240,23 @@
 }
 
 .statusBadge.completed {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .statusBadge.pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .statusBadge.in_transit {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--blue-bg);
+  color: var(--blue);
 }
 
 .statusBadge.cancelled {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .historyDetails {

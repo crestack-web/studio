@@ -161,7 +161,7 @@
   content: "•";
   position: absolute;
   left: 0;
-  color: #F4A535;
+  color: var(--amber);
   font-weight: 700;
 }
 

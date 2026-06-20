@@ -126,12 +126,12 @@
 .creditBadge {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #92400e;
+  color: var(--amber);
 }
 
 .detailPanel {
@@ -164,9 +164,9 @@
 }
 
 .closeButton:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .detailSection {

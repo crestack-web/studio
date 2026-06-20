@@ -200,9 +200,9 @@
 }
 
 .modalClose:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .modalBody {
@@ -275,7 +275,7 @@
 }
 
 .changeOld {
-  color: #ef4444;
+  color: var(--red);
   text-decoration: line-through;
 }
 
@@ -284,7 +284,7 @@
 }
 
 .changeNew {
-  color: #10b981;
+  color: var(--green);
   font-weight: 600;
 }
 

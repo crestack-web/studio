@@ -36,7 +36,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #7C3AED, #6B3FE7);
+  background: var(--purple);
   margin-right: 2px;
 }
 .askMoLabel {
@@ -46,17 +46,17 @@
 }
 /* Icon backgrounds for key sidebar buttons */
 .navIcon.home {
-  background: #E6F5EE;
+  background: var(--green-bg);
   border-radius: 10px;
   padding: 6px;
 }
 .navIcon.sale {
-  background: #FEF3C7;
+  background: var(--amber-bg);
   border-radius: 10px;
   padding: 6px;
 }
 .navIcon.cashflow {
-  background: rgba(107,63,231,0.08);
+  background: var(--purple-lt);
   border-radius: 10px;
   padding: 6px;
 }
@@ -278,28 +278,28 @@
 .navIcon svg { width: 16px; height: 16px; }
 
 /* Icon background colors */
- .ni-home  { background: #EDE8FC; color: #6B3FE7; }
- .ni-sale  { background: #DCFCE7; color: #16A34A; }
- .ni-chart { background: #EFF6FF; color: #2563EB; }
- .ni-box   { background: #FEF3C7; color: #D97706; }
- .ni-spend { background: #FEE2E2; color: #DC2626; }
- .ni-cash  { background: #CCFBF1; color: #0D9488; }
- .ni-store { background: #CCFBF1; color: #0D9488; }
- .ni-pay   { background: #FCE7F3; color: #DB2777; }
- .ni-truck { background: #FFEDD5; color: #EA580C; }
- .ni-fund  { background: #DCFCE7; color: #16A34A; }
- .ni-gift  { background: #FEF3C7; color: #D97706; }
- .ni-mo    { background: #EDE8FC; color: #7C3AED; }
- .ni-svc   { background: #EFF6FF; color: #2563EB; }
- .ni-staff { background: #F0E8FF; color: #6B3FE7; }
- .ni-set   { background: #F3F4F8; color: #9696B4; }
- .ni-bank  { background: #DBEAFE; color: #1E40AF; }
- .ni-branch { background: #FEF3C7; color: #D97706; }
- .inventory { background: #E0F2FE; color: #0284C7; }
- .add-product { background: #FCE7F3; color: #DB2777; }
- .add-expense { background: #FEE2E2; color: #DC2626; }
- .statement   { background: #EFF6FF; color: #2563EB; }
- .money-control { background: #DCFCE7; color: #16A34A; }
+ .ni-home  { background: var(--purple-lt); color: var(--purple); }
+ .ni-sale  { background: var(--green-bg); color: var(--green); }
+ .ni-chart { background: var(--blue-bg); color: var(--blue); }
+ .ni-box   { background: var(--amber-bg); color: var(--amber); }
+ .ni-spend { background: var(--red-bg); color: var(--red); }
+ .ni-cash  { background: var(--teal-bg); color: var(--teal); }
+ .ni-store { background: var(--teal-bg); color: var(--teal); }
+ .ni-pay   { background: var(--pink-bg); color: var(--pink); }
+ .ni-truck { background: var(--orange-bg); color: var(--orange); }
+ .ni-fund  { background: var(--green-bg); color: var(--green); }
+ .ni-gift  { background: var(--amber-bg); color: var(--amber); }
+ .ni-mo    { background: var(--purple-lt); color: var(--purple); }
+ .ni-svc   { background: var(--blue-bg); color: var(--blue); }
+ .ni-staff { background: var(--purple-lt); color: var(--purple); }
+ .ni-set   { background: var(--bg-2); color: var(--text-3); }
+ .ni-bank  { background: var(--blue-bg); color: var(--blue); }
+ .ni-branch { background: var(--amber-bg); color: var(--amber); }
+ .inventory { background: var(--blue-bg); color: var(--blue); }
+ .add-product { background: var(--pink-bg); color: var(--pink); }
+ .add-expense { background: var(--red-bg); color: var(--red); }
+ .statement   { background: var(--blue-bg); color: var(--blue); }
+ .money-control { background: var(--green-bg); color: var(--green); }
 
 /* ── Nav label ── */
 .navLabel {

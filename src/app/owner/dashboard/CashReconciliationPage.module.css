@@ -96,11 +96,11 @@
 }
 
 .varianceValue.positive {
-  color: #16A34A;
+  color: var(--green);
 }
 
 .varianceValue.negative {
-  color: #DC2626;
+  color: var(--red);
 }
 
 .submitBtn {
@@ -111,8 +111,8 @@
 .autoCalculatedBadge {
   margin-top: 6px;
   padding: 4px 8px;
-  background: #DCFCE7;
-  color: #16A34A;
+  background: var(--green-bg);
+  color: var(--green);
   font-size: 0.75rem;
   font-weight: 600;
   border-radius: 4px;
@@ -241,11 +241,11 @@
 }
 
 .recVariance.positive {
-  color: #16A34A;
+  color: var(--green);
 }
 
 .recVariance.negative {
-  color: #DC2626;
+  color: var(--red);
 }
 
 .recNotes {

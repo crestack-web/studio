@@ -184,11 +184,11 @@
 }
 
 .transactionAmount.credit {
-  color: #16A34A;
+  color: var(--green);
 }
 
 .transactionAmount.debit {
-  color: #DC2626;
+  color: var(--red);
 }
 
 .actions {

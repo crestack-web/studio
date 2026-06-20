@@ -14,7 +14,7 @@
 
 /* ── Hero ── */
 .hero {
-  background: linear-gradient(135deg, #6B3FE7, #7C3AED);
+  background: var(--purple);
   border-radius: var(--radius-xl);
   padding: 24px;
   display: flex;

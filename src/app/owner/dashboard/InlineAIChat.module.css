@@ -43,15 +43,11 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-}
-
-[data-theme='dark'] .moAvatar {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .headerInfo {
@@ -107,12 +103,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--green);
   animation: pulse 2s infinite;
-}
-
-[data-theme='dark'] .statusDot {
-  background: #34d399;
 }
 
 @keyframes pulse {
@@ -149,17 +141,13 @@
   height: 28px;
   border-radius: 6px;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-}
-
-[data-theme='dark'] .newChatBtn {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .newChatBtn:hover {
@@ -215,16 +203,12 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   margin: 0 auto 16px;
-}
-
-[data-theme='dark'] .moAvatarLg {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .emptyChatContent h3 {
@@ -269,11 +253,7 @@
 }
 
 .summaryWarning {
-  color: #ef4444;
-}
-
-[data-theme='dark'] .summaryWarning {
-  color: #f87171;
+  color: var(--red);
 }
 
 .summaryText {
@@ -336,16 +316,12 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   flex-shrink: 0;
-}
-
-[data-theme='dark'] .moAvatarSm {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .bubble {
@@ -433,14 +409,10 @@
 }
 
 .userBubble {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   color: white;
   margin-left: auto;
   border-bottom-right-radius: 4px;
-}
-
-[data-theme='dark'] .userBubble {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .botBubble {
@@ -619,17 +591,13 @@
   height: 20px;
   border-radius: 50%;
   border: none;
-  background: #ef4444;
+  background: var(--red);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-}
-
-[data-theme='dark'] .removeImage {
-  background: #f87171;
 }
 
 .inputWrapper {
@@ -696,7 +664,7 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--purple);
   color: white;
   cursor: pointer;
   display: flex;
@@ -704,10 +672,6 @@
   justify-content: center;
   transition: all 0.15s;
   flex-shrink: 0;
-}
-
-[data-theme='dark'] .sendBtn {
-  background: linear-gradient(135deg, #5a2fd9 0%, #7c3aed 100%);
 }
 
 .sendBtn svg {
@@ -1063,7 +1027,7 @@
   width: 400px;
   max-width: 90vw;
   max-height: 80vh;
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 16px;
   border: 1px solid var(--border);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -1071,11 +1035,6 @@
   flex-direction: column;
   z-index: 1000;
   animation: modalSlideIn 0.3s ease-out;
-}
-
-[data-theme='dark'] .historyPanel {
-  background: var(--bg-1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes modalSlideIn {

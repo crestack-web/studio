@@ -18,13 +18,13 @@ const db = admin.firestore();
 export const askMo = functions.https.onRequest(
   { secrets: [googleAiKeySecret] },
   async (req, res) => {
-    // Set CORS headers
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Set CORS headers for all responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
-      res.status(204).send('');
+      res.status(204).end();
       return;
     }
 
@@ -292,13 +292,13 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 export const initializePayment = functions.https.onRequest(
   { secrets: [paystackSecretKeySecret] },
   async (req, res) => {
-    // Set CORS headers
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Set CORS headers for all responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
-      res.status(204).send('');
+      res.status(204).end();
       return;
     }
 

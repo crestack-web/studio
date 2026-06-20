@@ -190,9 +190,9 @@
 }
 
 .removeButton:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .totalRow {

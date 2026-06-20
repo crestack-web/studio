@@ -144,15 +144,15 @@
 }
 
 .lowStock {
-  color: #ef4444;
+  color: var(--red);
 }
 
 .deadStock {
-  color: #f59e0b;
+  color: var(--amber);
 }
 
 .fastMoving {
-  color: #10b981;
+  color: var(--green);
 }
 
 .topSupplier {

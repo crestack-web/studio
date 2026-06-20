@@ -42,7 +42,7 @@
 }
 
 .importBtn:hover {
-  background: #4B27B0;
+  background: var(--purple-dk);
 }
 
 /* Summary Cards */
@@ -79,11 +79,11 @@
 }
 
 .cardValue.positive {
-  color: #1A7A50;
+  color: var(--green);
 }
 
 .cardValue.negative {
-  color: #C0392B;
+  color: var(--red);
 }
 
 .cardSub {
@@ -212,7 +212,7 @@
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #F59E0B;
+  background: var(--amber);
   color: white;
   text-transform: uppercase;
   font-weight: 600;
@@ -238,11 +238,11 @@
 }
 
 .amount.credit {
-  color: #1A7A50;
+  color: var(--green);
 }
 
 .amount.debit {
-  color: #C0392B;
+  color: var(--red);
 }
 
 .unmatchBtn {
@@ -258,8 +258,8 @@
 }
 
 .unmatchBtn:hover {
-  border-color: #C0392B;
-  color: #C0392B;
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .empty {
@@ -341,7 +341,7 @@
 }
 
 .confirmBtn:hover:not(:disabled) {
-  background: #4B27B0;
+  background: var(--purple-dk);
 }
 
 .confirmBtn:disabled {

@@ -144,13 +144,13 @@
 }
 
 .traceStatus.reconciled {
-  background: #E6F5EE;
-  color: #16A34A;
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .traceStatus.pending {
-  background: #FEF3C7;
-  color: #D97706;
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .saleDetail {
@@ -261,13 +261,13 @@
 }
 
 .statusBadge.reconciled {
-  background: #E6F5EE;
-  color: #16A34A;
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .statusBadge.pending {
-  background: #FEF3C7;
-  color: #D97706;
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .loading {

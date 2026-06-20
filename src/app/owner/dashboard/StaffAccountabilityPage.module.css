@@ -109,15 +109,15 @@
 }
 
 .rateValue.excellent {
-  color: #16A34A;
+  color: var(--green);
 }
 
 .rateValue.good {
-  color: #F59E0B;
+  color: var(--amber);
 }
 
 .rateValue.poor {
-  color: #DC2626;
+  color: var(--red);
 }
 
 .cardStats {
@@ -157,7 +157,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #FEF3C7;
+  background: var(--amber-bg);
   border-radius: 6px;
   font-size: 0.85rem;
 }
@@ -167,7 +167,7 @@
 }
 
 .alertText {
-  color: #92400E;
+  color: var(--amber);
   font-weight: 600;
 }
 
@@ -199,7 +199,7 @@
 }
 
 .summaryValue.negative {
-  color: #DC2626;
+  color: var(--red);
 }
 
 .loading {

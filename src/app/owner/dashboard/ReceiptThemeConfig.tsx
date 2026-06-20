@@ -6,6 +6,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Palette, Settings, Eye, Save, Upload, X } from 'lucide-react';
 import styles from './ReceiptThemeConfig.module.css';
 
 interface ReceiptTheme {
@@ -22,6 +23,7 @@ interface ReceiptTheme {
   showBarcode: boolean;
   customHeader?: string;
   customFooter?: string;
+  logoUrl?: string;
 }
 
 const DEFAULT_THEMES: ReceiptTheme[] = [
@@ -87,6 +89,8 @@ export function ReceiptThemeConfig() {
   const [selectedPreset, setSelectedPreset] = useState('classic');
   const [isCustom, setIsCustom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
 
   useEffect(() => {
     loadCurrentTheme();
@@ -126,6 +130,27 @@ export function ReceiptThemeConfig() {
     setIsCustom(true);
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+        setCurrentTheme(prev => ({ ...prev, logoUrl: reader.result as string }));
+        setIsCustom(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview('');
+    setCurrentTheme(prev => ({ ...prev, logoUrl: '' }));
+    setIsCustom(true);
+  };
+
   const handleToggleChange = (field: keyof ReceiptTheme) => {
     setCurrentTheme(prev => ({ ...prev, [field]: !prev[field] }));
     setIsCustom(true);
@@ -136,16 +161,16 @@ export function ReceiptThemeConfig() {
 
     try {
       setIsSaving(true);
-      const businessId = user.id;
+      const businessId = user.businessId;
       
       await updateDoc(doc(firestore, 'businesses', businessId), {
         receiptTheme: currentTheme,
       });
 
-      showToast('✅ Receipt theme saved successfully');
+      showToast('Receipt theme saved successfully');
     } catch (error) {
       console.error('Error saving theme:', error);
-      showToast('❌ Failed to save theme');
+      showToast('Failed to save theme');
     } finally {
       setIsSaving(false);
     }
@@ -259,7 +284,9 @@ export function ReceiptThemeConfig() {
       {/* Preset Themes */}
       <Card className={styles.section}>
         <CardHeader>
-          <CardIcon bg="#6B3FE7">🎨</CardIcon>
+          <CardIcon bg="#6B3FE7">
+            <Palette size={20} />
+          </CardIcon>
           <h2>Preset Themes</h2>
         </CardHeader>
         
@@ -279,7 +306,7 @@ export function ReceiptThemeConfig() {
                 }}
               >
                 <div className={styles.previewHeader} style={{ color: theme.primaryColor }}>
-                  {theme.showLogo && <span>🏪</span>}
+                  {theme.showLogo && <Palette size={16} />}
                   <div className={styles.previewTitle}>BUSMO</div>
                 </div>
                 <div className={styles.previewBody}>
@@ -296,7 +323,9 @@ export function ReceiptThemeConfig() {
       {/* Custom Theme Editor */}
       <Card className={styles.section}>
         <CardHeader>
-          <CardIcon bg="#6B3FE7">⚙️</CardIcon>
+          <CardIcon bg="#6B3FE7">
+            <Settings size={20} />
+          </CardIcon>
           <h2>Custom Theme Editor</h2>
         </CardHeader>
         
@@ -353,7 +382,32 @@ export function ReceiptThemeConfig() {
           </div>
 
           <div className={styles.editorSection}>
-            <h3>Display Options</h3>
+            <h3>Logo</h3>
+            <div className={styles.logoUpload}>
+              {logoPreview || currentTheme.logoUrl ? (
+                <div className={styles.logoPreview}>
+                  <img src={logoPreview || currentTheme.logoUrl} alt="Logo" className={styles.logoImage} />
+                  <button
+                    type="button"
+                    className={styles.removeLogoBtn}
+                    onClick={handleRemoveLogo}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <label className={styles.uploadLabel}>
+                  <Upload size={24} />
+                  <span>Upload Logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className={styles.fileInput}
+                  />
+                </label>
+              )}
+            </div>
             <div className={styles.toggleOptions}>
               <label className={styles.toggleLabel}>
                 <input
@@ -361,7 +415,7 @@ export function ReceiptThemeConfig() {
                   checked={currentTheme.showLogo}
                   onChange={() => handleToggleChange('showLogo')}
                 />
-                Show Logo
+                Show Logo on Receipt
               </label>
               <label className={styles.toggleLabel}>
                 <input
@@ -415,14 +469,16 @@ export function ReceiptThemeConfig() {
 
         <div className={styles.actionButtons}>
           <Button onClick={handlePreview} className={styles.previewButton}>
-            👁️ Preview Receipt
+            <Eye size={18} />
+            Preview Receipt
           </Button>
           <Button 
             onClick={handleSaveTheme} 
             className={styles.saveButton}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : '💾 Save Theme'}
+            <Save size={18} />
+            {isSaving ? 'Saving...' : 'Save Theme'}
           </Button>
         </div>
       </Card>

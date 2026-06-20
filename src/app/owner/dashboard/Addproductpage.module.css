@@ -94,7 +94,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--red, #C0392B);
+  background: var(--red);
   color: white;
   border: none;
   cursor: pointer;

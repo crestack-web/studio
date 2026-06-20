@@ -135,13 +135,13 @@
 }
 
 .lowStock {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .outOfStock {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--red-bg);
+  color: var(--red);
 }
 
 .productDetails {
@@ -203,9 +203,9 @@
 }
 
 .removeButton:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .summaryCard {
@@ -271,9 +271,9 @@
 }
 
 .summaryRemoveButton:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .summaryTotal {
@@ -350,9 +350,9 @@
 }
 
 .modalClose:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .modalBody {
