@@ -6,6 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, runTransaction, Timestamp, orderBy } from 'firebase/firestore';
+import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import styles from './StockTransfersPage.module.css';
 
 interface Product {
@@ -48,6 +49,34 @@ export function StockTransfersPage() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [transferHistory, setTransferHistory] = useState<TransferRecord[]>([]);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessReason, setAccessReason] = useState('');
+
+  useEffect(() => {
+    checkWarehouseAccess();
+  }, [user]);
+
+  const checkWarehouseAccess = async () => {
+    if (!user?.id) return;
+    
+    const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
+    if (!accessResult.eligible) {
+      setHasAccess(false);
+      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    }
+  };
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Feature Not Available</h3>
+          <p className="text-gray-600">{accessReason}</p>
+        </div>
+      </div>
+    );
+  }
   const [transferItems, setTransferItems] = useState<TransferItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

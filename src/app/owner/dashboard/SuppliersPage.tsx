@@ -7,6 +7,7 @@ import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
+import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import styles from './SuppliersPage.module.css';
 
 interface Supplier {
@@ -56,7 +57,7 @@ interface Product {
 }
 
 export function SuppliersPage() {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
   const { firestore } = initializeFirebase();
@@ -67,6 +68,34 @@ export function SuppliersPage() {
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessReason, setAccessReason] = useState('');
+
+  useEffect(() => {
+    checkSupplierAccess();
+  }, [user]);
+
+  const checkSupplierAccess = async () => {
+    if (!user?.id) return;
+    
+    const accessResult = await checkFeatureAccess(user.id, 'supplierManagement');
+    if (!accessResult.eligible) {
+      setHasAccess(false);
+      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    }
+  };
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Feature Not Available</h3>
+          <p className="text-gray-600">{accessReason}</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     loadSuppliers();

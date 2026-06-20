@@ -6,6 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import styles from './RestockPage.module.css';
 
 interface Product {
@@ -40,7 +41,7 @@ interface RestockItem {
 }
 
 export function RestockPage() {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
   const { firestore } = initializeFirebase();
@@ -48,6 +49,34 @@ export function RestockPage() {
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [restockItems, setRestockItems] = useState<RestockItem[]>([]);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessReason, setAccessReason] = useState('');
+
+  useEffect(() => {
+    checkSupplierAccess();
+  }, [user]);
+
+  const checkSupplierAccess = async () => {
+    if (!user?.id) return;
+    
+    const accessResult = await checkFeatureAccess(user.id, 'supplierManagement');
+    if (!accessResult.eligible) {
+      setHasAccess(false);
+      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    }
+  };
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Feature Not Available</h3>
+          <p className="text-gray-600">{accessReason}</p>
+        </div>
+      </div>
+    );
+  }
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [generatedMessage, setGeneratedMessage] = useState('');

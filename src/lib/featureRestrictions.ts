@@ -27,12 +27,48 @@ const PRO_ONLY_FEATURES = [
   'auditTrail',
   'staffActivity',
   'multiLocation',
+  'productionTracking',
+  'payrollManagement',
+  'ecommerceStorefront',
 ];
 
 // Features that require Standard or Pro plan (not available to starters)
 const STANDARD_OR_PRO_FEATURES = [
   'cashFlow',
+  'creditTracking',
+  'menuManagement',
+  'ingredientTracking',
+  'multiBranchSupport',
+  'expiryAlerts',
 ];
+
+// Feature name mapping for onboarding selections
+const FEATURE_NAME_MAP: Record<string, string> = {
+  'bankAccounts': 'Bank Accounts Integration',
+  'auditTrail': 'Audit Trail',
+  'staffActivity': 'Staff Activity Tracking',
+  'multiLocation': 'Multi-branch Support',
+  'cashFlow': 'Cash Flow Tracking',
+  'creditTracking': 'Credit Tracking',
+  'menuManagement': 'Menu Management',
+  'ingredientTracking': 'Ingredient Tracking',
+  'multiBranchSupport': 'Multi-branch Support',
+  'expiryAlerts': 'Expiry Alerts',
+  'productionTracking': 'Production Tracking',
+  'payrollManagement': 'Payroll Management',
+  'ecommerceStorefront': 'E-commerce Storefront',
+  // Onboarding feature names
+  'Supplier Management': 'supplierManagement',
+  'Warehouse Management': 'warehouseManagement',
+  'Credit Tracking': 'creditTracking',
+  'Menu Management': 'menuManagement',
+  'Ingredient Tracking': 'ingredientTracking',
+  'Expiry Alerts': 'expiryAlerts',
+  'Multi-branch Support': 'multiBranchSupport',
+  'Production Tracking': 'productionTracking',
+  'Payroll Management': 'payrollManagement',
+  'E-commerce Storefront': 'ecommerceStorefront',
+};
 
 export interface FeatureRestrictionResult {
   eligible: boolean;
@@ -109,15 +145,7 @@ export async function checkFeatureAccess(
     // If in trial, check if feature is in selected features
     if (isInTrial) {
       // Map feature names to selected feature names
-      const featureMap: Record<string, string> = {
-        'bankAccounts': 'Bank Accounts Integration',
-        'auditTrail': 'Audit Trail',
-        'staffActivity': 'Staff Activity Tracking',
-        'multiLocation': 'Multi-branch Support',
-        'cashFlow': 'Cash Flow Tracking',
-      };
-
-      const selectedFeatureName = featureMap[feature] || feature;
+      const selectedFeatureName = FEATURE_NAME_MAP[feature] || feature;
       
       // If feature is in selected features, allow access during trial
       if (selectedFeatures.includes(selectedFeatureName)) {

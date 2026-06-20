@@ -8,6 +8,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { CreditCustomer, CreditTransaction, CreditPayment, CreditStatus, CreditSummary } from './types';
 import { initializeFirebase } from '@/firebase';
+import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import styles from './CreditTrackingPage.module.css';
 
 export function CreditTrackingPage() {
@@ -38,6 +39,34 @@ export function CreditTrackingPage() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessReason, setAccessReason] = useState('');
+
+  useEffect(() => {
+    checkCreditAccess();
+  }, [user]);
+
+  const checkCreditAccess = async () => {
+    if (!user?.id) return;
+    
+    const accessResult = await checkFeatureAccess(user.id, 'creditTracking');
+    if (!accessResult.eligible) {
+      setHasAccess(false);
+      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    }
+  };
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Feature Not Available</h3>
+          <p className="text-gray-600">{accessReason}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Add customer form
   const [newCustomer, setNewCustomer] = useState({
