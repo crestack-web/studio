@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
     } else if (p === 'download') {
       window.location.href = '/welcome/download';
     } else if (p === 'support') {
-      window.location.href = '/welcome#support';
+      window.location.href = '/welcome/support';
     } else {
       window.location.href = '/';
     }

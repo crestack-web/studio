@@ -11,7 +11,6 @@ import { Footer } from './components/Footer';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
-import SupportSection from './components/SupportSection';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -33,7 +32,7 @@ export default function WelcomePage() {
     } else if (page === 'download') {
       window.location.href = '/welcome/download';
     } else if (page === 'support') {
-      window.location.href = '/welcome#support';
+      window.location.href = '/welcome/support';
     } else {
       window.location.href = '/';
     }
@@ -201,11 +200,6 @@ export default function WelcomePage() {
 
       {/* BUSINESS CATEGORIES SLIDER */}
       <BusinessCategoriesSlider />
-
-      {/* SUPPORT SECTION */}
-      <section id="support">
-        <SupportSection onNavigate={handleNavigate} />
-      </section>
 
       {/* CTA BANNER */}
       <div className="cta-banner">
