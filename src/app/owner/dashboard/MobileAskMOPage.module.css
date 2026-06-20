@@ -1351,9 +1351,9 @@
 }
 
 [data-theme='dark'] .botBubble {
-  background: var(--bg-2);
+  background: transparent;
   color: var(--text-1);
-  border-color: var(--border);
+  border: none;
 }
 
 [data-theme='dark'] .msgText {
