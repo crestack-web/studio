@@ -221,7 +221,7 @@ export function getStockStatus(p: Product): StockStatus {
 
 export function getDaysSinceLastSale(p: Product): number {
   const last = new Date(p.lastSaleDate).getTime();
-  const now  = new Date('2026-02-25').getTime();
+  const now  = new Date().getTime();
   return Math.floor((now - last) / (1000 * 60 * 60 * 24));
 }
 

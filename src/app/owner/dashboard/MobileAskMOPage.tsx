@@ -555,7 +555,7 @@ export function MobileAskMOPage() {
       setLoadingActions([]);
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
