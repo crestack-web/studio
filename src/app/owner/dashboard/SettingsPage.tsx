@@ -21,6 +21,7 @@ import { initializeFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ReceiptThemeConfig } from './ReceiptThemeConfig';
+import { isAdmin } from '@/lib/adminAuth';
 import styles from './SettingsPage.module.css';
 
 // ── Toggle ─────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ export default function SettingsPage() {
     lastPaymentAmount: 0,
   });
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
 
   // Load business profile and subscription from Firestore
   useEffect(() => {
@@ -196,6 +198,10 @@ export default function SettingsPage() {
               lastPaymentAmount: data.lastPaymentAmount || 0,
             });
           }
+
+          // Check if user is admin
+          const adminCheck = await isAdmin();
+          setIsUserAdmin(adminCheck);
         }
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -471,6 +477,16 @@ export default function SettingsPage() {
               style={{ opacity: isCancellingSubscription ? 0.7 : 1, cursor: isCancellingSubscription ? 'not-allowed' : 'pointer' }}
             >
               {isCancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
+            </button>
+          )}
+
+          {isUserAdmin && (
+            <button
+              className={styles.saveBtn}
+              onClick={() => window.location.href = '/admin'}
+              style={{ marginTop: '12px', backgroundColor: '#6B3FE7' }}
+            >
+              🎛️ Admin Dashboard
             </button>
           )}
           {subscription.status === 'cancelled' && (

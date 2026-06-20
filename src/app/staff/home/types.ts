@@ -32,6 +32,7 @@ export interface Product {
   price: number;
   stock: number;
   emoji?: string;
+  imageUrl?: string;
 }
 
 export interface CartItem extends Product {
