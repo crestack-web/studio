@@ -1,5 +1,6 @@
 import { getDoc, doc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { isAdmin } from './adminAuth';
 
 // Business types that are eligible for the credit layer
 const CREDIT_LAYER_ELIGIBLE_TYPES = [
@@ -124,6 +125,12 @@ export async function checkFeatureAccess(
   feature: string
 ): Promise<FeatureRestrictionResult> {
   try {
+    // Admin users have unlimited access to all features
+    const isUserAdmin = await isAdmin();
+    if (isUserAdmin) {
+      return { eligible: true };
+    }
+
     const { firestore } = initializeFirebase();
     const userDoc = await getDoc(doc(firestore, 'users', userId));
     

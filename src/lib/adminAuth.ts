@@ -6,6 +6,7 @@ import { initializeFirebase } from '@/firebase';
 const ADMIN_EMAILS = [
   'founder@busmo.io',
   'admin@busmo.io',
+  'majnuncode@gmail.com',
   // Add more admin emails as needed
 ];
 
