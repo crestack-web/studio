@@ -17,9 +17,9 @@
 
 /* ── Header ─────────────────────────────── */
 .header {
-  padding-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
+  margin-bottom: 16px;
 }
 
 .title {
@@ -33,6 +33,103 @@
   color: var(--text-3);
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* ── Choice Chips ─────────────────────────── */
+.chipsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chip:hover {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.chipActive {
+  background: var(--purple);
+  color: white;
+  font-weight: 600;
+}
+
+.chipIcon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.chipLabel {
+  font-size: 0.875rem;
+}
+
+/* ── Visibility Toggles ───────────────────── */
+.visibilityToggles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.visibilityLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.visibilityToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.visibilityToggle:hover {
+  border-color: var(--purple);
+  background: var(--purple-lt);
+}
+
+.visibilityCheckbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--purple);
+}
+
+.visibilityIcon {
+  font-size: 0.875rem;
+  line-height: 1;
 }
 
 /* ── Section ─────────────────────────────── */

@@ -65,6 +65,31 @@ export default function SettingsPage() {
     formatMoney: fmt,
   } = useCurrency();
 
+  // Section visibility state
+  const [activeSection, setActiveSection] = useState('general');
+  const [sectionVisibility, setSectionVisibility] = useState({
+    language: true,
+    currency: true,
+    appearance: true,
+    account: true,
+    business: true,
+    receipt: true,
+    notifications: true,
+    privacy: true,
+  });
+
+  const sections = [
+    { id: 'general', label: 'General', icon: '⚙️' },
+    { id: 'language', label: 'Language', icon: '🌐' },
+    { id: 'currency', label: 'Currency', icon: '💰' },
+    { id: 'appearance', label: 'Appearance', icon: '🎨' },
+    { id: 'account', label: 'Account', icon: '👤' },
+    { id: 'business', label: 'Business', icon: '🏢' },
+    { id: 'receipt', label: 'Receipt', icon: '📄' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'privacy', label: 'Privacy', icon: '🔒' },
+  ];
+
   // Handle logout
   const handleLogout = async () => {
     try {
@@ -269,10 +294,43 @@ export default function SettingsPage() {
         <p className={styles.subtitle}>{t('settings.subtitle')}</p>
       </div>
 
+      {/* ── Choice Chips for Section Selection ─────────────────────────────── */}
+      <div className={styles.chipsContainer}>
+        {sections.map(section => (
+          sectionVisibility[section.id as keyof typeof sectionVisibility] && (
+            <button
+              key={section.id}
+              className={`${styles.chip} ${activeSection === section.id ? styles.chipActive : ''}`}
+              onClick={() => setActiveSection(section.id)}
+            >
+              <span className={styles.chipIcon}>{section.icon}</span>
+              <span className={styles.chipLabel}>{section.label}</span>
+            </button>
+          )
+        ))}
+      </div>
+
+      {/* ── Section Visibility Toggles ─────────────────────────────── */}
+      <div className={styles.visibilityToggles}>
+        <span className={styles.visibilityLabel}>Show sections:</span>
+        {sections.map(section => (
+          <label key={section.id} className={styles.visibilityToggle}>
+            <input
+              type="checkbox"
+              checked={sectionVisibility[section.id as keyof typeof sectionVisibility]}
+              onChange={(e) => setSectionVisibility(prev => ({ ...prev, [section.id]: e.target.checked }))}
+              className={styles.visibilityCheckbox}
+            />
+            <span className={styles.visibilityIcon}>{section.icon}</span>
+          </label>
+        ))}
+      </div>
+
       {/* ════════════════════════════════════════
           SECTION 1 · LANGUAGE
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.language')}>
+      {activeSection === 'language' && sectionVisibility.language && (
+        <Section title={t('settings.section.language')}>
         <p className={styles.rowDesc}>{t('settings.languageDesc')}</p>
         <div className={styles.langGrid}>
           {LANGUAGES.map(l => (
@@ -290,11 +348,13 @@ export default function SettingsPage() {
           ))}
         </div>
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 2 · CURRENCY  ← NEW
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.currency')}>
+      {activeSection === 'currency' && sectionVisibility.currency && (
+        <Section title={t('settings.section.currency')}>
 
         <p className={styles.rowDesc}>
           {t('settings.currencyDesc')}
@@ -401,11 +461,13 @@ export default function SettingsPage() {
         </div>
 
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 3 · APPEARANCE
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.appearance')}>
+      {activeSection === 'appearance' && sectionVisibility.appearance && (
+        <Section title={t('settings.section.appearance')}>
         <p className={styles.rowDesc}>{t('settings.themeDesc')}</p>
         <div className={styles.themeOptions}>
           {[
@@ -423,11 +485,13 @@ export default function SettingsPage() {
           ))}
         </div>
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 3.5 · ACCOUNT & PLAN
       ════════════════════════════════════════ */}
-      <Section title="Account & Plan">
+      {activeSection === 'account' && sectionVisibility.account && (
+        <Section title="Account & Plan">
         <div className={styles.planCard}>
           <div className={styles.planHeader}>
             <div>
@@ -496,11 +560,13 @@ export default function SettingsPage() {
           )}
         </div>
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 4 · BUSINESS PROFILE
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.business')}>
+      {activeSection === 'business' && sectionVisibility.business && (
+        <Section title={t('settings.section.business')}>
         <div className={styles.formGrid}>
           {[
             { key: 'name',     label: t('settings.businessName'),     type: 'text' },
@@ -524,19 +590,23 @@ export default function SettingsPage() {
           {t('common.save')} {t('settings.section.business')}
         </button>
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 5 · RECEIPT CUSTOMIZATION
       ════════════════════════════════════════ */}
-      <Section title="Receipt Customization">
+      {activeSection === 'receipt' && sectionVisibility.receipt && (
+        <Section title="Receipt Customization">
         <p className={styles.rowDesc}>Customize the appearance of your sales receipts and invoices.</p>
         <ReceiptThemeConfig />
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 6 · NOTIFICATIONS
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.notifications')}>
+      {activeSection === 'notifications' && sectionVisibility.notifications && (
+        <Section title={t('settings.section.notifications')}>
         {[
           { key: 'sales',    label: t('settings.notifSales') },
           { key: 'expenses', label: t('settings.notifExpenses') },
@@ -557,11 +627,13 @@ export default function SettingsPage() {
           </div>
         ))}
       </Section>
+      )}
 
       {/* ════════════════════════════════════════
           SECTION 6 · PRIVACY & DATA
       ════════════════════════════════════════ */}
-      <Section title={t('settings.section.privacy')}>
+      {activeSection === 'privacy' && sectionVisibility.privacy && (
+        <Section title={t('settings.section.privacy')}>
         <div className={styles.toggleRow}>
           <div>
             <div className={styles.toggleLabel}>{t('settings.privacyAnalytics')}</div>
@@ -582,6 +654,7 @@ export default function SettingsPage() {
           </button>
         </div>
       </Section>
+      )}
 
       {/* Footer */}
       <div className={styles.footer}>
