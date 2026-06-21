@@ -38,7 +38,7 @@ interface Conversation {
 }
 
 export function MobileAskMOPage() {
-  const { user, showToast, navigateTo } = useApp();
+  const { user, showToast, navigateTo, theme } = useApp();
   const { formatMoney } = useCurrency();
   const { t, lang, langMeta } = useTranslation();
 
@@ -730,7 +730,7 @@ export function MobileAskMOPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-theme={theme}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>

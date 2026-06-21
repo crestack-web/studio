@@ -59,7 +59,7 @@ interface InlineAIChatProps {
 }
 
 export function InlineAIChat({ onClose }: InlineAIChatProps) {
-  const { user, showToast } = useApp();
+  const { user, showToast, theme } = useApp();
   const { formatMoney } = useCurrency();
   const { t, lang, langMeta } = useTranslation();
   const { selectedBranchId, selectedBranchScope, branches } = useBranch();
@@ -476,7 +476,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   );
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-theme={theme}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
