@@ -156,8 +156,20 @@ export function MobileAskMOPage() {
     setAudioBlob(null);
     setAudioUrl(null);
     setCurrentConversationId(null);
+    setIsTyping(false);
+    setIsStreaming(false);
+    setLoadingStage(0);
+    setLoadingActions([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
+
+  const handleLoadConversation = useCallback(async (conversationId: string) => {
+    await loadConversation(conversationId);
+    setIsTyping(false);
+    setIsStreaming(false);
+    setLoadingStage(0);
+    setLoadingActions([]);
+  }, [loadConversation]);
 
   const handlePurchaseSuccess = () => {
     // Refresh credits after successful purchase
@@ -403,7 +415,7 @@ export function MobileAskMOPage() {
         conversationHistoryLength: requestBody.conversationHistory.length,
       });
 
-      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/askMo', {
+      const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -990,7 +1002,7 @@ export function MobileAskMOPage() {
                   <button
                     key={conv.id}
                     className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
-                    onClick={() => loadConversation(conv.id)}
+                    onClick={() => handleLoadConversation(conv.id)}
                   >
                     <div className={styles.historyItemContent}>
                       <div className={styles.historyItemTitle}>{conv.title}</div>
