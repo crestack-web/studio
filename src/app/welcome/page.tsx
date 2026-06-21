@@ -3,6 +3,8 @@
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { DashboardMockup } from './components/DashboardMockup';
+import { OfflineSaleSection } from './components/OfflineSaleSection';
 import { MoSection } from './components/MoSection';
 import { MarketSection } from './components/MarketSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
@@ -47,8 +49,11 @@ export default function WelcomePage() {
       {/* HERO */}
       <Hero onNavigate={handleNavigate} />
 
-      {/* ASK MO SECTION */}
-      <MoSection />
+      {/* DASHBOARD MOCKUP */}
+      <DashboardMockup />
+
+      {/* OFFLINE SALE RECORDING */}
+      <OfflineSaleSection />
 
       {/* WHO IS BUSMO FOR */}
       <section>
@@ -157,6 +162,9 @@ export default function WelcomePage() {
 
       {/* SELL ONLINE / STOREFRONT */}
       <MarketSection onNavigate={handleNavigate} />
+
+      {/* ASK MO SECTION */}
+      <MoSection />
 
       {/* COMPARISON */}
       <section className="comparison-section">
