@@ -3,6 +3,7 @@
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { MoSection } from './components/MoSection';
 import { MarketSection } from './components/MarketSection';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { FAQSection } from './components/FAQSection';
@@ -45,6 +46,9 @@ export default function WelcomePage() {
 
       {/* HERO */}
       <Hero onNavigate={handleNavigate} />
+
+      {/* ASK MO SECTION */}
+      <MoSection />
 
       {/* WHO IS BUSMO FOR */}
       <section>
