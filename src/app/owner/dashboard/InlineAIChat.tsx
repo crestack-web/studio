@@ -405,14 +405,44 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       // Auto-save conversation
       await saveConversation();
     } catch (error) {
-      console.error('MO API error:', error);
+      console.error('❌ [InlineAIChat] MO API error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'Unknown',
+        code: (error as any).code,
+        details: (error as any).details,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out. Please check your connection and try again.';
+        } else if (error.message.includes('fetch') || error.message.includes('Network')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('Firebase') || error.message.includes('functions')) {
+          // Firebase function error
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+          console.error('❌ [InlineAIChat] Firebase function error:', {
+            code: (error as any).code,
+            details: (error as any).details,
+          });
+        } else if (error.message.includes('Google') || error.message.includes('genai') || error.message.includes('API')) {
+          // Filter out Google Gen AI specific errors
+          errorMessage = 'I apologize, but I encountered an issue processing your request. Please try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        content: `I'm having trouble connecting right now. ${errorMessage}. Please try again in a moment.`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, botMsg]);
+      showToast(`Error: ${errorMessage}`);
     } finally {
       setIsTyping(false);
       setIsStreaming(false);

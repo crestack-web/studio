@@ -528,8 +528,11 @@ export function MobileAskMOPage() {
     } catch (error) {
       const errorTime = Date.now() - requestStartTime;
       console.error('❌ [MobileAskMO] Request failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        errorName: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'Unknown',
+        code: (error as any).code,
+        details: (error as any).details,
+        stack: error instanceof Error ? error.stack : undefined,
         time: errorTime,
       });
       
@@ -542,6 +545,13 @@ export function MobileAskMOPage() {
         } else if (error.message.includes('fetch') || error.message.includes('Network')) {
           errorMessage = 'Network error. Please check your internet connection and try again.';
           console.error('❌ [MobileAskMO] Network error:', error);
+        } else if (error.message.includes('Firebase') || error.message.includes('functions')) {
+          // Firebase function error
+          errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
+          console.error('❌ [MobileAskMO] Firebase function error:', {
+            code: (error as any).code,
+            details: (error as any).details,
+          });
         } else if (error.message.includes('Google') || error.message.includes('genai') || error.message.includes('API')) {
           // Filter out Google Gen AI specific errors
           errorMessage = 'I apologize, but I encountered an issue processing your request. Please try again.';
