@@ -16,15 +16,15 @@ const db = admin.firestore();
  * Handles AI-powered business intelligence queries
  */
 export const askMo = functions.https.onRequest(
-  { secrets: [googleAiKeySecret] },
+  { secrets: [googleAiKeySecret], region: 'us-central1' },
   async (req, res) => {
     // Set CORS headers for all responses
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
-      res.status(204).end();
+      res.status(204).send('');
       return;
     }
 

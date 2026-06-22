@@ -331,7 +331,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
       // Call AI API
       console.log('📡 Calling Ask MO API...');
-      const response = await fetch('https://askmo-6kxikgkcjq-uc.a.run.app', {
+      const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

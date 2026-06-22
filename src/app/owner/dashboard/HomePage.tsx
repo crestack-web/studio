@@ -304,7 +304,7 @@ export function HomePage() {
     }
     
     // For questions, make API call to Ask MO with the current business ID
-    fetch('https://askmo-6kxikgkcjq-uc.a.run.app', {
+    fetch('/api/ask-mo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
