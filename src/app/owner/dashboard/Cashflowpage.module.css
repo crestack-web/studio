@@ -1,3 +1,63 @@
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.heading {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0 0 8px 0;
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--text-3);
+  margin: 0 0 32px 0;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.statCard {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.statCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .statCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.statLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
 .wrapper {
   max-width: 1200px;
   margin: 0 auto;
@@ -142,7 +202,14 @@
 }
 
 .accountIcon {
-  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--blue-bg);
+  border-radius: 8px;
+  color: var(--blue);
   flex-shrink: 0;
 }
 
@@ -541,7 +608,12 @@
 }
 
 .actionIcon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--primary);
 }
 
 /* Modal Styles */
@@ -606,10 +678,20 @@
   font-family: inherit;
 }
 
+[data-theme='dark'] .formInput {
+  background: var(--bg-3);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
 .formInput:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(107, 63, 231, 0.1);
+}
+
+[data-theme='dark'] .formInput:focus {
+  box-shadow: 0 0 0 3px rgba(107, 63, 231, 0.2);
 }
 
 .formInput::placeholder {
@@ -635,8 +717,18 @@
   transition: all 0.2s;
 }
 
+[data-theme='dark'] .modalButton {
+  background: var(--bg-3);
+  border-color: var(--border);
+  color: var(--text-1);
+}
+
 .modalButton:hover {
   background: var(--bg-3);
+}
+
+[data-theme='dark'] .modalButton:hover {
+  background: var(--bg-4);
 }
 
 .modalButtonPrimary {
@@ -654,6 +746,10 @@
 .modalButtonPrimary:hover {
   background: var(--purple-dk);
   transform: translateY(-1px);
+}
+
+[data-theme='dark'] .modalButtonPrimary:hover {
+  box-shadow: 0 4px 12px rgba(107, 63, 231, 0.4);
 }
 
 /* Action Form Overlay */
@@ -685,7 +781,9 @@
 }
 
 [data-theme='dark'] .actionForm {
+  background: var(--bg-2);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border-color: var(--border);
 }
 
 .closeFormBtn {
@@ -706,6 +804,11 @@
   transition: all 0.2s;
 }
 
+[data-theme='dark'] .closeFormBtn {
+  background: var(--bg-3);
+  border-color: var(--border);
+}
+
 .closeFormBtn:hover {
   background: var(--bg-3);
   color: var(--text-1);
@@ -713,6 +816,7 @@
 
 [data-theme='dark'] .closeFormBtn:hover {
   background: var(--bg-4);
+  color: var(--text-1);
 }
 
 .transactionsSection {

@@ -22,6 +22,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ReceiptThemeConfig } from './ReceiptThemeConfig';
 import { isAdmin } from '@/lib/adminAuth';
+import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard } from 'lucide-react';
 import styles from './SettingsPage.module.css';
 
 // ── Toggle ─────────────────────────────────────────────────────────
@@ -79,15 +80,15 @@ export default function SettingsPage() {
   });
 
   const sections = [
-    { id: 'general', label: 'General', icon: '⚙️' },
-    { id: 'language', label: 'Language', icon: '🌐' },
-    { id: 'currency', label: 'Currency', icon: '💰' },
-    { id: 'appearance', label: 'Appearance', icon: '🎨' },
-    { id: 'account', label: 'Account', icon: '👤' },
-    { id: 'business', label: 'Business', icon: '🏢' },
-    { id: 'receipt', label: 'Receipt', icon: '📄' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'privacy', label: 'Privacy', icon: '🔒' },
+    { id: 'general', label: 'General', icon: <Settings size={18} /> },
+    { id: 'language', label: 'Language', icon: <Globe size={18} /> },
+    { id: 'currency', label: 'Currency', icon: <DollarSign size={18} /> },
+    { id: 'appearance', label: 'Appearance', icon: <Palette size={18} /> },
+    { id: 'account', label: 'Account', icon: <User size={18} /> },
+    { id: 'business', label: 'Business', icon: <Building size={18} /> },
+    { id: 'receipt', label: 'Receipt', icon: <FileText size={18} /> },
+    { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
+    { id: 'privacy', label: 'Privacy', icon: <Lock size={18} /> },
   ];
 
   // Handle logout
@@ -95,12 +96,12 @@ export default function SettingsPage() {
     try {
       const { auth } = initializeFirebase();
       await signOut(auth);
-      showToast('👋 Logged out successfully');
+      showToast('Logged out successfully');
       // Redirect to login page
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
-      showToast('❌ Failed to logout');
+      showToast('Failed to logout');
     }
   };
 
@@ -241,17 +242,17 @@ export default function SettingsPage() {
     setSelectedCountry(cc);
     setCurrencyByCountry(cc);
     const c = CURRENCIES_SORTED.find(cur => cur.countries.includes(cc));
-    if (c) showToast(`✅ Currency set to ${c.name} (${c.symbol})`);
+    if (c) showToast(`Currency set to ${c.name} (${c.symbol})`);
   };
 
   const handleCurrencySelect = (code: string) => {
     setCurrencyCode(code);
     setCurrencySearch('');
     const c = CURRENCIES_SORTED.find(cur => cur.code === code);
-    if (c) showToast(`✅ Currency set to ${c.name} (${c.symbol})`);
+    if (c) showToast(`Currency set to ${c.name} (${c.symbol})`);
   };
 
-  const handleSave = () => showToast(`✅ ${t('settings.changesSaved')}`);
+  const handleSave = () => showToast(`${t('settings.changesSaved')}`);
 
   // Handle cancel subscription
   const handleCancelSubscription = async () => {
@@ -271,12 +272,12 @@ export default function SettingsPage() {
           subscriptionStatus: 'cancelled',
           cancellationRequestedAt: new Date(),
         });
-        showToast('✅ Subscription cancellation requested. You will retain access until the end of your billing period.');
+        showToast('Subscription cancellation requested. You will retain access until the end of your billing period.');
         setSubscription(prev => ({ ...prev, status: 'cancelled' }));
       }
     } catch (error) {
       console.error('Failed to cancel subscription:', error);
-      showToast('❌ Failed to cancel subscription. Please contact support.');
+      showToast('Failed to cancel subscription. Please contact support.');
     } finally {
       setIsCancellingSubscription(false);
     }
@@ -303,7 +304,7 @@ export default function SettingsPage() {
               className={`${styles.chip} ${activeSection === section.id ? styles.chipActive : ''}`}
               onClick={() => setActiveSection(section.id)}
             >
-              <span className={styles.chipIcon}>{section.icon}</span>
+              <span className={styles.chipIcon}>{typeof section.icon === 'string' ? section.icon : section.icon}</span>
               <span className={styles.chipLabel}>{section.label}</span>
             </button>
           )
@@ -321,7 +322,7 @@ export default function SettingsPage() {
               onChange={(e) => setSectionVisibility(prev => ({ ...prev, [section.id]: e.target.checked }))}
               className={styles.visibilityCheckbox}
             />
-            <span className={styles.visibilityIcon}>{section.icon}</span>
+            <span className={styles.visibilityIcon}>{typeof section.icon === 'string' ? section.icon : section.icon}</span>
           </label>
         ))}
       </div>
@@ -389,7 +390,8 @@ export default function SettingsPage() {
               ))}
             </select>
             <div className={styles.autoChip}>
-              ⚡ {CURRENCIES_SORTED.find(c => c.countries.includes(selectedCountry))?.symbol ?? '—'}&nbsp;
+              <Zap size={14} style={{ marginRight: '4px' }} />
+              {CURRENCIES_SORTED.find(c => c.countries.includes(selectedCountry))?.symbol ?? '—'}&nbsp;
               {CURRENCIES_SORTED.find(c => c.countries.includes(selectedCountry))?.code ?? '—'}
             </div>
           </div>
@@ -402,7 +404,7 @@ export default function SettingsPage() {
             <span>{t('settings.currencyManual')}</span>
           </div>
           <div className={styles.currencySearchWrap}>
-            <span className={styles.currencySearchIcon}>🔍</span>
+            <span className={styles.currencySearchIcon}><Search size={16} /></span>
             <input
               className={styles.currencySearch}
               placeholder={t('settings.currencySearchPlaceholder')}
@@ -440,14 +442,14 @@ export default function SettingsPage() {
         {/* ── Live Preview ───────────────────── */}
         <div className={styles.currencyPreview}>
           <div className={styles.previewHeader}>
-            <span>👁</span>
+            <Eye size={16} style={{ marginRight: '8px' }} />
             <span>{t('settings.currencyLivePreview')}</span>
           </div>
           <div className={styles.previewGrid}>
             {PREVIEW.map(amount => (
               <div key={amount} className={styles.previewRow}>
                 <span className={styles.previewRaw}>{amount.toLocaleString()}</span>
-                <span className={styles.previewArrow}>→</span>
+                <ArrowRight size={14} className={styles.previewArrow} />
                 <span className={styles.previewValue}>{formatMoney(amount, currencyCode)}</span>
               </div>
             ))}
@@ -471,15 +473,15 @@ export default function SettingsPage() {
         <p className={styles.rowDesc}>{t('settings.themeDesc')}</p>
         <div className={styles.themeOptions}>
           {[
-            { val: 'light', label: t('settings.themeLight'), icon: '☀️' },
-            { val: 'dark',  label: t('settings.themeDark'),  icon: '🌙' },
+            { val: 'light', label: t('settings.themeLight'), icon: <Sun size={20} /> },
+            { val: 'dark',  label: t('settings.themeDark'),  icon: <Moon size={20} /> },
           ].map(opt => (
             <button
               key={opt.val}
               className={`${styles.themeBtn} ${theme === opt.val ? styles.themeBtnActive : ''}`}
               onClick={toggleTheme}
             >
-              <span className={styles.themeIcon}>{opt.icon}</span>
+              <span className={styles.themeIcon}>{typeof opt.icon === 'string' ? opt.icon : opt.icon}</span>
               <span>{opt.label}</span>
             </button>
           ))}
@@ -550,7 +552,8 @@ export default function SettingsPage() {
               onClick={() => window.location.href = '/admin'}
               style={{ marginTop: '12px', backgroundColor: '#6B3FE7' }}
             >
-              🎛️ Admin Dashboard
+              <LayoutDashboard size={16} style={{ marginRight: '8px' }} />
+              Admin Dashboard
             </button>
           )}
           {subscription.status === 'cancelled' && (
@@ -648,8 +651,9 @@ export default function SettingsPage() {
           </div>
           <button
             className={styles.dangerBtn}
-            onClick={() => showToast('⚠️ Please contact support to delete your account.')}
+            onClick={() => showToast('Please contact support to delete your account.')}
           >
+            <ShieldAlert size={16} style={{ marginRight: '8px' }} />
             {t('settings.deleteData')}
           </button>
         </div>
@@ -660,6 +664,7 @@ export default function SettingsPage() {
       <div className={styles.footer}>
         <div className={styles.version}>Busmo · {t('settings.version')} 2.4.1</div>
         <button className={styles.logoutBtn} onClick={handleLogout}>
+          <LogOut size={16} style={{ marginRight: '8px' }} />
           {t('settings.logout')}
         </button>
       </div>

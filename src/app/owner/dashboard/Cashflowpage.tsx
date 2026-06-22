@@ -7,6 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus } from 'lucide-react';
 import styles from './Cashflowpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -411,7 +412,8 @@ export function CashflowPage() {
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Bank Accounts</h2>
           <button className={styles.modalButtonPrimary} onClick={() => setActiveAction('add-account')}>
-            + Add Account
+            <Plus size={16} style={{ marginRight: '6px' }} />
+            Add Account
           </button>
         </div>
         {bankAccounts.length === 0 ? (
@@ -423,7 +425,9 @@ export function CashflowPage() {
             {bankAccounts.map(account => (
               <div key={account.id} className={styles.accountCard}>
                 <div className={styles.accountHeader}>
-                  <div className={styles.accountIcon}>🏦</div>
+                  <div className={styles.accountIcon}>
+                    <Building2 size={20} />
+                  </div>
                   <div className={styles.accountInfo}>
                     <h4 className={styles.accountName}>{account.accountName}</h4>
                     <span className={styles.accountBank}>{account.bankName}</span>
@@ -444,19 +448,27 @@ export function CashflowPage() {
       {/* ── ACTION CARDS ── */}
       <div className={styles.actionButtons}>
         <button className={styles.actionButton} onClick={() => setActiveAction('add-stock')}>
-          <span className={styles.actionIcon}>📦</span>
+          <span className={styles.actionIcon}>
+            <Package size={20} />
+          </span>
           <span>Add Stock</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('reduce-stock')}>
-          <span className={styles.actionIcon}>📉</span>
+          <span className={styles.actionIcon}>
+            <TrendingDown size={20} />
+          </span>
           <span>Reduce Stock</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('add-money')}>
-          <span className={styles.actionIcon}>💰</span>
+          <span className={styles.actionIcon}>
+            <Wallet size={20} />
+          </span>
           <span>Add Money</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('take-money')}>
-          <span className={styles.actionIcon}>💸</span>
+          <span className={styles.actionIcon}>
+            <ArrowUpRight size={20} style={{ transform: 'rotate(45deg)' }} />
+          </span>
           <span>Take Money</span>
         </button>
       </div>
@@ -465,7 +477,9 @@ export function CashflowPage() {
       {activeAction && (
         <div className={styles.actionFormOverlay} onClick={() => setActiveAction(null)}>
           <div className={styles.actionForm} onClick={e => e.stopPropagation()}>
-            <button className={styles.closeFormBtn} onClick={() => setActiveAction(null)}>✕</button>
+            <button className={styles.closeFormBtn} onClick={() => setActiveAction(null)}>
+              <X size={18} />
+            </button>
             
             {activeAction === 'add-account' && (
               <div>
