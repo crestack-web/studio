@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-1);
+  background: var(--bg);
   border-radius: 12px;
   overflow: hidden;
   min-height: 500px;
@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: var(--bg-2);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -68,7 +68,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: var(--bg-3);
+  background: var(--bg);
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
@@ -80,7 +80,7 @@
 }
 
 .addCreditsBtn {
-  background: var(--primary);
+  background: var(--purple);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -96,7 +96,7 @@
 }
 
 .addCreditsBtn:hover {
-  background: var(--primary-dark);
+  background: #6D28D9;
 }
 
 .statusDot {
@@ -121,7 +121,7 @@
   height: 28px;
   border-radius: 6px;
   border: none;
-  background: var(--bg-3);
+  background: var(--bg);
   color: var(--text-3);
   cursor: pointer;
   display: flex;
@@ -132,7 +132,7 @@
 }
 
 .closeBtn:hover {
-  background: var(--bg-4);
+  background: var(--surface);
   color: var(--text-1);
 }
 
@@ -160,7 +160,7 @@
   height: 28px;
   border-radius: 6px;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -170,7 +170,7 @@
 }
 
 .historyBtn:hover {
-  background: var(--bg-3);
+  background: var(--surface);
   color: var(--text-1);
 }
 
@@ -231,7 +231,7 @@
   justify-content: center;
   margin: 16px 0;
   padding: 16px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 8px;
 }
 
@@ -385,7 +385,7 @@
 }
 
 .bubble code {
-  background: var(--bg-3);
+  background: var(--bg);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
@@ -393,7 +393,7 @@
 }
 
 .bubble pre {
-  background: var(--bg-3);
+  background: var(--bg);
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -451,7 +451,7 @@
 }
 
 .actionBtn:hover {
-  background: var(--bg-3);
+  background: var(--bg);
   color: var(--text-1);
 }
 
@@ -478,7 +478,7 @@
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg-1);
+  background: var(--bg);
   color: var(--text-2);
   font-size: 12px;
   cursor: pointer;
@@ -486,8 +486,8 @@
 }
 
 .quickAction:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
+  background: var(--surface);
+  border-color: var(--border);
   color: var(--text-1);
 }
 
@@ -543,7 +543,7 @@
   padding: 8px 14px;
   border-radius: 20px;
   border: 1px solid var(--border);
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   font-size: 13px;
   cursor: pointer;
@@ -558,14 +558,14 @@
 }
 
 .suggestion:hover {
-  background: var(--bg-3);
+  background: var(--surface);
   border-color: var(--purple);
   color: var(--text-1);
 }
 
 .inputArea {
   padding: 12px 16px;
-  background: var(--bg-2);
+  background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   overflow-x: hidden;
@@ -605,7 +605,7 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  background: var(--bg-1);
+  background: var(--bg);
   border: 2px solid var(--border);
   border-radius: 12px;
   padding: 8px 10px;
@@ -636,7 +636,7 @@
 
 .attachBtn:hover,
 .micBtn:hover {
-  background: var(--bg-2);
+  background: var(--surface);
   color: var(--text-1);
 }
 
@@ -703,7 +703,7 @@
   color: var(--text-2);
   font-weight: 500;
   padding: 4px 8px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 4px;
 }
 
@@ -712,8 +712,8 @@
   height: 28px;
   border-radius: 6px;
   border: none;
-  background: var(--red-bg);
-  color: var(--red);
+  background: #FEE2E2;
+  color: #DC2626;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -724,7 +724,7 @@
 }
 
 .cancelRecordingBtn:hover {
-  background: var(--red);
+  background: #DC2626;
   color: white;
 }
 
@@ -733,7 +733,7 @@
   position: relative;
   margin-bottom: 8px;
   padding: 8px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 8px;
 }
 
@@ -780,7 +780,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 8px;
   min-width: 120px;
   flex: 1;
@@ -822,7 +822,7 @@
   display: flex;
   gap: 4px;
   padding: 8px 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 12px;
   width: fit-content;
 }
@@ -879,7 +879,7 @@
 .followUpSuggestion {
   font-size: 12px;
   padding: 6px 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--text-1);
@@ -889,9 +889,9 @@
 }
 
 .followUpSuggestion:hover {
-  background: var(--primary-bg);
-  color: var(--primary);
-  border-color: var(--primary);
+  background: #EDE8FC;
+  color: var(--purple);
+  border-color: var(--purple);
 }
 
 /* Expandable Analysis Sections */
@@ -915,7 +915,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border: none;
   cursor: pointer;
   width: 100%;
@@ -923,7 +923,7 @@
 }
 
 .expandableHeader:hover {
-  background: var(--bg-3);
+  background: var(--surface);
 }
 
 .expandableTitle {
@@ -945,7 +945,7 @@
 
 .expandableContent {
   padding: 12px;
-  background: var(--bg-1);
+  background: var(--bg);
   border-top: 1px solid var(--border);
   font-size: 13px;
   color: var(--text-2);
@@ -1055,7 +1055,7 @@
   justify-content: space-between;
   padding: 16px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-3);
+  background: var(--bg);
 }
 
 .historyTitle {
@@ -1070,7 +1070,7 @@
   height: 24px;
   border-radius: 4px;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -1081,7 +1081,7 @@
 }
 
 .closeHistoryBtn:hover {
-  background: var(--bg-4);
+  background: var(--surface);
   color: var(--text-1);
 }
 
@@ -1095,7 +1095,7 @@
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg-1);
+  background: var(--bg);
   color: var(--text-1);
   font-size: 13px;
   outline: none;
@@ -1127,19 +1127,19 @@
   padding: 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg-1);
+  background: var(--bg);
   cursor: pointer;
   transition: all 0.2s;
   margin-bottom: 8px;
 }
 
 .historyItem:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .historyItemActive {
-  background: var(--purple-bg);
+  background: #EDE8FC;
   border-color: var(--purple);
 }
 
@@ -1249,224 +1249,3 @@
   }
 }
 
-/* Dark mode specific styles */
-[data-theme='dark'] .container {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .header {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .tokenCounter {
-  background: var(--bg-3);
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .closeBtn {
-  background: var(--bg-3);
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .closeBtn:hover {
-  background: var(--bg-4);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .historyBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .historyBtn:hover {
-  background: var(--bg-3);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .messages {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .businessSummary {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .quickAction {
-  background: var(--bg-1);
-  border-color: var(--border);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .quickAction:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .suggestions {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .suggestion {
-  background: var(--bg-3);
-  border-color: var(--border);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .suggestion:hover {
-  background: var(--bg-4);
-  border-color: var(--purple);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .inputArea {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .inputWrapper {
-  background: var(--bg-1);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .inputWrapper:focus-within {
-  border-color: var(--purple);
-}
-
-[data-theme='dark'] .attachBtn,
-[data-theme='dark'] .micBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .attachBtn:hover,
-[data-theme='dark'] .micBtn:hover {
-  background: var(--bg-3);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .metric {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .typingIndicator {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .typingDot {
-  background: var(--text-2);
-}
-
-[data-theme='dark'] .followUpSuggestion {
-  background: var(--bg-2);
-  border-color: var(--border);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .followUpSuggestion:hover {
-  background: var(--primary-bg);
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-[data-theme='dark'] .expandableSection {
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .expandableHeader {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .expandableHeader:hover {
-  background: var(--bg-3);
-}
-
-[data-theme='dark'] .expandableContent {
-  background: var(--bg-1);
-  border-color: var(--border);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .alert.warning {
-  background: var(--amber-bg);
-  color: var(--amber);
-  border-color: var(--amber);
-}
-
-[data-theme='dark'] .alert.success {
-  background: var(--green-bg);
-  color: var(--green);
-  border-color: var(--green);
-}
-
-[data-theme='dark'] .alert.info {
-  background: var(--primary-bg);
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-[data-theme='dark'] .historyHeader {
-  background: var(--bg-3);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .closeHistoryBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .closeHistoryBtn:hover {
-  background: var(--bg-4);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .historySearchInput {
-  background: var(--bg-1);
-  border-color: var(--border);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .historySearchInput:focus {
-  border-color: var(--purple);
-}
-
-[data-theme='dark'] .historyItem {
-  background: var(--bg-1);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .historyItem:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
-}
-
-[data-theme='dark'] .historyItemAction {
-  background: transparent;
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .historyItemAction:hover {
-  background: var(--bg-2);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .audioPreview {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .recordingTime {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .cancelRecordingBtn {
-  background: var(--red-bg);
-  color: var(--red);
-}
-
-[data-theme='dark'] .cancelRecordingBtn:hover {
-  background: var(--red);
-  color: white;
-}

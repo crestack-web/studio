@@ -343,6 +343,86 @@ export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } 
     pt: 'Rastreamento Crédito', // Portuguese
     pcm: 'Credit Tracking', // Pidgin
   },
+  'Suppliers': {
+    en: 'Suppliers',
+    yo: 'Àwọn oníṣòwò',    // Yoruba
+    ig: 'Ndị Na-ere',       // Igbo
+    ha: 'Masu Samfura',     // Hausa
+    sw: 'Wauzaji',          // Swahili
+    fr: 'Fournisseurs',     // French
+    pt: 'Fornecedores',     // Portuguese
+    pcm: 'Suppliers',       // Pidgin
+  },
+  'Customers': {
+    en: 'Customers',
+    yo: 'Àwọn oníṣàjẹ',     // Yoruba
+    ig: 'Ndị Ahịa',         // Igbo
+    ha: 'Abokin ciniki',     // Hausa
+    sw: 'Wateja',           // Swahili
+    fr: 'Clients',          // French
+    pt: 'Clientes',         // Portuguese
+    pcm: 'Customers',       // Pidgin
+  },
+  'Menu Management': {
+    en: 'Menu Management',
+    yo: 'Ìṣàkóso Àkànyẹ̀',  // Yoruba
+    ig: 'Nchịkwa Menu',     // Igbo
+    ha: 'Sarrafa Menu',     // Hausa
+    sw: 'Usimamizi wa Menyu', // Swahili
+    fr: 'Gestion Menu',     // French
+    pt: 'Gestão Menu',      // Portuguese
+    pcm: 'Menu Management', // Pidgin
+  },
+  'Ingredients': {
+    en: 'Ingredients',
+    yo: 'Àwọn Eroja',       // Yoruba
+    ig: 'Ngwaahịa',         // Igbo
+    ha: 'Abubuwan da ke',   // Hausa
+    sw: 'Viungo',           // Swahili
+    fr: 'Ingrédients',      // French
+    pt: 'Ingredientes',     // Portuguese
+    pcm: 'Ingredients',     // Pidgin
+  },
+  'Expiry Alerts': {
+    en: 'Expiry Alerts',
+    yo: 'Ìbànújẹ́ Akókò',   // Yoruba
+    ig: 'Ntịrị Mbụ',       // Igbo
+    ha: 'Maye Mai ƙare',    // Hausa
+    sw: 'Matangazo ya Muda', // Swahili
+    fr: 'Alertes Expiration', // French
+    pt: 'Alertas Validade', // Portuguese
+    pcm: 'Expiry Alerts',   // Pidgin
+  },
+  'Production': {
+    en: 'Production',
+    yo: 'Ṣiṣe',            // Yoruba
+    ig: 'Mmepụta',          // Igbo
+    ha: 'Samfura',          // Hausa
+    sw: 'Uzalishaji',       // Swahili
+    fr: 'Production',       // French
+    pt: 'Produção',         // Portuguese
+    pcm: 'Production',      // Pidgin
+  },
+  'E-commerce': {
+    en: 'E-commerce',
+    yo: 'Ètò Ìṣòwò Lórí Ayélujára', // Yoruba
+    ig: 'Ahịa Intanet',     // Igbo
+    ha: 'Kasuwanci akan layi', // Hausa
+    sw: 'Biashara ya Mtandaoni', // Swahili
+    fr: 'E-commerce',      // French
+    pt: 'E-commerce',       // Portuguese
+    pcm: 'E-commerce',      // Pidgin
+  },
+  'Payroll': {
+    en: 'Payroll',
+    yo: 'Isánwó',          // Yoruba
+    ig: 'Ụgwọ Ọrụ',        // Igbo
+    ha: 'Alawar kuɗi',     // Hausa
+    sw: 'Mshahara',         // Swahili
+    fr: 'Paie',            // French
+    pt: 'Folha de Pagamento', // Portuguese
+    pcm: 'Payroll',         // Pidgin
+  },
 };
 
 // Get translation for a text
@@ -371,6 +451,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'bank-reconciliation', label: 'Bank Reconciliation', tip: 'Bank Reconciliation', iconClass: 'ni-bank' },
       { id: 'money-control', label: 'Money Control', tip: 'Money Control', iconClass: 'ni-cash' },
       { id: 'credit-tracking', label: 'Credit Tracking', tip: 'Credit Tracking', iconClass: 'ni-credit' },
+      { id: 'menu-management', label: 'Menu Management', tip: 'Menu Management', iconClass: 'ni-menu', badge: 'Standard' },
+      { id: 'ingredient-tracking', label: 'Ingredients', tip: 'Ingredients', iconClass: 'ni-ingredient', badge: 'Standard' },
+      { id: 'expiry-alerts', label: 'Expiry Alerts', tip: 'Expiry Alerts', iconClass: 'ni-expiry' },
+      { id: 'production-tracking', label: 'Production', tip: 'Production', iconClass: 'ni-production', badge: 'Pro' },
+      { id: 'ecommerce-storefront', label: 'E-commerce', tip: 'E-commerce', iconClass: 'ni-ecommerce', badge: 'Pro' },
     ],
     icon: '',
     id: undefined
@@ -393,8 +478,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'home', label: 'Ask MO', tip: 'Ask MO', iconClass: 'ni-mo' },
       { id: 'services', label: 'Business Services', tip: 'Business Services', iconClass: 'ni-svc' },
       { id: 'staff', label: 'Staff', tip: 'Staff', iconClass: 'ni-staff', badge: 0 },
+      { id: 'supplier-management', label: 'Suppliers', tip: 'Suppliers', iconClass: 'ni-supplier' },
+      { id: 'customer-management', label: 'Customers', tip: 'Customers', iconClass: 'ni-customer' },
       { id: 'invoice-verification', label: 'Invoice Verification', tip: 'Invoice Verification', iconClass: 'ni-invoice' },
       { id: 'branches', label: 'Branches', tip: 'Branches', iconClass: 'ni-branch', badge: 'Pro' },
+      { id: 'payroll', label: 'Payroll', tip: 'Payroll', iconClass: 'ni-payroll', badge: 'Pro' },
       { id: 'settings', label: 'Settings', tip: 'Settings', iconClass: 'ni-set' },
     ],
     icon: '',

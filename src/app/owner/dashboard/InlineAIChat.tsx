@@ -106,6 +106,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [loadingStage, setLoadingStage] = useState<number>(0);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -449,8 +450,9 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setStreamedContent('');
       setLoadingStage(0);
       setLoadingActions([]);
+      setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {

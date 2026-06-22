@@ -333,6 +333,20 @@ service cloud.firestore {
       }
 
       // =====================
+      // CASH RECONCILIATIONS SUBCOLLECTION (for cash reconciliation tracking)
+      // =====================
+      match /cashReconciliations/{reconciliationId} {
+        // Allow read for business owner and staff
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow create for business owner and staff
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow update/delete only for business owner
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
       // STAFF ACTIVITY SUBCOLLECTION (for monitoring staff actions)
       // =====================
       match /staffActivity/{activityId} {
@@ -381,6 +395,17 @@ service cloud.firestore {
                      resource.data.userId == request.auth.uid;
       allow write: if isAuthenticated() && 
                       request.resource.data.userId == request.auth.uid;
+    }
+    
+    // =====================
+    // REFERRALS COLLECTION (for referral program)
+    // =====================
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.referrerId == request.auth.uid || 
+                      resource.data.referredUserId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.referrerId == request.auth.uid;
     }
   }
 }

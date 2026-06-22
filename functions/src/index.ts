@@ -16,7 +16,7 @@ const db = admin.firestore();
  * Handles AI-powered business intelligence queries
  */
 export const askMo = functions.https.onRequest(
-  { secrets: [googleAiKeySecret], region: 'us-central1' },
+  { secrets: [googleAiKeySecret], region: 'us-central1', invoker: 'public' },
   async (req, res) => {
     // Set CORS headers for all responses
     res.set('Access-Control-Allow-Origin', '*');

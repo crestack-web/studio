@@ -7,6 +7,7 @@ const ADMIN_EMAILS = [
   'sxeedtxheer@gmail.com',
   'admin@busmo.io',
   'majnuncode@gmail.com',
+  'ishuaibu@gmail.com',
   // Add more admin emails as needed
 ];
 

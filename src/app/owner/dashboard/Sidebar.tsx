@@ -106,6 +106,14 @@ export function Sidebar() {
       'Business Services': t('nav.services'),
       'Staff': t('nav.staff'),
       'Branches': t('nav.branches'),
+      'Suppliers': t('nav.suppliers'),
+      'Customers': t('nav.customers'),
+      'Menu Management': t('nav.menuManagement'),
+      'Ingredients': t('nav.ingredients'),
+      'Expiry Alerts': t('nav.expiryAlerts'),
+      'Production': t('nav.production'),
+      'E-commerce': t('nav.ecommerce'),
+      'Payroll': t('nav.payroll'),
       'Settings': t('nav.settings'),
     };
     return map[key] || key;

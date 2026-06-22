@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg-1);
+  background: var(--bg);
   overflow: hidden;
   position: relative;
   padding-bottom: 0;
@@ -41,22 +41,17 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--bg-1);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.headerLeft {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 
 .moAvatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,11 +59,6 @@
   flex-shrink: 0;
 }
 
-.headerInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 
 .headerTitle {
   font-size: 16px;
@@ -87,11 +77,11 @@
 }
 
 .tokenCounter:hover {
-  color: var(--primary);
+  color: var(--purple);
 }
 
 .addCreditsBtn {
-  background: var(--primary);
+  background: var(--purple);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -107,21 +97,16 @@
 }
 
 .addCreditsBtn:hover {
-  background: var(--primary-dark);
+  background: #6D28D9;
 }
 
-.headerLeft {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 
 .backBtn {
   width: 36px;
   height: 36px;
   border-radius: 8px;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -131,61 +116,8 @@
 }
 
 .backBtn:hover {
-  background: var(--bg-3);
+  background: var(--surface);
   color: var(--text-1);
-}
-
-.moAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-}
-
-.headerInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.headerTitle {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-1);
-  margin: 0;
-}
-
-.tokenCounter {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--text-3);
-}
-
-.addCreditsBtn {
-  background: var(--primary);
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: white;
-  transition: background 0.2s;
-  padding: 0;
-  margin-left: 4px;
-}
-
-.addCreditsBtn:hover {
-  background: var(--primary-dark);
 }
 
 .newChatBtn {
@@ -193,7 +125,7 @@
   height: 36px;
   border-radius: 8px;
   border: none;
-  background: var(--primary-gradient);
+  background: var(--purple);
   color: white;
   cursor: pointer;
   display: flex;
@@ -212,7 +144,7 @@
   height: 36px;
   border-radius: 8px;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -222,7 +154,7 @@
 }
 
 .historyBtn:hover {
-  background: var(--bg-3);
+  background: var(--surface);
   color: var(--text-1);
 }
 
@@ -235,7 +167,7 @@
   flex-direction: column;
   gap: 6px;
   scroll-behavior: smooth;
-  background: var(--bg-1);
+  background: var(--bg);
 }
 
 .emptyChat {
@@ -254,7 +186,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -282,9 +214,9 @@
   gap: 12px;
   margin-top: 12px;
   padding: 16px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
 }
 
 .snapshotItem {
@@ -312,7 +244,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   justify-content: flex-end;
 }
@@ -350,8 +282,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   font-size: 13px;
   color: var(--text-1);
@@ -361,8 +293,8 @@
 }
 
 .quickActionChip:hover {
-  background: var(--bg-3);
-  border-color: var(--primary);
+  background: var(--surface);
+  border-color: var(--purple);
 }
 
 .quickActionChip:active {
@@ -381,8 +313,8 @@
 }
 
 .insightCard {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -392,7 +324,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--bg-3);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
@@ -470,7 +402,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--primary-gradient);
+  background: var(--purple);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -491,7 +423,7 @@
 }
 
 .userBubble {
-  background: var(--primary-gradient);
+  background: var(--purple);
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -529,7 +461,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 8px;
   min-width: 120px;
   flex: 1;
@@ -578,7 +510,7 @@
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg-1);
+  background: var(--bg);
   color: var(--text-2);
   font-size: 12px;
   cursor: pointer;
@@ -586,8 +518,8 @@
 }
 
 .quickAction:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
+  background: var(--surface);
+  border-color: var(--border);
   color: var(--text-1);
 }
 
@@ -612,7 +544,7 @@
 .followUpSuggestion {
   font-size: 12px;
   padding: 6px 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 16px;
   color: var(--text-1);
@@ -622,9 +554,9 @@
 }
 
 .followUpSuggestion:hover {
-  background: var(--primary-bg);
-  color: var(--primary);
-  border-color: var(--primary);
+  background: #EDE8FC;
+  color: var(--purple);
+  border-color: var(--purple);
 }
 
 /* Expandable Sections */
@@ -646,7 +578,7 @@
 .expandableHeader {
   width: 100%;
   padding: 10px 12px;
-  background: var(--bg-1);
+  background: var(--bg);
   border: none;
   display: flex;
   align-items: center;
@@ -656,7 +588,7 @@
 }
 
 .expandableHeader:hover {
-  background: var(--bg-2);
+  background: var(--surface);
 }
 
 .expandableTitle {
@@ -678,7 +610,7 @@
 
 .expandableContent {
   padding: 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-top: 1px solid var(--border);
   font-size: 13px;
   line-height: 1.5;
@@ -710,7 +642,7 @@
   width: 100%;
   max-width: 480px;
   max-height: 70vh;
-  background: var(--bg-1);
+  background: var(--surface);
   border-radius: 16px 16px 0 0;
   display: flex;
   flex-direction: column;
@@ -746,7 +678,7 @@
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -757,7 +689,7 @@
 }
 
 .closeHistoryBtn:hover {
-  background: var(--bg-3);
+  background: var(--surface);
 }
 
 .historyList {
@@ -777,7 +709,7 @@
   padding: 12px 16px;
   border-radius: 12px;
   border: none;
-  background: var(--bg-2);
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -788,12 +720,12 @@
 }
 
 .historyItem:hover {
-  background: var(--bg-3);
+  background: var(--surface);
 }
 
 .historyItemActive {
-  background: var(--primary-lt);
-  border: 1px solid var(--primary);
+  background: #EDE8FC;
+  border: 1px solid var(--purple);
 }
 
 .historyItemContent {
@@ -875,7 +807,7 @@
   display: flex;
   gap: 4px;
   padding: 8px 12px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 12px;
   width: fit-content;
 }
@@ -914,7 +846,7 @@
 /* Input Area */
 .inputArea {
   padding: 12px 16px;
-  background: var(--bg-1);
+  background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -955,7 +887,7 @@
   gap: 8px;
   margin-bottom: 8px;
   padding: 8px;
-  background: var(--bg-2);
+  background: var(--bg);
   border-radius: 8px;
 }
 
@@ -982,7 +914,7 @@
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  background: var(--bg-2);
+  background: var(--bg);
   border: 2px solid var(--border);
   border-radius: 24px;
   padding: 8px 12px;
@@ -991,8 +923,8 @@
 }
 
 .inputWrapper:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
 .attachBtn,
@@ -1001,7 +933,7 @@
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: var(--bg-3);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -1015,7 +947,7 @@
 
 .attachBtn:hover,
 .micBtn:hover {
-  background: var(--bg-4);
+  background: var(--surface);
   color: var(--text-1);
   transform: scale(1.05);
 }
@@ -1037,7 +969,7 @@
   height: 28px;
   border-radius: 50%;
   border: none;
-  background: var(--bg-3);
+  background: var(--bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -1074,7 +1006,7 @@
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: var(--primary-gradient);
+  background: var(--purple);
   color: white;
   cursor: pointer;
   display: flex;
@@ -1245,298 +1177,3 @@
   }
 }
 
-/* Dark mode specific styles */
-[data-theme='dark'] .container {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .header {
-  background: var(--bg-1);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .headerTitle {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .backBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .backBtn:hover {
-  background: var(--bg-3);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .newChatBtn {
-  background: var(--primary-gradient);
-}
-
-[data-theme='dark'] .historyBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .historyBtn:hover {
-  background: var(--bg-3);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .messages {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .emptyChatContent h3 {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .emptyChatContent p {
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .businessSnapshot {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .snapshotLabel {
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .snapshotValue {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .creditsHeader {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .creditsValue {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .quickActionChip {
-  background: var(--bg-2);
-  border-color: var(--border);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .quickActionChip:hover {
-  background: var(--bg-3);
-  border-color: var(--primary);
-}
-
-[data-theme='dark'] .insightCard {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .insightCardHeader {
-  background: var(--bg-3);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .insightCardTitle {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .insightCardItemName {
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .insightCardItemValue {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .botBubble {
-  background: transparent;
-  color: var(--text-1);
-  border: none;
-}
-
-[data-theme='dark'] .msgText {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .metric {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .metricLabel {
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .metricValue {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .quickAction {
-  background: var(--bg-1);
-  border-color: var(--border);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .quickAction:hover {
-  background: var(--bg-2);
-  border-color: var(--border-hover);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .followUpLabel {
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .followUpSuggestion {
-  background: var(--bg-2);
-  border-color: var(--border);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .followUpSuggestion:hover {
-  background: var(--primary-bg);
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-[data-theme='dark'] .expandableSection {
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .expandableHeader {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .expandableHeader:hover {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .expandableTitle {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .expandableContent {
-  background: var(--bg-2);
-  border-color: var(--border);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .historyModal {
-  background: var(--bg-1);
-}
-
-[data-theme='dark'] .historyHeader {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .historyTitle {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .closeHistoryBtn {
-  background: var(--bg-2);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .closeHistoryBtn:hover {
-  background: var(--bg-3);
-}
-
-[data-theme='dark'] .historyItem {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .historyItem:hover {
-  background: var(--bg-3);
-}
-
-[data-theme='dark'] .historyItemActive {
-  background: var(--primary-lt);
-  border-color: var(--primary);
-}
-
-[data-theme='dark'] .historyItemTitle {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .historyItemDate {
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .historyItemDelete {
-  background: transparent;
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .historyItemDelete:hover {
-  background: var(--red-lt);
-  color: var(--red);
-}
-
-[data-theme='dark'] .actionBtn {
-  background: transparent;
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .actionBtn:hover {
-  background: var(--bg-1);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .typingIndicator {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .typingDot {
-  background: var(--text-2);
-}
-
-[data-theme='dark'] .inputArea {
-  background: var(--bg-1);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .inputWrapper {
-  background: var(--bg-2);
-  border-color: var(--border);
-}
-
-[data-theme='dark'] .inputWrapper:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-}
-
-[data-theme='dark'] .input {
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .input::placeholder {
-  color: var(--text-3);
-}
-
-[data-theme='dark'] .attachBtn,
-[data-theme='dark'] .micBtn {
-  background: var(--bg-3);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .attachBtn:hover,
-[data-theme='dark'] .micBtn:hover {
-  background: var(--bg-4);
-  color: var(--text-1);
-}
-
-[data-theme='dark'] .audioPreview {
-  background: var(--bg-2);
-}
-
-[data-theme='dark'] .cancelRecordingBtn {
-  background: var(--bg-3);
-  color: var(--text-2);
-}
-
-[data-theme='dark'] .planLimit {
-  color: var(--text-3);
-}

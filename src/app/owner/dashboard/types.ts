@@ -33,7 +33,15 @@ export type PageId =
   | 'branches'
   | 'email-campaigns'
   | 'credit-tracking'
-  | 'invoice-verification';
+  | 'invoice-verification'
+  | 'supplier-management'
+  | 'customer-management'
+  | 'payroll'
+  | 'menu-management'
+  | 'ingredient-tracking'
+  | 'expiry-alerts'
+  | 'production-tracking'
+  | 'ecommerce-storefront';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {
