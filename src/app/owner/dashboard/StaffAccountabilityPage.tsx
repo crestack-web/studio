@@ -52,6 +52,30 @@ export default function StaffAccountabilityPage() {
       const snapshot = await getDocs(q);
       const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
+      // Load cash reconciliation data
+      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
+      const recQ = query(
+        reconciliationsRef,
+        where('date', '>=', Timestamp.fromDate(startDate)),
+        orderBy('date', 'desc')
+      );
+      const recSnapshot = await getDocs(recQ);
+      const reconciliations = recSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Create a map of saleId to actual cash submitted from reconciliations
+      const saleToCashMap = new Map<string, number>();
+      reconciliations.forEach((rec: any) => {
+        const saleIds = rec.saleIds || [];
+        const actualCash = rec.actualCash || 0;
+        // Distribute actual cash proportionally across sales in this reconciliation
+        if (saleIds.length > 0 && actualCash > 0) {
+          const cashPerSale = actualCash / saleIds.length;
+          saleIds.forEach((saleId: string) => {
+            saleToCashMap.set(saleId, (saleToCashMap.get(saleId) || 0) + cashPerSale);
+          });
+        }
+      });
+      
       // Group sales by staff member
       const staffMap = new Map<string, any>();
       
@@ -83,12 +107,12 @@ export default function StaffAccountabilityPage() {
         staffData.expectedCash += cashAmount;
         staffData.bankCollections += bankAmount;
         
-        // TODO: Calculate actual cash submitted from cash reconciliation data
-        // For now, set to 0 until reconciliation data is available
-        staffData.cashSubmitted += 0;
+        // Get actual cash submitted from reconciliation data
+        const actualCashForSale = saleToCashMap.get(sale.id) || 0;
+        staffData.cashSubmitted += actualCashForSale;
         
         // Calculate shortages
-        staffData.shortages += Math.max(0, cashAmount - 0);
+        staffData.shortages += Math.max(0, cashAmount - actualCashForSale);
         
         // Calculate outstanding payments (credit sales)
         const creditAmount = breakdown.filter((pb: any) => pb.method === 'credit').reduce((sum: number, pb: any) => sum + pb.amount, 0);

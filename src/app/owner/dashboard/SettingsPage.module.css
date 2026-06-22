@@ -132,6 +132,186 @@
   line-height: 1;
 }
 
+/* ── Features Grid ─────────────────────────── */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.featureCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s;
+}
+
+.featureCard:hover {
+  border-color: var(--purple);
+  transform: translateY(-2px);
+}
+
+.featureCardUnavailable {
+  opacity: 0.6;
+  background: var(--bg-2);
+}
+
+.featureCardUnavailable:hover {
+  transform: none;
+  border-color: var(--border);
+}
+
+.featureCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.featureIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--purple-lt);
+  border-radius: 12px;
+  color: var(--purple);
+}
+
+.featureStatus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.featureEnabled {
+  color: var(--green);
+}
+
+.featureDisabled {
+  color: var(--text-3);
+}
+
+.featureLocked {
+  color: var(--text-3);
+}
+
+.featureCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.featureName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0;
+}
+
+.featureDescription {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.featurePlanInfo {
+  margin-top: 8px;
+}
+
+.featureAvailable {
+  font-size: 0.75rem;
+  color: var(--green);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.featureUpgrade {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.featureToggle {
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.featureToggle:hover:not(:disabled) {
+  border-color: var(--purple);
+  background: var(--purple-lt);
+  color: var(--purple);
+}
+
+.featureToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.featureToggleOn {
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
+}
+
+.featureToggleOn:hover:not(:disabled) {
+  background: var(--purple-dk);
+  border-color: var(--purple-dk);
+}
+
+.featureUpgradeCTA {
+  background: var(--purple-lt);
+  border: 1px solid var(--purple);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.featureUpgradeTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 8px 0;
+}
+
+.featureUpgradeDesc {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.featureUpgradeBtn {
+  padding: 10px 24px;
+  background: var(--purple);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.featureUpgradeBtn:hover {
+  background: var(--purple-dk);
+  transform: translateY(-1px);
+}
+
 /* ── Section ─────────────────────────────── */
 .section {
   padding: 24px 0;

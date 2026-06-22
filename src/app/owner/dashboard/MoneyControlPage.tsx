@@ -29,6 +29,7 @@ export default function MoneyControlPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'all'>('month');
   const [salesWithPayments, setSalesWithPayments] = useState<SaleData[]>([]);
+  const [reconciledSaleIds, setReconciledSaleIds] = useState<Set<string>>(new Set());
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [restaurantProfitMetrics, setRestaurantProfitMetrics] = useState<{
     inventoryPurchases: number;
@@ -126,24 +127,90 @@ export default function MoneyControlPage() {
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
-      // TODO: Fetch actual reconciliation data from database
-      // For now, use expected values as confirmed (will be replaced with real reconciliation data)
-      const confirmedCashCollections = expectedCashCollections;
-      const confirmedBankCollections = expectedBankCollections;
+      // Load actual reconciliation data from database
+      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
+      let recQuery = query(reconciliationsRef);
       
-      const outstandingCollections = 0; // Will be calculated from actual reconciliation data
+      if (selectedPeriod === 'today') {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(startOfDay)));
+      } else if (selectedPeriod === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(weekAgo)));
+      } else if (selectedPeriod === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(monthAgo)));
+      }
       
-      const matchedTransactions = sales.length; // Will be calculated from actual reconciliation data
-      const unmatchedSales = 0; // Will be calculated from actual reconciliation data
-      const unmatchedBankTransactions = 0; // Will be calculated from actual reconciliation data
-      const pendingReconciliation = 0; // Will be calculated from actual reconciliation data
+      const recSnapshot = await getDocs(recQuery);
+      const reconciliations = recSnapshot.docs.map(doc => doc.data());
+      
+      // Calculate confirmed collections from reconciliations
+      let confirmedCashCollections = 0;
+      let confirmedBankCollections = 0;
+      const recSaleIds = new Set<string>();
+      
+      reconciliations.forEach((rec: any) => {
+        const actualCash = rec.actualCash || 0;
+        const expectedCash = rec.expectedCash || 0;
+        const variance = rec.variance || 0;
+        
+        // If variance is positive (more cash than expected), count as confirmed
+        // If variance is negative (shortage), still count what was actually submitted
+        confirmedCashCollections += actualCash;
+        
+        // Track which sales are reconciled
+        const saleIds = rec.saleIds || [];
+        saleIds.forEach((saleId: string) => {
+          recSaleIds.add(saleId);
+        });
+      });
+      
+      // For bank collections, we assume transfers and POS are automatically confirmed
+      // (they go directly to bank, unlike cash which needs manual reconciliation)
+      confirmedBankCollections = expectedBankCollections;
+      
+      // Calculate outstanding collections (expected - confirmed)
+      const outstandingCollections = Math.max(0, expectedCashCollections - confirmedCashCollections);
+      
+      // Calculate reconciliation metrics
+      const matchedTransactions = recSaleIds.size;
+      const unmatchedSales = sales.length - matchedTransactions;
+      const unmatchedBankTransactions = 0; // TODO: Implement bank statement matching
+      const pendingReconciliation = unmatchedSales;
+      
+      // Calculate alerts
+      let cashShortages = 0;
+      let missingTransfers = 0;
+      let unmatchedDeposits = 0;
+      let overpayments = 0;
+      let duplicatePayments = 0;
+      
+      reconciliations.forEach((rec: any) => {
+        const variance = rec.variance || 0;
+        if (variance < 0) {
+          cashShortages++;
+        } else if (variance > 0) {
+          overpayments++;
+        }
+      });
+      
+      // Check for missing transfers (transfer sales without bank confirmation)
+      // For now, we'll estimate based on transfer sales vs confirmed bank
+      const transferConfirmationRate = transferSales > 0 ? (confirmedBankCollections / (transferSales + posSales)) : 1;
+      if (transferConfirmationRate < 0.9 && transferSales > 0) {
+        missingTransfers = Math.ceil(transferSales * (1 - transferConfirmationRate));
+      }
       
       const alerts = {
-        cashShortages: 0,
-        missingTransfers: 0,
-        unmatchedDeposits: 0,
-        overpayments: 0,
-        duplicatePayments: 0,
+        cashShortages,
+        missingTransfers,
+        unmatchedDeposits,
+        overpayments,
+        duplicatePayments,
       };
       
       setSummary({
@@ -164,6 +231,7 @@ export default function MoneyControlPage() {
         pendingReconciliation,
         alerts,
       });
+      setReconciledSaleIds(recSaleIds);
 
       // Load restaurant-specific profit metrics
       if (restaurant) {
@@ -263,8 +331,8 @@ export default function MoneyControlPage() {
     const total = breakdown.reduce((sum, pb) => sum + pb.amount, 0);
     const cashAmount = breakdown.filter(pb => pb.method === 'cash').reduce((sum, pb) => sum + pb.amount, 0);
     const bankAmount = breakdown.filter(pb => ['transfer', 'pos', 'card'].includes(pb.method)).reduce((sum, pb) => sum + pb.amount, 0);
-    // TODO: Fetch actual reconciliation status from database
-    const isReconciled = true; // Placeholder - will be replaced with actual reconciliation data
+    // Check if this sale has been reconciled
+    const isReconciled = reconciledSaleIds.has(sale.id);
     
     return (
       <div className={styles.saleRow}>

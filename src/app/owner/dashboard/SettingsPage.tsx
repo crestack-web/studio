@@ -22,8 +22,85 @@ import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ReceiptThemeConfig } from './ReceiptThemeConfig';
 import { isAdmin } from '@/lib/adminAuth';
-import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard } from 'lucide-react';
+import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers } from 'lucide-react';
 import styles from './SettingsPage.module.css';
+
+// ── Feature Definitions ─────────────────────────────────────────────
+interface Feature {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  plans: string[]; // Plans that have access to this feature
+  category: 'inventory' | 'sales' | 'analytics' | 'ai' | 'operations';
+}
+
+const FEATURES: Feature[] = [
+  {
+    id: 'inventory',
+    name: 'Inventory Management',
+    description: 'Track stock levels, set reorder points, and manage product catalog',
+    icon: <Package size={20} />,
+    plans: ['starter', 'pro', 'enterprise', 'lifetime'],
+    category: 'inventory',
+  },
+  {
+    id: 'sales',
+    name: 'Sales Recording',
+    description: 'Record sales, track revenue, and manage customer transactions',
+    icon: <DollarSign size={20} />,
+    plans: ['starter', 'pro', 'enterprise', 'lifetime'],
+    category: 'sales',
+  },
+  {
+    id: 'expenses',
+    name: 'Expense Tracking',
+    description: 'Track business expenses and manage spending categories',
+    icon: <FileText size={20} />,
+    plans: ['pro', 'enterprise', 'lifetime'],
+    category: 'sales',
+  },
+  {
+    id: 'suppliers',
+    name: 'Supplier Management',
+    description: 'Manage supplier relationships and purchase orders',
+    icon: <Building size={20} />,
+    plans: ['pro', 'enterprise', 'lifetime'],
+    category: 'operations',
+  },
+  {
+    id: 'warehouses',
+    name: 'Warehouse Management',
+    description: 'Manage multiple warehouse locations and stock transfers',
+    icon: <Layers size={20} />,
+    plans: ['enterprise', 'lifetime'],
+    category: 'operations',
+  },
+  {
+    id: 'staff',
+    name: 'Staff Management',
+    description: 'Manage staff roles, permissions, and performance tracking',
+    icon: <User size={20} />,
+    plans: ['pro', 'enterprise', 'lifetime'],
+    category: 'operations',
+  },
+  {
+    id: 'askMo',
+    name: 'Ask MO AI Assistant',
+    description: 'AI-powered business insights and natural language queries',
+    icon: <Zap size={20} />,
+    plans: ['pro', 'enterprise', 'lifetime'],
+    category: 'ai',
+  },
+  {
+    id: 'analytics',
+    name: 'Advanced Analytics',
+    description: 'Detailed reports, trends, and business intelligence',
+    icon: <LayoutDashboard size={20} />,
+    plans: ['enterprise', 'lifetime'],
+    category: 'analytics',
+  },
+];
 
 // ── Toggle ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, id }: {
@@ -77,6 +154,7 @@ export default function SettingsPage() {
     receipt: true,
     notifications: true,
     privacy: true,
+    features: true,
   });
 
   const sections = [
@@ -89,6 +167,7 @@ export default function SettingsPage() {
     { id: 'receipt', label: 'Receipt', icon: <FileText size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
     { id: 'privacy', label: 'Privacy', icon: <Lock size={18} /> },
+    { id: 'features', label: 'Features', icon: <Package size={18} /> },
   ];
 
   // Handle logout
@@ -188,6 +267,73 @@ export default function SettingsPage() {
   });
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
+
+  // ── Feature Preferences ───────────────────────────────────
+  const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
+  const [isSavingFeatures, setIsSavingFeatures] = useState(false);
+
+  // Load feature preferences from Firestore
+  useEffect(() => {
+    const loadFeaturePreferences = async () => {
+      try {
+        const { firestore } = initializeFirebase();
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        
+        if (currentUser) {
+          const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const prefs = data.featurePreferences || {};
+            
+            // Initialize all available features for the user's plan
+            const userPlan = subscription.plan || 'starter';
+            const initialPrefs: Record<string, boolean> = {};
+            
+            FEATURES.forEach(feature => {
+              if (feature.plans.includes(userPlan)) {
+                // If user has a preference saved, use it; otherwise default to enabled
+                initialPrefs[feature.id] = prefs[feature.id] !== undefined ? prefs[feature.id] : true;
+              }
+            });
+            
+            setFeaturePreferences(initialPrefs);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load feature preferences:', error);
+      }
+    };
+
+    loadFeaturePreferences();
+  }, [subscription.plan]);
+
+  // Save feature preferences to Firestore
+  const handleFeatureToggle = async (featureId: string, enabled: boolean) => {
+    setFeaturePreferences(prev => ({ ...prev, [featureId]: enabled }));
+    
+    try {
+      setIsSavingFeatures(true);
+      const { firestore } = initializeFirebase();
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (currentUser) {
+        await updateDoc(doc(firestore, 'users', currentUser.uid), {
+          featurePreferences: {
+            ...featurePreferences,
+            [featureId]: enabled,
+          }
+        });
+        showToast(`Feature ${enabled ? 'enabled' : 'disabled'}`);
+      }
+    } catch (error) {
+      console.error('Failed to save feature preferences:', error);
+      showToast('Failed to update feature preferences');
+    } finally {
+      setIsSavingFeatures(false);
+    }
+  };
 
   // Load business profile and subscription from Firestore
   useEffect(() => {
@@ -658,6 +804,95 @@ export default function SettingsPage() {
           </button>
         </div>
       </Section>
+      )}
+
+      {/* ════════════════════════════════════════
+          SECTION 7 · FEATURES
+      ════════════════════════════════════════ */}
+      {activeSection === 'features' && sectionVisibility.features && (
+        <Section title="Features">
+          <p className={styles.rowDesc}>
+            Manage which features are enabled for your business. Features available depend on your subscription plan.
+          </p>
+          
+          {/* Current Plan Badge */}
+          <div className={styles.planBadge} style={{ marginBottom: '24px', display: 'inline-block' }}>
+            Current Plan: <strong>{subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}</strong>
+          </div>
+
+          {/* Features Grid */}
+          <div className={styles.featuresGrid}>
+            {FEATURES.map(feature => {
+              const isAvailable = feature.plans.includes(subscription.plan || 'starter');
+              const isEnabled = featurePreferences[feature.id];
+              
+              return (
+                <div
+                  key={feature.id}
+                  className={`${styles.featureCard} ${!isAvailable ? styles.featureCardUnavailable : ''}`}
+                >
+                  <div className={styles.featureCardHeader}>
+                    <div className={styles.featureIcon}>{feature.icon}</div>
+                    <div className={styles.featureStatus}>
+                      {isAvailable ? (
+                        isEnabled ? (
+                          <CheckCircle2 size={20} className={styles.featureEnabled} />
+                        ) : (
+                          <XCircle size={20} className={styles.featureDisabled} />
+                        )
+                      ) : (
+                        <Lock size={20} className={styles.featureLocked} />
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className={styles.featureCardContent}>
+                    <h3 className={styles.featureName}>{feature.name}</h3>
+                    <p className={styles.featureDescription}>{feature.description}</p>
+                    
+                    <div className={styles.featurePlanInfo}>
+                      {isAvailable ? (
+                        <span className={styles.featureAvailable}>
+                          Available in your plan
+                        </span>
+                      ) : (
+                        <span className={styles.featureUpgrade}>
+                          Requires {feature.plans[0].charAt(0).toUpperCase() + feature.plans[0].slice(1)} plan or higher
+                        </span>
+                      )}
+                    </div>
+                    
+                    {isAvailable && (
+                      <button
+                        className={`${styles.featureToggle} ${isEnabled ? styles.featureToggleOn : ''}`}
+                        onClick={() => handleFeatureToggle(feature.id, !isEnabled)}
+                        disabled={isSavingFeatures}
+                      >
+                        {isEnabled ? 'Enabled' : 'Disabled'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Upgrade CTA */}
+          {subscription.plan === 'starter' && (
+            <div className={styles.featureUpgradeCTA}>
+              <h3 className={styles.featureUpgradeTitle}>Upgrade to unlock more features</h3>
+              <p className={styles.featureUpgradeDesc}>
+                Get access to Expense Tracking, Supplier Management, Ask MO AI, and more with Pro or Enterprise plans.
+              </p>
+              <button
+                className={styles.featureUpgradeBtn}
+                onClick={() => showToast('Contact sales to upgrade your plan')}
+              >
+                View Plans
+              </button>
+            </div>
+          )}
+        </Section>
       )}
 
       {/* Footer */}

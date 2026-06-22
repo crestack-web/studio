@@ -20,6 +20,7 @@ export default function PaymentTraceabilityPage() {
   const [traceabilityData, setTraceabilityData] = useState<PaymentTraceability[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'all'>('month');
   const [selectedSale, setSelectedSale] = useState<PaymentTraceability | null>(null);
+  const [reconciledSaleIds, setReconciledSaleIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadTraceabilityData();
@@ -31,7 +32,7 @@ export default function PaymentTraceabilityPage() {
     setLoading(true);
     try {
       const { firestore } = initializeFirebase();
-      const salesRef = collection(firestore, 'merchants', user.businessId, 'sales');
+      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
       
       let startDate = new Date();
       if (selectedPeriod === 'week') {
@@ -53,9 +54,36 @@ export default function PaymentTraceabilityPage() {
       const snapshot = await getDocs(q);
       const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
+      // Load reconciliation data
+      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
+      const recQ = query(
+        reconciliationsRef,
+        where('date', '>=', Timestamp.fromDate(startDate)),
+        orderBy('date', 'desc')
+      );
+      const recSnapshot = await getDocs(recQ);
+      const reconciliations = recSnapshot.docs.map(doc => doc.data());
+      
+      // Create map of saleId to reconciliation data
+      const saleToReconciliation = new Map<string, { reconciled: boolean; reconciledAt?: Date }>();
+      reconciliations.forEach((rec: any) => {
+        const saleIds = rec.saleIds || [];
+        const reconciledAt = rec.reconciledAt?.toDate();
+        saleIds.forEach((saleId: string) => {
+          saleToReconciliation.set(saleId, {
+            reconciled: true,
+            reconciledAt,
+          });
+        });
+      });
+      
+      // Set reconciled sale IDs
+      setReconciledSaleIds(new Set(saleToReconciliation.keys()));
+      
       const traceability: PaymentTraceability[] = sales.map((sale: any) => {
         const breakdown = sale.paymentBreakdown || [];
         const totalAmount = breakdown.reduce((sum: number, pb: any) => sum + pb.amount, 0);
+        const reconData = saleToReconciliation.get(sale.id);
         
         return {
           saleId: sale.id,
@@ -71,8 +99,8 @@ export default function PaymentTraceabilityPage() {
           staffName: sale.recordedBy?.displayName || 'Unknown',
           paymentBreakdown: breakdown,
           paymentReceived: totalAmount > 0,
-          reconciled: false, // TODO: Implement actual reconciliation status from reconciliation data
-          reconciledAt: undefined, // TODO: Implement actual reconciliation timestamp from reconciliation data
+          reconciled: reconData?.reconciled || false,
+          reconciledAt: reconData?.reconciledAt,
         };
       });
       
