@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Call Firebase function
-    const firebaseFunctionUrl = 'https://askmo-6kxikgkcjq-uc.a.run.app';
+    const firebaseFunctionUrl = 'https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/askMo';
     
     const response = await fetch(firebaseFunctionUrl, {
       method: 'POST',

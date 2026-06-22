@@ -168,6 +168,10 @@
   margin-bottom: 32px;
 }
 
+[data-theme='dark'] .section {
+  color: var(--text-1);
+}
+
 .sectionTitle {
   font-size: 18px;
   font-weight: 600;
@@ -175,10 +179,22 @@
   margin-bottom: 16px;
 }
 
+[data-theme='dark'] .sectionTitle {
+  color: var(--text-1);
+}
+
 .emptyState {
   text-align: center;
   padding: 40px 20px;
   color: var(--text-3);
+  background: var(--bg-2);
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+
+[data-theme='dark'] .emptyState {
+  background: var(--bg-3);
+  border-color: var(--border);
 }
 
 .accountsGrid {
@@ -192,6 +208,16 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  transition: all 0.2s;
+}
+
+.accountCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .accountCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .accountHeader {
@@ -229,6 +255,10 @@
   color: var(--text-3);
 }
 
+[data-theme='dark'] .accountBank {
+  color: var(--text-3);
+}
+
 .defaultBadge {
   padding: 4px 8px;
   background: var(--green-bg);
@@ -238,6 +268,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+[data-theme='dark'] .defaultBadge {
+  background: var(--green-bg);
+  color: var(--green);
 }
 
 .accountBalance {
@@ -540,6 +575,10 @@
   margin-bottom: 16px;
 }
 
+[data-theme='dark'] .sectionHeader {
+  color: var(--text-1);
+}
+
 .limitedBadge {
   font-size: 12px;
   color: var(--text-3);
@@ -821,6 +860,10 @@
 
 .transactionsSection {
   margin-top: 32px;
+}
+
+[data-theme='dark'] .transactionsSection {
+  color: var(--text-1);
 }
 
 /* Mobile responsive */

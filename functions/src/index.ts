@@ -80,7 +80,7 @@ export const askMo = functions.https.onRequest(
     // Build system prompt
     buildSystemPrompt(businessContext, language, languageName, conversationHistory);
 
-    // Generate response
+    // Generate response with retry mechanism
     const chat = model.startChat({
       history: conversationHistory.map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'model',
@@ -88,7 +88,42 @@ export const askMo = functions.https.onRequest(
       }))
     });
 
-    const result = await chat.sendMessage(message);
+    // Retry logic with exponential backoff
+    let result;
+    let lastError;
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Add timeout for the API call
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
+        });
+
+        result = await Promise.race([
+          chat.sendMessage(message),
+          timeoutPromise
+        ]) as any;
+
+        // If successful, break out of retry loop
+        break;
+      } catch (error: any) {
+        lastError = error;
+        console.error(`❌ [Ask MO Function] Attempt ${attempt} failed:`, error.message);
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+          console.log(`🔄 [Ask MO Function] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    if (!result) {
+      throw lastError || new Error('Failed to generate response after retries');
+    }
+
     const response = result.response;
     const text = response.text();
 

@@ -10,6 +10,7 @@ import { MoneyControlSummary, PaymentBreakdown } from './types';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp, doc, getDoc, deleteDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
+import { DollarSign, Banknote, Smartphone, CreditCard, RefreshCw, FileText, Package, Zap, Users, BarChart3, Utensils, Download, Building2, Check, Clock, Link, HelpCircle, TrendingUp, Target, Wallet, Lightbulb, ChevronRight, ChevronDown, AlertTriangle, Plus } from 'lucide-react';
 import styles from './MoneyControlPage.module.css';
 
 interface SaleData {
@@ -239,7 +240,7 @@ export default function MoneyControlPage() {
   };
 
   const StatCard = ({ icon, label, value, trend, color }: { 
-    icon: string; 
+    icon: React.ReactNode; 
     label: string; 
     value: string; 
     trend?: string;
@@ -247,7 +248,7 @@ export default function MoneyControlPage() {
   }) => (
     <div className={styles.statCard}>
       <div className={styles.statIcon} style={{ background: color || '#EDE8FC' }}>
-        <span>{icon}</span>
+        {typeof icon === 'string' ? <span>{icon}</span> : icon}
       </div>
       <div className={styles.statContent}>
         <div className={styles.statLabel}>{label}</div>
@@ -290,7 +291,7 @@ export default function MoneyControlPage() {
 
   const AlertItem = ({ type, count }: { type: string; count: number }) => (
     <div className={styles.alertItem}>
-      <div className={styles.alertIcon}>⚠️</div>
+      <div className={styles.alertIcon}><AlertTriangle size={18} /></div>
       <div className={styles.alertContent}>
         <div className={styles.alertType}>{type}</div>
         <div className={styles.alertCount}>{count}</div>
@@ -326,12 +327,12 @@ export default function MoneyControlPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Sales Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon="💰" label="Total Sales" value={formatMoney(summary.totalSales)} />
-              <StatCard icon="💵" label="Cash Sales" value={formatMoney(summary.cashSales)} color="#DCFCE7" />
-              <StatCard icon="📱" label="Transfer Sales" value={formatMoney(summary.transferSales)} color="#DBEAFE" />
-              <StatCard icon="💳" label="POS Sales" value={formatMoney(summary.posSales)} color="#FCE7F3" />
-              <StatCard icon="🔄" label="Split Payments" value={formatMoney(summary.splitPayments)} color="#FEF3C7" />
-              <StatCard icon="📝" label="Credit Sales" value={formatMoney(summary.creditSales)} color="#FEE2E2" />
+              <StatCard icon={<DollarSign size={20} />} label="Total Sales" value={formatMoney(summary.totalSales)} />
+              <StatCard icon={<Banknote size={20} />} label="Cash Sales" value={formatMoney(summary.cashSales)} color="#DCFCE7" />
+              <StatCard icon={<Smartphone size={20} />} label="Transfer Sales" value={formatMoney(summary.transferSales)} color="#DBEAFE" />
+              <StatCard icon={<CreditCard size={20} />} label="POS Sales" value={formatMoney(summary.posSales)} color="#FCE7F3" />
+              <StatCard icon={<RefreshCw size={20} />} label="Split Payments" value={formatMoney(summary.splitPayments)} color="#FEF3C7" />
+              <StatCard icon={<FileText size={20} />} label="Credit Sales" value={formatMoney(summary.creditSales)} color="#FEE2E2" />
             </div>
           </section>
 
@@ -340,11 +341,11 @@ export default function MoneyControlPage() {
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Restaurant Profit Tracking</h2>
               <div className={styles.statsGrid}>
-                <StatCard icon="📦" label="Inventory Purchases" value={formatMoney(restaurantProfitMetrics.inventoryPurchases)} color="#DBEAFE" />
-                <StatCard icon="⚡" label="Operating Expenses" value={formatMoney(restaurantProfitMetrics.operatingExpenses)} color="#FEE2E2" />
-                <StatCard icon="👥" label="Payroll Expenses" value={formatMoney(restaurantProfitMetrics.payrollExpenses)} color="#FEF3C7" />
-                <StatCard icon="📊" label="Estimated Profit" value={formatMoney(restaurantProfitMetrics.estimatedProfit)} color="#DCFCE7" />
-                <StatCard icon="🍽️" label="Food Cost %" value={`${restaurantProfitMetrics.foodCostPercentage.toFixed(1)}%`} color="#FCE7F3" />
+                <StatCard icon={<Package size={20} />} label="Inventory Purchases" value={formatMoney(restaurantProfitMetrics.inventoryPurchases)} color="#DBEAFE" />
+                <StatCard icon={<Zap size={20} />} label="Operating Expenses" value={formatMoney(restaurantProfitMetrics.operatingExpenses)} color="#FEE2E2" />
+                <StatCard icon={<Users size={20} />} label="Payroll Expenses" value={formatMoney(restaurantProfitMetrics.payrollExpenses)} color="#FEF3C7" />
+                <StatCard icon={<BarChart3 size={20} />} label="Estimated Profit" value={formatMoney(restaurantProfitMetrics.estimatedProfit)} color="#DCFCE7" />
+                <StatCard icon={<Utensils size={20} />} label="Food Cost %" value={`${restaurantProfitMetrics.foodCostPercentage.toFixed(1)}%`} color="#FCE7F3" />
               </div>
             </section>
           )}
@@ -353,11 +354,11 @@ export default function MoneyControlPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Collections Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon="📥" label="Expected Cash" value={formatMoney(summary.expectedCashCollections)} color="#DCFCE7" />
-              <StatCard icon="🏦" label="Expected Bank" value={formatMoney(summary.expectedBankCollections)} color="#DBEAFE" />
-              <StatCard icon="✅" label="Confirmed Cash" value={formatMoney(summary.confirmedCashCollections)} color="#DCFCE7" />
-              <StatCard icon="✅" label="Confirmed Bank" value={formatMoney(summary.confirmedBankCollections)} color="#DBEAFE" />
-              <StatCard icon="⏳" label="Outstanding" value={formatMoney(summary.outstandingCollections)} color="#FEF3C7" />
+              <StatCard icon={<Download size={20} />} label="Expected Cash" value={formatMoney(summary.expectedCashCollections)} color="#DCFCE7" />
+              <StatCard icon={<Building2 size={20} />} label="Expected Bank" value={formatMoney(summary.expectedBankCollections)} color="#DBEAFE" />
+              <StatCard icon={<Check size={20} />} label="Confirmed Cash" value={formatMoney(summary.confirmedCashCollections)} color="#DCFCE7" />
+              <StatCard icon={<Check size={20} />} label="Confirmed Bank" value={formatMoney(summary.confirmedBankCollections)} color="#DBEAFE" />
+              <StatCard icon={<Clock size={20} />} label="Outstanding" value={formatMoney(summary.outstandingCollections)} color="#FEF3C7" />
             </div>
           </section>
 
@@ -365,10 +366,10 @@ export default function MoneyControlPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Reconciliation Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon="🔗" label="Matched Transactions" value={summary.matchedTransactions.toString()} color="#DCFCE7" />
-              <StatCard icon="❓" label="Unmatched Sales" value={summary.unmatchedSales.toString()} color="#FEE2E2" />
-              <StatCard icon="❓" label="Unmatched Bank" value={summary.unmatchedBankTransactions.toString()} color="#FEE2E2" />
-              <StatCard icon="⏳" label="Pending Reconciliation" value={summary.pendingReconciliation.toString()} color="#FEF3C7" />
+              <StatCard icon={<Link size={20} />} label="Matched Transactions" value={summary.matchedTransactions.toString()} color="#DCFCE7" />
+              <StatCard icon={<HelpCircle size={20} />} label="Unmatched Sales" value={summary.unmatchedSales.toString()} color="#FEE2E2" />
+              <StatCard icon={<HelpCircle size={20} />} label="Unmatched Bank" value={summary.unmatchedBankTransactions.toString()} color="#FEE2E2" />
+              <StatCard icon={<Clock size={20} />} label="Pending Reconciliation" value={summary.pendingReconciliation.toString()} color="#FEF3C7" />
             </div>
           </section>
 
@@ -411,7 +412,7 @@ export default function MoneyControlPage() {
               {/* Sales Trend */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}>📈</span>
+                  <span className={styles.insightIcon}><TrendingUp size={20} /></span>
                   <span className={styles.insightTitle}>Sales Trend</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -444,7 +445,7 @@ export default function MoneyControlPage() {
               {/* Payment Method Preference */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}>💳</span>
+                  <span className={styles.insightIcon}><CreditCard size={20} /></span>
                   <span className={styles.insightTitle}>Payment Preference</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -454,10 +455,10 @@ export default function MoneyControlPage() {
                       if (total === 0) return <span className={styles.noData}>No data</span>;
                       
                       const methods = [
-                        { name: 'Cash', value: summary.cashSales, icon: '💵' },
-                        { name: 'Transfer', value: summary.transferSales, icon: '📱' },
-                        { name: 'POS', value: summary.posSales, icon: '💳' },
-                        { name: 'Split', value: summary.splitPayments, icon: '🔄' },
+                        { name: 'Cash', value: summary.cashSales, icon: <Banknote size={16} /> },
+                        { name: 'Transfer', value: summary.transferSales, icon: <Smartphone size={16} /> },
+                        { name: 'POS', value: summary.posSales, icon: <CreditCard size={16} /> },
+                        { name: 'Split', value: summary.splitPayments, icon: <RefreshCw size={16} /> },
                       ].sort((a, b) => b.value - a.value);
                       
                       const top = methods[0];
@@ -465,7 +466,7 @@ export default function MoneyControlPage() {
                       
                       return (
                         <div className={styles.preferenceValue}>
-                          <span className={styles.prefIcon}>{top.icon}</span>
+                          <span className={styles.prefIcon}>{typeof top.icon === 'string' ? top.icon : top.icon}</span>
                           <span className={styles.prefName}>{top.name}</span>
                           <span className={styles.prefPercent}>{percentage}%</span>
                         </div>
@@ -481,7 +482,7 @@ export default function MoneyControlPage() {
               {/* Collection Efficiency */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}>🎯</span>
+                  <span className={styles.insightIcon}><Target size={20} /></span>
                   <span className={styles.insightTitle}>Collection Efficiency</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -515,7 +516,7 @@ export default function MoneyControlPage() {
               {/* Cash Flow Health */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}>💰</span>
+                  <span className={styles.insightIcon}><Wallet size={20} /></span>
                   <span className={styles.insightTitle}>Cash Flow Health</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -551,7 +552,7 @@ export default function MoneyControlPage() {
 
             {/* Recommendations */}
             <div className={styles.recommendations}>
-              <h3 className={styles.recommendationsTitle}>💡 Recommendations</h3>
+              <h3 className={styles.recommendationsTitle}><Lightbulb size={18} style={{ marginRight: '8px' }} /> Recommendations</h3>
               <div className={styles.recommendationsList}>
                 {summary ? (() => {
                   const recommendations = [];

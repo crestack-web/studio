@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useBranch } from '@/context/BranchContext';
 import { useTranslation } from '@/app/owner/dashboard/LangContext';
+import { Building2, MapPin, Plus, ChevronDown } from 'lucide-react';
 import styles from './BranchSwitcher.module.css';
 
 export function BranchSwitcher() {
@@ -59,13 +60,13 @@ export function BranchSwitcher() {
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className={styles.branchName}>{displayName}</span>
-        <span className={`${styles.dropdownIcon} ${isOpen ? styles.open : ''}`}>▼</span>
+        <ChevronDown size={14} className={`${styles.dropdownIcon} ${isOpen ? styles.open : ''}`} />
       </button>
 
       {isOpen && (
         <div className={styles.dropdownMenu}>
           <div className={styles.dropdownItem} onClick={() => handleBranchSelect('all')}>
-            <span className={styles.dropdownIcon}>🏢</span>
+            <Building2 size={16} className={styles.dropdownIcon} />
             <span>{t('branch.switcher.allBranches')}</span>
           </div>
           <div className={styles.divider} />
@@ -75,7 +76,7 @@ export function BranchSwitcher() {
               className={`${styles.dropdownItem} ${selectedBranchId === branch.id ? styles.active : ''}`}
               onClick={() => handleBranchSelect(branch.id)}
             >
-              <span className={styles.dropdownIcon}>📍</span>
+              <MapPin size={16} className={styles.dropdownIcon} />
               <span>{branch.name}</span>
               {branch.location && (
                 <span className={styles.branchLocation}>{branch.location}</span>
@@ -84,7 +85,7 @@ export function BranchSwitcher() {
           ))}
           <div className={styles.divider} />
           <div className={styles.dropdownItem} onClick={handleAddBranch}>
-            <span className={styles.dropdownIcon}>➕</span>
+            <Plus size={16} className={styles.dropdownIcon} />
             <span>Add Branch</span>
           </div>
         </div>

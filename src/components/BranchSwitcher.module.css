@@ -25,9 +25,20 @@
 
 .branchName {
   white-space: nowrap;
-  max-width: 150px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .branchName {
+    max-width: 80px;
+  }
+  
+  .branchButton {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
 }
 
 .dropdownIcon {
@@ -52,6 +63,12 @@
   z-index: 1000;
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
+}
+
+[data-theme='dark'] .dropdownMenu {
+  background: var(--bg-2);
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 @keyframes slideDown {
