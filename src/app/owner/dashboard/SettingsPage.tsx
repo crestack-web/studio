@@ -371,8 +371,9 @@ export default function SettingsPage() {
             });
           }
 
-          // Check if user is admin
+          // Check if user is admin - only for whitelisted emails
           const adminCheck = await isAdmin();
+          console.log('Settings admin check result:', adminCheck, 'for user:', user.email);
           setIsUserAdmin(adminCheck);
         }
       } catch (error) {

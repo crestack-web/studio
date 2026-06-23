@@ -7,12 +7,12 @@ const ADMIN_EMAILS = [
   'sxeedtxheer@gmail.com',
   'admin@busmo.io',
   'majnuncode@gmail.com',
-  'ishuaibu@gmail.com',
   // Add more admin emails as needed
 ];
 
 /**
  * Check if current user is an admin
+ * STRICT: Only checks whitelist, ignores Firestore roles
  */
 export async function isAdmin(): Promise<boolean> {
   const auth = getAuth();
@@ -28,7 +28,7 @@ export async function isAdmin(): Promise<boolean> {
   // Normalize email to lowercase for comparison
   const normalizedEmail = user.email.toLowerCase();
 
-  // Check if email is in whitelist (case-insensitive)
+  // Check if email is in whitelist (case-insensitive) - STRICT CHECK ONLY
   const isInWhitelist = ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === normalizedEmail);
   console.log('Admin check - Email in whitelist:', isInWhitelist, 'User email:', normalizedEmail);
   
@@ -37,21 +37,7 @@ export async function isAdmin(): Promise<boolean> {
     return true;
   }
 
-  // Check Firestore for admin role
-  try {
-    const { firestore } = initializeFirebase();
-    const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      console.log('Admin check - Firestore data:', { role: userData.role, isAdmin: userData.isAdmin });
-      return userData.role === 'admin' || userData.isAdmin === true;
-    }
-  } catch (error) {
-    console.error('Error checking admin status:', error);
-  }
-
-  console.log('Admin check failed: Not in whitelist and no admin role in Firestore');
+  console.log('Admin check failed: Email not in whitelist');
   return false;
 }
 

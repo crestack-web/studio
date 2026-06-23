@@ -214,7 +214,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     featureId: 'staff-management',
   },
   {
-    id: 'suppliers',
+    id: 'supplier-management',
     label: 'Suppliers',
     tip: 'Manage suppliers',
     iconClass: 'Truck',
@@ -223,7 +223,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     excludedCategories: ['education', 'services'],
   },
   {
-    id: 'customers',
+    id: 'customer-management',
     label: 'Customers',
     tip: 'Manage customers',
     iconClass: 'UserCircle',
@@ -382,6 +382,7 @@ export function generateNavigation(
       sections.push({
         id: sectionDef.id,
         label: sectionDef.label,
+        icon: sectionDef.icon,
         items: sectionItems,
       });
     }

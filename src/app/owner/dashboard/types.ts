@@ -41,7 +41,13 @@ export type PageId =
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'
-  | 'ecommerce-storefront';
+  | 'ecommerce-storefront'
+  | 'warehouse'
+  | 'stock-transfers'
+  | 'audit-trail'
+  | 'staff-activity'
+  | 'staff-accountability'
+  | 'bank-statement-import';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

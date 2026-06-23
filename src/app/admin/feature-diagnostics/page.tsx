@@ -87,7 +87,7 @@ export default function FeatureDiagnosticsPage() {
 
       const userPlan = (user.plan || 'starter') as Plan;
       const businessCategory = (user.category || user.businessType || 'other') as BusinessCategory;
-      const selectedFeatures = user.selectedFeatures || [];
+      const selectedFeatures = (user.selectedFeatures || []) as string[];
       const enabledFeatures = new Set(selectedFeatures);
 
       // Run feature access checks
@@ -280,7 +280,7 @@ export default function FeatureDiagnosticsPage() {
                 Feature Access Matrix
               </h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {diagnostics.featureChecks.map(({ feature, access, isEnabled }) => (
+                {diagnostics.featureChecks.map(({ feature, access, isEnabled }: any) => (
                   <div
                     key={feature.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded"
@@ -301,7 +301,7 @@ export default function FeatureDiagnosticsPage() {
                       {access.eligible ? (
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
                       ) : (
-                        <XCircle className="w-5 h-5 text-red-500" title={access.reason} />
+                        <XCircle className="w-5 h-5 text-red-500" />
                       )}
                     </div>
                   </div>
@@ -338,7 +338,7 @@ export default function FeatureDiagnosticsPage() {
                 Plan Features ({diagnostics.planFeatures.length})
               </h2>
               <div className="flex flex-wrap gap-2">
-                {diagnostics.planFeatures.map(feature => (
+                {diagnostics.planFeatures.map((feature: any) => (
                   <span
                     key={feature.id}
                     className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
@@ -356,7 +356,7 @@ export default function FeatureDiagnosticsPage() {
                 Category Features ({diagnostics.categoryFeatures.length})
               </h2>
               <div className="flex flex-wrap gap-2">
-                {diagnostics.categoryFeatures.map(feature => (
+                {diagnostics.categoryFeatures.map((feature: any) => (
                   <span
                     key={feature.id}
                     className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm"

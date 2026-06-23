@@ -190,7 +190,7 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     description: 'Manage suppliers, purchase orders, and stock receipts',
     icon: 'Truck',
     category: 'operations',
-    pageId: 'suppliers',
+    pageId: 'supplier-management',
     requiredPlans: ['standard', 'pro'],
     isOptional: true,
     isProOnly: false,

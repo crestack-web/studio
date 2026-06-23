@@ -47,13 +47,22 @@ export default function DashboardOverview() {
     try {
       setLoading(true);
       
+      // Helper function to safely get count with error handling
+      const safeGetCount = async (colRef: any) => {
+        try {
+          const snapshot = await getCountFromServer(colRef);
+          return snapshot.data().count;
+        } catch (error) {
+          console.warn('Failed to get count for collection:', error);
+          return 0;
+        }
+      };
+
       // Get total users
-      const usersSnapshot = await getCountFromServer(collection(firestore, 'users'));
-      const totalUsers = usersSnapshot.data().count;
+      const totalUsers = await safeGetCount(collection(firestore, 'users'));
 
       // Get total businesses
-      const businessesSnapshot = await getCountFromServer(collection(firestore, 'businesses'));
-      const totalBusinesses = businessesSnapshot.data().count;
+      const totalBusinesses = await safeGetCount(collection(firestore, 'businesses'));
 
       // Get active businesses (7 days)
       const sevenDaysAgo = new Date();
@@ -62,7 +71,7 @@ export default function DashboardOverview() {
         collection(firestore, 'businesses'),
         where('lastActive', '>=', sevenDaysAgo)
       );
-      const active7DaysSnapshot = await getCountFromServer(active7DaysQuery);
+      const activeBusinesses7Days = await safeGetCount(active7DaysQuery);
 
       // Get active businesses (30 days)
       const thirtyDaysAgo = new Date();
@@ -71,7 +80,7 @@ export default function DashboardOverview() {
         collection(firestore, 'businesses'),
         where('lastActive', '>=', thirtyDaysAgo)
       );
-      const active30DaysSnapshot = await getCountFromServer(active30DaysQuery);
+      const activeBusinesses30Days = await safeGetCount(active30DaysQuery);
 
       // Get new users today
       const today = new Date();
@@ -80,7 +89,7 @@ export default function DashboardOverview() {
         collection(firestore, 'users'),
         where('createdAt', '>=', today)
       );
-      const newUsersTodaySnapshot = await getCountFromServer(newUsersTodayQuery);
+      const newUsersToday = await safeGetCount(newUsersTodayQuery);
 
       // Get new users this week
       const weekAgo = new Date();
@@ -89,7 +98,7 @@ export default function DashboardOverview() {
         collection(firestore, 'users'),
         where('createdAt', '>=', weekAgo)
       );
-      const newUsersWeekSnapshot = await getCountFromServer(newUsersWeekQuery);
+      const newUsersThisWeek = await safeGetCount(newUsersWeekQuery);
 
       // Get new businesses this month
       const monthStart = new Date();
@@ -99,43 +108,73 @@ export default function DashboardOverview() {
         collection(firestore, 'businesses'),
         where('createdAt', '>=', monthStart)
       );
-      const newBusinessesMonthSnapshot = await getCountFromServer(newBusinessesMonthQuery);
+      const newBusinessesThisMonth = await safeGetCount(newBusinessesMonthQuery);
 
       // Get total inventory items
-      const inventorySnapshot = await getCountFromServer(collection(firestore, 'products'));
-      const totalInventory = inventorySnapshot.data().count;
+      const totalInventory = await safeGetCount(collection(firestore, 'products'));
 
-      // Get Ask MO conversations (placeholder - adjust collection name as needed)
-      const askMOSnapshot = await getCountFromServer(collection(firestore, 'askMoConversations'));
-      const totalAskMOConversations = askMOSnapshot.data().count;
+      // Get Ask MO conversations
+      const totalAskMOConversations = await safeGetCount(collection(firestore, 'askMoConversations'));
 
-      // Get subscription counts (placeholder - adjust based on your subscription structure)
-      const paidQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'paid'));
-      const paidSnapshot = await getCountFromServer(paidQuery);
-
-      const freeQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'free'));
-      const freeSnapshot = await getCountFromServer(freeQuery);
-
-      const trialQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'trial'));
-      const trialSnapshot = await getCountFromServer(trialQuery);
+      // Get subscription counts - use safer queries that won't fail if index missing
+      let paidSubscribers = 0;
+      let freePlanUsers = 0;
+      let trialUsers = 0;
+      
+      try {
+        const paidQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'paid'));
+        paidSubscribers = await safeGetCount(paidQuery);
+      } catch (e) {
+        console.warn('Failed to get paid subscribers count:', e);
+      }
+      
+      try {
+        const freeQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'free'));
+        freePlanUsers = await safeGetCount(freeQuery);
+      } catch (e) {
+        console.warn('Failed to get free plan users count:', e);
+      }
+      
+      try {
+        const trialQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'trial'));
+        trialUsers = await safeGetCount(trialQuery);
+      } catch (e) {
+        console.warn('Failed to get trial users count:', e);
+      }
 
       setMetrics({
         totalUsers,
         totalBusinesses,
-        activeBusinesses7Days: active7DaysSnapshot.data().count,
-        activeBusinesses30Days: active30DaysSnapshot.data().count,
-        newUsersToday: newUsersTodaySnapshot.data().count,
-        newUsersThisWeek: newUsersWeekSnapshot.data().count,
-        newBusinessesThisMonth: newBusinessesMonthSnapshot.data().count,
+        activeBusinesses7Days,
+        activeBusinesses30Days,
+        newUsersToday,
+        newUsersThisWeek,
+        newBusinessesThisMonth,
         totalSales: 0, // Will need to aggregate from sales records
         totalInventory,
         totalAskMOConversations,
-        paidSubscribers: paidSnapshot.data().count,
-        freePlanUsers: freeSnapshot.data().count,
-        trialUsers: trialSnapshot.data().count,
+        paidSubscribers,
+        freePlanUsers,
+        trialUsers,
       });
     } catch (error) {
       console.error('Error loading metrics:', error);
+      // Set default values on error to prevent rendering failure
+      setMetrics({
+        totalUsers: 0,
+        totalBusinesses: 0,
+        activeBusinesses7Days: 0,
+        activeBusinesses30Days: 0,
+        newUsersToday: 0,
+        newUsersThisWeek: 0,
+        newBusinessesThisMonth: 0,
+        totalSales: 0,
+        totalInventory: 0,
+        totalAskMOConversations: 0,
+        paidSubscribers: 0,
+        freePlanUsers: 0,
+        trialUsers: 0,
+      });
     } finally {
       setLoading(false);
     }
