@@ -36,7 +36,18 @@ export const askMo = functions.https.onRequest(
     try {
       console.log('🚀 [Ask MO Function] Request received');
       
-      const { message, image, businessId, language = 'en', languageName = 'English', userId, conversationHistory = [] } = req.body;
+      const { 
+        message, 
+        image, 
+        businessId, 
+        language = 'en', 
+        languageName = 'English', 
+        userId, 
+        conversationHistory = [],
+        enabledFeatures = [],
+        businessCategory = 'retail',
+        userPlan = 'starter'
+      } = req.body;
 
       console.log('🤖 [Ask MO Function] Request details:', {
         message: message?.substring(0, 100),
@@ -44,6 +55,9 @@ export const askMo = functions.https.onRequest(
         businessId: businessId || 'not provided',
         language: language || 'en',
         userId: userId || 'not provided',
+        enabledFeatures: enabledFeatures.length,
+        businessCategory,
+        userPlan,
       });
 
       // Get Google AI API key from secret
@@ -77,8 +91,8 @@ export const askMo = functions.https.onRequest(
     const genAI = new GoogleGenerativeAI(googleApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    // Build system prompt
-    buildSystemPrompt(businessContext, language, languageName, conversationHistory);
+    // Build system prompt with feature awareness
+    buildSystemPrompt(businessContext, language, languageName, conversationHistory, enabledFeatures, businessCategory, userPlan);
 
     // Generate response with retry mechanism
     const chat = model.startChat({
@@ -243,13 +257,46 @@ async function getBusinessContext(businessId: string) {
 }
 
 /**
- * Build system prompt with business context
+ * Build system prompt with business context and feature awareness
  */
-function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = []): string {
+function buildSystemPrompt(
+  businessContext: any, 
+  language: string, 
+  languageName: string, 
+  conversationHistory: any[] = [],
+  enabledFeatures: string[] = [],
+  businessCategory: string = 'retail',
+  userPlan: string = 'starter'
+): string {
   const conversationSummary = conversationHistory.slice(-6).map((msg: any) => {
     const role = msg.role === 'user' ? 'User' : 'MO';
     return `${role}: ${msg.content}`;
   }).join('\n');
+
+  // Build feature-aware context
+  const featureContext = enabledFeatures.length > 0 
+    ? `
+🔧 ENABLED FEATURES:
+${enabledFeatures.map(f => `• ${f}`).join('\n')}
+
+Only provide insights and recommendations for features that are enabled above. Do not suggest actions for features that are not enabled.
+` 
+    : '';
+
+  // Build category-specific context
+  const categoryContext = `
+🏢 BUSINESS CATEGORY: ${businessCategory.toUpperCase()}
+
+Tailor your advice to the specific needs of ${businessCategory} businesses:
+${getCategorySpecificAdvice(businessCategory)}
+`;
+
+  // Build plan-specific context
+  const planContext = `
+💳 SUBSCRIPTION PLAN: ${userPlan.toUpperCase()}
+
+Provide recommendations appropriate for ${userPlan} plan users. ${userPlan === 'starter' ? 'Focus on foundational business practices.' : userPlan === 'standard' ? 'Include advanced analytics and multi-location insights.' : 'Provide comprehensive enterprise-level insights including automation and advanced reporting.'}
+`;
 
   return `You are MO, an intelligent Business Intelligence Assistant for African entrepreneurs.
 
@@ -293,6 +340,10 @@ Use this context to:
 💵 EXPENSES:
 • Total Expenses (30 days): ₦${(businessContext.totalExpenses || 0).toLocaleString()}
 
+${featureContext}
+${categoryContext}
+${planContext}
+
 ═══════════════════════════════════════════
 
 🎯 RESPONSE FRAMEWORK:
@@ -317,7 +368,33 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 7. Format numbers with commas (e.g., 1,000)
 8. Keep responses under 250 words unless explaining complex analysis
 9. MAINTAIN CHARACTER — never break your role as MO
-10. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely`;
+10. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely
+11. FEATURE-AWARE — Only suggest actions for enabled features
+12. CATEGORY-SPECIFIC — Tailor advice to business type`;
+}
+
+/**
+ * Get category-specific advice for AI responses
+ */
+function getCategorySpecificAdvice(category: string): string {
+  const adviceMap: Record<string, string> = {
+    retail: 'Focus on inventory turnover, customer retention, and seasonal trends.',
+    restaurant: 'Focus on food cost management, table turnover, and menu optimization.',
+    grocery: 'Focus on expiry management, supplier relationships, and bulk purchasing.',
+    fashion: 'Focus on seasonal inventory, trend analysis, and customer preferences.',
+    electronics: 'Focus on warranty management, product lifecycle, and technical support.',
+    manufacturing: 'Focus on production efficiency, raw material costs, and quality control.',
+    services: 'Focus on appointment scheduling, customer satisfaction, and service delivery.',
+    pharmacy: 'Focus on expiry tracking, regulatory compliance, and health trends.',
+    supermarket: 'Focus on multi-category management, shelf space optimization, and supplier negotiations.',
+    cafe: 'Focus on ingredient costs, peak hour management, and customer experience.',
+    wholesale: 'Focus on bulk pricing, credit management, and distributor relationships.',
+    distributor: 'Focus on logistics, inventory turnover, and retailer relationships.',
+    healthcare: 'Focus on patient management, regulatory compliance, and service quality.',
+    education: 'Focus on enrollment management, resource allocation, and student satisfaction.',
+  };
+  
+  return adviceMap[category.toLowerCase()] || 'Focus on general business optimization and growth strategies.';
 }
 
 /**

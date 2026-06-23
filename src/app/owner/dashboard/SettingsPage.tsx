@@ -22,85 +22,54 @@ import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ReceiptThemeConfig } from './ReceiptThemeConfig';
 import { isAdmin } from '@/lib/adminAuth';
-import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers } from 'lucide-react';
+import { 
+  getAllFeatures, 
+  getFeaturesByPlan, 
+  checkFeatureAccess, 
+  Plan, 
+  BusinessCategory,
+  Feature as RegistryFeature,
+  getRecommendedFeatures,
+} from '@/lib/featureRegistry';
+import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers, TrendingUp, Truck, ShoppingCart, ChefHat, Wrench, ShoppingBag, Mail, Briefcase, Gift, Sparkles, ClipboardList, AlertTriangle, UserCircle, Activity, UserCheck, UserCheck2, Landmark, RefreshCw, Upload, FileCheck, Menu } from 'lucide-react';
 import styles from './SettingsPage.module.css';
 
-// ── Feature Definitions ─────────────────────────────────────────────
-interface Feature {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  plans: string[]; // Plans that have access to this feature
-  category: 'inventory' | 'sales' | 'analytics' | 'ai' | 'operations';
-}
-
-const FEATURES: Feature[] = [
-  {
-    id: 'inventory',
-    name: 'Inventory Management',
-    description: 'Track stock levels, set reorder points, and manage product catalog',
-    icon: <Package size={20} />,
-    plans: ['starter', 'pro', 'enterprise', 'lifetime'],
-    category: 'inventory',
-  },
-  {
-    id: 'sales',
-    name: 'Sales Recording',
-    description: 'Record sales, track revenue, and manage customer transactions',
-    icon: <DollarSign size={20} />,
-    plans: ['starter', 'pro', 'enterprise', 'lifetime'],
-    category: 'sales',
-  },
-  {
-    id: 'expenses',
-    name: 'Expense Tracking',
-    description: 'Track business expenses and manage spending categories',
-    icon: <FileText size={20} />,
-    plans: ['pro', 'enterprise', 'lifetime'],
-    category: 'sales',
-  },
-  {
-    id: 'suppliers',
-    name: 'Supplier Management',
-    description: 'Manage supplier relationships and purchase orders',
-    icon: <Building size={20} />,
-    plans: ['pro', 'enterprise', 'lifetime'],
-    category: 'operations',
-  },
-  {
-    id: 'warehouses',
-    name: 'Warehouse Management',
-    description: 'Manage multiple warehouse locations and stock transfers',
-    icon: <Layers size={20} />,
-    plans: ['enterprise', 'lifetime'],
-    category: 'operations',
-  },
-  {
-    id: 'staff',
-    name: 'Staff Management',
-    description: 'Manage staff roles, permissions, and performance tracking',
-    icon: <User size={20} />,
-    plans: ['pro', 'enterprise', 'lifetime'],
-    category: 'operations',
-  },
-  {
-    id: 'askMo',
-    name: 'Ask MO AI Assistant',
-    description: 'AI-powered business insights and natural language queries',
-    icon: <Zap size={20} />,
-    plans: ['pro', 'enterprise', 'lifetime'],
-    category: 'ai',
-  },
-  {
-    id: 'analytics',
-    name: 'Advanced Analytics',
-    description: 'Detailed reports, trends, and business intelligence',
-    icon: <LayoutDashboard size={20} />,
-    plans: ['enterprise', 'lifetime'],
-    category: 'analytics',
-  },
-];
+// ── Icon Mapping ─────────────────────────────────────────────────────
+const ICON_MAP: Record<string, React.ReactNode> = {
+  'inventory-tracking': <Package size={20} />,
+  'warehouse-management': <Layers size={20} />,
+  'stock-transfers': <ArrowRight size={20} />,
+  'sales-recording': <ShoppingCart size={20} />,
+  'multi-payment': <DollarSign size={20} />,
+  'reports-analytics': <LayoutDashboard size={20} />,
+  'cashflow-tracking': <TrendingUp size={20} />,
+  'statement-history': <FileText size={20} />,
+  'ask-mo-ai-assistant': <Zap size={20} />,
+  'supplier-management': <Truck size={20} />,
+  'multi-branch-support': <Building size={20} />,
+  'expense-management': <FileText size={20} />,
+  'credit-tracking': <UserCheck size={20} />,
+  'money-control': <ShieldAlert size={20} />,
+  'bank-accounts': <Landmark size={20} />,
+  'bank-reconciliation': <RefreshCw size={20} />,
+  'bank-statement-import': <Upload size={20} />,
+  'invoice-verification': <FileCheck size={20} />,
+  'staff-management': <User size={20} />,
+  'staff-activity-tracking': <Activity size={20} />,
+  'staff-accountability': <UserCheck2 size={20} />,
+  'payroll-management': <DollarSign size={20} />,
+  'menu-management': <Menu size={20} />,
+  'ingredient-tracking': <ChefHat size={20} />,
+  'production-tracking': <Wrench size={20} />,
+  'ecommerce-storefront': <ShoppingBag size={20} />,
+  'email-campaigns': <Mail size={20} />,
+  'audit-trail': <ClipboardList size={20} />,
+  'expiry-alerts': <AlertTriangle size={20} />,
+  'customer-management': <UserCircle size={20} />,
+  'access-capital': <Briefcase size={20} />,
+  'referrals': <Gift size={20} />,
+  'business-services': <Sparkles size={20} />,
+};
 
 // ── Toggle ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, id }: {
@@ -271,8 +240,9 @@ export default function SettingsPage() {
   // ── Feature Preferences ───────────────────────────────────
   const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
   const [isSavingFeatures, setIsSavingFeatures] = useState(false);
+  const [availableFeatures, setAvailableFeatures] = useState<RegistryFeature[]>([]);
 
-  // Load feature preferences from Firestore
+  // Load feature preferences from Firestore using registry
   useEffect(() => {
     const loadFeaturePreferences = async () => {
       try {
@@ -285,15 +255,34 @@ export default function SettingsPage() {
           if (userDoc.exists()) {
             const data = userDoc.data();
             const prefs = data.featurePreferences || {};
+            const userPlan = (data.plan || 'starter') as Plan;
+            const businessCategory = (data.category || data.businessType || 'other') as BusinessCategory;
+            const selectedFeatures = data.selectedFeatures || [];
             
-            // Initialize all available features for the user's plan
-            const userPlan = subscription.plan || 'starter';
+            // Get features available for user's plan
+            const planFeatures = getFeaturesByPlan(userPlan);
+            
+            // Filter by business category
+            const categoryFeatures = planFeatures.filter(feature => {
+              if (!feature.requiredCategories && !feature.excludedCategories) return true;
+              if (feature.excludedCategories?.includes(businessCategory)) return false;
+              if (feature.requiredCategories && !feature.requiredCategories.includes(businessCategory)) return false;
+              return true;
+            });
+            
+            setAvailableFeatures(categoryFeatures);
+            
+            // Initialize preferences based on selected features from onboarding
             const initialPrefs: Record<string, boolean> = {};
+            const enabledFeaturesSet = new Set(selectedFeatures);
             
-            FEATURES.forEach(feature => {
-              if (feature.plans.includes(userPlan)) {
-                // If user has a preference saved, use it; otherwise default to enabled
-                initialPrefs[feature.id] = prefs[feature.id] !== undefined ? prefs[feature.id] : true;
+            categoryFeatures.forEach(feature => {
+              if (feature.isOptional) {
+                // For optional features, check if user selected them during onboarding
+                initialPrefs[feature.id] = enabledFeaturesSet.has(feature.id) || (prefs[feature.id] !== undefined ? prefs[feature.id] : false);
+              } else {
+                // For essential features, always enabled
+                initialPrefs[feature.id] = true;
               }
             });
             
@@ -306,7 +295,7 @@ export default function SettingsPage() {
     };
 
     loadFeaturePreferences();
-  }, [subscription.plan]);
+  }, [subscription.plan, biz.category]);
 
   // Save feature preferences to Firestore
   const handleFeatureToggle = async (featureId: string, enabled: boolean) => {
@@ -333,6 +322,17 @@ export default function SettingsPage() {
     } finally {
       setIsSavingFeatures(false);
     }
+  };
+
+  // Check if feature is locked (requires upgrade)
+  const isFeatureLocked = (feature: RegistryFeature): boolean => {
+    const userPlan = (subscription.plan || 'starter') as Plan;
+    return !feature.requiredPlans.includes(userPlan);
+  };
+
+  // Get required plan for locked feature
+  const getRequiredPlan = (feature: RegistryFeature): Plan => {
+    return feature.requiredPlans[0];
   };
 
   // Load business profile and subscription from Firestore
@@ -822,26 +822,25 @@ export default function SettingsPage() {
 
           {/* Features Grid */}
           <div className={styles.featuresGrid}>
-            {FEATURES.map(feature => {
-              const isAvailable = feature.plans.includes(subscription.plan || 'starter');
+            {availableFeatures.map((feature: RegistryFeature) => {
+              const isLocked = isFeatureLocked(feature);
               const isEnabled = featurePreferences[feature.id];
+              const icon = ICON_MAP[feature.id] || <Package size={20} />;
               
               return (
                 <div
                   key={feature.id}
-                  className={`${styles.featureCard} ${!isAvailable ? styles.featureCardUnavailable : ''}`}
+                  className={`${styles.featureCard} ${isLocked ? styles.featureCardUnavailable : ''}`}
                 >
                   <div className={styles.featureCardHeader}>
-                    <div className={styles.featureIcon}>{feature.icon}</div>
+                    <div className={styles.featureIcon}>{icon}</div>
                     <div className={styles.featureStatus}>
-                      {isAvailable ? (
-                        isEnabled ? (
-                          <CheckCircle2 size={20} className={styles.featureEnabled} />
-                        ) : (
-                          <XCircle size={20} className={styles.featureDisabled} />
-                        )
-                      ) : (
+                      {isLocked ? (
                         <Lock size={20} className={styles.featureLocked} />
+                      ) : isEnabled ? (
+                        <CheckCircle2 size={20} className={styles.featureEnabled} />
+                      ) : (
+                        <XCircle size={20} className={styles.featureDisabled} />
                       )}
                     </div>
                   </div>
@@ -851,18 +850,18 @@ export default function SettingsPage() {
                     <p className={styles.featureDescription}>{feature.description}</p>
                     
                     <div className={styles.featurePlanInfo}>
-                      {isAvailable ? (
-                        <span className={styles.featureAvailable}>
-                          Available in your plan
+                      {isLocked ? (
+                        <span className={styles.featureUpgrade}>
+                          Requires {getRequiredPlan(feature).charAt(0).toUpperCase() + getRequiredPlan(feature).slice(1)} plan or higher
                         </span>
                       ) : (
-                        <span className={styles.featureUpgrade}>
-                          Requires {feature.plans[0].charAt(0).toUpperCase() + feature.plans[0].slice(1)} plan or higher
+                        <span className={styles.featureAvailable}>
+                          Available in your plan
                         </span>
                       )}
                     </div>
                     
-                    {isAvailable && (
+                    {!isLocked && (
                       <button
                         className={`${styles.featureToggle} ${isEnabled ? styles.featureToggleOn : ''}`}
                         onClick={() => handleFeatureToggle(feature.id, !isEnabled)}

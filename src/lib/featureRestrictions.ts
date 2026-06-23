@@ -1,6 +1,14 @@
 import { getDoc, doc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { isAdmin } from './adminAuth';
+import { 
+  getProOnlyFeatures, 
+  getStandardOrProFeatures, 
+  getCreditLayerEligibleFeatures,
+  Plan,
+  BusinessCategory,
+  checkFeatureAccess as checkRegistryAccess,
+} from './featureRegistry';
 
 // Business types that are eligible for the credit layer
 const CREDIT_LAYER_ELIGIBLE_TYPES = [
@@ -22,54 +30,39 @@ const CREDIT_LAYER_EXCLUDED_TYPES = [
   'Healthcare',
 ];
 
-// Features that require Pro plan
-const PRO_ONLY_FEATURES = [
-  'bankAccounts',
-  'auditTrail',
-  'staffActivity',
-  'multiLocation',
-  'productionTracking',
-  'payrollManagement',
-  'ecommerceStorefront',
-];
-
-// Features that require Standard or Pro plan (not available to starters)
-const STANDARD_OR_PRO_FEATURES = [
-  'cashFlow',
-  'creditTracking',
-  'menuManagement',
-  'ingredientTracking',
-  'multiBranchSupport',
-  'expiryAlerts',
-];
-
-// Feature name mapping for onboarding selections
+// Legacy feature name mapping for backward compatibility
 const FEATURE_NAME_MAP: Record<string, string> = {
-  'bankAccounts': 'Bank Accounts Integration',
-  'auditTrail': 'Audit Trail',
-  'staffActivity': 'Staff Activity Tracking',
-  'multiLocation': 'Multi-branch Support',
-  'cashFlow': 'Cash Flow Tracking',
-  'creditTracking': 'Credit Tracking',
-  'menuManagement': 'Menu Management',
-  'ingredientTracking': 'Ingredient Tracking',
-  'multiBranchSupport': 'Multi-branch Support',
-  'expiryAlerts': 'Expiry Alerts',
-  'productionTracking': 'Production Tracking',
-  'payrollManagement': 'Payroll Management',
-  'ecommerceStorefront': 'E-commerce Storefront',
+  'bankAccounts': 'bank-accounts',
+  'auditTrail': 'audit-trail',
+  'staffActivity': 'staff-activity-tracking',
+  'multiLocation': 'multi-branch-support',
+  'cashFlow': 'cashflow-tracking',
+  'creditTracking': 'credit-tracking',
+  'menuManagement': 'menu-management',
+  'ingredientTracking': 'ingredient-tracking',
+  'multiBranchSupport': 'multi-branch-support',
+  'expiryAlerts': 'expiry-alerts',
+  'productionTracking': 'production-tracking',
+  'payrollManagement': 'payroll-management',
+  'ecommerceStorefront': 'ecommerce-storefront',
   // Onboarding feature names
-  'Supplier Management': 'supplierManagement',
-  'Warehouse Management': 'warehouseManagement',
-  'Credit Tracking': 'creditTracking',
-  'Menu Management': 'menuManagement',
-  'Ingredient Tracking': 'ingredientTracking',
-  'Expiry Alerts': 'expiryAlerts',
-  'Multi-branch Support': 'multiBranchSupport',
-  'Production Tracking': 'productionTracking',
-  'Payroll Management': 'payrollManagement',
-  'E-commerce Storefront': 'ecommerceStorefront',
+  'Supplier Management': 'supplier-management',
+  'Warehouse Management': 'warehouse-management',
+  'Credit Tracking': 'credit-tracking',
+  'Menu Management': 'menu-management',
+  'Ingredient Tracking': 'ingredient-tracking',
+  'Expiry Alerts': 'expiry-alerts',
+  'Multi-branch Support': 'multi-branch-support',
+  'Production Tracking': 'production-tracking',
+  'Payroll Management': 'payroll-management',
+  'E-commerce Storefront': 'ecommerce-storefront',
 };
+
+// Get Pro-only features from registry (for backward compatibility)
+const PRO_ONLY_FEATURES = getProOnlyFeatures().map(f => f.id);
+
+// Get Standard-or-Pro features from registry (for backward compatibility)
+const STANDARD_OR_PRO_FEATURES = getStandardOrProFeatures().map(f => f.id);
 
 export interface FeatureRestrictionResult {
   eligible: boolean;
@@ -118,7 +111,69 @@ export function requiresStandardOrProPlan(feature: string): boolean {
 }
 
 /**
+ * Normalize feature name to registry format
+ */
+function normalizeFeatureName(feature: string): string {
+  // Check if it's already in registry format (kebab-case)
+  if (feature.includes('-')) return feature;
+  
+  // Map legacy camelCase to kebab-case
+  return FEATURE_NAME_MAP[feature] || feature.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+/**
+ * Normalize business category to registry format
+ */
+function normalizeBusinessCategory(businessType?: string): BusinessCategory {
+  if (!businessType) return 'other';
+  
+  const normalized = businessType.toLowerCase();
+  
+  const categoryMap: Record<string, BusinessCategory> = {
+    'retail': 'retail',
+    'shop': 'retail',
+    'restaurant': 'restaurant',
+    'food service': 'restaurant',
+    'grocery': 'grocery',
+    'fashion': 'fashion',
+    'electronics': 'electronics',
+    'manufacturing': 'manufacturing',
+    'manufacturer': 'manufacturing',
+    'services': 'services',
+    'pharmacy': 'pharmacy',
+    'supermarket': 'supermarket',
+    'cafe': 'cafe',
+    'wholesale': 'wholesale',
+    'whole seller': 'wholesale',
+    'big retailer': 'retail',
+    'distributor': 'distributor',
+    'healthcare': 'healthcare',
+    'education': 'education',
+  };
+  
+  for (const [key, value] of Object.entries(categoryMap)) {
+    if (normalized.includes(key)) {
+      return value;
+    }
+  }
+  
+  return 'other';
+}
+
+/**
+ * Normalize plan to registry format
+ */
+function normalizePlan(plan?: string): Plan {
+  if (!plan) return 'starter';
+  const normalized = plan.toLowerCase();
+  if (normalized.includes('pro')) return 'pro';
+  if (normalized.includes('standard')) return 'standard';
+  return 'starter';
+}
+
+/**
  * Check if a user has access to a specific feature
+ * Now uses the centralized feature registry for consistent access control
  */
 export async function checkFeatureAccess(
   userId: string,
@@ -139,8 +194,8 @@ export async function checkFeatureAccess(
     }
     
     const userData = userDoc.data();
-    const plan = userData?.plan || 'starter';
-    const businessType = userData?.category || userData?.businessType;
+    const plan = normalizePlan(userData?.plan);
+    const businessCategory = normalizeBusinessCategory(userData?.category || userData?.businessType);
     const subscriptionStatus = userData?.subscriptionStatus;
     const trialEndDate = userData?.trialEndDate?.toDate();
     const selectedFeatures = userData?.selectedFeatures || [];
@@ -148,6 +203,9 @@ export async function checkFeatureAccess(
 
     // Check if user is in trial mode
     const isInTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+
+    // Normalize feature name to registry format
+    const normalizedFeature = normalizeFeatureName(feature);
 
     // If in trial, check if feature is in selected features
     if (isInTrial) {
@@ -162,26 +220,38 @@ export async function checkFeatureAccess(
       // If not in selected features, fall back to plan-based restrictions
     }
 
-    // Check if feature requires Standard or Pro plan (not available to starters)
-    if (requiresStandardOrProPlan(feature) && plan === 'starter') {
-      return {
-        eligible: false,
-        reason: 'This feature requires a Standard or Pro plan',
-        requiresStandardOrPro: true
-      };
-    }
+    // Use registry-based access check
+    const enabledFeatures = new Set<string>(
+      selectedFeatures.map((f: string) => normalizeFeatureName(f))
+    );
+    
+    const registryResult = checkRegistryAccess(
+      normalizedFeature,
+      plan,
+      businessCategory,
+      enabledFeatures
+    );
 
-    // Check if feature requires Pro plan
-    if (requiresProPlan(feature) && plan !== 'pro') {
-      return {
+    if (!registryResult.eligible) {
+      // Convert registry result to legacy format
+      const result: FeatureRestrictionResult = {
         eligible: false,
-        reason: 'This feature requires a Pro plan',
-        requiresPro: true
+        reason: registryResult.reason,
       };
+      
+      if (registryResult.requiresUpgrade) {
+        if (registryResult.requiredPlan === 'pro') {
+          result.requiresPro = true;
+        } else {
+          result.requiresStandardOrPro = true;
+        }
+      }
+      
+      return result;
     }
     
-    // Check if credit layer feature
-    if (feature === 'creditLayer' && !isCreditLayerEligible(businessType)) {
+    // Legacy credit layer check (for backward compatibility)
+    if (feature === 'creditLayer' && !isCreditLayerEligible(businessCategory)) {
       return { 
         eligible: false, 
         reason: 'Credit layer is available for wholesale and retail businesses only' 

@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
-import type { PageId } from './index';
+import type { PageId, NavSection } from './index';
 import { MoIcon, NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, getFirestore, doc, getDoc } from 'firebase/firestore';
+import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
+import { Plan, BusinessCategory } from '@/lib/featureRegistry';
 
 export function Sidebar() {
   const {
@@ -124,12 +126,39 @@ export function Sidebar() {
     const requirements = NAV_ITEM_REQUIREMENTS[itemId];
     if (!requirements) return true; // No restrictions
 
+    // Normalize user data
+    const normalizedPlan = userPlan as Plan;
+    const normalizedCategory = (userCategory || 'other') as BusinessCategory;
+    const enabledFeaturesSet = new Set(selectedFeatures);
+
+    // Check feature requirements using registry
+    if (requirements.requiredFeatures) {
+      for (const featureName of requirements.requiredFeatures) {
+        // Normalize feature name to registry format
+        const normalizedFeatureName = normalizeFeatureName(featureName);
+        const access = checkRegistryAccess(
+          normalizedFeatureName,
+          normalizedPlan,
+          normalizedCategory,
+          enabledFeaturesSet
+        );
+        
+        // During trial, allow if feature was selected
+        if (!isInTrial && !access.eligible) {
+          return false;
+        }
+        if (isInTrial && !enabledFeaturesSet.has(normalizedFeatureName)) {
+          return false;
+        }
+      }
+    }
+
     // During trial, skip plan requirements if feature was selected
     if (!isInTrial) {
       // Check plan requirements (only enforced outside trial)
       if (requirements.requiredPlan) {
         const planHierarchy = { 'starter': 1, 'standard': 2, 'pro': 3 };
-        const userPlanLevel = planHierarchy[userPlan as keyof typeof planHierarchy] || 1;
+        const userPlanLevel = planHierarchy[normalizedPlan] || 1;
         const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
         if (userPlanLevel < requiredPlanLevel) return false;
       }
@@ -145,15 +174,36 @@ export function Sidebar() {
       if (requirements.excludedCategories.includes(userCategory)) return false;
     }
 
-    // Check feature requirements
-    if (requirements.requiredFeatures && selectedFeatures.length > 0) {
-      const hasRequiredFeature = requirements.requiredFeatures.some(feature => 
-        selectedFeatures.includes(feature)
-      );
-      if (!hasRequiredFeature) return false;
-    }
-
     return true;
+  };
+
+  // Normalize feature name to registry format (legacy names → kebab-case)
+  const normalizeFeatureName = (name: string): string => {
+    const nameMap: Record<string, string> = {
+      'Sales Recording': 'sales-recording',
+      'Inventory Tracking': 'inventory-tracking',
+      'Expense Management': 'expense-management',
+      'Cash Flow Analysis': 'cashflow-tracking',
+      'Profit/Loss Reports': 'reports-analytics',
+      'Business Analytics': 'reports-analytics',
+      'Credit Tracking': 'credit-tracking',
+      'Ask MO AI Assistant': 'ask-mo-ai-assistant',
+      'Staff Management': 'staff-management',
+      'Menu Management': 'menu-management',
+      'Ingredient Tracking': 'ingredient-tracking',
+      'Expiry Alerts': 'expiry-alerts',
+      'Production Tracking': 'production-tracking',
+      'E-commerce Storefront': 'ecommerce-storefront',
+      'Payroll Management': 'payroll-management',
+      'Customer Management': 'customer-management',
+      'Supplier Management': 'supplier-management',
+      'Multi-branch Support': 'multi-branch-support',
+      'Warehouse Management': 'warehouse-management',
+      'Bank Reconciliation': 'bank-reconciliation',
+      'Money Control': 'money-control',
+      'Invoice Verification': 'invoice-verification',
+    };
+    return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
   };
 
   // Filter nav sections based on visibility

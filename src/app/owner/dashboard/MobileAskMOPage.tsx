@@ -121,6 +121,17 @@ export function MobileAskMOPage() {
     if (savedShowHistory === 'true') {
       setShowHistory(true);
     }
+
+    // Check for pre-filled question from other pages
+    const prefilledQuestion = localStorage.getItem('mo-prefilled-question');
+    if (prefilledQuestion) {
+      setInput(prefilledQuestion);
+      localStorage.removeItem('mo-prefilled-question');
+      // Auto-send the question after a short delay
+      setTimeout(() => {
+        send(prefilledQuestion);
+      }, 500);
+    }
   }, []);
 
   // Auto-scroll to bottom when messages change
@@ -750,7 +761,7 @@ export function MobileAskMOPage() {
             </svg>
           </button>
           <div className={styles.moAvatar}>
-            <MoIcon size={24} />
+            <MoIcon size={18} />
           </div>
           <div className={styles.headerInfo}>
             <h3 className={styles.headerTitle}>Ask MO</h3>
