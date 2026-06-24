@@ -16,9 +16,22 @@ const ADMIN_EMAILS = [
  */
 export async function isAdmin(): Promise<boolean> {
   const auth = getAuth();
+  
+  console.log('Admin check - Auth state:', auth.currentUser ? 'user present' : 'no user');
+  
+  // Wait for auth to be ready if needed
+  if (!auth.currentUser) {
+    console.log('Admin check: Waiting for auth state...');
+    await new Promise((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe();
+        resolve(user);
+      });
+    });
+  }
+  
   const user = auth.currentUser;
-
-  console.log('Admin check - User:', user?.email, 'UID:', user?.uid);
+  console.log('Admin check - User after auth wait:', user?.email, 'UID:', user?.uid);
 
   if (!user || !user.email) {
     console.log('Admin check failed: No user or email');
@@ -45,12 +58,16 @@ export async function isAdmin(): Promise<boolean> {
  * Redirect non-admin users
  */
 export async function requireAdmin(): Promise<void> {
+  console.log('requireAdmin: Starting check...');
   const isUserAdmin = await isAdmin();
+  console.log('requireAdmin: isAdmin returned:', isUserAdmin);
   
   if (!isUserAdmin) {
+    console.log('requireAdmin: User is not admin, redirecting...');
     if (typeof window !== 'undefined') {
       window.location.href = '/owner/dashboard';
     }
     throw new Error('Unauthorized: Admin access required');
   }
+  console.log('requireAdmin: User is admin, access granted');
 }

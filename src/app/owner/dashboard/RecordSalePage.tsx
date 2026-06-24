@@ -136,6 +136,17 @@ export function RecordSalePage() {
         
         snapshot.forEach(doc => {
           const data = doc.data();
+          const productType = data.type || data.category || 'product';
+          
+          // For restaurant/cafe businesses, exclude ingredients from saleable products
+          // Ingredients are used internally for meal cost calculation, not sold directly
+          const isRestaurant = category.toLowerCase().includes('restaurant') || 
+                               category.toLowerCase().includes('cafe');
+          
+          if (isRestaurant && productType.toLowerCase() === 'ingredient') {
+            return; // Skip ingredients for restaurants
+          }
+          
           fetchedProducts.push({
             id: doc.id,
             name: data.name || 'Unnamed Product',
@@ -145,6 +156,7 @@ export function RecordSalePage() {
             emoji: data.emoji || '📦',
             lowStockThreshold: data.lowStockThreshold || 10,
             imageUrl: data.imageUrl || '',
+            type: productType,
           });
         });
         

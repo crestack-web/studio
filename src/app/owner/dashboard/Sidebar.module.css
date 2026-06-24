@@ -295,6 +295,16 @@
  .ni-set   { background: var(--bg-2); color: var(--text-3); }
  .ni-bank  { background: var(--blue-bg); color: var(--blue); }
  .ni-branch { background: var(--amber-bg); color: var(--amber); }
+ .ni-menu { background: var(--orange-bg); color: var(--orange); }
+ .ni-ingredient { background: var(--green-bg); color: var(--green); }
+ .ni-expiry { background: var(--red-bg); color: var(--red); }
+ .ni-production { background: var(--purple-bg); color: var(--purple); }
+ .ni-ecommerce { background: var(--teal-bg); color: var(--teal); }
+ .ni-payroll { background: var(--pink-bg); color: var(--pink); }
+ .ni-supplier { background: var(--orange-bg); color: var(--orange); }
+ .ni-customer { background: var(--blue-bg); color: var(--blue); }
+ .ni-invoice { background: var(--purple-bg); color: var(--purple); }
+ .ni-credit { background: var(--amber-bg); color: var(--amber); }
  .inventory { background: var(--blue-bg); color: var(--blue); }
  .add-product { background: var(--pink-bg); color: var(--pink); }
  .add-expense { background: var(--red-bg); color: var(--red); }

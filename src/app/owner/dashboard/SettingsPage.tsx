@@ -704,7 +704,10 @@ export default function SettingsPage() {
           {isUserAdmin && (
             <button
               className={styles.saveBtn}
-              onClick={() => window.location.href = '/admin'}
+              onClick={() => {
+                console.log('Admin button clicked, navigating to /admin');
+                window.location.href = '/admin';
+              }}
               style={{ marginTop: '12px', backgroundColor: '#6B3FE7' }}
             >
               <LayoutDashboard size={16} style={{ marginRight: '8px' }} />

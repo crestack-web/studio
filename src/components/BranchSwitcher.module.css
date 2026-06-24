@@ -31,13 +31,8 @@
 }
 
 @media (max-width: 640px) {
-  .branchName {
-    max-width: 80px;
-  }
-  
-  .branchButton {
-    padding: 6px 10px;
-    font-size: 13px;
+  .branchSwitcher {
+    display: none;
   }
 }
 

@@ -32,6 +32,14 @@ import { InvoiceVerificationPage } from './InvoiceVerificationPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
+import MenuManagementPage from './MenuManagementPage';
+import IngredientsPage from './IngredientsPage';
+import ExpiryAlertsPage from './ExpiryAlertsPage';
+import ProductionPage from './ProductionPage';
+import EcommercePage from './EcommercePage';
+import PayrollPage from './PayrollPage';
+import CustomersPage from './CustomersPage';
+import { SuppliersPage } from './SuppliersPage';
 import styles from './AppShell.module.css';
 
 // ═══════════════════════════════════════════
@@ -64,6 +72,14 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   capital:      <CapitalPage />,
   branches:     <BranchesPage />,
   'mo-mobile':  <MobileAskMOPage />,
+  'menu-management': <MenuManagementPage />,
+  'ingredient-tracking': <IngredientsPage />,
+  'expiry-alerts': <ExpiryAlertsPage />,
+  'production-tracking': <ProductionPage />,
+  'ecommerce-storefront': <EcommercePage />,
+  'payroll': <PayrollPage />,
+  'customer-management': <CustomersPage />,
+  'supplier-management': <SuppliersPage />,
 };
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);

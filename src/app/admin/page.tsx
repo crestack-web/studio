@@ -13,13 +13,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('Admin page: Starting auth check...');
       try {
         await requireAdmin();
+        console.log('Admin page: requireAdmin passed, setting authorized to true');
         setAuthorized(true);
       } catch (error) {
-        console.error('Admin access denied:', error);
+        console.error('Admin page: Admin access denied:', error);
         router.push('/owner/dashboard');
       } finally {
+        console.log('Admin page: Setting loading to false');
         setLoading(false);
       }
     };

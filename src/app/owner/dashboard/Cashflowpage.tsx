@@ -23,6 +23,7 @@ interface BankAccount {
   currentBalance: number;
   isActive: boolean;
   isDefault: boolean;
+  isPosDefault?: boolean; // Default for POS/bank payments
 }
 
 interface Transaction {
@@ -54,7 +55,7 @@ export function CashflowPage() {
   });
 
   // Form states
-  const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0 });
+  const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
   const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '' });
@@ -109,6 +110,7 @@ export function CashflowPage() {
           currentBalance: data.currentBalance,
           isActive: data.isActive,
           isDefault: data.isDefault,
+          isPosDefault: data.isPosDefault,
         });
       });
       
@@ -154,6 +156,41 @@ export function CashflowPage() {
           if (date >= monthStart) monthOut += amount;
         }
       });
+
+      // Fetch recent sales and add them as transactions
+      const salesQuery = query(
+        collection(firestore, 'businesses', businessId, 'sales'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      
+      const salesSnapshot = await getDocs(salesQuery);
+      
+      salesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const amount = data.totalAmount || 0;
+        const date = data.createdAt?.toDate() || new Date();
+        
+        // Determine if sale has bank/POS payments
+        const hasBankPayment = data.paymentBreakdown?.some((p: any) => 
+          p.method === 'transfer' || p.method === 'card' || p.method === 'pos'
+        );
+        
+        if (hasBankPayment) {
+          fetchedTransactions.push({
+            id: `sale-${doc.id}`,
+            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            type: 'Sale',
+            description: `Sale #${doc.id.slice(-6)}`,
+            amount: amount,
+            credit: true,
+            accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
+          });
+          
+          cashBalance += amount;
+          if (date >= monthStart) monthIn += amount;
+        }
+      });
       
       setTransactions(fetchedTransactions);
       setStats({
@@ -188,12 +225,13 @@ export function CashflowPage() {
         currentBalance: newAccount.initialBalance,
         isActive: true,
         isDefault: bankAccounts.length === 0,
+        isPosDefault: newAccount.isPosDefault || bankAccounts.length === 0,
         createdAt: Timestamp.now(),
       };
       await addDoc(collection(firestore, 'businesses', businessId, 'bankAccounts'), accountData);
       showToast('✅ Account added successfully');
       setActiveAction(null);
-      setNewAccount({ accountName: '', bankName: '', initialBalance: 0 });
+      setNewAccount({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
       loadData();
     } catch (error) {
       console.error('Error adding account:', error);
@@ -435,6 +473,9 @@ export function CashflowPage() {
                   {account.isDefault && (
                     <div className={styles.defaultBadge}>Default</div>
                   )}
+                  {account.isPosDefault && (
+                    <div className={styles.posDefaultBadge}>POS Default</div>
+                  )}
                 </div>
                 <div className={styles.accountBalance}>
                   {formatMoney(account.currentBalance)}
@@ -513,6 +554,17 @@ export function CashflowPage() {
                     onChange={(e) => setNewAccount({ ...newAccount, initialBalance: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
                   />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={newAccount.isPosDefault}
+                      onChange={(e) => setNewAccount({ ...newAccount, isPosDefault: e.target.checked })}
+                    />
+                    <span>Set as default for POS & Bank payments</span>
+                  </label>
+                  <span className={styles.formHint}>Sales paid via POS, card, or bank transfer will be recorded to this account</span>
                 </div>
                 <div className={styles.modalActions}>
                   <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>

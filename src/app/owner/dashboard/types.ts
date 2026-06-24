@@ -97,6 +97,7 @@ export interface Product {
   category?: string;
   imageUrl?: string;
   lowStockThreshold?: number;
+  type?: string; // 'product', 'ingredient', 'menu', etc.
 }
 
 export interface CartItem extends Product {

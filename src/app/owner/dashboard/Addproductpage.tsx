@@ -824,44 +824,46 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       </div>
 
       {/* ── VARIANTS ── */}
-      <div className={styles.card}>
-        <div className={styles.toggleRow}>
-          <div>
-            <div className={styles.cardTitle} style={{ marginBottom: 2 }}>Product Variants</div>
-            <div className={styles.cardSub} style={{ marginBottom: 0 }}>Sizes, colours, flavours — if this product comes in options</div>
+      {!isRestaurant && (
+        <div className={styles.card}>
+          <div className={styles.toggleRow}>
+            <div>
+              <div className={styles.cardTitle} style={{ marginBottom: 2 }}>Product Variants</div>
+              <div className={styles.cardSub} style={{ marginBottom: 0 }}>Sizes, colours, flavours — if this product comes in options</div>
+            </div>
+            <label className={styles.toggle}>
+              <input type="checkbox" checked={form.hasVariants} onChange={e => set('hasVariants', e.target.checked)} />
+              <span className={styles.toggleTrack} />
+              <span className={styles.toggleThumb} />
+            </label>
           </div>
-          <label className={styles.toggle}>
-            <input type="checkbox" checked={form.hasVariants} onChange={e => set('hasVariants', e.target.checked)} />
-            <span className={styles.toggleTrack} />
-            <span className={styles.toggleThumb} />
-          </label>
-        </div>
 
-        {form.hasVariants && (
-          <div style={{ marginTop: 16 }}>
-            <div className={styles.row2}>
-              <div className={styles.group}>
-                <label className={styles.label}>Variant Type</label>
-                <select className={styles.select} value={form.variantType} onChange={e => set('variantType', e.target.value)}>
-                  {['Size','Colour','Flavour','Material','Weight','Volume','Style'].map(v => <option key={v}>{v}</option>)}
-                </select>
-              </div>
-              <div className={styles.group}>
-                <label className={styles.label}>Values (comma-separated)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className={styles.input} placeholder="e.g. S, M, L, XL" value={form.variantValues} onChange={e => set('variantValues', e.target.value)} />
-                  <button type="button" className={styles.btnGhost} onClick={generateChips}>Generate</button>
+          {form.hasVariants && (
+            <div style={{ marginTop: 16 }}>
+              <div className={styles.row2}>
+                <div className={styles.group}>
+                  <label className={styles.label}>Variant Type</label>
+                  <select className={styles.select} value={form.variantType} onChange={e => set('variantType', e.target.value)}>
+                    {['Size','Colour','Flavour','Material','Weight','Volume','Style'].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className={styles.group}>
+                  <label className={styles.label}>Values (comma-separated)</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input className={styles.input} placeholder="e.g. S, M, L, XL" value={form.variantValues} onChange={e => set('variantValues', e.target.value)} />
+                    <button type="button" className={styles.btnGhost} onClick={generateChips}>Generate</button>
+                  </div>
                 </div>
               </div>
+              {variantChips.length > 0 && (
+                <div className={styles.chipRow}>
+                  {variantChips.map(v => <span key={v} className={styles.chip}>{v}</span>)}
+                </div>
+              )}
             </div>
-            {variantChips.length > 0 && (
-              <div className={styles.chipRow}>
-                {variantChips.map(v => <span key={v} className={styles.chip}>{v}</span>)}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ── SALES MODE ── */}
       <div className={styles.card}>
@@ -876,60 +878,64 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           <div className={styles.gateSub}>Record sales by selecting this product from the "Record Sale" flow. Works offline for in-person sales.</div>
         </div>
 
-        <div className={`${styles.saleGate} ${styles.unlocked}`} style={{ marginBottom: 10, opacity: 0.7 }}>
-          <div className={styles.gateHeader}>
-            <div className={styles.gateTitle}><span>🛍️</span> Online Store <span className={`${styles.pill} ${styles.pillAmber}`}>Coming Soon</span></div>
+        {!isRestaurant && (
+          <div className={`${styles.saleGate} ${styles.unlocked}`} style={{ marginBottom: 10, opacity: 0.7 }}>
+            <div className={styles.gateHeader}>
+              <div className={styles.gateTitle}><span>🛍️</span> Online Store <span className={`${styles.pill} ${styles.pillAmber}`}>Coming Soon</span></div>
+              <label className={styles.toggle}>
+                <input 
+                  type="checkbox" 
+                  checked={false} 
+                  onChange={e => {
+                    e.preventDefault();
+                    setShowComingSoon(true);
+                  }} 
+                />
+                <span className={styles.toggleTrack} />
+                <span className={styles.toggleThumb} />
+              </label>
+            </div>
+            <div className={styles.gateSub}>Product will appear on your public storefront. Customers can browse and purchase online.</div>
+          </div>
+        )}
+      </div>
+
+      {/* ── DELIVERY ── */}
+      {!isRestaurant && (
+        <div className={styles.card}>
+          <div className={styles.cardTitle}>Delivery Countries</div>
+          <div className={styles.cardSub}>Choose which African countries you deliver to. Customers outside your selection see "Not available in your region" at checkout.</div>
+
+          <div className={styles.toggleRow} style={{ marginBottom: 14 }}>
+            <span className={styles.toggleRowLabel}>Use my default delivery settings</span>
             <label className={styles.toggle}>
-              <input 
-                type="checkbox" 
-                checked={false} 
-                onChange={e => {
-                  e.preventDefault();
-                  setShowComingSoon(true);
-                }} 
-              />
+              <input type="checkbox" checked={form.useDefaultDelivery} onChange={e => set('useDefaultDelivery', e.target.checked)} />
               <span className={styles.toggleTrack} />
               <span className={styles.toggleThumb} />
             </label>
           </div>
-          <div className={styles.gateSub}>Product will appear on your public storefront. Customers can browse and purchase online.</div>
-        </div>
-      </div>
 
-      {/* ── DELIVERY ── */}
-      <div className={styles.card}>
-        <div className={styles.cardTitle}>Delivery Countries</div>
-        <div className={styles.cardSub}>Choose which African countries you deliver to. Customers outside your selection see "Not available in your region" at checkout.</div>
-
-        <div className={styles.toggleRow} style={{ marginBottom: 14 }}>
-          <span className={styles.toggleRowLabel}>Use my default delivery settings</span>
-          <label className={styles.toggle}>
-            <input type="checkbox" checked={form.useDefaultDelivery} onChange={e => set('useDefaultDelivery', e.target.checked)} />
-            <span className={styles.toggleTrack} />
-            <span className={styles.toggleThumb} />
-          </label>
-        </div>
-
-        {!form.useDefaultDelivery && (
-          <>
-            <div className={styles.row2} style={{ marginTop: 16 }}>
-              <div className={styles.group}>
-                <label className={styles.label}>Delivery Time</label>
-                <select className={styles.select} value={form.deliveryTime} onChange={e => set('deliveryTime', e.target.value)}>
-                  {['Same as store default (3–5 days)','1–2 business days','3–5 business days','5–7 business days','7–14 business days'].map(d => <option key={d}>{d}</option>)}
-                </select>
-              </div>
-              <div className={styles.group}>
-                <label className={styles.label}>Shipping Fee Override</label>
-                <div className={styles.prefixWrap}>
-                  <span className={styles.prefix}>{currency.symbol}</span>
-                  <input type="number" className={styles.input} style={{ paddingLeft: 28 }} placeholder="Leave blank for store default" value={form.shippingFeeOverride} onChange={e => set('shippingFeeOverride', e.target.value)} />
+          {!form.useDefaultDelivery && (
+            <>
+              <div className={styles.row2} style={{ marginTop: 16 }}>
+                <div className={styles.group}>
+                  <label className={styles.label}>Delivery Time</label>
+                  <select className={styles.select} value={form.deliveryTime} onChange={e => set('deliveryTime', e.target.value)}>
+                    {['Same as store default (3–5 days)','1–2 business days','3–5 business days','5–7 business days','7–14 business days'].map(d => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className={styles.group}>
+                  <label className={styles.label}>Shipping Fee Override</label>
+                  <div className={styles.prefixWrap}>
+                    <span className={styles.prefix}>{currency.symbol}</span>
+                    <input type="number" className={styles.input} style={{ paddingLeft: 28 }} placeholder="Leave blank for store default" value={form.shippingFeeOverride} onChange={e => set('shippingFeeOverride', e.target.value)} />
+                  </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── ACTIONS ── */}
       <div className={styles.actions}>
