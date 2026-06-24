@@ -257,10 +257,10 @@ export default function CustomersPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={styles.loadingState}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading customers...</p>
+          <div className={styles.loadingSpinner}></div>
+          <p className={styles.loadingText}>Loading customers...</p>
         </div>
       </div>
     );
@@ -271,11 +271,11 @@ export default function CustomersPage() {
   const topCustomers = getTopCustomers();
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className="text-2xl font-bold">Customer Management</h1>
-          <p className="text-gray-600">Manage your customer relationships and history</p>
+          <h1 className={styles.pageTitle}>Customer Management</h1>
+          <p className={styles.pageDesc}>Manage your customer relationships and history</p>
         </div>
         <button
           onClick={() => {
@@ -283,7 +283,7 @@ export default function CustomersPage() {
             setEditingCustomer(null);
             setShowAddModal(true);
           }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className={styles.addButton}
         >
           <Plus size={20} />
           Add Customer
@@ -291,62 +291,54 @@ export default function CustomersPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-gray-500">Total Customers</p>
-              <p className="text-2xl font-bold">{customers.length}</p>
-            </div>
+      <div className={styles.summaryCards}>
+        <div className={styles.summaryCard}>
+          <Users className={styles.summaryIcon} />
+          <div>
+            <p className={styles.summaryLabel}>Total Customers</p>
+            <p className={styles.summaryValue}>{customers.length}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="text-sm text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold">{formatMoney(totalRevenue)}</p>
-            </div>
+        <div className={styles.summaryCard}>
+          <DollarSign className={styles.summaryIcon} style={{ color: 'var(--green)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Total Revenue</p>
+            <p className={styles.summaryValue}>{formatMoney(totalRevenue)}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Avg. Spend</p>
-              <p className="text-2xl font-bold">
-                {customers.length > 0 ? formatMoney(totalRevenue / customers.length) : formatMoney(0)}
-              </p>
-            </div>
+        <div className={styles.summaryCard}>
+          <TrendingUp className={styles.summaryIcon} style={{ color: 'var(--purple)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Avg. Spend</p>
+            <p className={styles.summaryValue}>
+              {customers.length > 0 ? formatMoney(totalRevenue / customers.length) : formatMoney(0)}
+            </p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className={`w-8 h-8 ${totalCredit > 0 ? 'text-orange-600' : 'text-gray-400'}`} />
-            <div>
-              <p className="text-sm text-gray-500">Total Credit</p>
-              <p className="text-2xl font-bold">{formatMoney(totalCredit)}</p>
-            </div>
+        <div className={styles.summaryCard}>
+          <DollarSign className={styles.summaryIcon} style={{ color: totalCredit > 0 ? 'var(--amber)' : 'var(--text-3)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Total Credit</p>
+            <p className={styles.summaryValue}>{formatMoney(totalCredit)}</p>
           </div>
         </div>
       </div>
 
       {/* Top Customers */}
       {topCustomers.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h3 className="font-semibold mb-3">Top Customers by Spend</h3>
-          <div className="space-y-2">
+        <div className={styles.topCustomers}>
+          <h3 className={styles.topCustomersTitle}>Top Customers by Spend</h3>
+          <div>
             {topCustomers.map((customer, idx) => (
-              <div key={customer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              <div key={customer.id} className={styles.topCustomerItem}>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-500">#{idx + 1}</span>
-                  <span className="font-medium">{customer.name}</span>
+                  <span className={styles.topCustomerRank}>#{idx + 1}</span>
+                  <span className={styles.topCustomerName}>{customer.name}</span>
                 </div>
-                <span className="font-semibold text-green-600">{formatMoney(customer.totalSpent)}</span>
+                <span className={styles.topCustomerSpend}>{formatMoney(customer.totalSpent)}</span>
               </div>
             ))}
           </div>
@@ -354,136 +346,132 @@ export default function CustomersPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          
+      <div className={styles.filters}>
+        <div className={styles.searchWrapper}>
+          <Search className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className={styles.searchIcon} />
           <select
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value as any);
-              const sorted = [...customers];
-              sortCustomers(sorted);
-              setCustomers(sorted);
-            }}
-            className="px-4 py-2 border rounded-lg"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={styles.filterSelect}
           >
-            <option value="recent">Most Recent</option>
-            <option value="name">Name A-Z</option>
-            <option value="spent">Highest Spent</option>
-            <option value="purchases">Most Purchases</option>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
+        
+        <select
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value as any);
+            const sorted = [...customers];
+            sortCustomers(sorted);
+            setCustomers(sorted);
+          }}
+          className={styles.filterSelect}
+        >
+          <option value="recent">Most Recent</option>
+          <option value="name">Name A-Z</option>
+          <option value="spent">Highest Spent</option>
+          <option value="purchases">Most Purchases</option>
+        </select>
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead className={styles.tableHead}>
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Customer</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Contact</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Total Spent</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Purchases</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Credit Balance</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Last Purchase</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+              <th className={styles.tableHeader}>Customer</th>
+              <th className={styles.tableHeader}>Contact</th>
+              <th className={styles.tableHeader}>Total Spent</th>
+              <th className={styles.tableHeader}>Purchases</th>
+              <th className={styles.tableHeader}>Credit Balance</th>
+              <th className={styles.tableHeader}>Last Purchase</th>
+              <th className={styles.tableHeader}>Status</th>
+              <th className={styles.tableHeader}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody>
             {filteredCustomers.map(customer => (
-              <tr key={customer.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <div className="font-medium">{customer.name}</div>
+              <tr key={customer.id} className={styles.tableRow}>
+                <td className={styles.tableCell}>
+                  <div className={styles.customerName}>{customer.name}</div>
                   {customer.city && (
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
+                    <div className={styles.customerCity}>
                       <MapPin size={12} />
                       {customer.city}
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="space-y-1 text-sm">
+                <td className={styles.tableCell}>
+                  <div className={styles.contactInfo}>
                     {customer.email && (
-                      <div className="flex items-center gap-1 text-gray-600">
+                      <div className={styles.contactItem}>
                         <Mail size={12} />
                         {customer.email}
                       </div>
                     )}
                     {customer.phone && (
-                      <div className="flex items-center gap-1 text-gray-600">
+                      <div className={styles.contactItem}>
                         <Phone size={12} />
                         {customer.phone}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 font-semibold text-green-600">{formatMoney(customer.totalSpent)}</td>
-                <td className="px-4 py-3 text-sm">{customer.totalPurchases}</td>
-                <td className="px-4 py-3">
-                  <span className={`font-medium ${customer.creditBalance > 0 ? 'text-orange-600' : ''}`}>
+                <td className={styles.tableCell}><span className={styles.moneyValue}>{formatMoney(customer.totalSpent)}</span></td>
+                <td className={styles.tableCell}>{customer.totalPurchases}</td>
+                <td className={styles.tableCell}>
+                  <span className={`${styles.creditValue} ${customer.creditBalance > 0 ? styles.positive : ''}`}>
                     {formatMoney(customer.creditBalance)}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm">
+                <td className={styles.tableCell}>
                   {customer.lastPurchaseDate ? (
-                    <div className="flex items-center gap-1">
+                    <div className={styles.dateCell}>
                       <Calendar size={12} />
                       {customer.lastPurchaseDate.toLocaleDateString()}
                     </div>
                   ) : (
-                    <span className="text-gray-400">Never</span>
+                    <span style={{ color: 'var(--text-3)' }}>Never</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                    customer.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                  }`}>
+                <td className={styles.tableCell}>
+                  <span className={`${styles.statusBadge} ${customer.active ? styles.active : styles.inactive}`}>
                     {customer.active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
+                <td className={styles.tableCell}>
+                  <div className={styles.actionButtons}>
                     <button
                       onClick={() => handleViewTransactions(customer)}
-                      className="p-1 hover:bg-blue-100 rounded text-blue-600"
+                      className={styles.actionButton}
                       title="View transactions"
                     >
                       <Filter size={16} />
                     </button>
                     <button
                       onClick={() => handleEdit(customer)}
-                      className="p-1 hover:bg-gray-100 rounded"
+                      className={styles.actionButton}
                       title="Edit"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button
                       onClick={() => handleDelete(customer.id)}
-                      className="p-1 hover:bg-red-100 rounded text-red-600"
+                      className={`${styles.actionButton} ${styles.danger}`}
                       title="Delete"
                     >
                       <Trash2 size={16} />
@@ -496,8 +484,8 @@ export default function CustomersPage() {
         </table>
         
         {filteredCustomers.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <div className={styles.emptyState}>
+            <Users className={styles.emptyStateIcon} />
             <p>No customers found</p>
             <button
               onClick={() => {
@@ -505,7 +493,7 @@ export default function CustomersPage() {
                 setEditingCustomer(null);
                 setShowAddModal(true);
               }}
-              className="mt-4 text-blue-600 hover:underline"
+              className={styles.emptyStateButton}
             >
               Add your first customer
             </button>
@@ -515,90 +503,90 @@ export default function CustomersPage() {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>
               {editingCustomer ? 'Edit Customer' : 'Add Customer'}
             </h2>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
+            <div className={styles.form}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                   required
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Phone</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Address</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Address</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">City</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>City</label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formTextarea}
                   rows={3}
                   placeholder="Any additional notes about this customer..."
                 />
               </div>
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className={styles.modalActions}>
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setEditingCustomer(null);
                   resetForm();
                 }}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className={`${styles.modalButton} ${styles.secondary}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className={`${styles.modalButton} ${styles.primary}`}
               >
                 {editingCustomer ? 'Update' : 'Add'}
               </button>
@@ -609,46 +597,46 @@ export default function CustomersPage() {
 
       {/* Transactions Modal */}
       {showTransactionsModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '640px' }}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Transaction History</h2>
+              <h2 className={styles.modalTitle}>Transaction History</h2>
               <button
                 onClick={() => {
                   setShowTransactionsModal(false);
                   setSelectedCustomer(null);
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-3)' }}
               >
                 ✕
               </button>
             </div>
             
-            <div className="mb-4 p-3 bg-gray-50 rounded">
-              <p className="font-medium">{selectedCustomer.name}</p>
-              <p className="text-sm text-gray-500">Total Spent: {formatMoney(selectedCustomer.totalSpent)}</p>
-              <p className="text-sm text-gray-500">Credit Balance: {formatMoney(selectedCustomer.creditBalance)}</p>
+            <div className="mb-4 p-3" style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
+              <p className="font-medium" style={{ color: 'var(--text-1)' }}>{selectedCustomer.name}</p>
+              <p className="text-sm" style={{ color: 'var(--text-3)' }}>Total Spent: {formatMoney(selectedCustomer.totalSpent)}</p>
+              <p className="text-sm" style={{ color: 'var(--text-3)' }}>Credit Balance: {formatMoney(selectedCustomer.creditBalance)}</p>
             </div>
             
             <div className="space-y-2">
               {transactions.length > 0 ? (
                 transactions.map(transaction => (
-                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <div key={transaction.id} className="flex items-center justify-between p-3" style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
                     <div>
-                      <div className="font-medium capitalize">{transaction.type}</div>
-                      <div className="text-sm text-gray-500">{transaction.description || transaction.createdAt.toLocaleDateString()}</div>
+                      <div className="font-medium capitalize" style={{ color: 'var(--text-1)' }}>{transaction.type}</div>
+                      <div className="text-sm" style={{ color: 'var(--text-3)' }}>{transaction.description || transaction.createdAt.toLocaleDateString()}</div>
                     </div>
-                    <span className={`font-semibold ${
-                      transaction.type === 'purchase' ? 'text-green-600' :
-                      transaction.type === 'payment' ? 'text-blue-600' :
-                      'text-orange-600'
-                    }`}>
+                    <span className="font-semibold" style={{
+                      color: transaction.type === 'purchase' ? 'var(--green)' :
+                             transaction.type === 'payment' ? 'var(--purple)' :
+                             'var(--amber)'
+                    }}>
                       {transaction.type === 'purchase' ? '+' : transaction.type === 'payment' ? '-' : ''}{formatMoney(transaction.amount)}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8" style={{ color: 'var(--text-3)' }}>
                   <p>No transactions found</p>
                 </div>
               )}

@@ -43,6 +43,7 @@ export function RecordSalePage() {
   const [showNewCreditCustomer, setShowNewCreditCustomer] = useState(false);
 
   // Custom item form
+  const [showCustomItem, setShowCustomItem] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customQty, setCustomQty] = useState('1');
   const [customPrice, setCustomPrice] = useState('');
@@ -742,46 +743,58 @@ export function RecordSalePage() {
             </div>
           </Card>
 
+          {/* Custom item toggle button */}
+          <Button 
+            variant="ghost" 
+            fullWidth 
+            onClick={() => setShowCustomItem(!showCustomItem)}
+            style={{ marginBottom: showCustomItem ? 0 : 14 }}
+          >
+            {showCustomItem ? '− Hide Custom Item' : '+ Add Custom Item'}
+          </Button>
+
           {/* Custom item */}
-          <Card>
-            <CardHeader>
-              <CardIcon bg="var(--amber-bg)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2}>
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </CardIcon>
-              {t('sale.addCustomItem')}
-            </CardHeader>
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>{t('product.name')}</label>
-                <input className={styles.formInput} placeholder={t('product.name')} value={customName} onChange={e => setCustomName(e.target.value)} />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>{t('sale.quantity')}</label>
-                <input className={styles.formInput} type="number" min={1} placeholder="1" value={customQty} onChange={e => setCustomQty(e.target.value)} />
-              </div>
-            </div>
-            <div className={styles.formRow} style={{ marginTop: 9 }}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>{t('product.sellingPrice')} ({currencyCode})</label>
-                <div className={styles.inputPrefix}>
-                  <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
-                  <input className={styles.formInput} type="number" placeholder="0" value={customPrice} onChange={e => setCustomPrice(e.target.value)} />
+          {showCustomItem && (
+            <Card>
+              <CardHeader>
+                <CardIcon bg="var(--amber-bg)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2}>
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </CardIcon>
+                {t('sale.addCustomItem')}
+              </CardHeader>
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>{t('product.name')}</label>
+                  <input className={styles.formInput} placeholder={t('product.name')} value={customName} onChange={e => setCustomName(e.target.value)} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>{t('sale.quantity')}</label>
+                  <input className={styles.formInput} type="number" min={1} placeholder="1" value={customQty} onChange={e => setCustomQty(e.target.value)} />
                 </div>
               </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>{t('product.costPrice')} ({currencyCode})</label>
-                <div className={styles.inputPrefix}>
-                  <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
-                  <input className={styles.formInput} type="number" placeholder="0" value={customCost} onChange={e => setCustomCost(e.target.value)} />
+              <div className={styles.formRow} style={{ marginTop: 9 }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>{t('product.sellingPrice')} ({currencyCode})</label>
+                  <div className={styles.inputPrefix}>
+                    <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
+                    <input className={styles.formInput} type="number" placeholder="0" value={customPrice} onChange={e => setCustomPrice(e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>{t('product.costPrice')} ({currencyCode})</label>
+                  <div className={styles.inputPrefix}>
+                    <span className={styles.prefix}>{currencyCode === 'NGN' ? '₦' : currencyCode + ' '}</span>
+                    <input className={styles.formInput} type="number" placeholder="0" value={customCost} onChange={e => setCustomCost(e.target.value)} />
+                  </div>
                 </div>
               </div>
-            </div>
-            <Button variant="ghost" fullWidth style={{ marginTop: 11 }} onClick={addCustom}>
-              + {t('sale.addToCart')}
-            </Button>
-          </Card>
+              <Button variant="ghost" fullWidth style={{ marginTop: 11 }} onClick={addCustom}>
+                + {t('sale.addToCart')}
+              </Button>
+            </Card>
+          )}
         </div>
 
         {/* Right — sale summary */}
