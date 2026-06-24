@@ -39,9 +39,9 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 8px 12px;
-  background: var(--surface);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -65,15 +65,17 @@
   font-weight: 700;
   color: var(--text-1);
   margin: 0;
+  white-space: nowrap;
 }
 
 .tokenCounter {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-3);
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .tokenCounter:hover {
