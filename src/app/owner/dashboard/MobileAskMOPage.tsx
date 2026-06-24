@@ -124,7 +124,7 @@ export function MobileAskMOPage() {
 
     // Check for pre-filled question from other pages
     const prefilledQuestion = localStorage.getItem('mo-prefilled-question');
-    if (prefilledQuestion) {
+    if (prefilledQuestion && !isSending) {
       setInput(prefilledQuestion);
       localStorage.removeItem('mo-prefilled-question');
       // Auto-send the question after a short delay
