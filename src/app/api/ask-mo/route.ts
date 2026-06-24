@@ -15,16 +15,6 @@ export async function POST(request: NextRequest) {
       language,
     });
 
-    // Validate Google AI API key
-    const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
-      console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
-      return NextResponse.json(
-        { error: 'Google Gen AI API key is not configured' },
-        { status: 500 }
-      );
-    }
-
     // Fetch business context
     let businessContext = {};
     if (businessId) {
@@ -36,7 +26,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Initialize Google AI
+    // Initialize Google AI with Firebase service account
+    const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
+      console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
+      return NextResponse.json(
+        { error: 'Google Gen AI API key is not configured' },
+        { status: 500 }
+      );
+    }
+
     const genAI = new GoogleGenerativeAI(googleApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
 
