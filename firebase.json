@@ -7,6 +7,12 @@
     "source": "functions",
     "runtime": "nodejs20"
   },
+  "apphosting": {
+    "backend": {
+      "source": ".",
+      "environment": "nodejs18"
+    }
+  },
   "hosting": {
     "public": ".next",
     "ignore": [
