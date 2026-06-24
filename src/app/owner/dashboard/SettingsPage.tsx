@@ -262,11 +262,19 @@ export default function SettingsPage() {
             // Get features available for user's plan
             const planFeatures = getFeaturesByPlan(userPlan);
             
-            // Filter by business category
+            // Filter by business category - only show features that are relevant
             const categoryFeatures = planFeatures.filter(feature => {
+              // If feature has no category restrictions at all, it's a general feature - show it
               if (!feature.requiredCategories && !feature.excludedCategories) return true;
+              
+              // If feature is explicitly excluded for this category, don't show it
               if (feature.excludedCategories?.includes(businessCategory)) return false;
+              
+              // If feature requires specific categories, only show if user's category is in the list
               if (feature.requiredCategories && !feature.requiredCategories.includes(businessCategory)) return false;
+              
+              // If feature has excluded categories but user's category is not excluded, show it
+              // This means the feature is available for this category
               return true;
             });
             

@@ -22,12 +22,15 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   },
   'add-expense': {
     requiredFeatures: ['Expense Management'],
+    excludedCategories: ['education', 'services'],
   },
   'cashflow': {
     requiredFeatures: ['Cash Flow Analysis'],
+    excludedCategories: ['education', 'services'],
   },
   'reports': {
     requiredFeatures: ['Profit/Loss Reports', 'Business Analytics'],
+    excludedCategories: ['education', 'services'],
   },
   'bank-reconciliation': {
     requiredPlan: 'pro',

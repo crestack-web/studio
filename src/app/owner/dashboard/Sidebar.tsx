@@ -21,8 +21,38 @@ export function Sidebar() {
   const [staffCount, setStaffCount] = useState(0);
   const [userCategory, setUserCategory] = useState<string | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
   const [userPlan, setUserPlan] = useState<string>('starter');
   const [isInTrial, setIsInTrial] = useState(false);
+
+  // Normalize feature name to registry format (legacy names → kebab-case)
+  const normalizeFeatureName = (name: string): string => {
+    const nameMap: Record<string, string> = {
+      'Sales Recording': 'sales-recording',
+      'Inventory Tracking': 'inventory-tracking',
+      'Expense Management': 'expense-management',
+      'Cash Flow Analysis': 'cashflow-tracking',
+      'Profit/Loss Reports': 'reports-analytics',
+      'Business Analytics': 'reports-analytics',
+      'Credit Tracking': 'credit-tracking',
+      'Ask MO AI Assistant': 'ask-mo-ai-assistant',
+      'Staff Management': 'staff-management',
+      'Menu Management': 'menu-management',
+      'Ingredient Tracking': 'ingredient-tracking',
+      'Expiry Alerts': 'expiry-alerts',
+      'Production Tracking': 'production-tracking',
+      'E-commerce Storefront': 'ecommerce-storefront',
+      'Payroll Management': 'payroll-management',
+      'Customer Management': 'customer-management',
+      'Supplier Management': 'supplier-management',
+      'Multi-branch Support': 'multi-branch-support',
+      'Warehouse Management': 'warehouse-management',
+      'Bank Reconciliation': 'bank-reconciliation',
+      'Money Control': 'money-control',
+      'Invoice Verification': 'invoice-verification',
+    };
+    return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
+  };
 
   // Load staff count, category, features, and plan from Firestore
   useEffect(() => {
@@ -40,12 +70,18 @@ export function Sidebar() {
         const businessId = ownerDoc.data()?.businessId || 'default';
         const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
         const features = ownerDoc.data()?.selectedFeatures || [];
+        const prefs = ownerDoc.data()?.featurePreferences || {};
         const plan = ownerDoc.data()?.plan || 'starter';
         const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
         const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
         
         setUserCategory(category.toLowerCase());
-        setSelectedFeatures(Array.isArray(features) ? features : []);
+        // Normalize feature names to registry format (kebab-case) for proper matching
+        const normalizedFeatures = Array.isArray(features) 
+          ? features.map(f => normalizeFeatureName(f))
+          : [];
+        setSelectedFeatures(normalizedFeatures);
+        setFeaturePreferences(prefs);
         setUserPlan(plan);
         
         // Check if user is in trial
@@ -129,7 +165,13 @@ export function Sidebar() {
     // Normalize user data
     const normalizedPlan = userPlan as Plan;
     const normalizedCategory = (userCategory || 'other') as BusinessCategory;
-    const enabledFeaturesSet = new Set(selectedFeatures);
+    
+    // Combine selectedFeatures (onboarding) and featurePreferences (settings page)
+    // During trial, use selectedFeatures. After trial, use featurePreferences
+    const enabledFeaturesSet = new Set(
+      isInTrial ? selectedFeatures : 
+      Object.keys(featurePreferences).filter(key => featurePreferences[key])
+    );
 
     // Check feature requirements using registry
     if (requirements.requiredFeatures) {
@@ -143,11 +185,13 @@ export function Sidebar() {
           enabledFeaturesSet
         );
         
-        // During trial, allow if feature was selected
-        if (!isInTrial && !access.eligible) {
+        // During trial, allow if feature was selected in onboarding
+        if (isInTrial && !enabledFeaturesSet.has(normalizedFeatureName)) {
           return false;
         }
-        if (isInTrial && !enabledFeaturesSet.has(normalizedFeatureName)) {
+        
+        // After trial, use registry access check which considers featurePreferences
+        if (!isInTrial && !access.eligible) {
           return false;
         }
       }
@@ -175,35 +219,6 @@ export function Sidebar() {
     }
 
     return true;
-  };
-
-  // Normalize feature name to registry format (legacy names → kebab-case)
-  const normalizeFeatureName = (name: string): string => {
-    const nameMap: Record<string, string> = {
-      'Sales Recording': 'sales-recording',
-      'Inventory Tracking': 'inventory-tracking',
-      'Expense Management': 'expense-management',
-      'Cash Flow Analysis': 'cashflow-tracking',
-      'Profit/Loss Reports': 'reports-analytics',
-      'Business Analytics': 'reports-analytics',
-      'Credit Tracking': 'credit-tracking',
-      'Ask MO AI Assistant': 'ask-mo-ai-assistant',
-      'Staff Management': 'staff-management',
-      'Menu Management': 'menu-management',
-      'Ingredient Tracking': 'ingredient-tracking',
-      'Expiry Alerts': 'expiry-alerts',
-      'Production Tracking': 'production-tracking',
-      'E-commerce Storefront': 'ecommerce-storefront',
-      'Payroll Management': 'payroll-management',
-      'Customer Management': 'customer-management',
-      'Supplier Management': 'supplier-management',
-      'Multi-branch Support': 'multi-branch-support',
-      'Warehouse Management': 'warehouse-management',
-      'Bank Reconciliation': 'bank-reconciliation',
-      'Money Control': 'money-control',
-      'Invoice Verification': 'invoice-verification',
-    };
-    return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
   };
 
   // Filter nav sections based on visibility
