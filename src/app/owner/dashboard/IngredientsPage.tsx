@@ -52,12 +52,7 @@ export default function IngredientsPage() {
     name: '',
     category: '',
     unit: '',
-    currentStock: '',
-    minimumStock: '',
     unitCost: '',
-    supplier: '',
-    expiryDate: '',
-    active: true,
   });
 
   // Check feature access
@@ -145,20 +140,11 @@ export default function IngredientsPage() {
         category: formData.category,
         unit: formData.unit,
         ingredientUnit: formData.unit,
-        stock: parseFloat(formData.currentStock),
-        currentStock: parseFloat(formData.currentStock),
-        minimumStock: parseFloat(formData.minimumStock),
-        reorderLevel: parseFloat(formData.minimumStock),
-        lowStockThreshold: parseFloat(formData.minimumStock),
         unitCost: parseFloat(formData.unitCost),
         cost: parseFloat(formData.unitCost),
         costPrice: parseFloat(formData.unitCost),
-        supplier: formData.supplier,
-        expiryDate: formData.expiryDate ? new Date(formData.expiryDate) : null,
-        active: formData.active,
         productType: 'ingredient',
         createdAt: editingIngredient ? editingIngredient.createdAt : new Date(),
-        lastRestocked: new Date(),
         attributes: {
           emoji: '🥘',
         },
@@ -227,12 +213,7 @@ export default function IngredientsPage() {
       name: ingredient.name,
       category: ingredient.category,
       unit: ingredient.unit,
-      currentStock: ingredient.currentStock.toString(),
-      minimumStock: ingredient.minimumStock.toString(),
       unitCost: ingredient.unitCost.toString(),
-      supplier: ingredient.supplier || '',
-      expiryDate: ingredient.expiryDate ? ingredient.expiryDate.toISOString().split('T')[0] : '',
-      active: ingredient.active,
     });
     setShowAddModal(true);
   };
@@ -242,12 +223,7 @@ export default function IngredientsPage() {
       name: '',
       category: '',
       unit: '',
-      currentStock: '',
-      minimumStock: '',
       unitCost: '',
-      supplier: '',
-      expiryDate: '',
-      active: true,
     });
   };
 
@@ -535,29 +511,6 @@ export default function IngredientsPage() {
                 </select>
               </div>
               
-              <div className={styles.formGrid}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Current Stock</label>
-                  <input
-                    type="number"
-                    value={formData.currentStock}
-                    onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
-                    className={styles.formInput}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Minimum Stock</label>
-                  <input
-                    type="number"
-                    value={formData.minimumStock}
-                    onChange={(e) => setFormData({ ...formData, minimumStock: e.target.value })}
-                    className={styles.formInput}
-                    required
-                  />
-                </div>
-              </div>
-              
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Unit</label>
                 <input
@@ -579,37 +532,6 @@ export default function IngredientsPage() {
                   className={styles.formInput}
                   required
                 />
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Supplier</label>
-                <input
-                  type="text"
-                  value={formData.supplier}
-                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  className={styles.formInput}
-                />
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Expiry Date</label>
-                <input
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                  className={styles.formInput}
-                />
-              </div>
-              
-              <div className={styles.formCheckbox}>
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={formData.active}
-                  onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                  className={styles.formCheckboxInput}
-                />
-                <label htmlFor="active" className={styles.formCheckboxLabel}>Active</label>
               </div>
             </div>
             
