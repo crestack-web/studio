@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
@@ -59,7 +58,6 @@ interface Product {
 export function SuppliersPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
-  const { businessId } = useBranch();
   const { firestore } = initializeFirebase();
   
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -99,10 +97,10 @@ export function SuppliersPage() {
 
   useEffect(() => {
     loadSuppliers();
-  }, [businessId, firestore]);
+  }, [user?.businessId, firestore]);
 
   const loadSuppliers = async () => {
-    if (!businessId || !firestore) {
+    if (!user?.businessId || !firestore) {
       setIsLoading(false);
       return;
     }
@@ -111,7 +109,7 @@ export function SuppliersPage() {
       setIsLoading(true);
       
       const suppliersQuery = query(
-        collection(firestore, 'businesses', businessId, 'suppliers'),
+        collection(firestore, 'businesses', user.businessId, 'suppliers'),
         where('active', '==', true),
         orderBy('totalAmountSpent', 'desc')
       );
@@ -151,7 +149,7 @@ export function SuppliersPage() {
     setIsLoadingDetails(true);
     
     try {
-      if (!businessId) {
+      if (!user?.businessId) {
         showToast('⚠️ Business ID not found');
         setIsLoadingDetails(false);
         return;
@@ -159,7 +157,7 @@ export function SuppliersPage() {
 
       // Load stock receipts for this supplier
       const receiptsQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockReceipts'),
+        collection(firestore, 'businesses', user.businessId, 'stockReceipts'),
         where('supplierId', '==', supplier.id),
         orderBy('createdAt', 'desc')
       );
@@ -194,7 +192,7 @@ export function SuppliersPage() {
       const productsList: Product[] = [];
       for (const productId of supplier.productsSupplied) {
         try {
-          const productDoc = await getDoc(doc(firestore, 'businesses', businessId, 'products', productId));
+          const productDoc = await getDoc(doc(firestore, 'businesses', user.businessId, 'products', productId));
           if (productDoc.exists()) {
             const data = productDoc.data();
             productsList.push({

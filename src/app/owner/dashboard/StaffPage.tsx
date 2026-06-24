@@ -13,7 +13,8 @@ import { initializeFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { BrevoService } from '@/services/email/brevo-service';
-import { isRestaurantBusiness } from './utils/restaurantHelpers';
+import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
+import { getFeaturesByBusinessCategory, BusinessCategory } from '@/lib/featureRegistry';
 
 interface StaffMember {
   id: string;
@@ -28,14 +29,7 @@ interface StaffMember {
   revenue: number;
   transactions: number;
   online: boolean;
-  permissions: {
-    sale: boolean;
-    inv: boolean;
-    hist: boolean;
-    atd: boolean;
-    msg: boolean;
-    earn: boolean;
-  };
+  permissions: Record<string, boolean>;
   targets?: {
     revenue: number;
     transactions: number;
@@ -130,15 +124,16 @@ export function StaffPage() {
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
-  const [newStaffPermissions, setNewStaffPermissions] = useState({
+  const [newStaffPermissions, setNewStaffPermissions] = useState<Record<string, boolean>>({
     sale: true,
     inv: false,
     hist: false,
     atd: false,
     msg: false,
     earn: false,
-    invoiceVerification: false,
   });
+  const [businessCategory, setBusinessCategory] = useState<BusinessCategory>('other');
+  const [availablePermissions, setAvailablePermissions] = useState<Array<{key: string, label: string, icon: string}>>([]);
   const [targetRevenue, setTargetRevenue] = useState(0);
   const [targetTransactions, setTargetTransactions] = useState(0);
   const [targetPeriod, setTargetPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
@@ -150,6 +145,8 @@ export function StaffPage() {
   const [isSavingTargets, setIsSavingTargets] = useState(false);
   const [isBanningStaff, setIsBanningStaff] = useState(false);
   const [isRemovingStaff, setIsRemovingStaff] = useState(false);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   
   // Chat state
   const [activeTab, setActiveTab] = useState<'staff' | 'chat' | 'attendance' | 'payroll' | 'performance'>('staff');
@@ -179,6 +176,10 @@ export function StaffPage() {
         const restaurant = await isRestaurantBusiness(businessId);
         setIsRestaurant(restaurant);
 
+        // Get business category
+        const category = await getBusinessCategory(businessId);
+        setBusinessCategory(category as BusinessCategory);
+
         // Load staff from Firestore
         const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
         const staffSnapshot = await getDocs(staffCollection);
@@ -201,14 +202,7 @@ export function StaffPage() {
             revenue: data.revenue || 0,
             transactions: data.transactions || 0,
             online: data.online || false,
-            permissions: data.permissions || {
-              sale: true,
-              inv: false,
-              hist: false,
-              atd: false,
-              msg: false,
-              earn: false,
-            },
+            permissions: data.permissions || {},
           });
         });
 
@@ -225,14 +219,7 @@ export function StaffPage() {
             const parsedStaff = JSON.parse(savedStaff);
             const migratedStaff = parsedStaff.map((staff: any) => ({
               ...staff,
-              permissions: staff.permissions || {
-                sale: true,
-                inv: false,
-                hist: false,
-                atd: false,
-                msg: false,
-                earn: false,
-              },
+              permissions: staff.permissions || {},
             }));
             setStaffMembers(migratedStaff);
           } catch (e) {
@@ -271,6 +258,37 @@ export function StaffPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversations, selectedChat]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Generate available permissions based on business category
+  useEffect(() => {
+    const features = getFeaturesByBusinessCategory(businessCategory);
+    const permissions = features.map(feature => ({
+      key: feature.id,
+      label: `${feature.icon} ${feature.name}`,
+      icon: feature.icon,
+    }));
+    setAvailablePermissions(permissions);
+    
+    // Initialize permissions object with all available permissions set to false
+    const initialPermissions: Record<string, boolean> = {};
+    permissions.forEach(perm => {
+      initialPermissions[perm.key] = false;
+    });
+    // Always enable sales by default
+    initialPermissions['sales-recording'] = true;
+    setNewStaffPermissions(initialPermissions);
+  }, [businessCategory]);
 
   const initializeConversations = () => {
     const initialConvos: { [key: string]: { id: string; messages: ChatMessage[] } } = {
@@ -380,15 +398,13 @@ export function StaffPage() {
       setNewStaffName('');
       setNewStaffRole('');
       setNewStaffEmail('');
-      setNewStaffPermissions({
-        sale: true,
-        inv: false,
-        hist: false,
-        atd: false,
-        msg: false,
-        earn: false,
-        invoiceVerification: false,
+      // Reset permissions to default state
+      const initialPermissions: Record<string, boolean> = {};
+      availablePermissions.forEach(perm => {
+        initialPermissions[perm.key] = false;
       });
+      initialPermissions['sales-recording'] = true;
+      setNewStaffPermissions(initialPermissions);
       setShowAddModal(false);
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
       setShowCredentialsModal(true);
@@ -522,7 +538,6 @@ export function StaffPage() {
     setEditingStaff(staff);
     setNewStaffPermissions({ 
       ...staff.permissions, 
-      invoiceVerification: (staff.permissions as any).invoiceVerification || false 
     });
     setShowEditModal(true);
   };
@@ -729,24 +744,20 @@ export function StaffPage() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           {t('nav.staff')}
         </button>
-        {isRestaurant && (
-          <>
-            <button
-              className={`${styles.tabBtn} ${activeTab === 'attendance' ? styles.active : ''}`}
-              onClick={() => setActiveTab('attendance')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Attendance
-            </button>
-            <button
-              className={`${styles.tabBtn} ${activeTab === 'payroll' ? styles.active : ''}`}
-              onClick={() => setActiveTab('payroll')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              Payroll
-            </button>
-          </>
-        )}
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'attendance' ? styles.active : ''}`}
+          onClick={() => setActiveTab('attendance')}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Attendance
+        </button>
+        <button
+          className={`${styles.tabBtn} ${activeTab === 'payroll' ? styles.active : ''}`}
+          onClick={() => setActiveTab('payroll')}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Payroll
+        </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'chat' ? styles.active : ''}`}
           onClick={() => setActiveTab('chat')}
@@ -830,34 +841,51 @@ export function StaffPage() {
                   </div>
                 </div>
                 <div className={styles.staffActions}>
-                  <Button variant="subtle" size="xs" onClick={() => handleEditStaff(member)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Edit
-                  </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleViewCredentials(member)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                    Credentials
-                  </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleSetTargets(member)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                    Set Targets
-                  </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleViewActivities(member)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                    Activities
-                  </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleStartChat(member.id)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                    Message
-                  </Button>
-                  <Button variant="subtle" size="xs" onClick={() => handleBanStaff(member.id, member.name)} disabled={isBanningStaff}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    {isBanningStaff ? 'Banning...' : 'Ban'}
-                  </Button>
-                  <Button variant="danger" size="xs" onClick={() => handleRemoveStaff(member)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                    Remove
-                  </Button>
+                  <div className={styles.menuContainer} ref={menuRef}>
+                    <button
+                      className={styles.menuButton}
+                      onClick={() => setActiveMenu(activeMenu === member.id ? null : member.id)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={18} height={18}>
+                        <circle cx="12" cy="12" r="1"/>
+                        <circle cx="12" cy="5" r="1"/>
+                        <circle cx="12" cy="19" r="1"/>
+                      </svg>
+                    </button>
+                    {activeMenu === member.id && (
+                      <div className={styles.menuDropdown}>
+                        <button className={styles.menuItem} onClick={() => { handleEditStaff(member); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          Edit Permissions
+                        </button>
+                        <button className={styles.menuItem} onClick={() => { handleViewCredentials(member); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                          View Credentials
+                        </button>
+                        <button className={styles.menuItem} onClick={() => { handleSetTargets(member); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                          Set Targets
+                        </button>
+                        <button className={styles.menuItem} onClick={() => { handleViewActivities(member); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                          View Activities
+                        </button>
+                        <button className={styles.menuItem} onClick={() => { handleStartChat(member.id); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                          Send Message
+                        </button>
+                        <div className={styles.menuDivider} />
+                        <button className={styles.menuItem} onClick={() => { handleBanStaff(member.id, member.name); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                          Ban Staff
+                        </button>
+                        <button className={`${styles.menuItem} ${styles.dangerItem}`} onClick={() => { handleRemoveStaff(member); setActiveMenu(null); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          Remove Staff
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1377,15 +1405,7 @@ export function StaffPage() {
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '12px',
                 }}>
-                  {[
-                    { key: 'sale', label: '💰 Make Sales' },
-                    { key: 'inv', label: '📦 Inventory' },
-                    { key: 'hist', label: '📊 History' },
-                    { key: 'atd', label: '📅 Attendance' },
-                    { key: 'msg', label: '💬 Messages' },
-                    { key: 'earn', label: '💵 Earnings' },
-                    { key: 'invoiceVerification', label: '🧾 Invoice Verification' },
-                  ].map((perm) => (
+                  {availablePermissions.map((perm) => (
                     <label key={perm.key} style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1610,15 +1630,7 @@ export function StaffPage() {
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '12px',
                 }}>
-                  {[
-                    { key: 'sale', label: '💰 Make Sales' },
-                    { key: 'inv', label: '📦 Inventory' },
-                    { key: 'hist', label: '📊 History' },
-                    { key: 'atd', label: '📅 Attendance' },
-                    { key: 'msg', label: '💬 Messages' },
-                    { key: 'earn', label: '💵 Earnings' },
-                    { key: 'invoiceVerification', label: '🧾 Invoice Verification' },
-                  ].map((perm) => (
+                  {availablePermissions.map((perm) => (
                     <label key={perm.key} style={{
                       display: 'flex',
                       alignItems: 'center',

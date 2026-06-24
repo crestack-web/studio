@@ -214,10 +214,10 @@ export default function ExpiryAlertsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={styles.loadingState}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading expiry alerts...</p>
+          <div className={styles.loadingSpinner}></div>
+          <p className={styles.loadingText}>Loading expiry alerts...</p>
         </div>
       </div>
     );
@@ -227,65 +227,57 @@ export default function ExpiryAlertsPage() {
   const expiredCount = getExpiredCount();
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className="text-2xl font-bold">Expiry Alerts</h1>
-          <p className="text-gray-600">Track products approaching expiry dates</p>
+          <h1 className={styles.pageTitle}>Expiry Alerts</h1>
+          <p className={styles.pageDesc}>Track products approaching expiry dates</p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Package className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-gray-500">Expiring Soon</p>
-              <p className="text-2xl font-bold">{expiringProducts.length}</p>
-            </div>
+      <div className={styles.summaryCards}>
+        <div className={styles.summaryCard}>
+          <Package className={styles.summaryIcon} />
+          <div>
+            <p className={styles.summaryLabel}>Expiring Soon</p>
+            <p className={styles.summaryValue}>{expiringProducts.length}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className={`w-8 h-8 ${criticalCount > 0 ? 'text-red-600' : 'text-gray-400'}`} />
-            <div>
-              <p className="text-sm text-gray-500">Critical (≤3 days)</p>
-              <p className="text-2xl font-bold">{criticalCount}</p>
-            </div>
+        <div className={styles.summaryCard}>
+          <AlertTriangle className={styles.summaryIcon} style={{ color: criticalCount > 0 ? 'var(--red)' : 'var(--text-3)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Critical (≤3 days)</p>
+            <p className={styles.summaryValue}>{criticalCount}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <TrendingDown className={`w-8 h-8 ${expiredCount > 0 ? 'text-red-600' : 'text-gray-400'}`} />
-            <div>
-              <p className="text-sm text-gray-500">Already Expired</p>
-              <p className="text-2xl font-bold">{expiredCount}</p>
-            </div>
+        <div className={styles.summaryCard}>
+          <TrendingDown className={styles.summaryIcon} style={{ color: expiredCount > 0 ? 'var(--red)' : 'var(--text-3)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Already Expired</p>
+            <p className={styles.summaryValue}>{expiredCount}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="text-sm text-gray-500">Value at Risk</p>
-              <p className="text-2xl font-bold">{formatMoney(calculateTotalValueAtRisk())}</p>
-            </div>
+        <div className={styles.summaryCard}>
+          <DollarSign className={styles.summaryIcon} style={{ color: 'var(--green)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Value at Risk</p>
+            <p className={styles.summaryValue}>{formatMoney(calculateTotalValueAtRisk())}</p>
           </div>
         </div>
       </div>
 
       {/* Critical Alert Banner */}
       {(criticalCount > 0 || expiredCount > 0) && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
+        <div className={styles.alertBanner}>
+          <div className={styles.alertBannerContent}>
+            <AlertTriangle className={styles.alertBannerIcon} />
             <div className="flex-1">
-              <h3 className="font-semibold text-red-800">Immediate Action Required</h3>
-              <p className="text-sm text-red-700">
+              <h3 className={styles.alertBannerTitle}>Immediate Action Required</h3>
+              <p className={styles.alertBannerText}>
                 {expiredCount > 0 && `${expiredCount} products have expired. `}
                 {criticalCount > 0 && `${criticalCount} products will expire within 3 days. `}
                 Consider discounting or disposing these items immediately.
@@ -295,7 +287,7 @@ export default function ExpiryAlertsPage() {
           <button
             onClick={handleAskMO}
             disabled={isAskingMO}
-            className="mt-3 w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className={styles.askMOButton}
           >
             <MessageSquare className="w-4 h-4" />
             {isAskingMO ? 'Loading...' : 'Ask MO for Recommendations'}
@@ -304,137 +296,129 @@ export default function ExpiryAlertsPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={filterDays}
-              onChange={(e) => setFilterDays(parseInt(e.target.value))}
-              className="px-4 py-2 border rounded-lg"
-            >
-              <option value={7}>Next 7 days</option>
-              <option value={14}>Next 14 days</option>
-              <option value={30}>Next 30 days</option>
-              <option value={60}>Next 60 days</option>
-              <option value={90}>Next 90 days</option>
-            </select>
-          </div>
-          
+      <div className={styles.filters}>
+        <div className={styles.searchWrapper}>
+          <Search className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className={styles.searchIcon} />
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            value={filterDays}
+            onChange={(e) => setFilterDays(parseInt(e.target.value))}
+            className={styles.filterSelect}
           >
-            <option value="all">All Categories</option>
-            <option value="food">Food</option>
-            <option value="beverages">Beverages</option>
-            <option value="dairy">Dairy</option>
-            <option value="pharmaceutical">Pharmaceutical</option>
-            <option value="cosmetics">Cosmetics</option>
-            <option value="other">Other</option>
-          </select>
-          
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="all">All Locations</option>
-            <option value="main-store">Main Store</option>
-            <option value="back-store">Back Store</option>
-            <option value="warehouse">Warehouse</option>
+            <option value={7}>Next 7 days</option>
+            <option value={14}>Next 14 days</option>
+            <option value={30}>Next 30 days</option>
+            <option value={60}>Next 60 days</option>
+            <option value={90}>Next 90 days</option>
           </select>
         </div>
+        
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="all">All Categories</option>
+          <option value="food">Food</option>
+          <option value="beverages">Beverages</option>
+          <option value="dairy">Dairy</option>
+          <option value="pharmaceutical">Pharmaceutical</option>
+          <option value="cosmetics">Cosmetics</option>
+          <option value="other">Other</option>
+        </select>
+        
+        <select
+          value={selectedLocation}
+          onChange={(e) => setSelectedLocation(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="all">All Locations</option>
+          <option value="main-store">Main Store</option>
+          <option value="back-store">Back Store</option>
+          <option value="warehouse">Warehouse</option>
+        </select>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead className={styles.tableHead}>
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Product</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Category</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Quantity</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Value</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Expiry Date</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Days Left</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Location</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+              <th className={styles.tableHeader}>Product</th>
+              <th className={styles.tableHeader}>Category</th>
+              <th className={styles.tableHeader}>Quantity</th>
+              <th className={styles.tableHeader}>Value</th>
+              <th className={styles.tableHeader}>Expiry Date</th>
+              <th className={styles.tableHeader}>Days Left</th>
+              <th className={styles.tableHeader}>Location</th>
+              <th className={styles.tableHeader}>Status</th>
+              <th className={styles.tableHeader}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody>
             {filteredProducts.map(product => {
               const status = getExpiryStatus(product.daysUntilExpiry);
               
               return (
-                <tr key={product.id} className={`hover:bg-gray-50 ${
-                  product.daysUntilExpiry <= 0 ? 'bg-red-50' :
-                  product.daysUntilExpiry <= 3 ? 'bg-orange-50' :
-                  product.daysUntilExpiry <= 7 ? 'bg-yellow-50' : ''
+                <tr key={product.id} className={`${styles.tableRow} ${
+                  product.daysUntilExpiry <= 0 ? styles.expired :
+                  product.daysUntilExpiry <= 3 ? styles.critical :
+                  product.daysUntilExpiry <= 7 ? styles.warning : ''
                 }`}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{product.name}</div>
+                  <td className={styles.tableCell}>
+                    <div className={styles.productName}>{product.name}</div>
                     {product.supplier && (
-                      <div className="text-sm text-gray-500">{product.supplier}</div>
+                      <div className={styles.productSupplier}>{product.supplier}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm capitalize">{product.category}</td>
-                  <td className="px-4 py-3">
+                  <td className={styles.tableCell} style={{ textTransform: 'capitalize' }}>{product.category}</td>
+                  <td className={styles.tableCell}>
                     <div className="font-medium">{product.quantity} {product.unit}</div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{formatMoney(product.totalValue)}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className={styles.tableCell}>{formatMoney(product.totalValue)}</td>
+                  <td className={styles.tableCell}>
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <Calendar className="w-4 h-4" style={{ color: 'var(--text-3)' }} />
                       {product.expiryDate.toLocaleDateString()}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`font-medium ${
-                      product.daysUntilExpiry <= 0 ? 'text-red-600' :
-                      product.daysUntilExpiry <= 3 ? 'text-red-600' :
-                      product.daysUntilExpiry <= 7 ? 'text-orange-600' :
-                      'text-gray-600'
+                  <td className={styles.tableCell}>
+                    <span className={`${styles.daysLeft} ${
+                      product.daysUntilExpiry <= 0 ? styles.expired :
+                      product.daysUntilExpiry <= 3 ? styles.critical :
+                      product.daysUntilExpiry <= 7 ? styles.urgent : ''
                     }`}>
                       {product.daysUntilExpiry <= 0 ? 'Expired' : `${product.daysUntilExpiry} days`}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm capitalize">{product.location.replace('-', ' ')}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                      status.color === 'red' ? 'bg-red-100 text-red-700' :
-                      status.color === 'orange' ? 'bg-orange-100 text-orange-700' :
-                      status.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
+                  <td className={styles.tableCell} style={{ textTransform: 'capitalize' }}>{product.location.replace('-', ' ')}</td>
+                  <td className={styles.tableCell}>
+                    <span className={`${styles.statusBadge} ${styles[status.color]}`}>
                       {status.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                  <td className={styles.tableCell}>
+                    <div className={styles.actionButtons}>
                       <button
                         onClick={() => handleMarkAsSold(product.id)}
-                        className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                        className={`${styles.actionButton} ${styles.sold}`}
                         title="Mark as sold"
                       >
                         Sold
                       </button>
                       <button
                         onClick={() => handleDispose(product.id)}
-                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className={`${styles.actionButton} ${styles.dispose}`}
                         title="Dispose"
                       >
                         Dispose
@@ -448,23 +432,23 @@ export default function ExpiryAlertsPage() {
         </table>
         
         {filteredProducts.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <div className={styles.emptyState}>
+            <Package className={styles.emptyStateIcon} />
             <p>No expiring products found</p>
-            <p className="text-sm">Products will appear here when they approach their expiry dates</p>
+            <p className="text-sm" style={{ color: 'var(--text-3)' }}>Products will appear here when they approach their expiry dates</p>
           </div>
         )}
       </div>
 
       {/* Recommendations */}
       {expiringProducts.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-          <h3 className="font-semibold text-blue-800 mb-2">Recommendations</h3>
-          <ul className="space-y-1 text-sm text-blue-700">
-            <li>• Consider offering discounts on products expiring within 7 days</li>
-            <li>• Bundle expiring products with popular items to increase sales</li>
-            <li>• Review ordering patterns to reduce future expiry waste</li>
-            <li>• Set up automatic reorder points for fast-moving items</li>
+        <div className={styles.recommendations}>
+          <h3 className={styles.recommendationsTitle}>Recommendations</h3>
+          <ul className={styles.recommendationsList}>
+            <li className={styles.recommendationsItem}>• Consider offering discounts on products expiring within 7 days</li>
+            <li className={styles.recommendationsItem}>• Bundle expiring products with popular items to increase sales</li>
+            <li className={styles.recommendationsItem}>• Review ordering patterns to reduce future expiry waste</li>
+            <li className={styles.recommendationsItem}>• Set up automatic reorder points for fast-moving items</li>
           </ul>
         </div>
       )}

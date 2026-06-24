@@ -57,7 +57,7 @@ export default function CashReconciliationPage() {
     
     try {
       const { firestore } = initializeFirebase();
-      const staffRef = collection(firestore, 'merchants', user.businessId, 'staff');
+      const staffRef = collection(firestore, 'businesses', user.businessId, 'staff');
       const snapshot = await getDocs(staffRef);
       
       const staff: Record<string, StaffData> = {};
@@ -139,7 +139,7 @@ export default function CashReconciliationPage() {
     setLoading(true);
     try {
       const { firestore } = initializeFirebase();
-      const reconciliationsRef = collection(firestore, 'merchants', user.businessId, 'cashReconciliations');
+      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
       
       const q = query(reconciliationsRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
@@ -180,7 +180,7 @@ export default function CashReconciliationPage() {
     
     try {
       const { firestore } = initializeFirebase();
-      const reconciliationsRef = collection(firestore, 'merchants', user.businessId, 'cashReconciliations');
+      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
       
       // Link to sales for this shift
       const saleIds = salesForShift.map(s => s.id);
