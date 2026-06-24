@@ -104,6 +104,10 @@ const nextConfig: NextConfig = {
         source: '/api/sendOtpLogin',
         destination: `${firebaseFunctionsBaseUrl}/sendOtpLogin`,
       },
+      {
+        source: '/api/ask-mo',
+        destination: `${firebaseFunctionsBaseUrl}/askMo`,
+      },
     ];
   },
   // Enable React strict mode for better development
