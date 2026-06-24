@@ -92,14 +92,17 @@ export const askMo = functions.https.onRequest(
     const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
 
     // Build system prompt with feature awareness
-    buildSystemPrompt(businessContext, language, languageName, conversationHistory, enabledFeatures, businessCategory, userPlan);
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, enabledFeatures, businessCategory, userPlan);
 
     // Generate response with retry mechanism
     const chat = model.startChat({
       history: conversationHistory.map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'model',
         parts: [{ text: msg.content }]
-      }))
+      })),
+      generationConfig: {
+        systemPrompt: systemPrompt
+      }
     });
 
     // Retry logic with exponential backoff
