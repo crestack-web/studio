@@ -89,7 +89,7 @@ export const askMo = functions.https.onRequest(
 
     // Initialize Google AI
     const genAI = new GoogleGenerativeAI(googleApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
 
     // Build system prompt with feature awareness
     buildSystemPrompt(businessContext, language, languageName, conversationHistory, enabledFeatures, businessCategory, userPlan);

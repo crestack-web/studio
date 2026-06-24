@@ -76,6 +76,10 @@
       {
         "source": "/api/sendOtpLogin",
         "function": "sendOtpLogin"
+      },
+      {
+        "source": "/api/ask-mo",
+        "function": "askMo"
       }
     ],
     "cleanUrls": true,
