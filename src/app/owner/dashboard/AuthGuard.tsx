@@ -76,7 +76,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
         <div className="text-center">
           <BusmoLogoLoadingSpinner size={120} />
           <h2 className="text-xl font-semibold text-[#0A0A0F] mb-2 mt-4">Loading Dashboard</h2>
-          <p className="text-[#555568]">Please wait while we secure your session...</p>
         </div>
       </div>
     );
