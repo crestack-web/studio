@@ -12,6 +12,7 @@ import { NavIcons } from './NavIcons';
 import { MoIcon } from './NavIcons';
 import { InlineAIChat } from './InlineAIChat';
 import { RestaurantHealthScore } from './RestaurantHealthScore';
+import { LANGUAGES } from './translations';
 import styles from './HomePage.module.css';
 
 // MO Suggestion chips with translation keys
@@ -304,6 +305,7 @@ export function HomePage() {
     }
     
     // For questions, make API call to Ask MO with the current business ID
+    const langMeta = LANGUAGES.find(l => l.code === lang);
     fetch('/api/ask-mo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -312,7 +314,7 @@ export function HomePage() {
         businessId: user?.businessId || user?.id || 'demo',
         userId: user?.id || 'demo',
         language: lang,
-        languageName: langMeta?.name || 'English',
+        languageName: langMeta?.englishName || 'English',
       }),
     })
     .then(res => res.json())
