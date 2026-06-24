@@ -309,7 +309,10 @@ export function HomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: reply,
-        merchantId: user?.businessId || user?.id || 'demo',
+        businessId: user?.businessId || user?.id || 'demo',
+        userId: user?.id || 'demo',
+        language: lang,
+        languageName: langMeta?.name || 'English',
       }),
     })
     .then(res => res.json())

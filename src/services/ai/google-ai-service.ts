@@ -11,7 +11,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 const RATE_LIMIT_DELAY_MS = 500;
 const DEFAULT_MODEL = 'gemini-pro-latest';
-const FALLBACK_MODELS = ['gemini-pro', 'gemini-1.5-pro'];
+const FALLBACK_MODELS = ['gemini-pro', 'gemini-1.0-pro'];
 const MAX_TOKEN_LIMIT = 100000; // Conservative token limit
 const CONTEXT_TRUNCATION_THRESHOLD = 80000; // Truncate context if it exceeds this
 

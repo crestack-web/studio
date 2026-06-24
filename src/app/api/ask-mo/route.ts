@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Initialize Google AI with Firebase service account
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory);
+
+    // Initialize Google AI
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
       console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
@@ -38,9 +41,6 @@ export async function POST(request: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
-
-    // Build system prompt
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory);
 
     // Generate response with retry mechanism
     const chat = model.startChat({
@@ -97,8 +97,22 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ [Ask MO API] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide helpful error message for API key issues
+    if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+      return NextResponse.json(
+        { 
+          error: 'Google AI model not found or API key issue',
+          message: 'The Google AI API key may not have access to the requested model. Please check that your GOOGLE_GENAI_API_KEY is valid and has access to Gemini models. Visit https://console.cloud.google.com/apis/credentials to verify your API key.',
+          details: errorMessage
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error', message: errorMessage },
       { status: 500 }
     );
   }
