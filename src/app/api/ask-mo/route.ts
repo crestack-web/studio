@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Validate Google AI API key
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!googleApiKey || googleApiKey === 'AIzaSyAjQGZ-PjajRn18SZdnFZyI0hG_OjjPuz4') {
+    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
       console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
       return NextResponse.json(
         { error: 'Google Gen AI API key is not configured' },
