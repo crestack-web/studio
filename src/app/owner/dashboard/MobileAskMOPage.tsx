@@ -419,6 +419,21 @@ export function MobileAskMOPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
+      // Get business category
+      let businessCategory = 'retail';
+      if (user.businessId) {
+        try {
+          const { firestore } = initializeFirebase();
+          const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
+          if (businessDoc.exists()) {
+            const data = businessDoc.data();
+            businessCategory = data?.category || data?.businessCategory || 'retail';
+          }
+        } catch (error) {
+          console.error('Error fetching business category:', error);
+        }
+      }
+      
       const requestBody = {
         message: finalMessage,
         image: finalImageUrl,
@@ -428,7 +443,7 @@ export function MobileAskMOPage() {
         userPlan: user.plan || 'starter',
         language: lang,
         languageName: langMeta.name,
-        businessCategory: user.businessCategory || 'retail',
+        businessCategory: businessCategory,
       };
       
       console.log('📤 [MobileAskMO] Request payload:', {

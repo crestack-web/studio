@@ -332,6 +332,22 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
       // Call AI API
       console.log('📡 Calling Ask MO API...');
+      
+      // Get business category
+      let businessCategory = 'retail';
+      if (user.businessId) {
+        try {
+          const { firestore } = initializeFirebase();
+          const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
+          if (businessDoc.exists()) {
+            const data = businessDoc.data();
+            businessCategory = data?.category || data?.businessCategory || 'retail';
+          }
+        } catch (error) {
+          console.error('Error fetching business category:', error);
+        }
+      }
+      
       const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -344,7 +360,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           userPlan: user.plan || 'starter',
           language: lang,
           languageName: langMeta.name,
-          businessCategory: user.businessCategory || 'retail',
+          businessCategory: businessCategory,
         }),
       });
 

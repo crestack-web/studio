@@ -306,6 +306,11 @@ export function HomePage() {
     
     // For questions, make API call to Ask MO with the current business ID
     const langMeta = LANGUAGES.find(l => l.code === lang);
+    
+    // Get business category (non-async for this simple implementation)
+    let businessCategory = 'retail';
+    // Note: For a more robust implementation, this should be loaded from user context or state
+    
     fetch('/api/ask-mo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -315,6 +320,7 @@ export function HomePage() {
         userId: user?.id || 'demo',
         language: lang,
         languageName: langMeta?.englishName || 'English',
+        businessCategory: businessCategory,
       }),
     })
     .then(res => res.json())
