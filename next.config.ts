@@ -37,6 +37,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  env: {
+    GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
+  },
   async redirects() {
     return [
       {
@@ -103,10 +106,6 @@ const nextConfig: NextConfig = {
       {
         source: '/api/sendOtpLogin',
         destination: `${firebaseFunctionsBaseUrl}/sendOtpLogin`,
-      },
-      {
-        source: '/api/ask-mo',
-        destination: `${firebaseFunctionsBaseUrl}/askMo`,
       },
     ];
   },
