@@ -53,6 +53,7 @@ export function CashflowPage() {
     monthIn: 0,
     monthOut: 0,
   });
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
 
   // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
@@ -168,7 +169,7 @@ export function CashflowPage() {
       
       salesSnapshot.forEach(doc => {
         const data = doc.data();
-        const amount = data.totalAmount || 0;
+        const amount = data.totalRevenue || data.totalAmount || 0;
         const date = data.createdAt?.toDate() || new Date();
         
         // Determine if sale has bank/POS payments
@@ -193,9 +194,17 @@ export function CashflowPage() {
       });
       
       setTransactions(fetchedTransactions);
+      
+      // Calculate stock value from products
+      const stockValue = products.reduce((sum: number, product: any) => {
+        const stock = product.stock || 0;
+        const costPrice = product.costPrice || 0;
+        return sum + (stock * costPrice);
+      }, 0);
+      
       setStats({
         cashBalance: accountsList.reduce((sum, a) => sum + a.currentBalance, 0),
-        stockValue: 0,
+        stockValue,
         monthIn,
         monthOut,
       });
@@ -218,10 +227,28 @@ export function CashflowPage() {
 
   const handleAddAccount = async () => {
     if (!businessId || !firestore) return;
+    
+    // Prevent duplicate accounts
+    const duplicate = bankAccounts.find(
+      acc => acc.accountName.toLowerCase() === newAccount.accountName.toLowerCase() && 
+             acc.bankName.toLowerCase() === newAccount.bankName.toLowerCase()
+    );
+    
+    if (duplicate) {
+      showToast('❌ An account with this name and bank already exists');
+      return;
+    }
+    
+    if (!newAccount.accountName.trim() || !newAccount.bankName.trim()) {
+      showToast('❌ Please fill in all required fields');
+      return;
+    }
+    
+    setIsAddingAccount(true);
     try {
       const accountData = {
-        accountName: newAccount.accountName,
-        bankName: newAccount.bankName,
+        accountName: newAccount.accountName.trim(),
+        bankName: newAccount.bankName.trim(),
         currentBalance: newAccount.initialBalance,
         isActive: true,
         isDefault: bankAccounts.length === 0,
@@ -236,6 +263,8 @@ export function CashflowPage() {
     } catch (error) {
       console.error('Error adding account:', error);
       showToast('❌ Failed to add account');
+    } finally {
+      setIsAddingAccount(false);
     }
   };
 
@@ -567,8 +596,14 @@ export function CashflowPage() {
                   <span className={styles.formHint}>Sales paid via POS, card, or bank transfer will be recorded to this account</span>
                 </div>
                 <div className={styles.modalActions}>
-                  <button className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button className={styles.modalButtonPrimary} onClick={handleAddAccount}>Add Account</button>
+                  <button className={styles.modalButton} onClick={() => setActiveAction(null)} disabled={isAddingAccount}>Cancel</button>
+                  <button 
+                    className={styles.modalButtonPrimary} 
+                    onClick={handleAddAccount}
+                    disabled={isAddingAccount}
+                  >
+                    {isAddingAccount ? 'Adding...' : 'Add Account'}
+                  </button>
                 </div>
               </div>
             )}

@@ -60,6 +60,7 @@ export function RecordSalePage() {
   const [lastSaleData, setLastSaleData] = useState<any>(null);
   const [receiptTheme, setReceiptTheme] = useState<any>(null);
   const [businessLogo, setBusinessLogo] = useState<string>('');
+  const [bankAccountId, setBankAccountId] = useState<string | null>(null);
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -124,6 +125,25 @@ export function RecordSalePage() {
         } catch (error) {
           console.error('Error loading business category:', error);
           setShowStockSource(false);
+        }
+
+        // Load bank accounts to get default POS account
+        try {
+          const bankAccountsQuery = query(
+            collection(firestore, 'businesses', bId, 'bankAccounts'),
+            where('isActive', '==', true)
+          );
+          const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+          let posDefaultAccount = null;
+          bankAccountsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.isPosDefault) {
+              posDefaultAccount = doc.id;
+            }
+          });
+          setBankAccountId(posDefaultAccount);
+        } catch (error) {
+          console.error('Error loading bank accounts:', error);
         }
 
         // Now fetch products from the business-specific collection
@@ -370,6 +390,7 @@ export function RecordSalePage() {
         businessId: businessId,
         sourceLocation: sourceLocation,
         sourceLocationName: sourceLocationName,
+        bankAccountId: bankAccountId,
         recordedBy: {
           uid: user.uid,
           email: user.email,
@@ -383,6 +404,37 @@ export function RecordSalePage() {
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // Update bank account balance if sale has bank/POS/card payments
+      if (expectedBank > 0 && bankAccountId) {
+        try {
+          const bankAccountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', bankAccountId);
+          const bankAccountDoc = await getDoc(bankAccountRef);
+          
+          if (bankAccountDoc.exists()) {
+            const currentBalance = bankAccountDoc.data().currentBalance || 0;
+            await updateDoc(bankAccountRef, {
+              currentBalance: currentBalance + expectedBank
+            });
+            
+            // Create bank transaction record
+            await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), {
+              transactionNumber: `SALE-${Date.now()}`,
+              bankAccountId: bankAccountId,
+              accountName: bankAccountDoc.data().accountName,
+              type: 'money_in',
+              category: 'Sale',
+              amount: expectedBank,
+              balanceAfter: currentBalance + expectedBank,
+              description: `Sale #${saleRef.id.slice(-6)}`,
+              saleId: saleRef.id,
+              createdAt: new Date(),
+            });
+          }
+        } catch (error) {
+          console.error('Error updating bank account balance:', error);
+        }
+      }
 
       // Create invoice for wholesale/distributor businesses
       if (businessCategory === 'wholesale' || businessCategory === 'distributor') {
