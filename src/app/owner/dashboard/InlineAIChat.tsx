@@ -11,7 +11,7 @@ import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc
 import styles from './InlineAIChat.module.css';
 import { useAskMO } from './useAskMO';
 
-import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus } from 'lucide-react';
+import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus, Trash2, Pencil } from 'lucide-react';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 
 // Dynamic suggestions based on business data
@@ -344,6 +344,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           userPlan: user.plan || 'starter',
           language: lang,
           languageName: langMeta.name,
+          businessCategory: user.businessCategory || 'retail',
         }),
       });
 
@@ -809,7 +810,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                           }}
                           title="Rename"
                         >
-                          ✏️
+                          <Pencil size={16} />
                         </button>
                         <button
                           className={styles.historyItemAction}
@@ -821,7 +822,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                           }}
                           title="Delete"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>

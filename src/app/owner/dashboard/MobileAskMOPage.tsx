@@ -428,6 +428,7 @@ export function MobileAskMOPage() {
         userPlan: user.plan || 'starter',
         language: lang,
         languageName: langMeta.name,
+        businessCategory: user.businessCategory || 'retail',
       };
       
       console.log('📤 [MobileAskMO] Request payload:', {

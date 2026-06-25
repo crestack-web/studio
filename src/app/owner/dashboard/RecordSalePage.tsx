@@ -643,7 +643,7 @@ export function RecordSalePage() {
         const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
         if (businessDoc.exists()) {
           const bizData = businessDoc.data();
-          businessName = bizData.name || 'Business';
+          businessName = bizData.businessName || 'Business';
           businessAddress = bizData.address || '';
           businessPhone = bizData.phone || '';
         }

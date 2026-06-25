@@ -6,7 +6,7 @@ import admin from 'firebase-admin';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English' } = body;
+    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail' } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build system prompt
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory);
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory);
 
     // Initialize Google AI
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
@@ -224,7 +224,7 @@ async function getBusinessContext(businessId: string) {
 /**
  * Build system prompt with business context
  */
-function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = []): string {
+function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = [], businessCategory: string = 'retail'): string {
   const conversationSummary = conversationHistory.slice(-6).map((msg: any) => {
     const role = msg.role === 'user' ? 'User' : 'MO';
     return `${role}: ${msg.content}`;
@@ -255,8 +255,10 @@ Use this context to:
 
 🏢 BUSINESS PROFILE:
 • Business: ${businessContext.businessName || 'Your Business'}
-• Category: ${businessContext.businessCategory || 'General Retail'}
+• Category: ${businessCategory || businessContext.businessCategory || 'General Retail'}
 • Staff: ${businessContext.staffCount || 0} employees
+
+${getCategorySpecificAdvice(businessCategory)}
 
 💰 SALES PERFORMANCE:
 • Total Sales (30 days): ₦${(businessContext.totalSales || 0).toLocaleString()}
@@ -297,4 +299,26 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 8. Keep responses under 250 words unless explaining complex analysis
 9. MAINTAIN CHARACTER — never break your role as MO
 10. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely`;
+}
+
+/**
+ * Get category-specific advice for AI responses
+ */
+function getCategorySpecificAdvice(category: string): string {
+  const adviceMap: Record<string, string> = {
+    retail: 'Focus on inventory turnover, customer retention, and seasonal trends.',
+    restaurant: 'Focus on food cost management, table turnover, and menu optimization.',
+    grocery: 'Focus on expiry management, supplier relationships, and bulk purchasing.',
+    fashion: 'Focus on seasonal inventory, trend analysis, and customer preferences.',
+    electronics: 'Focus on warranty management, product lifecycle, and technical support.',
+    manufacturing: 'Focus on production efficiency, raw material costs, and quality control.',
+    services: 'Focus on appointment scheduling, customer satisfaction, and service delivery.',
+    pharmacy: 'Focus on expiry tracking, regulatory compliance, and health trends.',
+    supermarket: 'Focus on multi-category management, shelf space optimization, and supplier negotiations.',
+    cafe: 'Focus on ingredient costs, peak hour management, and customer experience.',
+    wholesale: 'Focus on bulk pricing, distributor relationships, and volume discounts.',
+    distributor: 'Focus on supply chain efficiency, logistics, and retailer relationships.',
+  };
+  
+  return adviceMap[category.toLowerCase()] || adviceMap.retail;
 }
