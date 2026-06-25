@@ -122,6 +122,17 @@ export function MobileAskMOPage() {
       setShowHistory(true);
     }
 
+    // Load current messages from localStorage
+    const savedMessages = localStorage.getItem('mo-current-messages');
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        setMessages(parsedMessages);
+      } catch (error) {
+        console.error('Error parsing saved messages:', error);
+      }
+    }
+
     // Check for pre-filled question from other pages
     const prefilledQuestion = localStorage.getItem('mo-prefilled-question');
     if (prefilledQuestion && !isSending) {
@@ -446,67 +457,19 @@ export function MobileAskMOPage() {
         throw new Error(errorData.error || `API error: ${response.status}`);
       }
 
-      // Handle streaming response
-      console.log('📡 [MobileAskMO] Starting streaming response');
-      const streamStart = Date.now();
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-      let chunkCount = 0;
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            console.log('✅ [MobileAskMO] Streaming completed', { 
-              totalChunks: chunkCount, 
-              totalChars: fullContent.length,
-              time: Date.now() - streamStart 
-            });
-            break;
-          }
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.text) {
-                  fullContent += parsed.text;
-                  chunkCount++;
-                  
-                  // Log every 10 chunks for debugging
-                  if (chunkCount % 10 === 0) {
-                    console.log(`📡 [MobileAskMO] Streaming progress: ${chunkCount} chunks, ${fullContent.length} chars`);
-                  }
-                  
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === botMsgId 
-                        ? { ...msg, content: fullContent }
-                        : msg
-                    )
-                  );
-                }
-              } catch (e) {
-                // Ignore parse errors for incomplete chunks
-                console.warn('⚠️ [MobileAskMO] Parse error for chunk:', e);
-              }
-            }
-          }
-        }
-      }
+      // Handle non-streaming JSON response
+      console.log('📡 [MobileAskMO] Parsing JSON response');
+      const data = await response.json();
+      const fullContent = data.answer || data.response || "I'm analysing your business data...";
+      console.log('✅ [MobileAskMO] Response received', { 
+        responseLength: fullContent.length 
+      });
 
       // Update the final message
       setMessages(prev => 
         prev.map(msg => 
           msg.id === botMsgId 
-            ? { ...msg, content: fullContent || "I'm analysing your business data..." }
+            ? { ...msg, content: fullContent }
             : msg
         )
       );
@@ -514,27 +477,30 @@ export function MobileAskMOPage() {
       console.log('💾 [MobileAskMO] Saving bot message to Firestore');
       const botMessageData: any = {
         role: 'bot',
-        content: fullContent || "I'm analysing your business data...",
+        content: fullContent,
         timestamp: Timestamp.now(),
       };
       await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsgId), botMessageData);
 
       // Calculate and consume credits based on response length (simulating token usage)
-      // Reduced to make 2500 credits last a week with 10 messages daily (~35 credits per message average)
-      const estimatedTokens = Math.ceil((fullContent.length / 4) * 0.7);
-      const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
-      console.log('💰 [MobileAskMO] Consuming credits', { estimatedTokens, creditsConsumed });
-      await updateCredits(creditsConsumed);
+      // Only consume credits if we received a valid response
+      if (fullContent && fullContent.length > 10 && fullContent !== "I'm analysing your business data...") {
+        const estimatedTokens = Math.ceil((fullContent.length / 4) * 0.7);
+        const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
+        console.log('💰 [MobileAskMO] Consuming credits', { estimatedTokens, creditsConsumed });
+        await updateCredits(creditsConsumed);
+      } else {
+        console.log('⚠️ [MobileAskMO] Not consuming credits - invalid or empty response');
+      }
 
       // Auto-save conversation
       console.log('💾 [MobileAskMO] Auto-saving conversation');
       await saveConversation();
-      
+
       const totalTime = Date.now() - requestStartTime;
-      console.log('✅ [MobileAskMO] Request completed successfully', { 
+      console.log('✅ [MobileAskMO] Request completed successfully', {
         totalTime,
         responseLength: fullContent.length,
-        creditsConsumed 
       });
     } catch (error) {
       const errorTime = Date.now() - requestStartTime;
