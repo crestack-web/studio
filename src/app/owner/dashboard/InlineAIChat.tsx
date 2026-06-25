@@ -375,6 +375,14 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       const data = await response.json();
       console.log('📡 API Response data:', data);
 
+      // Handle action data if present
+      if (data.action) {
+        console.log('🎯 Action detected:', data.action);
+        // TODO: Integrate with existing sale/product APIs
+        // For now, display the action to the user
+        showToast(`Action detected: ${data.action.action}`);
+      }
+
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',

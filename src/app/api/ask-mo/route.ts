@@ -41,8 +41,9 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
+    const modelName = image ? 'gemini-pro-vision' : 'gemini-pro-latest';
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-pro-latest',
+      model: modelName,
       systemInstruction: systemPrompt
     });
 
@@ -66,8 +67,18 @@ export async function POST(request: NextRequest) {
           setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
         });
 
+        let messageParts;
+        if (image) {
+          messageParts = [
+            { text: message },
+            { inlineData: { mimeType: image.mimeType || 'image/jpeg', data: image.data } }
+          ];
+        } else {
+          messageParts = [{ text: message }];
+        }
+
         result = await Promise.race([
-          chat.sendMessage(message),
+          chat.sendMessage(messageParts),
           timeoutPromise
         ]) as any;
 
@@ -93,8 +104,21 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [Ask MO API] Response generated');
 
+    // Extract action data from response if present
+    let actionData = null;
+    const actionMatch = text.match(/\{"action":\s*"([^"]+)",\s*"data":\s*\{[^}]+\}\}/);
+    if (actionMatch) {
+      try {
+        actionData = JSON.parse(actionMatch[0]);
+        console.log('🎯 [Ask MO API] Action detected:', actionData.action);
+      } catch (error) {
+        console.error('❌ [Ask MO API] Failed to parse action JSON:', error);
+      }
+    }
+
     return NextResponse.json({
       answer: text,
+      action: actionData,
       businessContext,
       timestamp: new Date().toISOString()
     });
@@ -511,7 +535,29 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 8. ADAPT LENGTH — match user's preference (short/concise vs detailed)
 9. ADAPT TONE — match user's formality (formal vs casual)
 10. MAINTAIN CHARACTER — never break your role as MO
-11. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely`;
+11. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely
+
+🛠️ ACTION CAPABILITIES:
+You can perform business operations when requested:
+
+RECORDING SALES:
+- When user wants to record a sale, extract: product name, quantity, price/amount
+- Return structured JSON in your response for sale recording:
+  {"action": "record_sale", "data": {"productName": "...", "quantity": 1, "amount": 0, "price": 0}}
+- If user sends an image of a product/receipt, analyze it to extract sale details
+
+ADDING PRODUCTS:
+- When user wants to add a new product, extract: name, price, stock, category
+- Return structured JSON in your response for product addition:
+  {"action": "add_product", "data": {"name": "...", "price": 0, "stock": 0, "category": "..."}}
+- If user sends an image of a product, analyze it to extract product details
+
+IMAGE ANALYSIS:
+- When user sends an image, analyze it to understand:
+  - Product names, prices, quantities (for receipts/invoices)
+  - Product details (for product photos)
+  - Business context (for general business images)
+- Always provide both text analysis AND structured action data if applicable`;
 }
 
 /**
