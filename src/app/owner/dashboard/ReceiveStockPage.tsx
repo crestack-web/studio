@@ -6,6 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, Timestamp } from 'firebase/firestore';
+import { Supplier } from './types';
 import styles from './ReceiveStockPage.module.css';
 
 interface Product {
@@ -26,13 +27,6 @@ interface ReceiptItem {
   unitCost: number;
   totalCost: number;
   location: 'main_store' | 'back_store' | 'warehouse';
-}
-
-interface Supplier {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
 }
 
 interface BankAccount {
@@ -112,7 +106,7 @@ export function ReceiveStockPage() {
       // Load suppliers
       const suppliersQuery = query(
         collection(firestore, 'businesses', businessId, 'suppliers'),
-        where('active', '==', true)
+        where('status', '==', 'active')
       );
       const suppliersSnapshot = await getDocs(suppliersQuery);
       const suppliersList: Supplier[] = [];
@@ -121,9 +115,33 @@ export function ReceiveStockPage() {
         const data = doc.data();
         suppliersList.push({
           id: doc.id,
-          name: data.name || '',
-          phone: data.phone,
-          email: data.email,
+          businessId: data.businessId || '',
+          supplierName: data.supplierName || '',
+          businessName: data.businessName || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          address: data.address || '',
+          notes: data.notes || '',
+          paymentTerms: data.paymentTerms || 'net_30',
+          customPaymentDays: data.customPaymentDays || 30,
+          creditLimit: data.creditLimit || 0,
+          openingBalance: data.openingBalance || 0,
+          currentBalance: data.currentBalance || 0,
+          category: data.category || 'general',
+          status: data.status || 'active',
+          taxId: data.taxId || '',
+          bankAccount: data.bankAccount || null,
+          contactPerson: data.contactPerson || null,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          lastPaymentDate: data.lastPaymentDate?.toDate(),
+          totalPurchases: data.totalPurchases || 0,
+          totalPayments: data.totalPayments || 0,
+          purchaseCount: data.purchaseCount || 0,
+          paymentCount: data.paymentCount || 0,
+          averagePaymentDays: data.averagePaymentDays || 0,
+          creditUtilization: data.creditUtilization || 0,
         });
       });
       
@@ -245,19 +263,38 @@ export function ReceiveStockPage() {
       }
 
       let supplierId = selectedSupplier;
-      let supplierName = suppliers.find(s => s.id === selectedSupplier)?.name || '';
+      let supplierName = suppliers.find(s => s.id === selectedSupplier)?.businessName || '';
       
       // Create new supplier if needed
       if (newSupplierName.trim()) {
         const supplierRef = await addDoc(collection(firestore, 'businesses', businessId, 'suppliers'), {
-          name: newSupplierName.trim(),
-          productsSupplied: [],
-          totalAmountSpent: 0,
-          lastSupplyDate: Timestamp.now(),
-          supplyCount: 0,
+          businessId,
+          supplierName: newSupplierName.trim(),
+          businessName: newSupplierName.trim(),
+          phone: '',
+          email: null,
+          address: null,
+          notes: null,
+          paymentTerms: 'net_30',
+          customPaymentDays: null,
+          creditLimit: 0,
+          openingBalance: 0,
+          currentBalance: 0,
+          category: 'general',
+          status: 'active',
+          taxId: null,
+          bankAccount: null,
+          contactPerson: null,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
-          active: true,
+          lastPurchaseDate: null,
+          lastPaymentDate: null,
+          totalPurchases: 0,
+          totalPayments: 0,
+          purchaseCount: 0,
+          paymentCount: 0,
+          averagePaymentDays: 0,
+          creditUtilization: 0,
         });
         
         supplierId = supplierRef.id;
@@ -301,22 +338,41 @@ export function ReceiveStockPage() {
         
         if (supplierDoc.exists()) {
           const supplierData = supplierDoc.data();
-          const productsSupplied = supplierData.productsSupplied || [];
           
-          // Add new products to supplier's list
-          receiptItems.forEach(item => {
-            if (!productsSupplied.includes(item.productId)) {
-              productsSupplied.push(item.productId);
-            }
-          });
+          // Update supplier balance and metrics
+          const currentBalance = supplierData.currentBalance || 0;
+          const totalPurchases = supplierData.totalPurchases || 0;
+          const purchaseCount = supplierData.purchaseCount || 0;
           
           transaction.update(supplierRef, {
-            productsSupplied,
-            totalAmountSpent: (supplierData.totalAmountSpent || 0) + totalCost,
-            lastSupplyDate: Timestamp.now(),
-            supplyCount: (supplierData.supplyCount || 0) + 1,
-            outstandingBalance: paymentMethod === 'credit' ? (supplierData.outstandingBalance || 0) + credit : supplierData.outstandingBalance,
+            currentBalance: paymentMethod === 'credit' ? currentBalance + credit : currentBalance,
+            totalPurchases: totalPurchases + totalCost,
+            purchaseCount: purchaseCount + 1,
+            lastPurchaseDate: Timestamp.now(),
+            creditUtilization: supplierData.creditLimit > 0 
+              ? ((currentBalance + (paymentMethod === 'credit' ? credit : 0)) / supplierData.creditLimit) * 100 
+              : 0,
             updatedAt: Timestamp.now(),
+          });
+          
+          // Create supplier ledger entry
+          const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+          transaction.set(ledgerRef, {
+            supplierId,
+            businessId,
+            type: 'purchase',
+            amount: totalCost,
+            balanceAfter: paymentMethod === 'credit' ? currentBalance + credit : currentBalance,
+            description: `Stock receipt ${receiptNumber}`,
+            reference: receiptNumber,
+            date: Timestamp.now(),
+            createdAt: Timestamp.now(),
+            createdBy: user.id,
+            createdByName: user.name || user.email || 'Unknown',
+            metadata: {
+              stockReceiptId: receiptRef.id,
+              paymentMethod,
+            },
           });
         }
         
@@ -476,7 +532,7 @@ export function ReceiveStockPage() {
               <option value="">-- Select supplier --</option>
               {suppliers.map(supplier => (
                 <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
+                  {supplier.businessName}
                 </option>
               ))}
             </select>

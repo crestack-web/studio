@@ -6,7 +6,7 @@ import { useFirestore } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, orderBy, Timestamp, runTransaction } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
-import { CreditCustomer, CreditTransaction, CreditPayment, CreditStatus, CreditSummary } from './types';
+import { CreditCustomer, CreditTransaction, CreditPayment, CreditStatus, CreditSummary, PayableSummary, CreditTrackingSummary, Supplier, SupplierLedgerTransaction } from './types';
 import { initializeFirebase } from '@/firebase';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import styles from './CreditTrackingPage.module.css';
@@ -19,6 +19,8 @@ export function CreditTrackingPage() {
 
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierLedger, setSupplierLedger] = useState<SupplierLedgerTransaction[]>([]);
   const [summary, setSummary] = useState<CreditSummary>({
     totalOutstanding: 0,
     overdueAmount: 0,
@@ -29,8 +31,42 @@ export function CreditTrackingPage() {
     paidThisMonth: 0,
     averageCollectionDays: 0,
   });
+  const [payableSummary, setPayableSummary] = useState<PayableSummary>({
+    totalOutstanding: 0,
+    overdueAmount: 0,
+    dueThisWeek: 0,
+    dueThisMonth: 0,
+    totalSuppliers: 0,
+    activePayables: 0,
+    paidThisMonth: 0,
+    averagePaymentDays: 0,
+  });
+  const [creditTrackingSummary, setCreditTrackingSummary] = useState<CreditTrackingSummary>({
+    receivables: {
+      totalOutstanding: 0,
+      overdueAmount: 0,
+      dueThisWeek: 0,
+      dueThisMonth: 0,
+      totalCustomers: 0,
+      activeCredits: 0,
+      paidThisMonth: 0,
+      averageCollectionDays: 0,
+    },
+    payables: {
+      totalOutstanding: 0,
+      overdueAmount: 0,
+      dueThisWeek: 0,
+      dueThisMonth: 0,
+      totalSuppliers: 0,
+      activePayables: 0,
+      paidThisMonth: 0,
+      averagePaymentDays: 0,
+    },
+    netCreditPosition: 0,
+    totalCreditExposure: 0,
+  });
   const [loading, setLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'customers' | 'transactions'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'receivables' | 'payables' | 'customers' | 'transactions'>('overview');
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
@@ -183,8 +219,79 @@ export function CreditTrackingPage() {
         console.log('Loaded credit transactions:', loadedTransactions.length);
         console.log('Loaded credit customers:', loadedCustomers.length);
 
-        // Calculate summary
+        // Load suppliers
+        const suppliersQuery = query(
+          collection(firestore, 'businesses', bId, 'suppliers'),
+          where('status', '==', 'active')
+        );
+        const suppliersSnapshot = await getDocs(suppliersQuery);
+        const loadedSuppliers: Supplier[] = [];
+        suppliersSnapshot.forEach(doc => {
+          const data = doc.data();
+          loadedSuppliers.push({
+            id: doc.id,
+            businessId: data.businessId || '',
+            supplierName: data.supplierName || '',
+            businessName: data.businessName || '',
+            phone: data.phone || '',
+            email: data.email || '',
+            address: data.address || '',
+            notes: data.notes || '',
+            paymentTerms: data.paymentTerms || 'net_30',
+            customPaymentDays: data.customPaymentDays || 30,
+            creditLimit: data.creditLimit || 0,
+            openingBalance: data.openingBalance || 0,
+            currentBalance: data.currentBalance || 0,
+            category: data.category || 'general',
+            status: data.status || 'active',
+            taxId: data.taxId || '',
+            bankAccount: data.bankAccount || null,
+            contactPerson: data.contactPerson || null,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+            lastPaymentDate: data.lastPaymentDate?.toDate(),
+            totalPurchases: data.totalPurchases || 0,
+            totalPayments: data.totalPayments || 0,
+            purchaseCount: data.purchaseCount || 0,
+            paymentCount: data.paymentCount || 0,
+            averagePaymentDays: data.averagePaymentDays || 0,
+            creditUtilization: data.creditUtilization || 0,
+          });
+        });
+        setSuppliers(loadedSuppliers);
+
+        // Load supplier ledger
+        const ledgerQuery = query(
+          collection(firestore, 'businesses', bId, 'supplierLedger'),
+          orderBy('date', 'desc')
+        );
+        const ledgerSnapshot = await getDocs(ledgerQuery);
+        const loadedLedger: SupplierLedgerTransaction[] = [];
+        ledgerSnapshot.forEach(doc => {
+          const data = doc.data();
+          loadedLedger.push({
+            id: doc.id,
+            supplierId: data.supplierId || '',
+            businessId: data.businessId || '',
+            type: data.type || 'purchase',
+            amount: data.amount || 0,
+            balanceAfter: data.balanceAfter || 0,
+            description: data.description || '',
+            reference: data.reference || '',
+            date: data.date?.toDate() || new Date(),
+            createdAt: data.createdAt?.toDate() || new Date(),
+            createdBy: data.createdBy || '',
+            createdByName: data.createdByName || '',
+            metadata: data.metadata || {},
+          });
+        });
+        setSupplierLedger(loadedLedger);
+
+        // Calculate summaries
         calculateSummary(loadedTransactions, loadedCustomers);
+        calculatePayableSummary(loadedSuppliers, loadedLedger);
+        calculateCreditTrackingSummary();
       } catch (error) {
         console.error('Error loading credit data:', error);
         showToast('Failed to load credit data');
@@ -244,6 +351,108 @@ export function CreditTrackingPage() {
       activeCredits,
       paidThisMonth,
       averageCollectionDays: collectionCount > 0 ? Math.round(totalCollectionDays / collectionCount) : 0,
+    });
+  }
+
+  function calculatePayableSummary(supps: Supplier[], ledger: SupplierLedgerTransaction[]) {
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let totalOutstanding = 0;
+    let overdueAmount = 0;
+    let dueThisWeek = 0;
+    let dueThisMonth = 0;
+    let activePayables = 0;
+    let paidThisMonth = 0;
+    let totalPaymentDays = 0;
+    let paymentCount = 0;
+
+    // Calculate from supplier balances
+    supps.forEach(supplier => {
+      if (supplier.currentBalance > 0) {
+        totalOutstanding += supplier.currentBalance;
+        activePayables++;
+
+        // Calculate due date based on payment terms
+        const daysUntilDue = getDaysUntilDue(supplier);
+        if (daysUntilDue < 0) {
+          overdueAmount += supplier.currentBalance;
+        } else if (daysUntilDue <= 7) {
+          dueThisWeek += supplier.currentBalance;
+        } else if (daysUntilDue <= 30) {
+          dueThisMonth += supplier.currentBalance;
+        }
+      }
+
+      // Track payments made this month
+      if (supplier.lastPaymentDate && supplier.lastPaymentDate >= monthStart) {
+        paidThisMonth += supplier.totalPayments;
+      }
+
+      // Calculate average payment days
+      if (supplier.averagePaymentDays > 0) {
+        totalPaymentDays += supplier.averagePaymentDays;
+        paymentCount++;
+      }
+    });
+
+    setPayableSummary({
+      totalOutstanding,
+      overdueAmount,
+      dueThisWeek,
+      dueThisMonth,
+      totalSuppliers: supps.length,
+      activePayables,
+      paidThisMonth,
+      averagePaymentDays: paymentCount > 0 ? Math.round(totalPaymentDays / paymentCount) : 0,
+    });
+  }
+
+  function getDaysUntilDue(supplier: Supplier): number {
+    if (!supplier.lastPurchaseDate) return 30; // Default to 30 days if no purchase date
+    
+    const purchaseDate = supplier.lastPurchaseDate;
+    let paymentDays = 30; // Default
+    
+    switch (supplier.paymentTerms) {
+      case 'cash':
+        return 0;
+      case 'net_7':
+        paymentDays = 7;
+        break;
+      case 'net_14':
+        paymentDays = 14;
+        break;
+      case 'net_30':
+        paymentDays = 30;
+        break;
+      case 'net_60':
+        paymentDays = 60;
+        break;
+      case 'net_90':
+        paymentDays = 90;
+        break;
+      case 'custom':
+        paymentDays = supplier.customPaymentDays || 30;
+        break;
+    }
+    
+    const dueDate = new Date(purchaseDate.getTime() + paymentDays * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    return Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function calculateCreditTrackingSummary() {
+    const netPosition = summary.totalOutstanding - payableSummary.totalOutstanding;
+    const totalExposure = summary.totalOutstanding + payableSummary.totalOutstanding;
+    
+    setCreditTrackingSummary({
+      receivables: summary,
+      payables: payableSummary,
+      netCreditPosition: netPosition,
+      totalCreditExposure: totalExposure,
     });
   }
 
@@ -513,60 +722,156 @@ export function CreditTrackingPage() {
         <Button variant="subtle" onClick={() => navigateTo('home')}>← Back</Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className={styles.summaryGrid}>
-        <Card>
-          <CardHeader>
-            <CardIcon bg="var(--purple-lt)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={20} height={20}>
-                <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-              </svg>
-            </CardIcon>
-            Total Outstanding
-          </CardHeader>
-          <div className={styles.summaryValue}>{formatMoney(summary.totalOutstanding)}</div>
-          <div className={styles.summaryLabel}>{summary.activeCredits} active credits</div>
-        </Card>
+      {/* Summary Cards - Receivables */}
+      <div className={styles.summarySection}>
+        <h3 className={styles.summarySectionTitle}>Receivables (Money Customers Owe You)</h3>
+        <div className={styles.summaryGrid}>
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--purple-lt)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={20} height={20}>
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                </svg>
+              </CardIcon>
+              Total Outstanding
+            </CardHeader>
+            <div className={styles.summaryValue}>{formatMoney(summary.totalOutstanding)}</div>
+            <div className={styles.summaryLabel}>{summary.activeCredits} active credits</div>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardIcon bg="var(--red-bg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2} width={20} height={20}>
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </CardIcon>
-            Overdue
-          </CardHeader>
-          <div className={styles.summaryValue} style={{ color: 'var(--red)' }}>{formatMoney(summary.overdueAmount)}</div>
-          <div className={styles.summaryLabel}>Requires attention</div>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--red-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2} width={20} height={20}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </CardIcon>
+              Overdue
+            </CardHeader>
+            <div className={styles.summaryValue} style={{ color: 'var(--red)' }}>{formatMoney(summary.overdueAmount)}</div>
+            <div className={styles.summaryLabel}>Requires attention</div>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardIcon bg="var(--amber-bg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2} width={20} height={20}>
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </CardIcon>
-            Due This Week
-          </CardHeader>
-          <div className={styles.summaryValue}>{formatMoney(summary.dueThisWeek)}</div>
-          <div className={styles.summaryLabel}>Upcoming payments</div>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--amber-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2} width={20} height={20}>
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </CardIcon>
+              Due This Week
+            </CardHeader>
+            <div className={styles.summaryValue}>{formatMoney(summary.dueThisWeek)}</div>
+            <div className={styles.summaryLabel}>Upcoming payments</div>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardIcon bg="var(--green-bg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} width={20} height={20}>
-                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-            </CardIcon>
-            Paid This Month
-          </CardHeader>
-          <div className={styles.summaryValue} style={{ color: 'var(--green)' }}>{formatMoney(summary.paidThisMonth)}</div>
-          <div className={styles.summaryLabel}>Collected payments</div>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--green-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} width={20} height={20}>
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </CardIcon>
+              Paid This Month
+            </CardHeader>
+            <div className={styles.summaryValue} style={{ color: 'var(--green)' }}>{formatMoney(summary.paidThisMonth)}</div>
+            <div className={styles.summaryLabel}>Collected payments</div>
+          </Card>
+        </div>
       </div>
+
+      {/* Summary Cards - Payables */}
+      <div className={styles.summarySection}>
+        <h3 className={styles.summarySectionTitle}>Payables (Money You Owe Suppliers)</h3>
+        <div className={styles.summaryGrid}>
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--purple-lt)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={20} height={20}>
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                </svg>
+              </CardIcon>
+              Total Outstanding
+            </CardHeader>
+            <div className={styles.summaryValue}>{formatMoney(payableSummary.totalOutstanding)}</div>
+            <div className={styles.summaryLabel}>{payableSummary.activePayables} active payables</div>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--red-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2} width={20} height={20}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </CardIcon>
+              Overdue
+            </CardHeader>
+            <div className={styles.summaryValue} style={{ color: 'var(--red)' }}>{formatMoney(payableSummary.overdueAmount)}</div>
+            <div className={styles.summaryLabel}>Requires attention</div>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--amber-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2} width={20} height={20}>
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </CardIcon>
+              Due This Week
+            </CardHeader>
+            <div className={styles.summaryValue}>{formatMoney(payableSummary.dueThisWeek)}</div>
+            <div className={styles.summaryLabel}>Upcoming payments</div>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--green-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2} width={20} height={20}>
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </CardIcon>
+              Paid This Month
+            </CardHeader>
+            <div className={styles.summaryValue} style={{ color: 'var(--green)' }}>{formatMoney(payableSummary.paidThisMonth)}</div>
+            <div className={styles.summaryLabel}>Payments made</div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Net Credit Position */}
+      <Card>
+        <CardHeader>
+          <CardIcon bg="var(--blue-bg)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2} width={20} height={20}>
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+          </CardIcon>
+          Net Credit Position
+        </CardHeader>
+        <div className={styles.netCreditSummary}>
+          <div className={styles.netCreditItem}>
+            <span className={styles.netCreditLabel}>Total Receivables:</span>
+            <span className={styles.netCreditValue}>{formatMoney(creditTrackingSummary.receivables.totalOutstanding)}</span>
+          </div>
+          <div className={styles.netCreditItem}>
+            <span className={styles.netCreditLabel}>Total Payables:</span>
+            <span className={styles.netCreditValue} style={{ color: 'var(--red)' }}>{formatMoney(creditTrackingSummary.payables.totalOutstanding)}</span>
+          </div>
+          <div className={styles.netCreditDivider}></div>
+          <div className={styles.netCreditItem}>
+            <span className={styles.netCreditLabel}>Net Position:</span>
+            <span className={`${styles.netCreditValue} ${styles.netCreditMain}`} style={{ 
+              color: creditTrackingSummary.netCreditPosition >= 0 ? 'var(--green)' : 'var(--red)' 
+            }}>
+              {creditTrackingSummary.netCreditPosition >= 0 ? '+' : ''}{formatMoney(creditTrackingSummary.netCreditPosition)}
+            </span>
+          </div>
+          <div className={styles.netCreditItem}>
+            <span className={styles.netCreditLabel}>Total Credit Exposure:</span>
+            <span className={styles.netCreditValue}>{formatMoney(creditTrackingSummary.totalCreditExposure)}</span>
+          </div>
+        </div>
+      </Card>
 
       {/* Tabs */}
       <div className={styles.tabs}>
@@ -575,6 +880,18 @@ export function CreditTrackingPage() {
           onClick={() => setSelectedTab('overview')}
         >
           Overview
+        </button>
+        <button 
+          className={[styles.tab, selectedTab === 'receivables' ? styles.tabActive : ''].join(' ')}
+          onClick={() => setSelectedTab('receivables')}
+        >
+          Receivables ({summary.activeCredits})
+        </button>
+        <button 
+          className={[styles.tab, selectedTab === 'payables' ? styles.tabActive : ''].join(' ')}
+          onClick={() => setSelectedTab('payables')}
+        >
+          Payables ({payableSummary.activePayables})
         </button>
         <button 
           className={[styles.tab, selectedTab === 'customers' ? styles.tabActive : ''].join(' ')}
@@ -633,6 +950,100 @@ export function CreditTrackingPage() {
                     </div>
                   </div>
                 ))
+            )}
+          </div>
+        </Card>
+      )}
+
+      {selectedTab === 'receivables' && (
+        <Card>
+          <CardHeader>
+            <CardIcon bg="var(--purple-lt)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={20} height={20}>
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              </svg>
+            </CardIcon>
+            Customer Receivables
+          </CardHeader>
+          <div className={styles.transactionList}>
+            {transactions.filter(t => t.status !== 'paid' && t.status !== 'written_off').length === 0 ? (
+              <div className={styles.emptyState}>No outstanding receivables</div>
+            ) : (
+              transactions
+                .filter(t => t.status !== 'paid' && t.status !== 'written_off')
+                .map(transaction => (
+                  <div key={transaction.id} className={styles.transactionItem}>
+                    <div className={styles.transactionMain}>
+                      <div className={styles.transactionCustomer}>{transaction.customerName}</div>
+                      <div className={styles.transactionAmount}>{formatMoney(transaction.remainingAmount)}</div>
+                    </div>
+                    <div className={styles.transactionDetails}>
+                      <span className={styles.transactionDate}>
+                        Due: {transaction.dueDate.toLocaleDateString()}
+                        {isOverdue(transaction) && <span className={styles.overdueBadge}>OVERDUE</span>}
+                      </span>
+                      <span className={styles.transactionStatus} style={{ color: getStatusColor(transaction.status) }}>
+                        {transaction.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className={styles.transactionActions}>
+                      <Button size="xs" variant="ghost" onClick={() => { setSelectedTransaction(transaction); setShowRecordPayment(true); }}>
+                        Record Payment
+                      </Button>
+                      <Button size="xs" variant="ghost" onClick={() => handleSendReminder(transaction)}>
+                        Remind
+                      </Button>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </Card>
+      )}
+
+      {selectedTab === 'payables' && (
+        <Card>
+          <CardHeader>
+            <CardIcon bg="var(--purple-lt)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2} width={20} height={20}>
+                <path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>
+              </svg>
+            </CardIcon>
+            Supplier Payables
+          </CardHeader>
+          <div className={styles.transactionList}>
+            {suppliers.filter(s => s.currentBalance > 0).length === 0 ? (
+              <div className={styles.emptyState}>No outstanding payables</div>
+            ) : (
+              suppliers
+                .filter(s => s.currentBalance > 0)
+                .map(supplier => {
+                  const daysUntilDue = getDaysUntilDue(supplier);
+                  const isOverdue = daysUntilDue < 0;
+                  return (
+                    <div key={supplier.id} className={styles.transactionItem}>
+                      <div className={styles.transactionMain}>
+                        <div className={styles.transactionCustomer}>{supplier.businessName}</div>
+                        <div className={styles.transactionAmount}>{formatMoney(supplier.currentBalance)}</div>
+                      </div>
+                      <div className={styles.transactionDetails}>
+                        <span className={styles.transactionDate}>
+                          {isOverdue ? `Overdue by ${Math.abs(daysUntilDue)} days` : `Due in ${daysUntilDue} days`}
+                          {isOverdue && <span className={styles.overdueBadge}>OVERDUE</span>}
+                        </span>
+                        <span className={styles.transactionStatus} style={{ color: isOverdue ? 'var(--red)' : 'var(--amber)' }}>
+                          {supplier.paymentTerms.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className={styles.transactionMeta}>
+                        <span className={styles.transactionMetaLabel}>Credit Limit:</span>
+                        <span className={styles.transactionMetaValue}>{formatMoney(supplier.creditLimit)}</span>
+                        <span className={styles.transactionMetaLabel} style={{ marginLeft: '16px' }}>Utilization:</span>
+                        <span className={styles.transactionMetaValue}>{supplier.creditUtilization.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  );
+                })
             )}
           </div>
         </Card>

@@ -31,6 +31,17 @@
   margin-bottom: 24px;
 }
 
+.summarySection {
+  margin-bottom: 32px;
+}
+
+.summarySectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 16px 0;
+}
+
 .summaryValue {
   font-size: 28px;
   font-weight: 700;
@@ -553,4 +564,60 @@
   background: var(--blue-bg);
   color: var(--blue);
   font-weight: 600;
+}
+
+.netCreditSummary {
+  padding: 20px;
+  background: var(--bg-2);
+  border-radius: 8px;
+}
+
+.netCreditItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.netCreditItem:last-child {
+  padding-bottom: 0;
+}
+
+.netCreditLabel {
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+.netCreditValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.netCreditMain {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.netCreditDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 0;
+}
+
+.transactionMeta {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.transactionMetaLabel {
+  font-weight: 500;
+}
+
+.transactionMetaValue {
+  font-weight: 600;
+  color: var(--text-2);
 }

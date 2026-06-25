@@ -430,3 +430,294 @@ export interface CreditSummary {
   paidThisMonth: number;
   averageCollectionDays: number;
 }
+
+// ── Supplier Management (First-Class Entities) ─────────────────────────────
+export type SupplierStatus = 'active' | 'inactive' | 'blocked';
+export type PaymentTerms = 'cash' | 'net_7' | 'net_14' | 'net_30' | 'net_60' | 'net_90' | 'custom';
+export type SupplierCategory = 'general' | 'food' | 'beverages' | 'dairy' | 'pharmaceutical' | 'cosmetics' | 'electronics' | 'clothing' | 'raw_materials' | 'equipment' | 'services' | 'other';
+
+export interface Supplier {
+  id: string;
+  businessId: string;
+  supplierName: string;
+  businessName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  paymentTerms: PaymentTerms;
+  customPaymentDays?: number; // For custom payment terms
+  creditLimit: number;
+  openingBalance: number;
+  currentBalance: number;
+  category: SupplierCategory;
+  status: SupplierStatus;
+  taxId?: string;
+  bankAccount?: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  };
+  contactPerson?: {
+    name: string;
+    phone: string;
+    email?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+  lastPurchaseDate?: Date;
+  lastPaymentDate?: Date;
+  totalPurchases: number;
+  totalPayments: number;
+  purchaseCount: number;
+  paymentCount: number;
+  averagePaymentDays: number;
+  creditUtilization: number; // percentage of credit limit used
+}
+
+export interface SupplierLedgerTransaction {
+  id: string;
+  supplierId: string;
+  businessId: string;
+  type: 'purchase' | 'payment' | 'credit_note' | 'balance_adjustment' | 'opening_balance';
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  reference?: string; // Purchase order ID, receipt ID, etc.
+  date: Date;
+  createdAt: Date;
+  createdBy: string;
+  createdByName: string;
+  metadata?: {
+    purchaseOrderId?: string;
+    stockReceiptId?: string;
+    paymentMethod?: 'cash' | 'transfer' | 'pos' | 'card';
+    bankReference?: string;
+    reason?: string; // For adjustments
+  };
+}
+
+export interface PurchaseOrder {
+  id: string;
+  businessId: string;
+  supplierId: string;
+  supplierName: string;
+  orderNumber: string;
+  status: 'draft' | 'pending' | 'approved' | 'partial' | 'received' | 'cancelled';
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unit: string;
+    unitCost: number;
+    totalCost: number;
+  }>;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  total: number;
+  expectedDeliveryDate?: Date;
+  actualDeliveryDate?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  createdByName: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  receivedBy?: string;
+  receivedAt?: Date;
+}
+
+export interface StockReceipt {
+  id: string;
+  businessId: string;
+  supplierId: string;
+  supplierName: string;
+  purchaseOrderId?: string;
+  receiptNumber: string;
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    unit: string;
+    unitCost: number;
+    totalCost: number;
+    batchNumber?: string;
+    expiryDate?: Date;
+    location?: string;
+  }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  receivedDate: Date;
+  notes?: string;
+  receivedBy: string;
+  receivedByName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SupplierPayment {
+  id: string;
+  businessId: string;
+  supplierId: string;
+  supplierName: string;
+  amount: number;
+  paymentMethod: 'cash' | 'transfer' | 'pos' | 'card';
+  paymentDate: Date;
+  reference?: string;
+  bankReference?: string;
+  notes?: string;
+  paidBy: string;
+  paidByName: string;
+  createdAt: Date;
+  relatedPurchaseOrders?: string[]; // IDs of purchase orders this payment covers
+  relatedStockReceipts?: string[]; // IDs of stock receipts this payment covers
+}
+
+export interface SupplierDashboard {
+  totalSuppliers: number;
+  activeSuppliers: number;
+  totalOutstandingPayables: number;
+  dueThisWeek: number;
+  dueThisMonth: number;
+  overduePayables: number;
+  topSupplierBySpend: {
+    supplierId: string;
+    supplierName: string;
+    totalSpend: number;
+  } | null;
+  monthlyPurchaseVolume: number;
+  supplierCreditUtilization: number; // Average across all suppliers
+  supplierPaymentTrend: {
+    month: string;
+    payments: number;
+    purchases: number;
+  }[];
+}
+
+export interface SupplierProfile {
+  supplier: Supplier;
+  purchaseHistory: {
+    totalPurchases: number;
+    purchaseCount: number;
+    averagePurchaseValue: number;
+    lastPurchaseDate?: Date;
+    purchasesByMonth: Array<{
+      month: string;
+      amount: number;
+      count: number;
+    }>;
+    productsSupplied: Array<{
+      productName: string;
+      totalQuantity: number;
+      totalAmount: number;
+      lastSupplied: Date;
+    }>;
+  };
+  financials: {
+    totalPurchases: number;
+    totalPayments: number;
+    currentBalance: number;
+    creditLimit: number;
+    creditUtilization: number;
+    averagePaymentDays: number;
+    paymentHistory: Array<{
+      month: string;
+      amount: number;
+      daysToPay: number;
+    }>;
+  };
+  ledger: SupplierLedgerTransaction[];
+  analytics: {
+    priceChanges: Array<{
+      productName: string;
+      oldPrice: number;
+      newPrice: number;
+      changePercent: number;
+      date: Date;
+    }>;
+    supplierDependency: number; // Percentage of total purchases
+    purchaseFrequency: number; // Average days between purchases
+    deliveryReliability: number; // Percentage of on-time deliveries
+  };
+}
+
+// ── Credit Tracking (Extended for Payables) ────────────────────────────────
+export interface PayableSummary {
+  totalOutstanding: number;
+  overdueAmount: number;
+  dueThisWeek: number;
+  dueThisMonth: number;
+  totalSuppliers: number;
+  activePayables: number;
+  paidThisMonth: number;
+  averagePaymentDays: number;
+}
+
+export interface CreditTrackingSummary {
+  receivables: CreditSummary;
+  payables: PayableSummary;
+  netCreditPosition: number; // receivables - payables
+  totalCreditExposure: number; // receivables + payables
+}
+
+// ── Purchase Intelligence ─────────────────────────────────────────────────
+export interface PurchaseIntelligence {
+  totalSpendBySupplier: Array<{
+    supplierId: string;
+    supplierName: string;
+    totalSpend: number;
+    purchaseCount: number;
+    percentageOfTotal: number;
+  }>;
+  purchaseTrends: Array<{
+    month: string;
+    totalPurchases: number;
+    supplierCount: number;
+    averageOrderValue: number;
+  }>;
+  supplierPriceChanges: Array<{
+    supplierId: string;
+    supplierName: string;
+    productName: string;
+    oldPrice: number;
+    newPrice: number;
+    changePercent: number;
+    date: Date;
+  }>;
+  supplierDependency: Array<{
+    supplierId: string;
+    supplierName: string;
+    dependencyScore: number; // 0-100
+    riskLevel: 'low' | 'medium' | 'high';
+    productsCount: number;
+    percentageOfPurchases: number;
+  }>;
+  productSourcing: Array<{
+    productId: string;
+    productName: string;
+    primarySupplier: string;
+    alternativeSuppliers: string[];
+    lastPurchaseDate: Date;
+    averageCost: number;
+    costTrend: 'increasing' | 'decreasing' | 'stable';
+  }>;
+}
+
+// ── Category-Specific Supplier Features ───────────────────────────────────
+export type BusinessCategory = 'retail' | 'wholesale' | 'restaurant' | 'pharmacy' | 'fashion' | 'manufacturing' | 'services' | 'supermarket' | 'cafe' | 'distributor' | 'grocery' | 'electronics';
+
+export interface CategorySupplierFeatures {
+  category: BusinessCategory;
+  enabledFeatures: string[];
+  customFields: Array<{
+    name: string;
+    type: 'text' | 'number' | 'date' | 'select';
+    required: boolean;
+    options?: string[];
+  }>;
+  analytics: string[];
+  insights: string[];
+}

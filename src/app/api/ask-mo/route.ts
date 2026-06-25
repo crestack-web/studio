@@ -139,6 +139,25 @@ async function getBusinessContext(businessId: string) {
       outOfStockCount: 0,
       totalExpenses: 0,
       staffCount: 0,
+      // Additional comprehensive data
+      totalInventoryValue: 0,
+      pendingCollections: 0,
+      suppliersCount: 0,
+      totalSpentOnSuppliers: 0,
+      stockReceiptsCount: 0,
+      stockTransfersCount: 0,
+      supplierCreditBalance: 0,
+      customerCreditBalance: 0,
+      pendingCreditPayments: 0,
+      totalBankBalance: 0,
+      bankAccountsCount: 0,
+      recentBankTransactions: 0,
+      totalStaffActions: 0,
+      staffSalesCount: 0,
+      staffRevenue: 0,
+      totalMoneyIn: 0,
+      totalMoneyOut: 0,
+      netCashFlow: 0,
     };
 
     // Fetch business profile
@@ -184,15 +203,20 @@ async function getBusinessContext(businessId: string) {
       .get();
 
     context.totalProducts = productsSnapshot.size;
-    
+
+    let totalInventoryValue = 0;
     productsSnapshot.forEach(doc => {
       const data = doc.data();
       const stock = data.stock || 0;
+      const price = data.price || data.costPrice || 0;
       const threshold = data.lowStockThreshold || 10;
-      
+
+      totalInventoryValue += stock * price;
+
       if (stock === 0) context.outOfStockCount++;
       else if (stock <= threshold) context.lowStockCount++;
     });
+    context.totalInventoryValue = totalInventoryValue;
 
     // Fetch expenses
     const expensesSnapshot = await db.collection('businesses').doc(businessId).collection('expenses')
@@ -213,6 +237,158 @@ async function getBusinessContext(businessId: string) {
       .get();
 
     context.staffCount = staffSnapshot.size;
+
+    // Fetch pending collections (credit sales)
+    try {
+      const pendingSnapshot = await db.collection('businesses').doc(businessId).collection('pendingBillings')
+        .where('status', '==', 'pending')
+        .limit(100)
+        .get();
+      pendingSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.pendingCollections += data.amount || data.total || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching pending collections:', error);
+    }
+
+    // Fetch suppliers
+    try {
+      const suppliersSnapshot = await db.collection('businesses').doc(businessId).collection('suppliers')
+        .where('active', '==', true)
+        .limit(100)
+        .get();
+      context.suppliersCount = suppliersSnapshot.size;
+      suppliersSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.totalSpentOnSuppliers += data.totalAmountSpent || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+
+    // Fetch stock receipts
+    try {
+      const receiptsSnapshot = await db.collection('businesses').doc(businessId).collection('stockReceipts')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .limit(100)
+        .get();
+      context.stockReceiptsCount = receiptsSnapshot.size;
+    } catch (error) {
+      console.error('Error fetching stock receipts:', error);
+    }
+
+    // Fetch stock transfers
+    try {
+      const transfersSnapshot = await db.collection('businesses').doc(businessId).collection('stockTransfers')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .limit(100)
+        .get();
+      context.stockTransfersCount = transfersSnapshot.size;
+    } catch (error) {
+      console.error('Error fetching stock transfers:', error);
+    }
+
+    // Fetch supplier credit
+    try {
+      const supplierCreditSnapshot = await db.collection('businesses').doc(businessId).collection('supplier_credit')
+        .where('status', '==', 'active')
+        .limit(100)
+        .get();
+      supplierCreditSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.supplierCreditBalance += data.outstandingBalance || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching supplier credit:', error);
+    }
+
+    // Fetch customer credit
+    try {
+      const customerCreditSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
+        .limit(100)
+        .get();
+      customerCreditSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.customerCreditBalance += data.currentBalance || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching customer credit:', error);
+    }
+
+    // Fetch pending credit payments
+    try {
+      const creditTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('credit_transactions')
+        .where('status', '==', 'pending')
+        .limit(100)
+        .get();
+      creditTransactionsSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.pendingCreditPayments += data.remainingAmount || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching credit transactions:', error);
+    }
+
+    // Fetch bank accounts
+    try {
+      const bankAccountsSnapshot = await db.collection('businesses').doc(businessId).collection('bankAccounts')
+        .where('isActive', '==', true)
+        .limit(50)
+        .get();
+      context.bankAccountsCount = bankAccountsSnapshot.size;
+      bankAccountsSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.totalBankBalance += data.currentBalance || 0;
+      });
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error);
+    }
+
+    // Fetch bank transactions
+    try {
+      const bankTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('bankTransactions')
+        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .limit(100)
+        .get();
+      context.recentBankTransactions = bankTransactionsSnapshot.size;
+    } catch (error) {
+      console.error('Error fetching bank transactions:', error);
+    }
+
+    // Fetch staff activity
+    try {
+      const staffActivitySnapshot = await db.collection('businesses').doc(businessId).collection('staffActivity')
+        .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .limit(100)
+        .get();
+      context.totalStaffActions = staffActivitySnapshot.size;
+      staffActivitySnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.action === 'sale') {
+          context.staffSalesCount++;
+          context.staffRevenue += data.amount || 0;
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching staff activity:', error);
+    }
+
+    // Fetch cash flow
+    try {
+      const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
+        .where('date', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
+        .limit(100)
+        .get();
+      cashFlowSnapshot.forEach(doc => {
+        const data = doc.data();
+        context.totalMoneyIn += data.moneyIn || 0;
+        context.totalMoneyOut += data.moneyOut || 0;
+      });
+      context.netCashFlow = context.totalMoneyIn - context.totalMoneyOut;
+    } catch (error) {
+      console.error('Error fetching cash flow:', error);
+    }
 
     return context;
   } catch (error) {
@@ -268,11 +444,36 @@ ${getCategorySpecificAdvice(businessCategory)}
 
 📦 INVENTORY STATUS:
 • Total Products: ${businessContext.totalProducts || 0}
+• Total Inventory Value: ₦${(businessContext.totalInventoryValue || 0).toLocaleString()}
 • ⚠️ OUT OF STOCK: ${businessContext.outOfStockCount || 0} products
 • 🔴 LOW STOCK: ${businessContext.lowStockCount || 0} products
 
 💵 EXPENSES:
 • Total Expenses (30 days): ₦${(businessContext.totalExpenses || 0).toLocaleString()}
+
+🏦 BANKING & CASH FLOW:
+• Total Bank Balance: ₦${(businessContext.totalBankBalance || 0).toLocaleString()}
+• Bank Accounts: ${businessContext.bankAccountsCount || 0}
+• Recent Transactions (30 days): ${businessContext.recentBankTransactions || 0}
+• Money In (30 days): ₦${(businessContext.totalMoneyIn || 0).toLocaleString()}
+• Money Out (30 days): ₦${(businessContext.totalMoneyOut || 0).toLocaleString()}
+• Net Cash Flow: ₦${(businessContext.netCashFlow || 0).toLocaleString()}
+
+👥 STAFF PERFORMANCE:
+• Staff Count: ${businessContext.staffCount || 0}
+• Staff Sales (30 days): ${businessContext.staffSalesCount || 0}
+• Staff Revenue: ₦${(businessContext.staffRevenue || 0).toLocaleString()}
+• Total Staff Actions: ${businessContext.totalStaffActions || 0}
+
+🤝 SUPPLIERS & CREDIT:
+• Active Suppliers: ${businessContext.suppliersCount || 0}
+• Total Spent on Suppliers: ₦${(businessContext.totalSpentOnSuppliers || 0).toLocaleString()}
+• Stock Receipts (30 days): ${businessContext.stockReceiptsCount || 0}
+• Stock Transfers (30 days): ${businessContext.stockTransfersCount || 0}
+• Supplier Credit Balance: ₦${(businessContext.supplierCreditBalance || 0).toLocaleString()}
+• Customer Credit Balance: ₦${(businessContext.customerCreditBalance || 0).toLocaleString()}
+• Pending Credit Payments: ₦${(businessContext.pendingCreditPayments || 0).toLocaleString()}
+• Pending Collections: ₦${(businessContext.pendingCollections || 0).toLocaleString()}
 
 ═══════════════════════════════════════════
 
