@@ -7,7 +7,7 @@ import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
-import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings } from 'lucide-react';
+import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings, Trash2 } from 'lucide-react';
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
@@ -1016,7 +1016,7 @@ export function MobileAskMOPage() {
                         deleteConversation(conv.id);
                       }}
                     >
-                      🗑
+                      <Trash2 size={16} />
                     </button>
                   </button>
                 ))

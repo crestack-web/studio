@@ -380,9 +380,9 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         console.log('🎯 Action detected:', data.action);
         const action = data.action;
         const actionText = action.action === 'record_sale' 
-          ? `Record sale: ${action.data.quantity}x ${action.data.productName} at ₦${action.data.price}`
+          ? `Record sale: ${action.data.quantity}x ${action.data.productName}\nPrice: ₦${action.data.price}\nCost: ₦${action.data.costPrice || 'Auto'}\nProfit: ₦${((action.data.price - (action.data.costPrice || 0)) * action.data.quantity).toLocaleString()}`
           : action.action === 'add_product'
-          ? `Add product: ${action.data.name} (₦${action.data.price}, stock: ${action.data.stock})`
+          ? `Add product: ${action.data.name}\nPrice: ₦${action.data.price}\nCost: ₦${action.data.costPrice || 0}\nStock: ${action.data.stock}`
           : `Unknown action: ${action.action}`;
 
         if (confirm(`MO wants to perform this action:\n\n${actionText}\n\nDo you want to proceed?`)) {

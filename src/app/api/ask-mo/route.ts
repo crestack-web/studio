@@ -126,21 +126,49 @@ async function executeAction(action: any, businessId: string, userId: string): P
 
     if (action.action === 'record_sale') {
       const data = action.data;
+      
+      // Try to fetch product cost price from Firestore if not provided
+      let costPrice = parseFloat(data.costPrice) || 0;
+      if (costPrice === 0) {
+        try {
+          const productQuery = await db.collection('businesses').doc(businessId).collection('products')
+            .where('name', '==', data.productName)
+            .where('active', '==', true)
+            .limit(1)
+            .get();
+          
+          if (!productQuery.empty) {
+            const productDoc = productQuery.docs[0];
+            const productData = productDoc.data();
+            costPrice = parseFloat(productData.cost) || 0;
+            console.log('📦 [Ask MO API] Fetched cost price from product:', costPrice);
+          }
+        } catch (error) {
+          console.error('Error fetching product cost price:', error);
+        }
+      }
+
+      const quantity = parseInt(data.quantity) || 1;
+      const price = parseFloat(data.price) || 0;
+      const totalRevenue = price * quantity;
+      const totalCost = costPrice * quantity;
+      const profit = totalRevenue - totalCost;
+
       const saleData = {
         products: [{
           productId: 'temp-id',
           name: data.productName,
-          price: parseFloat(data.price) || 0,
-          costPrice: 0,
-          quantity: parseInt(data.quantity) || 1,
+          price: price,
+          costPrice: costPrice,
+          quantity: quantity,
           emoji: '📦',
         }],
-        totalRevenue: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
-        totalCost: 0,
-        profit: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
-        paymentBreakdown: [{ method: 'cash', amount: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1) }],
+        totalRevenue: totalRevenue,
+        totalCost: totalCost,
+        profit: profit,
+        paymentBreakdown: [{ method: 'cash', amount: totalRevenue }],
         paymentMethod: 'cash',
-        expectedCash: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
+        expectedCash: totalRevenue,
         expectedBank: 0,
         note: `Recorded via MO AI`,
         businessId: businessId,
@@ -157,7 +185,7 @@ async function executeAction(action: any, businessId: string, userId: string): P
       };
 
       const docRef = await db.collection('businesses').doc(businessId).collection('sales').add(saleData);
-      return { success: true, message: `Sale recorded successfully for ${data.quantity}x ${data.productName}`, data: { saleId: docRef.id } };
+      return { success: true, message: `Sale recorded successfully for ${quantity}x ${data.productName} (Profit: ₦${profit.toLocaleString()})`, data: { saleId: docRef.id, profit } };
     }
 
     return { success: false, message: 'Unknown action type', data: null };
@@ -385,7 +413,7 @@ async function getBusinessContext(businessId: string) {
       context.businessCategory = data.category || 'General Retail';
     }
 
-    // Fetch sales (last 30 days)
+    // Fetch sales (last 30 days) with detailed data
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -395,12 +423,15 @@ async function getBusinessContext(businessId: string) {
     const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
       .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
       .orderBy('createdAt', 'desc')
-      .limit(100)
+      .limit(200)
       .get();
+
+    context.sales = []; // Store detailed sales data
+    const productSalesMap = new Map<string, { quantity: number; revenue: number; profit: number }>();
 
     salesSnapshot.forEach(doc => {
       const data = doc.data();
-      const total = data.total || 0;
+      const total = data.totalRevenue || data.total || 0;
       const profit = data.profit || 0;
       const saleDate = data.createdAt?.toDate() || new Date();
       
@@ -411,27 +442,88 @@ async function getBusinessContext(businessId: string) {
         context.todaySales += total;
         context.todayProfit += profit;
       }
+
+      // Add detailed sales data
+      context.sales.push({
+        id: doc.id,
+        totalRevenue: total,
+        profit: profit,
+        paymentMethod: data.paymentMethod || 'cash',
+        products: data.products || [],
+        createdAt: saleDate,
+        recordedBy: data.recordedBy?.displayName || 'Unknown',
+      });
+
+      // Track product sales for best-selling analysis
+      if (data.products && Array.isArray(data.products)) {
+        data.products.forEach((product: any) => {
+          const productName = product.name || 'Unknown';
+          const quantity = product.quantity || 0;
+          const productRevenue = product.price * quantity;
+          const productCost = (product.costPrice || 0) * quantity;
+          const productProfit = productRevenue - productCost;
+
+          if (!productSalesMap.has(productName)) {
+            productSalesMap.set(productName, { quantity: 0, revenue: 0, profit: 0 });
+          }
+          const stats = productSalesMap.get(productName)!;
+          stats.quantity += quantity;
+          stats.revenue += productRevenue;
+          stats.profit += productProfit;
+        });
+      }
     });
 
-    // Fetch products
+    // Calculate best-selling products
+    context.bestSellingProducts = Array.from(productSalesMap.entries())
+      .map(([name, stats]) => ({
+        name,
+        quantitySold: stats.quantity,
+        totalRevenue: stats.revenue,
+        totalProfit: stats.profit,
+      }))
+      .sort((a, b) => b.quantitySold - a.quantitySold)
+      .slice(0, 10); // Top 10 best-selling products
+
+    // Fetch products with detailed data
     const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
       .where('active', '==', true)
       .limit(200)
       .get();
 
     context.totalProducts = productsSnapshot.size;
+    context.products = []; // Store detailed product data
 
     let totalInventoryValue = 0;
     productsSnapshot.forEach(doc => {
       const data = doc.data();
       const stock = data.stock || 0;
-      const price = data.price || data.costPrice || 0;
+      const costPrice = data.cost || data.costPrice || 0; // Use cost price for inventory value
+      const sellingPrice = data.price || 0;
       const threshold = data.lowStockThreshold || 10;
 
-      totalInventoryValue += stock * price;
+      totalInventoryValue += stock * costPrice;
 
       if (stock === 0) context.outOfStockCount++;
       else if (stock <= threshold) context.lowStockCount++;
+
+      // Add detailed product data to context
+      context.products.push({
+        id: doc.id,
+        name: data.name || 'Unknown',
+        sku: data.attributes?.sku || data.sku || null,
+        stock: stock,
+        unit: data.unit || 'pcs',
+        costPrice: costPrice,
+        sellingPrice: sellingPrice,
+        stockValue: stock * costPrice,
+        category: data.category || 'General',
+        supplier: data.supplier || null,
+        reorderLevel: data.reorderLevel || threshold,
+        lowStockThreshold: threshold,
+        isLowStock: stock > 0 && stock <= threshold,
+        isOutOfStock: stock === 0,
+      });
     });
     context.totalInventoryValue = totalInventoryValue;
 
@@ -668,12 +760,20 @@ ${getCategorySpecificAdvice(businessCategory)}
 • Today's Sales: ₦${(businessContext.todaySales || 0).toLocaleString()}
 • Total Profit: ₦${(businessContext.totalProfit || 0).toLocaleString()}
 • Today's Profit: ₦${(businessContext.todayProfit || 0).toLocaleString()}
+${businessContext.bestSellingProducts && businessContext.bestSellingProducts.length > 0 ? `
+• Best-Selling Products (Top 5):
+${businessContext.bestSellingProducts.slice(0, 5).map((p: any, i: number) => `  ${i + 1}. ${p.name}: ${p.quantitySold} sold (₦${p.totalRevenue.toLocaleString()})`).join('\n')}` : ''}
 
 📦 INVENTORY STATUS:
 • Total Products: ${businessContext.totalProducts || 0}
-• Total Inventory Value: ₦${(businessContext.totalInventoryValue || 0).toLocaleString()}
+• Total Inventory Value: ₦${(businessContext.totalInventoryValue || 0).toLocaleString()} (calculated using cost price)
 • ⚠️ OUT OF STOCK: ${businessContext.outOfStockCount || 0} products
 • 🔴 LOW STOCK: ${businessContext.lowStockCount || 0} products
+${businessContext.products && businessContext.products.length > 0 ? `
+• Low Stock Items:
+${businessContext.products.filter((p: any) => p.isLowStock).slice(0, 10).map((p: any) => `  - ${p.name}: ${p.stock} ${p.unit} (threshold: ${p.lowStockThreshold})`).join('\n') || '  None'}
+• Out of Stock Items:
+${businessContext.products.filter((p: any) => p.isOutOfStock).slice(0, 10).map((p: any) => `  - ${p.name}`).join('\n') || '  None'}` : ''}
 
 💵 EXPENSES:
 • Total Expenses (30 days): ₦${(businessContext.totalExpenses || 0).toLocaleString()}
@@ -728,16 +828,17 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 9. ADAPT TONE — match user's formality (formal vs casual)
 10. MAINTAIN CHARACTER — never break your role as MO
 11. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely
+12. USE LIVE DATA — Always use the actual product and sales data provided in the context above. Never estimate or guess inventory values, stock levels, or sales figures. The context contains real-time data from your business.
 
 🛠️ ACTION CAPABILITIES:
 You can perform business operations when requested:
 
 RECORDING SALES:
-- When user wants to record a sale, extract: product name, quantity, price/amount
+- When user wants to record a sale, extract: product name, quantity, price/amount, cost price
 - If any required field is missing, ASK the user for it before providing the action JSON
-- Required fields: productName, quantity, price (or amount)
+- Required fields: productName, quantity, price (or amount), costPrice
 - Return structured JSON in your response for sale recording:
-  {"action": "record_sale", "data": {"productName": "...", "quantity": 1, "amount": 0, "price": 0}}
+  {"action": "record_sale", "data": {"productName": "...", "quantity": 1, "amount": 0, "price": 0, "costPrice": 0}}
 - If user sends an image of a product/receipt, analyze it to extract sale details
 - If information is incomplete from image, ask user to provide missing details
 

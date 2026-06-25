@@ -154,10 +154,15 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
           setConversations(loadedConversations);
 
-          // Start with empty state - no auto-loading of conversations
-          // Users can select a conversation from history to continue it
-          setMessages([]);
-          setCurrentConversationId(null);
+          // Auto-load the most recent conversation if available
+          if (loadedConversations.length > 0) {
+            const mostRecent = loadedConversations[0];
+            setMessages(mostRecent.messages || []);
+            setCurrentConversationId(mostRecent.id);
+          } else {
+            setMessages([]);
+            setCurrentConversationId(null);
+          }
         } catch (error) {
           console.error('Error loading conversations:', error);
         }
@@ -624,9 +629,17 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     
     const firstUserMessage = messages.find(m => m.role === 'user');
     if (firstUserMessage) {
-      const content = firstUserMessage.content;
-      const words = content.split(' ').slice(0, 5).join(' ');
-      return words.length > 30 ? words.substring(0, 30) + '...' : words;
+      const content = firstUserMessage.content.trim();
+      // Remove common greetings and get the main request
+      const cleanedContent = content
+        .replace(/^(hi|hello|hey|good morning|good afternoon|good evening|mo|hey mo)\s*,?\s*/i, '')
+        .replace(/^(please|can you|could you|i want|i need|i would like)\s+/i, '')
+        .replace(/[?!.,;]+$/, '')
+        .trim();
+      
+      // Take first 6-8 words for title
+      const words = cleanedContent.split(' ').slice(0, 8).join(' ');
+      return words.length > 40 ? words.substring(0, 40) + '...' : words || 'New Conversation';
     }
 
     return 'Conversation';

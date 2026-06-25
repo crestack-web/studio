@@ -6,9 +6,9 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
-import { Supplier, SupplierStatus, PaymentTerms, SupplierCategory } from './types';
+import { Supplier, SupplierStatus, PaymentTerms, SupplierCategory, BusinessCategory, CategorySupplierFeatures } from './types';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, addDoc, updateDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, addDoc, updateDoc, doc, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { Building2, Phone, Mail, MapPin, DollarSign, Calendar, Plus, Edit, Trash2, Search, Filter, AlertTriangle, TrendingUp, CreditCard, User } from 'lucide-react';
 import styles from './SupplierManagementPage.module.css';
 
@@ -24,6 +24,8 @@ export default function SupplierManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<SupplierStatus | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<SupplierCategory | 'all'>('all');
+  const [businessCategory, setBusinessCategory] = useState<BusinessCategory>('retail');
+  const [categoryFeatures, setCategoryFeatures] = useState<CategorySupplierFeatures | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -50,7 +52,159 @@ export default function SupplierManagementPage() {
 
   useEffect(() => {
     loadSuppliers();
+    loadBusinessCategory();
   }, [user?.businessId]);
+
+  const loadBusinessCategory = async () => {
+    try {
+      if (!user?.businessId) return;
+      
+      const { firestore } = initializeFirebase();
+      const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
+      
+      if (businessDoc.exists()) {
+        const data = businessDoc.data();
+        const category = data.category || 'retail';
+        setBusinessCategory(category);
+        
+        // Set category-specific features
+        const features = getCategoryFeatures(category);
+        setCategoryFeatures(features);
+      }
+    } catch (error) {
+      console.error('Failed to load business category:', error);
+      // Default to retail if loading fails
+      setBusinessCategory('retail');
+      setCategoryFeatures(getCategoryFeatures('retail'));
+    }
+  };
+
+  const getCategoryFeatures = (category: BusinessCategory): CategorySupplierFeatures => {
+    const featuresMap: Record<BusinessCategory, CategorySupplierFeatures> = {
+      retail: {
+        category: 'retail',
+        enabledFeatures: ['inventory_tracking', 'credit_management', 'multi_supplier'],
+        customFields: [
+          { name: 'minimum_order_quantity', type: 'number', required: false },
+          { name: 'lead_time_days', type: 'number', required: false },
+        ],
+        analytics: ['inventory_turnover', 'supplier_reliability', 'cost_analysis'],
+        insights: ['seasonal_demand', 'stock_optimization', 'supplier_comparison'],
+      },
+      wholesale: {
+        category: 'wholesale',
+        enabledFeatures: ['bulk_pricing', 'volume_discounts', 'credit_management'],
+        customFields: [
+          { name: 'bulk_discount_tiers', type: 'text', required: false },
+          { name: 'minimum_order_value', type: 'number', required: true },
+        ],
+        analytics: ['volume_trends', 'margin_analysis', 'supplier_performance'],
+        insights: ['bulk_optimization', 'price_negotiation', 'inventory_efficiency'],
+      },
+      restaurant: {
+        category: 'restaurant',
+        enabledFeatures: ['expiry_tracking', 'perishable_management', 'daily_delivery'],
+        customFields: [
+          { name: 'delivery_schedule', type: 'select', required: true, options: ['daily', 'weekly', 'bi-weekly'] },
+          { name: 'storage_requirements', type: 'text', required: false },
+        ],
+        analytics: ['food_cost_percentage', 'waste_tracking', 'supplier_timeliness'],
+        insights: ['menu_cost_optimization', 'seasonal_ingredients', 'supplier_reliability'],
+      },
+      pharmacy: {
+        category: 'pharmacy',
+        enabledFeatures: ['expiry_tracking', 'regulatory_compliance', 'batch_tracking'],
+        customFields: [
+          { name: 'license_number', type: 'text', required: true },
+          { name: 'regulatory_certifications', type: 'text', required: true },
+        ],
+        analytics: ['expiry_alerts', 'regulatory_compliance', 'supplier_certifications'],
+        insights: ['expiry_management', 'compliance_status', 'supplier_audit'],
+      },
+      fashion: {
+        category: 'fashion',
+        enabledFeatures: ['seasonal_collections', 'trend_tracking', 'sample_management'],
+        customFields: [
+          { name: 'season', type: 'select', required: true, options: ['spring', 'summer', 'fall', 'winter'] },
+          { name: 'collection_year', type: 'number', required: true },
+        ],
+        analytics: ['seasonal_sales', 'trend_performance', 'inventory_velocity'],
+        insights: ['trend_forecasting', 'collection_planning', 'supplier_trends'],
+      },
+      manufacturing: {
+        category: 'manufacturing',
+        enabledFeatures: ['raw_material_tracking', 'quality_control', 'production_planning'],
+        customFields: [
+          { name: 'material_specifications', type: 'text', required: true },
+          { name: 'quality_standards', type: 'text', required: true },
+        ],
+        analytics: ['material_efficiency', 'quality_metrics', 'production_costs'],
+        insights: ['cost_optimization', 'quality_improvement', 'supply_chain_efficiency'],
+      },
+      services: {
+        category: 'services',
+        enabledFeatures: ['service_level_tracking', 'contract_management', 'renewal_tracking'],
+        customFields: [
+          { name: 'service_level_agreement', type: 'text', required: true },
+          { name: 'contract_end_date', type: 'date', required: true },
+        ],
+        analytics: ['service_performance', 'contract_compliance', 'cost_per_service'],
+        insights: ['service_optimization', 'contract_negotiation', 'vendor_comparison'],
+      },
+      supermarket: {
+        category: 'supermarket',
+        enabledFeatures: ['multi_category', 'shelf_management', 'promotion_tracking'],
+        customFields: [
+          { name: 'product_categories', type: 'text', required: true },
+          { name: 'shelf_space_allocation', type: 'number', required: false },
+        ],
+        analytics: ['category_performance', 'shelf_efficiency', 'promotion_impact'],
+        insights: ['category_optimization', 'shelf_planning', 'promotion_strategy'],
+      },
+      cafe: {
+        category: 'cafe',
+        enabledFeatures: ['ingredient_tracking', 'recipe_management', 'daily_delivery'],
+        customFields: [
+          { name: 'delivery_frequency', type: 'select', required: true, options: ['daily', 'twice_weekly', 'weekly'] },
+          { name: 'quality_grade', type: 'select', required: false, options: ['premium', 'standard', 'economy'] },
+        ],
+        analytics: ['ingredient_costs', 'recipe_efficiency', 'supplier_consistency'],
+        insights: ['cost_optimization', 'quality_consistency', 'supplier_reliability'],
+      },
+      distributor: {
+        category: 'distributor',
+        enabledFeatures: ['logistics_tracking', 'warehouse_management', 'route_optimization'],
+        customFields: [
+          { name: 'delivery_zones', type: 'text', required: true },
+          { name: 'warehouse_location', type: 'text', required: true },
+        ],
+        analytics: ['delivery_efficiency', 'warehouse_utilization', 'route_performance'],
+        insights: ['logistics_optimization', 'warehouse_planning', 'route_efficiency'],
+      },
+      grocery: {
+        category: 'grocery',
+        enabledFeatures: ['expiry_tracking', 'perishable_management', 'bulk_purchasing'],
+        customFields: [
+          { name: 'storage_type', type: 'select', required: true, options: ['dry', 'refrigerated', 'frozen'] },
+          { name: 'shelf_life_days', type: 'number', required: true },
+        ],
+        analytics: ['waste_tracking', 'expiry_management', 'cost_per_unit'],
+        insights: ['waste_reduction', 'expiry_optimization', 'bulk_purchasing'],
+      },
+      electronics: {
+        category: 'electronics',
+        enabledFeatures: ['warranty_tracking', 'serial_number_tracking', 'technical_support'],
+        customFields: [
+          { name: 'warranty_period_months', type: 'number', required: true },
+          { name: 'technical_support_level', type: 'select', required: true, options: ['basic', 'standard', 'premium'] },
+        ],
+        analytics: ['warranty_claims', 'defect_rates', 'support_response_time'],
+        insights: ['quality_metrics', 'warranty_optimization', 'support_efficiency'],
+      },
+    };
+    
+    return featuresMap[category] || featuresMap.retail;
+  };
 
   const loadSuppliers = async () => {
     try {
