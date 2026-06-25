@@ -40,7 +40,10 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-pro-latest',
+      systemInstruction: systemPrompt
+    });
 
     // Generate response with retry mechanism
     const chat = model.startChat({
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest) {
         });
 
         result = await Promise.race([
-          chat.sendMessage(systemPrompt + '\n\n' + message),
+          chat.sendMessage(message),
           timeoutPromise
         ]) as any;
 
