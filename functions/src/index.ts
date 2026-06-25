@@ -10,6 +10,7 @@ const paystackSecretKeySecret = defineSecret('PAYSTACK_SECRET_KEY');
 // Initialize Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
+const auth = admin.auth();
 
 /**
  * Ask MO API - Firebase Function
@@ -705,3 +706,107 @@ export const paystackWebhook = functions.https.onRequest(
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/**
+ * Create Staff - Firebase Function
+ * Creates a new staff user with Firebase Auth and Firestore
+ */
+export const createStaff = functions.https.onRequest(
+  { region: 'us-central1', invoker: 'public' },
+  async (req, res) => {
+    // Set CORS headers for all responses
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    try {
+      console.log('🚀 [Create Staff Function] Request received');
+      const { email, password, name, role, staffId, businessId, permissions } = req.body;
+
+      console.log('📡 [Create Staff Function] Creating staff user:', { email, name, role, staffId, businessId });
+
+      // Validate required fields
+      if (!email || !password || !name || !role || !staffId || !businessId) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+      }
+
+      // Create user with Firebase Admin SDK
+      let userRecord;
+      let isNewUser = true;
+
+      try {
+        userRecord = await auth.createUser({
+          email: email.trim(),
+          password: password,
+          displayName: name.trim(),
+        });
+        console.log('✅ [Create Staff Function] User created successfully:', userRecord.uid);
+      } catch (error: any) {
+        // Check if user already exists
+        if (error.code === 'auth/email-already-exists') {
+          // Try to get existing user
+          try {
+            const existingUser = await auth.getUserByEmail(email.trim());
+            userRecord = existingUser;
+            isNewUser = false;
+            console.log('ℹ️ [Create Staff Function] User already exists, using existing:', userRecord.uid);
+          } catch (getUserError) {
+            console.error('❌ [Create Staff Function] Error getting existing user:', getUserError);
+            res.status(400).json({ error: 'Email already exists but could not retrieve user' });
+            return;
+          }
+        } else {
+          console.error('❌ [Create Staff Function] Error creating user:', error);
+          res.status(500).json({ error: error.message || 'Failed to create user' });
+          return;
+        }
+      }
+
+      // Create/update staff document in Firestore
+      const staffRef = db.collection('businesses').doc(businessId).collection('staff').doc(userRecord.uid);
+      await staffRef.set({
+        staffId,
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+        permissions: permissions || {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'active',
+      }, { merge: true });
+
+      // Create/update user document
+      const userRef = db.collection('users').doc(userRecord.uid);
+      await userRef.set({
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+        businessId,
+        permissions: permissions || {},
+        staffId,
+        status: 'active',
+      }, { merge: true });
+
+      console.log('✅ [Create Staff Function] Staff created successfully:', userRecord.uid);
+
+      res.json({
+        uid: userRecord.uid,
+        isNewUser,
+        email: userRecord.email,
+      });
+    } catch (error) {
+      console.error('❌ [Create Staff Function] Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);

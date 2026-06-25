@@ -167,7 +167,9 @@ export default function AddStaffPage() {
   };
 
   const permissionsByCategory = getPermissionsByCategory();
+  const recommendedRoles = getRecommendedRoles(businessType);
   const allRoles = Object.entries(ROLES).map(([id, config]) => ({ id, ...config }));
+  const filteredRoles = allRoles.filter(role => recommendedRoles.includes(role.id));
 
   return (
     <div className={styles.addStaffPage}>
@@ -210,7 +212,7 @@ export default function AddStaffPage() {
             }}
           >
             <option value="">Select a role</option>
-            {allRoles.map(r => (
+            {filteredRoles.map(r => (
               <option key={r.id} value={r.id}>{r.label}</option>
             ))}
           </select>

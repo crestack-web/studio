@@ -76,6 +76,10 @@
       {
         "source": "/api/sendOtpLogin",
         "function": "sendOtpLogin"
+      },
+      {
+        "source": "/api/staff/create",
+        "function": "createStaff"
       }
     ],
     "cleanUrls": true,
