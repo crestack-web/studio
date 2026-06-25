@@ -1,0 +1,406 @@
+.wrapper {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 8px 0 4px 0;
+}
+
+.pageDesc {
+  font-size: 14px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summaryValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 8px 0;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.outstanding {
+  color: var(--red);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+
+.tabActive {
+  background: var(--primary);
+  color: white;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.infoLabel {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.infoValue {
+  font-size: 14px;
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.notesContent {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.purchaseList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.purchaseItem {
+  padding: 16px;
+  background: var(--bg-1);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.purchaseHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.purchaseNumber {
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 14px;
+}
+
+.purchaseDate {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.purchaseDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.purchaseDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.purchaseLabel {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.purchaseValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.credit {
+  color: var(--red);
+}
+
+.purchaseItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.purchaseItemLine {
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--bg-2);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.financialGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.financialCard {
+  padding: 16px;
+  background: var(--bg-1);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.financialLabel {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+.financialValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.creditUtilizationSection {
+  padding: 20px;
+}
+
+.creditBar {
+  height: 12px;
+  background: var(--bg-3);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.creditFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.creditStats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.creditStat {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.ledgerList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ledgerItem {
+  padding: 12px;
+  background: var(--bg-1);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.ledgerMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ledgerType {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typeBadge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.typeBadge.purchase {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.typeBadge.payment {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.typeBadge.credit_note {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.typeBadge.adjustment {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.ledgerDescription {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.ledgerAmount {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ledgerAmount.payment {
+  color: var(--green);
+}
+
+.ledgerAmount.purchase {
+  color: var(--red);
+}
+
+.ledgerMeta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.ledgerDate {
+  font-weight: 500;
+}
+
+.ledgerReference {
+  font-family: monospace;
+}
+
+.ledgerBalance {
+  font-weight: 600;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 16px;
+  }
+  
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .purchaseDetails {
+    grid-template-columns: 1fr;
+  }
+  
+  .financialGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ledgerMain {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .ledgerMeta {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

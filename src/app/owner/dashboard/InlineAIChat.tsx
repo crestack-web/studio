@@ -378,9 +378,38 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       // Handle action data if present
       if (data.action) {
         console.log('🎯 Action detected:', data.action);
-        // TODO: Integrate with existing sale/product APIs
-        // For now, display the action to the user
-        showToast(`Action detected: ${data.action.action}`);
+        const action = data.action;
+        const actionText = action.action === 'record_sale' 
+          ? `Record sale: ${action.data.quantity}x ${action.data.productName} at ₦${action.data.price}`
+          : action.action === 'add_product'
+          ? `Add product: ${action.data.name} (₦${action.data.price}, stock: ${action.data.stock})`
+          : `Unknown action: ${action.action}`;
+
+        if (confirm(`MO wants to perform this action:\n\n${actionText}\n\nDo you want to proceed?`)) {
+          try {
+            const executeResponse = await fetch('/api/ask-mo', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: action,
+                businessId: user.businessId || user.id,
+                userId: user.id,
+              }),
+            });
+
+            const executeResult = await executeResponse.json();
+            if (executeResult.success) {
+              showToast(executeResult.message);
+            } else {
+              showToast(`Failed to execute action: ${executeResult.message}`);
+            }
+          } catch (error) {
+            console.error('Error executing action:', error);
+            showToast('Failed to execute action');
+          }
+        } else {
+          showToast('Action cancelled by user');
+        }
       }
 
       const botMsg: MOMessage = {

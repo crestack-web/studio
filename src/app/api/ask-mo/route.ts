@@ -3,6 +3,170 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
 
+/**
+ * Get category-specific advice for AI responses
+ */
+function getCategorySpecificAdvice(category: string): string {
+  const adviceMap: Record<string, string> = {
+    retail: 'Focus on inventory turnover, customer retention, and seasonal trends.',
+    restaurant: 'Focus on food cost management, table turnover, and menu optimization.',
+    grocery: 'Focus on expiry management, supplier relationships, and bulk purchasing.',
+    fashion: 'Focus on seasonal inventory, trend analysis, and customer preferences.',
+    electronics: 'Focus on warranty management, product lifecycle, and technical support.',
+    manufacturing: 'Focus on production efficiency, raw material costs, and quality control.',
+    services: 'Focus on appointment scheduling, customer satisfaction, and service delivery.',
+    pharmacy: 'Focus on expiry tracking, regulatory compliance, and health trends.',
+    supermarket: 'Focus on multi-category management, shelf space optimization, and supplier negotiations.',
+    cafe: 'Focus on ingredient costs, peak hour management, and customer experience.',
+    wholesale: 'Focus on bulk pricing, distributor relationships, and volume discounts.',
+    distributor: 'Focus on supply chain efficiency, logistics, and retailer relationships.',
+  };
+  
+  return adviceMap[category.toLowerCase()] || adviceMap.retail;
+}
+
+/**
+ * Detect user's conversation style from history
+ */
+function detectConversationStyle(conversationHistory: any[]): { style: string; tone: string; length: string } {
+  if (conversationHistory.length === 0) {
+    return { style: 'balanced', tone: 'professional', length: 'medium' };
+  }
+
+  const userMessages = conversationHistory.filter((msg: any) => msg.role === 'user');
+  if (userMessages.length === 0) {
+    return { style: 'balanced', tone: 'professional', length: 'medium' };
+  }
+
+  const recentMessages = userMessages.slice(-5);
+  let totalWords = 0;
+  let formalCount = 0;
+  let casualCount = 0;
+  let shortCount = 0;
+  let longCount = 0;
+
+  recentMessages.forEach((msg: any) => {
+    const content = msg.content || '';
+    const words = content.split(/\s+/).length;
+    totalWords += words;
+
+    // Detect formality
+    if (/\b(please|kindly|would|could|may|regarding|concerning|appreciate)\b/i.test(content)) {
+      formalCount++;
+    }
+    if (/\b(hey|hi|yo|what's up|gonna|wanna|gotta|cool|awesome)\b/i.test(content)) {
+      casualCount++;
+    }
+
+    // Detect length preference
+    if (words < 10) shortCount++;
+    if (words > 30) longCount++;
+  });
+
+  const avgWords = totalWords / recentMessages.length;
+  
+  let style = 'balanced';
+  let tone = 'professional';
+  let length = 'medium';
+
+  if (formalCount > casualCount) {
+    tone = 'formal';
+  } else if (casualCount > formalCount) {
+    tone = 'casual';
+  }
+
+  if (avgWords < 15) {
+    length = 'short';
+    style = 'concise';
+  } else if (avgWords > 25) {
+    length = 'detailed';
+    style = 'detailed';
+  }
+
+  if (shortCount > longCount) {
+    length = 'short';
+    style = 'concise';
+  } else if (longCount > shortCount) {
+    length = 'detailed';
+    style = 'detailed';
+  }
+
+  return { style, tone, length };
+}
+
+/**
+ * Execute action (create product or record sale)
+ */
+async function executeAction(action: any, businessId: string, userId: string): Promise<{ success: boolean; message: string; data: any }> {
+  const db = getAdminDb();
+  
+  try {
+    if (action.action === 'add_product') {
+      const data = action.data;
+      const productData = {
+        name: data.name,
+        description: data.description || '',
+        category: data.category,
+        price: parseFloat(data.price) || 0,
+        cost: parseFloat(data.costPrice) || 0,
+        stock: parseInt(data.stock) || 0,
+        lowStockThreshold: parseInt(data.lowStockThreshold) || 5,
+        active: true,
+        attributes: {
+          emoji: '📦',
+          sku: `SKU-${Date.now()}`,
+        },
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      };
+
+      const docRef = await db.collection('businesses').doc(businessId).collection('products').add(productData);
+      return { success: true, message: `Product "${data.name}" added successfully`, data: { productId: docRef.id } };
+    }
+
+    if (action.action === 'record_sale') {
+      const data = action.data;
+      const saleData = {
+        products: [{
+          productId: 'temp-id',
+          name: data.productName,
+          price: parseFloat(data.price) || 0,
+          costPrice: 0,
+          quantity: parseInt(data.quantity) || 1,
+          emoji: '📦',
+        }],
+        totalRevenue: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
+        totalCost: 0,
+        profit: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
+        paymentBreakdown: [{ method: 'cash', amount: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1) }],
+        paymentMethod: 'cash',
+        expectedCash: (parseFloat(data.price) || 0) * (parseInt(data.quantity) || 1),
+        expectedBank: 0,
+        note: `Recorded via MO AI`,
+        businessId: businessId,
+        sourceLocation: 'main_store',
+        sourceLocationName: 'Main Store',
+        recordedBy: {
+          uid: userId,
+          email: 'mo@busmo.ai',
+          displayName: 'MO AI',
+          role: 'AI Assistant',
+          staffId: null,
+        },
+        createdAt: admin.firestore.Timestamp.now(),
+      };
+
+      const docRef = await db.collection('businesses').doc(businessId).collection('sales').add(saleData);
+      return { success: true, message: `Sale recorded successfully for ${data.quantity}x ${data.productName}`, data: { saleId: docRef.id } };
+    }
+
+    return { success: false, message: 'Unknown action type', data: null };
+  } catch (error: any) {
+    console.error('Error executing action:', error);
+    return { success: false, message: `Failed to execute action: ${error.message}`, data: null };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -111,6 +275,7 @@ export async function POST(request: NextRequest) {
       try {
         actionData = JSON.parse(actionMatch[0]);
         console.log('🎯 [Ask MO API] Action detected:', actionData.action);
+        // Don't execute automatically - return to client for confirmation
       } catch (error) {
         console.error('❌ [Ask MO API] Failed to parse action JSON:', error);
       }
@@ -141,6 +306,33 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { error: 'Internal server error', message: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action, businessId, userId } = body;
+
+    if (!action || !businessId || !userId) {
+      return NextResponse.json(
+        { error: 'Missing required fields: action, businessId, userId' },
+        { status: 400 }
+      );
+    }
+
+    console.log('🎯 [Ask MO API] Executing action:', action.action);
+
+    const result = await executeAction(action, businessId, userId);
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('❌ [Ask MO API] Error executing action:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: errorMessage, message: 'Failed to execute action' },
       { status: 500 }
     );
   }
@@ -542,111 +734,28 @@ You can perform business operations when requested:
 
 RECORDING SALES:
 - When user wants to record a sale, extract: product name, quantity, price/amount
+- If any required field is missing, ASK the user for it before providing the action JSON
+- Required fields: productName, quantity, price (or amount)
 - Return structured JSON in your response for sale recording:
   {"action": "record_sale", "data": {"productName": "...", "quantity": 1, "amount": 0, "price": 0}}
 - If user sends an image of a product/receipt, analyze it to extract sale details
+- If information is incomplete from image, ask user to provide missing details
 
 ADDING PRODUCTS:
 - When user wants to add a new product, extract: name, price, stock, category
+- If any required field is missing, ASK the user for it before providing the action JSON
+- Required fields: name, price, stock, category
+- Optional fields: description, costPrice, lowStockThreshold
 - Return structured JSON in your response for product addition:
-  {"action": "add_product", "data": {"name": "...", "price": 0, "stock": 0, "category": "..."}}
+  {"action": "add_product", "data": {"name": "...", "price": 0, "stock": 0, "category": "...", "description": "...", "costPrice": 0, "lowStockThreshold": 5}}
 - If user sends an image of a product, analyze it to extract product details
+- If information is incomplete from image, ask user to provide missing details
 
 IMAGE ANALYSIS:
 - When user sends an image, analyze it to understand:
   - Product names, prices, quantities (for receipts/invoices)
   - Product details (for product photos)
   - Business context (for general business images)
-- Always provide both text analysis AND structured action data if applicable`;
-}
-
-/**
- * Get category-specific advice for AI responses
- */
-function getCategorySpecificAdvice(category: string): string {
-  const adviceMap: Record<string, string> = {
-    retail: 'Focus on inventory turnover, customer retention, and seasonal trends.',
-    restaurant: 'Focus on food cost management, table turnover, and menu optimization.',
-    grocery: 'Focus on expiry management, supplier relationships, and bulk purchasing.',
-    fashion: 'Focus on seasonal inventory, trend analysis, and customer preferences.',
-    electronics: 'Focus on warranty management, product lifecycle, and technical support.',
-    manufacturing: 'Focus on production efficiency, raw material costs, and quality control.',
-    services: 'Focus on appointment scheduling, customer satisfaction, and service delivery.',
-    pharmacy: 'Focus on expiry tracking, regulatory compliance, and health trends.',
-    supermarket: 'Focus on multi-category management, shelf space optimization, and supplier negotiations.',
-    cafe: 'Focus on ingredient costs, peak hour management, and customer experience.',
-    wholesale: 'Focus on bulk pricing, distributor relationships, and volume discounts.',
-    distributor: 'Focus on supply chain efficiency, logistics, and retailer relationships.',
-  };
-  
-  return adviceMap[category.toLowerCase()] || adviceMap.retail;
-}
-
-/**
- * Detect user's conversation style from history
- */
-function detectConversationStyle(conversationHistory: any[]): { style: string; tone: string; length: string } {
-  if (conversationHistory.length === 0) {
-    return { style: 'balanced', tone: 'professional', length: 'medium' };
-  }
-
-  const userMessages = conversationHistory.filter((msg: any) => msg.role === 'user');
-  if (userMessages.length === 0) {
-    return { style: 'balanced', tone: 'professional', length: 'medium' };
-  }
-
-  const recentMessages = userMessages.slice(-5);
-  let totalWords = 0;
-  let formalCount = 0;
-  let casualCount = 0;
-  let shortCount = 0;
-  let longCount = 0;
-
-  recentMessages.forEach((msg: any) => {
-    const content = msg.content || '';
-    const words = content.split(/\s+/).length;
-    totalWords += words;
-
-    // Detect formality
-    if (/\b(please|kindly|would|could|may|regarding|concerning|appreciate)\b/i.test(content)) {
-      formalCount++;
-    }
-    if (/\b(hey|hi|yo|what's up|gonna|wanna|gotta|cool|awesome)\b/i.test(content)) {
-      casualCount++;
-    }
-
-    // Detect length preference
-    if (words < 10) shortCount++;
-    if (words > 30) longCount++;
-  });
-
-  const avgWords = totalWords / recentMessages.length;
-  
-  let style = 'balanced';
-  let tone = 'professional';
-  let length = 'medium';
-
-  if (formalCount > casualCount) {
-    tone = 'formal';
-  } else if (casualCount > formalCount) {
-    tone = 'casual';
-  }
-
-  if (avgWords < 15) {
-    length = 'short';
-    style = 'concise';
-  } else if (avgWords > 25) {
-    length = 'detailed';
-    style = 'detailed';
-  }
-
-  if (shortCount > longCount) {
-    length = 'short';
-    style = 'concise';
-  } else if (longCount > shortCount) {
-    length = 'detailed';
-    style = 'detailed';
-  }
-
-  return { style, tone, length };
+- Always provide both text analysis AND structured action data if applicable
+- If image analysis is incomplete, ask user for missing information`;
 }

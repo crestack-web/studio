@@ -7,36 +7,8 @@ import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, addDoc, doc, updateDoc, getDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { isCreditLayerEligible, getBusinessType } from '@/lib/featureRestrictions';
+import { Supplier, SupplierLedgerTransaction } from './types';
 import styles from './SupplierCreditPage.module.css';
-
-interface SupplierCreditLedger {
-  id: string;
-  supplierId: string;
-  supplierName: string;
-  stockReceiptId: string;
-  receiptNumber: string;
-  totalAmount: number;
-  amountPaid: number;
-  outstandingBalance: number;
-  dueDate?: Timestamp;
-  items: Array<{
-    productId: string;
-    productName: string;
-    quantity: number;
-    unitCost: number;
-    totalCost: number;
-  }>;
-  payments: Array<{
-    paymentId: string;
-    amount: number;
-    paymentDate: Timestamp;
-    paymentMethod: string;
-    bankAccountId?: string;
-    notes?: string;
-  }>;
-  status: 'pending' | 'partial' | 'paid' | 'overdue';
-  createdAt: Timestamp;
-}
 
 interface BankAccount {
   id: string;
@@ -54,9 +26,10 @@ export function SupplierCreditPage() {
   const { businessId } = useBranch();
   const { firestore } = initializeFirebase();
   
-  const [creditLedger, setCreditLedger] = useState<SupplierCreditLedger[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierLedger, setSupplierLedger] = useState<SupplierLedgerTransaction[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [selectedLedger, setSelectedLedger] = useState<SupplierCreditLedger | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,36 +74,80 @@ export function SupplierCreditPage() {
     try {
       setIsLoading(true);
       
-      // Load supplier credit ledger
+      // Load suppliers
+      const suppliersQuery = query(
+        collection(firestore, 'businesses', businessId, 'suppliers'),
+        where('status', '==', 'active')
+      );
+      
+      const suppliersSnapshot = await getDocs(suppliersQuery);
+      const suppliersList: Supplier[] = [];
+      
+      suppliersSnapshot.forEach(doc => {
+        const data = doc.data();
+        suppliersList.push({
+          id: doc.id,
+          businessId: data.businessId || '',
+          supplierName: data.supplierName || '',
+          businessName: data.businessName || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          address: data.address || '',
+          notes: data.notes || '',
+          paymentTerms: data.paymentTerms || 'net_30',
+          customPaymentDays: data.customPaymentDays || 30,
+          creditLimit: data.creditLimit || 0,
+          openingBalance: data.openingBalance || 0,
+          currentBalance: data.currentBalance || 0,
+          category: data.category || 'general',
+          status: data.status || 'active',
+          taxId: data.taxId || '',
+          bankAccount: data.bankAccount || null,
+          contactPerson: data.contactPerson || null,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          lastPaymentDate: data.lastPaymentDate?.toDate(),
+          totalPurchases: data.totalPurchases || 0,
+          totalPayments: data.totalPayments || 0,
+          purchaseCount: data.purchaseCount || 0,
+          paymentCount: data.paymentCount || 0,
+          averagePaymentDays: data.averagePaymentDays || 0,
+          creditUtilization: data.creditUtilization || 0,
+        });
+      });
+      
+      setSuppliers(suppliersList);
+      
+      // Load supplier ledger
       const ledgerQuery = query(
-        collection(firestore, 'businesses', businessId, 'supplierCreditLedger'),
-        where('status', '!=', 'paid'),
-        orderBy('dueDate', 'asc')
+        collection(firestore, 'businesses', businessId, 'supplierLedger'),
+        orderBy('date', 'desc')
       );
       
       const ledgerSnapshot = await getDocs(ledgerQuery);
-      const ledgerList: SupplierCreditLedger[] = [];
+      const ledgerList: SupplierLedgerTransaction[] = [];
       
       ledgerSnapshot.forEach(doc => {
         const data = doc.data();
         ledgerList.push({
           id: doc.id,
-          supplierId: data.supplierId,
-          supplierName: data.supplierName,
-          stockReceiptId: data.stockReceiptId,
-          receiptNumber: data.receiptNumber,
-          totalAmount: data.totalAmount,
-          amountPaid: data.amountPaid || 0,
-          outstandingBalance: data.outstandingBalance,
-          dueDate: data.dueDate,
-          items: data.items || [],
-          payments: data.payments || [],
-          status: data.status,
-          createdAt: data.createdAt,
+          supplierId: data.supplierId || '',
+          businessId: data.businessId || '',
+          type: data.type || 'purchase',
+          amount: data.amount || 0,
+          balanceAfter: data.balanceAfter || 0,
+          description: data.description || '',
+          reference: data.reference || '',
+          date: data.date?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+          createdBy: data.createdBy || '',
+          createdByName: data.createdByName || '',
+          metadata: data.metadata || {},
         });
       });
       
-      setCreditLedger(ledgerList);
+      setSupplierLedger(ledgerList);
       
       // Load bank accounts
       const accountsQuery = query(
@@ -169,14 +186,14 @@ export function SupplierCreditPage() {
     }
   };
 
-  const handlePaymentClick = (ledger: SupplierCreditLedger) => {
-    setSelectedLedger(ledger);
-    setPaymentAmount(ledger.outstandingBalance.toString());
+  const handlePaymentClick = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setPaymentAmount(supplier.currentBalance.toString());
     setShowPaymentModal(true);
   };
 
   const handlePaymentSubmit = async () => {
-    if (!selectedLedger || !paymentAmount) {
+    if (!selectedSupplier || !paymentAmount) {
       showToast('⚠️ Please enter payment amount');
       return;
     }
@@ -187,7 +204,7 @@ export function SupplierCreditPage() {
       return;
     }
     
-    if (amount > selectedLedger.outstandingBalance) {
+    if (amount > selectedSupplier.currentBalance) {
       showToast('⚠️ Payment cannot exceed outstanding balance');
       return;
     }
@@ -202,37 +219,48 @@ export function SupplierCreditPage() {
       }
 
       await runTransaction(firestore, async (transaction) => {
-        // Update supplier credit ledger
-        const ledgerRef = doc(firestore, 'businesses', businessId, 'supplierCreditLedger', selectedLedger.id);
-        const ledgerDoc = await transaction.get(ledgerRef);
+        // Update supplier balance
+        const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', selectedSupplier.id);
+        const supplierDoc = await transaction.get(supplierRef);
         
-        if (!ledgerDoc.exists()) {
-          throw new Error('Ledger not found');
+        if (!supplierDoc.exists()) {
+          throw new Error('Supplier not found');
         }
         
-        const ledgerData = ledgerDoc.data();
-        const currentPaid = ledgerData.amountPaid || 0;
-        const newPaid = currentPaid + amount;
-        const newBalance = ledgerData.totalAmount - newPaid;
-        const newStatus = newBalance === 0 ? 'paid' : newBalance < ledgerData.totalAmount ? 'partial' : 'pending';
+        const supplierData = supplierDoc.data();
+        const currentBalance = supplierData.currentBalance || 0;
+        const newBalance = currentBalance - amount;
+        const totalPayments = supplierData.totalPayments || 0;
+        const paymentCount = supplierData.paymentCount || 0;
         
-        const payments = ledgerData.payments || [];
-        const paymentId = `PAY-${Date.now()}`;
-        payments.push({
-          paymentId,
-          amount,
-          paymentDate: Timestamp.now(),
-          paymentMethod,
-          bankAccountId: paymentMethod === 'transfer' ? bankAccountId : undefined,
-          notes: paymentNotes.trim() || undefined,
+        transaction.update(supplierRef, {
+          currentBalance: newBalance,
+          totalPayments: totalPayments + amount,
+          paymentCount: paymentCount + 1,
+          lastPaymentDate: Timestamp.now(),
+          creditUtilization: supplierData.creditLimit > 0 ? (newBalance / supplierData.creditLimit) * 100 : 0,
+          updatedAt: Timestamp.now(),
         });
         
-        transaction.update(ledgerRef, {
-          amountPaid: newPaid,
-          outstandingBalance: newBalance,
-          status: newStatus,
-          payments,
-          updatedAt: Timestamp.now(),
+        // Create supplier ledger entry
+        const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+        const paymentNumber = `PAY-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+        transaction.set(ledgerRef, {
+          supplierId: selectedSupplier.id,
+          businessId,
+          type: 'payment',
+          amount: amount,
+          balanceAfter: newBalance,
+          description: `Payment ${paymentNumber}`,
+          reference: paymentNumber,
+          date: Timestamp.now(),
+          createdAt: Timestamp.now(),
+          createdBy: user.id,
+          createdByName: user.name || user.email || 'Unknown',
+          metadata: {
+            paymentMethod,
+            notes: paymentNotes.trim() || undefined,
+          },
         });
         
         // Create bank transaction if payment method is transfer
@@ -242,8 +270,8 @@ export function SupplierCreditPage() {
           
           if (bankDoc.exists()) {
             const bankData = bankDoc.data();
-            const currentBalance = bankData.currentBalance || 0;
-            const newBankBalance = currentBalance - amount;
+            const currentBankBalance = bankData.currentBalance || 0;
+            const newBankBalance = currentBankBalance - amount;
             
             transaction.update(bankRef, {
               currentBalance: newBankBalance,
@@ -262,9 +290,9 @@ export function SupplierCreditPage() {
               category: 'supplier_payment',
               amount,
               balanceAfter: newBankBalance,
-              referenceId: selectedLedger.id,
-              referenceType: 'supplier_credit',
-              description: `Payment to ${selectedLedger.supplierName}`,
+              referenceId: selectedSupplier.id,
+              referenceType: 'supplier_payment',
+              description: `Payment to ${selectedSupplier.businessName}`,
               paymentMethod,
               performedBy: user.id,
               performedByName: user.name || user.email || 'Unknown',
@@ -279,7 +307,7 @@ export function SupplierCreditPage() {
       setShowPaymentModal(false);
       setPaymentAmount('');
       setPaymentNotes('');
-      setSelectedLedger(null);
+      setSelectedSupplier(null);
       
       await loadData();
     } catch (error) {
@@ -295,13 +323,21 @@ export function SupplierCreditPage() {
     return new Date(timestamp.toDate()).toLocaleDateString();
   };
 
-  const isOverdue = (dueDate?: Timestamp) => {
-    if (!dueDate) return false;
-    return new Date(dueDate.toDate()) < new Date();
+  const isOverdue = (supplier: Supplier) => {
+    if (!supplier.lastPurchaseDate) return false;
+    const paymentDays = supplier.paymentTerms === 'cash' ? 0 : 
+      supplier.paymentTerms === 'net_7' ? 7 :
+      supplier.paymentTerms === 'net_14' ? 14 :
+      supplier.paymentTerms === 'net_30' ? 30 :
+      supplier.paymentTerms === 'net_60' ? 60 :
+      supplier.paymentTerms === 'net_90' ? 90 :
+      supplier.customPaymentDays || 30;
+    const dueDate = new Date(supplier.lastPurchaseDate.getTime() + paymentDays * 24 * 60 * 60 * 1000);
+    return dueDate < new Date();
   };
 
-  const totalOutstanding = creditLedger.reduce((sum, l) => sum + l.outstandingBalance, 0);
-  const overdueCount = creditLedger.filter(l => isOverdue(l.dueDate)).length;
+  const totalOutstanding = suppliers.reduce((sum, s) => sum + s.currentBalance, 0);
+  const overdueCount = suppliers.filter(s => isOverdue(s)).length;
 
   if (isLoading) {
     return (
@@ -360,7 +396,7 @@ export function SupplierCreditPage() {
         </div>
       </div>
 
-      {creditLedger.length === 0 ? (
+      {suppliers.filter(s => s.currentBalance > 0).length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>✅</div>
           <h3>No Outstanding Credit</h3>
@@ -368,83 +404,94 @@ export function SupplierCreditPage() {
         </div>
       ) : (
         <div className={styles.ledgerList}>
-          {creditLedger.map(ledger => (
-            <div key={ledger.id} className={styles.ledgerCard}>
-              <div className={styles.ledgerHeader}>
-                <div className={styles.ledgerSupplier}>
-                  <div className={styles.supplierIcon}>🏢</div>
-                  <div>
-                    <h3 className={styles.supplierName}>{ledger.supplierName}</h3>
-                    <span className={styles.receiptNumber}>{ledger.receiptNumber}</span>
+          {suppliers.filter(s => s.currentBalance > 0).map(supplier => {
+            const supplierTransactions = supplierLedger.filter(l => l.supplierId === supplier.id);
+            const daysUntilDue = supplier.lastPurchaseDate ? 
+              Math.ceil((supplier.lastPurchaseDate.getTime() + 
+                (supplier.paymentTerms === 'cash' ? 0 : 
+                 supplier.paymentTerms === 'net_7' ? 7 :
+                 supplier.paymentTerms === 'net_14' ? 14 :
+                 supplier.paymentTerms === 'net_30' ? 30 :
+                 supplier.paymentTerms === 'net_60' ? 60 :
+                 supplier.paymentTerms === 'net_90' ? 90 :
+                 supplier.customPaymentDays || 30) * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 30;
+            const overdue = daysUntilDue < 0;
+            
+            return (
+              <div key={supplier.id} className={styles.ledgerCard}>
+                <div className={styles.ledgerHeader}>
+                  <div className={styles.ledgerSupplier}>
+                    <div className={styles.supplierIcon}>🏢</div>
+                    <div>
+                      <h3 className={styles.supplierName}>{supplier.businessName}</h3>
+                      <span className={styles.receiptNumber}>{supplier.paymentTerms.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.statusBadge} ${overdue ? styles.overdue : styles.pending}`}>
+                    {overdue ? 'OVERDUE' : 'ACTIVE'}
                   </div>
                 </div>
-                <div className={`${styles.statusBadge} ${styles[ledger.status]}`}>
-                  {ledger.status}
-                </div>
-              </div>
-              
-              <div className={styles.ledgerDetails}>
-                <div className={styles.detail}>
-                  <span className={styles.detailLabel}>Total Amount</span>
-                  <span className={styles.detailValue}>{formatMoney(ledger.totalAmount)}</span>
-                </div>
-                <div className={styles.detail}>
-                  <span className={styles.detailLabel}>Amount Paid</span>
-                  <span className={styles.detailValue}>{formatMoney(ledger.amountPaid)}</span>
-                </div>
-                <div className={styles.detail}>
-                  <span className={styles.detailLabel}>Outstanding</span>
-                  <span className={`${styles.detailValue} ${styles.outstanding}`}>{formatMoney(ledger.outstandingBalance)}</span>
-                </div>
-                {ledger.dueDate && (
+                
+                <div className={styles.ledgerDetails}>
                   <div className={styles.detail}>
-                    <span className={styles.detailLabel}>Due Date</span>
-                    <span className={`${styles.detailValue} ${isOverdue(ledger.dueDate) ? styles.overdue : ''}`}>
-                      {formatDate(ledger.dueDate)}
+                    <span className={styles.detailLabel}>Total Purchases</span>
+                    <span className={styles.detailValue}>{formatMoney(supplier.totalPurchases)}</span>
+                  </div>
+                  <div className={styles.detail}>
+                    <span className={styles.detailLabel}>Total Payments</span>
+                    <span className={styles.detailValue}>{formatMoney(supplier.totalPayments)}</span>
+                  </div>
+                  <div className={styles.detail}>
+                    <span className={styles.detailLabel}>Outstanding</span>
+                    <span className={`${styles.detailValue} ${styles.outstanding}`}>{formatMoney(supplier.currentBalance)}</span>
+                  </div>
+                  <div className={styles.detail}>
+                    <span className={styles.detailLabel}>Credit Limit</span>
+                    <span className={styles.detailValue}>{formatMoney(supplier.creditLimit)}</span>
+                  </div>
+                  <div className={styles.detail}>
+                    <span className={styles.detailLabel}>Due In</span>
+                    <span className={`${styles.detailValue} ${overdue ? styles.overdue : ''}`}>
+                      {overdue ? `${Math.abs(daysUntilDue)} days overdue` : `${daysUntilDue} days`}
                     </span>
                   </div>
-                )}
-              </div>
-              
-              {ledger.items.length > 0 && (
-                <div className={styles.itemsSection}>
-                  <span className={styles.itemsLabel}>Items Received:</span>
-                  <div className={styles.itemsList}>
-                    {ledger.items.map((item, index) => (
-                      <div key={index} className={styles.itemLine}>
-                        {item.productName} × {item.quantity}
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              )}
-              
-              {ledger.payments.length > 0 && (
-                <div className={styles.paymentsSection}>
-                  <span className={styles.paymentsLabel}>Payment History ({ledger.payments.length}):</span>
-                  <div className={styles.paymentsList}>
-                    {ledger.payments.slice(-3).map((payment, index) => (
-                      <div key={index} className={styles.paymentLine}>
-                        <span>{formatDate(payment.paymentDate)}</span>
-                    <span>{formatMoney(payment.amount)}</span>
-                    <span>{payment.paymentMethod}</span>
-                  </div>
-                ))}
-                {ledger.payments.length > 3 && (
-                  <div className={styles.paymentLine}>
-                    <span>+{ledger.payments.length - 3} more payments</span>
+                
+                {supplierTransactions.length > 0 && (
+                  <div className={styles.paymentsSection}>
+                    <span className={styles.paymentsLabel}>Recent Transactions ({supplierTransactions.length}):</span>
+                    <div className={styles.paymentsList}>
+                      {supplierTransactions.slice(0, 5).map((transaction, index) => (
+                        <div key={index} className={styles.paymentLine}>
+                          <span>{transaction.date.toLocaleDateString()}</span>
+                          <span>{transaction.type.toUpperCase()}</span>
+                          <span>{formatMoney(transaction.amount)}</span>
+                          <span>{transaction.description}</span>
+                        </div>
+                      ))}
+                      {supplierTransactions.length > 5 && (
+                        <div className={styles.paymentLine}>
+                          <span>+{supplierTransactions.length - 5} more transactions</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
+                
+                <button 
+                  className={styles.payButton}
+                  onClick={() => handlePaymentClick(supplier)}
+                >
+                  Record Payment
+                </button>
               </div>
-              </div>
-              )}
-            </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
       )}
       
       {/* Payment Modal */}
-      {showPaymentModal && selectedLedger && (
+      {showPaymentModal && selectedSupplier && (
         <div className={styles.modalOverlay} onClick={() => setShowPaymentModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -460,11 +507,11 @@ export function SupplierCreditPage() {
             <div className={styles.modalBody}>
               <div className={styles.ledgerSummary}>
                 <span className={styles.ledgerSummaryLabel}>Supplier:</span>
-                <span className={styles.ledgerSummaryValue}>{selectedLedger.supplierName}</span>
+                <span className={styles.ledgerSummaryValue}>{selectedSupplier.businessName}</span>
               </div>
               <div className={styles.ledgerSummary}>
                 <span className={styles.ledgerSummaryLabel}>Outstanding:</span>
-                <span className={styles.ledgerSummaryValue}>{formatMoney(selectedLedger.outstandingBalance)}</span>
+                <span className={styles.ledgerSummaryValue}>{formatMoney(selectedSupplier.currentBalance)}</span>
               </div>
               
               <div className={styles.formGroup}>
@@ -474,7 +521,7 @@ export function SupplierCreditPage() {
                   className={styles.input}
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  max={selectedLedger.outstandingBalance}
+                  max={selectedSupplier.currentBalance}
                 />
               </div>
               

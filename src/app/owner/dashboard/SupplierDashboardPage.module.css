@@ -1,0 +1,297 @@
+.wrapper {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 4px 0;
+}
+
+.pageDesc {
+  font-size: 14px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.periodSelector {
+  display: flex;
+  align-items: center;
+}
+
+.select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.summaryValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 8px 0;
+}
+
+.summaryLabel {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 16px 0;
+}
+
+.creditHealthGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.creditHealthValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 8px 0;
+}
+
+.creditHealthLabel {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.creditHealthBar {
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.creditHealthFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.supplierList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.supplierItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-1);
+  border-radius: 8px;
+}
+
+.supplierRank {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.supplierInfo {
+  flex: 1;
+}
+
+.supplierName {
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.supplierMeta {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.supplierAmount {
+  font-weight: 700;
+  color: var(--text-1);
+  font-size: 16px;
+}
+
+.overdue {
+  color: var(--red);
+}
+
+.transactionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transactionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-1);
+  border-radius: 8px;
+}
+
+.transactionInfo {
+  flex: 1;
+}
+
+.transactionDescription {
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.transactionMeta {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.transactionAmount {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.transactionAmount.payment {
+  color: var(--green);
+}
+
+.transactionAmount.purchase {
+  color: var(--red);
+}
+
+.termsDistribution {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.termItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.termLabel {
+  width: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.termBar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.termFill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.termCount {
+  width: 80px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 16px;
+  }
+  
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .creditHealthGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .termItem {
+    flex-wrap: wrap;
+  }
+  
+  .termLabel {
+    width: 100%;
+  }
+  
+  .termCount {
+    width: 100%;
+    text-align: left;
+  }
+}
