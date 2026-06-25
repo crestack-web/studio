@@ -858,5 +858,12 @@ IMAGE ANALYSIS:
   - Product details (for product photos)
   - Business context (for general business images)
 - Always provide both text analysis AND structured action data if applicable
-- If image analysis is incomplete, ask user for missing information`;
+- If image analysis is incomplete, ask user for missing information
+
+POST-ACTION INSIGHTS:
+After successfully recording a sale or adding a product, provide helpful business insights:
+- For sales: Mention inventory reduction, updated daily revenue, remaining stock, and any relevant business impact
+- For products: Mention how the new product fits into inventory, its impact on stock value, and any reorder considerations
+- Keep insights concise but valuable - help users understand the business impact of their actions
+`;
 }

@@ -13,6 +13,7 @@ import { useAskMO } from './useAskMO';
 
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus, Trash2, Pencil } from 'lucide-react';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
+import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
 
 // Dynamic suggestions based on business data
 const BASE_SUGGESTIONS = [
@@ -41,6 +42,12 @@ interface MOMessage {
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
   alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  saleCard?: {
+    items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
+    totalRevenue: number;
+    totalProfit?: number;
+    timestamp: Date;
+  };
 }
 
 interface Conversation {
@@ -375,6 +382,18 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       const data = await response.json();
       console.log('📡 API Response data:', data);
 
+      const botMsg: MOMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        content: data.answer || "I'm analysing your business data...",
+        timestamp: new Date(),
+        metrics: data.metrics,
+        quickActions: data.quickActions,
+        followUpSuggestions: data.followUpSuggestions,
+        expandableSections: data.expandableSections,
+        alerts: data.alerts,
+      };
+
       // Handle action data if present
       if (data.action) {
         console.log('🎯 Action detected:', data.action);
@@ -399,6 +418,24 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
             const executeResult = await executeResponse.json();
             if (executeResult.success) {
+              // If this was a sale recording, attach the sale card data
+              if (action.action === 'record_sale') {
+                const saleCardData = {
+                  items: [{
+                    name: action.data.productName,
+                    quantity: action.data.quantity,
+                    price: action.data.price,
+                    costPrice: action.data.costPrice,
+                  }],
+                  totalRevenue: (action.data.price || 0) * (action.data.quantity || 1),
+                  totalProfit: executeResult.data?.profit,
+                  timestamp: new Date(),
+                };
+                
+                // Update the bot message to include the sale card
+                botMsg.saleCard = saleCardData;
+              }
+              
               showToast(executeResult.message);
             } else {
               showToast(`Failed to execute action: ${executeResult.message}`);
@@ -411,18 +448,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           showToast('Action cancelled by user');
         }
       }
-
-      const botMsg: MOMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'bot',
-        content: data.answer || "I'm analysing your business data...",
-        timestamp: new Date(),
-        metrics: data.metrics,
-        quickActions: data.quickActions,
-        followUpSuggestions: data.followUpSuggestions,
-        expandableSections: data.expandableSections,
-        alerts: data.alerts,
-      };
 
       setMessages(prev => [...prev, botMsg]);
 
@@ -631,7 +656,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           </div>
         )}
 
-        {messages.map(m => (
+        {messages.filter(m => m.content || m.saleCard || m.imageUrl || m.audioUrl).map(m => (
           <div
             key={m.id}
             className={`${styles.message} ${m.role === 'user' ? styles.user : styles.bot}`}
@@ -676,6 +701,16 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     display: 'block',
                   }}
                 />
+              )}
+              {m.saleCard && (
+                <div className="my-3">
+                  <SaleConfirmationCard
+                    items={m.saleCard.items}
+                    totalRevenue={m.saleCard.totalRevenue}
+                    totalProfit={m.saleCard.totalProfit}
+                    timestamp={m.saleCard.timestamp}
+                  />
+                </div>
               )}
               {formatContent(m.content)}
               {m.role === 'bot' && m.metrics && m.metrics.length > 0 && (

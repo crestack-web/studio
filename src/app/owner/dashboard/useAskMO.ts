@@ -17,6 +17,12 @@ interface MOMessage {
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
   alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  saleCard?: {
+    items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
+    totalRevenue: number;
+    totalProfit?: number;
+    timestamp: Date;
+  };
 }
 
 interface Conversation {
