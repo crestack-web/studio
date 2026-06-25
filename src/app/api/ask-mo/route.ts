@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Build system prompt
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory);
+    const conversationStyle = detectConversationStyle(conversationHistory);
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle);
 
     // Initialize Google AI
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
@@ -400,7 +401,7 @@ async function getBusinessContext(businessId: string) {
 /**
  * Build system prompt with business context
  */
-function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = [], businessCategory: string = 'retail'): string {
+function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = [], businessCategory: string = 'retail', conversationStyle: { style: string; tone: string; length: string } = { style: 'balanced', tone: 'professional', length: 'medium' }): string {
   const conversationSummary = conversationHistory.slice(-6).map((msg: any) => {
     const role = msg.role === 'user' ? 'User' : 'MO';
     return `${role}: ${msg.content}`;
@@ -414,6 +415,16 @@ function buildSystemPrompt(businessContext: any, language: string, languageName:
 - NEVER break character. You are ALWAYS MO, the business intelligence assistant.
 - NEVER reveal you are an AI, chatbot, or language model.
 - Maintain a professional, business-focused tone at all times.
+
+💬 CONVERSATION STYLE ADAPTATION:
+- User's detected style: ${conversationStyle.style} (tone: ${conversationStyle.tone}, length: ${conversationStyle.length})
+- ADAPT your responses to match the user's communication style:
+  - If user is FORMAL: Use professional language, complete sentences, respectful tone
+  - If user is CASUAL: Use friendly language, contractions, relaxed tone
+  - If user prefers SHORT: Keep responses concise (under 100 words), get straight to the point
+  - If user prefers DETAILED: Provide comprehensive explanations with context
+  - If style is BALANCED/MEDIUM: Use standard professional conversational tone
+- ALWAYS match the user's energy level and communication preferences
 
 ${conversationSummary ? `
 📝 RECENT CONVERSATION CONTEXT:
@@ -497,9 +508,10 @@ AVOID: "According to the data", "The system indicates", "Based on records"
 5. PRIORITIZE — address urgent issues first (out of stock, negative cash flow)
 6. Use NIGERIAN/AFRICAN BUSINESS CONTEXT — understand local market realities
 7. Format numbers with commas (e.g., 1,000)
-8. Keep responses under 250 words unless explaining complex analysis
-9. MAINTAIN CHARACTER — never break your role as MO
-10. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely`;
+8. ADAPT LENGTH — match user's preference (short/concise vs detailed)
+9. ADAPT TONE — match user's formality (formal vs casual)
+10. MAINTAIN CHARACTER — never break your role as MO
+11. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely`;
 }
 
 /**
@@ -522,4 +534,73 @@ function getCategorySpecificAdvice(category: string): string {
   };
   
   return adviceMap[category.toLowerCase()] || adviceMap.retail;
+}
+
+/**
+ * Detect user's conversation style from history
+ */
+function detectConversationStyle(conversationHistory: any[]): { style: string; tone: string; length: string } {
+  if (conversationHistory.length === 0) {
+    return { style: 'balanced', tone: 'professional', length: 'medium' };
+  }
+
+  const userMessages = conversationHistory.filter((msg: any) => msg.role === 'user');
+  if (userMessages.length === 0) {
+    return { style: 'balanced', tone: 'professional', length: 'medium' };
+  }
+
+  const recentMessages = userMessages.slice(-5);
+  let totalWords = 0;
+  let formalCount = 0;
+  let casualCount = 0;
+  let shortCount = 0;
+  let longCount = 0;
+
+  recentMessages.forEach((msg: any) => {
+    const content = msg.content || '';
+    const words = content.split(/\s+/).length;
+    totalWords += words;
+
+    // Detect formality
+    if (/\b(please|kindly|would|could|may|regarding|concerning|appreciate)\b/i.test(content)) {
+      formalCount++;
+    }
+    if (/\b(hey|hi|yo|what's up|gonna|wanna|gotta|cool|awesome)\b/i.test(content)) {
+      casualCount++;
+    }
+
+    // Detect length preference
+    if (words < 10) shortCount++;
+    if (words > 30) longCount++;
+  });
+
+  const avgWords = totalWords / recentMessages.length;
+  
+  let style = 'balanced';
+  let tone = 'professional';
+  let length = 'medium';
+
+  if (formalCount > casualCount) {
+    tone = 'formal';
+  } else if (casualCount > formalCount) {
+    tone = 'casual';
+  }
+
+  if (avgWords < 15) {
+    length = 'short';
+    style = 'concise';
+  } else if (avgWords > 25) {
+    length = 'detailed';
+    style = 'detailed';
+  }
+
+  if (shortCount > longCount) {
+    length = 'short';
+    style = 'concise';
+  } else if (longCount > shortCount) {
+    length = 'detailed';
+    style = 'detailed';
+  }
+
+  return { style, tone, length };
 }
