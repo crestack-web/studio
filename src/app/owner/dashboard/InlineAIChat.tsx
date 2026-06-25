@@ -741,12 +741,11 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     <Settings size={20} className={styles.loadingIcon} />
                     <span>Processing...</span>
                   </div>
-                  {loadingActions.map((action, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)' }}>
-                      <span>✓</span>
-                      <span>{action}</span>
-                    </div>
-                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)', flexWrap: 'wrap' }}>
+                    {loadingActions.map((action, idx) => (
+                      <span key={idx}>✓ {action}</span>
+                    ))}
+                  </div>
                 </div>
               )}
               {loadingStage === 4 && (

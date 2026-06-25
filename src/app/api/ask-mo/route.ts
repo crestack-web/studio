@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         });
 
         result = await Promise.race([
-          chat.sendMessage(message),
+          chat.sendMessage(systemPrompt + '\n\n' + message),
           timeoutPromise
         ]) as any;
 
