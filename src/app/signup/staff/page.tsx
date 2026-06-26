@@ -5,6 +5,7 @@ import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { sendWelcomeEmailSeries } from "@/services/email/welcome-series";
 
 export default function StaffSignupPage() {
   const router = useRouter();
@@ -72,6 +73,15 @@ export default function StaffSignupPage() {
           name: name.trim(),
         });
       }
+
+      // Send welcome email series (non-blocking)
+      sendWelcomeEmailSeries({
+        email: email.trim(),
+        name: name.trim(),
+      }).catch((emailError) => {
+        console.error('Failed to send welcome email series:', emailError);
+        // Non-critical: user can still use the app even if emails fail
+      });
 
       router.push("/staff/home");
     } catch (err: any) {

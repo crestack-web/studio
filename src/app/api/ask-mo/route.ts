@@ -3,6 +3,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
 import { recordSale, findProductByName } from '@/lib/services/record-sale-service';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
  * Get category-specific advice for AI responses
@@ -104,8 +105,60 @@ async function executeAction(action: any, businessId: string, userId: string): P
   try {
     if (action.action === 'add_product') {
       const data = action.data;
-      const productData = {
-        name: data.name,
+      
+      // Check if product with same name already exists
+      const existingProductQuery = await db.collection('businesses').doc(businessId).collection('products')
+        .where('name', '==', data.name)
+        .where('active', '==', true)
+        .limit(1)
+        .get();
+      
+      if (!existingProductQuery.empty) {
+        return { 
+          success: false, 
+          message: `A product named "${data.name}" already exists in your inventory. Please use a different name or update the existing product.`, 
+          data: null 
+        };
+      }
+
+      // Validate required fields
+      if (!data.name || !data.name.trim()) {
+        return { success: false, message: 'Product name is required', data: null };
+      }
+      if (!data.category) {
+        return { success: false, message: 'Product category is required', data: null };
+      }
+      if (!data.price || parseFloat(data.price) <= 0) {
+        return { success: false, message: 'Selling price is required and must be greater than 0', data: null };
+      }
+
+      // Handle image upload if provided
+      let imageUrl = '';
+      if (data.imageData) {
+        try {
+          // Convert base64 to buffer
+          const base64Data = data.imageData.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Initialize Firebase Storage
+          const storage = getStorage();
+          const imageRef = ref(storage, `products/${businessId}/${Date.now()}_product.jpg`);
+          
+          await uploadBytes(imageRef, buffer);
+          imageUrl = await getDownloadURL(imageRef);
+          console.log('✅ Product image uploaded successfully');
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          // Continue without image rather than failing
+        }
+      }
+
+      // Generate SKU if not provided
+      const sku = data.sku && data.sku.trim() ? data.sku.trim() : `SKU-${Date.now()}`;
+
+      // Build product data matching Add Product page structure
+      const productData: any = {
+        name: data.name.trim(),
         description: data.description || '',
         category: data.category,
         price: parseFloat(data.price) || 0,
@@ -114,15 +167,55 @@ async function executeAction(action: any, businessId: string, userId: string): P
         lowStockThreshold: parseInt(data.lowStockThreshold) || 5,
         active: true,
         attributes: {
-          emoji: '📦',
-          sku: `SKU-${Date.now()}`,
+          emoji: data.emoji || '📦',
+          sku: sku,
         },
         createdAt: admin.firestore.Timestamp.now(),
         updatedAt: admin.firestore.Timestamp.now(),
       };
 
+      // Add image URL if uploaded
+      if (imageUrl) {
+        productData.imageUrl = imageUrl;
+      }
+
+      // Add optional fields if provided
+      if (data.imageUrl) {
+        productData.imageUrl = data.imageUrl;
+      }
+      if (data.unit) {
+        productData.unit = data.unit;
+      }
+      if (data.supplier) {
+        productData.supplier = data.supplier;
+      }
+      if (data.reorderLevel !== undefined) {
+        productData.reorderLevel = parseInt(data.reorderLevel) || 0;
+      }
+
+      // Handle stock by location for wholesale/distributor
+      if (data.stockByLocation) {
+        productData.stockByLocation = data.stockByLocation;
+      }
+
       const docRef = await db.collection('businesses').doc(businessId).collection('products').add(productData);
-      return { success: true, message: `Product "${data.name}" added successfully`, data: { productId: docRef.id } };
+      return { 
+        success: true, 
+        message: `Product "${data.name}" added successfully with SKU: ${sku}${imageUrl ? ' and image' : ''}`, 
+        data: { 
+          productId: docRef.id,
+          product: {
+            id: docRef.id,
+            name: data.name,
+            sku,
+            category: data.category,
+            price: parseFloat(data.price),
+            cost: parseFloat(data.costPrice) || 0,
+            stock: parseInt(data.stock) || 0,
+            imageUrl: imageUrl || null,
+          }
+        } 
+      };
     }
 
     if (action.action === 'record_sale') {
