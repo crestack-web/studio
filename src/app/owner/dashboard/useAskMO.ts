@@ -160,15 +160,10 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
           setConversations(loadedConversations);
 
-          // Auto-load the most recent conversation if available
-          if (loadedConversations.length > 0) {
-            const mostRecent = loadedConversations[0];
-            setMessages(mostRecent.messages || []);
-            setCurrentConversationId(mostRecent.id);
-          } else {
-            setMessages([]);
-            setCurrentConversationId(null);
-          }
+          // DO NOT auto-load conversations - always start with empty state
+          // Users must explicitly select a conversation from history to load it
+          setMessages([]);
+          setCurrentConversationId(null);
         } catch (error) {
           console.error('Error loading conversations:', error);
         }
@@ -510,13 +505,18 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
   const saveConversation = useCallback(async (conversationTitle?: string) => {
     try {
       const { firestore } = initializeFirebase();
+      
+      // Only save if there are messages
+      if (messages.length === 0) {
+        return;
+      }
+
       const title = conversationTitle || generateConversationTitle(messages);
       
       const conversationData: any = {
         title,
         messages: messages,
         businessId: businessId || userId,
-        createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
@@ -529,13 +529,16 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       }
 
       if (currentConversationId) {
+        // Update existing conversation
         await setDoc(doc(firestore, 'users', userId, 'mo_conversations', currentConversationId), conversationData, { merge: true });
       } else {
+        // Create new conversation with createdAt
+        conversationData.createdAt = Timestamp.now();
         const docRef = await addDoc(collection(firestore, 'users', userId, 'mo_conversations'), conversationData);
         setCurrentConversationId(docRef.id);
       }
 
-      // Reload conversations
+      // Reload conversations list
       const conversationsQuery = query(
         collection(firestore, 'users', userId, 'mo_conversations'),
         orderBy('updatedAt', 'desc'),
