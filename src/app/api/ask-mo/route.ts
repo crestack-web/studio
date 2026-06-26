@@ -131,7 +131,21 @@ async function executeAction(action: any, businessId: string, userId: string): P
       // Find product in inventory
       const productSearch = await findProductByName(businessId, data.productName);
       
-      if (!productSearch.found || !productSearch.product) {
+      if (!productSearch.found) {
+        // Check if there are multiple matches
+        if (productSearch.matches && productSearch.matches.length > 0) {
+          const matchList = productSearch.matches
+            .map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`)
+            .join('\n');
+          return { 
+            success: false, 
+            message: `I found multiple products matching "${data.productName}":\n\n${matchList}\n\nPlease specify which one you want to sell.`, 
+            data: { 
+              requiresClarification: true,
+              matches: productSearch.matches.map((p: any) => ({ id: p.id, name: p.name, stock: p.stock || p.quantity || 0 }))
+            } 
+          };
+        }
         return { 
           success: false, 
           message: `Product "${data.productName}" not found in your inventory. Please add this product first or check the spelling.`, 
@@ -145,6 +159,16 @@ async function executeAction(action: any, businessId: string, userId: string): P
       // Use product's stored prices
       const costPrice = product.cost || product.costPrice || 0;
       const sellingPrice = product.price || parseFloat(data.price) || 0;
+
+      // Check stock availability
+      const currentStock = product.stock || product.quantity || 0;
+      if (currentStock < quantity) {
+        return { 
+          success: false, 
+          message: `Insufficient stock for "${product.name}". Only ${currentStock} units available, but you requested ${quantity}.`, 
+          data: null 
+        };
+      }
 
       // Use the shared record sale service
       const result = await recordSale({
@@ -186,6 +210,7 @@ async function executeAction(action: any, businessId: string, userId: string): P
         data: { 
           saleId: result.saleId, 
           profit,
+          totalRevenue: result.data?.totalRevenue,
           product: {
             id: product.id,
             name: product.name,
