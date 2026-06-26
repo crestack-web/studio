@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
+import { recordSale, findProductByName } from '@/lib/services/record-sale-service';
 
 /**
  * Get category-specific advice for AI responses
@@ -127,65 +128,74 @@ async function executeAction(action: any, businessId: string, userId: string): P
     if (action.action === 'record_sale') {
       const data = action.data;
       
-      // Try to fetch product cost price from Firestore if not provided
-      let costPrice = parseFloat(data.costPrice) || 0;
-      if (costPrice === 0) {
-        try {
-          const productQuery = await db.collection('businesses').doc(businessId).collection('products')
-            .where('name', '==', data.productName)
-            .where('active', '==', true)
-            .limit(1)
-            .get();
-          
-          if (!productQuery.empty) {
-            const productDoc = productQuery.docs[0];
-            const productData = productDoc.data();
-            costPrice = parseFloat(productData.cost) || 0;
-            console.log('📦 [Ask MO API] Fetched cost price from product:', costPrice);
-          }
-        } catch (error) {
-          console.error('Error fetching product cost price:', error);
-        }
+      // Find product in inventory
+      const productSearch = await findProductByName(businessId, data.productName);
+      
+      if (!productSearch.found || !productSearch.product) {
+        return { 
+          success: false, 
+          message: `Product "${data.productName}" not found in your inventory. Please add this product first or check the spelling.`, 
+          data: null 
+        };
       }
 
+      const product = productSearch.product;
       const quantity = parseInt(data.quantity) || 1;
-      const price = parseFloat(data.price) || 0;
-      const totalRevenue = price * quantity;
-      const totalCost = costPrice * quantity;
-      const profit = totalRevenue - totalCost;
+      
+      // Use product's stored prices
+      const costPrice = product.cost || product.costPrice || 0;
+      const sellingPrice = product.price || parseFloat(data.price) || 0;
 
-      const saleData = {
-        products: [{
-          productId: 'temp-id',
-          name: data.productName,
-          price: price,
-          costPrice: costPrice,
-          quantity: quantity,
-          emoji: '📦',
+      // Use the shared record sale service
+      const result = await recordSale({
+        businessId,
+        userId,
+        items: [{
+          productId: product.id,
+          name: product.name,
+          quantity,
+          price: sellingPrice,
+          costPrice,
+          emoji: product.attributes?.emoji || '📦',
         }],
-        totalRevenue: totalRevenue,
-        totalCost: totalCost,
-        profit: profit,
-        paymentBreakdown: [{ method: 'cash', amount: totalRevenue }],
-        paymentMethod: 'cash',
-        expectedCash: totalRevenue,
-        expectedBank: 0,
-        note: `Recorded via MO AI`,
-        businessId: businessId,
-        sourceLocation: 'main_store',
-        sourceLocationName: 'Main Store',
+        paymentType: 'cash',
+        source: 'mo_ai',
         recordedBy: {
           uid: userId,
           email: 'mo@busmo.ai',
           displayName: 'MO AI',
           role: 'AI Assistant',
           staffId: null,
-        },
-        createdAt: admin.firestore.Timestamp.now(),
-      };
+        }
+      });
 
-      const docRef = await db.collection('businesses').doc(businessId).collection('sales').add(saleData);
-      return { success: true, message: `Sale recorded successfully for ${quantity}x ${data.productName} (Profit: ₦${profit.toLocaleString()})`, data: { saleId: docRef.id, profit } };
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+          data: null
+        };
+      }
+
+      const profit = result.data?.totalProfit || 0;
+      const remainingStock = result.data?.remainingStock[product.id] || 0;
+
+      return { 
+        success: true, 
+        message: `Sale recorded successfully for ${quantity}x ${product.name} (Profit: ₦${profit.toLocaleString()})`, 
+        data: { 
+          saleId: result.saleId, 
+          profit,
+          product: {
+            id: product.id,
+            name: product.name,
+            sku: product.attributes?.sku || product.sku,
+            costPrice,
+            sellingPrice,
+            remainingStock,
+          }
+        } 
+      };
     }
 
     return { success: false, message: 'Unknown action type', data: null };

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { fetchProducts, recordSale } from '../services/dataService';
 import { formatCurrency } from '@/lib/currency';
 import { ReceiptGenerator } from '../../../owner/dashboard/ReceiptGenerator';
@@ -293,16 +293,119 @@ export function SalePage({ onComplete }: SalePageProps) {
         }
       });
 
-      // Record sale to Firestore
-      await recordSale(firestore, businessId, {
+      // Get user role and staff info
+      const userRole = userData.role || 'Staff';
+      const staffId = userData.staffId || user.uid;
+      const staffName = userData.displayName || user.email || 'Staff';
+
+      // Calculate expected cash and bank collections
+      const expectedCash = paymentMethods
+        .filter(pm => pm.method === 'cash')
+        .reduce((sum, pm) => sum + pm.amount, 0);
+      const expectedBank = paymentMethods
+        .filter(pm => ['transfer', 'pos'].includes(pm.method))
+        .reduce((sum, pm) => sum + pm.amount, 0);
+
+      // Calculate profit
+      const profit = saleProducts.reduce((acc, p) => {
+        return acc + ((p.price - (p.costPrice || 0)) * p.quantity);
+      }, 0);
+
+      // Record sale to Firestore with complete data structure (matching owner's format)
+      const saleData = {
         products: saleProducts,
-        total,
-        paymentMethod: Object.keys(paymentMethodsMap)[0] || 'cash',
-        paymentMethods: paymentMethodsMap,
-        soldBy: user.uid,
-        soldByName: userData.displayName || userData.email || 'Staff',
-        recordedBy: user.uid,
-      });
+        totalRevenue: total,
+        totalCost: saleProducts.reduce((s, p) => s + (p.costPrice || 0) * p.quantity, 0),
+        profit,
+        paymentBreakdown: paymentMethods.map(pm => ({
+          method: pm.method,
+          amount: pm.amount,
+          received: pm.received !== false,
+        })),
+        paymentMethod: paymentMethods.length === 1 ? paymentMethods[0].method : 'split',
+        expectedCash,
+        expectedBank,
+        note: '',
+        businessId,
+        sourceLocation: 'main_store',
+        sourceLocationName: 'Main Store',
+        recordedBy: {
+          uid: user.uid,
+          email: user.email,
+          displayName: staffName,
+          role: userRole,
+          staffId: staffId,
+        },
+        createdAt: Timestamp.now(),
+        recordedAt: Timestamp.now(),
+      };
+
+      const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // Update bank account balance if sale has bank/POS payments
+      if (expectedBank > 0) {
+        try {
+          const bankAccountsQuery = query(
+            collection(firestore, 'businesses', businessId, 'bankAccounts'),
+            where('isActive', '==', true)
+          );
+          const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+          let posDefaultAccount = null;
+          bankAccountsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.isPosDefault) {
+              posDefaultAccount = doc.id;
+            }
+          });
+
+          if (posDefaultAccount) {
+            const bankAccountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', posDefaultAccount);
+            const bankAccountDoc = await getDoc(bankAccountRef);
+            
+            if (bankAccountDoc.exists()) {
+              const currentBalance = bankAccountDoc.data().currentBalance || 0;
+              await updateDoc(bankAccountRef, {
+                currentBalance: currentBalance + expectedBank
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error updating bank account:', error);
+        }
+      }
+
+      // Update product stock
+      for (const item of cart) {
+        const productRef = doc(firestore, 'businesses', businessId, 'products', item.productId);
+        const productDoc = await getDoc(productRef);
+        
+        if (productDoc.exists()) {
+          const currentStock = productDoc.data().stock || 0;
+          const newStock = Math.max(0, currentStock - item.quantity);
+          
+          await updateDoc(productRef, {
+            stock: newStock,
+            updatedAt: Timestamp.now(),
+          });
+        }
+      }
+
+      // If recorded by staff, update staff's revenue and transaction counts
+      if (userRole === 'Staff') {
+        const staffRef = doc(firestore, 'businesses', businessId, 'staff', user.uid);
+        const staffDoc = await getDoc(staffRef);
+        
+        if (staffDoc.exists()) {
+          const currentRevenue = staffDoc.data().revenue || 0;
+          const currentTransactions = staffDoc.data().transactions || 0;
+          
+          await updateDoc(staffRef, {
+            revenue: currentRevenue + total,
+            transactions: currentTransactions + 1,
+            lastSaleAt: Timestamp.now(),
+          });
+        }
+      }
 
       const receipt: PrintedReceipt = {
         id: `REC-${Date.now().toString().slice(-6)}`,

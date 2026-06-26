@@ -398,13 +398,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       if (data.action) {
         console.log('🎯 Action detected:', data.action);
         const action = data.action;
-        const actionText = action.action === 'record_sale' 
-          ? `Record sale: ${action.data.quantity}x ${action.data.productName}\nPrice: ₦${action.data.price}\nCost: ₦${action.data.costPrice || 'Auto'}\nProfit: ₦${((action.data.price - (action.data.costPrice || 0)) * action.data.quantity).toLocaleString()}`
+        
+        // Don't show JSON to user - just show a friendly confirmation
+        const actionDescription = action.action === 'record_sale' 
+          ? `Record sale of ${action.data.quantity}x ${action.data.productName}`
           : action.action === 'add_product'
-          ? `Add product: ${action.data.name}\nPrice: ₦${action.data.price}\nCost: ₦${action.data.costPrice || 0}\nStock: ${action.data.stock}`
-          : `Unknown action: ${action.action}`;
+          ? `Add new product: ${action.data.name}`
+          : `Perform action: ${action.action}`;
 
-        if (confirm(`MO wants to perform this action:\n\n${actionText}\n\nDo you want to proceed?`)) {
+        if (confirm(`MO wants to: ${actionDescription}\n\nDo you want to proceed?`)) {
           try {
             const executeResponse = await fetch('/api/ask-mo', {
               method: 'PUT',
@@ -418,34 +420,53 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
             const executeResult = await executeResponse.json();
             if (executeResult.success) {
-              // If this was a sale recording, attach the sale card data
-              if (action.action === 'record_sale') {
+              // If this was a sale recording, attach the sale card data with real product info
+              if (action.action === 'record_sale' && executeResult.data?.product) {
+                const product = executeResult.data.product;
                 const saleCardData = {
                   items: [{
-                    name: action.data.productName,
+                    name: product.name,
                     quantity: action.data.quantity,
-                    price: action.data.price,
-                    costPrice: action.data.costPrice,
+                    price: product.sellingPrice,
+                    costPrice: product.costPrice,
                   }],
-                  totalRevenue: (action.data.price || 0) * (action.data.quantity || 1),
+                  totalRevenue: product.sellingPrice * (action.data.quantity || 1),
                   totalProfit: executeResult.data?.profit,
                   timestamp: new Date(),
                 };
                 
                 // Update the bot message to include the sale card
                 botMsg.saleCard = saleCardData;
+                
+                // Add intelligent follow-up insights
+                const remainingStock = executeResult.data.product.remainingStock || 0;
+                const insights = [];
+                
+                if (remainingStock <= 5) {
+                  insights.push(`⚠️ Only ${remainingStock} units remaining - consider restocking soon`);
+                } else if (remainingStock <= 10) {
+                  insights.push(`📦 ${remainingStock} units left in stock`);
+                }
+                
+                if (executeResult.data.profit > 0) {
+                  insights.push(`💰 Profit: ₦${executeResult.data.profit.toLocaleString()}`);
+                }
+                
+                if (insights.length > 0) {
+                  botMsg.content += '\n\n' + insights.join('\n');
+                }
               }
               
               showToast(executeResult.message);
             } else {
-              showToast(`Failed to execute action: ${executeResult.message}`);
+              showToast(`Failed: ${executeResult.message}`);
             }
           } catch (error) {
             console.error('Error executing action:', error);
             showToast('Failed to execute action');
           }
         } else {
-          showToast('Action cancelled by user');
+          showToast('Action cancelled');
         }
       }
 

@@ -573,13 +573,21 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setMessages(data.messages || []);
+        const loadedMessages = data.messages || [];
+        
+        // Convert Firestore timestamps back to Date objects for proper rendering
+        const messagesWithDates = loadedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp || Date.now()),
+        }));
+        
+        setMessages(messagesWithDates);
         setCurrentConversationId(conversationId);
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
     }
-  }, [userId]);
+  }, [userId, setMessages]);
 
   const deleteConversation = useCallback(async (conversationId: string) => {
     try {

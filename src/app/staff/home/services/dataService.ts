@@ -4,7 +4,7 @@
  * Connects staff to owner's Firestore data
  */
 
-import { Firestore, collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { Firestore, collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc, Timestamp, orderBy, limit } from 'firebase/firestore';
 
 // ═══════════════════════════════════════════
 //  Types
@@ -113,10 +113,17 @@ export async function updateProductStock(
 ): Promise<void> {
   try {
     const productRef = doc(db, 'businesses', businessId, 'products', productId);
-    await updateDoc(productRef, {
-      stock: quantitySold, // This should be new stock value (current - sold)
-      updatedAt: Timestamp.now(),
-    });
+    const productDoc = await getDoc(productRef);
+    
+    if (productDoc.exists()) {
+      const currentStock = productDoc.data().stock || 0;
+      const newStock = Math.max(0, currentStock - quantitySold);
+      
+      await updateDoc(productRef, {
+        stock: newStock,
+        updatedAt: Timestamp.now(),
+      });
+    }
   } catch (error) {
     console.error('Error updating product stock:', error);
     throw error;

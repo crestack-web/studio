@@ -5,6 +5,8 @@ import {
   getDaysUntilStockout,
 } from './inventoryData';
 import { useCurrency } from './CurrencyContext';
+import { initializeFirebase } from '@/firebase';
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -74,15 +76,55 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
     in_stock: 'In Stock', low: 'Low Stock', out: 'Out of Stock',
   };
 
-  const handleSaveAdjustment = () => {
+  const handleSaveAdjustment = async () => {
     const qty = parseInt(adjustQty, 10);
-    if (!qty || isNaN(qty)) return;
-    // In real app: call API
-    // Here we just show success feedback
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-    setAdjustQty('');
-    setAdjustNote('');
+    if (!qty || isNaN(qty) || !product) return;
+
+    try {
+      const { firestore } = initializeFirebase();
+      const { auth } = initializeFirebase();
+      const user = auth.currentUser;
+      
+      if (!user) return;
+
+      const businessId = user.uid;
+      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+      
+      let newStock = product.stock;
+      if (adjustType === 'add') newStock = product.stock + qty;
+      else if (adjustType === 'remove') newStock = Math.max(0, product.stock - qty);
+      else if (adjustType === 'set') newStock = qty;
+
+      const movementEntry = {
+        type: 'adjustment' as const,
+        qty: adjustType === 'add' ? qty : adjustType === 'remove' ? -qty : qty - product.stock,
+        balance: newStock,
+        note: adjustNote || 'Manual stock adjustment',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        recordedBy: {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'Owner',
+          timestamp: Date.now(),
+        },
+      };
+
+      await updateDoc(productRef, {
+        stock: newStock,
+        movement: arrayUnion(movementEntry),
+        updatedAt: Timestamp.now(),
+      });
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      setAdjustQty('');
+      setAdjustNote('');
+      
+      if (onSave) onSave({ ...product, stock: newStock });
+    } catch (error) {
+      console.error('Error saving adjustment:', error);
+      alert('Failed to save adjustment. Please try again.');
+    }
   };
 
   const handleSaveDetails = () => {

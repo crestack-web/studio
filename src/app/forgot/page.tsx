@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { initializeFirebase } from "@/firebase";
+import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -17,11 +19,17 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      // TODO: Call Firebase password reset or Cloud Function
-      // For now, simulate success
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const { auth } = initializeFirebase();
+      
+      // Send password reset email via Firebase Auth
+      await firebaseSendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      });
+      
       setSuccess(true);
     } catch (err: any) {
+      console.error("Password reset error:", err);
       setError(err.message || "Failed to send reset email");
     } finally {
       setLoading(false);
