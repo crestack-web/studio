@@ -316,8 +316,15 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       return;
     }
     
-    if (!form.sellPrice || parseFloat(form.sellPrice) <= 0) {
+    // Only require selling price for non-ingredient products
+    if (form.productType !== 'ingredient' && (!form.sellPrice || parseFloat(form.sellPrice) <= 0)) {
       showToast('⚠️ Please enter a valid selling price');
+      return;
+    }
+
+    // Cost price is required for all products including ingredients
+    if (!form.costPrice || parseFloat(form.costPrice) <= 0) {
+      showToast('⚠️ Please enter a valid cost price');
       return;
     }
 
@@ -385,7 +392,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         name: form.name.trim(),
         description: form.description,
         category: form.productType === 'dish' ? form.dishCategory : form.category,
-        price: parseFloat(form.sellPrice),
+        price: form.productType === 'ingredient' ? 0 : parseFloat(form.sellPrice),
         cost: parseFloat(form.costPrice) || 0, // Use 'cost' field for existing structure
         stock: parseInt(form.openingStock) || 0,
         lowStockThreshold: parseInt(form.lowStockAlert) || 5,
@@ -724,17 +731,25 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
 
       {/* ── PRICING ── */}
       <div className={styles.card}>
-        <div className={styles.cardTitle}>Pricing & Stock</div>
-        <div className={styles.cardSub}>Your selling price and cost price are used to calculate your profit margin on every sale.</div>
+        <div className={styles.cardTitle}>
+          {form.productType === 'ingredient' ? 'Cost & Stock' : 'Pricing & Stock'}
+        </div>
+        <div className={styles.cardSub}>
+          {form.productType === 'ingredient' 
+            ? 'Cost price is used to calculate meal costs and track inventory value.'
+            : 'Your selling price and cost price are used to calculate your profit margin on every sale.'}
+        </div>
 
         <div className={styles.row3}>
-          <div className={styles.group}>
-            <label className={styles.label}>Selling Price ({currency.symbol}) <span className={styles.req}>*</span></label>
-            <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>{currency.symbol}</span>
-              <input id="sell-price" className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="0.00" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
+          {form.productType !== 'ingredient' && (
+            <div className={styles.group}>
+              <label className={styles.label}>Selling Price ({currency.symbol}) <span className={styles.req}>*</span></label>
+              <div className={styles.prefixWrap}>
+                <span className={styles.prefix}>{currency.symbol}</span>
+                <input id="sell-price" className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="0.00" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
+              </div>
             </div>
-          </div>
+          )}
           <div className={styles.group}>
             <label className={styles.label}>Cost Price ({currency.symbol}) <span className={styles.req}>*</span></label>
             <div className={styles.prefixWrap}>
@@ -742,16 +757,18 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
               <input className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="0.00" value={form.costPrice} onChange={e => set('costPrice', e.target.value)} />
             </div>
           </div>
-          <div className={styles.group}>
-            <label className={styles.label}>Compare-at Price</label>
-            <div className={styles.prefixWrap}>
-              <span className={styles.prefix}>{currency.symbol}</span>
-              <input className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="(strike-through price)" />
+          {form.productType !== 'ingredient' && (
+            <div className={styles.group}>
+              <label className={styles.label}>Compare-at Price</label>
+              <div className={styles.prefixWrap}>
+                <span className={styles.prefix}>{currency.symbol}</span>
+                <input className={styles.input} style={{ paddingLeft: 28 }} type="number" placeholder="(strike-through price)" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {margin && (
+        {margin && form.productType !== 'ingredient' && (
           <div className={styles.marginIndicator}>
             <span>📈</span>
             <span>Profit margin: <strong>{margin.pct}%</strong> &nbsp;|&nbsp; {currency.symbol}{margin.profit} per unit</span>

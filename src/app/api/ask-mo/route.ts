@@ -128,8 +128,16 @@ async function executeAction(action: any, businessId: string, userId: string): P
       if (!data.category) {
         return { success: false, message: 'Product category is required', data: null };
       }
-      if (!data.price || parseFloat(data.price) <= 0) {
+      
+      // Only require selling price for non-ingredient products
+      const isIngredient = data.productType === 'ingredient';
+      if (!isIngredient && (!data.price || parseFloat(data.price) <= 0)) {
         return { success: false, message: 'Selling price is required and must be greater than 0', data: null };
+      }
+      
+      // Cost price is required for all products including ingredients
+      if (!data.costPrice || parseFloat(data.costPrice) <= 0) {
+        return { success: false, message: 'Cost price is required and must be greater than 0', data: null };
       }
 
       // Handle image upload if provided
@@ -161,18 +169,23 @@ async function executeAction(action: any, businessId: string, userId: string): P
         name: data.name.trim(),
         description: data.description || '',
         category: data.category,
-        price: parseFloat(data.price) || 0,
+        price: isIngredient ? 0 : (parseFloat(data.price) || 0),
         cost: parseFloat(data.costPrice) || 0,
         stock: parseInt(data.stock) || 0,
         lowStockThreshold: parseInt(data.lowStockThreshold) || 5,
         active: true,
         attributes: {
-          emoji: data.emoji || '📦',
+          emoji: data.emoji || (isIngredient ? '🥘' : '📦'),
           sku: sku,
         },
         createdAt: admin.firestore.Timestamp.now(),
         updatedAt: admin.firestore.Timestamp.now(),
       };
+
+      // Add product type for restaurant businesses
+      if (data.productType) {
+        productData.productType = data.productType;
+      }
 
       // Add image URL if uploaded
       if (imageUrl) {
@@ -209,10 +222,11 @@ async function executeAction(action: any, businessId: string, userId: string): P
             name: data.name,
             sku,
             category: data.category,
-            price: parseFloat(data.price),
+            price: isIngredient ? 0 : parseFloat(data.price),
             cost: parseFloat(data.costPrice) || 0,
             stock: parseInt(data.stock) || 0,
             imageUrl: imageUrl || null,
+            productType: data.productType || 'product',
           }
         } 
       };

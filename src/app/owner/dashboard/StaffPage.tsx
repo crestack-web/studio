@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { Card, CardHeader, CardIcon } from './Card';
