@@ -1,0 +1,212 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--bg);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.confirmationContent {
+  text-align: center;
+}
+
+.confirmationIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.confirmationTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 16px;
+}
+
+.confirmationText {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.productCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.productHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.productName {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.productQuantity {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--purple);
+  background: var(--purple-light);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.productDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailLabel {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.detailValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.detailValue.profit {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cancelButton,
+.confirmButton {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.cancelButton {
+  background: var(--surface);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+}
+
+.cancelButton:hover {
+  background: var(--border);
+}
+
+.confirmButton {
+  background: var(--purple);
+  color: white;
+}
+
+.confirmButton:hover {
+  background: var(--purple-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .modal {
+    padding: 20px;
+    max-width: 95%;
+  }
+
+  .confirmationIcon {
+    font-size: 40px;
+  }
+
+  .confirmationTitle {
+    font-size: 18px;
+  }
+
+  .productCard {
+    padding: 12px;
+  }
+
+  .productName {
+    font-size: 14px;
+  }
+
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .confirmButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal {
+    padding: 16px;
+    max-width: 100%;
+    margin: 16px;
+  }
+
+  .confirmationIcon {
+    font-size: 36px;
+  }
+
+  .confirmationTitle {
+    font-size: 16px;
+  }
+
+  .confirmationText {
+    font-size: 13px;
+  }
+}

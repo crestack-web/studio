@@ -14,6 +14,7 @@ import { useAskMO } from './useAskMO';
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus, Trash2, Pencil } from 'lucide-react';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
+import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 
 // Dynamic suggestions based on business data
 const BASE_SUGGESTIONS = [
@@ -111,6 +112,9 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingStage, setLoadingStage] = useState<number>(0);
+  const [showActionConfirmation, setShowActionConfirmation] = useState(false);
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [pendingProductDetails, setPendingProductDetails] = useState<any>(null);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -158,6 +162,88 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setCurrentConversationId(null);
     setShowHistory(false);
   }, [setCurrentConversationId]);
+
+  const handleActionConfirm = async () => {
+    setShowActionConfirmation(false);
+    
+    if (!pendingAction) return;
+
+    try {
+      const executeResponse = await fetch('/api/ask-mo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: pendingAction,
+          businessId: user.businessId || user.id,
+          userId: user.id,
+        }),
+      });
+
+      const executeResult = await executeResponse.json();
+      if (executeResult.success) {
+        // If this was a sale recording, attach the sale card data with real product info
+        if (pendingAction.action === 'record_sale' && executeResult.data?.product) {
+          const product = executeResult.data.product;
+          const saleCardData = {
+            items: [{
+              name: product.name,
+              quantity: pendingAction.data.quantity,
+              price: product.sellingPrice,
+              costPrice: product.costPrice,
+            }],
+            totalRevenue: product.sellingPrice * (pendingAction.data.quantity || 1),
+            totalProfit: executeResult.data?.profit,
+            timestamp: new Date(),
+          };
+          
+          // Update the last bot message to include the sale card
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastBotMsg = updated.find(m => m.role === 'bot');
+            if (lastBotMsg) {
+              lastBotMsg.saleCard = saleCardData;
+              
+              // Add intelligent follow-up insights
+              const remainingStock = executeResult.data.product.remainingStock || 0;
+              const insights = [];
+              
+              if (remainingStock <= 5) {
+                insights.push(`⚠️ Only ${remainingStock} units remaining - consider restocking soon`);
+              } else if (remainingStock <= 10) {
+                insights.push(`📦 ${remainingStock} units left in stock`);
+              }
+              
+              if (executeResult.data.profit > 0) {
+                insights.push(`💰 Profit: ₦${executeResult.data.profit.toLocaleString()}`);
+              }
+              
+              if (insights.length > 0) {
+                lastBotMsg.content += '\n\n' + insights.join('\n');
+              }
+            }
+            return updated;
+          });
+        }
+        
+        showToast(executeResult.message);
+      } else {
+        showToast(`Failed: ${executeResult.message}`);
+      }
+    } catch (error) {
+      console.error('Error executing action:', error);
+      showToast('Failed to execute action');
+    } finally {
+      setPendingAction(null);
+      setPendingProductDetails(null);
+    }
+  };
+
+  const handleActionCancel = () => {
+    setShowActionConfirmation(false);
+    setPendingAction(null);
+    setPendingProductDetails(null);
+    showToast('Action cancelled');
+  };
 
   const handlePurchaseSuccess = () => {
     // Refresh credits after successful purchase
@@ -399,75 +485,36 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         console.log('🎯 Action detected:', data.action);
         const action = data.action;
         
-        // Don't show JSON to user - just show a friendly confirmation
-        const actionDescription = action.action === 'record_sale' 
-          ? `Record sale of ${action.data.quantity}x ${action.data.productName}`
-          : action.action === 'add_product'
-          ? `Add new product: ${action.data.name}`
-          : `Perform action: ${action.action}`;
-
-        if (confirm(`MO wants to: ${actionDescription}\n\nDo you want to proceed?`)) {
+        // For record_sale, fetch product details first
+        if (action.action === 'record_sale') {
           try {
-            const executeResponse = await fetch('/api/ask-mo', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: action,
-                businessId: user.businessId || user.id,
-                userId: user.id,
-              }),
-            });
-
-            const executeResult = await executeResponse.json();
-            if (executeResult.success) {
-              // If this was a sale recording, attach the sale card data with real product info
-              if (action.action === 'record_sale' && executeResult.data?.product) {
-                const product = executeResult.data.product;
-                const saleCardData = {
-                  items: [{
-                    name: product.name,
-                    quantity: action.data.quantity,
-                    price: product.sellingPrice,
-                    costPrice: product.costPrice,
-                  }],
-                  totalRevenue: product.sellingPrice * (action.data.quantity || 1),
-                  totalProfit: executeResult.data?.profit,
-                  timestamp: new Date(),
-                };
-                
-                // Update the bot message to include the sale card
-                botMsg.saleCard = saleCardData;
-                
-                // Add intelligent follow-up insights
-                const remainingStock = executeResult.data.product.remainingStock || 0;
-                const insights = [];
-                
-                if (remainingStock <= 5) {
-                  insights.push(`⚠️ Only ${remainingStock} units remaining - consider restocking soon`);
-                } else if (remainingStock <= 10) {
-                  insights.push(`📦 ${remainingStock} units left in stock`);
-                }
-                
-                if (executeResult.data.profit > 0) {
-                  insights.push(`💰 Profit: ₦${executeResult.data.profit.toLocaleString()}`);
-                }
-                
-                if (insights.length > 0) {
-                  botMsg.content += '\n\n' + insights.join('\n');
-                }
-              }
-              
-              showToast(executeResult.message);
-            } else {
-              showToast(`Failed: ${executeResult.message}`);
+            const { firestore } = initializeFirebase();
+            const productQuery = await query(
+              collection(firestore, 'businesses', user.businessId || user.id, 'products'),
+              where('name', '==', action.data.productName),
+              where('active', '==', true),
+              limit(1)
+            );
+            const productSnapshot = await getDocs(productQuery);
+            
+            if (!productSnapshot.empty) {
+              const productDoc = productSnapshot.docs[0];
+              const productData = productDoc.data();
+              setPendingProductDetails({
+                name: productData.name,
+                sellingPrice: productData.price || 0,
+                costPrice: productData.cost || productData.costPrice || 0,
+                currentStock: productData.stock || 0,
+              });
             }
           } catch (error) {
-            console.error('Error executing action:', error);
-            showToast('Failed to execute action');
+            console.error('Error fetching product details:', error);
           }
-        } else {
-          showToast('Action cancelled');
         }
+
+        // Show custom confirmation modal instead of browser confirm
+        setPendingAction(action);
+        setShowActionConfirmation(true);
       }
 
       setMessages(prev => [...prev, botMsg]);
@@ -661,6 +708,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         isOpen={showCreditPurchase}
         onClose={() => setShowCreditPurchase(false)}
         onSuccess={handlePurchaseSuccess}
+      />
+
+      <ActionConfirmationModal
+        isOpen={showActionConfirmation}
+        onClose={handleActionCancel}
+        onConfirm={handleActionConfirm}
+        actionType={pendingAction?.action === 'record_sale' ? 'record_sale' : pendingAction?.action === 'add_product' ? 'add_product' : 'other'}
+        actionData={pendingAction?.data || {}}
+        productDetails={pendingProductDetails}
       />
 
       {/* Messages */}
