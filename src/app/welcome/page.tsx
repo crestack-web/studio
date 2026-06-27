@@ -60,21 +60,21 @@ export default function WelcomePage() {
         <div className="max-w">
           <div className="section-head">
             <div className="section-label">Who is Busmo for?</div>
-            <h2 className="section-title">One platform.<br /><em>Every role.</em></h2>
-            <p className="section-sub">Whether you own the business, sell on the market, or fund the next big thing — Busmo has a place for you.</p>
+            <h2 className="section-title">Your intelligent<br /><em>business operating system.</em></h2>
+            <p className="section-sub">From recording sales with natural language to AI-powered insights — Busmo transforms how you run your business.</p>
           </div>
           <div className="paths-grid">
             {/* Business Owner */}
             <div className="path-card featured">
               <div className="path-icon owner"><span>🏪</span></div>
               <div className="path-title">Business Owners</div>
-              <div className="path-desc">Track your profit, inventory, staff, and expenses — all from one simple dashboard.</div>
+              <div className="path-desc">Talk to your business. Record sales, add products, and get insights — all through natural conversation with MO, your AI assistant.</div>
               <ul className="path-list">
-                <li>Real-time profit tracking</li>
-                <li>AI-powered insights daily</li>
-                <li>Inventory & expense tracking</li>
-                <li>Smart forecasts & alerts</li>
-                <li>Sell online with Busmo Market</li>
+                <li>Record sales by just saying "sold 2 shirts"</li>
+                <li>Add products with images and natural language</li>
+                <li>AI-powered daily business insights</li>
+                <li>Smart inventory & expense tracking</li>
+                <li>Low stock alerts & restock recommendations</li>
               </ul>
               <button className="path-cta" onClick={() => handleNavigate('signup')}>Start Free Trial →</button>
             </div>
@@ -100,42 +100,42 @@ export default function WelcomePage() {
         <div className="max-w">
           <div className="section-head">
             <div className="section-label">Platform Features</div>
-            <h2 className="section-title">Everything you need.<br /><em>Nothing you don't.</em></h2>
-            <p className="section-sub">Busmo is built for the reality of your business — simple, fast, and offline-first.</p>
+            <h2 className="section-title">Talk to your business.<br /><em>It listens.</em></h2>
+            <p className="section-sub">Busmo is the first business operating system that understands natural language — record sales, add products, and get insights just by talking.</p>
           </div>
           <div className="features-grid">
             <div className="feat-card wide">
-              <div className="feat-icon">🛒</div>
+              <div className="feat-icon">🤖</div>
               <div>
-                <div className="feat-title">Record Sales the Right Way</div>
-                <div className="feat-desc">See exactly what was sold, track quantity and profit per product, and understand which items actually make you money. Record a sale in seconds — even offline.</div>
-                <span className="feat-tag">Offline-first</span>
+                <div className="feat-title">MO — Your AI Business Assistant</div>
+                <div className="feat-desc">Record sales by saying "sold 3 shirts for ₦5,000", add products by describing them, and get instant answers to business questions. MO understands context and learns your business.</div>
+                <span className="feat-tag">AI-Powered</span>
               </div>
             </div>
             <div className="feat-card">
+              <div className="feat-icon">�</div>
+              <div className="feat-title">Natural Language Sales</div>
+              <div className="feat-desc">No forms, no complexity. Just say what happened and MO handles the rest — validates inventory, calculates profit, and updates records instantly.</div>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon">�</div>
+              <div className="feat-title">Add Products with Images</div>
+              <div className="feat-desc">Snap a photo of a product and tell MO about it. It extracts details, sets pricing, and adds it to your inventory automatically.</div>
+            </div>
+            <div className="feat-card">
               <div className="feat-icon">📦</div>
-              <div className="feat-title">Inventory Management</div>
-              <div className="feat-desc">Add products with cost and quantity, track stock automatically, and get alerts before you run out of your best sellers.</div>
+              <div className="feat-title">Smart Inventory</div>
+              <div className="feat-desc">Track stock automatically, get low stock alerts before you run out, and receive AI-powered restock recommendations.</div>
             </div>
             <div className="feat-card">
-              <div className="feat-icon">💸</div>
-              <div className="feat-title">Expense Tracking</div>
-              <div className="feat-desc">Log daily expenses and inventory costs. See how they affect your profit in real time — not at month end.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">🤖</div>
-              <div className="feat-title">Ask Busmo AI</div>
-              <div className="feat-desc">Just ask: "Did I make profit today?" or "Which product should I restock?" Get straight answers instantly.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">🔮</div>
-              <div className="feat-title">Smart Forecasts</div>
-              <div className="feat-desc">Busmo predicts your next week's profit, busiest day, cash runway, and stock outlook — based on your real activity.</div>
+              <div className="feat-icon">�</div>
+              <div className="feat-title">Daily Business Insights</div>
+              <div className="feat-desc">MO provides personalized insights every day — profit trends, best-selling products, cash flow health, and actionable recommendations.</div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">👥</div>
               <div className="feat-title">Staff Management</div>
-              <div className="feat-desc">Invite staff members to record sales and manage inventory. Keep control while your team keeps things running.</div>
+              <div className="feat-desc">Invite staff to record sales and manage inventory. Keep control while your team keeps things running.</div>
               <span className="feat-tag">Supermarket plan+</span>
             </div>
             <div className="feat-card">
@@ -145,10 +145,10 @@ export default function WelcomePage() {
               <span className="feat-tag">Branches plan+</span>
             </div>
             <div className="feat-card">
-              <div className="feat-icon">🏭</div>
-              <div className="feat-title">Production Tracking</div>
-              <div className="feat-desc">Track cost of goods manufactured and monitor production cycles for manufacturers and processors.</div>
-              <span className="feat-tag">Company plan</span>
+              <div className="feat-icon">📵</div>
+              <div className="feat-title">Works Offline</div>
+              <div className="feat-desc">Record sales and manage inventory even without internet. Syncs automatically when you're back online.</div>
+              <span className="feat-tag">Offline-first</span>
             </div>
           </div>
         </div>
