@@ -994,7 +994,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     <div className={styles.historyItemMeta}>
                       <span>{conv.branchName || 'Main Branch'}</span>
                       <span>•</span>
-                      <span>{conv.messages.length} messages</span>
+                      <span>{(conv.messages?.length || conv.messageCount || 0)} messages</span>
                       <span>•</span>
                       <span>{conv.updatedAt.toLocaleDateString()}</span>
                     </div>

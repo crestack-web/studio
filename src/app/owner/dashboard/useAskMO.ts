@@ -35,6 +35,7 @@ interface Conversation {
   createdAt: Date;
   updatedAt: Date;
   messageCount: number;
+  messages?: MOMessage[];
 }
 
 interface UseAskMOOptions {
@@ -157,6 +158,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date(),
               messageCount: data.messages?.length || 0,
+              messages: data.messages || [],
             });
           });
 
@@ -645,6 +647,12 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     }
   }, [userId]);
 
+  // Save current messages to current conversation
+  const saveConversation = useCallback(async () => {
+    if (!currentConversationId) return;
+    await saveMessages(currentConversationId, messages);
+  }, [currentConversationId, messages, saveMessages]);
+
   const updateCredits = useCallback(async (creditsConsumed: number) => {
     const normalizedPlan = userPlan?.toLowerCase() || 'starter';
     const isProPlan = normalizedPlan === 'pro';
@@ -700,6 +708,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     setCurrentConversationId,
     businessSummary,
     createConversation,
+    saveConversation,
     saveMessages,
     loadConversation,
     deleteConversation,
