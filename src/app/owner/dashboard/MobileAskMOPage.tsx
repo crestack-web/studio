@@ -94,46 +94,15 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Save state to localStorage when it changes
+  // Clear MO-related localStorage keys on mount to ensure fresh state
   useEffect(() => {
-    localStorage.setItem('mo-show-history', showHistory.toString());
-  }, [showHistory]);
+    localStorage.removeItem('mo-show-history');
+    localStorage.removeItem('mo-current-conversation-id');
+    localStorage.removeItem('mo-current-messages');
+  }, []);
 
+  // Check for pre-filled question from other pages
   useEffect(() => {
-    if (currentConversationId) {
-      localStorage.setItem('mo-current-conversation-id', currentConversationId);
-    } else {
-      localStorage.removeItem('mo-current-conversation-id');
-    }
-  }, [currentConversationId]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('mo-current-messages', JSON.stringify(messages));
-    } else {
-      localStorage.removeItem('mo-current-messages');
-    }
-  }, [messages]);
-
-  // Load showHistory from localStorage on mount
-  useEffect(() => {
-    const savedShowHistory = localStorage.getItem('mo-show-history');
-    if (savedShowHistory === 'true') {
-      setShowHistory(true);
-    }
-
-    // Load current messages from localStorage
-    const savedMessages = localStorage.getItem('mo-current-messages');
-    if (savedMessages) {
-      try {
-        const parsedMessages = JSON.parse(savedMessages);
-        setMessages(parsedMessages);
-      } catch (error) {
-        console.error('Error parsing saved messages:', error);
-      }
-    }
-
-    // Check for pre-filled question from other pages
     const prefilledQuestion = localStorage.getItem('mo-prefilled-question');
     if (prefilledQuestion && !isSending) {
       setInput(prefilledQuestion);
