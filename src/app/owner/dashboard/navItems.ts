@@ -40,7 +40,6 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   },
   'credit-tracking': {
     requiredFeatures: ['Credit Tracking'],
-    excludedCategories: ['restaurant', 'cafe', 'pharmacy', 'healthcare', 'education'],
     requiredPlan: 'standard',
   },
   

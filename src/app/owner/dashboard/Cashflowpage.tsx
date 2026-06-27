@@ -6,8 +6,8 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus } from 'lucide-react';
+import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus, ShoppingCart } from 'lucide-react';
 import styles from './Cashflowpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -15,6 +15,7 @@ import styles from './Cashflowpage.module.css';
 // ═══════════════════════════════════════════
 
 type ActionId = 'add-stock' | 'reduce-stock' | 'add-money' | 'take-money' | 'add-account' | null;
+type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 interface BankAccount {
   id: string;
@@ -24,6 +25,14 @@ interface BankAccount {
   isActive: boolean;
   isDefault: boolean;
   isPosDefault?: boolean; // Default for POS/bank payments
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  currentBalance?: number;
 }
 
 interface Transaction {
@@ -37,7 +46,7 @@ interface Transaction {
 }
 
 export function CashflowPage() {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const { businessId } = useBranch();
@@ -47,6 +56,7 @@ export function CashflowPage() {
   const [loading, setLoading] = useState(true);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stats, setStats] = useState({
     cashBalance: 0,
     stockValue: 0,
@@ -54,17 +64,21 @@ export function CashflowPage() {
     monthOut: 0,
   });
   const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
-  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '' });
+  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '' });
 
   useEffect(() => {
     loadData();
     loadProducts();
-  }, [businessId, firestore]);
+    loadSuppliers();
+  }, [businessId, firestore, dateFilter, customStartDate, customEndDate]);
 
   const loadProducts = async () => {
     if (!businessId || !firestore) return;
@@ -76,12 +90,71 @@ export function CashflowPage() {
       const productsSnapshot = await getDocs(productsQuery);
       const productsList: any[] = [];
       productsSnapshot.forEach(doc => {
-        productsList.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        productsList.push({
+          id: doc.id,
+          ...data,
+          costPrice: data.cost || data.costPrice || 0,
+        });
       });
       setProducts(productsList);
     } catch (error) {
       console.error('Error loading products:', error);
     }
+  };
+
+  const loadSuppliers = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const suppliersQuery = query(
+        collection(firestore, 'businesses', businessId, 'suppliers'),
+        where('active', '==', true)
+      );
+      const suppliersSnapshot = await getDocs(suppliersQuery);
+      const suppliersList: Supplier[] = [];
+      suppliersSnapshot.forEach(doc => {
+        const data = doc.data();
+        suppliersList.push({
+          id: doc.id,
+          name: data.supplierName || data.name || '',
+          phone: data.phone,
+          email: data.email,
+          currentBalance: data.currentBalance || 0,
+        });
+      });
+      setSuppliers(suppliersList);
+    } catch (error) {
+      console.error('Error loading suppliers:', error);
+    }
+  };
+
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (dateFilter) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          startDate = new Date(customStartDate);
+          const endDate = new Date(customEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          return { startDate, endDate };
+        }
+        return null;
+      default:
+        return null;
+    }
+
+    return { startDate, endDate: now };
   };
 
   const loadData = async () => {
@@ -117,14 +190,22 @@ export function CashflowPage() {
       
       setBankAccounts(accountsList);
       
-      // Fetch recent bank transactions
-      const transactionsQuery = query(
+      // Fetch bank transactions with date filtering
+      const dateRange = getDateRange();
+      let transactionsQuery = query(
         collection(firestore, 'businesses', businessId, 'bankTransactions'),
         orderBy('createdAt', 'desc'),
         limit(50)
       );
+
+      let snapshot;
+      if (dateRange && dateFilter !== 'all') {
+        // Apply date filtering in-memory after fetching
+        snapshot = await getDocs(transactionsQuery);
+      } else {
+        snapshot = await getDocs(transactionsQuery);
+      }
       
-      const snapshot = await getDocs(transactionsQuery);
       const fetchedTransactions: Transaction[] = [];
       let cashBalance = 0;
       let monthIn = 0;
@@ -138,6 +219,13 @@ export function CashflowPage() {
         const amount = data.amount || 0;
         const isCredit = data.type === 'money_in';
         const date = data.createdAt?.toDate() || new Date();
+        
+        // Apply date filter
+        if (dateRange && dateFilter !== 'all') {
+          if (date < dateRange.startDate || date > dateRange.endDate) {
+            return;
+          }
+        }
         
         fetchedTransactions.push({
           id: doc.id,
@@ -158,8 +246,8 @@ export function CashflowPage() {
         }
       });
 
-      // Fetch recent sales and add them as transactions
-      const salesQuery = query(
+      // Fetch recent sales with date filtering
+      let salesQuery = query(
         collection(firestore, 'businesses', businessId, 'sales'),
         orderBy('createdAt', 'desc'),
         limit(50)
@@ -171,6 +259,13 @@ export function CashflowPage() {
         const data = doc.data();
         const amount = data.totalRevenue || data.totalAmount || 0;
         const date = data.createdAt?.toDate() || new Date();
+        
+        // Apply date filter
+        if (dateRange && dateFilter !== 'all') {
+          if (date < dateRange.startDate || date > dateRange.endDate) {
+            return;
+          }
+        }
         
         // Determine if sale has bank/POS payments
         const hasBankPayment = data.paymentBreakdown?.some((p: any) => 
@@ -193,17 +288,27 @@ export function CashflowPage() {
         }
       });
       
-      setTransactions(fetchedTransactions);
+      // Sort transactions by date (most recent first)
+      const sortedTransactions = fetchedTransactions.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB.getTime() - dateA.getTime();
+      });
       
-      // Calculate stock value from products
+      setTransactions(sortedTransactions);
+      
+      // Calculate stock value from products using costPrice (handles both 'cost' and 'costPrice' fields)
       const stockValue = products.reduce((sum: number, product: any) => {
         const stock = product.stock || 0;
         const costPrice = product.costPrice || 0;
         return sum + (stock * costPrice);
       }, 0);
       
+      // Calculate total cash balance (sum of all bank accounts)
+      const totalBankBalance = accountsList.reduce((sum, a) => sum + a.currentBalance, 0);
+      
       setStats({
-        cashBalance: accountsList.reduce((sum, a) => sum + a.currentBalance, 0),
+        cashBalance: totalBankBalance,
         stockValue,
         monthIn,
         monthOut,
@@ -406,28 +511,121 @@ export function CashflowPage() {
         stock: newStock,
       });
 
-      // Record as expense transaction
-      if (bankAccounts.length > 0) {
-        const defaultAccount = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
-        const transactionData = {
-          transactionNumber: `STK-${Date.now()}`,
-          bankAccountId: defaultAccount.id,
-          accountName: defaultAccount.accountName,
-          type: 'money_out',
-          category: 'Stock Addition',
-          amount: stockAddition.costPrice * stockAddition.quantity,
-          balanceAfter: defaultAccount.currentBalance,
-          description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
-          createdAt: Timestamp.now(),
-        };
-        await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      const purchaseAmount = stockAddition.costPrice * stockAddition.quantity;
+
+      // If marked as purchase, handle bank account and supplier linking
+      if (stockAddition.isPurchase) {
+        // If bank account selected, reduce bank balance
+        if (stockAddition.bankAccountId) {
+          const account = bankAccounts.find(a => a.id === stockAddition.bankAccountId);
+          if (!account) {
+            showToast('❌ Please select a valid bank account');
+            return;
+          }
+
+          if (account.currentBalance < purchaseAmount) {
+            showToast('❌ Insufficient bank balance for this purchase');
+            return;
+          }
+
+          const newBalance = account.currentBalance - purchaseAmount;
+          await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId), {
+            currentBalance: newBalance,
+          });
+
+          // Record bank transaction
+          const transactionData = {
+            transactionNumber: `TXN-${Date.now()}`,
+            bankAccountId: account.id,
+            accountName: account.accountName,
+            type: 'money_out',
+            category: 'Purchase',
+            amount: purchaseAmount,
+            balanceAfter: newBalance,
+            description: `Purchase: ${product.name} - ${stockAddition.quantity} units from ${stockAddition.supplierId ? suppliers.find(s => s.id === stockAddition.supplierId)?.name || 'Supplier' : 'Unknown Supplier'}`,
+            createdAt: Timestamp.now(),
+          };
+          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+        } else {
+          // No bank account selected - this is a cash purchase from revenue
+          // Record as expense without bank account
+          const cashTransactionData = {
+            transactionNumber: `CASH-${Date.now()}`,
+            type: 'money_out',
+            category: 'Cash Purchase',
+            amount: purchaseAmount,
+            description: `Cash purchase: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
+            createdAt: Timestamp.now(),
+          };
+          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), cashTransactionData);
+        }
+
+        // Update supplier balance if supplier is selected
+        if (stockAddition.supplierId) {
+          const supplierDoc = await getDoc(doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId));
+          if (supplierDoc.exists()) {
+            const supplierData = supplierDoc.data();
+            const currentBalance = supplierData.currentBalance || 0;
+            const newBalance = currentBalance + purchaseAmount;
+            
+            await updateDoc(doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId), {
+              currentBalance: newBalance,
+              totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
+              purchaseCount: (supplierData.purchaseCount || 0) + 1,
+              lastPurchaseDate: Timestamp.now(),
+            });
+
+            // Create stock receipt
+            const receiptData = {
+              receiptNumber: `SR-${Date.now()}`,
+              supplierId: stockAddition.supplierId,
+              supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
+              items: [{
+                productId: product.id,
+                productName: product.name,
+                quantity: stockAddition.quantity,
+                unitCost: stockAddition.costPrice,
+                totalCost: purchaseAmount,
+              }],
+              totalQuantity: stockAddition.quantity,
+              totalCost: purchaseAmount,
+              paymentMethod: stockAddition.bankAccountId ? 'transfer' : 'cash',
+              paidAmount: stockAddition.bankAccountId ? purchaseAmount : 0,
+              creditAmount: stockAddition.bankAccountId ? 0 : purchaseAmount,
+              receivedAt: new Date().toISOString(),
+              receivedBy: user?.id || 'system',
+              receivedByName: user?.name || 'System',
+              notes: stockAddition.description,
+              createdAt: Timestamp.now(),
+            };
+            await addDoc(collection(firestore, 'businesses', businessId, 'stockReceipts'), receiptData);
+          }
+        }
+      } else {
+        // Not a purchase - just record as stock addition expense if bank accounts exist
+        if (bankAccounts.length > 0) {
+          const defaultAccount = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
+          const transactionData = {
+            transactionNumber: `STK-${Date.now()}`,
+            bankAccountId: defaultAccount.id,
+            accountName: defaultAccount.accountName,
+            type: 'money_out',
+            category: 'Stock Addition',
+            amount: purchaseAmount,
+            balanceAfter: defaultAccount.currentBalance,
+            description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
+            createdAt: Timestamp.now(),
+          };
+          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+        }
       }
 
       showToast('✅ Stock added successfully');
       setActiveAction(null);
-      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '' });
+      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '' });
       loadProducts();
       loadData();
+      loadSuppliers();
     } catch (error) {
       console.error('Error adding stock:', error);
       showToast('❌ Failed to add stock');
@@ -452,6 +650,40 @@ export function CashflowPage() {
     <div className={styles.page}>
       <h1 className={styles.heading}>{t('cashflow.title')}</h1>
       <p className={styles.sub}>{t('cashflow.subtitle')}</p>
+
+      {/* ── DATE FILTER ── */}
+      <div className={styles.dateFilterContainer}>
+        <label className={styles.filterLabel}>Time Period:</label>
+        <select
+          className={styles.filterSelect}
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="custom">Custom Range</option>
+        </select>
+
+        {dateFilter === 'custom' && (
+          <div className={styles.customDateRange}>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+            />
+            <span>to</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* ── QUICK STATS ── */}
       <div className={styles.statsGrid}>
@@ -644,6 +876,53 @@ export function CashflowPage() {
                     placeholder="₦0.00"
                   />
                 </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={stockAddition.isPurchase}
+                      onChange={(e) => setStockAddition({ ...stockAddition, isPurchase: e.target.checked })}
+                    />
+                    <ShoppingCart size={16} style={{ marginRight: '8px' }} />
+                    <span>This is a Purchase</span>
+                  </label>
+                  <span className={styles.formHint}>Mark as purchase to link with supplier and bank account</span>
+                </div>
+
+                {stockAddition.isPurchase && (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Select Bank Account (Optional)</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.bankAccountId}
+                        onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
+                      >
+                        <option value="">Cash Purchase (from revenue)</option>
+                        {bankAccounts.map(account => (
+                          <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
+                        ))}
+                      </select>
+                      <span className={styles.formHint}>Leave empty to deduct from cash revenue</span>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Select Supplier (Optional)</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.supplierId}
+                        onChange={(e) => setStockAddition({ ...stockAddition, supplierId: e.target.value })}
+                      >
+                        <option value="">No supplier</option>
+                        {suppliers.map(supplier => (
+                          <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                        ))}
+                      </select>
+                      <span className={styles.formHint}>Link this purchase to a supplier</span>
+                    </div>
+                  </>
+                )}
+
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Description</label>
                   <textarea

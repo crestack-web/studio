@@ -32,7 +32,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
           See Pricing
         </button>
       </div>
-      <div className="hero-note">3-day free trial · Works offline · Cancel anytime</div>
+      <div className="hero-note">7-day free trial · Works offline · Cancel anytime</div>
 
       {/* Dashboard preview cards */}
       <div className="dashboard-preview" style={{ marginTop: 56 }}>

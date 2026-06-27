@@ -626,6 +626,86 @@
   }
 }
 
+/* Date Filter Styles */
+.dateFilterContainer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.filterSelect {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-1);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 150px;
+  font-family: inherit;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+.filterSelect:hover {
+  border-color: var(--text-3);
+}
+
+.customDateRange {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dateInput {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text-1);
+  background: var(--bg);
+  transition: all 0.2s;
+  font-family: inherit;
+  min-width: 150px;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+.dateInput:hover {
+  border-color: var(--text-3);
+}
+
+.customDateRange span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .page {
@@ -681,6 +761,33 @@
     font-size: 1.25rem;
     text-align: left;
     margin-top: 8px;
+  }
+
+  .dateFilterContainer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filterLabel {
+    width: 100%;
+  }
+
+  .filterSelect {
+    width: 100%;
+  }
+
+  .customDateRange {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dateInput {
+    width: 100%;
+  }
+
+  .customDateRange span {
+    text-align: center;
   }
 
   .actionButtons {
