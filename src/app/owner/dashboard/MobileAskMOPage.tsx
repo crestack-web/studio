@@ -11,6 +11,7 @@ import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings, T
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
+import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
 
 interface MOMessage {
   id: string;
@@ -24,6 +25,12 @@ interface MOMessage {
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
   alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  saleCard?: {
+    items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
+    totalRevenue: number;
+    totalProfit?: number;
+    timestamp: Date;
+  };
 }
 
 interface Conversation {
@@ -53,11 +60,13 @@ export function MobileAskMOPage() {
     currentConversationId,
     setCurrentConversationId,
     businessSummary,
-    saveConversation,
+    createConversation,
+    saveMessages,
     loadConversation,
     deleteConversation,
     renameConversation,
     updateCredits,
+    resetToNewChat,
   } = useAskMO({
     userId: user.id,
     userPlan: user.plan,
@@ -87,6 +96,8 @@ export function MobileAskMOPage() {
   const [loadingStage, setLoadingStage] = useState<number>(0);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [isExecutingAction, setIsExecutingAction] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -94,12 +105,82 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clear MO-related localStorage keys on mount to ensure fresh state
+  // Always start with empty state on mount/refresh - like Meta AI / WhatsApp AI
   useEffect(() => {
-    localStorage.removeItem('mo-show-history');
-    localStorage.removeItem('mo-current-conversation-id');
-    localStorage.removeItem('mo-current-messages');
-  }, []);
+    resetToNewChat();
+  }, [resetToNewChat]);
+
+  // Execute pending action (sale confirmation)
+  const executePendingAction = useCallback(async () => {
+    if (!pendingAction || isExecutingAction) return;
+
+    setIsExecutingAction(true);
+    try {
+      const { firestore } = initializeFirebase();
+      
+      if (pendingAction.action === 'record_sale') {
+        const saleData = pendingAction.data;
+        
+        // Execute the sale via API
+        const response = await fetch('/api/ask-mo', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: pendingAction,
+            businessId: user.businessId || user.id,
+            userId: user.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast(`Sale recorded: ${result.message}`);
+          
+          // Add success message to chat
+          const successMsg: MOMessage = {
+            id: (Date.now()).toString(),
+            role: 'bot',
+            content: `✅ Sale recorded successfully!\n\n${result.message}\n\nProduct: ${saleData.productName}\nQuantity: ${saleData.quantity}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
+            timestamp: new Date(),
+            saleCard: {
+              items: [{
+                name: saleData.productName,
+                quantity: saleData.quantity,
+                price: result.data.product?.sellingPrice || saleData.price,
+                costPrice: result.data.product?.costPrice,
+              }],
+              totalRevenue: result.data.totalRevenue,
+              totalProfit: result.data.profit,
+              timestamp: new Date(),
+            },
+          };
+
+          setMessages(prev => [...prev, successMsg]);
+          setPendingAction(null);
+        } else {
+          showToast(`Failed to record sale: ${result.message}`);
+          
+          // Add error message to chat
+          const errorMsg: MOMessage = {
+            id: (Date.now()).toString(),
+            role: 'bot',
+            content: `❌ Failed to record sale: ${result.message}`,
+            timestamp: new Date(),
+          };
+
+          setMessages(prev => [...prev, errorMsg]);
+          setPendingAction(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error executing action:', error);
+      showToast('Failed to execute action');
+      setPendingAction(null);
+    } finally {
+      setIsExecutingAction(false);
+    }
+  }, [pendingAction, isExecutingAction, user, showToast]);
 
   // Check for pre-filled question from other pages
   useEffect(() => {
@@ -140,22 +221,22 @@ export function MobileAskMOPage() {
   }, [isRecording]);
 
   const handleNewChat = useCallback(() => {
-    setMessages([]);
+    resetToNewChat();
     setInput('');
     setSelectedImage(null);
     setImagePreview(null);
     setAudioBlob(null);
     setAudioUrl(null);
-    setCurrentConversationId(null);
     setIsTyping(false);
     setIsStreaming(false);
     setLoadingStage(0);
     setLoadingActions([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, []);
+  }, [resetToNewChat]);
 
   const handleLoadConversation = useCallback(async (conversationId: string) => {
     await loadConversation(conversationId);
+    setShowHistory(false);
     setIsTyping(false);
     setIsStreaming(false);
     setLoadingStage(0);
@@ -478,9 +559,52 @@ export function MobileAskMOPage() {
         console.log('⚠️ [MobileAskMO] Not consuming credits - invalid or empty response');
       }
 
-      // Auto-save conversation
+      // Auto-save conversation after each message exchange
       console.log('💾 [MobileAskMO] Auto-saving conversation');
-      await saveConversation();
+      
+      // Get the updated messages
+      const updatedMessages = [...messages, userMsg, { ...botMsg, content: fullContent }];
+      
+      // Check if there's a pending action (sale confirmation)
+      if (data.action && data.action.action === 'record_sale') {
+        console.log('🎯 [MobileAskMO] Sale action detected, showing confirmation card');
+        // DON'T save to conversation yet - wait for user confirmation
+        // Update the bot message with saleCard data so the UI can render the confirmation card
+        const saleData = data.action.data;
+        const botMsgWithCard: MOMessage = {
+          ...botMsg,
+          content: `I found the product in your inventory. Please confirm the sale details below:`,
+          saleCard: {
+            items: [{
+              name: saleData.productName,
+              quantity: saleData.quantity || 1,
+              price: saleData.price || 0,
+              costPrice: saleData.costPrice || 0,
+            }],
+            totalRevenue: (saleData.price || 0) * (saleData.quantity || 1),
+            totalProfit: ((saleData.price || 0) - (saleData.costPrice || 0)) * (saleData.quantity || 1),
+            timestamp: new Date(),
+          },
+        };
+        setMessages(prev => prev.map(msg => 
+          msg.id === botMsgId 
+            ? botMsgWithCard
+            : msg
+        ));
+        // Set pending action for confirmation
+        setPendingAction(data.action);
+      } else {
+        // No action - save conversation normally
+        if (!currentConversationId) {
+          const newConversationId = await createConversation(userMsg);
+          if (newConversationId) {
+            await saveMessages(newConversationId, updatedMessages);
+          }
+        } else {
+          // Save to existing conversation
+          await saveMessages(currentConversationId, updatedMessages);
+        }
+      }
 
       const totalTime = Date.now() - requestStartTime;
       console.log('✅ [MobileAskMO] Request completed successfully', {
@@ -539,7 +663,18 @@ export function MobileAskMOPage() {
       setLoadingActions([]);
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits]);
+
+  const cancelPendingAction = useCallback(() => {
+    const cancelMsg: MOMessage = {
+      id: (Date.now()).toString(),
+      role: 'bot',
+      content: 'Sale recording cancelled.',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, cancelMsg]);
+    setPendingAction(null);
+  }, []);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -823,6 +958,51 @@ export function MobileAskMOPage() {
                 />
               )}
               {formatContent(m.content)}
+              {/* Sale Confirmation */}
+              {m.role === 'bot' && m.saleCard && (
+                <div style={{ marginTop: '12px' }}>
+                  <SaleConfirmationCard
+                    items={m.saleCard.items}
+                    totalRevenue={m.saleCard.totalRevenue}
+                    totalProfit={m.saleCard.totalProfit}
+                    timestamp={m.saleCard.timestamp}
+                  />
+                  {pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={executePendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        onClick={cancelPendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--bg-2)',
+                          color: 'var(--text-1)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               {m.role === 'bot' && m.metrics && m.metrics.length > 0 && (
                 <div className={styles.metrics}>
                   {m.metrics.map((metric, idx) => (

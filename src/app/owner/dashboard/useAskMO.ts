@@ -28,12 +28,13 @@ interface MOMessage {
 interface Conversation {
   id: string;
   title: string;
-  messages: MOMessage[];
+  preview: string;
   businessId?: string;
   branchId?: string;
   branchName?: string;
   createdAt: Date;
   updatedAt: Date;
+  messageCount: number;
 }
 
 interface UseAskMOOptions {
@@ -60,7 +61,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     pro: { messagesPerDay: -1, totalCredits: -1 },
   };
 
-  // Load user's plan and message history
+  // Load user's plan and credits only (no conversation restoration)
   useEffect(() => {
     const loadPlanLimits = async () => {
       try {
@@ -133,7 +134,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           console.error('Error loading today\'s messages:', error);
         }
 
-        // Load conversation history
+        // Load conversation history list (just metadata, not messages)
         try {
           const conversationsQuery = query(
             collection(firestore, 'users', userId, 'mo_conversations'),
@@ -149,21 +150,17 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
             loadedConversations.push({
               id: doc.id,
               title: data.title || 'Untitled Conversation',
-              messages: data.messages || [],
+              preview: data.preview || data.messages?.[0]?.content?.substring(0, 100) || 'No preview',
               businessId: data.businessId,
               branchId: data.branchId,
               branchName: data.branchName,
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date(),
+              messageCount: data.messages?.length || 0,
             });
           });
 
           setConversations(loadedConversations);
-
-          // DO NOT auto-load conversations - always start with empty state
-          // Users must explicitly select a conversation from history to load it
-          setMessages([]);
-          setCurrentConversationId(null);
         } catch (error) {
           console.error('Error loading conversations:', error);
         }
@@ -502,22 +499,19 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     }
   }, [userId, userPlan, businessId]);
 
-  const saveConversation = useCallback(async (conversationTitle?: string) => {
+  // Create a new conversation and save it immediately
+  const createConversation = useCallback(async (firstMessage: MOMessage): Promise<string> => {
     try {
       const { firestore } = initializeFirebase();
       
-      // Only save if there are messages
-      if (messages.length === 0) {
-        return;
-      }
-
-      const title = conversationTitle || generateConversationTitle(messages);
-      
       const conversationData: any = {
-        title,
-        messages: messages,
+        title: generateConversationTitle([firstMessage]),
+        preview: firstMessage.content.substring(0, 100),
+        messages: [firstMessage],
         businessId: businessId || userId,
+        createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        messageCount: 1,
       };
 
       // Only include branchId and branchName if they are defined
@@ -528,45 +522,72 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         conversationData.branchName = branchName;
       }
 
-      if (currentConversationId) {
-        // Update existing conversation
-        await setDoc(doc(firestore, 'users', userId, 'mo_conversations', currentConversationId), conversationData, { merge: true });
-      } else {
-        // Create new conversation with createdAt
-        conversationData.createdAt = Timestamp.now();
-        const docRef = await addDoc(collection(firestore, 'users', userId, 'mo_conversations'), conversationData);
-        setCurrentConversationId(docRef.id);
+      const docRef = await addDoc(collection(firestore, 'users', userId, 'mo_conversations'), conversationData);
+      const newConversationId = docRef.id;
+
+      // Add to conversations list
+      const newConversation: Conversation = {
+        id: newConversationId,
+        title: conversationData.title,
+        preview: conversationData.preview,
+        businessId: conversationData.businessId,
+        branchId: conversationData.branchId,
+        branchName: conversationData.branchName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        messageCount: 1,
+      };
+
+      setConversations(prev => [newConversation, ...prev]);
+      
+      return newConversationId;
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      return '';
+    }
+  }, [userId, businessId, branchId, branchName]);
+
+  // Save messages incrementally to current conversation
+  const saveMessages = useCallback(async (conversationId: string, updatedMessages: MOMessage[]) => {
+    try {
+      const { firestore } = initializeFirebase();
+      
+      const conversationRef = doc(firestore, 'users', userId, 'mo_conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+      
+      if (!conversationDoc.exists()) {
+        console.error('Conversation not found:', conversationId);
+        return;
       }
 
-      // Reload conversations list
-      const conversationsQuery = query(
-        collection(firestore, 'users', userId, 'mo_conversations'),
-        orderBy('updatedAt', 'desc'),
-        limit(50)
-      );
+      const conversationData = conversationDoc.data();
+      const title = conversationData?.title || 'Untitled Conversation';
+      const preview = updatedMessages[0]?.content?.substring(0, 100) || 'No preview';
 
-      const conversationsSnapshot = await getDocs(conversationsQuery);
-      const loadedConversations: Conversation[] = [];
-      
-      conversationsSnapshot.forEach(doc => {
-        const data = doc.data();
-        loadedConversations.push({
-          id: doc.id,
-          title: data.title || 'Untitled Conversation',
-          messages: data.messages || [],
-          businessId: data.businessId,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-        });
+      await updateDoc(conversationRef, {
+        title,
+        preview,
+        messages: updatedMessages,
+        updatedAt: Timestamp.now(),
+        messageCount: updatedMessages.length,
       });
 
-      setConversations(loadedConversations);
+      // Update conversations list
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId 
+          ? { 
+              ...c, 
+              title, 
+              preview, 
+              updatedAt: new Date(), 
+              messageCount: updatedMessages.length 
+            }
+          : c
+      ));
     } catch (error) {
-      console.error('Error saving conversation:', error);
+      console.error('Error saving messages:', error);
     }
-  }, [messages, currentConversationId, businessId, userId, branchId, branchName]);
+  }, [userId]);
 
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
@@ -662,6 +683,12 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     return 'Conversation';
   }
 
+  // Reset to empty state (for new chat or page refresh)
+  const resetToNewChat = useCallback(() => {
+    setMessages([]);
+    setCurrentConversationId(null);
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -672,10 +699,12 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     currentConversationId,
     setCurrentConversationId,
     businessSummary,
-    saveConversation,
+    createConversation,
+    saveMessages,
     loadConversation,
     deleteConversation,
     renameConversation,
     updateCredits,
+    resetToNewChat,
   };
 }
