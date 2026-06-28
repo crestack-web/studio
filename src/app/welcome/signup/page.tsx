@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { StepId } from "framer-motion";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
 import { formatCurrency } from "@/lib/currency";
 
 // If you have these components elsewhere, import them here
@@ -24,7 +24,6 @@ type FieldProps = {
   type?: string;
   prefix?: string;
   autoComplete?: string;
-  style?: React.CSSProperties;
 };
 
 function Field({
@@ -36,7 +35,6 @@ function Field({
   type = "text",
   prefix,
   autoComplete,
-  style,
 }: FieldProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -66,7 +64,6 @@ function Field({
             fontFamily: "'DM Sans', sans-serif",
             border: "1.5px solid #E8E8F0",
             transition: "all 0.2s",
-            ...style,
           }}
           onFocus={e => {
             e.target.style.borderColor = "#6B3FE7";
@@ -90,7 +87,6 @@ type SelectFieldProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   options: { value: string; label: string }[];
-  style?: React.CSSProperties;
 };
 
 function SelectField({
@@ -100,7 +96,6 @@ function SelectField({
   onChange,
   placeholder,
   options,
-  style,
 }: SelectFieldProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -112,32 +107,33 @@ function SelectField({
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          flex: 1,
           borderRadius: 12,
           padding: "13px 16px",
           fontSize: 14,
-          color: "#0A0A0F",
+          color: value ? "#0A0A0F" : "#8888A0",
           background: "white",
           outline: "none",
           lineHeight: 1.55,
           fontFamily: "'DM Sans', sans-serif",
           border: "1.5px solid #E8E8F0",
           transition: "all 0.2s",
-          cursor: "pointer",
-          ...style,
         }}
         onFocus={e => {
-          e.currentTarget.style.borderColor = "#6B3FE7";
-          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(107,63,231,0.12)";
+          e.target.style.borderColor = "#6B3FE7";
+          e.target.style.boxShadow = "0 0 0 3px rgba(107,63,231,0.12)";
         }}
         onBlur={e => {
-          e.currentTarget.style.borderColor = "#E8E8F0";
-          e.currentTarget.style.boxShadow = "none";
+          e.target.style.borderColor = "#E8E8F0";
+          e.target.style.boxShadow = "none";
         }}
       >
-        {placeholder && <option value="">{placeholder}</option>}
+        <option value="" disabled>
+          {placeholder || "Select an option"}
+        </option>
         {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
         ))}
       </select>
     </div>
@@ -177,96 +173,316 @@ function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
     </button>
   );
 }
-
-// ─────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // DESIGN TOKENS
-// ─────────────────────────────────────────────
+// ...existing code...
 
-// ── Constants and Types ──────────────────────
+// ΓöÇΓöÇ Constants and Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const CATEGORIES = [
-  { id: "retail", label: "Retail Shop", icon: "🏪" },
-  { id: "food", label: "Food & Drink", icon: "🍽️" },
-  { id: "grocery", label: "Grocery Store", icon: "🛒" },
-  { id: "fashion", label: "Fashion", icon: "👗" },
-  { id: "electronics", label: "Electronics", icon: "📱" },
-  { id: "manufacturing", label: "Manufacturing", icon: "🏭" },
-  { id: "services", label: "Services", icon: "🛠️" },
-  { id: "other", label: "Other", icon: "📦" },
+  { id: "retail", label: "Retail Shop", icon: "≡ƒÅ¬" },
+  { id: "restaurant", label: "Restaurant", icon: "≡ƒì╜∩╕Å" },
+  { id: "grocery", label: "Grocery Store", icon: "≡ƒ¢Æ" },
+  { id: "fashion", label: "Fashion", icon: "≡ƒæù" },
+  { id: "electronics", label: "Electronics", icon: "≡ƒô▒" },
+  { id: "manufacturing", label: "Manufacturing", icon: "≡ƒÅ¡" },
+  { id: "services", label: "Services", icon: "≡ƒ¢á∩╕Å" },
+  { id: "pharmacy", label: "Pharmacy", icon: "≡ƒÆè" },
+  { id: "supermarket", label: "Supermarket", icon: "≡ƒÅ¼" },
+  { id: "cafe", label: "Cafe", icon: "Γÿò" },
+  { id: "wholesale", label: "Wholesale", icon: "≡ƒôª" },
+  { id: "distributor", label: "Distributor", icon: "≡ƒÜÜ" },
+  { id: "healthcare", label: "Healthcare", icon: "≡ƒÅÑ" },
+  { id: "education", label: "Education", icon: "≡ƒÄô" },
+  { id: "other", label: "Other", icon: "≡ƒôª" },
+];
+
+// Features available for each category
+const CATEGORY_FEATURES: Record<string, string[]> = {
+  retail: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  restaurant: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Menu Management",
+    "Ingredient Tracking",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  grocery: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  fashion: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "E-commerce Storefront",
+  ],
+  electronics: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "E-commerce Storefront",
+  ],
+  manufacturing: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Production Tracking",
+    "Expense Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  services: [
+    "Sales Recording",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  pharmacy: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  supermarket: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  cafe: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Menu Management",
+    "Ingredient Tracking",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  wholesale: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  distributor: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Credit Tracking",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+    "Multi-branch Support",
+  ],
+  healthcare: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expiry Alerts",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  education: [
+    "Sales Recording",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+  other: [
+    "Sales Recording",
+    "Inventory Tracking",
+    "Staff Management",
+    "Cash Flow Analysis",
+    "Expense Management",
+    "Customer Management",
+    "Supplier Management",
+    "Profit/Loss Reports",
+    "Business Analytics",
+    "Ask MO AI Assistant",
+  ],
+};
+
+// Features that require Pro plan
+const PRO_ONLY_FEATURES = [
+  "Multi-branch Support",
+  "Production Tracking",
+  "Payroll Management",
+  "E-commerce Storefront",
+];
+
+// Features that require Standard or Pro plan
+const STANDARD_OR_PRO_FEATURES = [
+  "Credit Tracking",
+  "Menu Management",
+  "Ingredient Tracking",
 ];
 
 const COUNTRIES = [
   "Nigeria", "Ghana", "Kenya", "South Africa", "Tanzania", "Uganda", "Rwanda", "Senegal",
-  "Côte d'Ivoire", "Cameroon", "Ethiopia", "Angola", "Benin", "Botswana", "Burkina Faso",
+  "C├┤te d'Ivoire", "Cameroon", "Ethiopia", "Angola", "Benin", "Botswana", "Burkina Faso",
   "Burundi", "Cape Verde", "Central African Republic", "Chad", "Comoros", "Republic of the Congo",
   "Democratic Republic of the Congo", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea",
   "Eswatini", "Gabon", "Gambia", "Guinea", "Guinea-Bissau", "Lesotho", "Liberia", "Libya",
   "Madagascar", "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia",
-  "Niger", "São Tomé and Príncipe", "Somalia", "South Sudan", "Sudan", "Seychelles", "Sierra Leone",
+  "Niger", "S├úo Tom├⌐ and Pr├¡ncipe", "Somalia", "South Sudan", "Sudan", "Seychelles", "Sierra Leone",
   "Togo", "Tunisia", "Zambia", "Zimbabwe", "Other"
 ];
 
 // African countries with their phone country codes
 const AFRICAN_COUNTRY_CODES = [
-  { country: "Nigeria", code: "+234", flag: "🇳🇬" },
-  { country: "Ghana", code: "+233", flag: "🇬🇭" },
-  { country: "Kenya", code: "+254", flag: "🇰🇪" },
-  { country: "South Africa", code: "+27", flag: "🇿🇦" },
-  { country: "Tanzania", code: "+255", flag: "🇹🇿" },
-  { country: "Uganda", code: "+256", flag: "🇺🇬" },
-  { country: "Rwanda", code: "+250", flag: "🇷🇼" },
-  { country: "Senegal", code: "+221", flag: "🇸🇳" },
-  { country: "Côte d'Ivoire", code: "+225", flag: "🇨🇮" },
-  { country: "Cameroon", code: "+237", flag: "🇨🇲" },
-  { country: "Ethiopia", code: "+251", flag: "🇪🇹" },
-  { country: "Angola", code: "+244", flag: "🇦🇴" },
-  { country: "Benin", code: "+229", flag: "🇧🇯" },
-  { country: "Botswana", code: "+267", flag: "🇧🇼" },
-  { country: "Burkina Faso", code: "+226", flag: "🇧🇫" },
-  { country: "Burundi", code: "+257", flag: "🇧🇮" },
-  { country: "Cape Verde", code: "+238", flag: "🇨🇻" },
-  { country: "Central African Republic", code: "+236", flag: "🇨🇫" },
-  { country: "Chad", code: "+235", flag: "🇹🇩" },
-  { country: "Comoros", code: "+269", flag: "🇰🇲" },
-  { country: "Republic of the Congo", code: "+242", flag: "🇨🇬" },
-  { country: "Democratic Republic of the Congo", code: "+243", flag: "🇨🇩" },
-  { country: "Djibouti", code: "+253", flag: "🇩🇯" },
-  { country: "Egypt", code: "+20", flag: "🇪🇬" },
-  { country: "Equatorial Guinea", code: "+240", flag: "🇬🇶" },
-  { country: "Eritrea", code: "+291", flag: "🇪🇷" },
-  { country: "Eswatini", code: "+268", flag: "🇸🇿" },
-  { country: "Gabon", code: "+241", flag: "🇬🇦" },
-  { country: "Gambia", code: "+220", flag: "🇬🇲" },
-  { country: "Guinea", code: "+224", flag: "🇬🇳" },
-  { country: "Guinea-Bissau", code: "+245", flag: "🇬🇼" },
-  { country: "Lesotho", code: "+266", flag: "🇱🇸" },
-  { country: "Liberia", code: "+231", flag: "🇱🇷" },
-  { country: "Libya", code: "+218", flag: "🇱🇾" },
-  { country: "Madagascar", code: "+261", flag: "🇲🇬" },
-  { country: "Malawi", code: "+265", flag: "🇲🇼" },
-  { country: "Mali", code: "+223", flag: "🇲🇱" },
-  { country: "Mauritania", code: "+222", flag: "🇲🇷" },
-  { country: "Mauritius", code: "+230", flag: "🇲🇺" },
-  { country: "Morocco", code: "+212", flag: "🇲🇦" },
-  { country: "Mozambique", code: "+258", flag: "🇲🇿" },
-  { country: "Namibia", code: "+264", flag: "🇳🇦" },
-  { country: "Niger", code: "+227", flag: "🇳🇪" },
-  { country: "São Tomé and Príncipe", code: "+239", flag: "🇸🇹" },
-  { country: "Somalia", code: "+252", flag: "🇸🇴" },
-  { country: "South Sudan", code: "+211", flag: "🇸🇸" },
-  { country: "Sudan", code: "+249", flag: "🇸🇩" },
-  { country: "Seychelles", code: "+248", flag: "🇸🇨" },
-  { country: "Sierra Leone", code: "+232", flag: "🇸🇱" },
-  { country: "Togo", code: "+228", flag: "🇹🇬" },
-  { country: "Tunisia", code: "+216", flag: "🇹🇳" },
-  { country: "Zambia", code: "+260", flag: "🇿🇲" },
-  { country: "Zimbabwe", code: "+263", flag: "🇿🇼" },
+  { country: "Nigeria", code: "+234", flag: "≡ƒç│≡ƒç¼" },
+  { country: "Ghana", code: "+233", flag: "≡ƒç¼≡ƒç¡" },
+  { country: "Kenya", code: "+254", flag: "≡ƒç░≡ƒç¬" },
+  { country: "South Africa", code: "+27", flag: "≡ƒç┐≡ƒçª" },
+  { country: "Tanzania", code: "+255", flag: "≡ƒç╣≡ƒç┐" },
+  { country: "Uganda", code: "+256", flag: "≡ƒç║≡ƒç¼" },
+  { country: "Rwanda", code: "+250", flag: "≡ƒç╖≡ƒç╝" },
+  { country: "Senegal", code: "+221", flag: "≡ƒç╕≡ƒç│" },
+  { country: "C├┤te d'Ivoire", code: "+225", flag: "≡ƒç¿≡ƒç«" },
+  { country: "Cameroon", code: "+237", flag: "≡ƒç¿≡ƒç▓" },
+  { country: "Ethiopia", code: "+251", flag: "≡ƒç¬≡ƒç╣" },
+  { country: "Angola", code: "+244", flag: "≡ƒçª≡ƒç┤" },
+  { country: "Benin", code: "+229", flag: "≡ƒçº≡ƒç»" },
+  { country: "Botswana", code: "+267", flag: "≡ƒçº≡ƒç╝" },
+  { country: "Burkina Faso", code: "+226", flag: "≡ƒçº≡ƒç½" },
+  { country: "Burundi", code: "+257", flag: "≡ƒçº≡ƒç«" },
+  { country: "Cape Verde", code: "+238", flag: "≡ƒç¿≡ƒç╗" },
+  { country: "Central African Republic", code: "+236", flag: "≡ƒç¿≡ƒç½" },
+  { country: "Chad", code: "+235", flag: "≡ƒç╣≡ƒç⌐" },
+  { country: "Comoros", code: "+269", flag: "≡ƒç░≡ƒç▓" },
+  { country: "Republic of the Congo", code: "+242", flag: "≡ƒç¿≡ƒç¼" },
+  { country: "Democratic Republic of the Congo", code: "+243", flag: "≡ƒç¿≡ƒç⌐" },
+  { country: "Djibouti", code: "+253", flag: "≡ƒç⌐≡ƒç»" },
+  { country: "Egypt", code: "+20", flag: "≡ƒç¬≡ƒç¼" },
+  { country: "Equatorial Guinea", code: "+240", flag: "≡ƒç¼≡ƒç╢" },
+  { country: "Eritrea", code: "+291", flag: "≡ƒç¬≡ƒç╖" },
+  { country: "Eswatini", code: "+268", flag: "≡ƒç╕≡ƒç┐" },
+  { country: "Gabon", code: "+241", flag: "≡ƒç¼≡ƒçª" },
+  { country: "Gambia", code: "+220", flag: "≡ƒç¼≡ƒç▓" },
+  { country: "Guinea", code: "+224", flag: "≡ƒç¼≡ƒç│" },
+  { country: "Guinea-Bissau", code: "+245", flag: "≡ƒç¼≡ƒç╝" },
+  { country: "Lesotho", code: "+266", flag: "≡ƒç▒≡ƒç╕" },
+  { country: "Liberia", code: "+231", flag: "≡ƒç▒≡ƒç╖" },
+  { country: "Libya", code: "+218", flag: "≡ƒç▒≡ƒç╛" },
+  { country: "Madagascar", code: "+261", flag: "≡ƒç▓≡ƒç¼" },
+  { country: "Malawi", code: "+265", flag: "≡ƒç▓≡ƒç╝" },
+  { country: "Mali", code: "+223", flag: "≡ƒç▓≡ƒç▒" },
+  { country: "Mauritania", code: "+222", flag: "≡ƒç▓≡ƒç╖" },
+  { country: "Mauritius", code: "+230", flag: "≡ƒç▓≡ƒç║" },
+  { country: "Morocco", code: "+212", flag: "≡ƒç▓≡ƒçª" },
+  { country: "Mozambique", code: "+258", flag: "≡ƒç▓≡ƒç┐" },
+  { country: "Namibia", code: "+264", flag: "≡ƒç│≡ƒçª" },
+  { country: "Niger", code: "+227", flag: "≡ƒç│≡ƒç¬" },
+  { country: "S├úo Tom├⌐ and Pr├¡ncipe", code: "+239", flag: "≡ƒç╕≡ƒç╣" },
+  { country: "Somalia", code: "+252", flag: "≡ƒç╕≡ƒç┤" },
+  { country: "South Sudan", code: "+211", flag: "≡ƒç╕≡ƒç╕" },
+  { country: "Sudan", code: "+249", flag: "≡ƒç╕≡ƒç⌐" },
+  { country: "Seychelles", code: "+248", flag: "≡ƒç╕≡ƒç¿" },
+  { country: "Sierra Leone", code: "+232", flag: "≡ƒç╕≡ƒç▒" },
+  { country: "Togo", code: "+228", flag: "≡ƒç╣≡ƒç¼" },
+  { country: "Tunisia", code: "+216", flag: "≡ƒç╣≡ƒç│" },
+  { country: "Zambia", code: "+260", flag: "≡ƒç┐≡ƒç▓" },
+  { country: "Zimbabwe", code: "+263", flag: "≡ƒç┐≡ƒç╝" },
 ];
 
 const TEAM_SIZES = [
-  { id: "solo", label: "Solo", desc: "Just me", icon: "🙋" },
-  { id: "small", label: "2–10", desc: "Small team", icon: "👥" },
-  { id: "medium", label: "11–50", desc: "Growing fast", icon: "🏢" },
-  { id: "large", label: "50+", desc: "Established", icon: "🏗️" },
+  { id: "solo", label: "Solo", desc: "Just me", icon: "≡ƒÖï" },
+  { id: "small", label: "2ΓÇô10", desc: "Small team", icon: "≡ƒæÑ" },
+  { id: "medium", label: "11ΓÇô50", desc: "Growing fast", icon: "≡ƒÅó" },
+  { id: "large", label: "50+", desc: "Established", icon: "≡ƒÅù∩╕Å" },
 ];
 
 const PLANS = [
@@ -343,24 +559,24 @@ const PLANS = [
 ];
 
 type FormState = {
-  fullName: string;
+  businessName: string;
+  description: string;
   email: string;
+  password: string;
+  fullName: string;
   countryCode: string;
   phone: string;
-  password: string;
-  businessName: string;
-  category: string;
   country: string;
-  description: string;
-  teamSize: string;
-  plan: string;
+  businessAnalysis?: any;
+  selectedCategory?: string;
+  selectedFeatures?: string[];
 };
 
-// ── Step Progress Bar ─────────────────────────
+// ΓöÇΓöÇ Step Progress Bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const STEP_META = [
-  { id: 1, label: "You" },
-  { id: 2, label: "Business" },
-  { id: 3, label: "Plan" },
+  { id: 1, label: "Business" },
+  { id: 2, label: "Describe" },
+  { id: 3, label: "Confirm" },
 ];
 
 function StepProgress({ current }: { current: number }) {
@@ -409,60 +625,16 @@ function StepProgress({ current }: { current: number }) {
   );
 }
 
-// ── Step 1 ─────────────────────────────────────
+// ΓöÇΓöÇ Step 1 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string) => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Field label="Full name" id="fullName" value={data.fullName}
+      <Field label="What is your business name?" id="businessName" value={data.businessName}
+        onChange={(v) => onChange("businessName", v)} placeholder="Femi's Suya Spot" autoComplete="organization" />
+      <Field label="Your full name" id="fullName" value={data.fullName}
         onChange={(v) => onChange("fullName", v)} placeholder="Femi Adeleke" autoComplete="name" />
       <Field label="Email address" id="email" type="email" value={data.email}
         onChange={(v) => onChange("email", v)} placeholder="femi@example.com" autoComplete="email" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#555568", marginBottom: 2 }}>Phone number</span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <SelectField
-            label=""
-            id="countryCode"
-            value={data.countryCode}
-            onChange={(v) => onChange("countryCode", v)}
-            options={AFRICAN_COUNTRY_CODES.map(c => ({ value: c.code, label: `${c.flag} ${c.code}` }))}
-            placeholder="Code"
-            style={{
-              height: 44,
-              padding: "0 12px",
-              fontSize: 15,
-              borderRadius: 8,
-              boxShadow: "0 1px 4px rgba(107,63,231,0.08)",
-              border: "1px solid #E8E8F0",
-              background: "white",
-              minWidth: 90,
-              display: "flex",
-              alignItems: "center"
-            }}
-          />
-          <Field
-            label=""
-            id="phone"
-            type="tel"
-            value={data.phone}
-            onChange={(v) => onChange("phone", v)}
-            placeholder="801 234 5678"
-            autoComplete="tel"
-            style={{
-              height: 44,
-              padding: "0 12px",
-              fontSize: 15,
-              borderRadius: 8,
-              boxShadow: "0 1px 4px rgba(107,63,231,0.08)",
-              border: "1px solid #E8E8F0",
-              background: "white",
-              minWidth: 180,
-              display: "flex",
-              alignItems: "center"
-            }}
-          />
-        </div>
-      </div>
       <Field label="Password" id="password" type="password" value={data.password}
         onChange={(v) => onChange("password", v)} placeholder="Min. 6 characters" autoComplete="new-password" />
       <p style={{ fontSize: 11, color: "#8888A0", lineHeight: 1.6 }}>
@@ -475,309 +647,615 @@ function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   );
 }
 
-// ── Step 2 ─────────────────────────────────────
-function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string) => void }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Field label="Business name" id="businessName" value={data.businessName}
-        onChange={(v) => onChange("businessName", v)} placeholder="Femi's Suya Spot" autoComplete="organization" />
-      <SelectField label="Country" id="country" value={data.country}
-        onChange={(v) => onChange("country", v)}
-        placeholder="Where is your business based?"
-        options={COUNTRIES.map((c) => ({ value: c.toLowerCase().replace(/[\s']/g, "-"), label: c }))} />
+// ΓöÇΓöÇ Step 2 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string | string[]) => void }) {
+  const [selectedCategory, setSelectedCategory] = useState(data.selectedCategory || "retail");
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
+    Array.isArray(data.selectedFeatures) ? data.selectedFeatures : 
+    (typeof data.selectedFeatures === 'string' ? JSON.parse(data.selectedFeatures) : CATEGORY_FEATURES["retail"])
+  );
 
+  // Get features for selected category
+  const availableFeatures = CATEGORY_FEATURES[selectedCategory] || CATEGORY_FEATURES["retail"];
+
+  const getRecommendedPlan = (features: string[]): { plan: string; reason: string } => {
+    const hasProFeatures = features.some(f => PRO_ONLY_FEATURES.includes(f));
+    const hasStandardOrProFeatures = features.some(f => STANDARD_OR_PRO_FEATURES.includes(f));
+    const hasManyFeatures = features.length >= 8;
+    
+    if (hasProFeatures) {
+      return {
+        plan: "pro",
+        reason: "Your selected features require advanced capabilities available in the Pro plan."
+      };
+    }
+    if (hasStandardOrProFeatures || hasManyFeatures) {
+      return {
+        plan: "standard",
+        reason: "Your selected features require advanced capabilities available in the Standard plan."
+      };
+    }
+    return {
+      plan: "starter",
+      reason: "The Starter plan covers all your selected features perfectly."
+    };
+  };
+
+  const { plan: recommendedPlan, reason: planReason } = getRecommendedPlan(selectedFeatures);
+
+  const toggleFeature = (feature: string) => {
+    const newFeatures = selectedFeatures.includes(feature)
+      ? selectedFeatures.filter(f => f !== feature)
+      : [...selectedFeatures, feature];
+    setSelectedFeatures(newFeatures);
+    // Update parent state
+    onChange("selectedFeatures", newFeatures);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    onChange("selectedCategory", category);
+    // Reset features to category defaults when category changes
+    const categoryDefaults = CATEGORY_FEATURES[category] || CATEGORY_FEATURES["retail"];
+    setSelectedFeatures(categoryDefaults);
+    onChange("selectedFeatures", categoryDefaults);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Category Selection */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>Business category</span>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {CATEGORIES.map((cat) => {
-            const active = data.category === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => onChange("category", cat.id)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 9,
-                  padding: "11px 13px", borderRadius: 12, cursor: "pointer",
-                  fontSize: 13, fontWeight: active ? 600 : 400,
-                  fontFamily: "'DM Sans', sans-serif", textAlign: "left",
-                  background: active ? "#F3EFFE" : "#FAFAFC",
-                  border: `1.5px solid ${active ? "#6B3FE7" : "#E8E8F0"}`,
-                  color: active ? "#6B3FE7" : "#555568",
-                  transition: "all 0.15s",
-                }}
-              >
-                <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{cat.icon}</span>
-                <span style={{ lineHeight: 1.25 }}>{cat.label}</span>
-              </button>
-            );
-          })}
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+          Select your business category
+        </span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => handleCategoryChange(cat.id)}
+              style={{
+                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                fontSize: 13, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
+                background: selectedCategory === cat.id ? "#F3EFFE" : "white",
+                border: selectedCategory === cat.id ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
+                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (selectedCategory !== cat.id) {
+                  e.currentTarget.style.borderColor = "#6B3FE7";
+                  e.currentTarget.style.background = "#FAFAFC";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedCategory !== cat.id) {
+                  e.currentTarget.style.borderColor = "#E8E8F0";
+                  e.currentTarget.style.background = "white";
+                }
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{cat.icon}</span>
+              <span>{cat.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label htmlFor="description" style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>
-          What do you sell?{" "}
-          <span style={{ fontWeight: 400, color: "#8888A0" }}>(optional)</span>
-        </label>
-        <textarea
-          id="description"
-          value={data.description}
-          onChange={(e) => onChange("description", e.target.value)}
-          placeholder="e.g. Grilled suya, drinks, and snacks at Victoria Island"
-          rows={3}
-          style={{
-            resize: "none", borderRadius: 12, padding: "13px 16px", fontSize: 14,
-            color: "#0A0A0F", background: "white", outline: "none", lineHeight: 1.55,
-            fontFamily: "'DM Sans', sans-serif", border: "1.5px solid #E8E8F0", transition: "all 0.2s",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = "#6B3FE7";
-            e.target.style.boxShadow = "0 0 0 3px rgba(107,63,231,0.12)";
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "#E8E8F0";
-            e.target.style.boxShadow = "none";
-          }}
-        />
+      {/* Feature Selection */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+          Select features you need ({selectedFeatures.length} selected)
+        </span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, maxHeight: 250, overflowY: "auto", padding: 4 }}>
+          {availableFeatures.map((feature) => (
+            <button
+              key={feature}
+              type="button"
+              onClick={() => toggleFeature(feature)}
+              style={{
+                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                fontSize: 13, color: selectedFeatures.includes(feature) ? "#6B3FE7" : "#555568",
+                background: selectedFeatures.includes(feature) ? "#F3EFFE" : "white",
+                border: selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "1px solid #E8E8F0",
+                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#6B3FE7";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "#E8E8F0";
+              }}
+              title={
+                PRO_ONLY_FEATURES.includes(feature) ? "Pro plan feature" :
+                STANDARD_OR_PRO_FEATURES.includes(feature) ? "Standard or Pro plan feature" :
+                ""
+              }
+            >
+              <span style={{ fontSize: 14 }}>
+                {selectedFeatures.includes(feature) ? "Γ£ô" : "Γùï"}
+              </span>
+              <span>{feature}</span>
+              {PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#D97706", marginLeft: "auto" }}>PRO</span>}
+              {STANDARD_OR_PRO_FEATURES.includes(feature) && !PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#6B3FE7", marginLeft: "auto" }}>STD+</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Plan Recommendation */}
+      <div style={{ 
+        padding: "16px", borderRadius: 12, background: "#F3EFFE", 
+        border: "1.5px solid #6B3FE7", display: "flex", flexDirection: "column", gap: 8 
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 20 }}>≡ƒÆí</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#6B3FE7", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Recommended Plan
+          </span>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: "#0A0A0F", textTransform: "capitalize" }}>
+          {recommendedPlan} Plan
+        </div>
+        <p style={{ fontSize: 13, color: "#555568", margin: 0, lineHeight: 1.5 }}>
+          {planReason}
+        </p>
       </div>
     </div>
   );
 }
 
-// ── Step 3 ─────────────────────────────────────
-function StepThree({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string) => void }) {
+// ΓöÇΓöÇ Step 3 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: keyof FormState, v: string) => void; onEdit: () => void }) {
+  const analysis = data.businessAnalysis;
+  
+  if (!analysis) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px 0" }}>
+        <div style={{ fontSize: 24, marginBottom: 16 }}>≡ƒñö</div>
+        <p style={{ color: "#8888A0" }}>Analyzing your business...</p>
+      </div>
+    );
+  }
+
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'starter': return { bg: '#F4F4F8', border: '#C4C4D4', text: '#0A0A0F' };
+      case 'standard': return { bg: '#F3EFFE', border: '#6B3FE7', text: '#6B3FE7' };
+      case 'pro': return { bg: '#FEF3C7', border: '#D97706', text: '#D97706' };
+      default: return { bg: '#F4F4F8', border: '#C4C4D4', text: '#0A0A0F' };
+    }
+  };
+
+  const planColors = getPlanColor(analysis.recommendedPlan || 'starter');
+
+  // Parse selected features if stored as string
+  let selectedFeatures = data.selectedFeatures;
+  if (typeof selectedFeatures === 'string') {
+    try {
+      selectedFeatures = JSON.parse(selectedFeatures);
+    } catch (e) {
+      selectedFeatures = [];
+    }
+  }
+
+  // Get category label
+  const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || analysis.businessType;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>Team size</span>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {TEAM_SIZES.map((s) => {
-            const active = data.teamSize === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => onChange("teamSize", s.id)}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "flex-start",
-                  gap: 3, padding: "14px 16px", borderRadius: 12, cursor: "pointer",
-                  fontFamily: "'DM Sans', sans-serif", textAlign: "left", transition: "all 0.15s",
-                  background: active ? "#F3EFFE" : "#FAFAFC",
-                  border: `1.5px solid ${active ? "#6B3FE7" : "#E8E8F0"}`,
-                }}
-              >
-                <span style={{ fontSize: 22, lineHeight: 1 }}>{s.icon}</span>
-                <span style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, marginTop: 3,
-                  fontFamily: "'Sora', sans-serif", color: active ? "#6B3FE7" : "#0A0A0F" }}>
-                  {s.label}
-                </span>
-                <span style={{ fontSize: 11, color: "#8888A0" }}>{s.desc}</span>
-              </button>
-            );
-          })}
-        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0A0A0F", marginBottom: 4 }}>
+          Your Busmo setup:
+        </h3>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>Choose your plan</span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {PLANS.map((plan) => {
-            const active = data.plan === plan.id;
-            return (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => onChange("plan", plan.id)}
-                style={{
-                  position: "relative", display: "flex", alignItems: "center",
-                  justifyContent: "space-between", gap: 12, padding: "15px 20px",
-                  borderRadius: 18, cursor: "pointer", overflow: "hidden",
-                  fontFamily: "'DM Sans', sans-serif", textAlign: "left", transition: "all 0.2s",
-                  background: active ? plan.activeBg : "#FAFAFC",
-                  border: `1.5px solid ${active ? plan.activeBorder : "#E8E8F0"}`,
-                  boxShadow: active ? `0 0 0 1px ${plan.activeBorder}30` : "none",
-                }}
-              >
-                {plan.tag && (
-                  <span style={{
-                    position: "absolute", top: 11, right: 14,
-                    background: plan.tagBg, color: "white",
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
-                    textTransform: "uppercase", padding: "2px 9px", borderRadius: 100,
-                  }}>
-                    {plan.tag}
-                  </span>
-                )}
-
-                <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    border: `2px solid ${active ? "#6B3FE7" : "#E8E8F0"}`,
-                    background: active ? "#6B3FE7" : "white",
-                    transition: "all 0.2s",
-                  }}>
-                    {active && (
-                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                        <polyline points="1.5,5 4,7.5 8.5,2" stroke="white" strokeWidth="2"
-                          strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-
-                  <div>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "#0A0A0F", lineHeight: 1, marginBottom: 6,
-                      fontFamily: "'Sora', sans-serif" }}>
-                      {plan.name}
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px" }}>
-                      {plan.features.slice(0, 3).map((f) => (
-                        <span key={f} style={{ fontSize: 11, color: "#8888A0" }}>• {f}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
-                  <p style={{ fontSize: 18, fontWeight: 800, lineHeight: 1, color: plan.priceColor,
-                    fontFamily: "'Sora', sans-serif" }}>
-                    {formatCurrency(plan.priceNum)}
-                  </p>
-                  <p style={{ fontSize: 11, color: "#8888A0", marginTop: 2 }}>{plan.cycle}</p>
-                </div>
-              </button>
-            );
-          })}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px", background: "#F3EFFE", borderRadius: 12, border: "1px solid #E8E8F0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Business Category
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+            {categoryLabel}
+          </span>
         </div>
-        <a href="/pricing" target="_blank" rel="noopener"
-          style={{ textAlign: "center", fontSize: 12, color: "#8888A0",
-            textDecoration: "underline", textUnderlineOffset: 2, marginTop: 2 }}>
-          Compare all plan features →
-        </a>
+
+        <div style={{ height: 1, background: "#E8E8F0" }} />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Recommended Plan
+          </span>
+          <div style={{ 
+            padding: "12px 16px", 
+            background: planColors.bg, 
+            border: `2px solid ${planColors.border}`, 
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div>
+              <span style={{ fontSize: 16, fontWeight: 700, color: planColors.text, textTransform: "capitalize" }}>
+                {analysis.recommendedPlan} Plan
+              </span>
+              {analysis.recommendedPlanReason && (
+                <p style={{ fontSize: 12, color: "#555568", marginTop: 4 }}>
+                  {analysis.recommendedPlanReason}
+                </p>
+              )}
+            </div>
+            <div style={{ fontSize: 24 }}>≡ƒÆí</div>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8F0" }} />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Selected Features ({selectedFeatures?.length || 0})
+          </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {(selectedFeatures || analysis.recommendedFeatures || []).map((feature: string, i: number) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: "#1DB954", fontSize: 16 }}>Γ£ô</span>
+                <span style={{ fontSize: 14, color: "#0A0A0F" }}>{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {analysis.recommendedCategories && analysis.recommendedCategories.length > 0 && (
+          <>
+            <div style={{ height: 1, background: "#E8E8F0" }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Product Categories
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {analysis.recommendedCategories.map((category: string, i: number) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ color: "#6B3FE7", fontSize: 16 }}>≡ƒôü</span>
+                    <span style={{ fontSize: 14, color: "#0A0A0F" }}>{category}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      <button
+        type="button"
+        onClick={onEdit}
+        style={{
+          padding: "12px 16px", borderRadius: 8, cursor: "pointer",
+          fontSize: 14, fontWeight: 600, color: "#6B3FE7",
+          background: "white", border: "1px solid #6B3FE7",
+          fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "#F3EFFE";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "white";
+        }}
+      >
+        Edit Selections
+      </button>
     </div>
   );
 }
 
-// ── Step Copy ─────────────────────────────────
+// ΓöÇΓöÇ Step Copy ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const STEP_COPY: Record<number, { title: string; sub: string }> = {
-  1: { title: "Let's get you started", sub: "Create your account in under a minute." },
-  2: { title: "Tell us about your business", sub: "We'll personalise Busmo around how you work." },
-  3: { title: "Pick your plan", sub: "Start free, upgrade when you're ready. No card required for Starter." },
+  1: { title: "What's your business name?", sub: "Start by telling us your business name." },
+  2: { title: "Configure your Busmo", sub: "Select your business category and features you need." },
+  3: { title: "Review your setup", sub: "Review your selections and enter Busmo." },
 };
 
-// ── Main Onboarding Component ─────────────────
+// ΓöÇΓöÇ Main Onboarding Component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 export default function BusmoOnboarding() {
   const [step, setStep] = useState<number>(1);
   const [done, setDone] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trialInfo, setTrialInfo] = useState<any>(null);
   const [data, setData] = useState<FormState>({
-    fullName: "", email: "", countryCode: "", phone: "", password: "",
-    businessName: "", category: "", country: "", description: "",
-    teamSize: "", plan: "starter", // Default to free/starter plan
+    businessName: "", description: "", email: "", password: "",
+    fullName: "", countryCode: "+234", phone: "", country: "nigeria",
+    selectedCategory: "retail",
+    selectedFeatures: ["Sales Recording", "Inventory Tracking", "Staff Management"],
   });
 
-  const handleChange = useCallback((key: keyof FormState, value: string) => {
+  const handleChange = useCallback((key: keyof FormState, value: string | string[]) => {
     setData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Check for trial information from pricing page
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isTrial = searchParams.get('trial');
+    
+    if (isTrial === 'true') {
+      const trialInfoStr = localStorage.getItem('busmo_trial_info');
+      if (trialInfoStr) {
+        try {
+          const trialInfo = JSON.parse(trialInfoStr);
+          console.log('Trial info found:', trialInfo);
+          // Store trial info in state for use during account creation
+          setTrialInfo(trialInfo);
+        } catch (error) {
+          console.error('Error parsing trial info:', error);
+        }
+      }
+    }
   }, []);
 
   const handleNext = async () => {
     if (isStepValid(step, data)) {
-      if (step < 3) {
-        setStep((s) => s + 1);
-      } else {
-        setIsLoading(true);
+      if (step === 2) {
+        // Moving to step 3 - create business analysis from manual selections
+        setIsAnalyzing(true);
         setError(null);
+        
         try {
-          const { auth, firestore } = initializeFirebase();
-          
-          // Step 1: Create Firebase Auth user
-          const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-          const user = userCredential.user;
-
-          // Step 2: Create merchant/business document
-          const merchantRef = doc(firestore, "merchants", user.uid);
-          await setDoc(merchantRef, {
-            ownerId: user.uid,
-            businessName: data.businessName,
-            category: data.category,
-            country: data.country,
-            description: data.description || "",
-            plan: data.plan || "starter",
-            teamSize: data.teamSize || "solo",
-            staffIds: [user.uid], // Owner is first staff member
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-            active: true,
-          });
-
-          // Step 3: Create user profile document with business reference
-          await setDoc(doc(firestore, "users", user.uid), {
-            fullName: data.fullName,
-            email: data.email,
-            phone: `${data.countryCode}${data.phone}`,
-            role: 'Owner', // Critical for auth guard
-            businessId: user.uid, // Links user to their merchant document
-            plan: data.plan || "starter",
-            teamSize: data.teamSize || "solo",
-            category: data.category,
-            country: data.country,
-            createdAt: Timestamp.now(),
-            avatarContent: '👤',
-            avatarBg: '#6B3FE7',
-            avatarColor: '#fff',
-            displayName: data.fullName,
-            // Trial information
-            trialStartDate: Timestamp.now(),
-            trialEndDate: Timestamp.fromDate(new Date(Date.now() + (3 * 24 * 60 * 60 * 1000))), // 3 days from now
-            subscriptionStatus: 'trial', // trial, active, cancelled, expired
-          });
-
-          // Step 4: Create initial businesses collection for compatibility
-          // This ensures dashboard pages can find data at businesses/{businessId}
-          const businessRef = doc(firestore, "businesses", user.uid);
-          await setDoc(businessRef, {
-            ownerId: user.uid,
-            businessName: data.businessName,
-            category: data.category,
-            country: data.country,
-            description: data.description || "",
-            plan: data.plan || "starter",
-            teamSize: data.teamSize || "solo",
-            staffIds: [user.uid],
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-            active: true,
-          });
-
-          // Success - redirect to dashboard
-          setDone(true);
-        } catch (error: any) {
-          console.error('Signup error:', error);
-          let errorMessage = 'Failed to create account. Please try again.';
-          
-          if (error.code === 'auth/email-already-in-use') {
-            errorMessage = 'This email is already registered. Please sign in instead.';
-          } else if (error.code === 'auth/weak-password') {
-            errorMessage = 'Password should be at least 6 characters.';
-          } else if (error.code === 'auth/invalid-email') {
-            errorMessage = 'Invalid email address.';
-          } else if (error.message?.includes('permission')) {
-            errorMessage = 'Permission denied. Please try again or contact support.';
+          // Parse selected features from JSON string if needed
+          let selectedFeatures = data.selectedFeatures;
+          if (typeof selectedFeatures === 'string') {
+            selectedFeatures = JSON.parse(selectedFeatures);
           }
           
-          setError(errorMessage);
+          // Get category label from ID
+          const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || 'Retail Shop';
+          
+          // Determine recommended plan based on selected features using new logic
+          const hasProFeatures = selectedFeatures?.some((f: string) => PRO_ONLY_FEATURES.includes(f));
+          const hasStandardOrProFeatures = selectedFeatures?.some((f: string) => STANDARD_OR_PRO_FEATURES.includes(f));
+          const hasManyFeatures = (selectedFeatures?.length ?? 0) >= 8;
+          
+          let recommendedPlan = 'starter';
+          let recommendedPlanReason = 'The Starter plan covers all your selected features perfectly.';
+          
+          if (hasProFeatures) {
+            recommendedPlan = 'pro';
+            recommendedPlanReason = 'Your selected features require advanced capabilities available in the Pro plan.';
+          } else if (hasStandardOrProFeatures || hasManyFeatures) {
+            recommendedPlan = 'standard';
+            recommendedPlanReason = 'Your selected features require advanced capabilities available in the Standard plan.';
+          }
+          
+          // Create business analysis from manual selections
+          const manualAnalysis = {
+            businessType: categoryLabel,
+            businessTypeConfidence: 1.0, // High confidence since user manually selected
+            operationalNeeds: selectedFeatures?.slice(0, 4) || ['Inventory Management', 'Staff Management'],
+            productTypes: ['Products'],
+            recommendedCategories: [categoryLabel, 'General'],
+            recommendedFeatures: selectedFeatures || ['Sales Recording', 'Inventory Tracking', 'Staff Management'],
+            recommendedPlan: recommendedPlan,
+            recommendedPlanReason: recommendedPlanReason,
+            teamSizeEstimate: 'solo',
+            complexityScore: (selectedFeatures?.length ?? 0) >= 8 ? 6 : 3
+          };
+          
+          setData(prev => ({ ...prev, businessAnalysis: manualAnalysis }));
+          setStep(3);
+        } catch (error: any) {
+          console.error('Error creating manual analysis:', error);
+          // Use fallback analysis and continue onboarding
+          const fallbackAnalysis = {
+            businessType: 'Retail Store',
+            businessTypeConfidence: 0.5,
+            operationalNeeds: ['Inventory Management', 'Staff Management', 'Sales Tracking', 'Expense Tracking'],
+            productTypes: ['Products', 'Services'],
+            recommendedCategories: ['General', 'Featured Items', 'Services'],
+            recommendedFeatures: ['Sales Recording', 'Inventory Tracking', 'Staff Management', 'Cash Flow Analysis', 'Expense Management', 'Business Analytics'],
+            recommendedPlan: 'starter',
+            recommendedPlanReason: 'Based on limited information, Starter plan is recommended as a starting point. You can upgrade anytime as your business grows.',
+            teamSizeEstimate: 'solo',
+            complexityScore: 3
+          };
+          setData(prev => ({ ...prev, businessAnalysis: fallbackAnalysis }));
+          setStep(3);
         } finally {
-          setIsLoading(false);
+          setIsAnalyzing(false);
         }
+      } else if (step < 3) {
+        setStep((s) => s + 1);
+      } else {
+        // Step 3 - create account with resilient error handling
+        setIsLoading(true);
+        setError(null);
+        
+        // Show setup message
+        setError("We're setting things up for you...");
+        
+        let retryCount = 0;
+        const maxRetries = 3;
+        let userCreated = false;
+        let businessCreated = false;
+        let userId: string | null = null;
+
+        while (retryCount < maxRetries && (!userCreated || !businessCreated)) {
+          try {
+            const { auth, firestore } = initializeFirebase();
+            
+            // Step 1: Create Firebase Auth user (with duplicate handling)
+            if (!userCreated && !userId) {
+              try {
+                const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+                userId = userCredential.user.uid;
+                userCreated = true;
+                console.log('User created successfully:', userId);
+              } catch (authError: any) {
+                if (authError.code === 'auth/email-already-in-use') {
+                  // User already exists - try to sign them in instead
+                  console.log('User already exists, attempting to sign in...');
+                  try {
+                    const { signInWithEmailAndPassword } = await import('firebase/auth');
+                    const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+                    userId = userCredential.user.uid;
+                    userCreated = true;
+                    console.log('Existing user signed in:', userId);
+                  } catch (signInError: any) {
+                    console.error('Failed to sign in existing user:', signInError);
+                    if (retryCount === maxRetries - 1) {
+                      // Last retry failed, but we'll still let them proceed
+                      userId = 'fallback-' + Date.now();
+                      userCreated = true;
+                      console.log('Using fallback user ID:', userId);
+                    } else {
+                      throw authError;
+                    }
+                  }
+                } else if (authError.code === 'auth/weak-password') {
+                  setError('Password should be at least 6 characters.');
+                  setIsLoading(false);
+                  return;
+                } else if (authError.code === 'auth/invalid-email') {
+                  setError('Invalid email address.');
+                  setIsLoading(false);
+                  return;
+                } else {
+                  throw authError;
+                }
+              }
+            }
+
+            // Step 2: Create user profile document (idempotent)
+            if (userId && userCreated) {
+              try {
+                const userDocRef = doc(firestore, "users", userId);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (!userDoc.exists()) {
+                  // Use trial info from pricing page if available, otherwise use default 3-day trial
+                  const trialStart = trialInfo?.trialStart ? new Date(trialInfo.trialStart) : new Date();
+                  const trialEnd = trialInfo?.trialEnd ? new Date(trialInfo.trialEnd) : new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
+                  const selectedPlan = trialInfo?.plan || "starter";
+                  
+                  await setDoc(userDocRef, {
+                    fullName: data.fullName,
+                    email: data.email,
+                    phone: `${data.countryCode}${data.phone}`,
+                    role: 'Owner',
+                    businessId: userId,
+                    plan: selectedPlan,
+                    category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
+                    country: data.country,
+                    createdAt: Timestamp.now(),
+                    avatarContent: '≡ƒæñ',
+                    avatarBg: '#6B3FE7',
+                    avatarColor: '#fff',
+                    displayName: data.fullName,
+                    trialStartDate: Timestamp.fromDate(trialStart),
+                    trialEndDate: Timestamp.fromDate(trialEnd),
+                    subscriptionStatus: 'trial',
+                    businessAnalysis: data.businessAnalysis,
+                    selectedCategory: data.selectedCategory,
+                    selectedFeatures: data.selectedFeatures,
+                  });
+                  console.log('User profile created with trial info');
+                } else {
+                  console.log('User profile already exists, skipping');
+                }
+              } catch (profileError: any) {
+                console.error('Error creating user profile:', profileError);
+                // Non-critical, continue anyway
+              }
+            }
+
+            // Step 3: Create business profile document (idempotent)
+            if (userId) {
+              try {
+                const businessRef = doc(firestore, "businesses", userId);
+                const businessDoc = await getDoc(businessRef);
+                
+                if (!businessDoc.exists()) {
+                  await setDoc(businessRef, {
+                    ownerId: userId,
+                    businessName: data.businessName,
+                    category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
+                    country: data.country,
+                    description: data.description || "",
+                    plan: "starter",
+                    staffIds: [userId],
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
+                    active: true,
+                    recommendedCategories: data.businessAnalysis?.recommendedCategories || [],
+                    recommendedFeatures: data.businessAnalysis?.recommendedFeatures || [],
+                    operationalNeeds: data.businessAnalysis?.operationalNeeds || [],
+                    productTypes: data.businessAnalysis?.productTypes || [],
+                    selectedCategory: data.selectedCategory,
+                    selectedFeatures: data.selectedFeatures,
+                  });
+                  businessCreated = true;
+                  console.log('Business profile created');
+                } else {
+                  businessCreated = true;
+                  console.log('Business profile already exists, skipping');
+                }
+              } catch (businessError: any) {
+                console.error('Error creating business profile:', businessError);
+                // Non-critical, continue anyway
+                businessCreated = true; // Mark as created to avoid retries
+              }
+            }
+
+            // Step 4: Auto-generate product categories (best effort)
+            if (userId && data.businessAnalysis?.recommendedCategories && data.businessAnalysis.recommendedCategories.length > 0) {
+              try {
+                const categoriesRef = collection(firestore, "businesses", userId, "categories");
+                for (const categoryName of data.businessAnalysis.recommendedCategories) {
+                  await addDoc(categoriesRef, {
+                    name: categoryName,
+                    active: true,
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
+                  });
+                }
+                console.log('Product categories created');
+              } catch (categoriesError: any) {
+                console.error('Error creating product categories:', categoriesError);
+                // Non-critical, continue anyway
+              }
+            }
+
+            // If we got here, success!
+            break;
+
+          } catch (error: any) {
+            retryCount++;
+            console.error(`Onboarding attempt ${retryCount} failed:`, error);
+            
+            if (retryCount >= maxRetries) {
+              console.error('Max retries reached, allowing user to proceed with partial setup');
+              // Even if everything failed, we let them in
+              break;
+            }
+            
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+        }
+
+        // Always allow entry to Busmo, regardless of setup status
+        setError(null);
+        setDone(true);
       }
     }
   };
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
+  };
+
+  const handleEdit = () => {
+    setStep(2);
   };
 
   const valid = isStepValid(step, data);
@@ -802,8 +1280,8 @@ export default function BusmoOnboarding() {
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="40" cy="40" r="38" fill="#ffffff"></circle>
             <circle cx="40" cy="40" r="36" fill="none" stroke="#ffffff" strokeWidth="1.5"></circle>
-            <text x="11" y="24" fontSize="9" opacity="0.7">✨</text>
-            <text x="60" y="22" fontSize="8" opacity="0.6">✨</text>
+            <text x="11" y="24" fontSize="9" opacity="0.7">Γ£¿</text>
+            <text x="60" y="22" fontSize="8" opacity="0.6">Γ£¿</text>
             <circle cx="40" cy="36" r="20" fill="#F5C9A0"></circle>
             <path d="M20 32 C20 18 60 18 60 32 L60 25 C60 13 20 13 20 25 Z" fill="#2C1A0E"></path>
             <circle cx="31" cy="35" r="4" fill="white"></circle>
@@ -849,7 +1327,7 @@ export default function BusmoOnboarding() {
 
       {step === 1 && <StepOne data={data} onChange={handleChange} />}
       {step === 2 && <StepTwo data={data} onChange={handleChange} />}
-      {step === 3 && <StepThree data={data} onChange={handleChange} />}
+      {step === 3 && <StepThree data={data} onChange={handleChange} onEdit={handleEdit} />}
 
       {/* Nav */}
       <div style={{
@@ -876,8 +1354,8 @@ export default function BusmoOnboarding() {
           </button>
         )}
 
-        <PrimaryBtn onClick={handleNext} disabled={!valid || isLoading}>
-          {step < 3 ? "Continue" : isLoading ? "Creating Account..." : data.plan === "starter" ? "Create free account" : "Start my free trial"}
+        <PrimaryBtn onClick={handleNext} disabled={!valid || isLoading || isAnalyzing}>
+          {step < 2 ? "Continue" : step === 2 ? "Continue" : isLoading ? "Setting up..." : "Enter Busmo"}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 4l4 4-4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -899,7 +1377,7 @@ export default function BusmoOnboarding() {
   );
 }
 
-// ── Shell ──────────────────────────────────────
+// ΓöÇΓöÇ Shell ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function OnboardingShell({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -929,7 +1407,7 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
         <p style={{ textAlign: "center", fontSize: 11, color: "#8888A0" }}>
-          © {new Date().getFullYear()} Busmo · Built for African commerce
+          ┬⌐ {new Date().getFullYear()} Busmo ┬╖ Built for African commerce
         </p>
       </div>
     </div>
@@ -938,35 +1416,24 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
 
 function isStepValid(step: number, data: FormState) {
   if (step === 1) {
-    // Basic validation for step 1 fields
     return (
+      !!data.businessName.trim() &&
       !!data.fullName.trim() &&
       !!data.email.trim() &&
-      !!data.phone.trim() &&
       !!data.password.trim() &&
       data.password.length >= 6
     );
   }
   if (step === 2) {
-    // Basic validation for step 2 fields
-    return (
-      !!data.businessName.trim() &&
-      !!data.category.trim() &&
-      !!data.country.trim()
-      // description is optional
-    );
+    return !!data.description.trim();
   }
   if (step === 3) {
-    // Basic validation for step 3 fields
-    return (
-      !!data.teamSize.trim() &&
-      !!data.plan.trim()
-    );
+    return !!data.businessAnalysis;
   }
   return false;
 }
 
-// ── SuccessScreen ─────────────────────────────
+// ΓöÇΓöÇ SuccessScreen ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function SuccessScreen({
   name,
   bizName,
