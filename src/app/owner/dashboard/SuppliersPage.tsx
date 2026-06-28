@@ -55,11 +55,19 @@ interface Product {
   imageUrl?: string;
 }
 
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
 export function SuppliersPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
-  const { firestore } = initializeFirebase();
-  
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [supplierReceipts, setSupplierReceipts] = useState<StockReceipt[]>([]);
@@ -108,33 +116,31 @@ export function SuppliersPage() {
     try {
       setIsLoading(true);
       
-      const suppliersQuery = query(
-        collection(firestore, 'businesses', user.businessId, 'suppliers'),
-        where('active', '==', true),
-        orderBy('totalAmountSpent', 'desc')
-      );
-      
-      const suppliersSnapshot = await getDocs(suppliersQuery);
+      const suppliersSnapshot = await getDocs(collection(firestore, 'businesses', user.businessId, 'suppliers'));
       const suppliersList: Supplier[] = [];
-      
+
       suppliersSnapshot.forEach(doc => {
         const data = doc.data();
-        suppliersList.push({
-          id: doc.id,
-          name: data.name || '',
-          phone: data.phone,
-          email: data.email,
-          address: data.address,
-          productsSupplied: data.productsSupplied || [],
-          totalAmountSpent: data.totalAmountSpent || 0,
-          lastSupplyDate: data.lastSupplyDate,
-          supplyCount: data.supplyCount || 0,
-          outstandingBalance: data.outstandingBalance,
-          createdAt: data.createdAt,
-          active: data.active,
-        });
+        if (data.active) {
+          suppliersList.push({
+            id: doc.id,
+            name: data.name || '',
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
+            productsSupplied: data.productsSupplied || [],
+            totalAmountSpent: data.totalAmountSpent || 0,
+            lastSupplyDate: data.lastSupplyDate,
+            supplyCount: data.supplyCount || 0,
+            outstandingBalance: data.outstandingBalance,
+            createdAt: data.createdAt,
+            active: data.active,
+          });
+        }
       });
-      
+
+      suppliersList.sort((a, b) => (b.totalAmountSpent || 0) - (a.totalAmountSpent || 0));
+
       setSuppliers(suppliersList);
     } catch (error) {
       console.error('Error loading suppliers:', error);
