@@ -64,6 +64,8 @@ export function HomePage() {
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<string | null>(null);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [businessAnalysis, setBusinessAnalysis] = useState<any>(null);
 
   // Fetch real data on mount
   useEffect(() => {
@@ -100,6 +102,12 @@ export function HomePage() {
 
         const userData = userDoc.data();
         const businessId = userData.businessId;
+
+        // Load selected features and business analysis from onboarding
+        const features = userData.selectedFeatures || [];
+        const analysis = userData.businessAnalysis;
+        setSelectedFeatures(Array.isArray(features) ? features : []);
+        setBusinessAnalysis(analysis);
 
         if (!businessId) {
           console.warn('No business ID found for user');
@@ -410,6 +418,78 @@ export function HomePage() {
             ))}
           </div>
         </Card>
+
+        {/* Your Busmo Setup - Shows onboarding selections */}
+        {(selectedFeatures.length > 0 || businessAnalysis) && (
+          <Card>
+            <CardHeader>
+              <CardIcon bg="var(--purple-bg)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}>
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5"/>
+                  <path d="M2 12l10 5 10-5"/>
+                </svg>
+              </CardIcon>
+              Your Busmo Setup
+            </CardHeader>
+            <div style={{ padding: '16px' }}>
+              {businessAnalysis?.businessType && (
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Business Category
+                  </span>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-1)', marginTop: '4px' }}>
+                    {businessAnalysis.businessType}
+                  </div>
+                </div>
+              )}
+              
+              {businessAnalysis?.recommendedPlan && (
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Recommended Plan
+                  </span>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    fontWeight: 600, 
+                    color: businessAnalysis.recommendedPlan === 'pro' ? 'var(--amber)' : 
+                           businessAnalysis.recommendedPlan === 'standard' ? 'var(--purple)' : 'var(--text-1)',
+                    marginTop: '4px',
+                    textTransform: 'capitalize'
+                  }}>
+                    {businessAnalysis.recommendedPlan} Plan
+                  </div>
+                  {businessAnalysis.recommendedPlanReason && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
+                      {businessAnalysis.recommendedPlanReason}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedFeatures.length > 0 && (
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Enabled Features ({selectedFeatures.length})
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                    {selectedFeatures.slice(0, 6).map((feature, index) => (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--green)', fontSize: '14px' }}>✓</span>
+                        <span style={{ fontSize: '13px', color: 'var(--text-1)' }}>{feature}</span>
+                      </div>
+                    ))}
+                    {selectedFeatures.length > 6 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '4px' }}>
+                        +{selectedFeatures.length - 6} more features
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Services Preview */}
         <Card>

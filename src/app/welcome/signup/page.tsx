@@ -179,21 +179,21 @@ function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
 
 // ΓöÇΓöÇ Constants and Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const CATEGORIES = [
-  { id: "retail", label: "Retail Shop", icon: "≡ƒÅ¬" },
-  { id: "restaurant", label: "Restaurant", icon: "≡ƒì╜∩╕Å" },
-  { id: "grocery", label: "Grocery Store", icon: "≡ƒ¢Æ" },
-  { id: "fashion", label: "Fashion", icon: "≡ƒæù" },
-  { id: "electronics", label: "Electronics", icon: "≡ƒô▒" },
-  { id: "manufacturing", label: "Manufacturing", icon: "≡ƒÅ¡" },
-  { id: "services", label: "Services", icon: "≡ƒ¢á∩╕Å" },
-  { id: "pharmacy", label: "Pharmacy", icon: "≡ƒÆè" },
-  { id: "supermarket", label: "Supermarket", icon: "≡ƒÅ¼" },
-  { id: "cafe", label: "Cafe", icon: "Γÿò" },
-  { id: "wholesale", label: "Wholesale", icon: "≡ƒôª" },
-  { id: "distributor", label: "Distributor", icon: "≡ƒÜÜ" },
-  { id: "healthcare", label: "Healthcare", icon: "≡ƒÅÑ" },
-  { id: "education", label: "Education", icon: "≡ƒÄô" },
-  { id: "other", label: "Other", icon: "≡ƒôª" },
+  { id: "retail", label: "Retail Shop", icon: "🏪" },
+  { id: "restaurant", label: "Restaurant", icon: "🍽️" },
+  { id: "grocery", label: "Grocery Store", icon: "🛒" },
+  { id: "fashion", label: "Fashion", icon: "👗" },
+  { id: "electronics", label: "Electronics", icon: "📱" },
+  { id: "manufacturing", label: "Manufacturing", icon: "🏭" },
+  { id: "services", label: "Services", icon: "🛠️" },
+  { id: "pharmacy", label: "Pharmacy", icon: "💊" },
+  { id: "supermarket", label: "Supermarket", icon: "🏬" },
+  { id: "cafe", label: "Cafe", icon: "☕" },
+  { id: "wholesale", label: "Wholesale", icon: "📦" },
+  { id: "distributor", label: "Distributor", icon: "🚚" },
+  { id: "healthcare", label: "Healthcare", icon: "🏥" },
+  { id: "education", label: "Education", icon: "🎓" },
+  { id: "other", label: "Other", icon: "📦" },
 ];
 
 // Features available for each category
@@ -774,7 +774,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
               }
             >
               <span style={{ fontSize: 14 }}>
-                {selectedFeatures.includes(feature) ? "Γ£ô" : "Γùï"}
+                {selectedFeatures.includes(feature) ? "✓" : "○"}
               </span>
               <span>{feature}</span>
               {PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#D97706", marginLeft: "auto" }}>PRO</span>}
@@ -790,7 +790,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         border: "1.5px solid #6B3FE7", display: "flex", flexDirection: "column", gap: 8 
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>≡ƒÆí</span>
+          <span style={{ fontSize: 20 }}>💡</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#6B3FE7", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Recommended Plan
           </span>
@@ -813,7 +813,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
   if (!analysis) {
     return (
       <div style={{ textAlign: "center", padding: "40px 0" }}>
-        <div style={{ fontSize: 24, marginBottom: 16 }}>≡ƒñö</div>
+        <div style={{ fontSize: 24, marginBottom: 16 }}>🤔</div>
         <p style={{ color: "#8888A0" }}>Analyzing your business...</p>
       </div>
     );
@@ -886,7 +886,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
                 </p>
               )}
             </div>
-            <div style={{ fontSize: 24 }}>≡ƒÆí</div>
+            <div style={{ fontSize: 24 }}>💡</div>
           </div>
         </div>
 
@@ -899,7 +899,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {(selectedFeatures || analysis.recommendedFeatures || []).map((feature: string, i: number) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: "#1DB954", fontSize: 16 }}>Γ£ô</span>
+                <span style={{ color: "#1DB954", fontSize: 16 }}>✓</span>
                 <span style={{ fontSize: 14, color: "#0A0A0F" }}>{feature}</span>
               </div>
             ))}
@@ -916,7 +916,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {analysis.recommendedCategories.map((category: string, i: number) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ color: "#6B3FE7", fontSize: 16 }}>≡ƒôü</span>
+                    <span style={{ color: "#6B3FE7", fontSize: 16 }}>📁</span>
                     <span style={{ fontSize: 14, color: "#0A0A0F" }}>{category}</span>
                   </div>
                 ))}
@@ -1425,7 +1425,11 @@ function isStepValid(step: number, data: FormState) {
     );
   }
   if (step === 2) {
-    return !!data.description.trim();
+    // Step 2 is valid if category and features are selected
+    return (
+      !!data.selectedCategory &&
+      Array.isArray(data.selectedFeatures) && data.selectedFeatures.length > 0
+    );
   }
   if (step === 3) {
     return !!data.businessAnalysis;
