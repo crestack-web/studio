@@ -622,44 +622,29 @@
   color: var(--text-1);
 }
 
-/* Conversation History Modal */
-.historyOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.historyModal {
+/* Conversation History Panel */
+.historyPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  max-width: 480px;
-  max-height: 70vh;
+  max-width: 380px;
   background: var(--surface);
-  border-radius: 16px 16px 0 0;
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease;
+  z-index: 20;
+  animation: slideIn 0.2s ease;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
 }
 
-@keyframes slideUp {
+@keyframes slideIn {
   from {
-    transform: translateY(100%);
+    transform: translateX(100%);
   }
   to {
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 
@@ -709,6 +694,12 @@
   color: var(--text-3);
 }
 
+.historyEmptySub {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 8px;
+}
+
 .historyItem {
   width: 100%;
   padding: 12px 16px;
@@ -747,6 +738,17 @@
 
 .historyItemDate {
   font-size: 12px;
+  color: var(--text-3);
+}
+
+.historyItemMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.historyItemCount {
+  font-size: 11px;
   color: var(--text-3);
 }
 

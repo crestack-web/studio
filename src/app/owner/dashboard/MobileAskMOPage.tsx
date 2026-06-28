@@ -1130,47 +1130,51 @@ export function MobileAskMOPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Conversation History Modal */}
+      {/* Conversation History Panel */}
       {showHistory && (
-        <div className={styles.historyOverlay} onClick={() => setShowHistory(false)}>
-          <div className={styles.historyModal} onClick={e => e.stopPropagation()}>
-            <div className={styles.historyHeader}>
-              <h3 className={styles.historyTitle}>Conversations</h3>
-              <button className={styles.closeHistoryBtn} onClick={() => setShowHistory(false)}>
-                ✕
-              </button>
-            </div>
-            <div className={styles.historyList}>
-              {conversations.length === 0 ? (
-                <div className={styles.historyEmpty}>
-                  <p>No conversations yet</p>
-                </div>
-              ) : (
-                conversations.map(conv => (
-                  <button
-                    key={conv.id}
-                    className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
-                    onClick={() => handleLoadConversation(conv.id)}
-                  >
-                    <div className={styles.historyItemContent}>
-                      <div className={styles.historyItemTitle}>{conv.title}</div>
-                      <div className={styles.historyItemDate}>
+        <div className={styles.historyPanel}>
+          <div className={styles.historyHeader}>
+            <h3 className={styles.historyTitle}>Conversations</h3>
+            <button className={styles.closeHistoryBtn} onClick={() => setShowHistory(false)}>
+              ✕
+            </button>
+          </div>
+          <div className={styles.historyList}>
+            {conversations.length === 0 ? (
+              <div className={styles.historyEmpty}>
+                <p>No conversations yet</p>
+                <p className={styles.historyEmptySub}>Start typing below to begin.</p>
+              </div>
+            ) : (
+              conversations.map(conv => (
+                <button
+                  key={conv.id}
+                  className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
+                  onClick={() => handleLoadConversation(conv.id)}
+                >
+                  <div className={styles.historyItemContent}>
+                    <div className={styles.historyItemTitle}>{conv.title}</div>
+                    <div className={styles.historyItemMeta}>
+                      <span className={styles.historyItemDate}>
                         {conv.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
+                      </span>
+                      {typeof conv.messageCount === 'number' && (
+                        <span className={styles.historyItemCount}>{conv.messageCount} messages</span>
+                      )}
                     </div>
-                    <button
-                      className={styles.historyItemDelete}
-                      onClick={e => {
-                        e.stopPropagation();
-                        deleteConversation(conv.id);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  </div>
+                  <button
+                    className={styles.historyItemDelete}
+                    onClick={e => {
+                      e.stopPropagation();
+                      deleteConversation(conv.id);
+                    }}
+                  >
+                    <Trash2 size={16} />
                   </button>
-                ))
-              )}
-            </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}
