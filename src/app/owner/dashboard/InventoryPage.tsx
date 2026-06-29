@@ -27,8 +27,12 @@ const InventoryPage: React.FC = () => {
   const [selectedProductForTransfer, setSelectedProductForTransfer] = useState<Product | null>(null);
   const [transferQuantity, setTransferQuantity] = useState<number>(1);
   const [targetBranchId, setTargetBranchId] = useState<string>('');
+  const [sourceLocation, setSourceLocation] = useState<string>('main_store');
+  const [targetLocation, setTargetLocation] = useState<string>('warehouse');
+  const [transferType, setTransferType] = useState<'branch' | 'warehouse'>('warehouse');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [businessCategory, setBusinessCategory] = useState<string>('');
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -47,6 +51,11 @@ const InventoryPage: React.FC = () => {
         if (!userSnapshot.empty) {
           const userData = userSnapshot.docs[0].data();
           businessId = userData.businessId || user.id;
+          
+          // Load business category
+          if (userData.category || userData.businessType) {
+            setBusinessCategory((userData.category || userData.businessType).toLowerCase());
+          }
         }
 
         // Determine products collection path based on selected branch
@@ -144,8 +153,8 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Handle product transfer between branches
-  const handleProductTransfer = async (product: Product, targetBranchId: string, quantity: number) => {
+  // Handle product transfer between warehouses or branches
+  const handleProductTransfer = async (product: Product, target: string, quantity: number, type: 'branch' | 'warehouse') => {
     if (!businessId || !firestore) {
       showToast('❌ Business information not available');
       return;
@@ -158,68 +167,107 @@ const InventoryPage: React.FC = () => {
 
     try {
       await runTransaction(firestore, async (transaction) => {
-        // Get source branch product data
-        const sourceProductRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-        const sourceProductDoc = await transaction.get(sourceProductRef);
-        
-        if (!sourceProductDoc.exists()) {
-          throw new Error('Source product not found');
-        }
-
-        const sourceData = sourceProductDoc.data();
-        const sourceStock = sourceData.stock || 0;
-
-        if (sourceStock < quantity) {
-          throw new Error('Insufficient stock in source branch');
-        }
-
-        // Check if product exists in target branch
-        const targetProductRef = doc(firestore, 'businesses', businessId, 'branches', targetBranchId, 'products', product.id);
-        const targetProductDoc = await transaction.get(targetProductRef);
-
-        if (targetProductDoc.exists()) {
-          // Update existing product in target branch
-          const targetData = targetProductDoc.data();
-          const targetStock = targetData.stock || 0;
+        if (type === 'warehouse') {
+          // Transfer between warehouse locations (main_store, back_store, warehouse)
+          const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+          const productDoc = await transaction.get(productRef);
           
-          transaction.update(targetProductRef, {
-            stock: targetStock + quantity,
+          if (!productDoc.exists()) {
+            throw new Error('Product not found');
+          }
+
+          const data = productDoc.data();
+          const stockByLocation = data.stockByLocation || {
+            main_store: data.stock || 0,
+            back_store: 0,
+            warehouse: 0,
+          };
+
+          const sourceStock = stockByLocation[sourceLocation] || 0;
+          const targetStock = stockByLocation[target] || 0;
+
+          if (sourceStock < quantity) {
+            throw new Error(`Insufficient stock in ${sourceLocation}`);
+          }
+
+          stockByLocation[sourceLocation] = sourceStock - quantity;
+          stockByLocation[target] = targetStock + quantity;
+
+          transaction.update(productRef, {
+            stockByLocation,
             updatedAt: new Date(),
+          });
+
+          // Log the transfer
+          const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'stockTransfers'));
+          transaction.set(transferLogRef, {
+            productId: product.id,
+            productName: product.name,
+            fromLocation: sourceLocation,
+            toLocation: target,
+            quantity: quantity,
+            transferredBy: user.id,
+            transferredAt: new Date(),
           });
         } else {
-          // Create product in target branch
-          transaction.set(targetProductRef, {
-            name: product.name,
-            sku: product.sku,
-            category: product.category,
-            cost: product.costPrice,
-            price: product.sellingPrice,
-            stock: quantity,
-            imageUrl: product.imageUrl,
-            lowStockThreshold: product.reorderThreshold,
-            active: true,
-            createdAt: new Date(),
+          // Transfer between branches (existing logic)
+          const sourceProductRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+          const sourceProductDoc = await transaction.get(sourceProductRef);
+          
+          if (!sourceProductDoc.exists()) {
+            throw new Error('Source product not found');
+          }
+
+          const sourceData = sourceProductDoc.data();
+          const sourceStock = sourceData.stock || 0;
+
+          if (sourceStock < quantity) {
+            throw new Error('Insufficient stock in source branch');
+          }
+
+          const targetProductRef = doc(firestore, 'businesses', businessId, 'branches', target, 'products', product.id);
+          const targetProductDoc = await transaction.get(targetProductRef);
+
+          if (targetProductDoc.exists()) {
+            const targetData = targetProductDoc.data();
+            const targetStock = targetData.stock || 0;
+            
+            transaction.update(targetProductRef, {
+              stock: targetStock + quantity,
+              updatedAt: new Date(),
+            });
+          } else {
+            transaction.set(targetProductRef, {
+              name: product.name,
+              sku: product.sku,
+              category: product.category,
+              cost: product.costPrice,
+              price: product.sellingPrice,
+              stock: quantity,
+              imageUrl: product.imageUrl,
+              lowStockThreshold: product.reorderThreshold,
+              active: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+
+          transaction.update(sourceProductRef, {
+            stock: sourceStock - quantity,
             updatedAt: new Date(),
           });
+
+          const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'transfers'));
+          transaction.set(transferLogRef, {
+            productId: product.id,
+            productName: product.name,
+            fromBranch: businessId,
+            toBranch: target,
+            quantity: quantity,
+            transferredBy: user.id,
+            transferredAt: new Date(),
+          });
         }
-
-        // Update source branch product stock
-        transaction.update(sourceProductRef, {
-          stock: sourceStock - quantity,
-          updatedAt: new Date(),
-        });
-
-        // Log the transfer
-        const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'transfers'));
-        transaction.set(transferLogRef, {
-          productId: product.id,
-          productName: product.name,
-          fromBranch: businessId, // Main branch
-          toBranch: targetBranchId,
-          quantity: quantity,
-          transferredBy: user.id,
-          transferredAt: new Date(),
-        });
       });
 
       showToast('✅ Product transferred successfully');
@@ -413,14 +461,14 @@ const InventoryPage: React.FC = () => {
           <p className="inv-page-sub">{t('inventory.subtitle')}</p>
         </div>
         <div className="inv-header-actions">
-          {isProUser && branches.length > 1 && (
+          {(isProUser && branches.length > 1) || businessCategory.includes('retail') || businessCategory.includes('wholesale') || businessCategory.includes('distributor') ? (
             <button className="btn bsm bgh" onClick={() => setShowTransferModal(true)} disabled={products.length === 0}>
               <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M2 6.5h9M6.5 2v9"/>
               </svg>
               Transfer Stock
             </button>
-          )}
+          ) : null}
           <button className="btn bsm bgh" onClick={handleExportCSV} disabled={products.length === 0}>
             <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M1 3h11M1 6.5h7M1 10h4"/>
@@ -626,13 +674,28 @@ const InventoryPage: React.FC = () => {
         <div className="modal-overlay" onClick={() => setShowTransferModal(false)}>
           <div className="modal-content csv-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">Transfer Stock Between Branches</h2>
+              <h2 className="modal-title">Transfer Stock</h2>
               <button className="modal-close" onClick={() => setShowTransferModal(false)}>×</button>
             </div>
             <div className="modal-body">
               <p className="csv-modal-description">
-                Select a product and quantity to transfer to another branch.
+                Transfer stock between warehouse locations or branches.
               </p>
+              
+              {/* Transfer Type Selection */}
+              {(isProUser && branches.length > 1) && (businessCategory.includes('retail') || businessCategory.includes('wholesale') || businessCategory.includes('distributor')) ? (
+                <div className="csv-modal-example">
+                  <label className="csv-modal-label">Transfer Type:</label>
+                  <select 
+                    className="csv-modal-input"
+                    value={transferType}
+                    onChange={(e) => setTransferType(e.target.value as 'branch' | 'warehouse')}
+                  >
+                    <option value="warehouse">Between Warehouse Locations</option>
+                    <option value="branch">Between Branches</option>
+                  </select>
+                </div>
+              ) : null}
               
               <div className="csv-modal-example">
                 <label className="csv-modal-label">Select Product:</label>
@@ -669,21 +732,51 @@ const InventoryPage: React.FC = () => {
                     <small>Available: {selectedProductForTransfer.stock} units</small>
                   </div>
 
-                  <div className="csv-modal-example">
-                    <label className="csv-modal-label">Target Branch:</label>
-                    <select 
-                      className="csv-modal-input"
-                      value={targetBranchId}
-                      onChange={(e) => setTargetBranchId(e.target.value)}
-                    >
-                      <option value="">-- Select target branch --</option>
-                      {branches.filter(b => b.id !== selectedBranchId).map(branch => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {transferType === 'warehouse' ? (
+                    <>
+                      <div className="csv-modal-example">
+                        <label className="csv-modal-label">Source Location:</label>
+                        <select 
+                          className="csv-modal-input"
+                          value={sourceLocation}
+                          onChange={(e) => setSourceLocation(e.target.value)}
+                        >
+                          <option value="main_store">Main Store</option>
+                          <option value="back_store">Back Store</option>
+                          <option value="warehouse">Warehouse</option>
+                        </select>
+                      </div>
+
+                      <div className="csv-modal-example">
+                        <label className="csv-modal-label">Target Location:</label>
+                        <select 
+                          className="csv-modal-input"
+                          value={targetLocation}
+                          onChange={(e) => setTargetLocation(e.target.value)}
+                        >
+                          <option value="main_store">Main Store</option>
+                          <option value="back_store">Back Store</option>
+                          <option value="warehouse">Warehouse</option>
+                        </select>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="csv-modal-example">
+                      <label className="csv-modal-label">Target Branch:</label>
+                      <select 
+                        className="csv-modal-input"
+                        value={targetBranchId}
+                        onChange={(e) => setTargetBranchId(e.target.value)}
+                      >
+                        <option value="">-- Select target branch --</option>
+                        {branches.filter(b => b.id !== selectedBranchId).map(branch => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="csv-modal-actions">
                     <button 
@@ -695,11 +788,18 @@ const InventoryPage: React.FC = () => {
                     <button 
                       className="csv-modal-btn csv-modal-btn-primary"
                       onClick={() => {
-                        if (selectedProductForTransfer && targetBranchId) {
-                          handleProductTransfer(selectedProductForTransfer, targetBranchId, transferQuantity);
+                        if (selectedProductForTransfer) {
+                          const target = transferType === 'warehouse' ? targetLocation : targetBranchId;
+                          if (target) {
+                            handleProductTransfer(selectedProductForTransfer, target, transferQuantity, transferType);
+                          }
                         }
                       }}
-                      disabled={!targetBranchId || transferQuantity <= 0 || transferQuantity > selectedProductForTransfer?.stock}
+                      disabled={
+                        (transferType === 'warehouse' ? !targetLocation : !targetBranchId) || 
+                        transferQuantity <= 0 || 
+                        transferQuantity > selectedProductForTransfer?.stock
+                      }
                     >
                       Transfer Stock
                     </button>
@@ -715,3 +815,4 @@ const InventoryPage: React.FC = () => {
 };
 
 export default InventoryPage;
+

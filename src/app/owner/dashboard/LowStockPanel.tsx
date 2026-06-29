@@ -120,3 +120,4 @@ const LowStockPanel: React.FC<LowStockPanelProps> = ({ products, onProductClick 
 };
 
 export default LowStockPanel;
+

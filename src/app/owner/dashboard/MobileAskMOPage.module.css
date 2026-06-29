@@ -48,7 +48,6 @@
   flex-shrink: 0;
 }
 
-
 .moAvatar {
   width: 32px;
   height: 32px;
@@ -60,7 +59,6 @@
   color: white;
   flex-shrink: 0;
 }
-
 
 .headerTitle {
   font-size: 14px;
@@ -103,7 +101,6 @@
 .addCreditsBtn:hover {
   background: #6D28D9;
 }
-
 
 .backBtn {
   width: 36px;
@@ -850,95 +847,85 @@
   }
 }
 
-/* Input Area */
+/* ==================== Modern Input Area ==================== */
 .inputArea {
   padding: 12px 16px;
   background: var(--background);
   border: none;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* Modern image preview with overlay */
 .imagePreview {
   position: relative;
   display: inline-block;
   margin-bottom: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .imagePreview img {
-  max-width: 100px;
-  max-height: 100px;
-  border-radius: 8px;
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 12px;
   object-fit: cover;
+  display: block;
 }
 
 .removeImage {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 24px;
-  height: 24px;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
-  background: var(--red);
+  background: rgba(0, 0, 0, 0.7);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
 }
 
+.removeImage:hover {
+  background: rgba(239, 68, 68, 0.9);
+  transform: scale(1.1);
+}
+
+.removeImage:active {
+  transform: scale(0.95);
+}
+
+/* Modern audio preview */
 .audioPreview {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 8px;
-  padding: 8px;
+  padding: 10px 14px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .audioPreview audio {
   flex: 1;
   max-width: 200px;
+  height: 36px;
 }
 
 .removeAudio {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: none;
-  background: var(--red);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.inputWrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  background: var(--bg);
-  border: 2px solid var(--border);
-  border-radius: 24px;
-  padding: 8px 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  width: 100%;
-}
-
-.inputWrapper:focus-within {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-}
-
-.attachBtn,
-.micBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
   border: none;
   background: var(--bg);
   color: var(--text-2);
@@ -949,26 +936,127 @@
   font-size: 16px;
   transition: all 0.2s;
   flex-shrink: 0;
+}
+
+.removeAudio:hover {
+  background: var(--red-lt);
+  color: var(--red);
+  transform: scale(1.1);
+}
+
+.removeAudio:active {
+  transform: scale(0.95);
+}
+
+/* Modern input wrapper with pill shape */
+.inputWrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 28px;
+  padding: 8px 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.inputWrapper:focus-within {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08), 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--surface);
+}
+
+/* Action buttons with modern styling */
+.attachBtn,
+.micBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.attachBtn::before,
+.micBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.attachBtn:hover::before,
+.micBtn:hover::before {
+  opacity: 0.08;
 }
 
 .attachBtn:hover,
 .micBtn:hover {
-  background: var(--surface);
   color: var(--text-1);
   transform: scale(1.05);
 }
 
 .attachBtn:active,
 .micBtn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
+}
+
+.attachBtn:disabled,
+.micBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Recording state styles */
+.micBtn.recording {
+  background: var(--red);
+  color: white;
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
 }
 
 .recordingTime {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--red);
   white-space: nowrap;
+  min-width: 45px;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .cancelRecordingBtn {
@@ -984,8 +1072,21 @@
   justify-content: center;
   flex-shrink: 0;
   font-size: 14px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.cancelRecordingBtn:hover {
+  background: var(--red-lt);
+  color: var(--red);
+  transform: scale(1.1);
+}
+
+.cancelRecordingBtn:active {
+  transform: scale(0.95);
+}
+
+/* Modern textarea styling */
 .input {
   flex: 1;
   border: none;
@@ -998,20 +1099,38 @@
   max-height: 120px;
   padding: 6px 4px;
   font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 12px;
 }
 
 .input::placeholder {
   color: var(--text-3);
+  transition: color 0.2s;
+}
+
+.input:focus::placeholder {
+  color: var(--text-2);
 }
 
 .input:focus {
   outline: none;
 }
 
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input::selection {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+/* Modern send button */
 .sendBtn {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 50%;
   border: none;
   background: var(--purple);
   color: white;
@@ -1019,29 +1138,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
 .sendBtn svg {
   width: 18px;
   height: 18px;
+  transition: transform 0.2s;
 }
 
 .sendBtn:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: scale(1.05);
+  background: #6D28D9;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
 }
 
 .sendBtn:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.3);
 }
 
 .sendBtn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+  background: var(--text-3);
 }
 
 .planLimit {
@@ -1051,7 +1176,7 @@
   margin-top: 8px;
 }
 
-/* Mobile optimizations */
+/* ==================== Mobile Responsive ==================== */
 @media (max-width: 768px) {
   .header {
     padding: 12px;
@@ -1077,6 +1202,7 @@
   .inputArea {
     padding: 8px 12px;
     padding-bottom: calc(8px + var(--bottom-nav-height));
+    gap: 6px;
   }
 
   .messages {
@@ -1094,10 +1220,22 @@
 
   .inputWrapper {
     padding: 6px 10px;
+    gap: 6px;
   }
 
   .input {
     font-size: 16px;
+  }
+
+  .attachBtn,
+  .micBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sendBtn {
+    width: 38px;
+    height: 38px;
   }
 
   .historyModal {
@@ -1130,8 +1268,8 @@
   }
 
   .moAvatar {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 
   .newChatBtn,
@@ -1147,6 +1285,7 @@
   .inputArea {
     padding: 8px 10px;
     padding-bottom: calc(8px + var(--bottom-nav-height));
+    gap: 4px;
   }
 
   .messages {
@@ -1160,6 +1299,33 @@
 
   .bubble {
     padding: 8px 10px;
+  }
+
+  .inputWrapper {
+    padding: 6px 8px;
+    gap: 6px;
+    border-radius: 24px;
+  }
+
+  .attachBtn,
+  .micBtn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sendBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .input {
+    font-size: 16px;
+    padding: 4px 2px;
+  }
+
+  .recordingTime {
+    font-size: 12px;
+    min-width: 38px;
   }
 
   @supports (padding: env(safe-area-inset-bottom)) {
@@ -1184,3 +1350,77 @@
   }
 }
 
+@media (max-width: 480px) {
+  @supports (padding: env(safe-area-inset-top)) {
+    .header {
+      padding-top: calc(10px + env(safe-area-inset-top));
+    }
+  }
+}
+
+/* Handle very small screens (320px width) */
+@media (max-width: 360px) {
+  .inputArea {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .inputWrapper {
+    padding: 4px 6px;
+    gap: 4px;
+    border-radius: 22px;
+  }
+
+  .attachBtn,
+  .micBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sendBtn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .input {
+    font-size: 16px;
+  }
+
+  .recordingTime {
+    font-size: 11px;
+    min-width: 32px;
+  }
+}
+
+/* Landscape orientation optimization */
+@media (max-height: 500px) and (orientation: landscape) {
+  .inputArea {
+    padding: 6px 12px;
+    gap: 4px;
+  }
+
+  .inputWrapper {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .attachBtn,
+  .micBtn,
+  .sendBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header {
+    padding: 8px 12px;
+  }
+
+  .moAvatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .headerTitle {
+    font-size: 14px;
+  }
+}

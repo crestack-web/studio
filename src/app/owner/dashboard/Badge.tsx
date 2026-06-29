@@ -82,3 +82,4 @@ export function Pill({ children, color = 'green' }: PillProps) {
     </span>
   );
 }
+

@@ -23,7 +23,9 @@ interface ExpiringProduct {
   supplier?: string;
 }
 
-export default function ExpiryAlertsPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function ExpiryAlertsPage() {
   const { user, showToast, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
   const [expiringProducts, setExpiringProducts] = useState<ExpiringProduct[]>([]);
@@ -455,3 +457,4 @@ export default function ExpiryAlertsPage() {
     </div>
   );
 }
+

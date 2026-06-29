@@ -123,3 +123,4 @@ export function useCurrency(): CurrencyContextValue {
   if (!ctx) throw new Error('useCurrency must be used inside <CurrencyProvider>');
   return ctx;
 }
+

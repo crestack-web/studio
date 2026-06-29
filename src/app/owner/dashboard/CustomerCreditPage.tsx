@@ -51,11 +51,19 @@ interface BankAccount {
   isDefault: boolean;
 }
 
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
 export function CustomerCreditPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = initializeFirebase();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
   
   const [creditLedger, setCreditLedger] = useState<CustomerCreditLedger[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -548,3 +556,4 @@ export function CustomerCreditPage() {
     </div>
   );
 }
+

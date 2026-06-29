@@ -927,3 +927,4 @@ export function ChatPanel({ staffMembers, conversations, setConversations, initi
     </div>
   );
 }
+

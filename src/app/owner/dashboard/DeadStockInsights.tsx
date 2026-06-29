@@ -68,3 +68,4 @@ const DeadStockInsights: React.FC<DeadStockInsightsProps> = ({ products, onProdu
 };
 
 export default DeadStockInsights;
+

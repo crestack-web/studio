@@ -73,28 +73,29 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const { selectedBranchId, selectedBranchScope, branches } = useBranch();
 
   // Use shared hook for data management
-  const {
-    messages,
-    setMessages,
-    creditsUsed,
-    creditsRemaining,
-    planLimit,
-    conversations,
-    currentConversationId,
-    setCurrentConversationId,
-    businessSummary,
-    saveConversation,
-    loadConversation,
-    deleteConversation,
-    renameConversation,
-    updateCredits,
-  } = useAskMO({
-    userId: user.id,
-    userPlan: user.plan,
-    businessId: user.businessId,
-    branchId: selectedBranchId || undefined,
-    branchName: branches.find(b => b.id === selectedBranchId)?.name || undefined,
-  });
+   const {
+     messages,
+     setMessages,
+     creditsUsed,
+     creditsRemaining,
+     planLimit,
+     conversations,
+     currentConversationId,
+     setCurrentConversationId,
+     businessSummary,
+     saveConversation,
+     saveMessages,
+     loadConversation,
+     deleteConversation,
+     renameConversation,
+     updateCredits,
+   } = useAskMO({
+     userId: user.id,
+     userPlan: user.plan,
+     businessId: user.businessId,
+     branchId: selectedBranchId || undefined,
+     branchName: branches.find(b => b.id === selectedBranchId)?.name || undefined,
+   });
 
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -229,20 +230,35 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       } else {
         showToast(`Failed: ${executeResult.message}`);
       }
+      
+      // Save conversation after action execution
+      if (currentConversationId) {
+        await saveConversation();
+      }
     } catch (error) {
       console.error('Error executing action:', error);
       showToast('Failed to execute action');
+      
+      // Save conversation even on error
+      if (currentConversationId) {
+        await saveConversation();
+      }
     } finally {
       setPendingAction(null);
       setPendingProductDetails(null);
     }
   };
 
-  const handleActionCancel = () => {
+  const handleActionCancel = async () => {
     setShowActionConfirmation(false);
     setPendingAction(null);
     setPendingProductDetails(null);
     showToast('Action cancelled');
+    
+    // Save conversation after cancellation
+    if (currentConversationId) {
+      await saveConversation();
+    }
   };
 
   const handlePurchaseSuccess = () => {
@@ -1109,4 +1125,5 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     </div>
   );
 }
+
 

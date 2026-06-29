@@ -49,31 +49,33 @@ export function MobileAskMOPage() {
   const { formatMoney } = useCurrency();
   const { t, lang, langMeta } = useTranslation();
 
-  // Use shared hook for data management
-  const {
-    messages,
-    setMessages,
-    creditsUsed,
-    creditsRemaining,
-    planLimit,
-    conversations,
-    currentConversationId,
-    setCurrentConversationId,
-    businessSummary,
-    createConversation,
-    saveMessages,
-    loadConversation,
-    deleteConversation,
-    renameConversation,
-    updateCredits,
-    resetToNewChat,
-  } = useAskMO({
-    userId: user.id,
-    userPlan: user.plan,
-    businessId: user.businessId,
-  });
+   // Use shared hook for data management
+   const {
+     messages,
+     setMessages,
+     creditsUsed,
+     creditsRemaining,
+     planLimit,
+     conversations,
+     currentConversationId,
+     setCurrentConversationId,
+     businessSummary,
+     createConversation,
+     saveMessages,
+     saveConversation,
+     loadConversation,
+     deleteConversation,
+     renameConversation,
+     updateCredits,
+     resetToNewChat,
+   } = useAskMO({
+     userId: user.id,
+     userPlan: user.plan,
+     businessId: user.businessId,
+   });
 
-  const [input, setInput] = useState('');
+   const [autoLoadComplete, setAutoLoadComplete] = useState(false);
+   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState('');
@@ -82,7 +84,18 @@ export function MobileAskMOPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+
+  // Convert blob to base64 on stop
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [dynamicSuggestions, setDynamicSuggestions] = useState([
     { label: "Analyze my sales", icon: <BarChart size={20} /> },
@@ -105,10 +118,13 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Always start with empty state on mount/refresh - like Meta AI / WhatsApp AI
-  useEffect(() => {
-    resetToNewChat();
-  }, [resetToNewChat]);
+  // Auto-load first conversation on mount for continuity after refresh
+   useEffect(() => {
+    if (conversations.length > 0 && !currentConversationId && messages.length === 0 && !autoLoadComplete) {
+      setAutoLoadComplete(true);
+      loadConversation(conversations[0].id).catch(console.error);
+    }
+  }, [conversations, currentConversationId, messages.length, loadConversation, autoLoadComplete]);
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
@@ -158,6 +174,11 @@ export function MobileAskMOPage() {
 
           setMessages(prev => [...prev, successMsg]);
           setPendingAction(null);
+          
+          // Save conversation after successful action
+          if (currentConversationId) {
+            await saveConversation();
+          }
         } else {
           showToast(`Failed to record sale: ${result.message}`);
           
@@ -171,16 +192,26 @@ export function MobileAskMOPage() {
 
           setMessages(prev => [...prev, errorMsg]);
           setPendingAction(null);
+          
+          // Save conversation even on error
+          if (currentConversationId) {
+            await saveConversation();
+          }
         }
       }
     } catch (error) {
       console.error('Error executing action:', error);
       showToast('Failed to execute action');
       setPendingAction(null);
+      
+      // Save conversation even on error
+      if (currentConversationId) {
+        await saveConversation();
+      }
     } finally {
       setIsExecutingAction(false);
     }
-  }, [pendingAction, isExecutingAction, user, showToast]);
+  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation]);
 
   // Check for pre-filled question from other pages
   useEffect(() => {
@@ -270,11 +301,20 @@ export function MobileAskMOPage() {
         chunks.push(e.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
+      mediaRecorderRef.current.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
+        
+        // Convert to base64 for server transmission
+        try {
+          const base64 = await blobToBase64(blob);
+          setAudioBase64(base64);
+        } catch (error) {
+          console.error('Failed to convert audio to base64:', error);
+        }
+        
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -665,7 +705,7 @@ export function MobileAskMOPage() {
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits]);
 
-  const cancelPendingAction = useCallback(() => {
+  const cancelPendingAction = useCallback(async () => {
     const cancelMsg: MOMessage = {
       id: (Date.now()).toString(),
       role: 'bot',
@@ -674,7 +714,12 @@ export function MobileAskMOPage() {
     };
     setMessages(prev => [...prev, cancelMsg]);
     setPendingAction(null);
-  }, []);
+    
+    // Save conversation after cancellation
+    if (currentConversationId) {
+      await saveConversation();
+    }
+  }, [currentConversationId, saveConversation]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1230,10 +1275,9 @@ export function MobileAskMOPage() {
             onChange={handleImageSelect}
           />
           <button
-            className={styles.micBtn}
+            className={`${styles.micBtn} ${isRecording ? styles.recording : ''}`}
             onClick={isRecording ? stopRecording : startRecording}
             title={isRecording ? "Stop recording" : "Record voice"}
-            style={{ background: isRecording ? 'var(--red)' : 'var(--bg-2)', color: isRecording ? 'var(--white)' : 'var(--text-2)' }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>

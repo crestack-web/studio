@@ -554,3 +554,4 @@ export function CapitalPage() {
     </div>
   );
 }
+

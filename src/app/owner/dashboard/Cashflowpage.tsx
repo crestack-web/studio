@@ -45,18 +45,27 @@ interface Transaction {
   accountName?: string;
 }
 
-export function CashflowPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export default function Cashflowpage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = initializeFirebase();
-  const [activeAction, setActiveAction] = useState<ActionId>(null);
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [activeAction, setActiveAction] = useState<ActionId>(null);
   const [stats, setStats] = useState({
     cashBalance: 0,
     stockValue: 0,
@@ -1161,3 +1170,4 @@ export function CashflowPage() {
     </div>
   );
 }
+

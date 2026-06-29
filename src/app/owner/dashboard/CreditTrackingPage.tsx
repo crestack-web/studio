@@ -81,12 +81,20 @@ interface CreditSummary {
 
 type TabView = 'receivables' | 'payables' | 'customers' | 'suppliers';
 
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
 export function CreditTrackingPage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = initializeFirebase();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
   const [activeTab, setActiveTab] = useState<TabView>('receivables');
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);

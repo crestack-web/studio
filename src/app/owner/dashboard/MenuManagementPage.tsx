@@ -29,7 +29,9 @@ interface MenuCategory {
   description?: string;
 }
 
-export default function MenuManagementPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function MenuManagementPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -486,3 +488,4 @@ export default function MenuManagementPage() {
     </div>
   );
 }
+

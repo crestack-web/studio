@@ -249,3 +249,4 @@ export function AvatarModal() {
     </div>
   );
 }
+

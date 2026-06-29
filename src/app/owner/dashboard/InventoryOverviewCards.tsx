@@ -283,3 +283,4 @@ const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({ product
 };
 
 export default InventoryOverviewCards;
+

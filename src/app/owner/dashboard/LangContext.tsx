@@ -213,3 +213,4 @@ export function useTranslation(): LangContextValue {
   if (!ctx) throw new Error('useTranslation must be used inside <LangProvider>');
   return ctx;
 }
+

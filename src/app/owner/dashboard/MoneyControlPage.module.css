@@ -10,60 +10,65 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
+  align-items: center;
+  margin-bottom: 28px;
   flex-wrap: wrap;
   gap: 16px;
 }
 
 .pageTitle {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: var(--text-1);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
 
 .pageDesc {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   color: var(--text-3);
-  line-height: 1.5;
+  line-height: 1.55;
+  max-width: 640px;
 }
 
 .periodSelector {
-  display: flex;
-  gap: 8px;
+  display: inline-flex;
+  gap: 6px;
   background: var(--surface);
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .periodBtn {
-  padding: 8px 16px;
+  padding: 8px 14px;
   border: none;
   background: transparent;
   color: var(--text-2);
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .periodBtn:hover {
   background: var(--bg);
+  color: var(--text-1);
 }
 
 .periodBtn.active {
   background: var(--purple);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(107, 63, 231, 0.25);
 }
 
 .content {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
 }
 
 .section {
@@ -71,14 +76,27 @@
   border-radius: 16px;
   padding: 24px;
   border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .sectionTitle {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-1);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: var(--purple);
+  border-radius: 4px;
+  opacity: 0.85;
 }
 
 .statsGrid {
@@ -89,120 +107,35 @@
 
 .statCard {
   background: var(--bg);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 18px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   border: 1px solid var(--border-subtle);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.statIcon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.statContent {
-  flex: 1;
-  min-width: 0;
-}
-
-.statLabel {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--text-3);
-  margin-bottom: 4px;
-}
-
-.statValue {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-1);
-}
-
-.statTrend {
-  font-size: 0.75rem;
-  color: var(--text-3);
-  margin-top: 2px;
-}
-
-.alertsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 12px;
-}
-
-.alertItem {
-  background: var(--amber-bg);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--amber);
-}
-
-.alertIcon {
-  font-size: 1.25rem;
-  flex-shrink: 0;
-}
-
-.alertContent {
-  flex: 1;
-}
-
-.alertType {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--amber);
-  margin-bottom: 2px;
-}
-
-.alertCount {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--amber);
-}
-
-.salesList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.saleRow {
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid var(--border-subtle);
-  min-width: 0;
-  overflow: hidden;
+.statCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 .saleInfo {
-  min-width: 120px;
+  min-width: 130px;
 }
 
 .saleDate {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-3);
   margin-bottom: 4px;
+  letter-spacing: 0.01em;
 }
 
 .saleTotal {
   font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 800;
   color: var(--text-1);
 }
 
@@ -218,23 +151,25 @@
 .salePayment {
   background: var(--surface);
   padding: 6px 12px;
-  border-radius: 6px;
-  display: flex;
+  border-radius: 999px;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
   border: 1px solid var(--border-subtle);
+  white-space: nowrap;
 }
 
 .paymentMethod {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-2);
   text-transform: capitalize;
 }
 
 .paymentAmount {
   color: var(--text-1);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .saleReconciliation {
@@ -309,9 +244,15 @@
 
 .insightCard {
   background: var(--bg);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
   border: 1px solid var(--border-subtle);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.insightCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
 
 .insightHeader {
@@ -451,12 +392,18 @@
 
 .recommendation {
   background: var(--bg);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 18px;
   display: flex;
   align-items: flex-start;
   gap: 12px;
   border: 1px solid var(--border-subtle);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.recommendation:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .recommendation.high {

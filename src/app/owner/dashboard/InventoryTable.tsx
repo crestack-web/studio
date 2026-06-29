@@ -292,3 +292,4 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
 };
 
 export default InventoryTable;
+

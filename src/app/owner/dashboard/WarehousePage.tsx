@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { checkFeatureAccess } from '@/lib/featureRestrictions';
+import { checkFeatureAccess, getBusinessType } from '@/lib/featureRestrictions';
 import styles from './WarehousePage.module.css';
 
 interface Product {
@@ -55,6 +55,18 @@ export function WarehousePage() {
   const checkWarehouseAccess = async () => {
     if (!user?.id) return;
     
+    // Warehouse management is available for retailers and wholesalers regardless of plan
+    const businessType = await getBusinessType(user.id);
+    const isRetailOrWholesale = businessType.toLowerCase().includes('retail') || 
+                                 businessType.toLowerCase().includes('wholesale') ||
+                                 businessType.toLowerCase().includes('distributor');
+    
+    if (isRetailOrWholesale) {
+      setHasAccess(true);
+      return;
+    }
+    
+    // For other business types, check feature access
     const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
     if (!accessResult.eligible) {
       setHasAccess(false);
@@ -368,3 +380,4 @@ export function WarehousePage() {
     </div>
   );
 }
+

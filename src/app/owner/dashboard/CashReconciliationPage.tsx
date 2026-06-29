@@ -25,10 +25,19 @@ interface StaffData {
   name: string;
 }
 
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
 export default function CashReconciliationPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
   
   const [loading, setLoading] = useState(true);
   const [reconciliations, setReconciliations] = useState<CashReconciliation[]>([]);
@@ -56,7 +65,6 @@ export default function CashReconciliationPage() {
     if (!user.businessId) return;
     
     try {
-      const { firestore } = initializeFirebase();
       const staffRef = collection(firestore, 'businesses', user.businessId, 'staff');
       const snapshot = await getDocs(staffRef);
       
@@ -79,7 +87,6 @@ export default function CashReconciliationPage() {
     if (!user.businessId || !selectedDate) return;
     
     try {
-      const { firestore } = initializeFirebase();
       const salesRef = collection(firestore, 'merchants', user.businessId, 'sales');
       
       // Get start and end of selected date
@@ -138,7 +145,6 @@ export default function CashReconciliationPage() {
     
     setLoading(true);
     try {
-      const { firestore } = initializeFirebase();
       const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
       
       const q = query(reconciliationsRef, orderBy('date', 'desc'));
@@ -179,7 +185,6 @@ export default function CashReconciliationPage() {
     const variance = actualCash - expectedCash;
     
     try {
-      const { firestore } = initializeFirebase();
       const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
       
       // Link to sales for this shift
@@ -408,3 +413,4 @@ export default function CashReconciliationPage() {
     </div>
   );
 }
+

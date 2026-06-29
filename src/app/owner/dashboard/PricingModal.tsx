@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
@@ -14,7 +14,7 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: '₦5,000',
+    price: '?5,000',
     priceNum: 5000,
     cycle: '/mo',
     tag: null,
@@ -33,7 +33,7 @@ const PLANS = [
   {
     id: 'standard',
     name: 'Standard',
-    price: '₦10,000',
+    price: '?10,000',
     priceNum: 10000,
     cycle: '/mo',
     tag: 'Popular',
@@ -53,7 +53,7 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '₦25,000',
+    price: '?25,000',
     priceNum: 25000,
     cycle: '/mo',
     tag: 'Best Value',
@@ -299,5 +299,6 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
     </div>
   );
 }
+
 
 

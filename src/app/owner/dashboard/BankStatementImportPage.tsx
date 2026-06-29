@@ -11,7 +11,9 @@ import { initializeFirebase } from '@/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import styles from './BankStatementImportPage.module.css';
 
-export default function BankStatementImportPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function BankStatementImportPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
@@ -216,3 +218,4 @@ export default function BankStatementImportPage() {
     </div>
   );
 }
+

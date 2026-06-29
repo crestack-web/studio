@@ -262,3 +262,4 @@ function MetricCard({ title, color, metrics }: MetricCardProps) {
     </div>
   );
 }
+

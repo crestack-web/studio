@@ -26,3 +26,4 @@ export function DashboardLogo(props: React.ImgHTMLAttributes<HTMLImageElement>) 
     </svg>
   );
 }
+

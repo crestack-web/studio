@@ -21,7 +21,9 @@ interface SaleData {
   [key: string]: any;
 }
 
-export default function MoneyControlPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function MoneyControlPage() {
   const { user, navigateTo, showToast } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
@@ -89,12 +91,6 @@ export default function MoneyControlPage() {
       
       // Calculate summary
       const totalSales = sales.reduce((sum, sale) => sum + (sale.totalRevenue || 0), 0);
-      
-      // Calculate profit from sales
-      let totalProfit = 0;
-      sales.forEach(sale => {
-        totalProfit += sale.profit || 0;
-      });
       
       // Calculate payment method breakdown
       const cashSales = sales.reduce((sum, sale) => {
@@ -235,7 +231,7 @@ export default function MoneyControlPage() {
 
       // Load restaurant-specific profit metrics
       if (restaurant) {
-        await loadRestaurantProfitMetrics(firestore, user.businessId, selectedPeriod, totalSales, totalProfit);
+        await loadRestaurantProfitMetrics(firestore, user.businessId, selectedPeriod, totalSales);
       }
     } catch (error) {
       console.error('Error loading money control summary:', error);
@@ -248,8 +244,7 @@ export default function MoneyControlPage() {
     firestore: any,
     businessId: string,
     period: 'today' | 'week' | 'month' | 'all',
-    totalSales: number,
-    totalProfit: number
+    totalSales: number
   ) => {
     try {
       let startDate: Date;
@@ -712,3 +707,4 @@ export default function MoneyControlPage() {
     </div>
   );
 }
+

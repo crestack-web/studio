@@ -303,3 +303,4 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
     </div>
   );
 }
+

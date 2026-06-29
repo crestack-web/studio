@@ -52,9 +52,18 @@ interface StoreOrder {
   trackingNumber?: string;
 }
 
-export default function EcommercePage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function EcommercePage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
@@ -102,7 +111,6 @@ export default function EcommercePage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
       const storeCollection = collection(firestore, 'businesses', user.businessId, 'storeProducts');
       const snapshot = await getDocs(storeCollection);
       
@@ -124,7 +132,6 @@ export default function EcommercePage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
       const ordersCollection = collection(firestore, 'businesses', user.businessId, 'storeOrders');
       const snapshot = await getDocs(ordersCollection);
       
@@ -151,7 +158,6 @@ export default function EcommercePage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
       const storeCollection = collection(firestore, 'businesses', user.businessId, 'storeProducts');
       
       const productData = {
@@ -791,3 +797,4 @@ export default function EcommercePage() {
     </div>
   );
 }
+

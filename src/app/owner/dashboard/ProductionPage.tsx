@@ -46,7 +46,9 @@ interface Material {
   unitCost: number;
 }
 
-export default function ProductionPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function ProductionPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);
@@ -642,3 +644,4 @@ export default function ProductionPage() {
     </div>
   );
 }
+

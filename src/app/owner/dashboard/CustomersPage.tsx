@@ -37,9 +37,19 @@ interface CustomerTransaction {
   createdAt: Date;
 }
 
-export default function CustomersPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function CustomersPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,6 +101,8 @@ export default function CustomersPage() {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         lastPurchaseDate: doc.data().lastPurchaseDate?.toDate(),
       })) as Customer[];
+      
+      setCustomers(customerData);
       
       // Sort based on selected sort option
       sortCustomers(customerData);
@@ -647,3 +659,4 @@ export default function CustomersPage() {
     </div>
   );
 }
+

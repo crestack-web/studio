@@ -38,7 +38,9 @@ interface Recipe {
   createdAt: Date;
 }
 
-export default function IngredientsPage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function IngredientsPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -559,3 +561,4 @@ export default function IngredientsPage() {
     </div>
   );
 }
+

@@ -135,3 +135,4 @@ export function MoIcon({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
+

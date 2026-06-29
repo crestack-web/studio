@@ -541,6 +541,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       };
 
       setConversations(prev => [newConversation, ...prev]);
+      setCurrentConversationId(newConversationId);
       
       return newConversationId;
     } catch (error) {

@@ -11,7 +11,9 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import styles from './MoneyLeakagePage.module.css';
 
-export default function MoneyLeakagePage() {
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
+export function MoneyLeakagePage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
@@ -242,3 +244,4 @@ export default function MoneyLeakagePage() {
     </div>
   );
 }
+
