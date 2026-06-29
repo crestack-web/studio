@@ -7,14 +7,6 @@ import {
   Calendar, 
   MessageSquare, 
   Settings,
-  Box,
-  Users,
-  BarChart3,
-  Receipt,
-  Truck,
-  CreditCard,
-  RotateCcw,
-  Percent
 } from 'lucide-react';
 import type { PageId, Permissions, StaffUser } from './types';
 
@@ -71,30 +63,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     page: 'msg', label: 'Messages', tip: 'Messages', permKey: 'msg', iconClass: 'ni-msg',
     icon: <MessageSquare size={20} />,
-  },
-  {
-    page: 'products', label: 'Products', tip: 'Manage Products', permKey: 'products', iconClass: 'ni-products',
-    icon: <Box size={20} />,
-  },
-  {
-    page: 'customers', label: 'Customers', tip: 'Manage Customers', permKey: 'customers', iconClass: 'ni-customers',
-    icon: <Users size={20} />,
-  },
-  {
-    page: 'reports', label: 'Reports', tip: 'View Reports', permKey: 'reports', iconClass: 'ni-reports',
-    icon: <BarChart3 size={20} />,
-  },
-  {
-    page: 'expenses', label: 'Expenses', tip: 'Record Expenses', permKey: 'expenses', iconClass: 'ni-expenses',
-    icon: <Receipt size={20} />,
-  },
-  {
-    page: 'suppliers', label: 'Suppliers', tip: 'Manage Suppliers', permKey: 'suppliers', iconClass: 'ni-suppliers',
-    icon: <Truck size={20} />,
-  },
-  {
-    page: 'credit', label: 'Credit', tip: 'Credit Management', permKey: 'credit', iconClass: 'ni-credit',
-    icon: <CreditCard size={20} />,
   },
   {
     page: 'settings', label: 'Settings', tip: 'Settings', iconClass: 'ni-set',

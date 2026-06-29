@@ -11,15 +11,6 @@ import {
   History, 
   Calendar, 
   MessageSquare, 
-  DollarSign,
-  Box,
-  Users,
-  BarChart3,
-  Receipt,
-  Truck,
-  CreditCard,
-  RotateCcw,
-  Percent
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -72,41 +63,6 @@ const QUICK_ACTIONS: QuickAction[] = [
     bg: 'var(--purple-bg)', stroke: 'var(--purple)',
     icon: <MessageSquare size={24} />,
   },
-  {
-    permKey: 'earn', page: 'hist', label: 'My Earnings',
-    bg: 'var(--brand-lt)', stroke: 'var(--brand)',
-    icon: <DollarSign size={24} />,
-  },
-  {
-    permKey: 'products', page: 'products', label: 'Manage Products',
-    bg: 'var(--amber-bg)', stroke: 'var(--amber)',
-    icon: <Box size={24} />,
-  },
-  {
-    permKey: 'customers', page: 'customers', label: 'Customers',
-    bg: 'var(--blue-bg)', stroke: 'var(--blue)',
-    icon: <Users size={24} />,
-  },
-  {
-    permKey: 'reports', page: 'reports', label: 'Reports',
-    bg: 'var(--teal-bg)', stroke: 'var(--teal)',
-    icon: <BarChart3 size={24} />,
-  },
-  {
-    permKey: 'expenses', page: 'expenses', label: 'Expenses',
-    bg: 'var(--purple-bg)', stroke: 'var(--purple)',
-    icon: <Receipt size={24} />,
-  },
-  {
-    permKey: 'suppliers', page: 'suppliers', label: 'Suppliers',
-    bg: 'var(--brand-lt)', stroke: 'var(--brand)',
-    icon: <Truck size={24} />,
-  },
-  {
-    permKey: 'credit', page: 'credit', label: 'Credit',
-    bg: 'var(--amber-bg)', stroke: 'var(--amber)',
-    icon: <CreditCard size={24} />,
-  },
 ];
 
 const PERM_LABELS: Array<{ key: keyof Permissions; label: string; color: string }> = [
@@ -115,16 +71,6 @@ const PERM_LABELS: Array<{ key: keyof Permissions; label: string; color: string 
   { key: 'hist',       label: 'Sale History',          color: 'var(--blue)'   },
   { key: 'atd',        label: 'Attendance',            color: 'var(--teal)'   },
   { key: 'msg',        label: 'Messages',              color: 'var(--purple)' },
-  { key: 'earn',       label: 'See Own Earnings',      color: 'var(--brand)'  },
-  { key: 'products',   label: 'Manage Products',       color: 'var(--amber)'  },
-  { key: 'customers',  label: 'Manage Customers',      color: 'var(--blue)'   },
-  { key: 'reports',    label: 'View Reports',          color: 'var(--teal)'   },
-  { key: 'expenses',   label: 'Record Expenses',       color: 'var(--purple)' },
-  { key: 'suppliers',  label: 'Manage Suppliers',      color: 'var(--brand)'  },
-  { key: 'credit',     label: 'Credit Management',      color: 'var(--amber)'  },
-  { key: 'refunds',    label: 'Process Refunds',       color: 'var(--blue)'   },
-  { key: 'discounts',  label: 'Apply Discounts',        color: 'var(--teal)'   },
-  { key: 'priceEdit',  label: 'Edit Prices',            color: 'var(--purple)' },
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({

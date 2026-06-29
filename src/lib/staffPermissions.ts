@@ -21,7 +21,7 @@ export interface BusinessTypeConfig {
   criticalPermissions: string[];
 }
 
-// All available permissions with descriptions
+// All available permissions mapped to actual staff portal pages
 export const PERMISSIONS: Record<string, PermissionConfig> = {
   sale: {
     label: 'Record Sales',
@@ -30,73 +30,23 @@ export const PERMISSIONS: Record<string, PermissionConfig> = {
   },
   inv: {
     label: 'View Inventory',
-    description: 'View product inventory levels',
+    description: 'View products, stock levels, and suppliers',
     category: 'inventory',
   },
   hist: {
-    label: 'Sale History',
-    description: 'View past sales records',
+    label: 'History & Reports',
+    description: 'View sales history, customers, and reports',
     category: 'reporting',
   },
   atd: {
     label: 'Attendance',
-    description: 'Clock in/out and track attendance',
+    description: 'Clock in/out and track your shifts',
     category: 'management',
   },
   msg: {
     label: 'Messages',
-    description: 'Send and receive messages',
+    description: 'Chat with the owner and your team',
     category: 'management',
-  },
-  earn: {
-    label: 'View Earnings',
-    description: 'View personal earnings and commissions',
-    category: 'financial',
-  },
-  products: {
-    label: 'Manage Products',
-    description: 'Add, edit, and delete products',
-    category: 'inventory',
-  },
-  customers: {
-    label: 'Manage Customers',
-    description: 'View and manage customer information',
-    category: 'management',
-  },
-  reports: {
-    label: 'View Reports',
-    description: 'Access business analytics and reports',
-    category: 'reporting',
-  },
-  expenses: {
-    label: 'Record Expenses',
-    description: 'Record and track business expenses',
-    category: 'financial',
-  },
-  suppliers: {
-    label: 'Manage Suppliers',
-    description: 'Manage supplier relationships and orders',
-    category: 'inventory',
-  },
-  credit: {
-    label: 'Credit Management',
-    description: 'Manage customer credit and debt',
-    category: 'financial',
-  },
-  refunds: {
-    label: 'Process Refunds',
-    description: 'Process refunds and returns',
-    category: 'financial',
-  },
-  discounts: {
-    label: 'Apply Discounts',
-    description: 'Apply discounts to sales',
-    category: 'sales',
-  },
-  priceEdit: {
-    label: 'Edit Prices',
-    description: 'Modify product prices',
-    category: 'inventory',
   },
 };
 
@@ -104,73 +54,73 @@ export const PERMISSIONS: Record<string, PermissionConfig> = {
 export const ROLES: Record<string, RoleConfig> = {
   cashier: {
     label: 'Cashier',
-    description: 'Processes sales at the register, handles payments, and provides basic customer service. Ideal for retail stores, restaurants, and pharmacies.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg', 'discounts'],
+    description: 'Processes sales at the register and handles payments. Best for retail stores, restaurants, and pharmacies.',
+    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
   },
   sales_associate: {
     label: 'Sales Associate',
-    description: 'Assists customers with product selection, processes sales, and manages basic inventory checks. Best for retail, fashion, and electronics stores.',
-    recommendedPermissions: ['sale', 'hist', 'inv', 'atd', 'msg', 'discounts'],
+    description: 'Assists customers, processes sales, and checks inventory. Best for retail, fashion, and electronics stores.',
+    recommendedPermissions: ['sale', 'hist', 'inv', 'atd', 'msg'],
   },
   inventory_manager: {
     label: 'Inventory Manager',
-    description: 'Manages stock levels, product catalog, supplier relationships, and reordering. Essential for retail, grocery, and manufacturing businesses.',
-    recommendedPermissions: ['inv', 'products', 'suppliers', 'hist', 'reports', 'priceEdit'],
+    description: 'Manages stock levels, products, and suppliers. Essential for retail, grocery, and manufacturing.',
+    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
   },
   store_manager: {
     label: 'Store Manager',
-    description: 'Oversees all daily operations, staff supervision, customer service, and basic financial oversight. Suitable for all business types.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg', 'products', 'customers', 'reports', 'expenses', 'discounts', 'priceEdit'],
+    description: 'Oversees daily operations, sales, inventory, and team. Suitable for all business types.',
+    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
   },
   accountant: {
     label: 'Accountant',
-    description: 'Manages financial records, expenses, credit tracking, and generates financial reports. Critical for all businesses with financial complexity.',
-    recommendedPermissions: ['hist', 'reports', 'expenses', 'credit', 'earn'],
+    description: 'Views sales history and reports for financial tracking. Critical for all businesses.',
+    recommendedPermissions: ['hist', 'inv', 'atd'],
   },
   supervisor: {
     label: 'Supervisor',
-    description: 'Supervises staff performance, manages customer issues, and oversees daily operations. Good for medium to large businesses.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg', 'customers', 'reports', 'discounts'],
+    description: 'Supervises operations, reviews sales history, and manages team communication.',
+    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
   },
   warehouse_staff: {
     label: 'Warehouse Staff',
-    description: 'Handles stock receiving, storage, and logistics. Essential for wholesale, manufacturing, and grocery businesses.',
-    recommendedPermissions: ['inv', 'products', 'suppliers', 'hist', 'atd'],
+    description: 'Handles stock, inventory, and attendance tracking. Essential for wholesale and manufacturing.',
+    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
   },
   customer_service: {
     label: 'Customer Service',
-    description: 'Handles customer inquiries, complaints, refunds, and support. Ideal for retail, fashion, and service businesses.',
-    recommendedPermissions: ['hist', 'msg', 'customers', 'refunds', 'discounts'],
+    description: 'Handles customer inquiries and communicates with the team.',
+    recommendedPermissions: ['hist', 'msg', 'inv'],
   },
   assistant_manager: {
     label: 'Assistant Manager',
-    description: 'Assists the store manager with operations, staff supervision, and customer management. Suitable for growing businesses.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg', 'products', 'customers', 'reports', 'expenses', 'discounts', 'priceEdit', 'refunds'],
+    description: 'Assists with operations, sales, inventory, and team management.',
+    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
   },
   general_staff: {
     label: 'General Staff',
-    description: 'Basic staff member with limited access to sales and attendance tracking. Good for small businesses with simple needs.',
+    description: 'Basic access to sales, attendance, and team chat.',
     recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
   },
   chef: {
     label: 'Chef/Kitchen Staff',
-    description: 'Manages food preparation, ingredient inventory, and kitchen operations. Specific to restaurants and food service businesses.',
-    recommendedPermissions: ['inv', 'products', 'hist', 'atd', 'msg'],
+    description: 'Manages ingredients, kitchen stock, and shift attendance.',
+    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
   },
   waiter: {
     label: 'Waiter/Server',
-    description: 'Takes orders, processes food sales, and provides customer service in restaurant settings.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg', 'discounts'],
+    description: 'Takes orders, records sales, and clocks in/out.',
+    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
   },
   bartender: {
     label: 'Bartender',
-    description: 'Handles beverage sales, inventory management, and customer service in bar/cafe settings.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg', 'discounts'],
+    description: 'Handles sales, inventory checks, and shift tracking.',
+    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
   },
   delivery_staff: {
     label: 'Delivery Staff',
-    description: 'Manages order deliveries, customer interactions, and basic sales recording. For food delivery and logistics.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg', 'customers'],
+    description: 'Records deliveries, views history, and tracks shifts.',
+    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
   },
 };
 
@@ -179,47 +129,47 @@ export const BUSINESS_TYPES: Record<string, BusinessTypeConfig> = {
   retail: {
     label: 'Retail Store',
     recommendedRoles: ['cashier', 'sales_associate', 'inventory_manager', 'store_manager', 'supervisor'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   restaurant: {
     label: 'Restaurant/Food Service',
     recommendedRoles: ['cashier', 'chef', 'waiter', 'bartender', 'delivery_staff', 'inventory_manager', 'store_manager'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   pharmacy: {
     label: 'Pharmacy',
     recommendedRoles: ['cashier', 'inventory_manager', 'store_manager', 'accountant'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products', 'credit'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   grocery: {
     label: 'Grocery Store',
     recommendedRoles: ['cashier', 'sales_associate', 'inventory_manager', 'store_manager', 'warehouse_staff'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products', 'suppliers'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   fashion: {
     label: 'Fashion/Clothing Store',
     recommendedRoles: ['sales_associate', 'inventory_manager', 'store_manager', 'customer_service'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products', 'customers'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   electronics: {
     label: 'Electronics Store',
     recommendedRoles: ['sales_associate', 'inventory_manager', 'store_manager', 'customer_service'],
-    criticalPermissions: ['sale', 'inv', 'hist', 'products', 'credit', 'warranty'],
+    criticalPermissions: ['sale', 'inv', 'hist'],
   },
   manufacturing: {
     label: 'Manufacturing',
     recommendedRoles: ['inventory_manager', 'warehouse_staff', 'store_manager', 'accountant'],
-    criticalPermissions: ['inv', 'products', 'suppliers', 'reports', 'expenses'],
+    criticalPermissions: ['inv', 'hist'],
   },
   services: {
     label: 'Service Business',
     recommendedRoles: ['customer_service', 'store_manager', 'accountant'],
-    criticalPermissions: ['sale', 'hist', 'customers', 'reports', 'expenses'],
+    criticalPermissions: ['sale', 'hist'],
   },
   wholesale: {
     label: 'Wholesale/Distribution',
     recommendedRoles: ['inventory_manager', 'warehouse_staff', 'store_manager', 'accountant'],
-    criticalPermissions: ['inv', 'products', 'suppliers', 'credit', 'reports'],
+    criticalPermissions: ['inv', 'hist'],
   },
   other: {
     label: 'Other',

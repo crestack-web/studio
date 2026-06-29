@@ -97,7 +97,7 @@ export default function AddStaffPage() {
       const businessId = ownerDoc.data()?.businessId || 'default';
 
       const staffId = generateStaffId();
-      const password = generateStaffPassword();
+      const generatedPassword = generateStaffPassword();
       const avatarBg = ['#D1FAE5', '#EDE8FC', '#EFF6FF', '#FEF3C7', '#FEE2E2', '#CCFBF1'][Math.floor(Math.random() * 6)];
       const avatarColor = ['#14A05A', '#7C3AED', '#2563EB', '#D97706', '#DC2626', '#0D9488'][Math.floor(Math.random() * 6)];
 
@@ -112,7 +112,7 @@ export default function AddStaffPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: email.trim(),
-            password: password,
+            password: generatedPassword,
             name: name.trim(),
             role: role.trim(),
             staffId: staffId,
@@ -136,11 +136,11 @@ export default function AddStaffPage() {
         return;
       }
 
-      showToast('Staff member added successfully!');
-      
-      // Show credentials modal instead of redirecting
-      setStaffCredentials({ staffId, password, name: name.trim(), email: email.trim() });
-      setShowCredentialsModal(true);
+        showToast('Staff member added successfully!');
+        
+        // Show credentials modal instead of redirecting
+        setStaffCredentials({ staffId, password: generatedPassword, name: name.trim(), email: email.trim() });
+        setShowCredentialsModal(true);
       
       // Clear form
       setName('');

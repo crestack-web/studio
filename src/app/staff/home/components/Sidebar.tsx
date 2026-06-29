@@ -31,12 +31,6 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
     ...(permissions.hist ? [{ id: 'hist' as PageId, label: 'History', icon: <History size={20} />, class: 'ni-hist' }] : []),
     ...(permissions.atd ? [{ id: 'atd' as PageId, label: 'Attendance', icon: <Calendar size={20} />, class: 'ni-atd' }] : []),
     ...(permissions.msg ? [{ id: 'msg' as PageId, label: 'Messages', icon: <MessageSquare size={20} />, class: 'ni-msg' }] : []),
-    ...(permissions.products ? [{ id: 'products' as PageId, label: 'Products', icon: <Box size={20} />, class: 'ni-products' }] : []),
-    ...(permissions.customers ? [{ id: 'customers' as PageId, label: 'Customers', icon: <Users size={20} />, class: 'ni-customers' }] : []),
-    ...(permissions.reports ? [{ id: 'reports' as PageId, label: 'Reports', icon: <BarChart3 size={20} />, class: 'ni-reports' }] : []),
-    ...(permissions.expenses ? [{ id: 'expenses' as PageId, label: 'Expenses', icon: <Receipt size={20} />, class: 'ni-expenses' }] : []),
-    ...(permissions.suppliers ? [{ id: 'suppliers' as PageId, label: 'Suppliers', icon: <Truck size={20} />, class: 'ni-suppliers' }] : []),
-    ...(permissions.credit ? [{ id: 'credit' as PageId, label: 'Credit', icon: <CreditCard size={20} />, class: 'ni-credit' }] : []),
     { id: 'settings' as PageId, label: 'Settings', icon: <Settings size={20} />, class: 'ni-set' },
   ];
 

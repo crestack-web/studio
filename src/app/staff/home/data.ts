@@ -14,16 +14,6 @@ export const DEFAULT_PERMISSIONS: Permissions = {
   hist: true,
   atd: true,
   msg: true,
-  earn: false,
-  products: false,
-  customers: false,
-  reports: false,
-  expenses: false,
-  suppliers: false,
-  credit: false,
-  refunds: false,
-  discounts: false,
-  priceEdit: false,
 };
 
 export const DAILY_TARGET = 150000;

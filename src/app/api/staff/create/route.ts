@@ -38,7 +38,9 @@ export async function POST(request: NextRequest) {
           const existingUser = await adminAuth.getUserByEmail(email.trim());
           userRecord = existingUser;
           isNewUser = false;
-          console.log('ℹ️ [API] User already exists, using existing:', userRecord.uid);
+          // Update password for existing user so the generated credentials work
+          await adminAuth.updateUser(userRecord.uid, { password: password });
+          console.log('✅ [API] Updated password for existing user:', userRecord.uid);
         } catch (getUserError) {
           console.error('❌ [API] Error getting existing user:', getUserError);
           return NextResponse.json(
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
       uid: userRecord.uid,
       isNewUser,
       email: userRecord.email,
+      generatedPassword: password,
     });
   } catch (error) {
     console.error('❌ [API] Error creating staff:', error);
