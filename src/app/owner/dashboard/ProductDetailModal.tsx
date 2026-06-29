@@ -6,6 +6,7 @@ import {
 } from './inventoryData';
 import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 
 interface ProductDetailModalProps {
@@ -82,7 +83,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
 
     try {
       const { firestore } = initializeFirebase();
-      const { auth } = initializeFirebase();
+      const auth = getAuth();
       const user = auth.currentUser;
       
       if (!user) return;
@@ -439,3 +440,4 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
 };
 
 export default ProductDetailModal;
+

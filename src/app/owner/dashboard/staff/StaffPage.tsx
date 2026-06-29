@@ -1,1 +1,2 @@
-export { StaffPage as default } from '../StaffPage';
+export { default } from '../StaffPage';
+

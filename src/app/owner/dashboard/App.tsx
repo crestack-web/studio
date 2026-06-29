@@ -23,7 +23,7 @@ import './styles/tokens.css';
 //    );
 // ═══════════════════════════════════════════
 
-export default function App() {
+export function App() {
   return (
     <div>
       {/* TODO: Replace this with <AppProvider> and <AppShell /> when available */}
@@ -31,3 +31,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -15,25 +15,24 @@ import {
   createPermissionsObject 
 } from '@/lib/staffPermissions';
 
-const generateStaffId = () => {
-  return 'STF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-};
-
-const generateStaffPassword = () => {
-  const length = 12;
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-};
-
-const getInitials = (name: string) => {
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
-};
-
 export default function AddStaffPage() {
+  const generateStaffId = () => {
+    return 'STF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
+
+  const generateStaffPassword = () => {
+    const length = 12;
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
+  };
   const { navigateTo, showToast } = useApp();
   const db = useFirestore();
   const [name, setName] = useState('');
@@ -314,3 +313,4 @@ export default function AddStaffPage() {
     </div>
   );
 }
+

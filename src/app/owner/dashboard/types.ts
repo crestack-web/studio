@@ -93,6 +93,11 @@ export interface Product {
   price: number;
   costPrice: number;
   stock: number;
+  stockByLocation?: {
+    main_store: number;
+    back_store: number;
+    warehouse: number;
+  };
   emoji: string;
   category?: string;
   imageUrl?: string;

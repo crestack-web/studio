@@ -9,6 +9,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
 import { BrevoService } from '@/services/email/brevo-service';
 import { ReceiptGenerator } from './ReceiptGenerator';
 import styles from './RecordSalePage.module.css';
@@ -71,7 +72,7 @@ export function RecordSalePage() {
         setLoading(true);
 
         // First, get the user's business ID
-        const { auth } = initializeFirebase();
+        const auth = getAuth();
         const user = auth.currentUser;
         
         if (!user) {
@@ -172,8 +173,13 @@ export function RecordSalePage() {
             id: doc.id,
             name: data.name || 'Unnamed Product',
             price: data.price || 0,
-            costPrice: data.cost || data.costPrice || 0, // Read from 'cost' field (what Addproductpage saves)
+            costPrice: data.cost || data.costPrice || 0,
             stock: data.stock || 0,
+            stockByLocation: data.stockByLocation || {
+              main_store: data.stock || 0,
+              back_store: 0,
+              warehouse: 0,
+            },
             emoji: data.emoji || '📦',
             lowStockThreshold: data.lowStockThreshold || 10,
             imageUrl: data.imageUrl || '',
@@ -779,11 +785,15 @@ export function RecordSalePage() {
                       <div className={styles.productName}>{p.name}</div>
                       <div className={styles.productPrice}>{formatMoney(p.price)}</div>
                       <div className={styles.productStock}>
-                        {p.stock <= 5 ? (
-                          <span className={styles.lowStock}>{t('common.loading').replace('Loading', 'Only')} {p.stock} {t('sale.quantity')}</span>
-                        ) : (
-                          <span>{p.stock} {t('sale.quantity')} {t('product.inStock')}</span>
-                        )}
+                        {(() => {
+                          const locationStock = showStockSource && sourceLocation && p.stockByLocation
+                            ? (p.stockByLocation[sourceLocation as keyof typeof p.stockByLocation] || 0)
+                            : p.stock;
+                          if (locationStock <= 5) {
+                            return <span className={styles.lowStock}>Only {locationStock} {t('sale.quantity')}</span>;
+                          }
+                          return <span>{locationStock} {t('sale.quantity')} {t('product.inStock')}</span>;
+                        })()}
                       </div>
                       {inCart && (
                         <div className={styles.productQtyBadge}>{inCart.qty}</div>
@@ -1155,3 +1165,4 @@ const PAYMENT_METHODS = [
   { id: 'card',     label: 'Card',      icon: 'M3 10h18a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2v-8a2 2 0 012-2z' },
   { id: 'credit',   label: 'Credit',    icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
 ];
+

@@ -14,6 +14,7 @@ import { Footer } from './components/Footer';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { ScrollReveal, StaggerContainer, StaggerItem } from './components/ScrollReveal';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -65,7 +66,8 @@ export default function WelcomePage() {
           </div>
           <div className="paths-grid">
             {/* Business Owner */}
-            <div className="path-card featured">
+            <StaggerItem direction="up" duration={0.6}>
+              <div className="path-card featured">
               <div className="path-icon owner"><span>🏪</span></div>
               <div className="path-title">Business Owners</div>
               <div className="path-desc">Talk to your business. Record sales, add products, and get insights — all through natural conversation with MO, your AI assistant.</div>
@@ -77,10 +79,12 @@ export default function WelcomePage() {
                 <li>Low stock alerts & restock recommendations</li>
               </ul>
               <button className="path-cta" onClick={() => handleNavigate('signup')}>Start Free Trial →</button>
-            </div>
+              </div>
+            </StaggerItem>
 
             {/* Sellers */}
-            <div className="path-card" onClick={() => handleNavigate('seller')}>
+            <StaggerItem direction="up" duration={0.6}>
+              <div className="path-card" onClick={() => handleNavigate('seller')}>
               <div className="path-icon seller"><span>🛍️</span></div>
               <div className="path-title">Online Store</div>
               <div className="path-desc">Launch your store with Busmo integration. Join the waitlist.</div>
@@ -90,13 +94,15 @@ export default function WelcomePage() {
                 <li>BusmoPay checkout</li>
               </ul>
               <button className="path-cta" onClick={(e) => { e.stopPropagation(); handleNavigate('seller'); }}>Join Waitlist →</button>
-            </div>
+              </div>
+            </StaggerItem>
           </div>
         </div>
       </section>
 
       {/* FEATURES */}
-      <section className="features-bg">
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="features-bg">
         <div className="max-w">
           <div className="section-head">
             <div className="section-label">Platform Features</div>
@@ -153,21 +159,31 @@ export default function WelcomePage() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* HOW BUSMO WORKS */}
-      <HowBusmoWorks />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <HowBusmoWorks />
+      </ScrollReveal>
 
       {/* INDUSTRY USE CASES */}
-      <IndustryUseCases />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <IndustryUseCases />
+      </ScrollReveal>
 
       {/* SELL ONLINE / STOREFRONT */}
-      <MarketSection onNavigate={handleNavigate} />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <MarketSection onNavigate={handleNavigate} />
+      </ScrollReveal>
 
       {/* ASK MO SECTION */}
-      <MoSection />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <MoSection />
+      </ScrollReveal>
 
       {/* COMPARISON */}
-      <section className="comparison-section">
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="comparison-section">
         <div className="max-w">
           <div className="section-head center">
             <div className="section-label">Why Busmo</div>
@@ -200,29 +216,42 @@ export default function WelcomePage() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* BEFORE VS AFTER COMPARISON */}
-      <BeforeAfterComparison />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <BeforeAfterComparison />
+      </ScrollReveal>
 
       {/* TESTIMONIALS */}
-      <TestimonialsSection />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <TestimonialsSection />
+      </ScrollReveal>
 
       {/* FAQ */}
-      <FAQSection />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <FAQSection />
+      </ScrollReveal>
 
       {/* BUSINESS CATEGORIES SLIDER */}
-      <BusinessCategoriesSlider />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <BusinessCategoriesSlider />
+      </ScrollReveal>
 
       {/* CTA BANNER */}
-      <div className="cta-banner">
-        <h2>The Future of Your Business<br />Starts With Clarity.</h2>
-        <p>Join smart business owners across Africa who are building their future with Busmo.</p>
-        <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
-        <div className="cta-note">7-day free trial · No credit card · Works offline</div>
-      </div>
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <div className="cta-banner">
+          <h2>The Future of Your Business<br />Starts With Clarity.</h2>
+          <p>Join smart business owners across Africa who are building their future with Busmo.</p>
+          <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
+          <div className="cta-note">7-day free trial · No credit card · Works offline</div>
+        </div>
+      </ScrollReveal>
 
       {/* FOOTER */}
-      <Footer onNavigate={handleNavigate} />
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <Footer onNavigate={handleNavigate} />
+      </ScrollReveal>
     </LangProvider>
   );
 }

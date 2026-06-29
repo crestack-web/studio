@@ -7,6 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where, deleteDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
 import styles from './Statementpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -100,8 +101,8 @@ export function StatementPage() {
         setLoading(true);
 
         // Get user's business ID
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
+      const { auth } = initializeFirebase();
+      const user = auth.currentUser;
         
         if (!user) {
           console.warn('User not authenticated');
@@ -283,7 +284,7 @@ export function StatementPage() {
     if (!confirmed) return;
     
     try {
-      const { auth } = initializeFirebase();
+      const auth = getAuth();
       const user = auth.currentUser;
       
       if (!user) {
@@ -802,3 +803,4 @@ function PrintIcon() {
 function DownloadIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{width:13,height:13}}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 }
+

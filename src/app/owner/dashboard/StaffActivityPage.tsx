@@ -471,3 +471,4 @@ export function StaffActivityPage() {
     </div>
   );
 }
+

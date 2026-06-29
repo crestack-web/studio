@@ -12,7 +12,7 @@ import { collection, getDocs, query, where, orderBy, addDoc, updateDoc, doc, del
 import { Building2, Phone, Mail, MapPin, DollarSign, Calendar, Plus, Edit, Trash2, Search, Filter, AlertTriangle, TrendingUp, CreditCard, User } from 'lucide-react';
 import styles from './SupplierManagementPage.module.css';
 
-export default function SupplierManagementPage() {
+export function SupplierManagementPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
@@ -945,3 +945,4 @@ export default function SupplierManagementPage() {
     </div>
   );
 }
+

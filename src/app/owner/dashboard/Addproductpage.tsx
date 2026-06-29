@@ -6,6 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
@@ -971,3 +972,4 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     </div>
   );
 }
+

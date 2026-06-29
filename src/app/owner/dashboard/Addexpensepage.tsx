@@ -7,6 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addexpensepage.module.css';
 
@@ -105,7 +106,7 @@ export function AddExpensePage() {
 
     try {
       // Get business ID for storage path
-      const { auth } = initializeFirebase();
+      const auth = getAuth();
       const currentUser = auth.currentUser;
       if (!currentUser) {
         showToast('⚠️ User not authenticated');
@@ -163,7 +164,7 @@ export function AddExpensePage() {
 
     try {
       // Get business ID from user document
-      const { auth } = initializeFirebase();
+      const auth = getAuth();
       const currentUser = auth.currentUser;
       
       if (!currentUser) {
@@ -371,3 +372,4 @@ export function AddExpensePage() {
     </div>
   );
 }
+

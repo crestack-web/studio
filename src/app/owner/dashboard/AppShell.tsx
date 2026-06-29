@@ -10,9 +10,9 @@ import { RecordSalePage }  from './RecordSalePage';
 import { ServicesPage }    from './ServicesPage';
 import { AddProductPage }  from './Addproductpage';
 import { AddExpensePage }  from './Addexpensepage';
-import { CashflowPage }    from './Cashflowpage';
+import CashflowPage    from './Cashflowpage';
 import { StatementPage }   from './Statementpage';
-import { StaffPage }       from './StaffPage';
+import StaffPage       from './StaffPage';
 import { ReferralsPage }   from './ReferralsPage';
 import { CapitalPage }     from './CapitalPage';
 import InventoryPage       from './InventoryPage';
@@ -20,25 +20,25 @@ import SettingsPage        from './SettingsPage';
 import { BranchesPage }    from './BranchesPage';
 import { ReportsPage }     from './ReportsPage';
 import { BankReconciliationPage } from './BankReconciliationPage';
-import MoneyControlPage    from './MoneyControlPage';
-import BankStatementImportPage from './BankStatementImportPage';
+import { MoneyControlPage } from './MoneyControlPage';
+import { BankStatementImportPage } from './BankStatementImportPage';
 import CashReconciliationPage from './CashReconciliationPage';
-import StaffAccountabilityPage from './StaffAccountabilityPage';
-import MoneyLeakagePage from './MoneyLeakagePage';
-import PaymentTraceabilityPage from './PaymentTraceabilityPage';
+import { StaffAccountabilityPage } from './StaffAccountabilityPage';
+import { MoneyLeakagePage } from './MoneyLeakagePage';
+import { PaymentTraceabilityPage } from './PaymentTraceabilityPage';
 import { MobileAskMOPage } from './MobileAskMOPage';
 import { CreditTrackingPage } from './CreditTrackingPage';
 import { InvoiceVerificationPage } from './InvoiceVerificationPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
-import MenuManagementPage from './MenuManagementPage';
-import IngredientsPage from './IngredientsPage';
-import ExpiryAlertsPage from './ExpiryAlertsPage';
-import ProductionPage from './ProductionPage';
-import EcommercePage from './EcommercePage';
-import PayrollPage from './PayrollPage';
-import CustomersPage from './CustomersPage';
+import { MenuManagementPage } from './MenuManagementPage';
+import { IngredientsPage } from './IngredientsPage';
+import { ExpiryAlertsPage } from './ExpiryAlertsPage';
+import { ProductionPage } from './ProductionPage';
+import { EcommercePage } from './EcommercePage';
+import { PayrollPage } from './PayrollPage';
+import { CustomersPage } from './CustomersPage';
 import { SuppliersPage } from './SuppliersPage';
 import styles from './AppShell.module.css';
 
@@ -119,3 +119,4 @@ export function AppShell() {
     </div>
   );
 }
+

@@ -15,13 +15,11 @@ export const DashboardMockup: React.FC = () => (
         </p>
       </div>
 
-      <div className="dashboard-mockup-image-container">
-        <img
-          src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1782083392/4_000_sale_recorded_-_1_opqytc.png"
-          alt="Busmo Dashboard Mockup"
-          className="dashboard-mockup-image"
-        />
-      </div>
+      <img
+        src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1782083392/4_000_sale_recorded_-_1_opqytc.png"
+        alt="Busmo Dashboard Mockup"
+        className="dashboard-mockup-image"
+      />
     </div>
   </section>
 );

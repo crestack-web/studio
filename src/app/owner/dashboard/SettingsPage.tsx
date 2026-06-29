@@ -101,6 +101,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ════════════════════════════════════════════════════════
 //  MAIN COMPONENT
 // ════════════════════════════════════════════════════════
+let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+
 export default function SettingsPage() {
   const { theme, toggleTheme, showToast, user } = useApp();
   const { t, lang, setLang } = useTranslation();
@@ -111,6 +113,13 @@ export default function SettingsPage() {
     setCurrencyByCountry,
     formatMoney: fmt,
   } = useCurrency();
+  const { firestore } = React.useMemo(() => {
+    if (!firestoreInstance) {
+      const initialized = initializeFirebase();
+      firestoreInstance = initialized.firestore;
+    }
+    return { firestore: firestoreInstance };
+  }, []);
 
   // Section visibility state
   const [activeSection, setActiveSection] = useState('general');
@@ -142,7 +151,7 @@ export default function SettingsPage() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      const { auth } = initializeFirebase();
+      const auth = getAuth();
       await signOut(auth);
       showToast('Logged out successfully');
       // Redirect to login page
@@ -918,3 +927,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

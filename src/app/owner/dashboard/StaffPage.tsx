@@ -84,26 +84,24 @@ interface ChatMessage {
   timestamp: number;
 }
 
-const generateStaffId = () => {
-  return 'STF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-};
+export default function StaffPage() {
+  const generateStaffId = () => {
+    return 'STF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
 
-const generateStaffPassword = () => {
-  // Generate a strong permanent password
-  const length = 12;
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-};
+  const generateStaffPassword = () => {
+    const length = 12;
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
 
-const getInitials = (name: string) => {
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
-};
-
-export function StaffPage() {
+  const getInitials = (name: string) => {
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
+  };
   const { navigateTo, showToast, user } = useApp();
   const { t } = useTranslation();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -2506,3 +2504,4 @@ export function StaffPage() {
     </div>
   );
 }
+

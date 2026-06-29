@@ -64,8 +64,6 @@ export function HomePage() {
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<string | null>(null);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [businessAnalysis, setBusinessAnalysis] = useState<any>(null);
 
   // Fetch real data on mount
   useEffect(() => {
@@ -102,12 +100,6 @@ export function HomePage() {
 
         const userData = userDoc.data();
         const businessId = userData.businessId;
-
-        // Load selected features and business analysis from onboarding
-        const features = userData.selectedFeatures || [];
-        const analysis = userData.businessAnalysis;
-        setSelectedFeatures(Array.isArray(features) ? features : []);
-        setBusinessAnalysis(analysis);
 
         if (!businessId) {
           console.warn('No business ID found for user');
@@ -419,77 +411,6 @@ export function HomePage() {
           </div>
         </Card>
 
-        {/* Your Busmo Setup - Shows onboarding selections */}
-        {(selectedFeatures.length > 0 || businessAnalysis) && (
-          <Card>
-            <CardHeader>
-              <CardIcon bg="var(--purple-bg)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}>
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </CardIcon>
-              Your Busmo Setup
-            </CardHeader>
-            <div style={{ padding: '16px' }}>
-              {businessAnalysis?.businessType && (
-                <div style={{ marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Business Category
-                  </span>
-                  <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-1)', marginTop: '4px' }}>
-                    {businessAnalysis.businessType}
-                  </div>
-                </div>
-              )}
-              
-              {businessAnalysis?.recommendedPlan && (
-                <div style={{ marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Recommended Plan
-                  </span>
-                  <div style={{ 
-                    fontSize: '14px', 
-                    fontWeight: 600, 
-                    color: businessAnalysis.recommendedPlan === 'pro' ? 'var(--amber)' : 
-                           businessAnalysis.recommendedPlan === 'standard' ? 'var(--purple)' : 'var(--text-1)',
-                    marginTop: '4px',
-                    textTransform: 'capitalize'
-                  }}>
-                    {businessAnalysis.recommendedPlan} Plan
-                  </div>
-                  {businessAnalysis.recommendedPlanReason && (
-                    <div style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '2px' }}>
-                      {businessAnalysis.recommendedPlanReason}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {selectedFeatures.length > 0 && (
-                <div>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Enabled Features ({selectedFeatures.length})
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-                    {selectedFeatures.slice(0, 6).map((feature, index) => (
-                      <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--green)', fontSize: '14px' }}>✓</span>
-                        <span style={{ fontSize: '13px', color: 'var(--text-1)' }}>{feature}</span>
-                      </div>
-                    ))}
-                    {selectedFeatures.length > 6 && (
-                      <div style={{ fontSize: '12px', color: 'var(--text-2)', marginTop: '4px' }}>
-                        +{selectedFeatures.length - 6} more features
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
 
         {/* Services Preview */}
         <Card>
@@ -620,7 +541,7 @@ export function HomePage() {
           </div>
         </Card>
 
-        {/* Forecasts */}
+        {/* Smart Forecasts */}
         <Card>
           <CardHeader>
             <CardIcon bg="var(--blue-bg)">
@@ -628,7 +549,7 @@ export function HomePage() {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </CardIcon>
-            {t('home.forecasts')}
+            Smart Insights
           </CardHeader>
           <div className={styles.forecastList}>
             {loading ? (
@@ -637,53 +558,43 @@ export function HomePage() {
               </div>
             ) : (
               <>
-                {/* Revenue Forecast */}
-                <div className={styles.forecastItemMinimal} onClick={() => setSelectedForecast('revenue')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: 'var(--green-bg)', color: 'var(--green)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                {/* Cash Runway - Most Critical */}
+                <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
+                  <div className={styles.forecastIcon} style={{ background: cashRunway >= 30 ? 'var(--green-bg)' : cashRunway >= 14 ? 'var(--amber-bg)' : 'var(--red-bg)', color: cashRunway >= 30 ? 'var(--green)' : cashRunway >= 14 ? 'var(--amber)' : 'var(--red)' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
                   </div>
                   <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Revenue Forecast</div>
-                    <div className={styles.forecastValue}>{forecastItems.find(f => f.labelKey === 'home.forecast.revenue')?.value || '₦0'}</div>
+                    <div className={styles.forecastLabel}>Cash Runway</div>
+                    <div className={styles.forecastValue}>{cashRunway >= 999 ? '∞ days' : `${cashRunway} days`}</div>
                   </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
 
-                {/* Profit Forecast */}
-                <div className={styles.forecastItemMinimal} onClick={() => setSelectedForecast('profit')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: 'var(--blue-bg)', color: 'var(--blue)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                {/* Top Product - What's Working */}
+                {topProduct && (
+                  <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
+                    <div className={styles.forecastIcon} style={{ background: 'var(--green-bg)', color: 'var(--green)' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    </div>
+                    <div className={styles.forecastInfo}>
+                      <div className={styles.forecastLabel}>Top Seller</div>
+                      <div className={styles.forecastValue}>{topProduct.name} ({topProduct.quantity} sold)</div>
+                    </div>
                   </div>
-                  <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Profit Forecast</div>
-                    <div className={styles.forecastValue}>{forecastItems.find(f => f.labelKey === 'home.forecast.profit')?.value || '₦0'}</div>
-                  </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
+                )}
 
-                {/* Stock Alerts */}
-                <div className={styles.forecastItemMinimal} onClick={() => setSelectedForecast('stock')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                {/* Urgent Restock - Actionable */}
+                {lowStockProducts.length > 0 && (
+                  <div className={styles.forecastItemMinimal} onClick={() => navigateTo('inventory')} style={{ cursor: 'pointer' }}>
+                    <div className={styles.forecastIcon} style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <div className={styles.forecastInfo}>
+                      <div className={styles.forecastLabel}>Restock Urgent</div>
+                      <div className={styles.forecastValue}>{lowStockProducts.slice(0, 3).map(p => p.name).join(', ')}</div>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
                   </div>
-                  <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Stock Alerts</div>
-                    <div className={styles.forecastValue}>{forecastItems.find(f => f.labelKey === 'home.forecast.stockout')?.value || '0 products'}</div>
-                  </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
-
-                {/* Restock Needed */}
-                <div className={styles.forecastItemMinimal} onClick={() => setSelectedForecast('restock')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: 'var(--amber-bg)', color: 'var(--amber)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
-                  </div>
-                  <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Restock Needed</div>
-                    <div className={styles.forecastValue}>{forecastItems.find(f => f.labelKey === 'home.forecast.restock')?.value || '0 items'}</div>
-                  </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -1009,3 +920,4 @@ function calculateForecast(products: any[], totalSales: number, totalProfit: num
   
   return forecasts;
 }
+

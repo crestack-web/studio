@@ -322,11 +322,25 @@ nav.scrolled { box-shadow: 0 4px 24px rgba(10,10,15,0.08); }
 
 /* ── DASHBOARD MOCKUP SECTION ── */
 .dashboard-mockup-section { background: var(--white); padding: 80px 5%; }
-.dashboard-mockup-image-container { max-width: 1000px; margin: 0 auto; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid var(--grey-200); }
-.dashboard-mockup-image { width: 100%; height: auto; display: block; }
+.dashboard-mockup-image { 
+  width: 100%; 
+  max-width: 1000px; 
+  height: auto; 
+  display: block; 
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: floatImage 6s ease-in-out infinite;
+}
+
+@keyframes floatImage {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
 @media(max-width: 768px) {
   .dashboard-mockup-section { padding: 48px 5%; }
-  .dashboard-mockup-image-container { border-radius: var(--radius); }
+  .dashboard-mockup-image { border-radius: var(--radius); }
 }
 
 /* ── OFFLINE SALE SECTION ── */

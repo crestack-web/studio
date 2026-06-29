@@ -561,3 +561,4 @@ export function SupplierProfilePage({ supplierId }: SupplierProfileProps) {
     </div>
   );
 }
+
