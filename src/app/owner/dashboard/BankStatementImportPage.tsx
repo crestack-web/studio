@@ -13,7 +13,7 @@ import styles from './BankStatementImportPage.module.css';
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function BankStatementImportPage() {
+export default function BankStatementImportPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();

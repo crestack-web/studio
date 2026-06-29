@@ -40,7 +40,7 @@ interface Recipe {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function IngredientsPage() {
+export default function IngredientsPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);

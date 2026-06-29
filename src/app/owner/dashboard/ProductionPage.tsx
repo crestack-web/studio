@@ -48,7 +48,7 @@ interface Material {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function ProductionPage() {
+export default function ProductionPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);

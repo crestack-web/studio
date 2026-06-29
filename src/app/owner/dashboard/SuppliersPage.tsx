@@ -57,7 +57,7 @@ interface Product {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function SuppliersPage() {
+export default function SuppliersPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { firestore } = React.useMemo(() => {

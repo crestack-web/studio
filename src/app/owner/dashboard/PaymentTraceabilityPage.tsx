@@ -13,7 +13,7 @@ import styles from './PaymentTraceabilityPage.module.css';
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function PaymentTraceabilityPage() {
+export default function PaymentTraceabilityPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();

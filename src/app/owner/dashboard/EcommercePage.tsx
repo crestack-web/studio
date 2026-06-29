@@ -54,7 +54,7 @@ interface StoreOrder {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function EcommercePage() {
+export default function EcommercePage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const { firestore } = React.useMemo(() => {

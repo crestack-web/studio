@@ -39,7 +39,7 @@ interface CustomerTransaction {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function CustomersPage() {
+export default function CustomersPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const { firestore } = React.useMemo(() => {

@@ -13,7 +13,7 @@ import styles from './MoneyLeakagePage.module.css';
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function MoneyLeakagePage() {
+export default function MoneyLeakagePage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();

@@ -23,7 +23,7 @@ interface SaleData {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function MoneyControlPage() {
+export default function MoneyControlPage() {
   const { user, navigateTo, showToast } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();

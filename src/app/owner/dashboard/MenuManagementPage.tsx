@@ -31,7 +31,7 @@ interface MenuCategory {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function MenuManagementPage() {
+export default function MenuManagementPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);

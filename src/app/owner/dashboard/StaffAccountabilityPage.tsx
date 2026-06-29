@@ -11,7 +11,7 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import styles from './StaffAccountabilityPage.module.css';
 
-export function StaffAccountabilityPage() {
+export default function StaffAccountabilityPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();

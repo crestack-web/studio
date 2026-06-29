@@ -38,7 +38,7 @@ interface StaffMember {
 
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
-export function PayrollPage() {
+export default function PayrollPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
   const [payrollEntries, setPayrollEntries] = useState<PayrollEntry[]>([]);
