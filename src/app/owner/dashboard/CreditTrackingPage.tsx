@@ -130,7 +130,7 @@ export function CreditTrackingPage() {
 
       // Load credit customers
       const customersQuery = query(
-        collection(firestore, 'businesses', businessId, 'creditCustomers'),
+        collection(firestore, 'businesses', businessId, 'credit_customers'),
         where('isActive', '==', true)
       );
       const customersSnapshot = await getDocs(customersQuery);
@@ -157,7 +157,7 @@ export function CreditTrackingPage() {
 
       // Load credit transactions with date filter
       let transactionsQuery = query(
-        collection(firestore, 'businesses', businessId, 'creditTransactions'),
+        collection(firestore, 'businesses', businessId, 'credit_transactions'),
         orderBy('issuedDate', 'desc'),
         limit(100)
       );
@@ -250,7 +250,7 @@ export function CreditTrackingPage() {
     if (!businessId || !firestore || !selectedTransaction) return;
 
     try {
-      const transactionRef = doc(firestore, 'businesses', businessId, 'creditTransactions', transactionId);
+      const transactionRef = doc(firestore, 'businesses', businessId, 'credit_transactions', transactionId);
       const transactionDoc = await getDoc(transactionRef);
       
       if (!transactionDoc.exists()) {
