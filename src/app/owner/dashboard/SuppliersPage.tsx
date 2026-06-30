@@ -84,7 +84,7 @@ export default function SuppliersPage() {
   const checkSupplierAccess = async () => {
     if (!user?.id) return;
     
-    const accessResult = await checkFeatureAccess(user.id, 'supplierManagement');
+    const accessResult = await checkFeatureAccess(user.id, 'supplier-management');
     if (!accessResult.eligible) {
       setHasAccess(false);
       setAccessReason(accessResult.reason || 'This feature is not available for your plan');
