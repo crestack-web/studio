@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Create/update user document
     const userRef = adminDb.collection('users').doc(userRecord.uid);
-    await userRef.set({
+    const userData = {
       name: name.trim(),
       email: email.trim(),
       role: role.trim(),
@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
       permissions: permissions || {},
       staffId,
       status: 'active',
-    }, { merge: true });
+    };
+    await userRef.set(userData, { merge: true });
+    console.log('✅ [API] User document created/updated:', userRecord.uid, userData);
 
     console.log('✅ [API] Staff created successfully:', userRecord.uid);
 

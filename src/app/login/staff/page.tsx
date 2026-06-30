@@ -157,22 +157,44 @@ export default function StaffLogin() {
     setLoading(true);
     setError("");
     try {
+      console.log('🔐 [Staff Login] Attempting login with:', email);
       const { auth, firestore } = initializeFirebase();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      console.log('✅ [Staff Login] Firebase auth successful:', user.uid);
 
       const userDocRef = doc(firestore, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
+      console.log('📄 [Staff Login] User doc exists:', userDoc.exists());
 
-      if (userDoc.exists() && !['Owner', 'Admin'].includes(userDoc.data().role)) {
-        window.location.href = "/staff/home";
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log('👤 [Staff Login] User data:', { role: userData.role, name: userData.name, businessId: userData.businessId });
+        
+        if (['Owner', 'Admin'].includes(userData.role)) {
+          console.warn('⚠️ [Staff Login] User is Owner/Admin, denying access');
+          setError("You are not authorized to access the staff portal. Please contact your business owner.");
+          await auth.signOut();
+        } else {
+          console.log('✅ [Staff Login] Redirecting to staff home');
+          window.location.href = "/staff/home";
+        }
       } else {
-        setError("You are not authorized to access the staff portal. Please contact your business owner.");
+        console.error('❌ [Staff Login] User document not found in Firestore');
+        setError("User account not found. Please contact your business owner.");
         await auth.signOut();
       }
     } catch (error: any) {
-      console.error('Login error:', error);
-      setError("Invalid email or password. Please try again.");
+      console.error('❌ [Staff Login] Login error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        setError("Invalid email or password. Please try again.");
+      } else if (error.code === 'auth/too-many-requests') {
+        setError("Too many failed attempts. Please try again later.");
+      } else {
+        setError("Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
