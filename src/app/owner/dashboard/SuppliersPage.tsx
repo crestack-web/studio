@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
-import { checkFeatureAccess } from '@/lib/featureRestrictions';
+import { checkFeatureAccess, Plan, BusinessCategory } from '@/lib/featureRegistry';
 import styles from './SuppliersPage.module.css';
 
 interface Supplier {
@@ -84,10 +84,59 @@ export default function SuppliersPage() {
   const checkSupplierAccess = async () => {
     if (!user?.id) return;
     
-    const accessResult = await checkFeatureAccess(user.id, 'supplier-management');
-    if (!accessResult.eligible) {
-      setHasAccess(false);
-      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const currentUserId = auth.currentUser?.uid || '';
+      
+      if (!currentUserId) return;
+
+      // Get owner's business ID and user data
+      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
+      const businessId = ownerDoc.data()?.businessId || 'default';
+      const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
+      const features = ownerDoc.data()?.selectedFeatures || [];
+      const prefs = ownerDoc.data()?.featurePreferences || {};
+      const plan = ownerDoc.data()?.plan || 'starter';
+      const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
+      const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
+      
+      // Check if user is in trial
+      const now = new Date();
+      const inTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+      
+      // Normalize feature names to registry format
+      const normalizeFeatureName = (name: string): string => {
+        const nameMap: Record<string, string> = {
+          'Supplier Management': 'supplier-management',
+        };
+        return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
+      };
+      
+      const normalizedFeatures = Array.isArray(features) 
+        ? features.map(f => normalizeFeatureName(f))
+        : [];
+      
+      // Combine selectedFeatures (onboarding) and featurePreferences (settings page)
+      const enabledFeaturesSet = new Set(
+        inTrial ? normalizedFeatures : 
+        Object.keys(prefs).filter(key => prefs[key])
+      );
+      
+      const accessResult = checkFeatureAccess(
+        'supplier-management',
+        plan as Plan,
+        category.toLowerCase() as BusinessCategory,
+        enabledFeaturesSet
+      );
+      
+      if (!accessResult.eligible) {
+        setHasAccess(false);
+        setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+      }
+    } catch (error) {
+      console.error('Error checking supplier access:', error);
+      // On error, allow access to prevent blocking
+      setHasAccess(true);
     }
   };
 
