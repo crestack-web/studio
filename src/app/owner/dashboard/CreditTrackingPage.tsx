@@ -114,6 +114,9 @@ export function CreditTrackingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<CreditTransaction | null>(null);
   const [dateFilter, setDateFilter] = useState('all');
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [isRecordingPayment, setIsRecordingPayment] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -246,37 +249,44 @@ export function CreditTrackingPage() {
     }
   };
 
-  const handleRecordPayment = async (transactionId: string, paymentAmount: number, paymentMethod: string) => {
+  const handleRecordPayment = async () => {
     if (!businessId || !firestore || !selectedTransaction) return;
 
+    const finalPaymentAmount = paymentAmount || selectedTransaction.remainingAmount;
+    const finalPaymentMethod = paymentMethod || 'cash';
+
     try {
-      const transactionRef = doc(firestore, 'businesses', businessId, 'credit_transactions', transactionId);
+      setIsRecordingPayment(true);
+      const transactionRef = doc(firestore, 'businesses', businessId, 'credit_transactions', selectedTransaction.id);
       const transactionDoc = await getDoc(transactionRef);
       
       if (!transactionDoc.exists()) {
         showToast('Transaction not found');
+        setIsRecordingPayment(false);
         return;
       }
 
       const transactionData = transactionDoc.data();
-      const newPaidAmount = (transactionData.paidAmount || 0) + paymentAmount;
-      const newRemainingAmount = (transactionData.remainingAmount || 0) - paymentAmount;
+      const currentPaidAmount = transactionData.paidAmount || 0;
+      const currentRemainingAmount = transactionData.remainingAmount || selectedTransaction.remainingAmount;
+      const newPaidAmount = currentPaidAmount + finalPaymentAmount;
+      const newRemainingAmount = currentRemainingAmount - finalPaymentAmount;
       const newStatus = newRemainingAmount <= 0 ? 'paid' : 'partial';
 
       await updateDoc(transactionRef, {
         paidAmount: newPaidAmount,
-        remainingAmount: newRemainingAmount,
+        remainingAmount: Math.max(0, newRemainingAmount),
         status: newStatus,
         paidAt: newStatus === 'paid' ? Timestamp.now() : null,
       });
 
       // Record payment in history
-      const paymentRef = doc(firestore, 'businesses', businessId, 'creditPayments', `payment-${Date.now()}`);
-      await updateDoc(paymentRef, {
-        transactionId,
+      const paymentsCollection = collection(firestore, 'businesses', businessId, 'creditPayments');
+      await addDoc(paymentsCollection, {
+        transactionId: selectedTransaction.id,
         customerId: selectedTransaction.customerId,
-        amount: paymentAmount,
-        paymentMethod,
+        amount: finalPaymentAmount,
+        paymentMethod: finalPaymentMethod,
         paymentDate: Timestamp.now(),
         recordedBy: user?.id || 'system',
         recordedByName: user?.name || 'System',
@@ -285,10 +295,14 @@ export function CreditTrackingPage() {
       showToast('Payment recorded successfully');
       setShowPaymentModal(false);
       setSelectedTransaction(null);
+      setPaymentAmount(0);
+      setPaymentMethod('cash');
       loadData();
     } catch (error) {
       console.error('Error recording payment:', error);
       showToast('Failed to record payment');
+    } finally {
+      setIsRecordingPayment(false);
     }
   };
 
@@ -532,6 +546,32 @@ export function CreditTrackingPage() {
                 <div>Customer: <strong>{selectedTransaction.customerName}</strong></div>
                 <div>Remaining: <strong>{formatMoney(selectedTransaction.remainingAmount)}</strong></div>
               </div>
+              
+              {/* Products List */}
+              {selectedTransaction.products && selectedTransaction.products.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-2)', marginBottom: '8px' }}>
+                    Products:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {selectedTransaction.products.map((product, index) => (
+                      <div key={index} style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        fontSize: '0.85rem',
+                        color: 'var(--text-1)',
+                        padding: '4px 8px',
+                        background: 'var(--bg)',
+                        borderRadius: '4px'
+                      }}>
+                        <span>{product.name} × {product.quantity}</span>
+                        <span>{formatMoney(product.price * product.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className={styles.formGroup}>
                 <label className={styles.label}>Payment Amount</label>
                 <input
@@ -539,11 +579,17 @@ export function CreditTrackingPage() {
                   className={styles.input}
                   placeholder="Enter amount"
                   max={selectedTransaction.remainingAmount}
+                  value={paymentAmount || ''}
+                  onChange={e => setPaymentAmount(parseFloat(e.target.value) || 0)}
                 />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Payment Method</label>
-                <select className={styles.select}>
+                <select 
+                  className={styles.select}
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value)}
+                >
                   <option value="cash">Cash</option>
                   <option value="transfer">Bank Transfer</option>
                   <option value="pos">POS</option>
@@ -552,8 +598,18 @@ export function CreditTrackingPage() {
               </div>
             </div>
             <div className={styles.modalActions}>
-              <button className={styles.cancelButton} onClick={() => setShowPaymentModal(false)}>Cancel</button>
-              <button className={styles.submitButton}>Record Payment</button>
+              <button className={styles.cancelButton} onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentAmount(0);
+                setPaymentMethod('cash');
+              }}>Cancel</button>
+              <button 
+                className={styles.submitButton}
+                onClick={handleRecordPayment}
+                disabled={isRecordingPayment || !paymentAmount || paymentAmount > selectedTransaction.remainingAmount}
+              >
+                {isRecordingPayment ? 'Recording...' : 'Record Payment'}
+              </button>
             </div>
           </div>
         </div>
