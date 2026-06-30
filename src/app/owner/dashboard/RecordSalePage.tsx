@@ -239,8 +239,7 @@ export function RecordSalePage() {
       }
       
       const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
+        collection(firestore, 'businesses', businessId, 'products')
       );
       
       const snapshot = await getDocs(productsQuery);
@@ -254,7 +253,13 @@ export function RecordSalePage() {
         const isRestaurant = currentCategory.toLowerCase().includes('restaurant') || 
                              currentCategory.toLowerCase().includes('cafe');
         
+        // For restaurant/cafe businesses, exclude ingredients from saleable products
         if (isRestaurant && productType.toLowerCase() === 'ingredient') {
+          return;
+        }
+        
+        // Skip inactive products
+        if (data.active === false) {
           return;
         }
         
