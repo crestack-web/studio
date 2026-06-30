@@ -72,6 +72,16 @@ export default function AddStaffPage() {
     fetchBusinessType();
   }, []);
 
+  // Use fixed staff dashboard permissions (not feature registry)
+  // Staff dashboard only has: sale, inv, hist, atd, msg
+  const STAFF_PERMISSIONS = [
+    { key: 'sale', label: '🛒 Sales Recording', icon: 'ShoppingCart' },
+    { key: 'inv', label: '📦 Inventory View', icon: 'Package' },
+    { key: 'hist', label: '📊 History & Reports', icon: 'BarChart3' },
+    { key: 'atd', label: '⏰ Attendance', icon: 'Clock' },
+    { key: 'msg', label: '💬 Messages', icon: 'MessageSquare' },
+  ];
+
   // Update permissions when role changes
   useEffect(() => {
     if (role) {

@@ -23,35 +23,36 @@ export interface BusinessTypeConfig {
 }
 
 // All available permissions mapped to actual staff portal pages
+// These must match the staff dashboard types.ts exactly
 export const PERMISSIONS: Record<string, PermissionConfig> = {
   sale: {
     key: 'sale',
-    label: 'Record Sales',
-    description: 'Create and process sales transactions',
+    label: 'Sales Recording',
+    description: 'Record sales and process transactions',
     category: 'sales',
   },
   inv: {
     key: 'inv',
-    label: 'View Inventory',
-    description: 'View products, stock levels, and suppliers',
+    label: 'Inventory View',
+    description: 'View products and stock levels',
     category: 'inventory',
   },
   hist: {
     key: 'hist',
     label: 'History & Reports',
-    description: 'View sales history, customers, and reports',
+    description: 'View sales history and reports',
     category: 'reporting',
   },
   atd: {
     key: 'atd',
     label: 'Attendance',
-    description: 'Clock in/out and track your shifts',
+    description: 'Clock in/out and track shifts',
     category: 'management',
   },
   msg: {
     key: 'msg',
     label: 'Messages',
-    description: 'Chat with the owner and your team',
+    description: 'Chat with owner and team',
     category: 'management',
   },
 };

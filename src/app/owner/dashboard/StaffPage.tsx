@@ -14,7 +14,6 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { BrevoService } from '@/services/email/brevo-service';
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
-import { getFeaturesByBusinessCategory, BusinessCategory } from '@/lib/featureRegistry';
 
 interface StaffMember {
   id: string;
@@ -128,9 +127,7 @@ export default function StaffPage() {
     hist: false,
     atd: false,
     msg: false,
-    earn: false,
   });
-  const [businessCategory, setBusinessCategory] = useState<BusinessCategory>('other');
   const [availablePermissions, setAvailablePermissions] = useState<Array<{key: string, label: string, icon: string}>>([]);
   const [targetRevenue, setTargetRevenue] = useState(0);
   const [targetTransactions, setTargetTransactions] = useState(0);
@@ -173,10 +170,6 @@ export default function StaffPage() {
         // Check if business is a restaurant
         const restaurant = await isRestaurantBusiness(businessId);
         setIsRestaurant(restaurant);
-
-        // Get business category
-        const category = await getBusinessCategory(businessId);
-        setBusinessCategory(category as BusinessCategory);
 
         // Load staff from Firestore
         const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
@@ -268,25 +261,29 @@ export default function StaffPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Generate available permissions based on business category
+  // Use fixed staff dashboard permissions (not feature registry)
+  // Staff dashboard only has: sale, inv, hist, atd, msg
+  const STAFF_PERMISSIONS = [
+    { key: 'sale', label: '🛒 Sales Recording', icon: 'ShoppingCart' },
+    { key: 'inv', label: '📦 Inventory View', icon: 'Package' },
+    { key: 'hist', label: '📊 History & Reports', icon: 'BarChart3' },
+    { key: 'atd', label: '⏰ Attendance', icon: 'Clock' },
+    { key: 'msg', label: '💬 Messages', icon: 'MessageSquare' },
+  ];
+  
+  // Initialize available permissions with fixed staff dashboard permissions
   useEffect(() => {
-    const features = getFeaturesByBusinessCategory(businessCategory);
-    const permissions = features.map(feature => ({
-      key: feature.id,
-      label: `${feature.icon} ${feature.name}`,
-      icon: feature.icon,
-    }));
-    setAvailablePermissions(permissions);
+    setAvailablePermissions(STAFF_PERMISSIONS);
     
     // Initialize permissions object with all available permissions set to false
     const initialPermissions: Record<string, boolean> = {};
-    permissions.forEach(perm => {
+    STAFF_PERMISSIONS.forEach(perm => {
       initialPermissions[perm.key] = false;
     });
     // Always enable sales by default
-    initialPermissions['sales-recording'] = true;
+    initialPermissions['sale'] = true;
     setNewStaffPermissions(initialPermissions);
-  }, [businessCategory]);
+  }, []);
 
   const initializeConversations = () => {
     const initialConvos: { [key: string]: { id: string; messages: ChatMessage[] } } = {
@@ -401,7 +398,7 @@ export default function StaffPage() {
       availablePermissions.forEach(perm => {
         initialPermissions[perm.key] = false;
       });
-      initialPermissions['sales-recording'] = true;
+      initialPermissions['sale'] = true;
       setNewStaffPermissions(initialPermissions);
       setShowAddModal(false);
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
