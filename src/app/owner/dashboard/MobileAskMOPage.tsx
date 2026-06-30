@@ -1192,10 +1192,11 @@ export function MobileAskMOPage() {
               </div>
             ) : (
               conversations.map(conv => (
-                <button
+                <div
                   key={conv.id}
                   className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
                   onClick={() => handleLoadConversation(conv.id)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.historyItemContent}>
                     <div className={styles.historyItemTitle}>{conv.title}</div>
@@ -1217,7 +1218,7 @@ export function MobileAskMOPage() {
                   >
                     <Trash2 size={16} />
                   </button>
-                </button>
+                </div>
               ))
             )}
           </div>
