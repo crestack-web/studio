@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
@@ -48,6 +48,8 @@ interface UseAskMOOptions {
 
 export function useAskMO({ userId, userPlan, businessId, branchId, branchName }: UseAskMOOptions) {
   const [messages, setMessages] = useState<MOMessage[]>([]);
+  // Ref to always have the latest messages, avoiding stale closures in saveConversation
+  const messagesRef = useRef<MOMessage[]>([]);
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsRemaining, setCreditsRemaining] = useState(2500);
   const [planLimit, setPlanLimit] = useState(10);
@@ -501,6 +503,11 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     }
   }, [userId, userPlan, businessId]);
 
+  // Keep ref in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   // Create a new conversation and save it immediately
   const createConversation = useCallback(async (firstMessage: MOMessage): Promise<string> => {
     try {
@@ -592,6 +599,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     }
   }, [userId]);
 
+  // Load messages for a specific conversation
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
       const { firestore } = initializeFirebase();
@@ -648,11 +656,11 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     }
   }, [userId]);
 
-  // Save current messages to current conversation
+  // Save current messages to current conversation - uses ref to avoid stale closure
   const saveConversation = useCallback(async () => {
     if (!currentConversationId) return;
-    await saveMessages(currentConversationId, messages);
-  }, [currentConversationId, messages, saveMessages]);
+    await saveMessages(currentConversationId, messagesRef.current);
+  }, [currentConversationId, saveMessages]);
 
   const updateCredits = useCallback(async (creditsConsumed: number) => {
     const normalizedPlan = userPlan?.toLowerCase() || 'starter';
