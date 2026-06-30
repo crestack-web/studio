@@ -3,6 +3,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
 import { recordSale, findProductByName } from '@/lib/services/record-sale-service';
+import { addProduct } from '@/lib/services/add-product-service';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
@@ -105,130 +106,61 @@ async function executeAction(action: any, businessId: string, userId: string): P
   try {
     if (action.action === 'add_product') {
       const data = action.data;
-      
-      // Check if product with same name already exists
-      const existingProductQuery = await db.collection('businesses').doc(businessId).collection('products')
-        .where('name', '==', data.name)
-        .where('active', '==', true)
-        .limit(1)
-        .get();
-      
-      if (!existingProductQuery.empty) {
-        return { 
-          success: false, 
-          message: `A product named "${data.name}" already exists in your inventory. Please use a different name or update the existing product.`, 
-          data: null 
+
+      const result = await addProduct({
+        businessId,
+        userId,
+        name: data.name,
+        category: data.category || 'General',
+        sellPrice: parseFloat(data.price) || parseFloat(data.sellPrice) || 0,
+        costPrice: parseFloat(data.costPrice) || 0,
+        openingStock: parseInt(data.stock) || 0,
+        description: data.description || '',
+        sku: data.sku,
+        lowStockAlert: parseInt(data.lowStockThreshold) || parseInt(data.lowStockAlert) || 5,
+        unit: data.unit || 'piece',
+        hasExpiry: data.hasExpiry || false,
+        expiryDate: data.expiryDate,
+        hasVariants: data.hasVariants || false,
+        variantType: data.variantType,
+        variantValues: data.variantValues,
+        useDefaultDelivery: data.useDefaultDelivery !== false,
+        selectedCountries: data.selectedCountries,
+        deliveryTime: data.deliveryTime,
+        shippingFeeOverride: data.shippingFeeOverride,
+        manualSale: data.manualSale !== false,
+        onlineStore: data.onlineStore || false,
+        imageUrl: data.imageUrl || '',
+        imageData: data.imageData,
+        productType: data.productType || 'product',
+        dishCategory: data.dishCategory,
+        preparationTime: data.preparationTime,
+        ingredientUnit: data.ingredientUnit,
+        supplier: data.supplier,
+        reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : undefined,
+        expiryDateIngredient: data.expiryDateIngredient,
+        branch: data.branch,
+        ingredients: data.ingredients,
+        warehouseLocation: data.warehouseLocation || 'main_store',
+        stockByLocation: data.stockByLocation,
+        businessCategory: data.businessCategory || 'retail',
+      });
+
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+          data: null
         };
       }
 
-      // Validate required fields
-      if (!data.name || !data.name.trim()) {
-        return { success: false, message: 'Product name is required', data: null };
-      }
-      if (!data.category) {
-        return { success: false, message: 'Product category is required', data: null };
-      }
-      
-      // Only require selling price for non-ingredient products
-      const isIngredient = data.productType === 'ingredient';
-      if (!isIngredient && (!data.price || parseFloat(data.price) <= 0)) {
-        return { success: false, message: 'Selling price is required and must be greater than 0', data: null };
-      }
-      
-      // Cost price is required for all products including ingredients
-      if (!data.costPrice || parseFloat(data.costPrice) <= 0) {
-        return { success: false, message: 'Cost price is required and must be greater than 0', data: null };
-      }
-
-      // Handle image upload if provided
-      let imageUrl = '';
-      if (data.imageData) {
-        try {
-          // Convert base64 to buffer
-          const base64Data = data.imageData.replace(/^data:image\/\w+;base64,/, '');
-          const buffer = Buffer.from(base64Data, 'base64');
-          
-          // Initialize Firebase Storage
-          const storage = getStorage();
-          const imageRef = ref(storage, `products/${businessId}/${Date.now()}_product.jpg`);
-          
-          await uploadBytes(imageRef, buffer);
-          imageUrl = await getDownloadURL(imageRef);
-          console.log('✅ Product image uploaded successfully');
-        } catch (uploadError) {
-          console.error('❌ Image upload failed:', uploadError);
-          // Continue without image rather than failing
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          productId: result.productId,
+          product: result.product,
         }
-      }
-
-      // Generate SKU if not provided
-      const sku = data.sku && data.sku.trim() ? data.sku.trim() : `SKU-${Date.now()}`;
-
-      // Build product data matching Add Product page structure
-      const productData: any = {
-        name: data.name.trim(),
-        description: data.description || '',
-        category: data.category,
-        price: isIngredient ? 0 : (parseFloat(data.price) || 0),
-        cost: parseFloat(data.costPrice) || 0,
-        stock: parseInt(data.stock) || 0,
-        lowStockThreshold: parseInt(data.lowStockThreshold) || 5,
-        active: true,
-        attributes: {
-          emoji: data.emoji || (isIngredient ? '🥘' : '📦'),
-          sku: sku,
-        },
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
-      };
-
-      // Add product type for restaurant businesses
-      if (data.productType) {
-        productData.productType = data.productType;
-      }
-
-      // Add image URL if uploaded
-      if (imageUrl) {
-        productData.imageUrl = imageUrl;
-      }
-
-      // Add optional fields if provided
-      if (data.imageUrl) {
-        productData.imageUrl = data.imageUrl;
-      }
-      if (data.unit) {
-        productData.unit = data.unit;
-      }
-      if (data.supplier) {
-        productData.supplier = data.supplier;
-      }
-      if (data.reorderLevel !== undefined) {
-        productData.reorderLevel = parseInt(data.reorderLevel) || 0;
-      }
-
-      // Handle stock by location for wholesale/distributor
-      if (data.stockByLocation) {
-        productData.stockByLocation = data.stockByLocation;
-      }
-
-      const docRef = await db.collection('businesses').doc(businessId).collection('products').add(productData);
-      return { 
-        success: true, 
-        message: `Product "${data.name}" added successfully with SKU: ${sku}${imageUrl ? ' and image' : ''}`, 
-        data: { 
-          productId: docRef.id,
-          product: {
-            id: docRef.id,
-            name: data.name,
-            sku,
-            category: data.category,
-            price: isIngredient ? 0 : parseFloat(data.price),
-            cost: parseFloat(data.costPrice) || 0,
-            stock: parseInt(data.stock) || 0,
-            imageUrl: imageUrl || null,
-            productType: data.productType || 'product',
-          }
-        } 
       };
     }
 
@@ -1071,6 +1003,17 @@ RECORDING SALES:
 - For multiple products in one request, use the items array:
   {"action": "record_sale", "data": {"items": [{"productName": "...", "quantity": 1, "price": 0}, {"productName": "...", "quantity": 2, "price": 0}]}}
 - If user sends an image of a product/receipt, analyze it to extract sale details
+- If information is incomplete from image, ask user to provide missing details
+
+ADDING PRODUCTS:
+- When user wants to add a new product, extract: name, category, price, cost, stock
+- If any required field is missing, ASK the user for it before providing the action JSON
+- Required fields: name, category, price (or sellPrice), costPrice, stock
+- Optional fields: description, sku, lowStockThreshold, unit, productType, imageData
+- For restaurant businesses, also extract: productType (dish/ingredient), dishCategory, preparationTime, ingredientUnit, supplier, reorderLevel
+- Return structured JSON in your response for product creation:
+  {"action": "add_product", "data": {"name": "...", "category": "...", "price": 0, "costPrice": 0, "stock": 0, "description": "...", "sku": "...", "lowStockThreshold": 5, "unit": "piece", "productType": "product"}}
+- If user sends an image of a product, analyze it to extract product details
 - If information is incomplete from image, ask user to provide missing details
 
 ADDING PRODUCTS:
