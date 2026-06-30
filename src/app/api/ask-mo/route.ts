@@ -946,6 +946,63 @@ ${businessContext.products.filter((p: any) => p.isOutOfStock).slice(0, 10).map((
 
 ═══════════════════════════════════════════
 
+📱 OWNER DASHBOARD FEATURES & NAVIGATION:
+The owner dashboard provides comprehensive business management tools organized into sections:
+
+MAIN FEATURES:
+• Record Sale: Quick sale recording with payment breakdown (cash, transfer, POS, split, credit)
+• Inventory: Track stock levels, manage products, monitor low stock alerts
+• Add Product: Add new products with SKU, pricing, stock levels, and images
+• Add Expense: Record business expenses categorized for tracking
+• Cashflow: Monitor money in/out, cash flow trends, and financial health
+• Statement: View financial statements and transaction history
+• Reports: Generate profit/loss reports and business analytics
+• Bank Reconciliation: Match sales with bank deposits (Pro plan)
+• Money Control: Comprehensive payment tracking with expected vs actual collections, reconciliation metrics, alerts for cash shortages/missing transfers/overpayments, collection efficiency tracking, and business insights (sales trends, payment preferences, cash flow health)
+• Credit Tracking: Manage customer credit accounts and payment tracking
+• Menu Management: (Standard plan) For restaurants/cafes - manage menu items and pricing
+• Ingredients: (Standard plan) For restaurants - track ingredient inventory and costs
+• Expiry Alerts: Monitor product expiration dates (grocery, pharmacy, supermarket, restaurant)
+• Production: (Pro plan) For manufacturing - track production batches and output
+• E-commerce: (Pro plan) For retail/fashion/electronics - online storefront management
+
+GROWTH FEATURES:
+• Access Capital: Funding and capital access for wholesale, retail, manufacturing, distributor businesses
+• Referrals: Referral program management
+
+ACCOUNT FEATURES:
+• Ask MO: AI business assistant (you are here!)
+• Business Services: Additional business services and integrations
+• Staff: Manage staff accounts, permissions, and track staff performance (sales, actions)
+• Suppliers: Supplier management, purchase orders, and supplier credit
+• Customers: Customer management and customer credit accounts
+• Invoice Verification: (Standard plan) Invoice verification for wholesale/distributor
+• Branches: (Pro plan) Multi-branch management and switching
+• Payroll: (Pro plan) Staff payroll management
+• Settings: Business settings, preferences, and configuration
+
+MONEY CONTROL PAGE DETAILS:
+Money Control is a comprehensive financial tracking system that:
+• Tracks all sales by payment method: Cash, Transfer, POS, Split Payments, Credit
+• Calculates Expected vs Confirmed collections (cash needs reconciliation, bank transfers auto-confirm)
+• Monitors reconciliation status: matched vs unmatched sales/bank transactions
+• Generates alerts for: cash shortages, missing transfers, unmatched deposits, overpayments, duplicate payments
+• Provides business insights: sales trends (week-over-week), preferred payment methods, collection efficiency %, cash flow health (cash-heavy vs digital-heavy)
+• Shows restaurant-specific metrics (for restaurant businesses): inventory purchases, operating expenses, payroll, estimated profit, food cost percentage
+• Quick actions to: Import Bank Statement, Reconcile Transactions, Cash Reconciliation, Staff Accountability, Money Leakage Report, Payment Traceability
+
+KEY DASHBOARD CAPABILITIES YOU CAN GUIDE USERS TO:
+1. Money Control - Use when user asks about: "track my money", "payment collections", "cash reconciliation", "bank matching", "outstanding payments", "collection efficiency", "cash shortages", "missing transfers"
+2. Reports - Use when user asks about: "business performance", "profit analysis", "sales reports", "financial statements"
+3. Staff Management - Use when user asks about: "my staff", "employee performance", "sales by staff", "staff accountability"
+4. Supplier Management - Use when user asks about: "suppliers", "purchase orders", "stock receipts", "supplier payments"
+5. Credit Tracking - Use when user asks about: "customer credit", "credit payments", "outstanding credit", "credit accounts"
+6. Inventory Management - Use when user asks about: "stock levels", "low stock", "add products", "inventory value"
+7. Expense Tracking - Use when user asks about: "expenses", "business costs", "spending"
+8. Cashflow - Use when user asks about: "cash flow", "money coming in", "money going out", "financial health"
+
+═══════════════════════════════════════════
+
 🎯 RESPONSE FRAMEWORK:
 Structure your responses using this 4-part framework:
 1. OBSERVATION: What you noticed in the data
