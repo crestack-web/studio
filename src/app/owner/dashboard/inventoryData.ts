@@ -220,7 +220,9 @@ export function getStockStatus(p: Product): StockStatus {
 }
 
 export function getDaysSinceLastSale(p: Product): number {
+  if (!p.lastSaleDate) return -1; // Indicates never sold
   const last = new Date(p.lastSaleDate).getTime();
+  if (isNaN(last)) return -1;
   const now  = new Date().getTime();
   return Math.floor((now - last) / (1000 * 60 * 60 * 24));
 }

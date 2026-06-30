@@ -200,6 +200,7 @@ export type TranslationDict = {
   'inventory.table.status':string; 'inventory.table.sold30d':string;
   'inventory.table.trend':string; 'inventory.table.actions':string;
   'inventory.soldToday':string; 'inventory.soldYesterday':string; 'inventory.soldDaysAgo':string;
+  'inventory.neverSold':string;
   'inventory.productCount':string; 'inventory.pagination.showing':string;
   'inventory.actions.edit':string; 'inventory.actions.restock':string;
   // Insights
@@ -449,7 +450,7 @@ const en: TranslationDict = {
   'inventory.table.profit':'Profit','inventory.table.stockValue':'Stock Value',
   'inventory.table.status':'Status','inventory.table.sold30d':'Sold (30d)',
   'inventory.table.trend':'Trend','inventory.table.actions':'Actions',
-  'inventory.soldToday':'Sold today','inventory.soldYesterday':'Sold yesterday','inventory.soldDaysAgo':'Sold {days} days ago',
+  'inventory.soldToday':'Sold today','inventory.soldYesterday':'Sold yesterday','inventory.soldDaysAgo':'Sold {days} days ago','inventory.neverSold':'Never sold',
   'inventory.productCount':'{count} products','inventory.pagination.showing':'Showing {start}-{end} of {total}',
   'inventory.actions.edit':'Edit','inventory.actions.restock':'Restock',
   // Insights

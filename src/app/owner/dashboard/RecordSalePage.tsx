@@ -114,18 +114,9 @@ export function RecordSalePage() {
             if (data?.logoUrl) {
               setBusinessLogo(data.logoUrl);
             }
-            
-            // Determine if stock source should be shown
-            // Show if: (pro user with multiple branches) OR (retail/wholesale category)
-            const isRetailOrWholesale = category.toLowerCase().includes('retail') || 
-                                       category.toLowerCase().includes('wholesale') ||
-                                       category.toLowerCase().includes('distributor');
-            const hasMultipleBranches = isProUser && branches.length > 1;
-            setShowStockSource(hasMultipleBranches || isRetailOrWholesale);
           }
         } catch (error) {
           console.error('Error loading business category:', error);
-          setShowStockSource(false);
         }
 
         // Load bank accounts to get default POS account
@@ -147,48 +138,9 @@ export function RecordSalePage() {
           console.error('Error loading bank accounts:', error);
         }
 
-        // Now fetch products from the business-specific collection
-        const productsQuery = query(
-          collection(firestore, 'businesses', bId, 'products'),
-          where('active', '==', true)
-        );
+        // Fetch products from the business-specific collection
+        await refreshProducts();
         
-        const snapshot = await getDocs(productsQuery);
-        const fetchedProducts: Product[] = [];
-        
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const productType = data.type || data.category || 'product';
-          
-          // For restaurant/cafe businesses, exclude ingredients from saleable products
-          // Ingredients are used internally for meal cost calculation, not sold directly
-          const isRestaurant = businessCategory.toLowerCase().includes('restaurant') || 
-                               businessCategory.toLowerCase().includes('cafe');
-          
-          if (isRestaurant && productType.toLowerCase() === 'ingredient') {
-            return; // Skip ingredients for restaurants
-          }
-          
-          fetchedProducts.push({
-            id: doc.id,
-            name: data.name || 'Unnamed Product',
-            price: data.price || 0,
-            costPrice: data.cost || data.costPrice || 0,
-            stock: data.stock || 0,
-            stockByLocation: data.stockByLocation || {
-              main_store: data.stock || 0,
-              back_store: 0,
-              warehouse: 0,
-            },
-            emoji: data.emoji || '📦',
-            lowStockThreshold: data.lowStockThreshold || 10,
-            imageUrl: data.imageUrl || '',
-            type: productType,
-          });
-        });
-        
-        setProducts(fetchedProducts);
-
         // Load stock locations
         try {
           const locationsQuery = query(
@@ -217,6 +169,13 @@ export function RecordSalePage() {
           }
           
           setStockLocations(loadedLocations);
+          
+          // Only show stock source selector if user has created custom stock locations
+          // (beyond the default 3: main_store, back_store, warehouse)
+          const hasCustomLocations = loadedLocations.some(
+            loc => !['main_store', 'back_store', 'warehouse'].includes(loc.id)
+          );
+          setShowStockSource(hasCustomLocations);
         } catch (error) {
           console.error('Error loading stock locations:', error);
           // Set default locations on error
@@ -225,6 +184,7 @@ export function RecordSalePage() {
             { id: 'back_store', name: 'Back Store', type: 'back_store' },
             { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
           ]);
+          setShowStockSource(false);
         }
 
         // Load credit customers
@@ -264,7 +224,63 @@ export function RecordSalePage() {
     }
 
     fetchProducts();
-  }, [firestore, showToast]);
+  }, [firestore, showToast, branches, isProUser]);
+
+  // Helper function to refresh products from Firestore
+  async function refreshProducts() {
+    if (!firestore || !businessId) return;
+    
+    try {
+      // Re-fetch business category for filtering
+      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+      let currentCategory = '';
+      if (businessDoc.exists()) {
+        currentCategory = (businessDoc.data()?.category || '').toLowerCase();
+      }
+      
+      const productsQuery = query(
+        collection(firestore, 'businesses', businessId, 'products'),
+        where('active', '==', true)
+      );
+      
+      const snapshot = await getDocs(productsQuery);
+      const fetchedProducts: Product[] = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const productType = data.type || data.category || 'product';
+        
+        // For restaurant/cafe businesses, exclude ingredients from saleable products
+        const isRestaurant = currentCategory.toLowerCase().includes('restaurant') || 
+                             currentCategory.toLowerCase().includes('cafe');
+        
+        if (isRestaurant && productType.toLowerCase() === 'ingredient') {
+          return;
+        }
+        
+        fetchedProducts.push({
+          id: doc.id,
+          name: data.name || 'Unnamed Product',
+          price: data.price || 0,
+          costPrice: data.cost || data.costPrice || 0,
+          stock: data.stock || data.quantity || 0,
+          stockByLocation: data.stockByLocation || {
+            main_store: data.stock || 0,
+            back_store: 0,
+            warehouse: 0,
+          },
+          emoji: data.emoji || '📦',
+          lowStockThreshold: data.lowStockThreshold || 10,
+          imageUrl: data.imageUrl || '',
+          type: productType,
+        });
+      });
+      
+      setProducts(fetchedProducts);
+    } catch (error) {
+      console.error('Error refreshing products:', error);
+    }
+  }
 
   const filtered = useMemo(
     () => products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
@@ -545,12 +561,12 @@ export function RecordSalePage() {
           
           if (productDoc.exists()) {
             const data = productDoc.data();
-            const currentStock = data.stock || 0;
+            const currentStock = data.stock || data.quantity || 0;
             const newStock = Math.max(0, currentStock - item.qty);
             
-            // Update stockByLocation
+            // Update stockByLocation - preserve existing stock value for main_store
             const stockByLocation = data.stockByLocation || {
-              main_store: 0,
+              main_store: currentStock,
               back_store: 0,
               warehouse: 0,
             };
@@ -684,6 +700,9 @@ export function RecordSalePage() {
       
       clearCart();
       setPaymentBreakdown([]);
+      
+      // Refresh products to show updated stock quantities
+      await refreshProducts();
       
       // Clear credit fields
       setSelectedCreditCustomer('');

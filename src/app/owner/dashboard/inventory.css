@@ -1199,19 +1199,24 @@
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg);
+  color: var(--text-2);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   transition: all var(--transition);
   flex-shrink: 0;
-  color: var(--text-2);
 }
 
 .inv-modal-close:hover {
-  background: var(--red-lt);
   border-color: var(--red);
   color: var(--red);
+  background: var(--red-lt);
+}
+
+.inv-modal-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .inv-modal-tabs {

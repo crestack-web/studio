@@ -211,7 +211,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
                       <div>
                         <div className="inv-prod-name">{p.name}</div>
                         <div className="inv-prod-days">
-                          {daysSince === 0 ? t('inventory.soldToday') : daysSince === 1 ? t('inventory.soldYesterday') : t('inventory.soldDaysAgo', { days: daysSince })}
+                          {daysSince === -1 ? 'Never sold' : daysSince === 0 ? t('inventory.soldToday') : daysSince === 1 ? t('inventory.soldYesterday') : t('inventory.soldDaysAgo', { days: daysSince })}
                         </div>
                       </div>
                     </div>
