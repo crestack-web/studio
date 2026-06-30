@@ -234,61 +234,91 @@ async function executeAction(action: any, businessId: string, userId: string): P
 
     if (action.action === 'record_sale') {
       const data = action.data;
+      const items = data.items || [];
       
-      // Find product in inventory
-      const productSearch = await findProductByName(businessId, data.productName);
-      
-      if (!productSearch.found) {
-        // Check if there are multiple matches
-        if (productSearch.matches && productSearch.matches.length > 0) {
-          const matchList = productSearch.matches
-            .map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`)
-            .join('\n');
-          return { 
-            success: false, 
-            message: `I found multiple products matching "${data.productName}":\n\n${matchList}\n\nPlease specify which one you want to sell.`, 
-            data: { 
-              requiresClarification: true,
-              matches: productSearch.matches.map((p: any) => ({ id: p.id, name: p.name, stock: p.stock || p.quantity || 0 }))
-            } 
+      // Support legacy single-item format
+      if (!items.length && data.productName) {
+        items.push({
+          productName: data.productName,
+          quantity: parseInt(data.quantity) || 1,
+          price: parseFloat(data.price) || parseFloat(data.amount) || 0,
+          costPrice: parseFloat(data.costPrice) || 0,
+        });
+      }
+
+      if (items.length === 0) {
+        return {
+          success: false,
+          message: 'No sale items provided. Please specify at least one product.',
+          data: null
+        };
+      }
+
+      // Resolve and validate all items
+      const saleItems: any[] = [];
+      const productSummaries: any[] = [];
+
+      for (const item of items) {
+        const productSearch = await findProductByName(businessId, item.productName);
+        
+        if (!productSearch.found) {
+          if (productSearch.matches && productSearch.matches.length > 0) {
+            const matchList = productSearch.matches
+              .map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`)
+              .join('\n');
+            return {
+              success: false,
+              message: `I found multiple products matching "${item.productName}":\n\n${matchList}\n\nPlease specify which one you want to sell.`,
+              data: {
+                requiresClarification: true,
+                matches: productSearch.matches.map((p: any) => ({ id: p.id, name: p.name, stock: p.stock || p.quantity || 0 })),
+                ambiguousProduct: item.productName
+              }
+            };
+          }
+          return {
+            success: false,
+            message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling.`,
+            data: null
           };
         }
-        return { 
-          success: false, 
-          message: `Product "${data.productName}" not found in your inventory. Please add this product first or check the spelling.`, 
-          data: null 
-        };
-      }
 
-      const product = productSearch.product;
-      const quantity = parseInt(data.quantity) || 1;
-      
-      // Use product's stored prices
-      const costPrice = product.cost || product.costPrice || 0;
-      const sellingPrice = product.price || parseFloat(data.price) || 0;
+        const product = productSearch.product;
+        const quantity = parseInt(item.quantity) || 1;
+        const costPrice = product.cost || product.costPrice || 0;
+        const sellingPrice = product.price || parseFloat(item.price) || costPrice;
 
-      // Check stock availability
-      const currentStock = product.stock || product.quantity || 0;
-      if (currentStock < quantity) {
-        return { 
-          success: false, 
-          message: `Insufficient stock for "${product.name}". Only ${currentStock} units available, but you requested ${quantity}.`, 
-          data: null 
-        };
-      }
+        const currentStock = product.stock || product.quantity || 0;
+        if (currentStock < quantity) {
+          return {
+            success: false,
+            message: `Insufficient stock for "${product.name}". Only ${currentStock} units available, but you requested ${quantity}.`,
+            data: null
+          };
+        }
 
-      // Use the shared record sale service
-      const result = await recordSale({
-        businessId,
-        userId,
-        items: [{
+        saleItems.push({
           productId: product.id,
           name: product.name,
           quantity,
           price: sellingPrice,
           costPrice,
           emoji: product.attributes?.emoji || '📦',
-        }],
+        });
+
+        productSummaries.push({
+          name: product.name,
+          quantity,
+          sellingPrice,
+          costPrice,
+          remainingStock: currentStock - quantity,
+        });
+      }
+
+      const result = await recordSale({
+        businessId,
+        userId,
+        items: saleItems,
         paymentType: 'cash',
         source: 'mo_ai',
         recordedBy: {
@@ -308,25 +338,25 @@ async function executeAction(action: any, businessId: string, userId: string): P
         };
       }
 
-      const profit = result.data?.totalProfit || 0;
-      const remainingStock = result.data?.remainingStock[product.id] || 0;
+      const totalProfit = result.data?.totalProfit || 0;
+      const totalRevenue = result.data?.totalRevenue || 0;
 
-      return { 
-        success: true, 
-        message: `Sale recorded successfully for ${quantity}x ${product.name} (Profit: ₦${profit.toLocaleString()})`, 
-        data: { 
-          saleId: result.saleId, 
-          profit,
-          totalRevenue: result.data?.totalRevenue,
-          product: {
-            id: product.id,
+      return {
+        success: true,
+        message: `Sale recorded successfully`,
+        data: {
+          saleId: result.saleId,
+          profit: totalProfit,
+          totalRevenue,
+          totalCost: result.data?.totalCost,
+          items: productSummaries.map((product, idx) => ({
             name: product.name,
-            sku: product.attributes?.sku || product.sku,
-            costPrice,
-            sellingPrice,
-            remainingStock,
-          }
-        } 
+            quantity: product.quantity,
+            price: product.sellingPrice,
+            costPrice: product.costPrice,
+            remainingStock: result.data?.remainingStock[saleItems[idx].productId] || product.remainingStock,
+          }))
+        }
       };
     }
 
@@ -1037,7 +1067,9 @@ RECORDING SALES:
 - If any required field is missing, ASK the user for it before providing the action JSON
 - Required fields: productName, quantity, price (or amount), costPrice
 - Return structured JSON in your response for sale recording:
-  {"action": "record_sale", "data": {"productName": "...", "quantity": 1, "amount": 0, "price": 0, "costPrice": 0}}
+  {"action": "record_sale", "data": {"items": [{"productName": "...", "quantity": 1, "price": 0, "costPrice": 0}]}}
+- For multiple products in one request, use the items array:
+  {"action": "record_sale", "data": {"items": [{"productName": "...", "quantity": 1, "price": 0}, {"productName": "...", "quantity": 2, "price": 0}]}}
 - If user sends an image of a product/receipt, analyze it to extract sale details
 - If information is incomplete from image, ask user to provide missing details
 
