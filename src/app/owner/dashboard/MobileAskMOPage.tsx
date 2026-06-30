@@ -118,13 +118,7 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-load first conversation on mount for continuity after refresh
-   useEffect(() => {
-    if (conversations.length > 0 && !currentConversationId && messages.length === 0 && !autoLoadComplete) {
-      setAutoLoadComplete(true);
-      loadConversation(conversations[0].id).catch(console.error);
-    }
-  }, [conversations, currentConversationId, messages.length, loadConversation, autoLoadComplete]);
+  // Do NOT auto-load conversations on mount - show welcome screen as per requirements
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
@@ -434,6 +428,15 @@ export function MobileAskMOPage() {
     setLoadingStage(1);
     setLoadingActions([]);
 
+    // Create conversation immediately on first message (before API call)
+    if (!currentConversationId) {
+      console.log('💾 [MobileAskMO] Creating new conversation on first message');
+      const newConversationId = await createConversation(userMsg);
+      if (newConversationId) {
+        console.log('✅ [MobileAskMO] Conversation created:', newConversationId);
+      }
+    }
+
     // Stage 1: Understanding Request
     console.log('🔄 [MobileAskMO] Stage 1: Understanding Request');
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -474,23 +477,8 @@ export function MobileAskMOPage() {
     console.log('✅ [MobileAskMO] Loading stages completed', { time: Date.now() - requestStartTime });
 
     try {
-      console.log('💾 [MobileAskMO] Saving user message to Firestore');
-      const firestoreSaveStart = Date.now();
-      const { firestore } = initializeFirebase();
-
-      const messageData: any = {
-        role: userMsg.role,
-        content: userMsg.content,
-        timestamp: Timestamp.now(),
-      };
-      if (userMsg.imageUrl) {
-        messageData.imageUrl = userMsg.imageUrl;
-      }
-      if (userMsg.audioUrl) {
-        messageData.audioUrl = userMsg.audioUrl;
-      }
-      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', userMsg.id), messageData);
-      console.log('✅ [MobileAskMO] User message saved to Firestore', { time: Date.now() - firestoreSaveStart });
+      console.log('💾 [MobileAskMO] Saving user message to conversation');
+      // Note: Messages are now saved to conversation document, not individual mo_messages collection
 
       // Create a placeholder bot message for streaming
       const botMsgId = (Date.now() + 1).toString();
@@ -580,13 +568,12 @@ export function MobileAskMOPage() {
         )
       );
 
-      console.log('💾 [MobileAskMO] Saving bot message to Firestore');
-      const botMessageData: any = {
-        role: 'bot',
-        content: fullContent,
-        timestamp: Timestamp.now(),
-      };
-      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsgId), botMessageData);
+      // Save bot message to conversation immediately
+      if (currentConversationId) {
+        console.log('💾 [MobileAskMO] Saving bot message to conversation');
+        const updatedMessages = [...messages, userMsg, { ...botMsg, content: fullContent }];
+        await saveMessages(currentConversationId, updatedMessages);
+      }
 
       // Calculate and consume credits based on response length (simulating token usage)
       // Only consume credits if we received a valid response
@@ -599,16 +586,9 @@ export function MobileAskMOPage() {
         console.log('⚠️ [MobileAskMO] Not consuming credits - invalid or empty response');
       }
 
-      // Auto-save conversation after each message exchange
-      console.log('💾 [MobileAskMO] Auto-saving conversation');
-      
-      // Get the updated messages
-      const updatedMessages = [...messages, userMsg, { ...botMsg, content: fullContent }];
-      
       // Check if there's a pending action (sale confirmation)
       if (data.action && data.action.action === 'record_sale') {
         console.log('🎯 [MobileAskMO] Sale action detected, showing confirmation card');
-        // DON'T save to conversation yet - wait for user confirmation
         // Update the bot message with saleCard data so the UI can render the confirmation card
         const saleData = data.action.data;
         const botMsgWithCard: MOMessage = {
@@ -633,16 +613,11 @@ export function MobileAskMOPage() {
         ));
         // Set pending action for confirmation
         setPendingAction(data.action);
-      } else {
-        // No action - save conversation normally
-        if (!currentConversationId) {
-          const newConversationId = await createConversation(userMsg);
-          if (newConversationId) {
-            await saveMessages(newConversationId, updatedMessages);
-          }
-        } else {
-          // Save to existing conversation
-          await saveMessages(currentConversationId, updatedMessages);
+        
+        // Save the updated message with sale card to conversation
+        if (currentConversationId) {
+          const updatedMessagesWithCard = [...messages, userMsg, botMsgWithCard];
+          await saveMessages(currentConversationId, updatedMessagesWithCard);
         }
       }
 
