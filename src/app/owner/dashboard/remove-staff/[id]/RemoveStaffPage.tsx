@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../AppContext';
 import { Button } from '../../Button';
-import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useParams } from 'next/navigation';
+import { initializeFirebase } from '@/firebase';
 import styles from '../../add-staff/AddStaffPage.module.css';
 
 export default function RemoveStaffPage() {
@@ -14,14 +15,25 @@ export default function RemoveStaffPage() {
   const db = useFirestore();
 
   const [staffName, setStaffName] = useState('');
+  const [businessId, setBusinessId] = useState('');
 
   useEffect(() => {
     const fetchStaffMember = async () => {
-      const docRef = doc(db, 'staff', staffId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const staffData = docSnap.data();
-        setStaffName(staffData.name);
+      try {
+        const { auth, firestore } = initializeFirebase();
+        const currentUserId = auth.currentUser?.uid || '';
+        const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
+        const bid = ownerDoc.data()?.businessId || 'default';
+        setBusinessId(bid);
+
+        const docRef = doc(db, 'businesses', bid, 'staff', staffId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const staffData = docSnap.data();
+          setStaffName(staffData.name);
+        }
+      } catch (error) {
+        console.error('Error fetching staff member:', error);
       }
     };
     fetchStaffMember();
@@ -29,8 +41,15 @@ export default function RemoveStaffPage() {
 
   const handleRemoveStaff = async () => {
     try {
-      const docRef = doc(db, 'staff', staffId);
-      await deleteDoc(docRef);
+      const staffDocRef = doc(db, 'businesses', businessId, 'staff', staffId);
+      await deleteDoc(staffDocRef);
+
+      const { firestore } = initializeFirebase();
+      await setDoc(doc(firestore, 'users', staffId), {
+        role: 'Removed',
+        businessId: null,
+      }, { merge: true });
+
       showToast('Staff member removed successfully!');
       navigateTo('staff');
     } catch (error) {

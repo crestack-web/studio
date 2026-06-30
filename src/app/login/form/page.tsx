@@ -179,7 +179,7 @@ export default function BusmoLogin() {
         const role = userData?.role || 'Owner';
 
         // Redirect based on role
-        if (role === 'Staff') {
+        if (!['Owner', 'Admin'].includes(role)) {
           window.location.href = '/staff/home';
         } else {
           window.location.href = '/owner';

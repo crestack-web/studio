@@ -44,13 +44,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
         setUserRole(role);
 
         // Check if user has the required role
-        if (requiredRole === 'Owner' && role !== 'Owner') {
+        if (requiredRole === 'Owner' && ['Staff', 'Admin'].includes(role)) {
           // Staff trying to access owner area
           router.replace('/staff/home');
           return;
         }
 
-        if (requiredRole === 'Staff' && role !== 'Staff') {
+        if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
           // Owner trying to access staff area
           router.replace('/owner/dashboard');
           return;

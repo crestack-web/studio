@@ -4,6 +4,7 @@
  */
 
 export interface PermissionConfig {
+  key: string;
   label: string;
   description: string;
   category: 'sales' | 'inventory' | 'reporting' | 'management' | 'financial';
@@ -24,26 +25,31 @@ export interface BusinessTypeConfig {
 // All available permissions mapped to actual staff portal pages
 export const PERMISSIONS: Record<string, PermissionConfig> = {
   sale: {
+    key: 'sale',
     label: 'Record Sales',
     description: 'Create and process sales transactions',
     category: 'sales',
   },
   inv: {
+    key: 'inv',
     label: 'View Inventory',
     description: 'View products, stock levels, and suppliers',
     category: 'inventory',
   },
   hist: {
+    key: 'hist',
     label: 'History & Reports',
     description: 'View sales history, customers, and reports',
     category: 'reporting',
   },
   atd: {
+    key: 'atd',
     label: 'Attendance',
     description: 'Clock in/out and track your shifts',
     category: 'management',
   },
   msg: {
+    key: 'msg',
     label: 'Messages',
     description: 'Chat with the owner and your team',
     category: 'management',

@@ -242,7 +242,7 @@ export default function AddStaffPage() {
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {perms.map(perm => (
-                    <label key={perm.label} style={{ 
+                    <label key={perm.label} style={{
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '8px',

@@ -28,7 +28,7 @@ export default function StaffHomePage() {
         const userDoc = await getDoc(doc(firestore, 'users', user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          if (data.role !== 'Staff') {
+          if (['Owner', 'Admin'].includes(data.role)) {
             router.push('/login');
             return;
           }

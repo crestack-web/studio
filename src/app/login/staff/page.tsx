@@ -164,7 +164,7 @@ export default function StaffLogin() {
       const userDocRef = doc(firestore, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (userDoc.exists() && userDoc.data().role === 'Staff') {
+      if (userDoc.exists() && !['Owner', 'Admin'].includes(userDoc.data().role)) {
         window.location.href = "/staff/home";
       } else {
         setError("You are not authorized to access the staff portal. Please contact your business owner.");
