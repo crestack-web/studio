@@ -8,11 +8,9 @@ import { initializeFirebase } from '@/firebase';
 import styles from './AddStaffPage.module.css';
 import { 
   ROLES, 
-  PERMISSIONS, 
   getRecommendedPermissions, 
   getRecommendedRoles,
-  getPermissionsByCategory,
-  createPermissionsObject 
+  createPermissionsObject
 } from '@/lib/staffPermissions';
 
 export default function AddStaffPage() {
@@ -158,14 +156,6 @@ export default function AddStaffPage() {
     navigateTo('staff');
   };
 
-  const togglePermission = (key: string) => {
-    setSelectedPermissions(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const permissionsByCategory = getPermissionsByCategory();
   const recommendedRoles = getRecommendedRoles(businessType);
   const allRoles = Object.entries(ROLES).map(([id, config]) => ({ id, ...config }));
   const filteredRoles = allRoles.filter(role => recommendedRoles.includes(role.id));
@@ -222,57 +212,6 @@ export default function AddStaffPage() {
           )}
         </div>
 
-        {role && (
-          <div className={styles.formGroup} style={{ marginTop: '24px' }}>
-            <label>Permissions</label>
-            <p style={{ fontSize: '0.8rem', color: 'var(--t3)', marginBottom: '12px' }}>
-              Permissions are automatically recommended based on the selected role. You can customize them below.
-            </p>
-            {Object.entries(permissionsByCategory).map(([category, perms]) => (
-              <div key={category} style={{ marginBottom: '16px' }}>
-                <h4 style={{ 
-                  fontSize: '0.85rem', 
-                  fontWeight: '600', 
-                  color: 'var(--t1)', 
-                  marginBottom: '8px',
-                  textTransform: 'capitalize',
-                  letterSpacing: '0.05em'
-                }}>
-                  {category}
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {perms.map(perm => (
-                    <label key={perm.label} style={{
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      background: 'var(--bg)',
-                      cursor: 'pointer',
-                      border: selectedPermissions[perm.label] ? '1.5px solid var(--brand)' : '1px solid #E8E8F0',
-                    }}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedPermissions[perm.label] || false}
-                        onChange={() => togglePermission(perm.label)}
-                        style={{ accentColor: 'var(--brand)' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--t1)' }}>
-                          {perm.label}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--t3)' }}>
-                          {perm.description}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
         <Button variant="primary" onClick={handleAddStaff}>Add Staff Member</Button>
       </div>
