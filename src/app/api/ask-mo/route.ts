@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
 import { recordSale, findProductByName } from '@/lib/services/record-sale-service';
 import { addProduct } from '@/lib/services/add-product-service';
+import { addExpense } from '@/lib/services/add-expense-service';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
@@ -160,6 +161,44 @@ async function executeAction(action: any, businessId: string, userId: string): P
         data: {
           productId: result.productId,
           product: result.product,
+        }
+      };
+    }
+
+    if (action.action === 'add_expense') {
+      const data = action.data;
+
+      const result = await addExpense({
+        businessId,
+        userId,
+        category: data.category,
+        amount: parseFloat(data.amount),
+        date: data.date || new Date().toISOString().split('T')[0],
+        paymentMethod: data.paymentMethod || 'Cash',
+        description: data.description || '',
+        linkedProduct: data.linkedProduct,
+        quantityReceived: data.quantityReceived ? parseInt(data.quantityReceived) : undefined,
+        isRecurring: data.isRecurring || false,
+        recurFrequency: data.recurFrequency,
+        recurNextDate: data.recurNextDate,
+        receiptUrl: data.receiptUrl,
+        receiptData: data.receiptData,
+      });
+
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message,
+          data: null
+        };
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        data: {
+          expenseId: result.expenseId,
+          expense: result.expense,
         }
       };
     }
@@ -1016,14 +1055,16 @@ ADDING PRODUCTS:
 - If user sends an image of a product, analyze it to extract product details
 - If information is incomplete from image, ask user to provide missing details
 
-ADDING PRODUCTS:
-- When user wants to add a new product, extract: name, price, stock, category
+RECORDING EXPENSES:
+- When user wants to record an expense, extract: category, amount, date, payment method, description
 - If any required field is missing, ASK the user for it before providing the action JSON
-- Required fields: name, price, stock, category
-- Optional fields: description, costPrice, lowStockThreshold
-- Return structured JSON in your response for product addition:
-  {"action": "add_product", "data": {"name": "...", "price": 0, "stock": 0, "category": "...", "description": "...", "costPrice": 0, "lowStockThreshold": 5}}
-- If user sends an image of a product, analyze it to extract product details
+- Required fields: category, amount, date
+- Optional fields: paymentMethod, description, linkedProduct, quantityReceived, isRecurring, recurFrequency, recurNextDate, receiptData
+- Common expense categories: stock (restocking), raw (raw materials), rent, util (utilities), transport, fuel, salary, commission, marketing, packaging, bank (bank charges), loan, tax, equipment, other
+- Return structured JSON in your response for expense recording:
+  {"action": "add_expense", "data": {"category": "stock", "amount": 50000, "date": "2024-01-15", "paymentMethod": "Cash", "description": "Purchased 50 units of polo shirts", "linkedProduct": "Premium Polo", "quantityReceived": 50}}
+- For recurring expenses, include: isRecurring: true, recurFrequency: "Monthly", recurNextDate: "2024-02-15"
+- If user sends an image of a receipt, analyze it to extract expense details
 - If information is incomplete from image, ask user to provide missing details
 
 IMAGE ANALYSIS:

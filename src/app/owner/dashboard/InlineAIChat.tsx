@@ -509,45 +509,13 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         console.log('🎯 Action detected:', data.action);
         const action = data.action;
 
-        if (action.action === 'record_sale') {
-          const firstItem = action.data?.items?.[0] || action.data;
-          const productName = firstItem?.productName || firstItem?.name;
-
-          if (productName) {
-            try {
-              const { firestore } = initializeFirebase();
-              const productQuery = await query(
-                collection(firestore, 'businesses', user.businessId || user.id, 'products'),
-                where('name', '==', productName),
-                where('active', '==', true),
-                limit(1)
-              );
-              const productSnapshot = await getDocs(productQuery);
-
-              if (!productSnapshot.empty) {
-                const productDoc = productSnapshot.docs[0];
-                const productData = productDoc.data();
-                setPendingProductDetails({
-                  name: productData.name,
-                  sellingPrice: productData.price || 0,
-                  costPrice: productData.cost || productData.costPrice || 0,
-                  currentStock: productData.stock || 0,
-                });
-              }
-            } catch (error) {
-              console.error('Error fetching product details:', error);
-            }
+          if (action.action === 'record_sale' || action.action === 'add_product' || action.action === 'add_expense') {
+            setPendingAction(action);
+            await executePendingAction(action);
+          } else {
+            setPendingAction(action);
+            setShowActionConfirmation(true);
           }
-
-          setPendingAction(action);
-          await executePendingAction(action);
-        } else if (action.action === 'add_product') {
-          setPendingAction(action);
-          await executePendingAction(action);
-        } else {
-          setPendingAction(action);
-          setShowActionConfirmation(true);
-        }
       }
 
       setMessages(prev => [...prev, botMsg]);
