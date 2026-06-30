@@ -139,7 +139,8 @@ export function RecordSalePage() {
         }
 
         // Fetch products from the business-specific collection
-        await refreshProducts();
+        // Pass bId directly to avoid timing issue with state update
+        await refreshProducts(bId);
         
         // Load stock locations
         try {
@@ -227,22 +228,34 @@ export function RecordSalePage() {
   }, [firestore, showToast, branches, isProUser]);
 
   // Helper function to refresh products from Firestore
-  async function refreshProducts() {
-    if (!firestore || !businessId) return;
+  async function refreshProducts(bizId?: string) {
+    const targetBusinessId = bizId || businessId;
+    if (!firestore || !targetBusinessId) {
+      console.error('refreshProducts: Missing firestore or businessId', { firestore: !!firestore, businessId: targetBusinessId });
+      return;
+    }
     
     try {
+      console.log('refreshProducts: Starting fetch for businessId:', targetBusinessId);
+      
       // Re-fetch business category for filtering
-      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+      const businessDoc = await getDoc(doc(firestore, 'businesses', targetBusinessId));
       let currentCategory = '';
       if (businessDoc.exists()) {
         currentCategory = (businessDoc.data()?.category || '').toLowerCase();
+        console.log('refreshProducts: Business category:', currentCategory);
+      } else {
+        console.warn('refreshProducts: Business document not found');
       }
       
       const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products')
+        collection(firestore, 'businesses', targetBusinessId, 'products')
       );
       
+      console.log('refreshProducts: Executing products query');
       const snapshot = await getDocs(productsQuery);
+      console.log('refreshProducts: Query returned', snapshot.size, 'products');
+      
       const fetchedProducts: Product[] = [];
       
       snapshot.forEach(doc => {
@@ -255,11 +268,13 @@ export function RecordSalePage() {
         
         // For restaurant/cafe businesses, exclude ingredients from saleable products
         if (isRestaurant && productType.toLowerCase() === 'ingredient') {
+          console.log('Skipping ingredient:', data.name);
           return;
         }
         
-        // Skip inactive products
+        // Skip inactive products (only if explicitly set to false)
         if (data.active === false) {
+          console.log('Skipping inactive product:', data.name);
           return;
         }
         
@@ -281,9 +296,11 @@ export function RecordSalePage() {
         });
       });
       
+      console.log('refreshProducts: Fetched', fetchedProducts.length, 'active products');
       setProducts(fetchedProducts);
     } catch (error) {
       console.error('Error refreshing products:', error);
+      showToast('Failed to load products');
     }
   }
 
