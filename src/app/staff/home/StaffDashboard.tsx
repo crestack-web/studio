@@ -82,6 +82,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               shiftElapsed='0h 0m'
               onNav={navigate}
               onToast={showToast}
+              staffId={staff?.id}
             />
           )}
           {page === 'sale' && <SalePage onComplete={() => showToast('Sale completed!')} />}

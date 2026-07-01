@@ -22,6 +22,7 @@ interface HomePageProps {
   shiftElapsed: string;
   onNav: (p: PageId) => void;
   onToast: (msg: string) => void;
+  staffId?: string;
 }
 
 const avgSale = (total: number, txns: number, currency: string) =>
@@ -75,7 +76,7 @@ const PERM_LABELS: Array<{ key: keyof Permissions; label: string; color: string 
 
 export const HomePage: React.FC<HomePageProps> = ({
   greeting, salesTotal: propSalesTotal, transactions: propTransactions, itemsSold,
-  permissions, shiftElapsed, onNav, onToast,
+  permissions, shiftElapsed, onNav, onToast, staffId,
 }) => {
   const [salesTotal, setSalesTotal] = useState(propSalesTotal);
   const [transactions, setTransactions] = useState(propTransactions);
@@ -121,8 +122,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               setBusinessCurrency('₦');
             }
 
-            // Fetch today's sales
-            const todayData = await fetchTodaysSales(getFirestore(), userData.businessId);
+            // Fetch today's sales (filtered by staff if staffId provided)
+            const todayData = await fetchTodaysSales(getFirestore(), userData.businessId, staffId);
             setSalesTotal(todayData.sales);
             setTransactions(todayData.transactions);
 

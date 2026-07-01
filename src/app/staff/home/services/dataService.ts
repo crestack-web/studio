@@ -233,7 +233,8 @@ export async function fetchRecentSales(
  */
 export async function fetchTodaysSales(
   db: Firestore,
-  businessId: string
+  businessId: string,
+  staffId?: string
 ): Promise<{ sales: number; profit: number; transactions: number }> {
   try {
     const today = new Date();
@@ -241,10 +242,19 @@ export async function fetchTodaysSales(
     const todayStart = Timestamp.fromDate(today);
 
     // Use 'businesses' collection
-    const salesQuery = query(
+    let salesQuery = query(
       collection(db, 'businesses', businessId, 'sales'),
       where('createdAt', '>=', todayStart)
     );
+
+    // If staffId provided, filter by staff member's sales
+    if (staffId) {
+      salesQuery = query(
+        collection(db, 'businesses', businessId, 'sales'),
+        where('createdAt', '>=', todayStart),
+        where('recordedBy.staffId', '==', staffId)
+      );
+    }
 
     const snapshot = await getDocs(salesQuery);
     let sales = 0;
