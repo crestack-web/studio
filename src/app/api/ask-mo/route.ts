@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import admin from 'firebase-admin';
-import { recordSale, findProductByName } from '@/lib/services/record-sale-service';
-import { addProduct } from '@/lib/services/add-product-service';
-import { addExpense } from '@/lib/services/add-expense-service';
+import { detectIntent } from '@/lib/services/mo-intent-router';
+import { executeAction } from '@/lib/services/mo-action-router';
+import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
@@ -54,7 +54,6 @@ function detectConversationStyle(conversationHistory: any[]): { style: string; t
     const words = content.split(/\s+/).length;
     totalWords += words;
 
-    // Detect formality
     if (/\b(please|kindly|would|could|may|regarding|concerning|appreciate)\b/i.test(content)) {
       formalCount++;
     }
@@ -62,7 +61,6 @@ function detectConversationStyle(conversationHistory: any[]): { style: string; t
       casualCount++;
     }
 
-    // Detect length preference
     if (words < 10) shortCount++;
     if (words > 30) longCount++;
   });
@@ -99,249 +97,27 @@ function detectConversationStyle(conversationHistory: any[]): { style: string; t
 }
 
 /**
- * Execute action (create product or record sale)
+ * Check if user has permission for an action
  */
-async function executeAction(action: any, businessId: string, userId: string): Promise<{ success: boolean; message: string; data: any }> {
-  const db = getAdminDb();
+function checkPermission(action: string, userRole?: string): boolean {
+  if (!userRole) return false;
   
-  try {
-    if (action.action === 'add_product') {
-      const data = action.data;
-
-      const result = await addProduct({
-        businessId,
-        userId,
-        name: data.name,
-        category: data.category || 'General',
-        sellPrice: parseFloat(data.price) || parseFloat(data.sellPrice) || 0,
-        costPrice: parseFloat(data.costPrice) || 0,
-        openingStock: parseInt(data.stock) || 0,
-        description: data.description || '',
-        sku: data.sku,
-        lowStockAlert: parseInt(data.lowStockThreshold) || parseInt(data.lowStockAlert) || 5,
-        unit: data.unit || 'piece',
-        hasExpiry: data.hasExpiry || false,
-        expiryDate: data.expiryDate,
-        hasVariants: data.hasVariants || false,
-        variantType: data.variantType,
-        variantValues: data.variantValues,
-        useDefaultDelivery: data.useDefaultDelivery !== false,
-        selectedCountries: data.selectedCountries,
-        deliveryTime: data.deliveryTime,
-        shippingFeeOverride: data.shippingFeeOverride,
-        manualSale: data.manualSale !== false,
-        onlineStore: data.onlineStore || false,
-        imageUrl: data.imageUrl || '',
-        imageData: data.imageData,
-        productType: data.productType || 'product',
-        dishCategory: data.dishCategory,
-        preparationTime: data.preparationTime,
-        ingredientUnit: data.ingredientUnit,
-        supplier: data.supplier,
-        reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : undefined,
-        expiryDateIngredient: data.expiryDateIngredient,
-        branch: data.branch,
-        ingredients: data.ingredients,
-        warehouseLocation: data.warehouseLocation || 'main_store',
-        stockByLocation: data.stockByLocation,
-        businessCategory: data.businessCategory || 'retail',
-      });
-
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-          data: null
-        };
-      }
-
-      return {
-        success: true,
-        message: result.message,
-        data: {
-          productId: result.productId,
-          product: result.product,
-        }
-      };
-    }
-
-    if (action.action === 'add_expense') {
-      const data = action.data;
-
-      const result = await addExpense({
-        businessId,
-        userId,
-        category: data.category,
-        amount: parseFloat(data.amount),
-        date: data.date || new Date().toISOString().split('T')[0],
-        paymentMethod: data.paymentMethod || 'Cash',
-        description: data.description || '',
-        linkedProduct: data.linkedProduct,
-        quantityReceived: data.quantityReceived ? parseInt(data.quantityReceived) : undefined,
-        isRecurring: data.isRecurring || false,
-        recurFrequency: data.recurFrequency,
-        recurNextDate: data.recurNextDate,
-        receiptUrl: data.receiptUrl,
-        receiptData: data.receiptData,
-      });
-
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-          data: null
-        };
-      }
-
-      return {
-        success: true,
-        message: result.message,
-        data: {
-          expenseId: result.expenseId,
-          expense: result.expense,
-        }
-      };
-    }
-
-    if (action.action === 'record_sale') {
-      const data = action.data;
-      const items = data.items || [];
-      
-      // Support legacy single-item format
-      if (!items.length && data.productName) {
-        items.push({
-          productName: data.productName,
-          quantity: parseInt(data.quantity) || 1,
-          price: parseFloat(data.price) || parseFloat(data.amount) || 0,
-          costPrice: parseFloat(data.costPrice) || 0,
-        });
-      }
-
-      if (items.length === 0) {
-        return {
-          success: false,
-          message: 'No sale items provided. Please specify at least one product.',
-          data: null
-        };
-      }
-
-      // Resolve and validate all items
-      const saleItems: any[] = [];
-      const productSummaries: any[] = [];
-
-      for (const item of items) {
-        const productSearch = await findProductByName(businessId, item.productName);
-        
-        if (!productSearch.found) {
-          if (productSearch.matches && productSearch.matches.length > 0) {
-            const matchList = productSearch.matches
-              .map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`)
-              .join('\n');
-            return {
-              success: false,
-              message: `I found multiple products matching "${item.productName}":\n\n${matchList}\n\nPlease specify which one you want to sell.`,
-              data: {
-                requiresClarification: true,
-                matches: productSearch.matches.map((p: any) => ({ id: p.id, name: p.name, stock: p.stock || p.quantity || 0 })),
-                ambiguousProduct: item.productName
-              }
-            };
-          }
-          return {
-            success: false,
-            message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling.`,
-            data: null
-          };
-        }
-
-        const product = productSearch.product;
-        const quantity = parseInt(item.quantity) || 1;
-        const costPrice = product.cost || product.costPrice || 0;
-        const sellingPrice = product.price || parseFloat(item.price) || costPrice;
-
-        const currentStock = product.stock || product.quantity || 0;
-        if (currentStock < quantity) {
-          return {
-            success: false,
-            message: `Insufficient stock for "${product.name}". Only ${currentStock} units available, but you requested ${quantity}.`,
-            data: null
-          };
-        }
-
-        saleItems.push({
-          productId: product.id,
-          name: product.name,
-          quantity,
-          price: sellingPrice,
-          costPrice,
-          emoji: product.attributes?.emoji || '📦',
-        });
-
-        productSummaries.push({
-          name: product.name,
-          quantity,
-          sellingPrice,
-          costPrice,
-          remainingStock: currentStock - quantity,
-        });
-      }
-
-      const result = await recordSale({
-        businessId,
-        userId,
-        items: saleItems,
-        paymentType: 'cash',
-        source: 'mo_ai',
-        recordedBy: {
-          uid: userId,
-          email: 'mo@busmo.ai',
-          displayName: 'MO AI',
-          role: 'AI Assistant',
-          staffId: null,
-        }
-      });
-
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message,
-          data: null
-        };
-      }
-
-      const totalProfit = result.data?.totalProfit || 0;
-      const totalRevenue = result.data?.totalRevenue || 0;
-
-      return {
-        success: true,
-        message: `Sale recorded successfully`,
-        data: {
-          saleId: result.saleId,
-          profit: totalProfit,
-          totalRevenue,
-          totalCost: result.data?.totalCost,
-          items: productSummaries.map((product, idx) => ({
-            name: product.name,
-            quantity: product.quantity,
-            price: product.sellingPrice,
-            costPrice: product.costPrice,
-            remainingStock: result.data?.remainingStock[saleItems[idx].productId] || product.remainingStock,
-          }))
-        }
-      };
-    }
-
-    return { success: false, message: 'Unknown action type', data: null };
-  } catch (error: any) {
-    console.error('Error executing action:', error);
-    return { success: false, message: `Failed to execute action: ${error.message}`, data: null };
+  if (userRole === 'owner' || userRole === 'admin') {
+    return true;
   }
+
+  if (userRole === 'staff') {
+    const staffAllowedActions = ['record_sale'];
+    return staffAllowedActions.includes(action);
+  }
+
+  return false;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail' } = body;
+    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -350,25 +126,76 @@ export async function POST(request: NextRequest) {
       language,
     });
 
-    // Fetch business context
+    // Step 1: Detect intent using pattern matching
+    const intent = detectIntent(message);
+    console.log('🎯 [Ask MO API] Intent detected:', intent.intent, 'confidence:', intent.confidence);
+
+    // Step 2: If we have a structured intent with data, execute it
+    let actionResult = null;
+    let renderedResponse = null;
+
+    if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
+      // Check permissions
+      if (!checkPermission(intent.intent, userRole)) {
+        return NextResponse.json({
+          answer: `Sorry, you don't have permission to ${intent.intent.replace('_', ' ')}. Please contact your administrator.`,
+          intent,
+          permissionDenied: true,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Execute action
+      try {
+        const db = getAdminDb();
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+
+        actionResult = await executeAction(intent, {
+          businessId,
+          userId,
+          userEmail: userData?.email,
+          userName: userData?.name,
+          userRole: userRole || userData?.role,
+          staffId: userData?.staffId,
+        });
+
+        // Render the result
+        renderedResponse = renderResponse(actionResult);
+        console.log('✅ [Ask MO API] Action executed and rendered');
+      } catch (error) {
+        console.error('❌ [Ask MO API] Error executing action:', error);
+      }
+    }
+
+    // Step 3: Generate AI response for conversational context
     let businessContext = {};
     if (businessId) {
       try {
         businessContext = await getBusinessContext(businessId);
-        console.log('✅ [Ask MO API] Business context loaded');
       } catch (error) {
         console.error('❌ [Ask MO API] Error loading business context:', error);
       }
     }
 
-    // Build system prompt
     const conversationStyle = detectConversationStyle(conversationHistory);
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle);
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle, renderedResponse);
 
-    // Initialize Google AI
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
       console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
+      
+      // Return structured response if action was executed
+      if (renderedResponse) {
+        return NextResponse.json({
+          answer: renderedResponse.text,
+          rendered: renderedResponse,
+          actionResult,
+          intent,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       return NextResponse.json(
         { error: 'Google Gen AI API key is not configured' },
         { status: 500 }
@@ -382,7 +209,6 @@ export async function POST(request: NextRequest) {
       systemInstruction: systemPrompt
     });
 
-    // Generate response with retry mechanism
     const chat = model.startChat({
       history: conversationHistory.map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'model',
@@ -390,7 +216,6 @@ export async function POST(request: NextRequest) {
       }))
     });
 
-    // Retry logic with exponential backoff
     let result;
     let lastError;
     const maxRetries = 3;
@@ -439,22 +264,14 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [Ask MO API] Response generated');
 
-    // Extract action data from response if present
-    let actionData = null;
-    const actionMatch = text.match(/\{"action":\s*"([^"]+)",\s*"data":\s*\{[^}]+\}\}/);
-    if (actionMatch) {
-      try {
-        actionData = JSON.parse(actionMatch[0]);
-        console.log('🎯 [Ask MO API] Action detected:', actionData.action);
-        // Don't execute automatically - return to client for confirmation
-      } catch (error) {
-        console.error('❌ [Ask MO API] Failed to parse action JSON:', error);
-      }
-    }
+    // If action was executed, use the rendered response instead of raw AI text
+    const finalAnswer = renderedResponse ? renderedResponse.text : text;
 
     return NextResponse.json({
-      answer: text,
-      action: actionData,
+      answer: finalAnswer,
+      intent,
+      actionResult,
+      rendered: renderedResponse,
       businessContext,
       timestamp: new Date().toISOString()
     });
@@ -463,12 +280,11 @@ export async function POST(request: NextRequest) {
     console.error('❌ [Ask MO API] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    // Provide helpful error message for API key issues
     if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
       return NextResponse.json(
         { 
           error: 'Google AI model not found or API key issue',
-          message: 'The Google AI API key may not have access to the requested model. Please check that your GOOGLE_GENAI_API_KEY is valid and has access to Gemini models. Visit https://console.cloud.google.com/apis/credentials to verify your API key.',
+          message: 'The Google AI API key may not have access to the requested model. Please check that your GOOGLE_GENAI_API_KEY is valid.',
           details: errorMessage
         },
         { status: 500 }
@@ -496,7 +312,10 @@ export async function PUT(request: NextRequest) {
 
     console.log('🎯 [Ask MO API] Executing action:', action.action);
 
-    const result = await executeAction(action, businessId, userId);
+    const result = await executeAction(action, {
+      businessId,
+      userId,
+    });
 
     return NextResponse.json(result);
   } catch (error) {
@@ -527,7 +346,6 @@ async function getBusinessContext(businessId: string) {
       outOfStockCount: 0,
       totalExpenses: 0,
       staffCount: 0,
-      // Additional comprehensive data
       totalInventoryValue: 0,
       pendingCollections: 0,
       suppliersCount: 0,
@@ -548,7 +366,6 @@ async function getBusinessContext(businessId: string) {
       netCashFlow: 0,
     };
 
-    // Fetch business profile
     const profileSnapshot = await db.collection('businesses').doc(businessId).collection('profile').limit(1).get();
     if (!profileSnapshot.empty) {
       const data = profileSnapshot.docs[0].data();
@@ -556,7 +373,6 @@ async function getBusinessContext(businessId: string) {
       context.businessCategory = data.category || 'General Retail';
     }
 
-    // Fetch sales (last 30 days) with detailed data
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -569,7 +385,7 @@ async function getBusinessContext(businessId: string) {
       .limit(200)
       .get();
 
-    context.sales = []; // Store detailed sales data
+    context.sales = [];
     const productSalesMap = new Map<string, { quantity: number; revenue: number; profit: number }>();
 
     salesSnapshot.forEach(doc => {
@@ -586,7 +402,6 @@ async function getBusinessContext(businessId: string) {
         context.todayProfit += profit;
       }
 
-      // Add detailed sales data
       context.sales.push({
         id: doc.id,
         totalRevenue: total,
@@ -597,7 +412,6 @@ async function getBusinessContext(businessId: string) {
         recordedBy: data.recordedBy?.displayName || 'Unknown',
       });
 
-      // Track product sales for best-selling analysis
       if (data.products && Array.isArray(data.products)) {
         data.products.forEach((product: any) => {
           const productName = product.name || 'Unknown';
@@ -617,7 +431,6 @@ async function getBusinessContext(businessId: string) {
       }
     });
 
-    // Calculate best-selling products
     context.bestSellingProducts = Array.from(productSalesMap.entries())
       .map(([name, stats]) => ({
         name,
@@ -626,22 +439,21 @@ async function getBusinessContext(businessId: string) {
         totalProfit: stats.profit,
       }))
       .sort((a, b) => b.quantitySold - a.quantitySold)
-      .slice(0, 10); // Top 10 best-selling products
+      .slice(0, 10);
 
-    // Fetch products with detailed data
     const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
       .where('active', '==', true)
       .limit(200)
       .get();
 
     context.totalProducts = productsSnapshot.size;
-    context.products = []; // Store detailed product data
+    context.products = [];
 
     let totalInventoryValue = 0;
     productsSnapshot.forEach(doc => {
       const data = doc.data();
       const stock = data.stock || 0;
-      const costPrice = data.cost || data.costPrice || 0; // Use cost price for inventory value
+      const costPrice = data.cost || data.costPrice || 0;
       const sellingPrice = data.price || 0;
       const threshold = data.lowStockThreshold || 10;
 
@@ -650,7 +462,6 @@ async function getBusinessContext(businessId: string) {
       if (stock === 0) context.outOfStockCount++;
       else if (stock <= threshold) context.lowStockCount++;
 
-      // Add detailed product data to context
       context.products.push({
         id: doc.id,
         name: data.name || 'Unknown',
@@ -670,7 +481,6 @@ async function getBusinessContext(businessId: string) {
     });
     context.totalInventoryValue = totalInventoryValue;
 
-    // Fetch expenses
     const expensesSnapshot = await db.collection('businesses').doc(businessId).collection('expenses')
       .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
       .orderBy('createdAt', 'desc')
@@ -682,7 +492,6 @@ async function getBusinessContext(businessId: string) {
       context.totalExpenses += data.amount || 0;
     });
 
-    // Fetch staff
     const staffSnapshot = await db.collection('businesses').doc(businessId).collection('staff')
       .where('active', '==', true)
       .limit(50)
@@ -690,7 +499,6 @@ async function getBusinessContext(businessId: string) {
 
     context.staffCount = staffSnapshot.size;
 
-    // Fetch pending collections (credit sales)
     try {
       const pendingSnapshot = await db.collection('businesses').doc(businessId).collection('pendingBillings')
         .where('status', '==', 'pending')
@@ -704,7 +512,6 @@ async function getBusinessContext(businessId: string) {
       console.error('Error fetching pending collections:', error);
     }
 
-    // Fetch suppliers
     try {
       const suppliersSnapshot = await db.collection('businesses').doc(businessId).collection('suppliers')
         .where('active', '==', true)
@@ -718,8 +525,7 @@ async function getBusinessContext(businessId: string) {
     } catch (error) {
       console.error('Error fetching suppliers:', error);
     }
-
-    // Fetch stock receipts
+    
     try {
       const receiptsSnapshot = await db.collection('businesses').doc(businessId).collection('stockReceipts')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
@@ -729,8 +535,7 @@ async function getBusinessContext(businessId: string) {
     } catch (error) {
       console.error('Error fetching stock receipts:', error);
     }
-
-    // Fetch stock transfers
+    
     try {
       const transfersSnapshot = await db.collection('businesses').doc(businessId).collection('stockTransfers')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
@@ -741,7 +546,6 @@ async function getBusinessContext(businessId: string) {
       console.error('Error fetching stock transfers:', error);
     }
 
-    // Fetch supplier credit
     try {
       const supplierCreditSnapshot = await db.collection('businesses').doc(businessId).collection('supplier_credit')
         .where('status', '==', 'active')
@@ -754,8 +558,7 @@ async function getBusinessContext(businessId: string) {
     } catch (error) {
       console.error('Error fetching supplier credit:', error);
     }
-
-    // Fetch customer credit
+    
     try {
       const customerCreditSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
         .limit(100)
@@ -767,8 +570,7 @@ async function getBusinessContext(businessId: string) {
     } catch (error) {
       console.error('Error fetching customer credit:', error);
     }
-
-    // Fetch pending credit payments
+    
     try {
       const creditTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('credit_transactions')
         .where('status', '==', 'pending')
@@ -782,7 +584,6 @@ async function getBusinessContext(businessId: string) {
       console.error('Error fetching credit transactions:', error);
     }
 
-    // Fetch bank accounts
     try {
       const bankAccountsSnapshot = await db.collection('businesses').doc(businessId).collection('bankAccounts')
         .where('isActive', '==', true)
@@ -796,8 +597,7 @@ async function getBusinessContext(businessId: string) {
     } catch (error) {
       console.error('Error fetching bank accounts:', error);
     }
-
-    // Fetch bank transactions
+    
     try {
       const bankTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('bankTransactions')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
@@ -808,7 +608,6 @@ async function getBusinessContext(businessId: string) {
       console.error('Error fetching bank transactions:', error);
     }
 
-    // Fetch staff activity
     try {
       const staffActivitySnapshot = await db.collection('businesses').doc(businessId).collection('staffActivity')
         .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
@@ -826,7 +625,6 @@ async function getBusinessContext(businessId: string) {
       console.error('Error fetching staff activity:', error);
     }
 
-    // Fetch cash flow
     try {
       const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
         .where('date', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
@@ -852,11 +650,28 @@ async function getBusinessContext(businessId: string) {
 /**
  * Build system prompt with business context
  */
-function buildSystemPrompt(businessContext: any, language: string, languageName: string, conversationHistory: any[] = [], businessCategory: string = 'retail', conversationStyle: { style: string; tone: string; length: string } = { style: 'balanced', tone: 'professional', length: 'medium' }): string {
+function buildSystemPrompt(
+  businessContext: any, 
+  language: string, 
+  languageName: string, 
+  conversationHistory: any[] = [], 
+  businessCategory: string = 'retail', 
+  conversationStyle: { style: string; tone: string; length: string } = { style: 'balanced', tone: 'professional', length: 'medium' },
+  renderedResponse: any = null
+): string {
   const conversationSummary = conversationHistory.slice(-6).map((msg: any) => {
     const role = msg.role === 'user' ? 'User' : 'MO';
     return `${role}: ${msg.content}`;
   }).join('\n');
+
+  // If action was already executed, inform the AI to confirm completion
+  const actionExecutedNote = renderedResponse ? `
+⚠️ IMPORTANT: An action has just been executed successfully.
+The user's request has been completed. Simply confirm the completion in a natural, conversational way.
+DO NOT use JSON format or action blocks in your response.
+DO NOT suggest the action again - it's already done.
+Just provide a friendly confirmation message.
+` : '';
 
   return `You are MO, an intelligent Business Intelligence Assistant for African entrepreneurs.
 
@@ -876,7 +691,7 @@ function buildSystemPrompt(businessContext: any, language: string, languageName:
   - If user prefers DETAILED: Provide comprehensive explanations with context
   - If style is BALANCED/MEDIUM: Use standard professional conversational tone
 - ALWAYS match the user's energy level and communication preferences
-
+${actionExecutedNote}
 ${conversationSummary ? `
 📝 RECENT CONVERSATION CONTEXT:
 ${conversationSummary}
@@ -947,138 +762,7 @@ ${businessContext.products.filter((p: any) => p.isOutOfStock).slice(0, 10).map((
 
 ═══════════════════════════════════════════
 
-📱 OWNER DASHBOARD FEATURES & NAVIGATION:
-The owner dashboard provides comprehensive business management tools organized into sections:
+If the user asks about specific features, guide them to the appropriate dashboard page.
 
-MAIN FEATURES:
-• Record Sale: Quick sale recording with payment breakdown (cash, transfer, POS, split, credit)
-• Inventory: Track stock levels, manage products, monitor low stock alerts
-• Add Product: Add new products with SKU, pricing, stock levels, and images
-• Add Expense: Record business expenses categorized for tracking
-• Cashflow: Monitor money in/out, cash flow trends, and financial health
-• Statement: View financial statements and transaction history
-• Reports: Generate profit/loss reports and business analytics
-• Bank Reconciliation: Match sales with bank deposits (Pro plan)
-• Money Control: Comprehensive payment tracking with expected vs actual collections, reconciliation metrics, alerts for cash shortages/missing transfers/overpayments, collection efficiency tracking, and business insights (sales trends, payment preferences, cash flow health)
-• Credit Tracking: Manage customer credit accounts and payment tracking
-• Menu Management: (Standard plan) For restaurants/cafes - manage menu items and pricing
-• Ingredients: (Standard plan) For restaurants - track ingredient inventory and costs
-• Expiry Alerts: Monitor product expiration dates (grocery, pharmacy, supermarket, restaurant)
-• Production: (Pro plan) For manufacturing - track production batches and output
-• E-commerce: (Pro plan) For retail/fashion/electronics - online storefront management
-
-GROWTH FEATURES:
-• Access Capital: Funding and capital access for wholesale, retail, manufacturing, distributor businesses
-• Referrals: Referral program management
-
-ACCOUNT FEATURES:
-• Ask MO: AI business assistant (you are here!)
-• Business Services: Additional business services and integrations
-• Staff: Manage staff accounts, permissions, and track staff performance (sales, actions)
-• Suppliers: Supplier management, purchase orders, and supplier credit
-• Customers: Customer management and customer credit accounts
-• Invoice Verification: (Standard plan) Invoice verification for wholesale/distributor
-• Branches: (Pro plan) Multi-branch management and switching
-• Payroll: (Pro plan) Staff payroll management
-• Settings: Business settings, preferences, and configuration
-
-MONEY CONTROL PAGE DETAILS:
-Money Control is a comprehensive financial tracking system that:
-• Tracks all sales by payment method: Cash, Transfer, POS, Split Payments, Credit
-• Calculates Expected vs Confirmed collections (cash needs reconciliation, bank transfers auto-confirm)
-• Monitors reconciliation status: matched vs unmatched sales/bank transactions
-• Generates alerts for: cash shortages, missing transfers, unmatched deposits, overpayments, duplicate payments
-• Provides business insights: sales trends (week-over-week), preferred payment methods, collection efficiency %, cash flow health (cash-heavy vs digital-heavy)
-• Shows restaurant-specific metrics (for restaurant businesses): inventory purchases, operating expenses, payroll, estimated profit, food cost percentage
-• Quick actions to: Import Bank Statement, Reconcile Transactions, Cash Reconciliation, Staff Accountability, Money Leakage Report, Payment Traceability
-
-KEY DASHBOARD CAPABILITIES YOU CAN GUIDE USERS TO:
-1. Money Control - Use when user asks about: "track my money", "payment collections", "cash reconciliation", "bank matching", "outstanding payments", "collection efficiency", "cash shortages", "missing transfers"
-2. Reports - Use when user asks about: "business performance", "profit analysis", "sales reports", "financial statements"
-3. Staff Management - Use when user asks about: "my staff", "employee performance", "sales by staff", "staff accountability"
-4. Supplier Management - Use when user asks about: "suppliers", "purchase orders", "stock receipts", "supplier payments"
-5. Credit Tracking - Use when user asks about: "customer credit", "credit payments", "outstanding credit", "credit accounts"
-6. Inventory Management - Use when user asks about: "stock levels", "low stock", "add products", "inventory value"
-7. Expense Tracking - Use when user asks about: "expenses", "business costs", "spending"
-8. Cashflow - Use when user asks about: "cash flow", "money coming in", "money going out", "financial health"
-
-═══════════════════════════════════════════
-
-🎯 RESPONSE FRAMEWORK:
-Structure your responses using this 4-part framework:
-1. OBSERVATION: What you noticed in the data
-2. INSIGHT: What it means for their business
-3. RECOMMENDATION: What they should do about it
-4. FOLLOW-UP QUESTION: Engage them in the next step
-
-🗣️ CONVERSATIONAL TONE:
-Sound like a knowledgeable business advisor, NOT a system.
-PREFER: "I noticed", "One thing that stands out", "You might want to consider"
-AVOID: "According to the data", "The system indicates", "Based on records"
-
-📋 GUIDELINES:
-1. Be SPECIFIC — use actual numbers from the data above
-2. Be ACTIONABLE — tell them exactly what to do
-3. Be ENCOURAGING — celebrate wins, address concerns constructively
-4. Be CONVERSATIONAL — write like a human advisor, not a report generator
-5. PRIORITIZE — address urgent issues first (out of stock, negative cash flow)
-6. Use NIGERIAN/AFRICAN BUSINESS CONTEXT — understand local market realities
-7. Format numbers with commas (e.g., 1,000)
-8. ADAPT LENGTH — match user's preference (short/concise vs detailed)
-9. ADAPT TONE — match user's formality (formal vs casual)
-10. MAINTAIN CHARACTER — never break your role as MO
-11. BUSINESS ONLY — refuse to discuss non-business topics and redirect politely
-12. USE LIVE DATA — Always use the actual product and sales data provided in the context above. Never estimate or guess inventory values, stock levels, or sales figures. The context contains real-time data from your business.
-
-🛠️ ACTION CAPABILITIES:
-You can perform business operations when requested:
-
-RECORDING SALES:
-- When user wants to record a sale, extract: product name, quantity, price/amount, cost price
-- If any required field is missing, ASK the user for it before providing the action JSON
-- Required fields: productName, quantity, price (or amount), costPrice
-- Return structured JSON in your response for sale recording:
-  {"action": "record_sale", "data": {"items": [{"productName": "...", "quantity": 1, "price": 0, "costPrice": 0}]}}
-- For multiple products in one request, use the items array:
-  {"action": "record_sale", "data": {"items": [{"productName": "...", "quantity": 1, "price": 0}, {"productName": "...", "quantity": 2, "price": 0}]}}
-- If user sends an image of a product/receipt, analyze it to extract sale details
-- If information is incomplete from image, ask user to provide missing details
-
-ADDING PRODUCTS:
-- When user wants to add a new product, extract: name, category, price, cost, stock
-- If any required field is missing, ASK the user for it before providing the action JSON
-- Required fields: name, category, price (or sellPrice), costPrice, stock
-- Optional fields: description, sku, lowStockThreshold, unit, productType, imageData
-- For restaurant businesses, also extract: productType (dish/ingredient), dishCategory, preparationTime, ingredientUnit, supplier, reorderLevel
-- Return structured JSON in your response for product creation:
-  {"action": "add_product", "data": {"name": "...", "category": "...", "price": 0, "costPrice": 0, "stock": 0, "description": "...", "sku": "...", "lowStockThreshold": 5, "unit": "piece", "productType": "product"}}
-- If user sends an image of a product, analyze it to extract product details
-- If information is incomplete from image, ask user to provide missing details
-
-RECORDING EXPENSES:
-- When user wants to record an expense, extract: category, amount, date, payment method, description
-- If any required field is missing, ASK the user for it before providing the action JSON
-- Required fields: category, amount, date
-- Optional fields: paymentMethod, description, linkedProduct, quantityReceived, isRecurring, recurFrequency, recurNextDate, receiptData
-- Common expense categories: stock (restocking), raw (raw materials), rent, util (utilities), transport, fuel, salary, commission, marketing, packaging, bank (bank charges), loan, tax, equipment, other
-- Return structured JSON in your response for expense recording:
-  {"action": "add_expense", "data": {"category": "stock", "amount": 50000, "date": "2024-01-15", "paymentMethod": "Cash", "description": "Purchased 50 units of polo shirts", "linkedProduct": "Premium Polo", "quantityReceived": 50}}
-- For recurring expenses, include: isRecurring: true, recurFrequency: "Monthly", recurNextDate: "2024-02-15"
-- If user sends an image of a receipt, analyze it to extract expense details
-- If information is incomplete from image, ask user to provide missing details
-
-IMAGE ANALYSIS:
-- When user sends an image, analyze it to understand:
-  - Product names, prices, quantities (for receipts/invoices)
-  - Product details (for product photos)
-  - Business context (for general business images)
-- Always provide both text analysis AND structured action data if applicable
-- If image analysis is incomplete, ask user for missing information
-
-POST-ACTION INSIGHTS:
-After successfully recording a sale or adding a product, provide helpful business insights:
-- For sales: Mention inventory reduction, updated daily revenue, remaining stock, and any relevant business impact
-- For products: Mention how the new product fits into inventory, its impact on stock value, and any reorder considerations
-- Keep insights concise but valuable - help users understand the business impact of their actions
-`;
+CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
 }

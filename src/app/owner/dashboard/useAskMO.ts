@@ -16,12 +16,28 @@ interface MOMessage {
   metrics?: Array<{ label: string; value: string; trend?: string }>;
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
-  alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
   saleCard?: {
     items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+  };
+  productCard?: {
+    type: 'product';
+    name: string;
+    price: number;
+    cost: number;
+    stock: number;
+    sku?: string;
+    message: string;
+  };
+  expenseCard?: {
+    type: 'expense';
+    category: string;
+    amount: number;
+    date: string;
+    message: string;
   };
 }
 

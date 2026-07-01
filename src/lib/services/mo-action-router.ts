@@ -1,0 +1,359 @@
+/**
+ * MO Action Router
+ * Centralized execution layer - maps intents to existing Busmo services
+ * This is the ONLY place where business operations are executed
+ */
+
+import { recordSale, findProductByName } from './record-sale-service';
+import { addProduct } from './add-product-service';
+import { addExpense } from './add-expense-service';
+
+export interface ActionContext {
+  businessId: string;
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  userRole?: string;
+  staffId?: string;
+}
+
+export interface ActionResult {
+  success: boolean;
+  action: string;
+  message: string;
+  data?: any;
+  error?: string;
+  requiresClarification?: boolean;
+  clarification?: {
+    message: string;
+    options?: Array<{ id: string; name: string; stock?: number }>;
+  };
+}
+
+/**
+ * Execute action based on intent
+ * Routes to appropriate existing Busmo service
+ */
+export async function executeAction(
+  intent: { intent: string; data: Record<string, any>; requiresConfirmation?: boolean },
+  context: ActionContext
+): Promise<ActionResult> {
+  const { intent: intentType, data, requiresConfirmation } = intent;
+
+  try {
+    switch (intentType) {
+      case 'record_sale':
+        return await handleRecordSale(data, context);
+      
+      case 'add_product':
+        return await handleAddProduct(data, context);
+      
+      case 'add_expense':
+        return await handleAddExpense(data, context);
+      
+      case 'ask_question':
+        return {
+          success: true,
+          action: 'ask_question',
+          message: 'Question acknowledged',
+          data: { question: data.question },
+        };
+      
+      default:
+        return {
+          success: false,
+          action: intentType,
+          message: `Unknown action type: ${intentType}`,
+          error: 'Unsupported intent',
+        };
+    }
+  } catch (error: any) {
+    console.error('Error executing action:', error);
+    return {
+      success: false,
+      action: intentType,
+      message: `Failed to execute action: ${error.message}`,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Handle record_sale intent
+ */
+async function handleRecordSale(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const items = data.items || [];
+  
+  // Support legacy single-item format
+  if (!items.length && data.productName) {
+    items.push({
+      productName: data.productName,
+      quantity: parseInt(data.quantity) || 1,
+      price: parseFloat(data.price) || parseFloat(data.amount) || 0,
+      costPrice: parseFloat(data.costPrice) || 0,
+    });
+  }
+
+  if (items.length === 0) {
+    return {
+      success: false,
+      action: 'record_sale',
+      message: 'No sale items provided. Please specify at least one product.',
+    };
+  }
+
+  // Resolve and validate all items
+  const saleItems: any[] = [];
+  const productSummaries: any[] = [];
+
+  for (const item of items) {
+    const productSearch = await findProductByName(context.businessId, item.productName);
+    
+    if (!productSearch.found) {
+      if (productSearch.matches && productSearch.matches.length > 0) {
+        return {
+          success: false,
+          action: 'record_sale',
+          message: `I found multiple products matching "${item.productName}":\n\n${productSearch.matches.map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`).join('\n')}\n\nPlease specify which one you want to sell.`,
+          requiresClarification: true,
+          clarification: {
+            message: 'Multiple products found',
+            options: productSearch.matches.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              stock: p.stock || p.quantity || 0,
+            })),
+          },
+        };
+      }
+      return {
+        success: false,
+        action: 'record_sale',
+        message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling.`,
+      };
+    }
+
+    const product = productSearch.product;
+    const quantity = parseInt(item.quantity) || 1;
+    const costPrice = product.cost || product.costPrice || 0;
+    const sellingPrice = product.price || parseFloat(item.price) || costPrice;
+
+    const currentStock = product.stock || product.quantity || 0;
+    if (currentStock < quantity) {
+      return {
+        success: false,
+        action: 'record_sale',
+        message: `Insufficient stock for "${product.name}". Only ${currentStock} units available, but you requested ${quantity}.`,
+      };
+    }
+
+    saleItems.push({
+      productId: product.id,
+      name: product.name,
+      quantity,
+      price: sellingPrice,
+      costPrice,
+      emoji: product.attributes?.emoji || '📦',
+    });
+
+    productSummaries.push({
+      name: product.name,
+      quantity,
+      sellingPrice,
+      costPrice,
+    });
+  }
+
+  // Execute sale using existing service
+  const result = await recordSale({
+    businessId: context.businessId,
+    userId: context.userId,
+    items: saleItems,
+    paymentType: 'cash',
+    source: 'mo_ai',
+    recordedBy: {
+      uid: context.userId,
+      email: context.userEmail || 'mo@busmo.ai',
+      displayName: context.userName || 'MO AI',
+      role: context.userRole || 'AI Assistant',
+      staffId: context.staffId || null,
+    },
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'record_sale',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
+  const totalProfit = result.data?.totalProfit || 0;
+  const totalRevenue = result.data?.totalRevenue || 0;
+
+  return {
+    success: true,
+    action: 'record_sale',
+    message: 'Sale recorded successfully',
+    data: {
+      saleId: result.saleId,
+      profit: totalProfit,
+      totalRevenue,
+      totalCost: result.data?.totalCost,
+      items: productSummaries.map((product, idx) => ({
+        name: product.name,
+        quantity: product.quantity,
+        price: product.sellingPrice,
+        costPrice: product.costPrice,
+        remainingStock: result.data?.remainingStock[saleItems[idx].productId],
+      })),
+    },
+  };
+}
+
+/**
+ * Handle add_product intent
+ */
+async function handleAddProduct(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const result = await addProduct({
+    businessId: context.businessId,
+    userId: context.userId,
+    name: data.name,
+    category: data.category || 'General',
+    sellPrice: parseFloat(data.price) || parseFloat(data.sellPrice) || 0,
+    costPrice: parseFloat(data.costPrice) || 0,
+    openingStock: parseInt(data.stock) || 0,
+    description: data.description || '',
+    sku: data.sku,
+    lowStockAlert: parseInt(data.lowStockThreshold) || parseInt(data.lowStockAlert) || 5,
+    unit: data.unit || 'piece',
+    hasExpiry: data.hasExpiry || false,
+    expiryDate: data.expiryDate,
+    hasVariants: data.hasVariants || false,
+    variantType: data.variantType,
+    variantValues: data.variantValues,
+    useDefaultDelivery: data.useDefaultDelivery !== false,
+    selectedCountries: data.selectedCountries,
+    deliveryTime: data.deliveryTime,
+    shippingFeeOverride: data.shippingFeeOverride,
+    manualSale: data.manualSale !== false,
+    onlineStore: data.onlineStore || false,
+    imageUrl: data.imageUrl || '',
+    imageData: data.imageData,
+    productType: data.productType || 'product',
+    dishCategory: data.dishCategory,
+    preparationTime: data.preparationTime,
+    ingredientUnit: data.ingredientUnit,
+    supplier: data.supplier,
+    reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : undefined,
+    expiryDateIngredient: data.expiryDateIngredient,
+    branch: data.branch,
+    ingredients: data.ingredients,
+    warehouseLocation: data.warehouseLocation || 'main_store',
+    stockByLocation: data.stockByLocation,
+    businessCategory: data.businessCategory || 'retail',
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'add_product',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'add_product',
+    message: result.message,
+    data: {
+      productId: result.productId,
+      product: result.product,
+    },
+  };
+}
+
+/**
+ * Handle add_expense intent
+ */
+async function handleAddExpense(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const result = await addExpense({
+    businessId: context.businessId,
+    userId: context.userId,
+    category: data.category,
+    amount: parseFloat(data.amount),
+    date: data.date || new Date().toISOString().split('T')[0],
+    paymentMethod: data.paymentMethod || 'Cash',
+    description: data.description || '',
+    linkedProduct: data.linkedProduct,
+    quantityReceived: data.quantityReceived ? parseInt(data.quantityReceived) : undefined,
+    isRecurring: data.isRecurring || false,
+    recurFrequency: data.recurFrequency,
+    recurNextDate: data.recurNextDate,
+    receiptUrl: data.receiptUrl,
+    receiptData: data.receiptData,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'add_expense',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'add_expense',
+    message: result.message,
+    data: {
+      expenseId: result.expenseId,
+      expense: result.expense,
+    },
+  };
+}
+
+/**
+ * Validate action against user permissions
+ */
+export function validatePermission(
+  action: string,
+  userRole?: string,
+  userPlan?: string
+): { allowed: boolean; reason?: string } {
+  // Admin and owner can do everything
+  if (userRole === 'owner' || userRole === 'admin') {
+    return { allowed: true };
+  }
+
+  // Staff permissions
+  if (userRole === 'staff') {
+    // Staff can record sales
+    if (action === 'record_sale') {
+      return { allowed: true };
+    }
+    
+    // Staff cannot add products or expenses by default
+    return {
+      allowed: false,
+      reason: 'You do not have permission to perform this action. Please contact your administrator.',
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: 'Unauthorized',
+  };
+}

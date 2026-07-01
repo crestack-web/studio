@@ -42,12 +42,28 @@ interface MOMessage {
   metrics?: Array<{ label: string; value: string; trend?: string }>;
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
-  alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
   saleCard?: {
     items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+  };
+  productCard?: {
+    type: 'product';
+    name: string;
+    price: number;
+    cost: number;
+    stock: number;
+    sku?: string;
+    message: string;
+  };
+  expenseCard?: {
+    type: 'expense';
+    category: string;
+    amount: number;
+    date: string;
+    message: string;
   };
 }
 
@@ -113,11 +129,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingStage, setLoadingStage] = useState<number>(0);
-  const [showActionConfirmation, setShowActionConfirmation] = useState(false);
-  const [pendingAction, setPendingAction] = useState<any>(null);
-  const [pendingProductDetails, setPendingProductDetails] = useState<any>(null);
   const [loadingActions, setLoadingActions] = useState<string[]>([]);
-  const [executingAction, setExecutingAction] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -164,121 +177,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setCurrentConversationId(null);
     setShowHistory(false);
   }, [setCurrentConversationId]);
-
-  const handleActionConfirm = async () => {
-    setShowActionConfirmation(false);
-    
-    if (!pendingAction) return;
-
-    try {
-      await executePendingAction(pendingAction);
-    } catch (error) {
-      console.error('Error executing action:', error);
-      showToast('Failed to execute action');
-      
-      if (currentConversationId) {
-        await saveConversation();
-      }
-    } finally {
-      setPendingAction(null);
-      setPendingProductDetails(null);
-    }
-  };
-
-  const executePendingAction = async (action: any) => {
-    setExecutingAction(true);
-    try {
-      const executeResponse = await fetch('/api/ask-mo', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          businessId: user.businessId || user.id,
-          userId: user.id,
-        }),
-      });
-
-      const executeResult = await executeResponse.json();
-      if (executeResult.success) {
-        setMessages(prev => {
-          const updated = [...prev];
-          const lastBotMsg = updated.find(m => m.role === 'bot');
-
-          if (action.action === 'record_sale' && lastBotMsg) {
-            const saleItems = executeResult.data?.items || [];
-            const saleCardData = {
-              items: saleItems.map((item: any) => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                costPrice: item.costPrice,
-              })),
-              totalRevenue: executeResult.data?.totalRevenue || 0,
-              totalProfit: executeResult.data?.profit,
-              timestamp: new Date(),
-            };
-
-            lastBotMsg.saleCard = saleCardData;
-
-            const itemSummaries = saleItems
-              .map((item: any) => `${item.quantity}x ${item.name}`)
-              .join(', ');
-            lastBotMsg.content = `✅ Sale recorded successfully!\n\n${itemSummaries}\n\nTotal: ₦${(executeResult.data?.totalRevenue || 0).toLocaleString()}`;
-
-            const insights: string[] = [];
-            const remainingStocks = saleItems.map((item: any) => item.remainingStock).filter((stock: number) => stock >= 0);
-            const minRemaining = remainingStocks.length > 0 ? Math.min(...remainingStocks) : 0;
-            if (minRemaining <= 5) {
-              insights.push(`⚠️ Low stock alert: some items are running low`);
-            } else if (minRemaining <= 10) {
-              insights.push(`📦 Keep an eye on stock levels`);
-            }
-
-            if (executeResult.data?.profit > 0) {
-              insights.push(`💰 Profit: ₦${executeResult.data.profit.toLocaleString()}`);
-            }
-
-            if (insights.length > 0) {
-              lastBotMsg.content += '\n\n' + insights.join('\n');
-            }
-          } else if (action.action === 'add_product' && lastBotMsg) {
-            const product = executeResult.data?.product;
-            lastBotMsg.content = `✅ Product added successfully!\n\n${product?.name} has been added to your inventory.\n\nStock: ${product?.stock} units\nSelling Price: ₦${product?.price?.toLocaleString()}\nCost Price: ₦${product?.cost?.toLocaleString()}`;
-          } else {
-            showToast(executeResult.message);
-          }
-
-          return updated;
-        });
-      } else {
-        showToast(`Failed: ${executeResult.message}`);
-      }
-
-      if (currentConversationId) {
-        await saveConversation();
-      }
-    } catch (error) {
-      console.error('Error executing action:', error);
-      showToast('Failed to execute action');
-
-      if (currentConversationId) {
-        await saveConversation();
-      }
-    } finally {
-      setExecutingAction(false);
-    }
-  };
-
-  const handleActionCancel = async () => {
-    setShowActionConfirmation(false);
-    setPendingAction(null);
-    setPendingProductDetails(null);
-    showToast('Action cancelled');
-    
-    if (currentConversationId) {
-      await saveConversation();
-    }
-  };
 
   const handlePurchaseSuccess = () => {
     window.location.reload();
@@ -479,6 +377,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           language: lang,
           languageName: langMeta.name,
           businessCategory: businessCategory,
+          userRole: user.role,
         }),
       });
 
@@ -493,29 +392,29 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       const data = await response.json();
       console.log('📡 API Response data:', data);
 
+      const rendered = data.rendered;
+      
       const botMsg: MOMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
         content: data.answer || "I'm analysing your business data...",
         timestamp: new Date(),
-        metrics: data.metrics,
-        quickActions: data.quickActions,
-        followUpSuggestions: data.followUpSuggestions,
+        metrics: rendered?.metrics,
+        quickActions: rendered?.quickActions,
+        followUpSuggestions: rendered?.suggestions,
         expandableSections: data.expandableSections,
-        alerts: data.alerts,
+        alerts: rendered?.alerts,
       };
 
-      if (data.action) {
-        console.log('🎯 Action detected:', data.action);
-        const action = data.action;
-
-          if (action.action === 'record_sale' || action.action === 'add_product' || action.action === 'add_expense') {
-            setPendingAction(action);
-            await executePendingAction(action);
-          } else {
-            setPendingAction(action);
-            setShowActionConfirmation(true);
-          }
+      // Attach structured cards from rendered response
+      if (rendered?.card) {
+        if (rendered.card.type === 'sale') {
+          botMsg.saleCard = rendered.card;
+        } else if (rendered.card.type === 'product') {
+          botMsg.productCard = rendered.card;
+        } else if (rendered.card.type === 'expense') {
+          botMsg.expenseCard = rendered.card;
+        }
       }
 
       setMessages(prev => [...prev, botMsg]);
@@ -580,7 +479,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setLoadingActions([]);
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, executePendingAction]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -687,15 +586,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         onSuccess={handlePurchaseSuccess}
       />
 
-      <ActionConfirmationModal
-        isOpen={showActionConfirmation}
-        onClose={handleActionCancel}
-        onConfirm={handleActionConfirm}
-        actionType={pendingAction?.action === 'record_sale' ? 'record_sale' : pendingAction?.action === 'add_product' ? 'add_product' : 'other'}
-        actionData={pendingAction?.data || {}}
-        productDetails={pendingProductDetails}
-      />
-
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
         {messages.length === 0 && (
@@ -710,7 +600,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           </div>
         )}
 
-        {messages.filter(m => m.content || m.saleCard || m.imageUrl || m.audioUrl).map(m => (
+        {messages.filter(m => m.content || m.saleCard || m.productCard || m.expenseCard || m.imageUrl || m.audioUrl).map(m => (
           <div
             key={m.id}
             className={`${styles.message} ${m.role === 'user' ? styles.user : styles.bot}`}
@@ -764,6 +654,44 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     totalProfit={m.saleCard.totalProfit}
                     timestamp={m.saleCard.timestamp}
                   />
+                </div>
+              )}
+              {m.productCard && (
+                <div className="my-3">
+                  <div style={{
+                    background: 'var(--primary-light)',
+                    border: '1px solid var(--primary)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '8px'
+                  }}>
+                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>✅ Product Added</h4>
+                    <p style={{ margin: '4px 0' }}><strong>{m.productCard.name}</strong></p>
+                    <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
+                      Stock: {m.productCard.stock} units<br/>
+                      Selling: ₦{m.productCard.price.toLocaleString()}<br/>
+                      Cost: ₦{m.productCard.cost.toLocaleString()}
+                      {m.productCard.sku && <>• SKU: {m.productCard.sku}</>}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {m.expenseCard && (
+                <div className="my-3">
+                  <div style={{
+                    background: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '8px'
+                  }}>
+                    <h4 style={{ margin: '0 0 8px 0', color: '#856404' }}>✅ Expense Recorded</h4>
+                    <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
+                      <strong>{m.expenseCard.category}</strong><br/>
+                      Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>
+                      Date: {m.expenseCard.date}
+                    </p>
+                  </div>
                 </div>
               )}
               {formatContent(m.content)}
@@ -849,7 +777,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                   {m.alerts.map((alert, idx) => (
                     <div key={idx} className={`${styles.alert} ${styles[alert.type]}`}>
                       <span className={styles.alertIcon}>
-                        {alert.type === 'warning' ? '⚠️' : alert.type === 'success' ? '✅' : 'ℹ️'}
+                        {alert.type === 'warning' ? '⚠️' : alert.type === 'success' ? '✅' : alert.type === 'error' ? '❌' : 'ℹ️'}
                       </span>
                       <span className={styles.alertMessage}>{alert.message}</span>
                     </div>
@@ -1007,20 +935,19 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               onClick={() => {
                 setAudioBlob(null);
                 setAudioUrl(null);
-                setRecordingTime(0);
               }}
             >
               ✕
             </button>
           </div>
         )}
-        <div className={styles.inputWrapper}>
+        <div className={styles.inputRow}>
           <button
             className={styles.attachBtn}
             onClick={() => fileInputRef.current?.click()}
-            title="Upload image"
+            title="Attach image"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
@@ -1030,53 +957,46 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: 'none' }}
             onChange={handleImageSelect}
+            style={{ display: 'none' }}
           />
           <button
             className={styles.micBtn}
             onClick={isRecording ? stopRecording : startRecording}
-            title={isRecording ? "Stop recording" : "Record voice"}
-            style={{ background: isRecording ? 'var(--red)' : 'var(--bg-2)', color: isRecording ? '#fff' : 'var(--text-2)' }}
+            title={isRecording ? 'Stop recording' : 'Start voice input'}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18 }}>
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
+            {isRecording ? (
+              <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20 }}>
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            )}
           </button>
-          {isRecording && (
-            <span className={styles.recordingTime}>{formatRecordingTime(recordingTime)}</span>
-          )}
           <textarea
             ref={textareaRef}
-            className={styles.input}
-            placeholder={isRecording ? "Recording..." : "Ask MO anything about your business..."}
+            className={styles.textInput}
+            placeholder="Ask MO anything about your business... (Shift+Enter for new line)"
             value={input}
-            onChange={e => {
+            onChange={(e) => {
               setInput(e.target.value);
-              if (textareaRef.current) autoResize(textareaRef.current);
+              autoResize(e.target);
             }}
             onKeyDown={handleKey}
             rows={1}
-            disabled={isRecording || isTranscribing}
+            disabled={isTranscribing}
           />
-          {isRecording && (
-            <button
-              className={styles.cancelRecordingBtn}
-              onClick={cancelRecording}
-              title="Cancel recording"
-            >
-              ✕
-            </button>
-          )}
           <button
-            className={styles.sendBtn}
+            className={`${styles.sendBtn} ${isSending ? styles.sending : ''}`}
             onClick={() => send()}
-            disabled={!input.trim() && !selectedImage && !audioBlob}
+            disabled={isSending || isTranscribing || (!input.trim() && !selectedImage && !audioBlob)}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
               <line x1="22" y1="2" x2="11" y2="13"/>
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>

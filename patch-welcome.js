@@ -1,0 +1,11 @@
+const fs = require('fs');
+const f = 'src/app/welcome/page.tsx';
+let c = fs.readFileSync(f, 'utf8');
+const oldT = `import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { LangProvider } from '../owner/dashboard/LangContext';`;
+const newT = `import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { ScrollReveal, StaggerContainer, StaggerItem } from './components/ScrollReveal';
+import { LangProvider } from '../owner/dashboard/LangContext';`;
+c = c.replace(oldT, newT);
+fs.writeFileSync(f, c);
+console.log('done');
