@@ -78,6 +78,7 @@ export function StatementPage() {
   const defaultRange = getDefaultDateRange();
   const [startDate, setStartDate] = useState(defaultRange.start);
   const [endDate, setEndDate] = useState(defaultRange.end);
+  const generatedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const [stmtType, setStmtType] = useState('Full Summary');
   const [downloading, setDownloading] = useState(false);

@@ -24,7 +24,7 @@ interface MOMessage {
   metrics?: Array<{ label: string; value: string; trend?: string }>;
   followUpSuggestions?: Array<string>;
   expandableSections?: Array<{ title: string; content: string; id: string }>;
-  alerts?: Array<{ type: 'warning' | 'info' | 'success'; message: string }>;
+  alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
   saleCard?: {
     items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
     totalRevenue: number;
