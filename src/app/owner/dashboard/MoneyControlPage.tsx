@@ -174,9 +174,18 @@ export default function MoneyControlPage() {
       
       // Calculate reconciliation metrics
       const matchedTransactions = recSaleIds.size;
-      const unmatchedSales = sales.length - matchedTransactions;
+      
+      // Only cash sales (and cash portion of split payments) need reconciliation
+      const cashSalesNeedingReconciliation = sales.filter(sale => {
+        const breakdown = sale.paymentBreakdown || [];
+        const hasCash = breakdown.some((pb: PaymentBreakdown) => pb.method === 'cash');
+        const hasSplit = breakdown.some((pb: PaymentBreakdown) => pb.method === 'split');
+        return hasCash || hasSplit;
+      });
+      
+      const unmatchedSales = cashSalesNeedingReconciliation.length - matchedTransactions;
       const unmatchedBankTransactions = 0; // TODO: Implement bank statement matching
-      const pendingReconciliation = unmatchedSales;
+      const pendingReconciliation = Math.max(0, unmatchedSales);
       
       // Calculate alerts
       let cashShortages = 0;

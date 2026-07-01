@@ -2852,27 +2852,27 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 5px;
   border: none;
   background: none;
   cursor: pointer;
   transition: all var(--tr);
-  padding: 6px 4px;
+  padding: 10px 8px;
   color: var(--t3);
   position: relative;
 }
 
-.bn-item svg { width: 20px; height: 20px; }
-.bn-item span { font-size: 0.59rem; font-weight: 600; white-space: nowrap; }
+.bn-item svg { width: 26px; height: 26px; }
+.bn-item span { font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .bn-item.act { color: var(--brand); }
 .bn-item.locked-nav { opacity: 0.35; cursor: not-allowed; }
 
 .bn-dot {
   position: absolute;
-  top: 5px;
-  width: 7px;
-  height: 7px;
+  top: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--red);
-  border: 1.5px solid var(--surf);
+  border: 2px solid var(--surf);
 }
