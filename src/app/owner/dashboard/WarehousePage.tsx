@@ -139,31 +139,9 @@ export function WarehousePage() {
   };
 
   const getLocationSummary = (): LocationSummary[] => {
-    const locations: LocationSummary[] = [
-      {
-        name: 'Main Store',
-        type: 'main_store',
-        stockCount: products.reduce((sum, p) => sum + (p.stockByLocation?.main_store || 0), 0),
-        stockValue: products.reduce((sum, p) => sum + ((p.stockByLocation?.main_store || 0) * p.costPrice), 0),
-        productCount: products.filter(p => (p.stockByLocation?.main_store || 0) > 0).length,
-      },
-      {
-        name: 'Back Store',
-        type: 'back_store',
-        stockCount: products.reduce((sum, p) => sum + (p.stockByLocation?.back_store || 0), 0),
-        stockValue: products.reduce((sum, p) => sum + ((p.stockByLocation?.back_store || 0) * p.costPrice), 0),
-        productCount: products.filter(p => (p.stockByLocation?.back_store || 0) > 0).length,
-      },
-      {
-        name: 'Warehouse',
-        type: 'warehouse',
-        stockCount: products.reduce((sum, p) => sum + (p.stockByLocation?.warehouse || 0), 0),
-        stockValue: products.reduce((sum, p) => sum + ((p.stockByLocation?.warehouse || 0) * p.costPrice), 0),
-        productCount: products.filter(p => (p.stockByLocation?.warehouse || 0) > 0).length,
-      },
-    ];
+    const locations: LocationSummary[] = [];
 
-    // Add branches
+    // Only add branches (user-created locations)
     branches.forEach(branch => {
       const branchStockCount = products.reduce((sum, p) => sum + (p.stockByLocation?.[branch.id] || 0), 0);
       const branchStockValue = products.reduce((sum, p) => sum + ((p.stockByLocation?.[branch.id] || 0) * p.costPrice), 0);
@@ -176,6 +154,35 @@ export function WarehousePage() {
           stockCount: branchStockCount,
           stockValue: branchStockValue,
           productCount: branchProductCount,
+        });
+      }
+    });
+
+    // Add any custom locations from stockByLocation that aren't branches
+    const customLocationIds = new Set<string>();
+    products.forEach(p => {
+      if (p.stockByLocation) {
+        Object.keys(p.stockByLocation).forEach(locId => {
+          if (!['main_store', 'back_store', 'warehouse'].includes(locId) && 
+              !branches.find(b => b.id === locId)) {
+            customLocationIds.add(locId);
+          }
+        });
+      }
+    });
+
+    customLocationIds.forEach(locId => {
+      const locStockCount = products.reduce((sum, p) => sum + (p.stockByLocation?.[locId] || 0), 0);
+      const locStockValue = products.reduce((sum, p) => sum + ((p.stockByLocation?.[locId] || 0) * p.costPrice), 0);
+      const locProductCount = products.filter(p => (p.stockByLocation?.[locId] || 0) > 0).length;
+      
+      if (locStockCount > 0) {
+        locations.push({
+          name: locId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          type: locId,
+          stockCount: locStockCount,
+          stockValue: locStockValue,
+          productCount: locProductCount,
         });
       }
     });

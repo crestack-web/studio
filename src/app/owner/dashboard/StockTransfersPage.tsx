@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, runTransaction, Timestamp, orderBy } from 'firebase/firestore';
-import { checkFeatureAccess } from '@/lib/featureRestrictions';
+import { checkFeatureAccess, getBusinessType } from '@/lib/featureRestrictions';
 import styles from './StockTransfersPage.module.css';
 
 interface Product {
@@ -15,9 +15,6 @@ interface Product {
   sku?: string;
   stock: number;
   stockByLocation?: {
-    main_store: number;
-    back_store: number;
-    warehouse: number;
     [key: string]: number;
   };
   costPrice: number;
@@ -49,6 +46,7 @@ export function StockTransfersPage() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [transferHistory, setTransferHistory] = useState<TransferRecord[]>([]);
+  const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [hasAccess, setHasAccess] = useState(true);
   const [accessReason, setAccessReason] = useState('');
 
@@ -59,6 +57,18 @@ export function StockTransfersPage() {
   const checkWarehouseAccess = async () => {
     if (!user?.id) return;
     
+    // Warehouse management is available for retailers and wholesalers regardless of plan
+    const businessType = await getBusinessType(user.id);
+    const isRetailOrWholesale = businessType.toLowerCase().includes('retail') || 
+                                 businessType.toLowerCase().includes('wholesale') ||
+                                 businessType.toLowerCase().includes('distributor');
+    
+    if (isRetailOrWholesale) {
+      setHasAccess(true);
+      return;
+    }
+    
+    // For other business types, check feature access
     const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
     if (!accessResult.eligible) {
       setHasAccess(false);
@@ -84,14 +94,12 @@ export function StockTransfersPage() {
   // Form state
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [transferQuantity, setTransferQuantity] = useState('');
-  const [fromLocation, setFromLocation] = useState<string>('main_store');
-  const [toLocation, setToLocation] = useState<string>('warehouse');
+  const [fromLocation, setFromLocation] = useState<string>('');
+  const [toLocation, setToLocation] = useState<string>('');
   const [notes, setNotes] = useState('');
 
   const locations = [
-    { id: 'main_store', name: 'Main Store' },
-    { id: 'back_store', name: 'Back Store' },
-    { id: 'warehouse', name: 'Warehouse' },
+    ...stockLocations.map(loc => ({ id: loc.id, name: loc.name })),
     ...branches.map(b => ({ id: b.id, name: b.name })),
   ];
 
@@ -119,11 +127,7 @@ export function StockTransfersPage() {
       
       productsSnapshot.forEach(doc => {
         const data = doc.data();
-        const stockByLocation = data.stockByLocation || {
-          main_store: data.stock || 0,
-          back_store: 0,
-          warehouse: 0,
-        };
+        const stockByLocation = data.stockByLocation || {};
         
         productsList.push({
           id: doc.id,
@@ -137,6 +141,28 @@ export function StockTransfersPage() {
       });
       
       setProducts(productsList);
+      
+      // Load stock locations
+      const locationsQuery = collection(firestore, 'businesses', businessId, 'stockLocations');
+      const locationsSnapshot = await getDocs(locationsQuery);
+      const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+      
+      locationsSnapshot.forEach(doc => {
+        const data = doc.data();
+        loadedLocations.push({
+          id: doc.id,
+          name: data.name,
+          type: data.type,
+        });
+      });
+      
+      setStockLocations(loadedLocations);
+      
+      // Set default locations if available
+      if (loadedLocations.length > 0) {
+        setFromLocation(loadedLocations[0].id);
+        setToLocation(loadedLocations.length > 1 ? loadedLocations[1].id : loadedLocations[0].id);
+      }
       
       // Load transfer history
       const transfersQuery = query(
@@ -277,11 +303,7 @@ export function StockTransfersPage() {
           
           if (productDoc.exists()) {
             const productData = productDoc.data();
-            const stockByLocation = productData.stockByLocation || {
-              main_store: 0,
-              back_store: 0,
-              warehouse: 0,
-            };
+            const stockByLocation = productData.stockByLocation || {};
             
             // Deduct from source
             const sourceStock = stockByLocation[item.fromLocation] || 0;

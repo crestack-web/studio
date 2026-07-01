@@ -78,9 +78,6 @@ interface ProductForm {
   // Warehouse assignment
   warehouseLocation?: string;
   stockByLocation?: {
-    main_store: number;
-    back_store: number;
-    warehouse: number;
     [key: string]: number;
   };
 }
@@ -167,33 +164,21 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
               const locationsSnapshot = await getDocs(locationsQuery);
               const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
               
-              // Add default locations if none exist
-              if (locationsSnapshot.empty) {
-                loadedLocations.push(
-                  { id: 'main_store', name: 'Main Store', type: 'main_store' },
-                  { id: 'back_store', name: 'Back Store', type: 'back_store' },
-                  { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
-                );
-              } else {
-                locationsSnapshot.forEach(doc => {
-                  const data = doc.data();
-                  loadedLocations.push({
-                    id: doc.id,
-                    name: data.name,
-                    type: data.type,
-                  });
+              // Only load user-created locations - no defaults
+              locationsSnapshot.forEach(doc => {
+                const data = doc.data();
+                loadedLocations.push({
+                  id: doc.id,
+                  name: data.name,
+                  type: data.type,
                 });
-              }
+              });
               
               setStockLocations(loadedLocations);
             } catch (error) {
               console.error('Error loading stock locations:', error);
-              // Set default locations on error
-              setStockLocations([
-                { id: 'main_store', name: 'Main Store', type: 'main_store' },
-                { id: 'back_store', name: 'Back Store', type: 'back_store' },
-                { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
-              ]);
+              // Set empty locations on error - no defaults
+              setStockLocations([]);
             }
           }
         }
@@ -238,13 +223,9 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     expiryDateIngredient: undefined,
     branch: undefined,
     ingredients: [],
-    // Warehouse assignment
-    warehouseLocation: 'main_store',
-    stockByLocation: {
-      main_store: 0,
-      back_store: 0,
-      warehouse: 0,
-    },
+    // Warehouse assignment - no defaults
+    warehouseLocation: '',
+    stockByLocation: {},
   });
 
   const [variantChips, setVariantChips] = useState<string[]>([]);
@@ -410,19 +391,14 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       // Add stockByLocation for warehouse assignment
       if (businessCategory === 'wholesale' || businessCategory === 'distributor') {
         const openingStock = parseInt(form.openingStock) || 0;
-        const warehouseLocation = form.warehouseLocation || 'main_store';
-        const stockByLocation: any = {
-          main_store: warehouseLocation === 'main_store' ? openingStock : 0,
-          back_store: warehouseLocation === 'back_store' ? openingStock : 0,
-          warehouse: warehouseLocation === 'warehouse' ? openingStock : 0,
-        };
+        const warehouseLocation = form.warehouseLocation;
         
-        // Add custom warehouse location if it's not one of the defaults
-        if (!['main_store', 'back_store', 'warehouse'].includes(warehouseLocation)) {
+        // Only assign stock if a warehouse location is selected
+        if (warehouseLocation && openingStock > 0) {
+          const stockByLocation: { [key: string]: number } = {};
           stockByLocation[warehouseLocation] = openingStock;
+          productData.stockByLocation = stockByLocation;
         }
-        
-        productData.stockByLocation = stockByLocation;
       }
 
       // Add restaurant-specific fields

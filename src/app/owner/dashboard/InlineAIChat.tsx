@@ -99,6 +99,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
      currentConversationId,
      setCurrentConversationId,
      businessSummary,
+     createConversation,
      saveConversation,
      saveMessages,
      loadConversation,
@@ -293,6 +294,16 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setStreamedContent('');
     setLoadingStage(1);
     setLoadingActions([]);
+
+    // Create conversation if this is the first message
+    if (!currentConversationId) {
+      console.log('📝 Creating new conversation...');
+      const newConversationId = await createConversation(userMsg);
+      if (newConversationId) {
+        setCurrentConversationId(newConversationId);
+        console.log('✅ Conversation created:', newConversationId);
+      }
+    }
 
     await new Promise(resolve => setTimeout(resolve, 800));
     setLoadingStage(2);

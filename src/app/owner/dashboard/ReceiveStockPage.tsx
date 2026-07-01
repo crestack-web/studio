@@ -26,7 +26,7 @@ interface ReceiptItem {
   quantity: number;
   unitCost: number;
   totalCost: number;
-  location: 'main_store' | 'back_store' | 'warehouse';
+  location: string;
 }
 
 interface BankAccount {
@@ -47,13 +47,14 @@ export function ReceiveStockPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form state
   const [selectedSupplier, setSelectedSupplier] = useState<string>('');
   const [newSupplierName, setNewSupplierName] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState<'main_store' | 'back_store' | 'warehouse'>('main_store');
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'credit'>('cash');
   const [bankAccountId, setBankAccountId] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
@@ -64,7 +65,7 @@ export function ReceiveStockPage() {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [itemQuantity, setItemQuantity] = useState('');
   const [itemUnitCost, setItemUnitCost] = useState('');
-  const [itemLocation, setItemLocation] = useState<'main_store' | 'back_store' | 'warehouse'>('main_store');
+  const [itemLocation, setItemLocation] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -170,6 +171,22 @@ export function ReceiveStockPage() {
       
       setBankAccounts(accountsList);
       
+      // Load stock locations
+      const locationsQuery = collection(firestore, 'businesses', businessId, 'stockLocations');
+      const locationsSnapshot = await getDocs(locationsQuery);
+      const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+      
+      locationsSnapshot.forEach(doc => {
+        const data = doc.data();
+        loadedLocations.push({
+          id: doc.id,
+          name: data.name,
+          type: data.type,
+        });
+      });
+      
+      setStockLocations(loadedLocations);
+      
       // Set default bank account
       const defaultAccount = accountsList.find(a => a.isDefault);
       if (defaultAccount) {
@@ -235,7 +252,7 @@ export function ReceiveStockPage() {
     setSelectedProduct('');
     setItemQuantity('');
     setItemUnitCost('');
-    setItemLocation('main_store');
+    setItemLocation(stockLocations.length > 0 ? stockLocations[0].id : '');
   };
 
   const handleRemoveItem = (index: number) => {
@@ -384,11 +401,7 @@ export function ReceiveStockPage() {
           if (productDoc.exists()) {
             const productData = productDoc.data();
             const currentStock = productData.stock || 0;
-            const stockByLocation = productData.stockByLocation || {
-              main_store: 0,
-              back_store: 0,
-              warehouse: 0,
-            };
+            const stockByLocation = productData.stockByLocation || {};
             
             // Update stock by location
             stockByLocation[item.location] = (stockByLocation[item.location] || 0) + item.quantity;
@@ -468,7 +481,7 @@ export function ReceiveStockPage() {
       // Reset form
       setSelectedSupplier('');
       setNewSupplierName('');
-      setSelectedLocation('main_store');
+      setSelectedLocation(stockLocations.length > 0 ? stockLocations[0].id : '');
       setPaymentMethod('cash');
       setBankAccountId('');
       setPaidAmount('');
@@ -477,7 +490,7 @@ export function ReceiveStockPage() {
       setSelectedProduct('');
       setItemQuantity('');
       setItemUnitCost('');
-      setItemLocation('main_store');
+      setItemLocation(stockLocations.length > 0 ? stockLocations[0].id : '');
       
       // Reload data
       await loadData();
@@ -607,12 +620,20 @@ export function ReceiveStockPage() {
             <select
               className={styles.select}
               value={itemLocation}
-              onChange={(e) => setItemLocation(e.target.value as any)}
+              onChange={(e) => setItemLocation(e.target.value)}
+              disabled={stockLocations.length === 0}
             >
-              <option value="main_store">Main Store</option>
-              <option value="back_store">Back Store</option>
-              <option value="warehouse">Warehouse</option>
+              {stockLocations.length === 0 ? (
+                <option value="">No locations available</option>
+              ) : (
+                stockLocations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))
+              )}
             </select>
+            {stockLocations.length === 0 && (
+              <p className={styles.hint}>Create warehouse locations in the Warehouse page first</p>
+            )}
           </div>
           
           <button
@@ -668,12 +689,20 @@ export function ReceiveStockPage() {
               <select
                 className={styles.select}
                 value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value as any)}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                disabled={stockLocations.length === 0}
               >
-                <option value="main_store">Main Store</option>
-                <option value="back_store">Back Store</option>
-                <option value="warehouse">Warehouse</option>
+                {stockLocations.length === 0 ? (
+                  <option value="">No locations available</option>
+                ) : (
+                  stockLocations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))
+                )}
               </select>
+              {stockLocations.length === 0 && (
+                <p className={styles.hint}>Create warehouse locations in the Warehouse page first</p>
+              )}
             </div>
             
             <div className={styles.formGroup}>

@@ -171,20 +171,12 @@ export function RecordSalePage() {
           
           setStockLocations(loadedLocations);
           
-          // Only show stock source selector if user has created custom stock locations
-          // (beyond the default 3: main_store, back_store, warehouse)
-          const hasCustomLocations = loadedLocations.some(
-            loc => !['main_store', 'back_store', 'warehouse'].includes(loc.id)
-          );
-          setShowStockSource(hasCustomLocations);
+          // Only show stock source selector if user has created stock locations
+          setShowStockSource(loadedLocations.length > 0);
         } catch (error) {
           console.error('Error loading stock locations:', error);
-          // Set default locations on error
-          setStockLocations([
-            { id: 'main_store', name: 'Main Store', type: 'main_store' },
-            { id: 'back_store', name: 'Back Store', type: 'back_store' },
-            { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
-          ]);
+          // Set empty locations on error - no defaults
+          setStockLocations([]);
           setShowStockSource(false);
         }
 

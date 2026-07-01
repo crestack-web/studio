@@ -27,8 +27,9 @@ const InventoryPage: React.FC = () => {
   const [selectedProductForTransfer, setSelectedProductForTransfer] = useState<Product | null>(null);
   const [transferQuantity, setTransferQuantity] = useState<number>(1);
   const [targetBranchId, setTargetBranchId] = useState<string>('');
-  const [sourceLocation, setSourceLocation] = useState<string>('main_store');
-  const [targetLocation, setTargetLocation] = useState<string>('warehouse');
+  const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [sourceLocation, setSourceLocation] = useState<string>('');
+  const [targetLocation, setTargetLocation] = useState<string>('');
   const [transferType, setTransferType] = useState<'branch' | 'warehouse'>('warehouse');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +101,34 @@ const InventoryPage: React.FC = () => {
         });
 
         setProducts(productsList);
+        
+        // Load stock locations
+        try {
+          const locationsQuery = collection(firestore, 'businesses', businessId, 'stockLocations');
+          const locationsSnapshot = await getDocs(locationsQuery);
+          const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+          
+          locationsSnapshot.forEach(doc => {
+            const data = doc.data();
+            loadedLocations.push({
+              id: doc.id,
+              name: data.name,
+              type: data.type,
+            });
+          });
+          
+          setStockLocations(loadedLocations);
+          
+          // Set default locations if available
+          if (loadedLocations.length > 0) {
+            setSourceLocation(loadedLocations[0].id);
+            setTargetLocation(loadedLocations.length > 1 ? loadedLocations[1].id : loadedLocations[0].id);
+          }
+        } catch (error) {
+          console.error('Error loading stock locations:', error);
+          setStockLocations([]);
+        }
+        
         setError(null);
       } catch (err: any) {
         console.error('Error fetching products:', err);
@@ -177,11 +206,7 @@ const InventoryPage: React.FC = () => {
           }
 
           const data = productDoc.data();
-          const stockByLocation = data.stockByLocation || {
-            main_store: data.stock || 0,
-            back_store: 0,
-            warehouse: 0,
-          };
+          const stockByLocation = data.stockByLocation || {};
 
           const sourceStock = stockByLocation[sourceLocation] || 0;
           const targetStock = stockByLocation[target] || 0;
@@ -863,11 +888,19 @@ const InventoryPage: React.FC = () => {
                           className="csv-modal-input"
                           value={sourceLocation}
                           onChange={(e) => setSourceLocation(e.target.value)}
+                          disabled={stockLocations.length === 0}
                         >
-                          <option value="main_store">Main Store</option>
-                          <option value="back_store">Back Store</option>
-                          <option value="warehouse">Warehouse</option>
+                          {stockLocations.length === 0 ? (
+                            <option value="">No locations available</option>
+                          ) : (
+                            stockLocations.map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))
+                          )}
                         </select>
+                        {stockLocations.length === 0 && (
+                          <small>Create warehouse locations in the Warehouse page first</small>
+                        )}
                       </div>
 
                       <div className="csv-modal-example">
@@ -876,10 +909,15 @@ const InventoryPage: React.FC = () => {
                           className="csv-modal-input"
                           value={targetLocation}
                           onChange={(e) => setTargetLocation(e.target.value)}
+                          disabled={stockLocations.length === 0}
                         >
-                          <option value="main_store">Main Store</option>
-                          <option value="back_store">Back Store</option>
-                          <option value="warehouse">Warehouse</option>
+                          {stockLocations.length === 0 ? (
+                            <option value="">No locations available</option>
+                          ) : (
+                            stockLocations.map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))
+                          )}
                         </select>
                       </div>
                     </>
