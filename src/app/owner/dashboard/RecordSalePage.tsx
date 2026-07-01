@@ -249,7 +249,8 @@ export function RecordSalePage() {
       }
       
       const productsQuery = query(
-        collection(firestore, 'businesses', targetBusinessId, 'products')
+        collection(firestore, 'businesses', targetBusinessId, 'products'),
+        where('active', '==', true)
       );
       
       console.log('refreshProducts: Executing products query');
@@ -269,12 +270,6 @@ export function RecordSalePage() {
         // For restaurant/cafe businesses, exclude ingredients from saleable products
         if (isRestaurant && productType.toLowerCase() === 'ingredient') {
           console.log('Skipping ingredient:', data.name);
-          return;
-        }
-        
-        // Skip inactive products (only if explicitly set to false)
-        if (data.active === false) {
-          console.log('Skipping inactive product:', data.name);
           return;
         }
         
