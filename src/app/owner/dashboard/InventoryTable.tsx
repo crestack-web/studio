@@ -9,6 +9,8 @@ import { useCurrency } from './CurrencyContext';
 interface InventoryTableProps {
   products: Product[];
   onProductClick: (p: Product) => void;
+  onDeleteProduct?: (p: Product) => void;
+  onDeactivateProduct?: (p: Product) => void;
 }
 
 type SortKey = 'name' | 'stock' | 'unitsSold30d' | 'profit' | 'totalValue';
@@ -52,7 +54,7 @@ const SortArrow: React.FC<{ active: boolean; dir: SortDir }> = ({ active, dir })
 
 const PAGE_SIZE = 8;
 
-const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClick }) => {
+const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClick, onDeleteProduct, onDeactivateProduct }) => {
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const [search, setSearch]           = useState('');
@@ -181,7 +183,12 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
               <tr>
                 <td colSpan={12} className="inv-empty">
                   <div className="inv-empty-inner">
-                    <span>📦</span>
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 16V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2z"/>
+                      <path d="M3 16h18"/>
+                      <path d="M21 20v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2"/>
+                      <path d="M25 16h4a2 2 0 012 2v4a2 2 0 01-2 2h-4"/>
+                    </svg>
                     <span>{t('inventory.noProducts')}</span>
                   </div>
                 </td>
@@ -205,7 +212,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
                         {p.imageUrl ? (
                           <img src={p.imageUrl} alt={p.name} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} />
                         ) : (
-                          p.emoji
+                          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="4" y="4" width="24" height="24" rx="4"/>
+                            <path d="M9 9h14M9 16h14M9 23h10"/>
+                          </svg>
                         )}
                       </div>
                       <div>
@@ -246,6 +256,31 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
                         <path d="M6.5 2v9M2 6.5l4.5-4.5L11 6.5"/>
                       </svg>
                     </button>
+                    {onDeactivateProduct && (
+                      <button 
+                        className="inv-act-btn" 
+                        title="Deactivate product" 
+                        onClick={() => onDeactivateProduct(p)}
+                        style={{ color: '#F59E0B' }}
+                      >
+                        <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                          <circle cx="6.5" cy="6.5" r="5"/>
+                          <path d="M6.5 3.5v6M3.5 6.5h6"/>
+                        </svg>
+                      </button>
+                    )}
+                    {onDeleteProduct && (
+                      <button 
+                        className="inv-act-btn" 
+                        title="Delete product" 
+                        onClick={() => onDeleteProduct(p)}
+                        style={{ color: '#DC2626' }}
+                      >
+                        <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                          <path d="M3 3h7M4 3v8a1 1 0 001 1h3a1 1 0 001-1V3M5 3V2a1 1 0 011-1h1a1 1 0 011 1v1"/>
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

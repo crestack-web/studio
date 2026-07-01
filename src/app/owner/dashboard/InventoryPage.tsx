@@ -8,7 +8,7 @@ import ProductDetailModal from './ProductDetailModal';
 import { AddProductPage } from './Addproductpage';
 import { useTranslation } from './LangContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, runTransaction, deleteDoc } from 'firebase/firestore';
 import { useApp } from './AppContext';
 import { useBranch } from '@/context/BranchContext';
 import './inventory.css';
@@ -310,7 +310,115 @@ const InventoryPage: React.FC = () => {
     }
   };
 
-  // Export to CSV
+  // Handle product deletion
+  const handleDeleteProduct = async (product: Product) => {
+    if (!businessId || !firestore) {
+      showToast('❌ Business information not available');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${product.name}"?\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+      await deleteDoc(productRef);
+      
+      showToast('✅ Product deleted successfully');
+      
+      // Refresh products
+      const productsSnapshot = await getDocs(query(
+        collection(firestore, 'businesses', businessId, 'products'),
+        where('active', '==', true)
+      ));
+      
+      const productsList: Product[] = [];
+      productsSnapshot.forEach(doc => {
+        const data = doc.data();
+        productsList.push({
+          id: doc.id,
+          name: data.name || '',
+          sku: data.sku || '',
+          category: data.category || '',
+          stock: data.stock || 0,
+          currentStock: data.stock || 0,
+          costPrice: data.cost || data.costPrice || 0,
+          sellingPrice: data.price || 0,
+          unitsSold30d: data.unitsSold30d || 0,
+          lastSaleDate: data.lastSaleDate || '',
+          reorderThreshold: data.lowStockThreshold || 10,
+          suggestedReorder: 0,
+          emoji: data.attributes?.emoji || '',
+          trend: 'flat' as const,
+          movement: [],
+          imageUrl: data.imageUrl || '',
+        });
+      });
+      
+      setProducts(productsList);
+    } catch (error: any) {
+      console.error('Error deleting product:', error);
+      showToast(`❌ Failed to delete product: ${error.message}`);
+    }
+  };
+
+  // Handle product deactivation
+  const handleDeactivateProduct = async (product: Product) => {
+    if (!businessId || !firestore) {
+      showToast('❌ Business information not available');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to deactivate "${product.name}"?\n\nDeactivated products won't appear in sales but will be preserved in your records.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+      await updateDoc(productRef, { active: false, updatedAt: new Date() });
+      
+      showToast('✅ Product deactivated successfully');
+      
+      // Refresh products
+      const productsSnapshot = await getDocs(query(
+        collection(firestore, 'businesses', businessId, 'products'),
+        where('active', '==', true)
+      ));
+      
+      const productsList: Product[] = [];
+      productsSnapshot.forEach(doc => {
+        const data = doc.data();
+        productsList.push({
+          id: doc.id,
+          name: data.name || '',
+          sku: data.sku || '',
+          category: data.category || '',
+          stock: data.stock || 0,
+          currentStock: data.stock || 0,
+          costPrice: data.cost || data.costPrice || 0,
+          sellingPrice: data.price || 0,
+          unitsSold30d: data.unitsSold30d || 0,
+          lastSaleDate: data.lastSaleDate || '',
+          reorderThreshold: data.lowStockThreshold || 10,
+          suggestedReorder: 0,
+          emoji: data.attributes?.emoji || '',
+          trend: 'flat' as const,
+          movement: [],
+          imageUrl: data.imageUrl || '',
+        });
+      });
+      
+      setProducts(productsList);
+    } catch (error: any) {
+      console.error('Error deactivating product:', error);
+      showToast(`❌ Failed to deactivate product: ${error.message}`);
+    }
+  };
   const handleExportCSV = () => {
     if (products.length === 0) {
       showToast('No products to export');
@@ -444,7 +552,13 @@ const InventoryPage: React.FC = () => {
     return (
       <div className="inv-page">
         <div className="inv-empty-state">
-          <div className="inv-empty-icon">⏳</div>
+          <div className="inv-empty-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="24" cy="24" r="20" strokeDasharray="60" strokeDashoffset="20">
+                <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="1s" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          </div>
           <h3>Loading Inventory...</h3>
           <p>Please wait while we fetch your products</p>
         </div>
@@ -588,6 +702,8 @@ const InventoryPage: React.FC = () => {
           <InventoryTable
             products={products}
             onProductClick={setSelected}
+            onDeleteProduct={handleDeleteProduct}
+            onDeactivateProduct={handleDeactivateProduct}
           />
         )}
       </section>
@@ -596,7 +712,14 @@ const InventoryPage: React.FC = () => {
       <section className="inv-section">
         {products.length === 0 ? (
           <div className="inv-section-empty">
-            <div className="inv-section-empty-icon">🔮</div>
+            <div className="inv-section-empty-icon">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M24 4L4 14v20l20 10 20-10V14L24 4z"/>
+                <path d="M24 4v40"/>
+                <path d="M4 14l20 10 20-10"/>
+                <path d="M4 34l20 10"/>
+              </svg>
+            </div>
             <h4>No Dead Stock Data</h4>
             <p>Once you add products, we'll help you identify slow-moving items</p>
           </div>
