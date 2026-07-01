@@ -90,7 +90,7 @@ export default function Cashflowpage() {
 
   useEffect(() => {
     loadData();
-  }, [businessId, firestore, dateFilter, customStartDate, customEndDate, products, bankAccounts, suppliers]);
+  }, [businessId, firestore, dateFilter, customStartDate, customEndDate]);
 
   const loadProducts = async () => {
     if (!businessId || !firestore) return;
