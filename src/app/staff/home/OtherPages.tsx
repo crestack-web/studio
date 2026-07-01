@@ -100,22 +100,44 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
           <button className="btn bxs bamb">Alert Owner</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 11px', background:'var(--red-bg)', border:'1px solid var(--red)', borderRadius:'var(--rsm)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <span style={{ fontSize:'.77rem', fontWeight:600, color:'var(--red)', flex:1 }}>Bottled Water — Only 4 units remaining</span>
-            <span className="pill r">CRITICAL</span>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'9px 11px', background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:'var(--rsm)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-            </svg>
-            <span style={{ fontSize:'.77rem', fontWeight:600, color:'var(--amber)', flex:1 }}>Sabuni — 7 units left, running low</span>
-            <span className="pill a">LOW</span>
-          </div>
+          {lowCount > 0 ? (
+            products
+              .filter((p) => p.stock <= (p.lowStockThreshold || 10))
+              .sort((a, b) => a.stock - b.stock)
+              .slice(0, 5)
+              .map((p) => {
+                const isOut = p.stock === 0;
+                const isCritical = p.stock <= 5;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 11px',
+                      background: isOut ? 'var(--red-bg)' : isCritical ? 'var(--red-bg)' : 'var(--amber-bg)',
+                      border: `1px solid ${isOut ? 'var(--red)' : isCritical ? 'var(--red)' : 'var(--amber)'}`,
+                      borderRadius: 'var(--rsm)',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isOut || isCritical ? 'var(--red)' : 'var(--amber)'} strokeWidth="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      {isOut && <line x1="12" y1="17" x2="12.01" y2="17"/>}
+                    </svg>
+                    <span style={{ fontSize: '.77rem', fontWeight: 600, color: isOut || isCritical ? 'var(--red)' : 'var(--amber)', flex: 1 }}>
+                      {p.emoji || '📦'} {p.name} — {isOut ? 'Out of stock' : `Only ${p.stock} units remaining`}
+                    </span>
+                    <span className={`pill ${isOut || isCritical ? 'r' : 'a'}`}>{isOut ? 'OUT' : isCritical ? 'CRITICAL' : 'LOW'}</span>
+                  </div>
+                );
+              })
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--t3)' }}>
+              ✅ All stock levels healthy
+            </div>
+          )}
         </div>
       </div>
 

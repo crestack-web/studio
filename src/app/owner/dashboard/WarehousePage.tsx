@@ -245,6 +245,20 @@ export function WarehousePage() {
           <h2 className={styles.pageTitle}>Warehouse</h2>
           <p className={styles.pageDesc}>View stock across all locations</p>
         </div>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.actionButton}
+            onClick={() => navigateTo('receive-stock')}
+          >
+            Receive Stock
+          </button>
+          <button
+            className={styles.actionButton}
+            onClick={() => navigateTo('stock-transfers')}
+          >
+            Stock Transfers
+          </button>
+        </div>
         <div className={styles.totalStats}>
           <div className={styles.totalStat}>
             <span className={styles.totalStatLabel}>Total Stock</span>
