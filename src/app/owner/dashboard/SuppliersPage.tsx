@@ -7,45 +7,34 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { checkFeatureAccess, Plan, BusinessCategory } from '@/lib/featureRegistry';
+import { Supplier } from './types';
 import styles from './SuppliersPage.module.css';
-
-interface Supplier {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  productsSupplied: string[];
-  totalAmountSpent: number;
-  lastSupplyDate: Timestamp;
-  supplyCount: number;
-  outstandingBalance?: number;
-  createdAt: Timestamp;
-  active: boolean;
-}
 
 interface StockReceipt {
   id: string;
+  businessId: string;
   receiptNumber: string;
   supplierId: string;
   supplierName: string;
+  purchaseOrderId?: string;
   items: Array<{
     productId: string;
     productName: string;
     quantity: number;
+    unit: string;
     unitCost: number;
     totalCost: number;
+    location?: string;
   }>;
-  totalQuantity: number;
-  totalCost: number;
-  paymentMethod: string;
-  paidAmount: number;
-  creditAmount?: number;
-  receivedAt: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+  receivedDate: Date;
+  notes?: string;
   receivedBy: string;
   receivedByName: string;
-  notes?: string;
-  createdAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface Product {
@@ -170,25 +159,42 @@ export default function SuppliersPage() {
 
       suppliersSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.active) {
+        if (data.status === 'active') {
           suppliersList.push({
             id: doc.id,
-            name: data.name || '',
-            phone: data.phone,
+            businessId: data.businessId || user.businessId,
+            supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
+            businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
+            phone: data.phone || '',
             email: data.email,
             address: data.address,
-            productsSupplied: data.productsSupplied || [],
-            totalAmountSpent: data.totalAmountSpent || 0,
-            lastSupplyDate: data.lastSupplyDate,
-            supplyCount: data.supplyCount || 0,
-            outstandingBalance: data.outstandingBalance,
-            createdAt: data.createdAt,
-            active: data.active,
+            notes: data.notes,
+            paymentTerms: data.paymentTerms || 'net_30',
+            customPaymentDays: data.customPaymentDays,
+            creditLimit: data.creditLimit || 0,
+            openingBalance: data.openingBalance || 0,
+            currentBalance: data.currentBalance || 0,
+            category: data.category || 'general',
+            status: data.status || 'active',
+            taxId: data.taxId,
+            bankAccount: data.bankAccount,
+            contactPerson: data.contactPerson,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+            lastPaymentDate: data.lastPaymentDate?.toDate(),
+            totalPurchases: data.totalPurchases || 0,
+            totalPayments: data.totalPayments || 0,
+            purchaseCount: data.purchaseCount || 0,
+            paymentCount: data.paymentCount || 0,
+            averagePaymentDays: data.averagePaymentDays || 0,
+            creditUtilization: data.creditUtilization || 0,
           });
         }
       });
 
-      suppliersList.sort((a, b) => (b.totalAmountSpent || 0) - (a.totalAmountSpent || 0));
+      // Sort by total purchases (most relevant first)
+      suppliersList.sort((a, b) => (b.totalPurchases || 0) - (a.totalPurchases || 0));
 
       setSuppliers(suppliersList);
     } catch (error) {
@@ -210,9 +216,11 @@ export default function SuppliersPage() {
         return;
       }
 
+      const businessId = user.businessId;
+
       // Load stock receipts for this supplier
       const receiptsQuery = query(
-        collection(firestore, 'businesses', user.businessId, 'stockReceipts'),
+        collection(firestore, 'businesses', businessId, 'stockReceipts'),
         where('supplierId', '==', supplier.id),
         orderBy('createdAt', 'desc')
       );
@@ -222,32 +230,46 @@ export default function SuppliersPage() {
       
       receiptsSnapshot.forEach(doc => {
         const data = doc.data();
+        const createdAtDate = data.createdAt?.toDate() || new Date();
+        const receivedDate = data.receivedAt ? new Date(data.receivedAt) : createdAtDate;
+        
         receiptsList.push({
           id: doc.id,
-          receiptNumber: data.receiptNumber,
+          businessId,
           supplierId: data.supplierId,
-          supplierName: data.supplierName,
+          supplierName: data.supplierName || supplier.businessName || 'Unknown Supplier',
+          purchaseOrderId: data.purchaseOrderId,
+          receiptNumber: data.receiptNumber || doc.id,
           items: data.items || [],
-          totalQuantity: data.totalQuantity || 0,
-          totalCost: data.totalCost || 0,
-          paymentMethod: data.paymentMethod,
-          paidAmount: data.paidAmount || 0,
-          creditAmount: data.creditAmount,
-          receivedAt: data.receivedAt,
-          receivedBy: data.receivedBy,
-          receivedByName: data.receivedByName,
+          subtotal: data.subtotal || 0,
+          tax: data.tax || 0,
+          total: data.total || data.totalCost || 0,
+          receivedDate,
           notes: data.notes,
-          createdAt: data.createdAt,
+          receivedBy: data.receivedBy || user.id,
+          receivedByName: data.receivedByName || 'Unknown',
+          createdAt: createdAtDate,
+          updatedAt: data.updatedAt?.toDate() || new Date(),
         });
       });
       
       setSupplierReceipts(receiptsList);
       
-      // Load products supplied by this supplier
+      // Extract unique products from receipts
+      const productIds = new Set<string>();
+      receiptsList.forEach(receipt => {
+        receipt.items.forEach(item => {
+          if (item.productId) {
+            productIds.add(item.productId);
+          }
+        });
+      });
+      
+      // Load product details
       const productsList: Product[] = [];
-      for (const productId of supplier.productsSupplied) {
+      for (const productId of Array.from(productIds)) {
         try {
-          const productDoc = await getDoc(doc(firestore, 'businesses', user.businessId, 'products', productId));
+          const productDoc = await getDoc(doc(firestore, 'businesses', businessId, 'products', productId));
           if (productDoc.exists()) {
             const data = productDoc.data();
             productsList.push({
@@ -271,9 +293,10 @@ export default function SuppliersPage() {
     }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
+  const formatDate = (timestamp: Timestamp | Date | undefined) => {
     if (!timestamp) return 'N/A';
-    return new Date(timestamp.toDate()).toLocaleDateString();
+    const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
+    return date.toLocaleDateString();
   };
 
   if (isLoading) {
@@ -295,15 +318,15 @@ export default function SuppliersPage() {
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>Suppliers</h2>
-          <p className={styles.pageDesc}>Auto-generated from stock receipts</p>
+          <p className={styles.pageDesc}>Manage your supplier relationships and purchase history</p>
         </div>
       </div>
 
       {suppliers.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>📦</div>
+          <div className={styles.emptyIcon}>🏢</div>
           <h3>No Suppliers Yet</h3>
-          <p>Suppliers are automatically created when you receive stock</p>
+          <p>Add suppliers when receiving stock or manage them here</p>
         </div>
       ) : (
         <div className={styles.content}>
@@ -318,25 +341,25 @@ export default function SuppliersPage() {
                 <div className={styles.supplierHeader}>
                   <div className={styles.supplierIcon}>🏢</div>
                   <div className={styles.supplierInfo}>
-                    <h3 className={styles.supplierName}>{supplier.name}</h3>
+                    <h3 className={styles.supplierName}>{supplier.businessName || supplier.supplierName}</h3>
                     <p className={styles.supplierMeta}>
-                      {supplier.supplyCount} supply • Last: {formatDate(supplier.lastSupplyDate)}
+                      {supplier.purchaseCount} purchases • Last: {supplier.lastPurchaseDate ? formatDate(supplier.lastPurchaseDate) : 'Never'}
                     </p>
                   </div>
                 </div>
                 <div className={styles.supplierStats}>
                   <div className={styles.stat}>
-                    <span className={styles.statLabel}>Total Spent</span>
-                    <span className={styles.statValue}>{formatMoney(supplier.totalAmountSpent)}</span>
+                    <span className={styles.statLabel}>Total Purchases</span>
+                    <span className={styles.statValue}>{formatMoney(supplier.totalPurchases)}</span>
                   </div>
                   <div className={styles.stat}>
-                    <span className={styles.statLabel}>Products</span>
-                    <span className={styles.statValue}>{supplier.productsSupplied.length}</span>
+                    <span className={styles.statLabel}>Balance</span>
+                    <span className={styles.statValue}>{formatMoney(supplier.currentBalance)}</span>
                   </div>
                 </div>
-                {supplier.outstandingBalance && supplier.outstandingBalance > 0 && (
+                {(supplier.currentBalance || 0) > 0 && (
                   <div className={styles.creditBadge}>
-                    Credit: {formatMoney(supplier.outstandingBalance)}
+                    Outstanding: {formatMoney(supplier.currentBalance)}
                   </div>
                 )}
               </div>
@@ -361,23 +384,23 @@ export default function SuppliersPage() {
                 <>
                   {/* Supplier Info */}
                   <div className={styles.detailSection}>
-                    <h3 className={styles.detailTitle}>{selectedSupplier.name}</h3>
+                    <h3 className={styles.detailTitle}>{selectedSupplier.businessName || selectedSupplier.supplierName}</h3>
                     <div className={styles.detailGrid}>
                       <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Total Spent</span>
-                        <span className={styles.detailValue}>{formatMoney(selectedSupplier.totalAmountSpent)}</span>
+                        <span className={styles.detailLabel}>Total Purchases</span>
+                        <span className={styles.detailValue}>{formatMoney(selectedSupplier.totalPurchases)}</span>
                       </div>
                       <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Supplies</span>
-                        <span className={styles.detailValue}>{selectedSupplier.supplyCount}</span>
+                        <span className={styles.detailLabel}>Purchase Count</span>
+                        <span className={styles.detailValue}>{selectedSupplier.purchaseCount}</span>
                       </div>
                       <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Products</span>
-                        <span className={styles.detailValue}>{selectedSupplier.productsSupplied.length}</span>
+                        <span className={styles.detailLabel}>Current Balance</span>
+                        <span className={styles.detailValue}>{formatMoney(selectedSupplier.currentBalance)}</span>
                       </div>
                       <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Last Supply</span>
-                        <span className={styles.detailValue}>{formatDate(selectedSupplier.lastSupplyDate)}</span>
+                        <span className={styles.detailLabel}>Last Purchase</span>
+                        <span className={styles.detailValue}>{selectedSupplier.lastPurchaseDate ? formatDate(selectedSupplier.lastPurchaseDate) : 'Never'}</span>
                       </div>
                       {selectedSupplier.phone && (
                         <div className={styles.detailItem}>
@@ -391,11 +414,11 @@ export default function SuppliersPage() {
                           <span className={styles.detailValue}>{selectedSupplier.email}</span>
                         </div>
                       )}
-                      {selectedSupplier.outstandingBalance && selectedSupplier.outstandingBalance > 0 && (
+                      {(selectedSupplier.currentBalance || 0) > 0 && (
                         <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Outstanding Balance</span>
                           <span className={styles.detailValue} style={{ color: '#ef4444' }}>
-                            {formatMoney(selectedSupplier.outstandingBalance)}
+                            {formatMoney(selectedSupplier.currentBalance)}
                           </span>
                         </div>
                       )}
@@ -432,20 +455,12 @@ export default function SuppliersPage() {
                             </div>
                             <div className={styles.receiptDetails}>
                               <div className={styles.receiptItem}>
-                                <span className={styles.receiptLabel}>Items:</span>
-                                <span className={styles.receiptValue}>{receipt.totalQuantity}</span>
-                              </div>
-                              <div className={styles.receiptItem}>
                                 <span className={styles.receiptLabel}>Total:</span>
-                                <span className={styles.receiptValue}>{formatMoney(receipt.totalCost)}</span>
+                                <span className={styles.receiptValue}>{formatMoney(receipt.total)}</span>
                               </div>
                               <div className={styles.receiptItem}>
-                                <span className={styles.receiptLabel}>Payment:</span>
-                                <span className={styles.receiptValue}>{receipt.paymentMethod}</span>
-                              </div>
-                              <div className={styles.receiptItem}>
-                                <span className={styles.receiptLabel}>Location:</span>
-                                <span className={styles.receiptValue}>{receipt.receivedAt.replace('_', ' ')}</span>
+                                <span className={styles.receiptLabel}>Date:</span>
+                                <span className={styles.receiptValue}>{formatDate(receipt.receivedDate)}</span>
                               </div>
                             </div>
                             {receipt.notes && (
@@ -457,7 +472,7 @@ export default function SuppliersPage() {
                             <div className={styles.receiptItems}>
                               {receipt.items.slice(0, 3).map((item, index) => (
                                 <div key={index} className={styles.receiptItemLine}>
-                                  {item.productName} × {item.quantity}
+                                  {item.productName} × {item.quantity} @ {formatMoney(item.unitCost)}
                                 </div>
                               ))}
                               {receipt.items.length > 3 && (
@@ -480,4 +495,3 @@ export default function SuppliersPage() {
     </div>
   );
 }
-
