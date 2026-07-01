@@ -84,10 +84,13 @@ export default function Cashflowpage() {
   const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '' });
 
   useEffect(() => {
-    loadData();
     loadProducts();
     loadSuppliers();
-  }, [businessId, firestore, dateFilter, customStartDate, customEndDate]);
+  }, [businessId, firestore]);
+
+  useEffect(() => {
+    loadData();
+  }, [businessId, firestore, dateFilter, customStartDate, customEndDate, products, bankAccounts, suppliers]);
 
   const loadProducts = async () => {
     if (!businessId || !firestore) return;
@@ -306,15 +309,79 @@ export default function Cashflowpage() {
       
       setTransactions(sortedTransactions);
       
-      // Calculate stock value from products using costPrice (handles both 'cost' and 'costPrice' fields)
+      // Fetch expenses and integrate them into cashflow
+      const expensesQuery = query(
+        collection(firestore, 'businesses', businessId, 'expenses'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+      const expensesSnapshot = await getDocs(expensesQuery);
+      
+      // Process expenses with for...of to support async operations
+      for (const expenseDoc of expensesSnapshot.docs) {
+        const data = expenseDoc.data();
+        const amount = data.amount || 0;
+        const date = data.createdAt?.toDate() || new Date();
+        
+        // Apply date filter
+        if (dateRange && dateFilter !== 'all') {
+          if (date < dateRange.startDate || date > dateRange.endDate) {
+            continue;
+          }
+        }
+        
+        // Determine if this is a bank payment
+        const isBankPayment = data.paymentMethod === 'Bank Transfer' || 
+                              data.paymentMethod === 'POS / Card';
+        
+        // Add expense to transactions
+        fetchedTransactions.push({
+          id: `expense-${expenseDoc.id}`,
+          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          type: data.category || 'Expense',
+          description: data.description || `Expense: ${data.category}`,
+          amount: amount,
+          credit: false,
+          accountName: isBankPayment ? accountsList.find(a => a.isDefault || a.isPosDefault)?.accountName : 'Cash',
+        });
+        
+        // Deduct from monthly out
+        if (date >= monthStart) monthOut += amount;
+        
+        // If bank payment, deduct from bank balance and record bank transaction
+        if (isBankPayment) {
+          const defaultAccount = accountsList.find(a => a.isDefault || a.isPosDefault) || accountsList[0];
+          if (defaultAccount && defaultAccount.currentBalance >= amount) {
+            const newBalance = defaultAccount.currentBalance - amount;
+            await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', defaultAccount.id), {
+              currentBalance: newBalance,
+            });
+            
+            const transactionData = {
+              transactionNumber: `EXP-${Date.now()}`,
+              bankAccountId: defaultAccount.id,
+              accountName: defaultAccount.accountName,
+              type: 'money_out',
+              category: data.category || 'Expense',
+              amount: amount,
+              balanceAfter: newBalance,
+              description: data.description || `Expense: ${data.category}`,
+              createdAt: Timestamp.now(),
+            };
+            await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+          }
+        }
+      }
+
+      // Calculate stock value from products using costPrice
       const stockValue = products.reduce((sum: number, product: any) => {
         const stock = product.stock || 0;
-        const costPrice = product.costPrice || 0;
+        const costPrice = product.costPrice || product.cost || 0;
         return sum + (stock * costPrice);
       }, 0);
       
       // Calculate total cash balance (sum of all bank accounts)
-      const totalBankBalance = accountsList.reduce((sum, a) => sum + a.currentBalance, 0);
+      const totalBankBalance = accountsList.reduce((sum, a) => sum + (a.currentBalance || 0), 0);
       
       setStats({
         cashBalance: totalBankBalance,
