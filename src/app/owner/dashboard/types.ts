@@ -44,6 +44,7 @@ export type PageId =
   | 'ecommerce-storefront'
   | 'warehouse'
   | 'stock-transfers'
+  | 'receive-stock'
   | 'audit-trail'
   | 'staff-activity'
   | 'staff-accountability'

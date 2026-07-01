@@ -96,6 +96,9 @@
   padding: 60px 20px;
   text-align: center;
   color: var(--text-3);
+  background: var(--bg);
+  border-radius: 12px;
+  margin: 20px 0;
 }
 
 .emptyState svg {

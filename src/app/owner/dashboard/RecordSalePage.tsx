@@ -573,21 +573,15 @@ export function RecordSalePage() {
             const currentStock = data.stock || data.quantity || 0;
             const newStock = Math.max(0, currentStock - item.qty);
             
-            // Update stockByLocation - preserve existing stock value for main_store
-            const stockByLocation = data.stockByLocation || {
-              main_store: currentStock,
-              back_store: 0,
-              warehouse: 0,
-            };
+            // Update stockByLocation - use dynamic locations
+            const stockByLocation = data.stockByLocation || {};
             
-            const locationKey = sourceLocation === 'main_store' ? 'main_store' :
-                              sourceLocation === 'back_store' ? 'back_store' :
-                              sourceLocation === 'warehouse' ? 'warehouse' : sourceLocation;
-            
-            const currentLocationStock = stockByLocation[locationKey] || 0;
-            const newLocationStock = Math.max(0, currentLocationStock - item.qty);
-            
-            stockByLocation[locationKey] = newLocationStock;
+            // Only deduct from location if sourceLocation is specified and exists
+            if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
+              const currentLocationStock = stockByLocation[sourceLocation] || 0;
+              const newLocationStock = Math.max(0, currentLocationStock - item.qty);
+              stockByLocation[sourceLocation] = newLocationStock;
+            }
             
             transaction.update(productRef, {
               stock: newStock,

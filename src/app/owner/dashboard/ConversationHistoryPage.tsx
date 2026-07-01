@@ -44,14 +44,14 @@ export function ConversationHistoryPage() {
 
   const handleBackToChat = () => {
     setSelectedConversationId(null);
-    navigateTo('home');
+    navigateTo('mo');
   };
 
   const handleNewChat = () => {
     setCurrentConversationId(null);
     setMessages([]);
     setSelectedConversationId(null);
-    navigateTo('home');
+    navigateTo('mo');
   };
 
   const handleDelete = async (e: React.MouseEvent, conversationId: string) => {

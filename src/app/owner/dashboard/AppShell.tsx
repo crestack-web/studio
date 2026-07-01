@@ -41,6 +41,9 @@ import PayrollPage from './PayrollPage';
 import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
 import { ConversationHistoryPage } from './ConversationHistoryPage';
+import { WarehousePage } from './WarehousePage';
+import { ReceiveStockPage } from './ReceiveStockPage';
+import { StockTransfersPage } from './StockTransfersPage';
 import styles from './AppShell.module.css';
 
 // ═══════════════════════════════════════════
@@ -81,6 +84,9 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'payroll': <PayrollPage />,
   'customer-management': <CustomersPage />,
   'supplier-management': <SuppliersPage />,
+  'warehouse': <WarehousePage />,
+  'receive-stock': <ReceiveStockPage />,
+  'stock-transfers': <StockTransfersPage />,
   'mo-history': <ConversationHistoryPage />,
 };
 

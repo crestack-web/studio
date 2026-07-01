@@ -38,6 +38,9 @@ export type PageId =
   | 'invoice-verification'
   | 'supplier-management'
   | 'customer-management'
+  | 'warehouse'
+  | 'stock-transfers'
+  | 'receive-stock'
   | 'mo-history';
 
 // ── Navigation ──────────────────────────────

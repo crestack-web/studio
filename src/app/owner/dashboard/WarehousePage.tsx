@@ -36,7 +36,7 @@ interface LocationSummary {
 }
 
 export function WarehousePage() {
-  const { showToast, user } = useApp();
+  const { showToast, user, navigateTo } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId, branches } = useBranch();
   const { firestore } = initializeFirebase();
