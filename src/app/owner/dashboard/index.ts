@@ -37,7 +37,8 @@ export type PageId =
   | 'branches'
   | 'invoice-verification'
   | 'supplier-management'
-  | 'customer-management';
+  | 'customer-management'
+  | 'mo-history';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

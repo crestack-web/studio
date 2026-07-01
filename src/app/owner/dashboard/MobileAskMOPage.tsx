@@ -829,7 +829,7 @@ export function MobileAskMOPage() {
   }
 
   function handleHistory() {
-    setShowHistory(!showHistory);
+    navigateTo('mo-history');
   }
 
   // Prevent mobile page from showing on desktop breakpoint
@@ -1150,55 +1150,6 @@ export function MobileAskMOPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Conversation History Panel */}
-      {showHistory && (
-        <div className={styles.historyPanel}>
-          <div className={styles.historyHeader}>
-            <h3 className={styles.historyTitle}>Conversations</h3>
-            <button className={styles.closeHistoryBtn} onClick={() => setShowHistory(false)}>
-              ✕
-            </button>
-          </div>
-          <div className={styles.historyList}>
-            {conversations.length === 0 ? (
-              <div className={styles.historyEmpty}>
-                <p>No conversations yet</p>
-                <p className={styles.historyEmptySub}>Start typing below to begin.</p>
-              </div>
-            ) : (
-              conversations.map(conv => (
-                <div
-                  key={conv.id}
-                  className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
-                  onClick={() => handleLoadConversation(conv.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className={styles.historyItemContent}>
-                    <div className={styles.historyItemTitle}>{conv.title}</div>
-                    <div className={styles.historyItemMeta}>
-                      <span className={styles.historyItemDate}>
-                        {conv.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                      {typeof conv.messageCount === 'number' && (
-                        <span className={styles.historyItemCount}>{conv.messageCount} messages</span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    className={styles.historyItemDelete}
-                    onClick={e => {
-                      e.stopPropagation();
-                      deleteConversation(conv.id);
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Input */}
       <div className={styles.inputArea}>

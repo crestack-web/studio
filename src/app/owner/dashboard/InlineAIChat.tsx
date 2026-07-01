@@ -83,7 +83,7 @@ interface InlineAIChatProps {
 }
 
 export function InlineAIChat({ onClose }: InlineAIChatProps) {
-  const { user, showToast, theme } = useApp();
+  const { user, showToast, theme, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
   const { t, lang, langMeta } = useTranslation();
   const { selectedBranchId, selectedBranchScope, branches } = useBranch();
@@ -523,7 +523,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   }
 
   function handleHistory() {
-    setShowHistory(!showHistory);
+    navigateTo('mo-history');
   }
 
   const filteredConversations = conversations.filter(conv => 
@@ -831,85 +831,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Conversation History Panel */}
-      {showHistory && (
-        <>
-          <div className={styles.historyBackdrop} onClick={() => setShowHistory(false)} />
-          <div className={styles.historyPanel}>
-            <div className={styles.historyHeader}>
-              <h4 className={styles.historyTitle}>Conversation History</h4>
-              <button
-                className={styles.closeHistoryBtn}
-                onClick={() => setShowHistory(false)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className={styles.historySearch}>
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={historySearchQuery}
-                onChange={(e) => setHistorySearchQuery(e.target.value)}
-                className={styles.historySearchInput}
-              />
-            </div>
-
-            <div className={styles.historyList}>
-              {filteredConversations.length === 0 ? (
-                <div className={styles.historyEmpty}>
-                  <p>No conversations found</p>
-                </div>
-              ) : (
-                filteredConversations.map(conv => (
-                  <div
-                    key={conv.id}
-                    className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.historyItemActive : ''}`}
-                    onClick={() => loadConversation(conv.id)}
-                  >
-                    <div className={styles.historyItemHeader}>
-                      <span className={styles.historyItemTitle}>{conv.title}</span>
-                      <div className={styles.historyItemActions}>
-                        <button
-                          className={styles.historyItemAction}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newTitle = prompt('Rename conversation:', conv.title);
-                            if (newTitle) renameConversation(conv.id, newTitle);
-                          }}
-                          title="Rename"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          className={styles.historyItemAction}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Delete this conversation?')) {
-                              deleteConversation(conv.id);
-                            }
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                    <div className={styles.historyItemMeta}>
-                      <span>{conv.branchName || 'Main Branch'}</span>
-                      <span>•</span>
-                      <span>{(conv.messages?.length || conv.messageCount || 0)} messages</span>
-                      <span>•</span>
-                      <span>{conv.updatedAt.toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Input */}
       <div className={styles.inputArea}>
