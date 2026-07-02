@@ -344,22 +344,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       console.log('💬 Sending message to Ask MO API');
       const { firestore } = initializeFirebase();
 
-      console.log('💾 Saving user message to Firestore...');
-      const messageData: any = {
-        role: userMsg.role,
-        content: userMsg.content,
-        timestamp: Timestamp.now(),
-      };
-      if (userMsg.imageUrl) {
-        messageData.imageUrl = userMsg.imageUrl;
-      }
-      if (userMsg.audioUrl) {
-        messageData.audioUrl = userMsg.audioUrl;
-      }
-      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', userMsg.id), messageData);
-      console.log('✅ User message saved successfully');
-
-      console.log('📡 Calling Ask MO API...');
+      console.log(' Calling Ask MO API...');
       
       let businessCategory = 'retail';
       if (user.businessId) {
@@ -429,20 +414,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       }
 
       setMessages(prev => [...prev, botMsg]);
-
-      console.log('💾 Saving bot response to Firestore...');
-      const botMessageData: any = {
-        role: botMsg.role,
-        content: botMsg.content,
-        timestamp: Timestamp.now(),
-      };
-      if (botMsg.metrics) botMessageData.metrics = botMsg.metrics;
-      if (botMsg.quickActions) botMessageData.quickActions = botMsg.quickActions;
-      if (botMsg.followUpSuggestions) botMessageData.followUpSuggestions = botMsg.followUpSuggestions;
-      if (botMsg.expandableSections) botMessageData.expandableSections = botMsg.expandableSections;
-      if (botMsg.alerts) botMessageData.alerts = botMsg.alerts;
-      await setDoc(doc(firestore, 'users', user.id, 'mo_messages', botMsg.id), botMessageData);
-      console.log('✅ Bot response saved successfully');
 
       const estimatedTokens = Math.ceil((botMsg.content.length / 4) * 0.7);
       const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
