@@ -151,31 +151,24 @@ export function RecordSalePage() {
           const locationsSnapshot = await getDocs(locationsQuery);
           const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
           
-          // Add default locations if none exist
-          if (locationsSnapshot.empty) {
-            loadedLocations.push(
-              { id: 'main_store', name: 'Main Store', type: 'main_store' },
-              { id: 'back_store', name: 'Back Store', type: 'back_store' },
-              { id: 'warehouse', name: 'Warehouse', type: 'warehouse' }
-            );
-          } else {
-            locationsSnapshot.forEach(doc => {
-              const data = doc.data();
-              loadedLocations.push({
-                id: doc.id,
-                name: data.name,
-                type: data.type,
-              });
+          // Only use actual locations created by the owner - no defaults
+          locationsSnapshot.forEach(doc => {
+            const data = doc.data();
+            loadedLocations.push({
+              id: doc.id,
+              name: data.name,
+              type: data.type,
             });
-          }
+          });
           
           setStockLocations(loadedLocations);
           
-          // Only show stock source selector if user has created stock locations
-          setShowStockSource(loadedLocations.length > 0);
+          // Only show stock source selector if there's at least one warehouse created by the owner
+          const hasWarehouse = loadedLocations.some(loc => loc.type === 'warehouse');
+          setShowStockSource(hasWarehouse);
         } catch (error) {
           console.error('Error loading stock locations:', error);
-          // Set empty locations on error - no defaults
+          // Set empty locations on error
           setStockLocations([]);
           setShowStockSource(false);
         }
