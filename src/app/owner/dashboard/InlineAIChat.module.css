@@ -606,6 +606,50 @@
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inputRow:focus-within {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.textInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 15px;
+  resize: none;
+  outline: none;
+  min-height: 32px;
+  max-height: 150px;
+  line-height: 1.5;
+  font-weight: 400;
+  padding: 4px 0;
+  overflow-y: auto;
+  font-family: inherit;
+}
+
+.textInput::placeholder {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.textInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .attachBtn,
 .micBtn {
   width: 36px;
@@ -678,6 +722,11 @@
 
 .sendBtn:disabled {
   opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sendBtn.sending {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
