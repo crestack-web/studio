@@ -71,42 +71,35 @@ export function WarehousePage() {
   }
 
   const checkWarehouseAccess = async () => {
-    if (!user?.id) return;
-
-    const businessType = await getBusinessType(user.id);
-    const isRetailOrWholesale = businessType.toLowerCase().includes('retail') ||
-                                 businessType.toLowerCase().includes('wholesale') ||
-                                 businessType.toLowerCase().includes('distributor');
-
-    if (isRetailOrWholesale) {
-      setHasAccess(true);
+    if (!user?.id) {
+      setHasAccess(false);
+      setAccessReason('Please log in to access this feature');
       return;
     }
 
-    const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
-    if (!accessResult.eligible) {
-      setHasAccess(false);
-      setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+    try {
+      const businessType = await getBusinessType(user.id);
+      const isRetailOrWholesale = businessType.toLowerCase().includes('retail') ||
+                                   businessType.toLowerCase().includes('wholesale') ||
+                                   businessType.toLowerCase().includes('distributor');
+
+      if (isRetailOrWholesale) {
+        setHasAccess(true);
+        return;
+      }
+
+      const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
+      if (accessResult.eligible) {
+        setHasAccess(true);
+      } else {
+        setHasAccess(false);
+        setAccessReason(accessResult.reason || 'This feature is not available for your plan');
+      }
+    } catch (error) {
+      console.error('Error checking warehouse access:', error);
+      setHasAccess(true);
     }
   };
-
-  if (!hasAccess) {
-    return (
-      <div className={styles.wrapper}>
-        <div className={styles.pageHeader}>
-          <h2 className={styles.pageTitle}>Warehouse</h2>
-        </div>
-        <div className={styles.lockState}>
-          <div className={styles.lockIcon}>🔒</div>
-          <h3 className={styles.lockTitle}>Feature Not Available</h3>
-          <p className={styles.lockReason}>{accessReason}</p>
-          <button className={styles.lockButton} onClick={() => window.location.href = '/pricing'}>
-            Upgrade Plan
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const loadStockLocations = async () => {
     if (!businessId || !firestore) return;
@@ -320,15 +313,46 @@ export function WarehousePage() {
     }
   };
 
-  if (isLoading) {
+  // While checking access, show loading state
+  if (hasAccess === null) {
     return (
       <div className={styles.wrapper}>
         <div className={styles.pageHeader}>
           <h2 className={styles.pageTitle}>Warehouse</h2>
-          <p className={styles.pageDesc}>Loading warehouse data...</p>
+          <p className={styles.pageDesc}>Loading...</p>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px' }}>
           <div className={styles.spinner}></div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no access, show lock state with upgrade prompt
+  if (hasAccess === false) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.pageHeader}>
+          <h2 className={styles.pageTitle}>Warehouse</h2>
+          <p className={styles.pageDesc}>View stock across all locations</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button
+            className={`${styles.actionButton} ${styles.addButton}`}
+            onClick={() => setShowAddModal(true)}
+          >
+            + Add Warehouse
+          </button>
+        </div>
+        <div className={styles.lockOverlay}>
+          <div className={styles.lockContent}>
+            <div className={styles.lockIcon}>🔒</div>
+            <h3 className={styles.lockTitle}>Feature Not Available</h3>
+            <p className={styles.lockReason}>{accessReason}</p>
+            <button className={styles.lockButton} onClick={() => window.location.href = '/pricing'}>
+              Upgrade Plan
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -342,6 +366,7 @@ export function WarehousePage() {
         { id: 'back_store', name: 'Back Store', type: 'back_store' },
       ];
 
+  // User has access - show full warehouse page
   return (
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
