@@ -212,13 +212,13 @@ export default function Cashflowpage() {
 
       let snapshot;
       if (dateRange && dateFilter !== 'all') {
-        // Apply date filtering in-memory after fetching
         snapshot = await getDocs(transactionsQuery);
       } else {
         snapshot = await getDocs(transactionsQuery);
       }
       
-      const fetchedTransactions: Transaction[] = [];
+      // Use a Map to deduplicate transactions by ID
+      const transactionMap = new Map<string, Transaction>();
       let cashBalance = 0;
       let monthIn = 0;
       let monthOut = 0;
@@ -239,7 +239,7 @@ export default function Cashflowpage() {
           }
         }
         
-        fetchedTransactions.push({
+        transactionMap.set(doc.id, {
           id: doc.id,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           type: data.category || 'Other',
@@ -285,7 +285,7 @@ export default function Cashflowpage() {
         );
         
         if (hasBankPayment) {
-          fetchedTransactions.push({
+          transactionMap.set(`sale-${doc.id}`, {
             id: `sale-${doc.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
             type: 'Sale',
@@ -300,8 +300,8 @@ export default function Cashflowpage() {
         }
       });
       
-      // Sort transactions by date (most recent first)
-      const sortedTransactions = fetchedTransactions.sort((a, b) => {
+      // Convert map to array and sort transactions by date (most recent first)
+      const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
         return dateB.getTime() - dateA.getTime();
@@ -335,7 +335,7 @@ export default function Cashflowpage() {
                               data.paymentMethod === 'POS / Card';
         
         // Add expense to transactions
-        fetchedTransactions.push({
+        transactionMap.set(`expense-${expenseDoc.id}`, {
           id: `expense-${expenseDoc.id}`,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           type: data.category || 'Expense',
@@ -1237,4 +1237,3 @@ export default function Cashflowpage() {
     </div>
   );
 }
-

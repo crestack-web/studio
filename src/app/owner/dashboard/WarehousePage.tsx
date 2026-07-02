@@ -138,15 +138,21 @@ export function WarehousePage() {
       const loadedLocations: StockLocation[] = [];
 
       locationsSnapshot.forEach((doc) => {
+        const data = doc.data();
         loadedLocations.push({
           id: doc.id,
-          name: doc.data().name,
-          type: doc.id,
+          name: data.name,
+          type: data.type || doc.id,
         });
       });
 
+      // Deduplicate locations by name to prevent duplicates
+      const uniqueLocations = loadedLocations.filter((location, index, self) =>
+        index === self.findIndex(l => l.name.toLowerCase() === location.name.toLowerCase())
+      );
+
       // Ensure Main Store always exists - use fixed ID to prevent duplicates
-      const hasMainStore = loadedLocations.some(loc => loc.id === 'main_store');
+      const hasMainStore = uniqueLocations.some(loc => loc.id === 'main_store');
       
       if (!hasMainStore) {
         try {
@@ -162,7 +168,7 @@ export function WarehousePage() {
           );
           
           // Add to loaded locations
-          loadedLocations.push({
+          uniqueLocations.push({
             id: 'main_store',
             name: 'Main Store',
             type: 'main_store',
@@ -172,7 +178,7 @@ export function WarehousePage() {
         }
       }
 
-      const sorted = loadedLocations.sort((a, b) => {
+      const sorted = uniqueLocations.sort((a, b) => {
         const order = ['main_store', 'warehouse', 'back_store'];
         const aIndex = order.indexOf(a.id);
         const bIndex = order.indexOf(b.id);

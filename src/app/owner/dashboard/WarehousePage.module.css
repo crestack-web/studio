@@ -1,7 +1,9 @@
 .wrapper {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pageHeader {
@@ -20,35 +22,39 @@
 }
 
 .actionButton {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--text-1);
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .actionButton:hover {
-  background: var(--bg-3);
-  border-color: var(--primary);
-  color: var(--primary);
+  background: var(--surface);
+  border-color: var(--purple);
+  color: var(--purple);
 }
 
 .pageTitle {
-  font-size: 28px;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-1);
   margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
 }
 
 .pageDesc {
-  font-size: 14px;
+  font-size: 0.95rem;
   color: var(--text-3);
-  margin: 0;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+  font-weight: 400;
 }
 
 .totalStats {
@@ -57,12 +63,15 @@
 }
 
 .totalStat {
-  padding: 12px 16px;
-  background: var(--bg-2);
+  padding: 20px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 16px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .totalStatLabel {
@@ -74,9 +83,11 @@
 
 .totalStatValue {
   display: block;
-  font-size: 16px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--text-1);
+  letter-spacing: -0.02em;
 }
 
 .locationsGrid {
@@ -87,23 +98,26 @@
 }
 
 .locationCard {
-  background: var(--bg-2);
-  border: 2px solid var(--border);
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
   padding: 20px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
 }
 
 .locationCard:hover {
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--purple);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.1);
 }
 
 .locationCard.active {
-  border-color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.05);
+  border-color: var(--purple);
+  background: rgba(124, 58, 237, 0.05);
 }
 
 .locationHeader {
@@ -118,10 +132,12 @@
 }
 
 .locationName {
-  font-size: 16px;
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-1);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .locationStats {
@@ -148,11 +164,11 @@
 }
 
 .productsSection {
-  background: var(--bg-2);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .productsHeader {
@@ -165,32 +181,40 @@
 }
 
 .productsTitle {
-  font-size: 18px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-1);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .searchInput {
-  padding: 8px 12px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-1);
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
   color: var(--text-1);
   width: 250px;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
 }
 
 .emptyState {
   text-align: center;
-  padding: 60px 20px;
+  padding: 60px 24px;
   color: var(--text-3);
+  background: var(--bg);
+  border-radius: 16px;
+  border: 2px dashed var(--border);
 }
 
 .emptyIcon {
@@ -219,13 +243,13 @@
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 12px;
   padding: 12px;
-  background: var(--bg-3);
+  background: var(--bg);
   border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
 .tableRow {
@@ -233,12 +257,13 @@
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.2s;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tableRow:hover {
-  background: var(--bg-1);
+  background: var(--bg);
+  border-color: var(--border);
 }
 
 .tableRow:last-child {
@@ -290,7 +315,7 @@
 }
 
 .totalStock {
-  color: var(--primary);
+  color: var(--purple);
 }
 
 .valueText {
@@ -299,12 +324,13 @@
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border: 3px solid var(--border);
-  border-top-color: var(--primary);
+  border-top-color: var(--purple);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin: 0 auto;
 }
 
 @keyframes spin {
@@ -340,32 +366,34 @@
 
 .lockButton {
   padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: white;
-  background: var(--primary);
+  background: var(--purple);
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
 }
 
 .lockButton:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+  background: #6D28D9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
 }
 
 /* Lock Overlay */
 .lockOverlay {
   position: relative;
-  background: rgba(var(--bg-2), 0.95);
+  background: rgba(255, 255, 255, 0.95);
   border: 2px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
   padding: 60px 40px;
   margin-top: 24px;
   text-align: center;
   backdrop-filter: blur(8px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
 }
 
 .lockContent {
@@ -384,10 +412,10 @@
     45deg,
     transparent,
     transparent 10px,
-    rgba(var(--primary-rgb), 0.02) 10px,
-    rgba(var(--primary-rgb), 0.02) 20px
+    rgba(124, 58, 237, 0.02) 10px,
+    rgba(124, 58, 237, 0.02) 20px
   );
-  border-radius: 12px;
+  border-radius: 20px;
   pointer-events: none;
 }
 
@@ -430,22 +458,24 @@
 
 /* Transfer Button */
 .transferButton {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--primary);
-  background: rgba(var(--primary-rgb), 0.15);
-  border: 1px solid var(--primary);
-  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--purple);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1.5px solid var(--purple);
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
 }
 
 .transferButton:hover {
-  background: var(--primary);
+  background: var(--purple);
   color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
 }
 
 /* Header Right */
@@ -471,23 +501,26 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
   backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modalContent {
-  background: var(--bg-1);
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: 20px;
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  animation: slideUp 0.3s ease-out;
 }
 
 .modalHeader {
@@ -499,10 +532,12 @@
 }
 
 .modalTitle {
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
   color: var(--text-1);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .modalClose {
@@ -544,19 +579,21 @@
 
 .formInput {
   width: 100%;
-  padding: 10px 14px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-2);
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
   color: var(--text-1);
   transition: all 0.2s;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .formInput:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
 }
 
 .modalActions {
@@ -567,14 +604,14 @@
 }
 
 .modalBtn {
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid var(--border);
-  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
   color: var(--text-1);
 }
 
@@ -588,14 +625,17 @@
 }
 
 .modalBtnPrimary {
-  background: var(--primary);
+  background: var(--purple);
   color: white;
-  border-color: var(--primary);
+  border-color: var(--purple);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
 }
 
 .modalBtnPrimary:hover:not(:disabled) {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: #6D28D9;
+  border-color: #6D28D9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
 
 .modalBtnDanger {
@@ -617,19 +657,21 @@
 
 /* History Section */
 .historySection {
-  background: var(--bg-2);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 20px;
+  padding: 28px;
   margin-top: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .historyTitle {
-  font-size: 18px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-1);
   margin: 0 0 20px 0;
+  letter-spacing: -0.01em;
 }
 
 .historyList {
@@ -642,16 +684,18 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px;
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transition: all 0.2s;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .historyItem:hover {
-  background: var(--bg-2);
-  border-color: var(--primary);
+  border-color: var(--purple);
+  transform: translateX(4px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.1);
 }
 
 .historyIcon {
@@ -711,36 +755,25 @@
   }
 }
 
-/* Ensure proper color styling for cards and buttons */
-.actionButton {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-1);
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.actionButton:hover {
-  background: var(--bg-3);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.addButton {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-.addButton:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-  color: white;
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 768px) {
