@@ -533,10 +533,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  function handleHistory() {
-    navigateTo('mo-history');
-  }
-
   const filteredConversations = conversations.filter(conv => 
     conv.title.toLowerCase().includes(historySearchQuery.toLowerCase())
   );
@@ -575,12 +571,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           <button className={styles.newChatBtn} onClick={handleNewChat} title="New chat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
               <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </button>
-          <button className={styles.historyBtn} onClick={handleHistory} title="Chat history">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
             </svg>
           </button>
           {onClose && (

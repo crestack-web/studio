@@ -33,6 +33,7 @@ export default function MoneyControlPage() {
   const [salesWithPayments, setSalesWithPayments] = useState<SaleData[]>([]);
   const [reconciledSaleIds, setReconciledSaleIds] = useState<Set<string>>(new Set());
   const [isRestaurant, setIsRestaurant] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [restaurantProfitMetrics, setRestaurantProfitMetrics] = useState<{
     inventoryPurchases: number;
     operatingExpenses: number;
@@ -42,8 +43,19 @@ export default function MoneyControlPage() {
   } | null>(null);
 
   useEffect(() => {
-    loadSummary();
-  }, [selectedPeriod, user.businessId]);
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      loadSummary();
+    }
+  }, [selectedPeriod, user.businessId, isMounted]);
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
 
   const loadSummary = async () => {
     if (!user.businessId) return;

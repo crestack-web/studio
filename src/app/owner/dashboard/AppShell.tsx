@@ -40,7 +40,6 @@ import EcommercePage from './EcommercePage';
 import PayrollPage from './PayrollPage';
 import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
-import { ConversationHistoryPage } from './ConversationHistoryPage';
 import { WarehousePage } from './WarehousePage';
 import { ReceiveStockPage } from './ReceiveStockPage';
 import { StockTransfersPage } from './StockTransfersPage';
@@ -87,7 +86,6 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'warehouse': <WarehousePage />,
   'receive-stock': <ReceiveStockPage />,
   'stock-transfers': <StockTransfersPage />,
-  'mo-history': <ConversationHistoryPage />,
 };
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);

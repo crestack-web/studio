@@ -488,7 +488,6 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Account',
     items: [
-      { id: 'home', label: 'Ask MO', tip: 'Ask MO', iconClass: 'ni-mo' },
       { id: 'services', label: 'Business Services', tip: 'Business Services', iconClass: 'ni-svc' },
       { id: 'staff', label: 'Staff', tip: 'Staff', iconClass: 'ni-staff', badge: 0 },
       { id: 'supplier-management', label: 'Suppliers', tip: 'Suppliers', iconClass: 'ni-supplier' },

@@ -85,6 +85,16 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [businessCurrency, setBusinessCurrency] = useState('₦');
   const [cashInCounter, setCashInCounter] = useState(0);
   const [bankPayments, setBankPayments] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
 
   // Fetch real data from Firestore
   useEffect(() => {

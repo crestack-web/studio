@@ -40,8 +40,7 @@ export type PageId =
   | 'customer-management'
   | 'warehouse'
   | 'stock-transfers'
-  | 'receive-stock'
-  | 'mo-history';
+  | 'receive-stock';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

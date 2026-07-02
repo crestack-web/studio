@@ -48,8 +48,7 @@ export type PageId =
   | 'audit-trail'
   | 'staff-activity'
   | 'staff-accountability'
-  | 'bank-statement-import'
-  | 'mo-history';
+  | 'bank-statement-import';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

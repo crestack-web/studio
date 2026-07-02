@@ -45,12 +45,24 @@ export function WarehousePage() {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasAccess, setHasAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [accessReason, setAccessReason] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    checkWarehouseAccess();
-  }, [user]);
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      checkWarehouseAccess();
+    }
+  }, [user, isMounted]);
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
 
   const checkWarehouseAccess = async () => {
     if (!user?.id) return;

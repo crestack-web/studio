@@ -155,20 +155,6 @@
   transform: scale(1.05);
 }
 
-.historyBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: var(--bg);
-  color: var(--text-2);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
 .historyBtn:hover {
   background: var(--surface);
   color: var(--text-1);

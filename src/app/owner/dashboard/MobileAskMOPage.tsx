@@ -828,10 +828,6 @@ export function MobileAskMOPage() {
     return hasAnalyticsContent && !isShortResponse && !isGreeting && !isConfirmation && !isError;
   }
 
-  function handleHistory() {
-    navigateTo('mo-history');
-  }
-
   // Prevent mobile page from showing on desktop breakpoint
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   useEffect(() => {
@@ -891,12 +887,6 @@ export function MobileAskMOPage() {
           <button className={styles.newChatBtn} onClick={handleNewChat} title="New chat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
               <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </button>
-          <button className={styles.historyBtn} onClick={handleHistory} title="Chat history">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
             </svg>
           </button>
         </div>
