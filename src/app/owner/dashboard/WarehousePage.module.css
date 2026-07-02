@@ -62,6 +62,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .totalStatLabel {
@@ -612,6 +613,89 @@
   color: var(--text-2);
   line-height: 1.6;
   margin: 0;
+}
+
+/* History Section */
+.historySection {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.historyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 20px 0;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.historyItem:hover {
+  background: var(--bg-2);
+  border-color: var(--primary);
+}
+
+.historyIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.historyContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.historyProduct {
+  font-weight: 500;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.historyDetails {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.historyTime {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.historyEmpty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-3);
+}
+
+.historyEmptyIcon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.historyEmpty p {
+  margin: 0;
+  font-size: 14px;
 }
 
 /* Mobile responsive */

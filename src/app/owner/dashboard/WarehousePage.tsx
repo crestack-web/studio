@@ -64,6 +64,7 @@ export function WarehousePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
   const [locationToDelete, setLocationToDelete] = useState<StockLocation | null>(null);
+  const [transferHistory, setTransferHistory] = useState<any[]>([]);
   const isCheckingAccessRef = useRef(false);
   const accessCheckedRef = useRef(false);
 
@@ -137,13 +138,27 @@ export function WarehousePage() {
       const loadedLocations: StockLocation[] = [];
 
       locationsSnapshot.forEach((doc) => {
-        const data = doc.data();
         loadedLocations.push({
           id: doc.id,
-          name: data.name,
+          name: doc.data().name,
           type: doc.id,
         });
       });
+
+      // Ensure Main Store always exists
+      const hasMainStore = loadedLocations.some(loc => loc.id === 'main_store');
+      if (!hasMainStore) {
+        try {
+          await createDefaultMainStore();
+          loadedLocations.unshift({
+            id: 'main_store',
+            name: 'Main Store',
+            type: 'main_store',
+          });
+        } catch (error) {
+          console.error('Error creating main store:', error);
+        }
+      }
 
       const sorted = loadedLocations.sort((a, b) => {
         const order = ['main_store', 'warehouse', 'back_store'];
@@ -158,6 +173,49 @@ export function WarehousePage() {
       setStockLocations(sorted);
     } catch (error) {
       console.error('Error loading stock locations:', error);
+    }
+  };
+
+  const createDefaultMainStore = async () => {
+    if (!businessId || !firestore) return;
+    
+    try {
+      await addDoc(
+        collection(firestore, 'businesses', businessId, 'stockLocations'),
+        {
+          name: 'Main Store',
+          type: 'main_store',
+          createdAt: new Date(),
+        }
+      );
+    } catch (error) {
+      console.error('Error creating default main store:', error);
+    }
+  };
+
+  const loadTransferHistory = async () => {
+    if (!businessId || !firestore) return;
+
+    try {
+      const transfersQuery = query(
+        collection(firestore, 'businesses', businessId, 'stockTransfers')
+      );
+      const transfersSnapshot = await getDocs(transfersQuery);
+      const transfers: any[] = [];
+
+      transfersSnapshot.forEach(doc => {
+        const data = doc.data();
+        transfers.push({
+          id: doc.id,
+          ...data,
+          transferredAt: data.transferredAt?.toDate() || new Date(),
+        });
+      });
+
+      transfers.sort((a, b) => b.transferredAt - a.transferredAt);
+      setTransferHistory(transfers.slice(0, 50));
+    } catch (error) {
+      console.error('Error loading transfer history:', error);
     }
   };
 
@@ -202,6 +260,7 @@ export function WarehousePage() {
 
       setProducts(productsList);
       await loadStockLocations();
+      await loadTransferHistory();
     } catch (error) {
       console.error('Error loading products:', error);
       showToast('❌ Failed to load warehouse data');
@@ -573,6 +632,34 @@ export function WarehousePage() {
                 </div>
                 <div className={styles.tableCell}>
                   <span className={styles.valueText}>{formatMoney(product.stock * product.costPrice)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.historySection}>
+        <h3 className={styles.historyTitle}>📋 Stock Transfer History</h3>
+        {transferHistory.length === 0 ? (
+          <div className={styles.historyEmpty}>
+            <div className={styles.historyEmptyIcon}>📊</div>
+            <p>No transfer history yet</p>
+          </div>
+        ) : (
+          <div className={styles.historyList}>
+            {transferHistory.map(transfer => (
+              <div key={transfer.id} className={styles.historyItem}>
+                <div className={styles.historyIcon}>🔄</div>
+                <div className={styles.historyContent}>
+                  <div className={styles.historyProduct}>{transfer.productName}</div>
+                  <div className={styles.historyDetails}>
+                    {transfer.fromLocation} → {transfer.toLocation} • {transfer.quantity} units
+                    {transfer.transferredBy && ` • by user`}
+                  </div>
+                </div>
+                <div className={styles.historyTime}>
+                  {new Date(transfer.transferredAt).toLocaleString()}
                 </div>
               </div>
             ))}
