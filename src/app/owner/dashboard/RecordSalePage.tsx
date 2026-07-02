@@ -61,6 +61,7 @@ export function RecordSalePage() {
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [businessCategory, setBusinessCategory] = useState<string>('');
   const [showStockSource, setShowStockSource] = useState(false);
+  const [inventoryDeductionMode, setInventoryDeductionMode] = useState<'immediate' | 'warehouse'>('immediate');
 
   // Receipt printing
   const [showReceipt, setShowReceipt] = useState(false);
@@ -110,6 +111,9 @@ export function RecordSalePage() {
             const data = businessDoc.data();
             const category = data?.category || '';
             setBusinessCategory(category.toLowerCase());
+            
+            // Load inventory deduction mode
+            setInventoryDeductionMode(data?.inventoryDeductionMode || 'immediate');
             
             // Load receipt theme
             if (data?.receiptTheme) {
@@ -468,8 +472,8 @@ export function RecordSalePage() {
         }
       }
 
-      // Create invoice for wholesale/distributor businesses
-      if (businessCategory === 'wholesale' || businessCategory === 'distributor') {
+      // Create invoice for warehouse release mode
+      if (inventoryDeductionMode === 'warehouse') {
         const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`;
         const invoiceData = {
           invoiceNumber,
@@ -485,13 +489,102 @@ export function RecordSalePage() {
           })),
           totalAmount: subtotal,
           sourceLocation: sourceLocationName,
+          sourceLocationId: sourceLocation,
           status: 'pending',
           createdAt: new Date(),
           pickupStatus: 'pending',
           pickupWarehouse: sourceLocationName,
+          recordedBy: {
+            uid: user.uid,
+            email: user.email,
+            displayName: staffName,
+            role: userRole,
+            staffId: staffId,
+          },
         };
 
         await addDoc(collection(firestore, 'businesses', businessId, 'invoices'), invoiceData);
+      }
+
+      // Only deduct inventory if mode is immediate
+      if (inventoryDeductionMode === 'immediate') {
+      // Update product stock in a transaction (deduct from specific location)
+      await runTransaction(firestore, async (transaction) => {
+        for (const item of cart) {
+          const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
+          const productDoc = await transaction.get(productRef);
+          
+          if (productDoc.exists()) {
+            const data = productDoc.data();
+            const currentStock = data.stock || data.quantity || 0;
+            const newStock = Math.max(0, currentStock - item.qty);
+            
+            // Update stockByLocation - use dynamic locations
+            const stockByLocation = data.stockByLocation || {};
+            
+            // Only deduct from location if sourceLocation is specified and exists
+            if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
+              const currentLocationStock = stockByLocation[sourceLocation] || 0;
+              const newLocationStock = Math.max(0, currentLocationStock - item.qty);
+              stockByLocation[sourceLocation] = newLocationStock;
+            }
+            
+            transaction.update(productRef, {
+              stock: newStock,
+              stockByLocation: stockByLocation,
+              lastSaleLocation: sourceLocation,
+              lastSaleLocationName: sourceLocationName,
+            });
+          }
+        }
+      });
+
+      // Check for low stock items and send alert
+      try {
+        // Check if low stock notifications are enabled
+        const ownerDoc = await getDoc(doc(firestore, 'users', user.uid));
+        const emailPrefs = ownerDoc.data()?.emailPreferences;
+        
+        if (emailPrefs?.lowStock !== false) {
+          const lowStockItems: Array<{ name: string; stock: number; threshold: number }> = [];
+          for (const item of cart) {
+            const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
+            const productDoc = await getDoc(productRef);
+            
+            if (productDoc.exists()) {
+              const data = productDoc.data();
+              const stock = data.stock || 0;
+              const threshold = data.lowStockThreshold || 10;
+              
+              if (stock <= threshold) {
+                lowStockItems.push({
+                  name: data.name || item.name,
+                  stock,
+                  threshold,
+                });
+              }
+            }
+          }
+
+          // Send low stock alert if any items are below threshold
+          if (lowStockItems.length > 0) {
+            const businessName = ownerDoc.data()?.businessName || 'Your Business';
+            const ownerEmail = user.email;
+            
+            if (ownerEmail) {
+              await BrevoService.sendLowStockAlertEmail(
+                ownerEmail,
+                businessName,
+                lowStockItems
+              );
+              console.log('Low stock alert email sent');
+            }
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send low stock alert:', emailError);
+        // Don't fail the sale if email fails
+      }
       }
 
       // If credit payment is used, create credit transaction
