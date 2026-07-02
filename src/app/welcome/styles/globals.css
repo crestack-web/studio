@@ -50,6 +50,14 @@ body { font-family: var(--font-body); background: var(--white); color: var(--tex
 .mo-section-new .section-head {
   margin-bottom: 48px;
 }
+
+.mo-scene-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 40px 0;
+}
 /* Payment Modal */
 .payment-modal-overlay {
   position: fixed;

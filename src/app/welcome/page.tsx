@@ -124,12 +124,12 @@ export default function WelcomePage() {
               </div>
             </div>
             <div className="feat-card">
-              <div className="feat-icon">�</div>
+              <div className="feat-icon">💬</div>
               <div className="feat-title">Natural Language Sales</div>
               <div className="feat-desc">No forms, no complexity. Just say what happened and MO handles the rest — validates inventory, calculates profit, and updates records instantly.</div>
             </div>
             <div className="feat-card">
-              <div className="feat-icon">�</div>
+              <div className="feat-icon">📷</div>
               <div className="feat-title">Add Products with Images</div>
               <div className="feat-desc">Snap a photo of a product and tell MO about it. It extracts details, sets pricing, and adds it to your inventory automatically.</div>
             </div>
@@ -139,7 +139,7 @@ export default function WelcomePage() {
               <div className="feat-desc">Track stock automatically, get low stock alerts before you run out, and receive AI-powered restock recommendations.</div>
             </div>
             <div className="feat-card">
-              <div className="feat-icon">�</div>
+              <div className="feat-icon">📊</div>
               <div className="feat-title">Daily Business Insights</div>
               <div className="feat-desc">MO provides personalized insights every day — profit trends, best-selling products, cash flow health, and actionable recommendations.</div>
             </div>

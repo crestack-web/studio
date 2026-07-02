@@ -24,19 +24,6 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
         Busmo gives you instant profit clarity, smart forecasts, and AI-powered insights —
         so you can make confident business decisions every single day.
       </p>
-      
-      {/* Live stats - moved near CTA for social proof */}
-      <div className="hero-stats">
-        <div className="hero-stat">
-          <span className="hero-stat-value">42K+</span>
-          <span className="hero-stat-label">MO queries answered</span>
-        </div>
-        <div className="hero-stat">
-          <span className="hero-stat-value">284</span>
-          <span className="hero-stat-label">Sales recorded by text today</span>
-        </div>
-      </div>
-
       <div className="hero-cta">
         <button className="btn-primary btn-large btn-dominant" onClick={() => onNavigate('signup')}>
           Start Free — No Credit Card
@@ -46,22 +33,6 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
         </div>
       </div>
       <div className="hero-note">7-day free trial · Works offline · Cancel anytime</div>
-
-      {/* Single testimonial for immediate trust */}
-      <div className="hero-testimonial">
-        <div className="hero-testimonial-content">
-          <div className="hero-testimonial-quote">
-            "Reduced stock shortages by 40%. Busmo's alerts tell me exactly when to restock before I run out."
-          </div>
-          <div className="hero-testimonial-author">
-            <div className="hero-testimonial-avatar">A</div>
-            <div className="hero-testimonial-info">
-              <div className="hero-testimonial-name">Aisha's Textiles</div>
-              <div className="hero-testimonial-location">Abuja</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Dashboard preview cards */}
       <div className="dashboard-preview" style={{ marginTop: 56 }}>
