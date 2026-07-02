@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
@@ -60,17 +60,7 @@ export function WarehousePage() {
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      checkWarehouseAccess();
-    }
-  }, [user, isMounted]);
-
-  if (!isMounted) {
-    return null;
-  }
-
-  const checkWarehouseAccess = async () => {
+  const checkWarehouseAccess = useCallback(async () => {
     if (!user?.id) {
       setHasAccess(false);
       setAccessReason('Please log in to access this feature');
@@ -99,7 +89,17 @@ export function WarehousePage() {
       console.error('Error checking warehouse access:', error);
       setHasAccess(true);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (isMounted) {
+      checkWarehouseAccess();
+    }
+  }, [isMounted, checkWarehouseAccess]);
+
+  if (!isMounted) {
+    return null;
+  }
 
   const loadStockLocations = async () => {
     if (!businessId || !firestore) return;
