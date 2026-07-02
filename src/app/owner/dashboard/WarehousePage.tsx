@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, addDoc, deleteDoc, doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, deleteDoc, doc, runTransaction, updateDoc, getDoc, orderBy } from 'firebase/firestore';
 import { checkFeatureAccess, getBusinessType } from '@/lib/featureRestrictions';
 import { useTranslation } from './LangContext';
 import styles from './WarehousePage.module.css';
@@ -82,7 +82,7 @@ export function WarehousePage() {
   const firebaseInstance = getFirebaseInstance();
   const firestore = firebaseInstance.firestore;
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'released' | 'locations' | 'transfers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'released' | 'locations' | 'transfers' | 'requests' | 'returns'>('overview');
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
@@ -117,6 +117,18 @@ export function WarehousePage() {
   const [adjustmentQuantity, setAdjustmentQuantity] = useState(1);
   const [adjustmentReason, setAdjustmentReason] = useState<'damaged' | 'lost' | 'expired' | 'recount'>('damaged');
   const [adjustmentNotes, setAdjustmentNotes] = useState('');
+  
+  // Stock requests state
+  const [stockRequests, setStockRequests] = useState<any[]>([]);
+  const [selectedStockRequest, setSelectedStockRequest] = useState<any | null>(null);
+  const [showStockRequestModal, setShowStockRequestModal] = useState(false);
+  const [requestNotes, setRequestNotes] = useState('');
+  
+  // Returns state
+  const [returns, setReturns] = useState<any[]>([]);
+  const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnNotes, setReturnNotes] = useState('');
   
   const isCheckingAccessRef = useRef(false);
   const accessCheckedRef = useRef(false);
@@ -441,7 +453,47 @@ export function WarehousePage() {
     loadProducts();
     loadInvoices();
     loadUserRole();
+    loadStockRequests();
+    loadReturns();
   }, [businessId]);
+
+  const loadReturns = async () => {
+    if (!businessId || !firestore) return;
+
+    try {
+      const returnsQuery = query(
+        collection(firestore, 'businesses', businessId, 'returns'),
+        orderBy('returnedAt', 'desc')
+      );
+      const snapshot = await getDocs(returnsQuery);
+      const returnsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setReturns(returnsList);
+    } catch (error) {
+      console.error('Error loading returns:', error);
+    }
+  };
+
+  const loadStockRequests = async () => {
+    if (!businessId || !firestore) return;
+
+    try {
+      const requestsQuery = query(
+        collection(firestore, 'businesses', businessId, 'stockRequests'),
+        orderBy('requestedAt', 'desc')
+      );
+      const snapshot = await getDocs(requestsQuery);
+      const requestsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setStockRequests(requestsList);
+    } catch (error) {
+      console.error('Error loading stock requests:', error);
+    }
+  };
 
   const loadUserRole = async () => {
     if (!user?.id || !firestore) return;
@@ -649,6 +701,97 @@ export function WarehousePage() {
     }
   };
 
+  const handleStockRequest = async (requestId: string, approved: boolean) => {
+    if (!businessId || !firestore) {
+      showToast('❌ Business information not available');
+      return;
+    }
+
+    try {
+      const requestRef = doc(firestore, 'businesses', businessId, 'stockRequests', requestId);
+      await updateDoc(requestRef, {
+        status: approved ? 'approved' : 'rejected',
+        processedBy: user?.id,
+        processedAt: new Date(),
+        notes: requestNotes,
+      });
+
+      showToast(`✅ Stock request ${approved ? 'approved' : 'rejected'}`);
+      await loadStockRequests();
+      setShowStockRequestModal(false);
+      setSelectedStockRequest(null);
+      setRequestNotes('');
+    } catch (error) {
+      console.error('Error processing stock request:', error);
+      showToast('❌ Failed to process stock request');
+    }
+  };
+
+  const handleReturn = async (returnId: string, approved: boolean) => {
+    if (!businessId || !firestore) {
+      showToast('❌ Business information not available');
+      return;
+    }
+
+    try {
+      const returnRef = doc(firestore, 'businesses', businessId, 'returns', returnId);
+      
+      if (approved) {
+        await runTransaction(firestore, async (transaction) => {
+          const returnDoc = await transaction.get(returnRef);
+          if (!returnDoc.exists()) {
+            throw new Error('Return not found');
+          }
+
+          const returnData = returnDoc.data();
+          
+          // Update product stock
+          const productRef = doc(firestore, 'businesses', businessId, 'products', returnData.productId);
+          const productDoc = await transaction.get(productRef);
+          
+          if (productDoc.exists()) {
+            const productData = productDoc.data();
+            const stockByLocation = productData.stockByLocation || {};
+            const locationStock = stockByLocation[returnData.location] || 0;
+            
+            stockByLocation[returnData.location] = locationStock + returnData.quantity;
+            const newTotalStock = Object.values(stockByLocation).reduce((sum: number, val: any) => sum + val, 0);
+
+            transaction.update(productRef, {
+              stock: newTotalStock,
+              stockByLocation,
+              updatedAt: new Date(),
+            });
+          }
+
+          transaction.update(returnRef, {
+            status: 'approved',
+            processedBy: user?.id,
+            processedAt: new Date(),
+            notes: returnNotes,
+          });
+        });
+      } else {
+        await updateDoc(returnRef, {
+          status: 'rejected',
+          processedBy: user?.id,
+          processedAt: new Date(),
+          notes: returnNotes,
+        });
+      }
+
+      showToast(`✅ Return ${approved ? 'approved' : 'rejected'}`);
+      await loadReturns();
+      await loadProducts();
+      setShowReturnModal(false);
+      setSelectedReturn(null);
+      setReturnNotes('');
+    } catch (error) {
+      console.error('Error processing return:', error);
+      showToast('❌ Failed to process return');
+    }
+  };
+
   // While checking access, show loading state
   if (hasAccess === null) {
     return (
@@ -790,6 +933,24 @@ export function WarehousePage() {
           onClick={() => setActiveTab('transfers')}
         >
           🔄 Transfers
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('requests')}
+        >
+          📦 Stock Requests
+          {stockRequests.filter(r => r.status === 'pending').length > 0 && (
+            <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
+          )}
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('returns')}
+        >
+          ↩️ Returns
+          {returns.filter(r => r.status === 'pending').length > 0 && (
+            <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
+          )}
         </button>
       </div>
 
@@ -1056,6 +1217,119 @@ export function WarehousePage() {
                     <p><strong>Released By:</strong> {invoice.releasedBy}</p>
                     <p><strong>Warehouse:</strong> {invoice.sourceLocation}</p>
                     <p><strong>Total:</strong> {formatMoney(invoice.totalAmount)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stock Requests Tab */}
+      {activeTab === 'requests' && (
+        <div className={styles.productsSection}>
+          <div className={styles.productsHeader}>
+            <h3 className={styles.productsTitle}>Stock Requests</h3>
+          </div>
+          
+          {stockRequests.length === 0 ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>📦</div>
+              <h3>No Stock Requests</h3>
+              <p>No stock requests have been submitted yet</p>
+            </div>
+          ) : (
+            <div className={styles.invoiceList}>
+              {stockRequests.map(request => (
+                <div key={request.id} className={styles.invoiceCard}>
+                  <div className={styles.invoiceHeader}>
+                    <div>
+                      <h3>{request.productName}</h3>
+                      <p className={styles.customerInfo}>Quantity: {request.quantity}</p>
+                    </div>
+                    <div className={styles.invoiceMeta}>
+                      <span className={styles.date}>{new Date(request.requestedAt?.toDate?.() || request.requestedAt).toLocaleDateString()}</span>
+                      <span className={`${styles.statusBadge} ${
+                        request.status === 'pending' ? styles.statusPending :
+                        request.status === 'approved' ? styles.statusReleased :
+                        styles.statusRejected
+                      }`}>{request.status}</span>
+                    </div>
+                  </div>
+                  
+                  <div className={styles.invoiceDetails}>
+                    <p><strong>Location:</strong> {request.location}</p>
+                    <p><strong>Requested By:</strong> {request.requestedBy}</p>
+                    {request.status === 'pending' && (
+                      <div className={styles.invoiceActions}>
+                        <button
+                          className={styles.actionButton}
+                          onClick={() => {
+                            setSelectedStockRequest(request);
+                            setShowStockRequestModal(true);
+                          }}
+                        >
+                          Process Request
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Returns Tab */}
+      {activeTab === 'returns' && (
+        <div className={styles.productsSection}>
+          <div className={styles.productsHeader}>
+            <h3 className={styles.productsTitle}>Returns</h3>
+          </div>
+          
+          {returns.length === 0 ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>↩️</div>
+              <h3>No Returns</h3>
+              <p>No returns have been submitted yet</p>
+            </div>
+          ) : (
+            <div className={styles.invoiceList}>
+              {returns.map(returnItem => (
+                <div key={returnItem.id} className={styles.invoiceCard}>
+                  <div className={styles.invoiceHeader}>
+                    <div>
+                      <h3>{returnItem.productName}</h3>
+                      <p className={styles.customerInfo}>Quantity: {returnItem.quantity}</p>
+                    </div>
+                    <div className={styles.invoiceMeta}>
+                      <span className={styles.date}>{new Date(returnItem.returnedAt?.toDate?.() || returnItem.returnedAt).toLocaleDateString()}</span>
+                      <span className={`${styles.statusBadge} ${
+                        returnItem.status === 'pending' ? styles.statusPending :
+                        returnItem.status === 'approved' ? styles.statusReleased :
+                        styles.statusRejected
+                      }`}>{returnItem.status}</span>
+                    </div>
+                  </div>
+                  
+                  <div className={styles.invoiceDetails}>
+                    <p><strong>Location:</strong> {returnItem.location}</p>
+                    <p><strong>Reason:</strong> {returnItem.reason}</p>
+                    <p><strong>Customer:</strong> {returnItem.customerName}</p>
+                    {returnItem.status === 'pending' && (
+                      <div className={styles.invoiceActions}>
+                        <button
+                          className={styles.actionButton}
+                          onClick={() => {
+                            setSelectedReturn(returnItem);
+                            setShowReturnModal(true);
+                          }}
+                        >
+                          Process Return
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1560,6 +1834,101 @@ export function WarehousePage() {
                 disabled={!adjustmentProduct || adjustmentQuantity <= 0}
               >
                 Adjust Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Request Modal */}
+      {showStockRequestModal && selectedStockRequest && (
+        <div className={styles.modalOverlay} onClick={() => setShowStockRequestModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Process Stock Request</h2>
+              <button className={styles.modalClose} onClick={() => setShowStockRequestModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.invoiceDetails}>
+                <p><strong>Product:</strong> {selectedStockRequest.productName}</p>
+                <p><strong>Quantity:</strong> {selectedStockRequest.quantity}</p>
+                <p><strong>Location:</strong> {selectedStockRequest.location}</p>
+                <p><strong>Requested By:</strong> {selectedStockRequest.requestedBy}</p>
+                <p><strong>Requested At:</strong> {new Date(selectedStockRequest.requestedAt?.toDate?.() || selectedStockRequest.requestedAt).toLocaleString()}</p>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
+                <textarea
+                  className={styles.formInput}
+                  value={requestNotes}
+                  onChange={(e) => setRequestNotes(e.target.value)}
+                  placeholder="Add notes for this request..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalBtn} onClick={() => setShowStockRequestModal(false)}>Cancel</button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnDanger}`}
+                onClick={() => handleStockRequest(selectedStockRequest.id, false)}
+              >
+                Reject
+              </button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
+                onClick={() => handleStockRequest(selectedStockRequest.id, true)}
+              >
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Modal */}
+      {showReturnModal && selectedReturn && (
+        <div className={styles.modalOverlay} onClick={() => setShowReturnModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Process Return</h2>
+              <button className={styles.modalClose} onClick={() => setShowReturnModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.invoiceDetails}>
+                <p><strong>Product:</strong> {selectedReturn.productName}</p>
+                <p><strong>Quantity:</strong> {selectedReturn.quantity}</p>
+                <p><strong>Location:</strong> {selectedReturn.location}</p>
+                <p><strong>Reason:</strong> {selectedReturn.reason}</p>
+                <p><strong>Customer:</strong> {selectedReturn.customerName}</p>
+                <p><strong>Returned At:</strong> {new Date(selectedReturn.returnedAt?.toDate?.() || selectedReturn.returnedAt).toLocaleString()}</p>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
+                <textarea
+                  className={styles.formInput}
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                  placeholder="Add notes for this return..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalBtn} onClick={() => setShowReturnModal(false)}>Cancel</button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnDanger}`}
+                onClick={() => handleReturn(selectedReturn.id, false)}
+              >
+                Reject
+              </button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
+                onClick={() => handleReturn(selectedReturn.id, true)}
+              >
+                Approve & Restock
               </button>
             </div>
           </div>
