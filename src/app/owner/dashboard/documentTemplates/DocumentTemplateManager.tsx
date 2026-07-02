@@ -48,12 +48,15 @@ export function DocumentTemplateManager() {
     content: false,
   });
 
-  // Load templates on mount
+  // All document types
+  const allDocumentTypes = DEFAULT_DOCUMENT_TYPES.map(dt => dt.value);
+
+  // Load templates on mount - auto-create all document types
   useEffect(() => {
-    loadTemplates();
+    loadAllTemplates();
   }, [businessId]);
 
-  const loadTemplates = async () => {
+  const loadAllTemplates = async () => {
     if (!businessId) return;
     
     setIsLoading(true);
@@ -61,11 +64,29 @@ export function DocumentTemplateManager() {
       const loadedTemplates = await templateManager.loadTemplates(businessId);
       setTemplates(loadedTemplates);
       
-      // Select first template or create default
-      if (loadedTemplates.length > 0 && !selectedTemplate) {
-        setSelectedTemplate(loadedTemplates[0]);
-        setDocumentType(loadedTemplates[0].documentType);
-        setTemplateStyle(loadedTemplates[0].templateStyle);
+      // If we already have templates for all types, just select the current one
+      if (loadedTemplates.length === allDocumentTypes.length) {
+        const current = loadedTemplates.find(t => t.documentType === documentType) || loadedTemplates[0];
+        if (current) {
+          setSelectedTemplate(current);
+          setTemplateStyle(current.templateStyle);
+        }
+        return;
+      }
+      
+      // Otherwise ensure templates exist for all document types
+      const templates: DocumentTemplate[] = [];
+      for (const docType of allDocumentTypes) {
+        const template = await templateManager.getOrCreateTemplate(businessId, docType as any);
+        templates.push(template);
+      }
+      setTemplates(templates);
+
+      // Select template for current documentType
+      const current = templates.find(t => t.documentType === documentType) || templates[0];
+      if (current) {
+        setSelectedTemplate(current);
+        setTemplateStyle(current.templateStyle);
       }
     } catch (error) {
       console.error('Error loading templates:', error);
@@ -75,27 +96,15 @@ export function DocumentTemplateManager() {
     }
   };
 
-  const handleCreateNew = async () => {
-    if (!businessId) {
-      showToast('Business ID not found');
-      return;
+  // Auto-switch template when document type changes
+  useEffect(() => {
+    if (!templates.length) return;
+    const match = templates.find(t => t.documentType === documentType);
+    if (match) {
+      setSelectedTemplate(match);
+      setTemplateStyle(match.templateStyle);
     }
-
-    setIsLoading(true);
-    try {
-      const newTemplate = await templateManager.getOrCreateTemplate(businessId, documentType as any);
-      setTemplates(prev => [...prev, newTemplate]);
-      setSelectedTemplate(newTemplate);
-      setTemplateStyle(newTemplate.templateStyle);
-      showToast('Template created successfully');
-    } catch (error) {
-      console.error('Error creating template:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      showToast(`Failed to create template: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [documentType, templates]);
 
   const handleSave = async () => {
     if (!selectedTemplate || !businessId) return;
@@ -104,7 +113,7 @@ export function DocumentTemplateManager() {
     try {
       await templateManager.saveTemplate(businessId, selectedTemplate);
       showToast('Template saved successfully');
-      await loadTemplates();
+      await loadAllTemplates();
     } catch (error) {
       console.error('Error saving template:', error);
       showToast('Failed to save template');
@@ -238,13 +247,6 @@ export function DocumentTemplateManager() {
                 <option key={dt.value} value={dt.value}>{dt.label}</option>
               ))}
             </select>
-            <button 
-              className={styles.createButton}
-              onClick={handleCreateNew}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Creating...' : 'Create Template'}
-            </button>
           </div>
 
           {/* Template List */}

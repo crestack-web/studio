@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -181,6 +181,21 @@ export function AddExpensePage() {
       const businessId = userDoc.data().businessId;
       if (!businessId) {
         showToast('⚠️ Business ID not found');
+        return;
+      }
+
+      // Check for potential duplicates (same category, amount, and date within last 5 seconds)
+      const recentExpensesQuery = query(
+        collection(firestore, 'businesses', businessId, 'expenses'),
+        where('category', '==', form.category),
+        where('amount', '==', parseFloat(form.amount)),
+        where('date', '>=', Timestamp.fromDate(new Date(Date.now() - 5000)))
+      );
+      const recentExpenses = await getDocs(recentExpensesQuery);
+      
+      if (!recentExpenses.empty) {
+        showToast('⚠️ Possible duplicate expense detected. Please wait a moment before adding the same expense again.');
+        setIsSubmitting(false);
         return;
       }
 

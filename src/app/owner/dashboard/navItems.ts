@@ -61,11 +61,6 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   'staff': {
     requiredFeatures: ['Staff Management'],
   },
-  'invoice-verification': {
-    requiredFeatures: ['Credit Tracking'],
-    requiredCategories: ['wholesale', 'distributor'],
-    requiredPlan: 'standard',
-  },
   'document-templates': {
     requiredFeatures: ['Document Templates'],
     requiredPlan: 'standard',
@@ -494,7 +489,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'customer-management', label: 'Customers', tip: 'Customers', iconClass: 'ni-customer' },
       { id: 'warehouse', label: 'Warehouse', tip: 'Warehouse', iconClass: 'ni-warehouse' },
       { id: 'stock-transfers', label: 'Stock Transfers', tip: 'Stock Transfers', iconClass: 'ni-transfer' },
-      { id: 'invoice-verification', label: 'Invoice Verification', tip: 'Invoice Verification', iconClass: 'ni-invoice' },
       { id: 'document-templates', label: 'Document Templates', tip: 'Document Templates', iconClass: 'ni-template' },
       { id: 'branches', label: 'Branches', tip: 'Branches', iconClass: 'ni-branch', badge: 'Pro' },
       { id: 'payroll', label: 'Payroll', tip: 'Payroll', iconClass: 'ni-payroll', badge: 'Pro' },

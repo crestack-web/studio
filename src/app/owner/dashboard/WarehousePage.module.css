@@ -826,3 +826,240 @@
     margin-right: 8px;
   }
 }
+
+/* ── Tab Navigation ─────────────────────────── */
+.tabNavigation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tabButton:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.tabActive {
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
+}
+
+.tabBadge {
+  background: var(--red);
+  color: white;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* ── Invoice Cards ─────────────────────────── */
+.invoiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.invoiceCard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--bg);
+  transition: all 0.2s;
+}
+
+.invoiceCard:hover {
+  border-color: var(--purple);
+  box-shadow: 0 4px 12px rgba(107, 63, 231, 0.1);
+}
+
+.invoiceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.invoiceHeader h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 4px 0;
+}
+
+.customerInfo {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.invoiceMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.date {
+  font-size: 0.875rem;
+  color: var(--text-3);
+}
+
+.invoiceAmount {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--purple);
+}
+
+.invoiceDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.invoiceDetails p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.invoiceDetails strong {
+  color: var(--text-1);
+}
+
+.invoiceActions {
+  display: flex;
+  gap: 12px;
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusReleased {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+/* ── Invoice Modal ─────────────────────────── */
+.invoiceDetailsFull {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.detailRow .label {
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.itemsTable {
+  margin: 20px 0;
+  overflow-x: auto;
+}
+
+.itemsTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.itemsTable th,
+.itemsTable td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.itemsTable th {
+  background: var(--bg-hover);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.itemsTable td {
+  color: var(--text-2);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  font-size: 1.125rem;
+  color: var(--purple);
+}
+
+.notesSection {
+  margin-top: 20px;
+}
+
+.notesSection label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.notesTextarea:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.modalFooter {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+

@@ -35,7 +35,6 @@ export type PageId =
   | 'recordsale'
   | 'settings'
   | 'branches'
-  | 'invoice-verification'
   | 'supplier-management'
   | 'customer-management'
   | 'warehouse'

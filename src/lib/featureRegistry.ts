@@ -283,18 +283,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: true,
     isStandardOrPro: false,
   },
-  'invoice-verification': {
-    id: 'invoice-verification',
-    name: 'Invoice Verification',
-    description: 'Verify and match invoices to payments',
-    icon: 'FileCheck',
-    category: 'financial',
-    pageId: 'invoice-verification',
-    requiredPlans: ['standard', 'pro'],
-    isOptional: true,
-    isProOnly: false,
-    isStandardOrPro: true,
-  },
 
   // ── HR Features ───────────────────────────
   'staff-management': {

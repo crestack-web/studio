@@ -231,15 +231,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     featureId: 'customer-management',
   },
   {
-    id: 'invoice-verification',
-    label: 'Invoice Verification',
-    tip: 'Verify invoices',
-    iconClass: 'FileCheck',
-    section: 'Account',
-    featureId: 'invoice-verification',
-    requiredCategories: ['wholesale', 'distributor'],
-  },
-  {
     id: 'branches',
     label: 'Branches',
     tip: 'Manage branches',

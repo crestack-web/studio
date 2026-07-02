@@ -33,7 +33,6 @@ export type PageId =
   | 'branches'
   | 'email-campaigns'
   | 'credit-tracking'
-  | 'invoice-verification'
   | 'document-templates'
   | 'supplier-management'
   | 'customer-management'

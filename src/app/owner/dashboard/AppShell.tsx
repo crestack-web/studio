@@ -28,7 +28,6 @@ import MoneyLeakagePage from './MoneyLeakagePage';
 import PaymentTraceabilityPage from './PaymentTraceabilityPage';
 import { MobileAskMOPage } from './MobileAskMOPage';
 import { CreditTrackingPage } from './CreditTrackingPage';
-import { InvoiceVerificationPage } from './InvoiceVerificationPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
@@ -66,7 +65,6 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'money-leakage': <MoneyLeakagePage />,
   'payment-traceability': <PaymentTraceabilityPage />,
   'credit-tracking': <CreditTrackingPage />,
-  'invoice-verification': <InvoiceVerificationPage />,
   services:     <ServicesPage />,
   staff:        <StaffPage />,
   settings:     <SettingsPage />,

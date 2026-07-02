@@ -53,7 +53,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'bank-accounts': <Landmark size={20} />,
   'bank-reconciliation': <RefreshCw size={20} />,
   'bank-statement-import': <Upload size={20} />,
-  'invoice-verification': <FileCheck size={20} />,
   'staff-management': <User size={20} />,
   'staff-activity-tracking': <Activity size={20} />,
   'staff-accountability': <UserCheck2 size={20} />,
@@ -236,6 +235,9 @@ export default function SettingsPage() {
     address: '',
   });
 
+  // ── Inventory Deduction Mode ───────────────────────────
+  const [inventoryDeductionMode, setInventoryDeductionMode] = useState<'immediate' | 'warehouse'>('immediate');
+
   // ── Subscription info ───────────────────────────────────
   const [subscription, setSubscription] = useState({
     status: '',
@@ -373,6 +375,8 @@ export default function SettingsPage() {
                 email: data.email || '',
                 address: data.address || '',
               });
+              // Load inventory deduction mode
+              setInventoryDeductionMode(data.inventoryDeductionMode || 'immediate');
             }
           }
 
@@ -417,6 +421,23 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => showToast(`${t('settings.changesSaved')}`);
+
+  // Handle inventory deduction mode change
+  const handleInventoryDeductionModeChange = async (mode: 'immediate' | 'warehouse') => {
+    setInventoryDeductionMode(mode);
+    try {
+      const { firestore } = initializeFirebase();
+      if (user.businessId) {
+        await updateDoc(doc(firestore, 'businesses', user.businessId), {
+          inventoryDeductionMode: mode,
+        });
+        showToast(`Inventory deduction mode set to ${mode === 'immediate' ? 'Immediate (Retail)' : 'Warehouse Release (Wholesale)'}`);
+      }
+    } catch (error) {
+      console.error('Failed to save inventory deduction mode:', error);
+      showToast('Failed to save inventory deduction mode');
+    }
+  };
 
   // Handle cancel subscription
   const handleCancelSubscription = async () => {
@@ -756,6 +777,39 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+
+        {/* Inventory Deduction Mode */}
+        <div className={styles.toggleRow} style={{ marginTop: '24px' }}>
+          <div>
+            <div className={styles.toggleLabel}>Inventory Deduction Mode</div>
+            <div className={styles.rowDesc}>
+              Choose when inventory is deducted: immediately on sale (retail/POS) or when warehouse releases goods (wholesale/distributor)
+            </div>
+          </div>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="inventoryDeductionMode"
+                value="immediate"
+                checked={inventoryDeductionMode === 'immediate'}
+                onChange={() => handleInventoryDeductionModeChange('immediate')}
+              />
+              <span>Immediate (Retail)</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="inventoryDeductionMode"
+                value="warehouse"
+                checked={inventoryDeductionMode === 'warehouse'}
+                onChange={() => handleInventoryDeductionModeChange('warehouse')}
+              />
+              <span>Warehouse Release (Wholesale)</span>
+            </label>
+          </div>
+        </div>
+
         <button className={styles.saveBtn} onClick={handleSave}>
           {t('common.save')} {t('settings.section.business')}
         </button>

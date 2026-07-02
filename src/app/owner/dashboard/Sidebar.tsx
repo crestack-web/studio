@@ -49,7 +49,6 @@ export function Sidebar() {
       'Warehouse Management': 'warehouse-management',
       'Bank Reconciliation': 'bank-reconciliation',
       'Money Control': 'money-control',
-      'Invoice Verification': 'invoice-verification',
     };
     return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
   };

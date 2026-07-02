@@ -117,7 +117,12 @@ const InventoryPage: React.FC = () => {
             });
           });
           
-          setStockLocations(loadedLocations);
+          // Deduplicate locations by name to prevent duplicates
+          const uniqueLocations = loadedLocations.filter((location, index, self) =>
+            index === self.findIndex(l => l.name.toLowerCase() === location.name.toLowerCase())
+          );
+          
+          setStockLocations(uniqueLocations);
           
           // Set default locations if available
           if (loadedLocations.length > 0) {
