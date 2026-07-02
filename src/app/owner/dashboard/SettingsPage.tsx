@@ -769,6 +769,21 @@ export default function SettingsPage() {
         <Section title="Receipt Customization">
         <p className={styles.rowDesc}>Customize the appearance of your sales receipts and invoices.</p>
         <ReceiptThemeConfig />
+        
+        <div style={{ marginTop: '24px', padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>Advanced Document Templates</h3>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
+            Create professional invoices, quotations, delivery notes, and more with our advanced template manager.
+          </p>
+          <button
+            className={styles.saveBtn}
+            onClick={() => window.location.href = '/owner/dashboard/document-templates'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <FileText size={16} />
+            Open Document Template Manager
+          </button>
+        </div>
       </Section>
       )}
 

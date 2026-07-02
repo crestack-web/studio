@@ -74,8 +74,7 @@ export function MobileAskMOPage() {
      businessId: user.businessId,
    });
 
-   const [autoLoadComplete, setAutoLoadComplete] = useState(false);
-   const [input, setInput] = useState('');
+  const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedContent, setStreamedContent] = useState('');
@@ -118,7 +117,16 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Do NOT auto-load conversations on mount - show welcome screen as per requirements
+  // Auto-load most recent conversation on mount to persist state across refresh/navigation
+  useEffect(() => {
+    if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
+      const mostRecent = conversations[0];
+      if (mostRecent.messages && mostRecent.messages.length > 0) {
+        console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
+        loadConversation(mostRecent.id);
+      }
+    }
+  }, [conversations, currentConversationId, messages.length, loadConversation]);
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {

@@ -66,6 +66,10 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
     requiredCategories: ['wholesale', 'distributor'],
     requiredPlan: 'standard',
   },
+  'document-templates': {
+    requiredFeatures: ['Document Templates'],
+    requiredPlan: 'standard',
+  },
   'branches': {
     requiredFeatures: ['Multi-branch Support'],
     requiredPlan: 'pro',
@@ -496,6 +500,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'receive-stock', label: 'Receive Stock', tip: 'Receive Stock', iconClass: 'ni-receive' },
       { id: 'stock-transfers', label: 'Stock Transfers', tip: 'Stock Transfers', iconClass: 'ni-transfer' },
       { id: 'invoice-verification', label: 'Invoice Verification', tip: 'Invoice Verification', iconClass: 'ni-invoice' },
+      { id: 'document-templates', label: 'Document Templates', tip: 'Document Templates', iconClass: 'ni-template' },
       { id: 'branches', label: 'Branches', tip: 'Branches', iconClass: 'ni-branch', badge: 'Pro' },
       { id: 'payroll', label: 'Payroll', tip: 'Payroll', iconClass: 'ni-payroll', badge: 'Pro' },
       { id: 'settings', label: 'Settings', tip: 'Settings', iconClass: 'ni-set' },

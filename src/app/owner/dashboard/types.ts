@@ -34,6 +34,7 @@ export type PageId =
   | 'email-campaigns'
   | 'credit-tracking'
   | 'invoice-verification'
+  | 'document-templates'
   | 'supplier-management'
   | 'customer-management'
   | 'payroll'
