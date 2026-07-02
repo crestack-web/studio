@@ -3,20 +3,52 @@ import { MoIcon, NavIcons } from '../../owner/dashboard/NavIcons';
 
 export const MoSection: React.FC = () => (
   <section className="mo-section-new">
-    <div className="max-w">
-      <div className="section-head center">
-        <div className="section-label">AI-Powered Assistant</div>
-        <h2 className="section-title">
-          Meet MO — Your Business AI
-        </h2>
-        <p className="section-sub">
-          Ask questions in plain language. MO understands your business and gives instant answers.
-        </p>
-      </div>
-    </div>
-    <div className="mo-scene-centered">
+    <div className="mo-scene">
       {/* Glow blob background */}
       <div className="mo-glow-blob" />
+
+      {/* Left: Feature pills */}
+      <div className="mo-features-left">
+        <div className="mo-feat-pill">
+          <div className="mo-feat-pill-icon">🛒</div>
+          <div className="mo-feat-pill-text">
+            <div className="mo-feat-pill-label">Add Sale by Text</div>
+            <div className="mo-feat-pill-sub">Just type what you sold</div>
+          </div>
+        </div>
+
+        <div className="mo-feat-pill">
+          <div className="mo-feat-pill-icon">💰</div>
+          <div className="mo-feat-pill-text">
+            <div className="mo-feat-pill-label">Instant Profit Check</div>
+            <div className="mo-feat-pill-sub">Ask anytime, get real numbers</div>
+          </div>
+        </div>
+
+        <div className="mo-feat-pill">
+          <div className="mo-feat-pill-icon">📦</div>
+          <div className="mo-feat-pill-text">
+            <div className="mo-feat-pill-label">Restock Alerts</div>
+            <div className="mo-feat-pill-sub">MO knows what's running low</div>
+          </div>
+        </div>
+
+        <div className="mo-feat-pill">
+          <div className="mo-feat-pill-icon">🔮</div>
+          <div className="mo-feat-pill-text">
+            <div className="mo-feat-pill-label">Smart Forecasts</div>
+            <div className="mo-feat-pill-sub">Tomorrow's sales, predicted today</div>
+          </div>
+        </div>
+
+        <div className="mo-feat-pill">
+          <div className="mo-feat-pill-icon">🌍</div>
+          <div className="mo-feat-pill-text">
+            <div className="mo-feat-pill-label">Works Offline</div>
+            <div className="mo-feat-pill-sub">MO syncs when you reconnect</div>
+          </div>
+        </div>
+      </div>
 
       {/* Center: iPhone mockup */}
       <div className="mo-iphone-wrap">
@@ -247,6 +279,33 @@ export const MoSection: React.FC = () => (
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Stat cards */}
+      <div className="mo-features-right">
+        <div className="mo-stat-card">
+          <div className="mo-stat-val">42K<span>+</span></div>
+          <div className="mo-stat-label">MO queries answered this month</div>
+        </div>
+
+        <div className="mo-stat-card">
+          <div className="mo-stat-val">1.2<span>s</span></div>
+          <div className="mo-stat-label">Average MO response time</div>
+        </div>
+
+        <div className="mo-stat-card">
+          <div className="mo-stat-val">284</div>
+          <div className="mo-stat-label">Sales recorded by text today</div>
+        </div>
+
+        <div className="mo-try-card">
+          <div className="mo-try-title">Try asking MO</div>
+          <div className="mo-try-examples">
+            <div className="mo-try-item">"What's my best seller this week?"</div>
+            <div className="mo-try-item">"Add sale: 5 phones at ₦85k"</div>
+            <div className="mo-try-item">"Will I make profit this month?"</div>
           </div>
         </div>
       </div>
