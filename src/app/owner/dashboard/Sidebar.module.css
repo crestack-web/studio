@@ -303,6 +303,8 @@
  .ni-payroll { background: var(--pink-bg); color: var(--pink); }
  .ni-supplier { background: var(--orange-bg); color: var(--orange); }
  .ni-customer { background: var(--blue-bg); color: var(--blue); }
+ .ni-warehouse { background: var(--teal-bg); color: var(--teal); }
+ .ni-transfer { background: var(--amber-bg); color: var(--amber); }
  .ni-invoice { background: var(--purple-bg); color: var(--purple); }
  .ni-credit { background: var(--amber-bg); color: var(--amber); }
  .inventory { background: var(--blue-bg); color: var(--blue); }

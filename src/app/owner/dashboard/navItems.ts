@@ -119,10 +119,6 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
     requiredFeatures: ['Warehouse Management'],
     requiredCategories: ['retail', 'wholesale', 'distributor'],
   },
-  'receive-stock': {
-    requiredFeatures: ['Supplier Management'],
-    requiredCategories: ['retail', 'wholesale', 'distributor'],
-  },
 };
 
 // Translation dictionary for sidebar items
@@ -497,7 +493,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'supplier-management', label: 'Suppliers', tip: 'Suppliers', iconClass: 'ni-supplier' },
       { id: 'customer-management', label: 'Customers', tip: 'Customers', iconClass: 'ni-customer' },
       { id: 'warehouse', label: 'Warehouse', tip: 'Warehouse', iconClass: 'ni-warehouse' },
-      { id: 'receive-stock', label: 'Receive Stock', tip: 'Receive Stock', iconClass: 'ni-receive' },
       { id: 'stock-transfers', label: 'Stock Transfers', tip: 'Stock Transfers', iconClass: 'ni-transfer' },
       { id: 'invoice-verification', label: 'Invoice Verification', tip: 'Invoice Verification', iconClass: 'ni-invoice' },
       { id: 'document-templates', label: 'Document Templates', tip: 'Document Templates', iconClass: 'ni-template' },

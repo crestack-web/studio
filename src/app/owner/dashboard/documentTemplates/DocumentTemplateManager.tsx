@@ -84,13 +84,14 @@ export function DocumentTemplateManager() {
     setIsLoading(true);
     try {
       const newTemplate = await templateManager.getOrCreateTemplate(businessId, documentType as any);
-      setTemplates([...templates, newTemplate]);
+      setTemplates(prev => [...prev, newTemplate]);
       setSelectedTemplate(newTemplate);
       setTemplateStyle(newTemplate.templateStyle);
       showToast('Template created successfully');
     } catch (error) {
       console.error('Error creating template:', error);
-      showToast('Failed to create template');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showToast(`Failed to create template: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

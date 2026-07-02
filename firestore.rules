@@ -222,6 +222,15 @@ service cloud.firestore {
       }
 
       // =====================
+      // DOCUMENT TEMPLATES SUBCOLLECTION
+      // =====================
+      match /documentTemplates/{templateId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
       // OPERATIONS LAYER COLLECTIONS
       // =====================
 

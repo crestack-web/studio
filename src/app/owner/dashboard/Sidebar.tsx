@@ -147,7 +147,6 @@ export function Sidebar() {
       'Suppliers': t('nav.suppliers'),
       'Customers': t('nav.customers'),
       'Warehouse': 'Warehouse',
-      'Receive Stock': 'Receive Stock',
       'Stock Transfers': 'Stock Transfers',
       'Menu Management': t('nav.menuManagement'),
       'Ingredients': t('nav.ingredients'),
