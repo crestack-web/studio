@@ -4,46 +4,22 @@ import React from 'react';
 
 const INDUSTRIES = [
   {
-    name: "Pharmacy",
-    icon: "💊",
-    challenge: "Tracking expiry dates and managing stock across multiple suppliers",
-    solution: "Automatic expiry alerts, supplier tracking, and real-time inventory levels"
-  },
-  {
     name: "Supermarket",
     icon: "🛒",
     challenge: "Managing thousands of SKUs and preventing stock shortages",
     solution: "Bulk product management, low stock alerts, and sales analytics"
   },
   {
-    name: "Boutique",
-    icon: "👗",
-    challenge: "Understanding which styles sell best and when to reorder",
-    solution: "Product performance tracking, seasonal insights, and smart reordering"
-  },
-  {
-    name: "Electronics Store",
-    icon: "📱",
-    challenge: "Tracking high-value items and warranty information",
-    solution: "Serial number tracking, warranty management, and profit per item"
+    name: "Pharmacy",
+    icon: "�",
+    challenge: "Tracking expiry dates and managing stock across multiple suppliers",
+    solution: "Automatic expiry alerts, supplier tracking, and real-time inventory levels"
   },
   {
     name: "Restaurant",
     icon: "🍽️",
     challenge: "Managing food costs and tracking daily profit margins",
     solution: "Recipe costing, daily profit tracking, and expense categorization"
-  },
-  {
-    name: "Wholesale Distributor",
-    icon: "📦",
-    challenge: "Managing bulk orders and tracking customer credit",
-    solution: "Bulk order management, credit tracking, and customer payment reminders"
-  },
-  {
-    name: "Manufacturer",
-    icon: "🏭",
-    challenge: "Tracking production costs and raw material inventory",
-    solution: "Production tracking, cost of goods manufactured, and material forecasting"
   }
 ];
 
@@ -75,6 +51,10 @@ export const IndustryUseCases: React.FC = () => (
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="industry-see-all">
+        <a href="#" className="see-all-link">See all industries →</a>
       </div>
     </div>
   </section>

@@ -50,6 +50,11 @@ export default function WelcomePage() {
       {/* HERO */}
       <Hero onNavigate={handleNavigate} />
 
+      {/* TESTIMONIALS - moved higher for social proof */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <TestimonialsSection />
+      </ScrollReveal>
+
       {/* DASHBOARD MOCKUP */}
       <DashboardMockup />
 
@@ -221,11 +226,6 @@ export default function WelcomePage() {
       {/* BEFORE VS AFTER COMPARISON */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <BeforeAfterComparison />
-      </ScrollReveal>
-
-      {/* TESTIMONIALS */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <TestimonialsSection />
       </ScrollReveal>
 
       {/* FAQ */}

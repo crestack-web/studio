@@ -13,7 +13,7 @@ export const AnnouncementBar: React.FC = () => {
         <span className="announcement-icon">🎉</span>
         <span className="announcement-text">
           <strong>New:</strong> MO AI now records sales by text! Just type what you sold and MO handles the rest.{' '}
-          <a href="/welcome" className="announcement-link">Try it now →</a>
+          <a href="/welcome/signup" className="announcement-link">Try it now →</a>
         </span>
       </div>
       <button className="announcement-dismiss" onClick={() => setDismissed(true)}>

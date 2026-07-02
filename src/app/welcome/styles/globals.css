@@ -21,6 +21,35 @@
 html { scroll-behavior: smooth; }
 body { font-family: var(--font-body); background: var(--white); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
 
+/* Industry See All Link */
+.industry-see-all {
+  text-align: center;
+  margin-top: 32px;
+}
+
+.see-all-link {
+  color: #6b3fe7;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.see-all-link:hover {
+  color: #4c1d95;
+  text-decoration: underline;
+}
+
+/* Mo Section Headline */
+.mo-section-new {
+  padding: 80px 0;
+  background: linear-gradient(180deg, #fff 0%, #f8f7ff 100%);
+}
+
+.mo-section-new .section-head {
+  margin-bottom: 48px;
+}
 /* Payment Modal */
 .payment-modal-overlay {
   position: fixed;

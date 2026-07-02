@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 
 const FAQS = [
   {
+    q: 'How does the free trial work?',
+    a: 'All plans come with a 7-day free trial. No credit card is required to start. You get full access to all features during the trial. At the end of your trial, choose the plan that fits your business — or cancel anytime.',
+  },
+  {
     q: 'Is Busmo another accounting app?',
     a: 'No. Busmo is a clarity and decision-making tool. While accounting software generates reports for accountants, Busmo answers your real questions instantly — "Did I make profit today?", "Which product should I restock?" We speak your language, not accounting jargon.',
   },
@@ -16,10 +20,6 @@ const FAQS = [
   {
     q: 'What if I sell services, not products?',
     a: 'Busmo is currently optimised for product-based businesses — shops, grocers, food stalls, manufacturers, and market sellers. Service-based business support is on our roadmap.',
-  },
-  {
-    q: 'How does the free trial work?',
-    a: 'All plans come with a 7-day free trial. No credit card is required to start. You get full access to all features during the trial. At the end of your trial, choose the plan that fits your business — or cancel anytime.',
   },
   {
     q: 'Can I upgrade or downgrade my plan later?',

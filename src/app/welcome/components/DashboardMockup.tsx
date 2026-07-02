@@ -8,7 +8,7 @@ export const DashboardMockup: React.FC = () => (
       <div className="section-head center">
         <div className="section-label">See Busmo in Action</div>
         <h2 className="section-title">
-          Your Business.<em style={{ color: 'var(--purple-mid)' }}>At a Glance.</em>
+          Here's what your dashboard looks like
         </h2>
         <p className="section-sub">
           A clean, intuitive dashboard designed for African business owners.

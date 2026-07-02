@@ -3,6 +3,17 @@ import { MoIcon, NavIcons } from '../../owner/dashboard/NavIcons';
 
 export const MoSection: React.FC = () => (
   <section className="mo-section-new">
+    <div className="max-w">
+      <div className="section-head center">
+        <div className="section-label">AI-Powered Assistant</div>
+        <h2 className="section-title">
+          Meet MO — Your Business AI
+        </h2>
+        <p className="section-sub">
+          Ask questions in plain language. MO understands your business and gives instant answers.
+        </p>
+      </div>
+    </div>
     <div className="mo-scene">
       {/* Glow blob background */}
       <div className="mo-glow-blob" />
