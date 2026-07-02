@@ -908,7 +908,7 @@ export function MobileAskMOPage() {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {messages.length === 0 && (
+        {messages.length === 0 && conversations.length === 0 && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>

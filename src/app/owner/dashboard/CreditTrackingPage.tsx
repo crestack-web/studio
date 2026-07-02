@@ -117,6 +117,14 @@ export function CreditTrackingPage() {
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Form states for adding customer
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerCreditLimit, setCustomerCreditLimit] = useState('');
 
   useEffect(() => {
     loadData();
@@ -306,6 +314,145 @@ export function CreditTrackingPage() {
     }
   };
 
+  const handleAddCustomer = async () => {
+    if (!businessId || !firestore || !customerName.trim()) {
+      showToast('Please enter customer name');
+      return;
+    }
+
+    try {
+      setIsAddingCustomer(true);
+      
+      const customerData = {
+        name: customerName.trim(),
+        phone: customerPhone.trim() || '',
+        email: customerEmail.trim() || '',
+        totalCreditLimit: parseFloat(customerCreditLimit) || 0,
+        currentBalance: 0,
+        isRegularCustomer: false,
+        isActive: true,
+        createdAt: Timestamp.now(),
+        createdBy: user?.id || 'system',
+        createdByName: user?.name || 'System',
+        businessId: businessId,
+      };
+
+      await addDoc(collection(firestore, 'businesses', businessId, 'credit_customers'), customerData);
+      
+      showToast('Customer added successfully');
+      setShowAddModal(false);
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerEmail('');
+      setCustomerCreditLimit('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      showToast('Failed to add customer');
+    } finally {
+      setIsAddingCustomer(false);
+    }
+  };
+
+  const handleDownloadStatement = async () => {
+    if (!businessId || !firestore || isDownloading) return;
+
+    try {
+      setIsDownloading(true);
+
+      // Get business info
+      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+      const businessData = businessDoc.data();
+      const businessName = businessData?.businessName || 'Your Business';
+
+      // Generate CSV content
+      let csvContent = 'CREDIT TRACKING STATEMENT\n';
+      csvContent += `Business: ${businessName}\n`;
+      csvContent += `Generated: ${new Date().toLocaleString()}\n`;
+      csvContent += `${'='.repeat(80)}\n\n`;
+
+      // Summary Section
+      csvContent += 'SUMMARY\n';
+      csvContent += `${'='.repeat(80)}\n`;
+      csvContent += `Total Outstanding,${formatMoney(summary.totalOutstanding).replace(/[^0-9.,]/g, '')}\n`;
+      csvContent += `Overdue Amount,${formatMoney(summary.overdueAmount).replace(/[^0-9.,]/g, '')}\n`;
+      csvContent += `Due This Week,${formatMoney(summary.dueThisWeek).replace(/[^0-9.,]/g, '')}\n`;
+      csvContent += `Due This Month,${formatMoney(summary.dueThisMonth).replace(/[^0-9.,]/g, '')}\n`;
+      csvContent += `Total Customers,${summary.totalCustomers}\n`;
+      csvContent += `Active Credits,${summary.activeCredits}\n`;
+      csvContent += `Paid This Month,${formatMoney(summary.paidThisMonth).replace(/[^0-9.,]/g, '')}\n`;
+      csvContent += `\n`;
+
+      // Customers Section
+      csvContent += 'CREDIT CUSTOMERS\n';
+      csvContent += `${'='.repeat(80)}\n`;
+      csvContent += `Name,Phone,Email,Current Balance,Credit Limit\n`;
+      
+      customers.forEach(customer => {
+        csvContent += `${customer.name},${customer.phone || 'N/A'},${customer.email || 'N/A'},${customer.currentBalance},${customer.totalCreditLimit || 0}\n`;
+      });
+      csvContent += `\n`;
+
+      // Transactions Section
+      csvContent += 'CREDIT TRANSACTIONS\n';
+      csvContent += `${'='.repeat(80)}\n`;
+      csvContent += `Customer Name,Transaction Date,Due Date,Original Amount,Paid Amount,Remaining,Status\n`;
+      
+      transactions.forEach(transaction => {
+        csvContent += `${transaction.customerName},${transaction.issuedDate.toLocaleDateString()},${transaction.dueDate.toLocaleDateString()},${transaction.originalAmount},${transaction.paidAmount},${transaction.remainingAmount},${transaction.status}\n`;
+      });
+      csvContent += `\n`;
+
+      // Detailed Transaction Information
+      csvContent += 'DETAILED TRANSACTIONS WITH PRODUCTS\n';
+      csvContent += `${'='.repeat(80)}\n`;
+      
+      transactions.forEach((transaction, index) => {
+        csvContent += `\nTransaction #${index + 1}\n`;
+        csvContent += `Customer: ${transaction.customerName}\n`;
+        csvContent += `Sale ID: ${transaction.saleId}\n`;
+        csvContent += `Date: ${transaction.issuedDate.toLocaleDateString()}\n`;
+        csvContent += `Due Date: ${transaction.dueDate.toLocaleDateString()}\n`;
+        csvContent += `Status: ${transaction.status}\n`;
+        csvContent += `Original Amount: ${transaction.originalAmount}\n`;
+        csvContent += `Paid Amount: ${transaction.paidAmount}\n`;
+        csvContent += `Remaining Amount: ${transaction.remainingAmount}\n`;
+        csvContent += `Recorded By: ${transaction.recordedByName}\n`;
+        
+        if (transaction.products && transaction.products.length > 0) {
+          csvContent += `Products:\n`;
+          transaction.products.forEach((product, pIndex) => {
+            csvContent += `  ${pIndex + 1}. ${product.name} - Qty: ${product.quantity} × Price: ${product.price} = ${product.price * product.quantity}\n`;
+          });
+        }
+        
+        if (transaction.notes) {
+          csvContent += `Notes: ${transaction.notes}\n`;
+        }
+        
+        csvContent += `${'-'.repeat(80)}\n`;
+      });
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `credit_statement_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('Statement downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading statement:', error);
+      showToast('Failed to download statement');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
@@ -359,10 +506,20 @@ export function CreditTrackingPage() {
           <h1 className={styles.title}>Credit Tracking</h1>
           <p className={styles.subtitle}>Manage receivables and payables</p>
         </div>
-        <button className={styles.primaryButton} onClick={() => setShowAddModal(true)}>
-          <Plus size={18} style={{ marginRight: '8px' }} />
-          Add Customer
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            className={styles.secondaryButton}
+            onClick={handleDownloadStatement}
+            disabled={isDownloading || loading}
+          >
+            <Download size={18} style={{ marginRight: '8px' }} />
+            {isDownloading ? 'Downloading...' : 'Download Statement'}
+          </button>
+          <button className={styles.primaryButton} onClick={() => setShowAddModal(true)}>
+            <Plus size={18} style={{ marginRight: '8px' }} />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -488,6 +645,7 @@ export function CreditTrackingPage() {
                             setSelectedTransaction(transaction);
                             setShowPaymentModal(true);
                           }}
+                          disabled={loading}
                         >
                           <Plus size={16} />
                           Record Payment
@@ -623,24 +781,65 @@ export function CreditTrackingPage() {
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Customer Name</label>
-                <input type="text" className={styles.input} placeholder="Enter name" />
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="Enter name"
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Phone</label>
-                <input type="tel" className={styles.input} placeholder="Enter phone" />
+                <input
+                  type="tel"
+                  className={styles.input}
+                  placeholder="Enter phone"
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Email</label>
-                <input type="email" className={styles.input} placeholder="Enter email" />
+                <input
+                  type="email"
+                  className={styles.input}
+                  placeholder="Enter email"
+                  value={customerEmail}
+                  onChange={e => setCustomerEmail(e.target.value)}
+                />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Credit Limit</label>
-                <input type="number" className={styles.input} placeholder="0.00" />
+                <input
+                  type="number"
+                  className={styles.input}
+                  placeholder="0.00"
+                  value={customerCreditLimit}
+                  onChange={e => setCustomerCreditLimit(e.target.value)}
+                />
               </div>
             </div>
             <div className={styles.modalActions}>
-              <button className={styles.cancelButton} onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className={styles.submitButton}>Add Customer</button>
+              <button
+                className={styles.cancelButton}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setCustomerName('');
+                  setCustomerPhone('');
+                  setCustomerEmail('');
+                  setCustomerCreditLimit('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.submitButton}
+                onClick={handleAddCustomer}
+                disabled={isAddingCustomer || !customerName.trim()}
+              >
+                {isAddingCustomer ? 'Adding...' : 'Add Customer'}
+              </button>
             </div>
           </div>
         </div>
