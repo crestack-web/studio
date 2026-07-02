@@ -25,6 +25,7 @@ export function RecordSalePage() {
   const firestore = useFirestore();
   const { branches, isProUser } = useBranch();
 
+  const [isMounted, setIsMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [payment, setPayment] = useState<PaymentMethod>('cash');
@@ -34,6 +35,11 @@ export function RecordSalePage() {
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Credit tracking fields
   const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<string>('');
@@ -718,6 +724,10 @@ export function RecordSalePage() {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const profit   = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0);
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className={styles.wrapper}>
