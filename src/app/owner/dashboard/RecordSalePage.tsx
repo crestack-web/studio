@@ -169,9 +169,11 @@ export function RecordSalePage() {
           
           setStockLocations(loadedLocations);
           
-          // Only show stock source selector if there's at least one warehouse created by the owner
-          const hasWarehouse = loadedLocations.some(loc => loc.type === 'warehouse');
-          setShowStockSource(hasWarehouse);
+           // Show stock source selector if there are any custom locations (warehouses) created
+           const hasWarehouse = loadedLocations.some(loc => 
+             loc.type === 'warehouse' || loc.type === 'back_store' || loc.type === 'main_store'
+           );
+           setShowStockSource(loadedLocations.length > 0);
         } catch (error) {
           console.error('Error loading stock locations:', error);
           // Set empty locations on error

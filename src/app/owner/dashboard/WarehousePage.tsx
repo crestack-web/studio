@@ -145,12 +145,24 @@ export function WarehousePage() {
         });
       });
 
-      // Ensure Main Store always exists
+      // Ensure Main Store always exists - use fixed ID to prevent duplicates
       const hasMainStore = loadedLocations.some(loc => loc.id === 'main_store');
+      
       if (!hasMainStore) {
         try {
-          await createDefaultMainStore();
-          loadedLocations.unshift({
+          // Use setDoc with specific document ID to prevent duplicates
+          const { setDoc } = await import('firebase/firestore');
+          await setDoc(
+            doc(firestore, 'businesses', businessId, 'stockLocations', 'main_store'),
+            {
+              name: 'Main Store',
+              type: 'main_store',
+              createdAt: new Date(),
+            }
+          );
+          
+          // Add to loaded locations
+          loadedLocations.push({
             id: 'main_store',
             name: 'Main Store',
             type: 'main_store',
@@ -173,23 +185,6 @@ export function WarehousePage() {
       setStockLocations(sorted);
     } catch (error) {
       console.error('Error loading stock locations:', error);
-    }
-  };
-
-  const createDefaultMainStore = async () => {
-    if (!businessId || !firestore) return;
-    
-    try {
-      await addDoc(
-        collection(firestore, 'businesses', businessId, 'stockLocations'),
-        {
-          name: 'Main Store',
-          type: 'main_store',
-          createdAt: new Date(),
-        }
-      );
-    } catch (error) {
-      console.error('Error creating default main store:', error);
     }
   };
 
@@ -228,6 +223,9 @@ export function WarehousePage() {
     try {
       setIsLoading(true);
 
+      // First, load locations to ensure main_store exists
+      await loadStockLocations();
+      
       const productsQuery = query(
         collection(firestore, 'businesses', businessId, 'products'),
         where('active', '==', true)
@@ -235,14 +233,34 @@ export function WarehousePage() {
 
       const productsSnapshot = await getDocs(productsQuery);
       const productsList: Product[] = [];
-
+      
+      // Get current location IDs after locations are loaded
+      const currentLocations = stockLocations;
+      const locationIds = currentLocations.map(l => l.id);
+      
+      // Ensure stockByLocation has all current locations
       productsSnapshot.forEach(doc => {
         const data = doc.data();
-        const stockByLocation = data.stockByLocation || {
-          main_store: data.stock || 0,
-          back_store: 0,
-          warehouse: 0,
-        };
+        let stockByLocation = data.stockByLocation || {};
+        
+        // If no stockByLocation or missing main_store, initialize with all stock in main_store
+        if (!stockByLocation || Object.keys(stockByLocation).length === 0) {
+          stockByLocation = {
+            main_store: data.stock || 0,
+          };
+        } else {
+          // Ensure main_store exists in stockByLocation
+          if (!('main_store' in stockByLocation)) {
+            stockByLocation.main_store = data.stock || 0;
+          }
+        }
+        
+        // Ensure all current locations have values (default to 0 if not set)
+        locationIds.forEach(locId => {
+          if (!(locId in stockByLocation)) {
+            stockByLocation[locId] = 0;
+          }
+        });
 
         productsList.push({
           id: doc.id,
@@ -259,7 +277,6 @@ export function WarehousePage() {
       });
 
       setProducts(productsList);
-      await loadStockLocations();
       await loadTransferHistory();
     } catch (error) {
       console.error('Error loading products:', error);
