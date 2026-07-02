@@ -1063,3 +1063,137 @@
   border-top: 1px solid var(--border);
 }
 
+/* ── Search Bar ───────────────────────────── */
+.searchBar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.searchInput {
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-1);
+  transition: all 0.2s;
+  min-width: 280px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--purple);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+.qrButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qrButton:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-1);
+}
+
+/* ── Low Stock Alerts ───────────────────── */
+.lowStockSection {
+  margin: 24px 0;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 16px;
+}
+
+.lowStockList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lowStockItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.lowStockItem:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.lowStockInfo {
+  flex: 1;
+}
+
+.lowStockName {
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.lowStockLevel {
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.lowStockCount {
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.lowStockActions {
+  display: flex;
+  gap: 8px;
+}
+
+.quickActionBtn {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quickActionBtn:hover {
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
+}
+
+.viewAllLink {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.viewAllLink:hover {
+  color: var(--purple);
+}
+

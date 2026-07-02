@@ -169,14 +169,26 @@ export class TemplateManager {
 
   // Get or create template for document type
   async getOrCreateTemplate(businessId: string, documentType: DocumentType): Promise<DocumentTemplate> {
-    const existing = await this.loadTemplate(businessId, documentType);
-    if (existing) {
-      return existing;
+    try {
+      // Ensure Firestore is initialized
+      const db = this.getFirestore();
+      
+      const existing = await this.loadTemplate(businessId, documentType);
+      if (existing) {
+        console.log(`[TemplateManager] Found existing template: ${documentType}`);
+        return existing;
+      }
+      
+      console.log(`[TemplateManager] Creating new template: ${documentType}`);
+      const newTemplate = this.createDefaultTemplate(businessId, documentType);
+      await this.saveTemplate(businessId, newTemplate);
+      console.log(`[TemplateManager] Created template: ${documentType}`, newTemplate.id);
+      return newTemplate;
+    } catch (error) {
+      console.error(`[TemplateManager] Error getting/creating template ${documentType}:`, error);
+      // Return a default template even if Firestore fails
+      return this.createDefaultTemplate(businessId, documentType);
     }
-    
-    const newTemplate = this.createDefaultTemplate(businessId, documentType);
-    await this.saveTemplate(businessId, newTemplate);
-    return newTemplate;
   }
 
   // Update business info across all templates

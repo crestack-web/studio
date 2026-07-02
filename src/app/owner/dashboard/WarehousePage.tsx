@@ -105,6 +105,19 @@ export function WarehousePage() {
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'warehouse_staff'>('owner');
   const [assignedLocation, setAssignedLocation] = useState<string | null>(null);
   
+  // Stock transfer modal state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferProduct, setTransferProduct] = useState<Product | null>(null);
+  const [transferQuantity, setTransferQuantity] = useState(1);
+  const [transferTarget, setTransferTarget] = useState('');
+  
+  // Stock adjustment modal state
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [adjustmentProduct, setAdjustmentProduct] = useState<Product | null>(null);
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState(1);
+  const [adjustmentReason, setAdjustmentReason] = useState<'damaged' | 'lost' | 'expired' | 'recount'>('damaged');
+  const [adjustmentNotes, setAdjustmentNotes] = useState('');
+  
   const isCheckingAccessRef = useRef(false);
   const accessCheckedRef = useRef(false);
 
@@ -569,6 +582,73 @@ export function WarehousePage() {
     }
   };
 
+  const handleAdjustment = async (product: Product, quantity: number, reason: 'damaged' | 'lost' | 'expired' | 'recount', notes: string) => {
+    if (!businessId || !firestore) {
+      showToast('❌ Business information not available');
+      return;
+    }
+
+    if (quantity <= 0 || quantity > product.stock) {
+      showToast('❌ Invalid adjustment quantity');
+      return;
+    }
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+        const productDoc = await transaction.get(productRef);
+
+        if (!productDoc.exists()) {
+          throw new Error('Product not found');
+        }
+
+        const data = productDoc.data();
+        const stockByLocation = data.stockByLocation || {
+          main_store: data.stock || 0,
+          back_store: 0,
+          warehouse: 0,
+        };
+
+        const locationStock = stockByLocation[selectedLocation] || 0;
+
+        if (locationStock < quantity) {
+          throw new Error(`Insufficient stock in selected location`);
+        }
+
+        stockByLocation[selectedLocation] = locationStock - quantity;
+        const newTotalStock = Object.values(stockByLocation).reduce((sum: number, val: any) => sum + val, 0);
+
+        transaction.update(productRef, {
+          stock: newTotalStock,
+          stockByLocation,
+          updatedAt: new Date(),
+        });
+
+        const adjustmentLogRef = doc(collection(firestore, 'businesses', businessId, 'stockAdjustments'));
+        transaction.set(adjustmentLogRef, {
+          productId: product.id,
+          productName: product.name,
+          location: selectedLocation,
+          quantity: quantity,
+          reason: reason,
+          notes: notes,
+          adjustedBy: user?.id,
+          adjustedAt: new Date(),
+        });
+      });
+
+      showToast(`✅ Stock adjusted successfully (${reason})`);
+      await loadProducts();
+      setShowAdjustmentModal(false);
+      setAdjustmentProduct(null);
+      setAdjustmentQuantity(1);
+      setAdjustmentNotes('');
+    } catch (error: any) {
+      console.error('Error adjusting stock:', error);
+      showToast(`❌ Adjustment failed: ${error.message}`);
+    }
+  };
+
   // While checking access, show loading state
   if (hasAccess === null) {
     return (
@@ -646,16 +726,34 @@ export function WarehousePage() {
               : 'Manage stock, releases, and transfers'}
           </p>
         </div>
-        {userRole === 'owner' || userRole === 'admin' ? (
-          <div className={styles.headerActions}>
+        <div className={styles.headerActions}>
+          <div className={styles.searchBar}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search products, invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button className={styles.qrButton} title="Scan QR Code">
+              📷
+            </button>
+          </div>
+          <button
+            className={`${styles.actionButton} ${styles.addButton}`}
+            onClick={() => setShowAdjustmentModal(true)}
+          >
+            + Stock Adjustment
+          </button>
+          {userRole === 'owner' || userRole === 'admin' ? (
             <button
               className={`${styles.actionButton} ${styles.addButton}`}
               onClick={() => setShowAddModal(true)}
             >
               + Add Warehouse
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {/* Tab Navigation */}
@@ -721,6 +819,57 @@ export function WarehousePage() {
                 }).length}
               </span>
             </div>
+          </div>
+
+          {/* Low Stock Alerts */}
+          <div className={styles.lowStockSection}>
+            <h3 className={styles.sectionTitle}>⚠️ Low Stock Alerts</h3>
+            {products.filter(p => p.stock < 10).length === 0 ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>✅</div>
+                <h3>All Stock Levels Healthy</h3>
+                <p>No products are running low on stock</p>
+              </div>
+            ) : (
+              <div className={styles.lowStockList}>
+                {products.filter(p => p.stock < 10).slice(0, 5).map(product => (
+                  <div key={product.id} className={styles.lowStockItem}>
+                    <div className={styles.lowStockInfo}>
+                      <div className={styles.lowStockName}>{product.name}</div>
+                      <div className={styles.lowStockLevel}>
+                        Stock: <span className={styles.lowStockCount}>{product.stock}</span>
+                      </div>
+                    </div>
+                    <div className={styles.lowStockActions}>
+                      <button
+                        className={styles.quickActionBtn}
+                        onClick={() => {
+                          setAdjustmentProduct(product);
+                          setAdjustmentReason('recount');
+                          setShowAdjustmentModal(true);
+                        }}
+                      >
+                        Adjust
+                      </button>
+                      <button
+                        className={styles.quickActionBtn}
+                        onClick={() => {
+                          setTransferProduct(product);
+                          setShowTransferModal(true);
+                        }}
+                      >
+                        Transfer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {products.filter(p => p.stock < 10).length > 5 && (
+                  <div className={styles.viewAllLink}>
+                    + {products.filter(p => p.stock < 10).length - 5} more products
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className={styles.locationsGrid}>
@@ -975,11 +1124,18 @@ export function WarehousePage() {
       {activeTab === 'transfers' && (
         <div className={styles.productsSection}>
           <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Stock Transfer History</h3>
+            <h3 className={styles.productsTitle}>Stock Transfers</h3>
+            <button
+              className={`${styles.actionButton} ${styles.addButton}`}
+              onClick={() => setShowTransferModal(true)}
+            >
+              + New Transfer
+            </button>
           </div>
+          
           {transferHistory.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>�</div>
+              <div className={styles.emptyIcon}>📊</div>
               <h3>No Transfer History</h3>
               <p>No stock transfers have been recorded yet</p>
             </div>
@@ -1202,6 +1358,209 @@ export function WarehousePage() {
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Transfer Modal */}
+      {showTransferModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowTransferModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Stock Transfer</h2>
+              <button className={styles.modalClose} onClick={() => setShowTransferModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Select Product</label>
+                <select
+                  className={styles.formInput}
+                  value={transferProduct?.id || ''}
+                  onChange={(e) => {
+                    const product = products.find(p => p.id === e.target.value);
+                    setTransferProduct(product || null);
+                  }}
+                >
+                  <option value="">Select a product...</option>
+                  {products.filter(p => p.stock > 0).map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} (Stock: {product.stock})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {transferProduct && (
+                <>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Source Location</label>
+                    <select
+                      className={styles.formInput}
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                    >
+                      {locationSummary.map(loc => (
+                        <option key={loc.type} value={loc.type}>
+                          {loc.name} (Stock: {transferProduct.stockByLocation?.[loc.type] || 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Target Location</label>
+                    <select
+                      className={styles.formInput}
+                      value={transferTarget}
+                      onChange={(e) => setTransferTarget(e.target.value)}
+                    >
+                      <option value="">Select target location...</option>
+                      {locationSummary
+                        .filter(loc => loc.type !== selectedLocation)
+                        .map(loc => (
+                          <option key={loc.type} value={loc.type}>
+                            {loc.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Quantity</label>
+                    <input
+                      type="number"
+                      className={styles.formInput}
+                      min="1"
+                      max={transferProduct.stockByLocation?.[selectedLocation] || 0}
+                      value={transferQuantity}
+                      onChange={(e) => setTransferQuantity(parseInt(e.target.value) || 1)}
+                    />
+                    <small>Available: {transferProduct.stockByLocation?.[selectedLocation] || 0}</small>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalBtn} onClick={() => setShowTransferModal(false)}>Cancel</button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
+                onClick={() => {
+                  if (transferProduct && transferTarget) {
+                    handleTransfer(transferProduct, transferTarget, transferQuantity);
+                    setShowTransferModal(false);
+                    setTransferProduct(null);
+                    setTransferQuantity(1);
+                    setTransferTarget('');
+                  }
+                }}
+                disabled={!transferProduct || !transferTarget || transferQuantity <= 0}
+              >
+                Transfer Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Adjustment Modal */}
+      {showAdjustmentModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAdjustmentModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Stock Adjustment</h2>
+              <button className={styles.modalClose} onClick={() => setShowAdjustmentModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Select Product</label>
+                <select
+                  className={styles.formInput}
+                  value={adjustmentProduct?.id || ''}
+                  onChange={(e) => {
+                    const product = products.find(p => p.id === e.target.value);
+                    setAdjustmentProduct(product || null);
+                  }}
+                >
+                  <option value="">Select a product...</option>
+                  {products.filter(p => p.stock > 0).map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} (Stock: {product.stock})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {adjustmentProduct && (
+                <>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Location</label>
+                    <select
+                      className={styles.formInput}
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                    >
+                      {locationSummary.map(loc => (
+                        <option key={loc.type} value={loc.type}>
+                          {loc.name} (Stock: {adjustmentProduct.stockByLocation?.[loc.type] || 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Reason</label>
+                    <select
+                      className={styles.formInput}
+                      value={adjustmentReason}
+                      onChange={(e) => setAdjustmentReason(e.target.value as any)}
+                    >
+                      <option value="damaged">Damaged</option>
+                      <option value="lost">Lost</option>
+                      <option value="expired">Expired</option>
+                      <option value="recount">Recount</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Quantity</label>
+                    <input
+                      type="number"
+                      className={styles.formInput}
+                      min="1"
+                      max={adjustmentProduct.stockByLocation?.[selectedLocation] || 0}
+                      value={adjustmentQuantity}
+                      onChange={(e) => setAdjustmentQuantity(parseInt(e.target.value) || 1)}
+                    />
+                    <small>Available: {adjustmentProduct.stockByLocation?.[selectedLocation] || 0}</small>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Notes</label>
+                    <textarea
+                      className={styles.formInput}
+                      value={adjustmentNotes}
+                      onChange={(e) => setAdjustmentNotes(e.target.value)}
+                      placeholder="Add any additional notes..."
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.modalBtn} onClick={() => setShowAdjustmentModal(false)}>Cancel</button>
+              <button
+                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
+                onClick={() => {
+                  if (adjustmentProduct) {
+                    handleAdjustment(adjustmentProduct, adjustmentQuantity, adjustmentReason, adjustmentNotes);
+                  }
+                }}
+                disabled={!adjustmentProduct || adjustmentQuantity <= 0}
+              >
+                Adjust Stock
+              </button>
             </div>
           </div>
         </div>

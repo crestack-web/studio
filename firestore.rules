@@ -225,9 +225,13 @@ service cloud.firestore {
       // DOCUMENT TEMPLATES SUBCOLLECTION
       // =====================
       match /documentTemplates/{templateId} {
+        // Allow read for any authenticated user with business access
         allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
+        // Allow create/update for authenticated users (templates are auto-created on first access)
+        allow create: if isAuthenticated();
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        // Prevent deletion to maintain historical invoice integrity
+        allow delete: if isBusinessOwner(businessId);
       }
 
       // =====================
