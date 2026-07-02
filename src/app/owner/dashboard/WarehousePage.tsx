@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
@@ -9,6 +9,15 @@ import { collection, getDocs, query, where, addDoc, deleteDoc, doc, runTransacti
 import { checkFeatureAccess, getBusinessType } from '@/lib/featureRestrictions';
 import { useTranslation } from './LangContext';
 import styles from './WarehousePage.module.css';
+
+// Memoize the firebase instance to prevent re-initialization
+let cachedFirebaseInstance: ReturnType<typeof initializeFirebase> | null = null;
+const getFirebaseInstance = () => {
+  if (!cachedFirebaseInstance) {
+    cachedFirebaseInstance = initializeFirebase();
+  }
+  return cachedFirebaseInstance;
+};
 
 interface Product {
   id: string;
@@ -42,7 +51,8 @@ export function WarehousePage() {
   const { showToast, user, navigateTo } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId, branches } = useBranch();
-  const { firestore } = initializeFirebase();
+  const firebaseInstance = getFirebaseInstance();
+  const firestore = firebaseInstance.firestore;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
@@ -51,19 +61,29 @@ export function WarehousePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [accessReason, setAccessReason] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
   const [locationToDelete, setLocationToDelete] = useState<StockLocation | null>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isCheckingAccessRef = useRef(false);
+  const accessCheckedRef = useRef(false);
 
   const checkWarehouseAccess = useCallback(async () => {
+    // Prevent multiple concurrent checks
+    if (isCheckingAccessRef.current) return;
+    
+    isCheckingAccessRef.current = true;
+    
+    // Prevent running the check multiple times for the same user
+    if (accessCheckedRef.current) {
+      isCheckingAccessRef.current = false;
+      return;
+    }
+
     if (!user?.id) {
       setHasAccess(false);
       setAccessReason('Please log in to access this feature');
+      accessCheckedRef.current = true;
+      isCheckingAccessRef.current = false;
       return;
     }
 
@@ -75,6 +95,8 @@ export function WarehousePage() {
 
       if (isRetailOrWholesale) {
         setHasAccess(true);
+        accessCheckedRef.current = true;
+        isCheckingAccessRef.current = false;
         return;
       }
 
@@ -85,21 +107,24 @@ export function WarehousePage() {
         setHasAccess(false);
         setAccessReason(accessResult.reason || 'This feature is not available for your plan');
       }
+      accessCheckedRef.current = true;
     } catch (error) {
       console.error('Error checking warehouse access:', error);
       setHasAccess(true);
+      accessCheckedRef.current = true;
+    } finally {
+      isCheckingAccessRef.current = false;
     }
   }, [user]);
 
+  // Run access check when component mounts or user changes
   useEffect(() => {
-    if (isMounted) {
-      checkWarehouseAccess();
+    // Reset the check when user changes
+    if (user) {
+      accessCheckedRef.current = false;
     }
-  }, [isMounted, checkWarehouseAccess]);
-
-  if (!isMounted) {
-    return null;
-  }
+    checkWarehouseAccess();
+  }, [user, checkWarehouseAccess]);
 
   const loadStockLocations = async () => {
     if (!businessId || !firestore) return;
@@ -187,7 +212,7 @@ export function WarehousePage() {
 
   useEffect(() => {
     loadProducts();
-  }, [businessId, firestore]);
+  }, [businessId]);
 
   const getLocationSummary = (): LocationSummary[] => {
     const locations: LocationSummary[] = [];
