@@ -195,8 +195,6 @@ export function DocumentTemplateManager() {
     notes: 'Thank you for your business!',
   };
 
-  const TemplateComponent = selectedTemplate ? getTemplateComponent(selectedTemplate.templateStyle) : null;
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -661,39 +659,42 @@ export function DocumentTemplateManager() {
       </div>
 
       {/* Preview Modal */}
-      {showPreview && selectedTemplate && TemplateComponent && (
-        <div className={styles.modal} onClick={() => setShowPreview(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>Template Preview</h2>
-              <button className={styles.modalClose} onClick={() => setShowPreview(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.previewContainer}>
-                <TemplateComponent template={selectedTemplate} data={previewData} />
+      {showPreview && selectedTemplate && (() => {
+        const TemplateComponent = getTemplateComponent(selectedTemplate.templateStyle);
+        return TemplateComponent ? (
+          <div className={styles.modal} onClick={() => setShowPreview(false)}>
+            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2>Template Preview</h2>
+                <button className={styles.modalClose} onClick={() => setShowPreview(false)}>
+                  <X size={24} />
+                </button>
               </div>
-              <div className={styles.modalActions}>
-                <button 
-                  className={styles.actionButton}
-                  onClick={() => window.print()}
-                >
-                  <Printer size={18} />
-                  Print
-                </button>
-                <button 
-                  className={styles.actionButton}
-                  onClick={() => showToast('PDF download would be implemented with a library like jsPDF')}
-                >
-                  <Download size={18} />
-                  Download PDF
-                </button>
+              <div className={styles.modalBody}>
+                <div className={styles.previewContainer}>
+                  <TemplateComponent template={selectedTemplate} data={previewData} />
+                </div>
+                <div className={styles.modalActions}>
+                  <button 
+                    className={styles.actionButton}
+                    onClick={() => window.print()}
+                  >
+                    <Printer size={18} />
+                    Print
+                  </button>
+                  <button 
+                    className={styles.actionButton}
+                    onClick={() => showToast('PDF download would be implemented with a library like jsPDF')}
+                  >
+                    <Download size={18} />
+                    Download PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
     </div>
   );
 }

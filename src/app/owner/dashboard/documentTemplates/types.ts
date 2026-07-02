@@ -377,3 +377,22 @@ export const DEFAULT_TEMPLATE_STYLES: { value: TemplateStyle; label: string; des
     description: 'POS receipt for supermarkets and convenience stores'
   }
 ];
+
+export const CATEGORY_DEFAULT_TEMPLATES: Record<string, TemplateStyle> = {
+  wholesale: 'nigerian-wholesale',
+  distributor: 'nigerian-wholesale',
+  retail: 'nigerian-wholesale',
+  supermarket: 'nigerian-wholesale',
+  grocery: 'nigerian-wholesale',
+  restaurant: 'modern-corporate',
+  cafe: 'modern-corporate',
+  food: 'modern-corporate',
+  pharmacy: 'compact-a5',
+  healthcare: 'compact-a5',
+  manufacturing: 'modern-corporate',
+  fashion: 'modern-corporate',
+  electronics: 'modern-corporate',
+  services: 'modern-corporate',
+  education: 'modern-corporate',
+  other: 'modern-corporate',
+};

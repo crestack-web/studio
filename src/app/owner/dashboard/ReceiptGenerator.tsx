@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { Printer, FileText, X, Share2 } from 'lucide-react';
+import { templateManager } from './documentTemplates/templateManager';
+import { DocumentTemplate, InvoiceData, CATEGORY_DEFAULT_TEMPLATES } from './documentTemplates/types';
+import { getTemplateComponent } from './documentTemplates/templates';
+import { initializeFirebase } from '@/firebase';
+import { getAuth } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import styles from './ReceiptGenerator.module.css';
 
 interface ReceiptItem {
