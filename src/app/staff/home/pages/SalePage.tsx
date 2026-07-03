@@ -726,6 +726,7 @@ export function SalePage({ onComplete }: SalePageProps) {
             onComplete?.();
           }}
           isWholesale={businessCategory.toLowerCase().includes('wholesale') || businessCategory.toLowerCase().includes('distributor')}
+          receiptType={businessCategory.toLowerCase().includes('wholesale') || businessCategory.toLowerCase().includes('distributor') ? 'invoice' : 'supermarket'}
         />
       )}
     </div>

@@ -69,6 +69,7 @@ export function RecordSalePage() {
   const [receiptTheme, setReceiptTheme] = useState<any>(null);
   const [businessLogo, setBusinessLogo] = useState<string>('');
   const [bankAccountId, setBankAccountId] = useState<string | null>(null);
+  const [receiptType, setReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -1251,6 +1252,7 @@ export function RecordSalePage() {
                 navigateTo('home');
               }}
               isWholesale={businessCategory.includes('wholesale') || businessCategory.includes('distributor')}
+              receiptType={receiptType || 'supermarket'}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <Button

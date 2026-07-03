@@ -53,9 +53,10 @@ interface ReceiptGeneratorProps {
   receiptData: ReceiptData;
   onClose: () => void;
   isWholesale?: boolean;
+  receiptType?: 'supermarket' | 'invoice';
 }
 
-export function ReceiptGenerator({ receiptData, onClose, isWholesale = false }: ReceiptGeneratorProps) {
+export function ReceiptGenerator({ receiptData, onClose, isWholesale = false, receiptType = 'supermarket' }: ReceiptGeneratorProps) {
   const { showToast } = useApp();
   const { formatMoney, currencyCode } = useCurrency();
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -113,7 +114,33 @@ export function ReceiptGenerator({ receiptData, onClose, isWholesale = false }: 
   };
 
   const handleCopyToClipboard = () => {
-    const message = `
+    let message = '';
+    
+    if (receiptType === 'invoice') {
+      // Invoice-style receipt for wholesale/distributor
+      message = `
+${receiptData.businessName}
+${receiptData.businessAddress ? receiptData.businessAddress + '\n' : ''}
+${receiptData.businessPhone ? 'Tel: ' + receiptData.businessPhone + '\n' : ''}
+
+INVOICE - ${receiptData.saleNumber}
+Date: ${receiptData.date}
+${receiptData.customerName ? 'Customer: ' + receiptData.customerName + '\n' : ''}
+${receiptData.customerPhone ? 'Phone: ' + receiptData.customerPhone + '\n' : ''}
+
+ITEMS:
+${receiptData.items.map(item => `${item.name}\n  ${item.quantity} x ${formatMoney(item.price)} = ${formatMoney(item.total)}`).join('\n')}
+
+Subtotal: ${formatMoney(receiptData.subtotal)}
+${receiptData.outstandingBalance > 0 ? `Outstanding Balance: ${formatMoney(receiptData.outstandingBalance)}\n` : ''}Total: ${formatMoney(receiptData.subtotal)}
+
+Payment: ${receiptData.paymentMethod}
+${receiptData.sourceLocation ? 'Source: ' + receiptData.sourceLocation + '\n' : ''}
+${receiptData.outstandingBalance > 0 ? 'Payment Due: Please settle outstanding balance\n' : ''}Thank you for your business!
+      `.trim();
+    } else {
+      // Supermarket-style receipt (default)
+      message = `
 ${receiptData.businessName}
 ${receiptData.businessAddress ? receiptData.businessAddress + '\n' : ''}
 
@@ -128,7 +155,8 @@ Subtotal: ${formatMoney(receiptData.subtotal)}
 Paid: ${formatMoney(receiptData.amountPaid)}
 ${receiptData.outstandingBalance > 0 ? `Outstanding: ${formatMoney(receiptData.outstandingBalance)}\n` : ''}Payment: ${receiptData.paymentMethod}
 ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Thank you for your business!
-    `.trim();
+      `.trim();
+    }
 
     navigator.clipboard.writeText(message).then(() => {
       showToast('✅ Receipt copied to clipboard');
@@ -156,6 +184,7 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
             style={{
               backgroundColor: receiptData.theme?.backgroundColor || 'white',
               color: receiptData.theme?.textColor || 'black',
+              fontFamily: receiptType === 'invoice' ? 'Arial, sans-serif' : 'monospace',
             }}
           >
             {receiptData.theme?.showLogo && receiptData.logoUrl && (
@@ -187,16 +216,31 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
             ></div>
 
             <div className={styles.receiptInfo}>
-              <div>Receipt #: {receiptData.saleNumber}</div>
-              <div>Date: {receiptData.date}</div>
-              {receiptData.theme?.showCustomerDetails && receiptData.customerName && (
-                <div>Customer: {receiptData.customerName}</div>
-              )}
-              {receiptData.theme?.showCustomerDetails && receiptData.customerPhone && (
-                <div>Phone: {receiptData.customerPhone}</div>
+              {receiptType === 'invoice' ? (
+                <>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>INVOICE</div>
+                  <div>Invoice #: {receiptData.saleNumber}</div>
+                  <div>Date: {receiptData.date}</div>
+                  {receiptData.customerName && (
+                    <div style={{ marginTop: '8px' }}><strong>Bill To:</strong></div>
+                  )}
+                  {receiptData.customerName && <div>Customer: {receiptData.customerName}</div>}
+                  {receiptData.customerPhone && <div>Phone: {receiptData.customerPhone}</div>}
+                </>
+              ) : (
+                <>
+                  <div>Receipt #: {receiptData.saleNumber}</div>
+                  <div>Date: {receiptData.date}</div>
+                  {receiptData.theme?.showCustomerDetails && receiptData.customerName && (
+                    <div>Customer: {receiptData.customerName}</div>
+                  )}
+                  {receiptData.theme?.showCustomerDetails && receiptData.customerPhone && (
+                    <div>Phone: {receiptData.customerPhone}</div>
+                  )}
+                </>
               )}
               {receiptData.sourceLocation && (
-                <div>Source: {receiptData.sourceLocation}</div>
+                <div style={{ marginTop: '5px' }}>Source: {receiptData.sourceLocation}</div>
               )}
             </div>
 
@@ -208,23 +252,42 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
             <div className={styles.receiptItems}>
               <div 
                 className={styles.receiptItemHeader}
-                style={{ color: receiptData.theme?.secondaryColor || 'black' }}
+                style={{ 
+                  color: receiptData.theme?.secondaryColor || 'black',
+                  borderBottom: receiptType === 'invoice' ? '2px solid' : '1px dashed',
+                  paddingBottom: '8px',
+                  marginBottom: '8px',
+                  fontSize: receiptType === 'invoice' ? '14px' : '12px'
+                }}
               >
-                <span>ITEM</span>
-                <span>QTY</span>
-                <span>PRICE</span>
-                <span>TOTAL</span>
+                {receiptType === 'invoice' ? 'DESCRIPTION' : 'ITEM'}
               </div>
               {receiptData.items.map((item, index) => (
                 <div 
                   key={index} 
                   className={styles.receiptItem}
-                  style={{ fontSize: receiptData.theme?.fontSize === 'large' ? '14px' : receiptData.theme?.fontSize === 'small' ? '11px' : '12px' }}
+                  style={{ 
+                    fontSize: receiptData.theme?.fontSize === 'large' ? '14px' : receiptData.theme?.fontSize === 'small' ? '11px' : '12px',
+                    borderBottom: receiptType === 'invoice' ? '1px solid #eee' : '1px dashed #000',
+                    padding: '8px 0'
+                  }}
                 >
-                  <span className={styles.itemName}>{item.name}</span>
-                  <span>{item.quantity}</span>
-                  <span>{formatMoney(item.price)}</span>
-                  <span>{formatMoney(item.total)}</span>
+                  {receiptType === 'invoice' ? (
+                    <>
+                      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{item.name}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666' }}>
+                        <span>{item.quantity} x {formatMoney(item.price)}</span>
+                        <span style={{ fontWeight: 'bold', color: '#000' }}>{formatMoney(item.total)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.itemName}>{item.name}</span>
+                      <span>{item.quantity}</span>
+                      <span>{formatMoney(item.price)}</span>
+                      <span>{formatMoney(item.total)}</span>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -237,24 +300,52 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
             <div className={styles.receiptTotals}>
               <div 
                 className={styles.receiptTotal}
-                style={{ fontSize: receiptData.theme?.fontSize === 'large' ? '16px' : receiptData.theme?.fontSize === 'small' ? '13px' : '14px' }}
+                style={{ 
+                  fontSize: receiptData.theme?.fontSize === 'large' ? '16px' : receiptData.theme?.fontSize === 'small' ? '13px' : '14px',
+                  borderTop: receiptType === 'invoice' ? '2px solid #000' : '1px dashed #000',
+                  paddingTop: '10px',
+                  marginTop: '10px'
+                }}
               >
-                <span>Subtotal:</span>
-                <span>{formatMoney(receiptData.subtotal)}</span>
-              </div>
-              <div className={styles.receiptTotal}>
-                <span>Amount Paid:</span>
-                <span>{formatMoney(receiptData.amountPaid)}</span>
-              </div>
-              {receiptData.outstandingBalance > 0 && (
-                <div className={styles.receiptTotal}>
-                  <span>Outstanding:</span>
-                  <span>{formatMoney(receiptData.outstandingBalance)}</span>
-                </div>
-              )}
-              <div className={styles.receiptTotal}>
-                <span>Payment:</span>
-                <span>{receiptData.paymentMethod}</span>
+                {receiptType === 'invoice' ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span>Subtotal:</span>
+                      <span>{formatMoney(receiptData.subtotal)}</span>
+                    </div>
+                    {receiptData.outstandingBalance > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#ef4444' }}>
+                        <span>Outstanding Balance:</span>
+                        <span>{formatMoney(receiptData.outstandingBalance)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #000' }}>
+                      <span>TOTAL DUE:</span>
+                      <span style={{ color: receiptData.theme?.primaryColor || 'black' }}>{formatMoney(receiptData.subtotal)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Subtotal:</span>
+                      <span>{formatMoney(receiptData.subtotal)}</span>
+                    </div>
+                    <div className={styles.receiptTotal}>
+                      <span>Amount Paid:</span>
+                      <span>{formatMoney(receiptData.amountPaid)}</span>
+                    </div>
+                    {receiptData.outstandingBalance > 0 && (
+                      <div className={styles.receiptTotal}>
+                        <span>Outstanding:</span>
+                        <span>{formatMoney(receiptData.outstandingBalance)}</span>
+                      </div>
+                    )}
+                    <div className={styles.receiptTotal}>
+                      <span>Payment:</span>
+                      <span>{receiptData.paymentMethod}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -264,14 +355,30 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
             ></div>
 
             <div className={styles.receiptFooter}>
-              {receiptData.theme?.customFooter ? (
-                <div>{receiptData.theme.customFooter}</div>
+              {receiptType === 'invoice' ? (
+                <>
+                  <div style={{ fontSize: '12px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #000' }}>
+                    <strong>Payment Terms:</strong> Payment due within 30 days
+                  </div>
+                  <div style={{ fontSize: '11px', marginTop: '8px', color: '#666' }}>
+                    Thank you for your business!
+                  </div>
+                  <div style={{ fontSize: '10px', marginTop: '5px', color: '#999' }}>
+                    Generated: {new Date().toLocaleString()}
+                  </div>
+                </>
               ) : (
-                <div>Thank you for your business!</div>
-              )}
-              <div>{new Date().toLocaleDateString()}</div>
-              {receiptData.theme?.showBarcode && (
-                <div className={styles.barcode}>||||| ||||| |||||</div>
+                <>
+                  {receiptData.theme?.customFooter ? (
+                    <div>{receiptData.theme.customFooter}</div>
+                  ) : (
+                    <div>Thank you for your business!</div>
+                  )}
+                  <div>{new Date().toLocaleDateString()}</div>
+                  {receiptData.theme?.showBarcode && (
+                    <div className={styles.barcode}>||||| ||||| |||||</div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -294,15 +401,13 @@ ${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Th
               <FileText size={18} />
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </button>
-            {isWholesale && (
-              <button
-                className={styles.actionButton}
-                onClick={handleCopyToClipboard}
-              >
-                <Share2 size={18} />
-                Share
-              </button>
-            )}
+            <button
+              className={styles.actionButton}
+              onClick={handleCopyToClipboard}
+            >
+              <Share2 size={18} />
+              Share
+            </button>
           </div>
         </div>
       </div>
