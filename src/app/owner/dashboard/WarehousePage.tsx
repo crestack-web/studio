@@ -512,8 +512,14 @@ export function WarehousePage() {
 
   const getLocationSummary = (): LocationSummary[] => {
     const locations: LocationSummary[] = [];
+    const addedTypes = new Set<string>();
 
     const addLocation = (type: string, name: string, isDefault: boolean) => {
+      // Skip if already added this type
+      if (addedTypes.has(type)) {
+        return;
+      }
+
       const stockCount = products.reduce((sum, p) => sum + (p.stockByLocation?.[type] || 0), 0);
       const stockValue = products.reduce((sum, p) => sum + ((p.stockByLocation?.[type] || 0) * p.costPrice), 0);
       const productCount = products.filter(p => (p.stockByLocation?.[type] || 0) > 0).length;
@@ -526,6 +532,7 @@ export function WarehousePage() {
           stockValue,
           productCount,
         });
+        addedTypes.add(type);
       }
     };
 
