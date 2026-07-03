@@ -531,7 +531,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   );
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-theme={theme}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>

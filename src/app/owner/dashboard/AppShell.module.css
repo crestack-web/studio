@@ -31,7 +31,7 @@
 }
 
 .mobileAskMOPageArea {
-  background: var(--bg-1);
+  background: var(--background);
 }
 
 @media (max-width: 768px) {

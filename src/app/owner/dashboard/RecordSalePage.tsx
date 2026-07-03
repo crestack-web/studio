@@ -4,7 +4,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { useBranch } from '@/context/BranchContext';
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy, Timestamp } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
@@ -441,6 +441,47 @@ export function RecordSalePage() {
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // Record audit trail for sale creation
+      try {
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        const userData = userDoc.data();
+        
+        await addDoc(collection(firestore, 'businesses', businessId, 'auditTrail'), {
+          userId: user.uid,
+          userName: staffName,
+          userEmail: user.email || userData?.email || '',
+          action: 'create',
+          entityType: 'sale',
+          entityId: saleRef.id,
+          entityName: `Sale #${saleRef.id.slice(-6)}`,
+          previousValues: null,
+          newValues: {
+            products: cart.map(item => ({
+              productId: item.id,
+              name: item.name,
+              quantity: item.qty,
+              price: item.price,
+              costPrice: item.costPrice,
+            })),
+            totalRevenue: subtotal,
+            totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
+            profit: profit,
+            paymentMethod: payment,
+            paymentBreakdown: paymentBreakdown,
+            expectedCash,
+            expectedBank,
+            sourceLocation: sourceLocationName,
+          },
+          timestamp: Timestamp.now(),
+          ipAddress: null,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+        });
+        console.log('✅ Audit trail recorded for sale');
+      } catch (auditError) {
+        console.error('⚠️ Failed to record audit trail:', auditError);
+        // Don't fail the sale if audit fails
+      }
 
       // Update bank account balance if sale has bank/POS/card payments
       if (expectedBank > 0 && bankAccountId) {

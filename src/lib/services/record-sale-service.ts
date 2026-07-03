@@ -7,6 +7,37 @@
 import { getAdminDb } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 
+// Helper function to record audit trail
+async function recordAuditTrail(businessId: string, userId: string, action: string, entityType: string, entityId: string, entityName: string, newValues: any) {
+  try {
+    const db = getAdminDb();
+    
+    // Get user details for audit log
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    await db.collection('businesses').doc(businessId).collection('auditTrail').add({
+      userId,
+      userName: userData?.displayName || userData?.name || 'Unknown',
+      userEmail: userData?.email || '',
+      action,
+      entityType,
+      entityId,
+      entityName,
+      previousValues: null,
+      newValues,
+      timestamp: admin.firestore.Timestamp.now(),
+      ipAddress: null,
+      userAgent: null,
+    });
+    
+    console.log(`✅ Audit trail recorded for ${entityType}: ${entityId}`);
+  } catch (auditError) {
+    console.error('⚠️ Failed to record audit trail:', auditError);
+    // Don't fail the main operation if audit fails
+  }
+}
+
 export interface SaleItem {
   productId: string;
   name: string;
@@ -120,6 +151,30 @@ export async function recordSale(params: RecordSaleParams): Promise<RecordSaleRe
     }
 
     const totalProfit = totalRevenue - totalCost;
+
+    // Record audit trail for sale creation
+    await recordAuditTrail(
+      businessId,
+      userId,
+      'create',
+      'sale',
+      'sale-' + Date.now().toString(36),
+      `Sale - ${items.length} items`,
+      {
+        products: items.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          costPrice: item.costPrice,
+        })),
+        totalRevenue,
+        totalCost,
+        profit: totalProfit,
+        paymentMethod: paymentType,
+        source,
+      }
+    );
 
     // Use transaction to ensure atomicity
     await db.runTransaction(async (transaction) => {

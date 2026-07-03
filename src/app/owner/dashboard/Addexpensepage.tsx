@@ -216,7 +216,43 @@ export function AddExpensePage() {
         createdBy: currentUser.uid,
       };
 
-      await addDoc(collection(firestore, 'businesses', businessId, 'expenses'), expenseData);
+      const expenseRef = await addDoc(collection(firestore, 'businesses', businessId, 'expenses'), expenseData);
+
+      // Record audit trail for expense creation
+      try {
+        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        const userData = userDoc.data();
+        
+        await addDoc(collection(firestore, 'businesses', businessId, 'auditTrail'), {
+          userId: currentUser.uid,
+          userName: userData?.displayName || userData?.name || currentUser.displayName || 'Unknown',
+          userEmail: currentUser.email || userData?.email || '',
+          action: 'create',
+          entityType: 'expense',
+          entityId: expenseRef.id,
+          entityName: `Expense - ${form.category}`,
+          previousValues: null,
+          newValues: {
+            category: form.category,
+            amount: parseFloat(form.amount),
+            date: Timestamp.fromDate(new Date(form.date)),
+            paymentMethod: form.paymentMethod,
+            description: form.description,
+            linkedProduct: form.linkedProduct || null,
+            quantityReceived: form.quantityReceived ? parseInt(form.quantityReceived) : null,
+            isRecurring: form.isRecurring,
+            recurFrequency: form.isRecurring ? form.recurFrequency : null,
+            receiptUrl: receipt || null,
+          },
+          timestamp: Timestamp.now(),
+          ipAddress: null,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+        });
+        console.log('✅ Audit trail recorded for expense');
+      } catch (auditError) {
+        console.error('⚠️ Failed to record audit trail:', auditError);
+        // Don't fail the expense creation if audit fails
+      }
 
       const amt = parseFloat(form.amount).toLocaleString();
       showToast(`✅ Expense of ${currency.symbol}${amt} recorded`);

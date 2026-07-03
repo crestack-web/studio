@@ -8,6 +8,37 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
+// Helper function to record audit trail
+async function recordAuditTrail(businessId: string, userId: string, action: string, entityType: string, entityId: string, entityName: string, newValues: any) {
+  try {
+    const db = getAdminDb();
+    
+    // Get user details for audit log
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    await db.collection('businesses').doc(businessId).collection('auditTrail').add({
+      userId,
+      userName: userData?.displayName || userData?.name || 'Unknown',
+      userEmail: userData?.email || '',
+      action,
+      entityType,
+      entityId,
+      entityName,
+      previousValues: null,
+      newValues,
+      timestamp: admin.firestore.Timestamp.now(),
+      ipAddress: null,
+      userAgent: null,
+    });
+    
+    console.log(`✅ Audit trail recorded for ${entityType}: ${entityId}`);
+  } catch (auditError) {
+    console.error('⚠️ Failed to record audit trail:', auditError);
+    // Don't fail the main operation if audit fails
+  }
+}
+
 export interface AddExpenseParams {
   businessId: string;
   userId: string;
@@ -137,6 +168,28 @@ export async function addExpense(params: AddExpenseParams): Promise<AddExpenseRe
 
     // Save expense to Firestore
     const docRef = await db.collection('businesses').doc(businessId).collection('expenses').add(expenseData);
+
+    // Record audit trail for expense creation
+    await recordAuditTrail(
+      businessId,
+      userId,
+      'create',
+      'expense',
+      docRef.id,
+      `Expense - ${category}`,
+      {
+        category,
+        amount,
+        date: expenseDate.toISOString(),
+        paymentMethod,
+        description,
+        linkedProduct: linkedProduct || null,
+        quantityReceived: quantityReceived ? parseInt(quantityReceived.toString()) : null,
+        isRecurring,
+        recurFrequency: isRecurring ? recurFrequency : null,
+        receiptUrl: finalReceiptUrl || null,
+      }
+    );
 
     return {
       success: true,
