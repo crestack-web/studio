@@ -67,7 +67,7 @@ export default function WelcomePage() {
           <div className="section-head">
             <div className="section-label">Who is Busmo for?</div>
             <h2 className="section-title">Your intelligent<br /><em>business operating system.</em></h2>
-            <p className="section-sub">From recording sales with natural language to AI-powered insights — Busmo transforms how you run your business.</p>
+            <p className="section-sub">Record sales with natural language and get AI-powered insights — Busmo transforms how you run your business.</p>
           </div>
           <div className="paths-grid">
             {/* Business Owner */}
@@ -75,13 +75,13 @@ export default function WelcomePage() {
               <div className="path-card featured">
               <div className="path-icon owner"><span>🏪</span></div>
               <div className="path-title">Business Owners</div>
-              <div className="path-desc">Talk to your business. Record sales, add products, and get insights — all through natural conversation with MO, your AI assistant.</div>
+              <div className="path-desc">Talk to your business. Record sales, add products, and get insights through natural conversation with MO, your AI assistant.</div>
               <ul className="path-list">
-                <li>Record sales by just saying "sold 2 shirts"</li>
-                <li>Add products with images and natural language</li>
-                <li>AI-powered daily business insights</li>
-                <li>Smart inventory & expense tracking</li>
-                <li>Low stock alerts & restock recommendations</li>
+                <li>Record sales by saying "sold 2 shirts"</li>
+                <li>Add products with images</li>
+                <li>AI-powered daily insights</li>
+                <li>Smart inventory tracking</li>
+                <li>Low stock alerts</li>
               </ul>
               <button className="path-cta" onClick={() => handleNavigate('signup')}>Start Free Trial →</button>
               </div>
@@ -112,53 +112,53 @@ export default function WelcomePage() {
           <div className="section-head">
             <div className="section-label">Platform Features</div>
             <h2 className="section-title">Talk to your business.<br /><em>It listens.</em></h2>
-            <p className="section-sub">Busmo is the first business operating system that understands natural language — record sales, add products, and get insights just by talking.</p>
+            <p className="section-sub">The first business operating system that understands natural language — record sales, add products, and get insights by talking.</p>
           </div>
           <div className="features-grid">
             <div className="feat-card wide">
               <div className="feat-icon">🤖</div>
               <div>
                 <div className="feat-title">MO — Your AI Business Assistant</div>
-                <div className="feat-desc">Record sales by saying "sold 3 shirts for ₦5,000", add products by describing them, and get instant answers to business questions. MO understands context and learns your business.</div>
+                <div className="feat-desc">Record sales by saying "sold 3 shirts", add products by description, and get instant business insights. MO understands context and learns your business.</div>
                 <span className="feat-tag">AI-Powered</span>
               </div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">💬</div>
               <div className="feat-title">Natural Language Sales</div>
-              <div className="feat-desc">No forms, no complexity. Just say what happened and MO handles the rest — validates inventory, calculates profit, and updates records instantly.</div>
+              <div className="feat-desc">No forms, no complexity. Just say what happened and MO handles the rest — validates inventory, calculates profit, and updates records.</div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">📷</div>
               <div className="feat-title">Add Products with Images</div>
-              <div className="feat-desc">Snap a photo of a product and tell MO about it. It extracts details, sets pricing, and adds it to your inventory automatically.</div>
+              <div className="feat-desc">Snap a photo and tell MO about it. It extracts details, sets pricing, and adds to inventory automatically.</div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">📦</div>
               <div className="feat-title">Smart Inventory</div>
-              <div className="feat-desc">Track stock automatically, get low stock alerts before you run out, and receive AI-powered restock recommendations.</div>
+              <div className="feat-desc">Track stock automatically, get low stock alerts, and receive AI-powered restock recommendations.</div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">📊</div>
               <div className="feat-title">Daily Business Insights</div>
-              <div className="feat-desc">MO provides personalized insights every day — profit trends, best-selling products, cash flow health, and actionable recommendations.</div>
+              <div className="feat-desc">MO provides personalized insights daily — profit trends, best-sellers, cash flow health, and recommendations.</div>
             </div>
             <div className="feat-card">
               <div className="feat-icon">👥</div>
               <div className="feat-title">Staff Management</div>
-              <div className="feat-desc">Invite staff to record sales and manage inventory. Keep control while your team keeps things running.</div>
+              <div className="feat-desc">Invite staff to record sales and manage inventory. Keep control while your team runs things.</div>
               <span className="feat-tag">Supermarket plan+</span>
             </div>
             <div className="feat-card">
               <div className="feat-icon">🏬</div>
               <div className="feat-title">Multiple Branches</div>
-              <div className="feat-desc">Manage a chain or franchise from one dashboard. See performance across all your locations in one view.</div>
+              <div className="feat-desc">Manage a chain from one dashboard. See performance across all locations in one view.</div>
               <span className="feat-tag">Branches plan+</span>
             </div>
             <div className="feat-card">
               <div className="feat-icon">📵</div>
               <div className="feat-title">Works Offline</div>
-              <div className="feat-desc">Record sales and manage inventory even without internet. Syncs automatically when you're back online.</div>
+              <div className="feat-desc">Record sales and manage inventory without internet. Syncs automatically when back online.</div>
               <span className="feat-tag">Offline-first</span>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function WelcomePage() {
           <div className="section-head center">
             <div className="section-label">Why Busmo</div>
             <h2 className="section-title">Everything you need to track and grow your business <em>without complicated accounting.</em></h2>
-            <p className="section-sub">Get the benefits of accounting software without the complexity. Built for business owners, not accountants.</p>
+            <p className="section-sub">Accounting software benefits without the complexity. Built for owners, not accountants.</p>
           </div>
           <div className="comparison-grid">
             <div className="cmp-card cmp-old">
@@ -202,9 +202,9 @@ export default function WelcomePage() {
               <ul className="cmp-list">
                 <li><span className="cmp-icon">😵</span><span>Endless fields, confusing charts, features you'll never use</span></li>
                 <li><span className="cmp-icon">👨‍💼</span><span>Built for accountants — speaks "debits" and "credits"</span></li>
-                <li><span className="cmp-icon">📑</span><span>Gives you long reports to dig through, not answers</span></li>
-                <li><span className="cmp-icon">📶</span><span>Requires constant internet connection</span></li>
-                <li><span className="cmp-icon">📚</span><span>Takes weeks to learn before you can use it properly</span></li>
+                <li><span className="cmp-icon">📑</span><span>Long reports to dig through, not answers</span></li>
+                <li><span className="cmp-icon">📶</span><span>Requires constant internet</span></li>
+                <li><span className="cmp-icon">📚</span><span>Takes weeks to learn</span></li>
               </ul>
             </div>
             <div className="cmp-card cmp-new">

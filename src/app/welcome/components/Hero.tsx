@@ -21,8 +21,8 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
         <em>Simple business tracking for African entrepreneurs.</em>
       </h1>
       <p>
-        Busmo gives you instant profit clarity, smart forecasts, and AI-powered insights —
-        so you can make confident business decisions every single day.
+        Busmo gives you instant profit clarity, smart forecasts, and AI insights —
+        so you can make confident business decisions every day.
       </p>
       <div className="hero-cta">
         <button className="btn-primary btn-large btn-dominant" onClick={() => onNavigate('signup')}>
