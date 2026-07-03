@@ -751,13 +751,13 @@ export function WarehousePage() {
             className={`${styles.actionButton} ${styles.addButton}`}
             onClick={() => setShowAdjustmentModal(true)}
           >
-            + Stock Adjustment
+            ⚙️ Stock Adjustment
           </button>
           <button
             className={`${styles.actionButton} ${styles.addButton}`}
             onClick={() => setShowAddModal(true)}
           >
-            + Add Warehouse
+            ➕ Add Warehouse
           </button>
         </div>
       </div>
@@ -904,10 +904,10 @@ export function WarehousePage() {
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
                   <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && <NavIcons id="warehouse" size={20} />}
-                      {location.type === 'back_store' && <NavIcons id="inventory" size={20} />}
-                      {location.type === 'warehouse' && <NavIcons id="warehouse" size={20} />}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <NavIcons id="branches" size={20} />}
+                      {location.type === 'main_store' && '🏪'}
+                      {location.type === 'back_store' && '📦'}
+                      {location.type === 'warehouse' && '🏭'}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && '🏢'}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -1024,7 +1024,7 @@ export function WarehousePage() {
                         setShowInvoiceModal(true);
                       }}
                     >
-                      Review & Release
+                      📋 Review & Release
                     </button>
                   </div>
                 </div>
