@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, deleteDoc, doc, runTransaction, updateDoc, getDoc, orderBy } from 'firebase/firestore';
-import { checkFeatureAccess, getBusinessType } from '@/lib/featureRestrictions';
 import { useTranslation } from './LangContext';
+import { NavIcons } from './NavIcons';
 import styles from './WarehousePage.module.css';
 
 // Memoize the firebase instance to prevent re-initialization
@@ -99,12 +99,6 @@ export function WarehousePage() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [releaseNotes, setReleaseNotes] = useState('');
   
-  // Role-based access
-  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'warehouse_staff'>('owner');
-  const [assignedLocation, setAssignedLocation] = useState<string | null>(null);
-  const [hasAccess, setHasAccess] = useState(true);
-  const [accessReason, setAccessReason] = useState('');
-  
   // Stock transfer modal state
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferProduct, setTransferProduct] = useState<Product | null>(null);
@@ -129,68 +123,6 @@ export function WarehousePage() {
   const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnNotes, setReturnNotes] = useState('');
-  
-  const isCheckingAccessRef = useRef(false);
-  const accessCheckedRef = useRef(false);
-
-  const checkWarehouseAccess = useCallback(async () => {
-    // Prevent multiple concurrent checks
-    if (isCheckingAccessRef.current) return;
-    
-    isCheckingAccessRef.current = true;
-    
-    // Prevent running the check multiple times for the same user
-    if (accessCheckedRef.current) {
-      isCheckingAccessRef.current = false;
-      return;
-    }
-
-    if (!user?.id) {
-      setHasAccess(false);
-      setAccessReason('Please log in to access this feature');
-      accessCheckedRef.current = true;
-      isCheckingAccessRef.current = false;
-      return;
-    }
-
-    try {
-      const businessType = await getBusinessType(user.id);
-      const isRetailOrWholesale = businessType.toLowerCase().includes('retail') ||
-                                   businessType.toLowerCase().includes('wholesale') ||
-                                   businessType.toLowerCase().includes('distributor');
-
-      if (isRetailOrWholesale) {
-        setHasAccess(true);
-        accessCheckedRef.current = true;
-        isCheckingAccessRef.current = false;
-        return;
-      }
-
-      const accessResult = await checkFeatureAccess(user.id, 'warehouseManagement');
-      if (accessResult.eligible) {
-        setHasAccess(true);
-      } else {
-        setHasAccess(false);
-        setAccessReason(accessResult.reason || 'This feature is not available for your plan');
-      }
-      accessCheckedRef.current = true;
-    } catch (error) {
-      console.error('Error checking warehouse access:', error);
-      setHasAccess(true);
-      accessCheckedRef.current = true;
-    } finally {
-      isCheckingAccessRef.current = false;
-    }
-  }, [user]);
-
-  // Run access check when component mounts or user changes
-  useEffect(() => {
-    // Reset the check when user changes
-    if (user) {
-      accessCheckedRef.current = false;
-    }
-    checkWarehouseAccess();
-  }, [user, checkWarehouseAccess]);
 
   const loadStockLocations = async () => {
     if (!businessId || !firestore) return;
@@ -452,7 +384,6 @@ export function WarehousePage() {
   useEffect(() => {
     loadProducts();
     loadInvoices();
-    loadUserRole();
     loadStockRequests();
     loadReturns();
   }, [businessId]);
@@ -492,21 +423,6 @@ export function WarehousePage() {
       setStockRequests(requestsList);
     } catch (error) {
       console.error('Error loading stock requests:', error);
-    }
-  };
-
-  const loadUserRole = async () => {
-    if (!user?.id || !firestore) return;
-
-    try {
-      const userDoc = await getDoc(doc(firestore, 'users', user.id));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setUserRole(data.role || 'owner');
-        setAssignedLocation(data.assignedWarehouseLocation || null);
-      }
-    } catch (error) {
-      console.error('Error loading user role:', error);
     }
   };
 
@@ -799,51 +715,6 @@ export function WarehousePage() {
     }
   };
 
-  // While checking access, show loading state
-  if (hasAccess === null) {
-    return (
-      <div className={styles.wrapper}>
-        <div className={styles.pageHeader}>
-          <h2 className={styles.pageTitle}>Warehouse</h2>
-          <p className={styles.pageDesc}>Loading...</p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px' }}>
-          <div className={styles.spinner}></div>
-        </div>
-      </div>
-    );
-  }
-
-  // If no access, show lock state with upgrade prompt
-  if (hasAccess === false) {
-    return (
-      <div className={styles.wrapper}>
-        <div className={styles.pageHeader}>
-          <h2 className={styles.pageTitle}>Warehouse</h2>
-          <p className={styles.pageDesc}>View stock across all locations</p>
-        </div>
-        <div className={styles.headerActions}>
-          <button
-            className={`${styles.actionButton} ${styles.addButton}`}
-            onClick={() => setShowAddModal(true)}
-          >
-            + Add Warehouse
-          </button>
-        </div>
-        <div className={styles.lockOverlay}>
-          <div className={styles.lockContent}>
-            <div className={styles.lockIcon}>🔒</div>
-            <h3 className={styles.lockTitle}>Feature Not Available</h3>
-            <p className={styles.lockReason}>{accessReason}</p>
-            <button className={styles.lockButton} onClick={() => window.location.href = '/pricing'}>
-              Upgrade Plan
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const availableLocations = stockLocations.length > 0
     ? stockLocations
     : [
@@ -852,29 +723,16 @@ export function WarehousePage() {
         { id: 'back_store', name: 'Back Store', type: 'back_store' },
       ];
 
-  // User has access - show full warehouse page
+  // Show full warehouse page
   const pendingInvoices = invoices.filter(inv => inv.status === 'pending');
   const releasedInvoices = invoices.filter(inv => inv.status === 'released' || inv.status === 'partial');
-
-  // Filter invoices by assigned location for warehouse staff
-  const filteredPendingInvoices = userRole === 'warehouse_staff' && assignedLocation
-    ? pendingInvoices.filter(inv => inv.sourceLocationId === assignedLocation)
-    : pendingInvoices;
-
-  const filteredReleasedInvoices = userRole === 'warehouse_staff' && assignedLocation
-    ? releasedInvoices.filter(inv => inv.sourceLocationId === assignedLocation)
-    : releasedInvoices;
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
         <div>
           <h2 className={styles.pageTitle}>Warehouse</h2>
-          <p className={styles.pageDesc}>
-            {userRole === 'warehouse_staff' 
-              ? `Manage stock for: ${assignedLocation || 'All Locations'}` 
-              : 'Manage stock, releases, and transfers'}
-          </p>
+          <p className={styles.pageDesc}>Manage stock, releases, and transfers</p>
         </div>
         <div className={styles.headerActions}>
           <div className={styles.searchBar}>
@@ -895,14 +753,12 @@ export function WarehousePage() {
           >
             + Stock Adjustment
           </button>
-          {userRole === 'owner' || userRole === 'admin' ? (
-            <button
-              className={`${styles.actionButton} ${styles.addButton}`}
-              onClick={() => setShowAddModal(true)}
-            >
-              + Add Warehouse
-            </button>
-          ) : null}
+          <button
+            className={`${styles.actionButton} ${styles.addButton}`}
+            onClick={() => setShowAddModal(true)}
+          >
+            + Add Warehouse
+          </button>
         </div>
       </div>
 
@@ -919,7 +775,7 @@ export function WarehousePage() {
           onClick={() => setActiveTab('pending')}
         >
           📋 Pending Releases
-          {filteredPendingInvoices.length > 0 && <span className={styles.tabBadge}>{filteredPendingInvoices.length}</span>}
+          {pendingInvoices.length > 0 && <span className={styles.tabBadge}>{pendingInvoices.length}</span>}
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'released' ? styles.tabActive : ''}`}
@@ -927,14 +783,12 @@ export function WarehousePage() {
         >
           ✅ Released History
         </button>
-        {(userRole === 'owner' || userRole === 'admin') && (
-          <button
-            className={`${styles.tabButton} ${activeTab === 'locations' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('locations')}
-          >
-            🏢 Locations
-          </button>
-        )}
+        <button
+          className={`${styles.tabButton} ${activeTab === 'locations' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('locations')}
+        >
+          🏢 Locations
+        </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'transfers' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('transfers')}
@@ -1049,11 +903,11 @@ export function WarehousePage() {
               >
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
-                    <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && '🏪'}
-                      {location.type === 'back_store' && '📦'}
-                      {location.type === 'warehouse' && '🏭'}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && '🏢'}
+                  <div className={styles.locationIcon}>
+                      {location.type === 'main_store' && <NavIcons id="warehouse" size={20} />}
+                      {location.type === 'back_store' && <NavIcons id="inventory" size={20} />}
+                      {location.type === 'warehouse' && <NavIcons id="warehouse" size={20} />}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <NavIcons id="branches" size={20} />}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -1132,15 +986,15 @@ export function WarehousePage() {
             </div>
           </div>
 
-          {filteredPendingInvoices.length === 0 ? (
+          {pendingInvoices.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>📋</div>
               <h3>No Pending Releases</h3>
-              <p>{userRole === 'warehouse_staff' ? 'No pending releases for your assigned location' : 'All invoices have been processed'}</p>
+              <p>All invoices have been processed</p>
             </div>
           ) : (
             <div className={styles.invoiceList}>
-              {filteredPendingInvoices.filter(inv => 
+              {pendingInvoices.filter(inv => 
                 inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 inv.customerName.toLowerCase().includes(searchQuery.toLowerCase())
               ).map(invoice => (
@@ -1150,10 +1004,10 @@ export function WarehousePage() {
                       <h3>{invoice.invoiceNumber}</h3>
                       <p className={styles.customerInfo}>{invoice.customerName}</p>
                     </div>
-                    <div className={styles.invoiceMeta}>
-                      <span className={styles.date}>{invoice.createdAt.toLocaleDateString()}</span>
-                      <span className={styles.invoiceAmount}>{formatMoney(invoice.totalAmount)}</span>
-                    </div>
+                  <div className={styles.invoiceMeta}>
+                    <span className={styles.date}>{invoice.createdAt.toLocaleDateString()}</span>
+                    <span className={styles.invoiceAmount}>{formatMoney(invoice.totalAmount)}</span>
+                  </div>
                   </div>
                   
                   <div className={styles.invoiceDetails}>
@@ -1196,15 +1050,15 @@ export function WarehousePage() {
             </div>
           </div>
 
-          {filteredReleasedInvoices.length === 0 ? (
+          {releasedInvoices.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>✅</div>
               <h3>No Released Invoices</h3>
-              <p>{userRole === 'warehouse_staff' ? 'No released invoices for your assigned location' : 'No invoices have been released yet'}</p>
+              <p>No invoices have been released yet</p>
             </div>
           ) : (
             <div className={styles.invoiceList}>
-              {filteredReleasedInvoices.filter(inv => 
+              {releasedInvoices.filter(inv => 
                 inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 inv.customerName.toLowerCase().includes(searchQuery.toLowerCase())
               ).map(invoice => (

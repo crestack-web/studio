@@ -124,10 +124,17 @@
     padding: 0.75rem 2rem;
     font-size: 1.125rem;
     line-height: 1.5;
-    transition: background 0.2s, color 0.2s, border 0.2s, box-shadow 0.2s;
+    transition: all 0.2s ease;
     cursor: pointer;
     text-decoration: none;
     border: none;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  .btn:active {
+    transform: translateY(0);
   }
   .btn-primary {
     background: var(--purple);
@@ -137,6 +144,7 @@
   .btn-primary:hover, .btn-primary:focus {
     background: var(--purple-dark);
     color: #fff;
+    box-shadow: 0 6px 16px rgba(107, 63, 231, 0.25);
   }
   .btn-outline {
     background: #fff;
