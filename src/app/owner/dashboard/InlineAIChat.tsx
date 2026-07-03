@@ -560,18 +560,11 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className={styles.newChatBtn} onClick={handleNewChat} title="New chat">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
+        {onClose && (
+          <button className={styles.closeBtn} onClick={onClose}>
+            ✕
           </button>
-          {onClose && (
-            <button className={styles.closeBtn} onClick={onClose}>
-              ✕
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       <CreditPurchaseModal 
@@ -582,7 +575,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {messages.length === 0 && conversations.length === 0 && (
+        {messages.length === 0 && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>
@@ -611,35 +604,6 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {messages.length === 0 && conversations.length > 0 && (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-3)',
-            flexDirection: 'column',
-            gap: '12px',
-            padding: '40px 20px',
-            textAlign: 'center',
-          }}>
-            <div style={{ opacity: 0.3 }}>
-              <MoIcon size={48} />
-            </div>
-            <p style={{ fontSize: '14px' }}>Select a conversation from history or start a new chat</p>
-            <button 
-              className={styles.newChatBtn}
-              onClick={handleNewChat}
-              style={{ marginTop: '8px' }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-              Start New Conversation
-            </button>
           </div>
         )}
 

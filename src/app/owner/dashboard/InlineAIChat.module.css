@@ -477,6 +477,33 @@
   color: var(--text-1);
 }
 
+.quickActionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quickActionChip:hover {
+  background: var(--surface);
+  border-color: var(--purple);
+}
+
+.quickActionChip:active {
+  transform: scale(0.98);
+}
+
+.quickActionChip span {
+  font-weight: 500;
+}
+
 .typingIndicator {
   display: flex;
   gap: 4px;
