@@ -543,10 +543,28 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     try {
       const { firestore } = initializeFirebase();
       
+      // Sanitize message to remove undefined fields
+      const sanitizedMessage = {
+        id: firstMessage.id,
+        role: firstMessage.role,
+        content: firstMessage.content || '',
+        timestamp: firstMessage.timestamp,
+        ...(firstMessage.imageUrl && { imageUrl: firstMessage.imageUrl }),
+        ...(firstMessage.audioUrl && { audioUrl: firstMessage.audioUrl }),
+        ...(firstMessage.quickActions && { quickActions: firstMessage.quickActions }),
+        ...(firstMessage.metrics && { metrics: firstMessage.metrics }),
+        ...(firstMessage.followUpSuggestions && { followUpSuggestions: firstMessage.followUpSuggestions }),
+        ...(firstMessage.expandableSections && { expandableSections: firstMessage.expandableSections }),
+        ...(firstMessage.alerts && { alerts: firstMessage.alerts }),
+        ...(firstMessage.saleCard && { saleCard: firstMessage.saleCard }),
+        ...(firstMessage.productCard && { productCard: firstMessage.productCard }),
+        ...(firstMessage.expenseCard && { expenseCard: firstMessage.expenseCard }),
+      };
+
       const conversationData: any = {
         title: generateConversationTitle([firstMessage]),
-        preview: firstMessage.content.substring(0, 100),
-        messages: [firstMessage],
+        preview: (firstMessage.content || '').substring(0, 100),
+        messages: [sanitizedMessage],
         businessId: businessId || userId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -604,10 +622,28 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       const title = conversationData?.title || 'Untitled Conversation';
       const preview = updatedMessages[0]?.content?.substring(0, 100) || 'No preview';
 
+      // Sanitize messages to remove undefined fields
+      const sanitizedMessages = updatedMessages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content || '',
+        timestamp: msg.timestamp,
+        ...(msg.imageUrl && { imageUrl: msg.imageUrl }),
+        ...(msg.audioUrl && { audioUrl: msg.audioUrl }),
+        ...(msg.quickActions && { quickActions: msg.quickActions }),
+        ...(msg.metrics && { metrics: msg.metrics }),
+        ...(msg.followUpSuggestions && { followUpSuggestions: msg.followUpSuggestions }),
+        ...(msg.expandableSections && { expandableSections: msg.expandableSections }),
+        ...(msg.alerts && { alerts: msg.alerts }),
+        ...(msg.saleCard && { saleCard: msg.saleCard }),
+        ...(msg.productCard && { productCard: msg.productCard }),
+        ...(msg.expenseCard && { expenseCard: msg.expenseCard }),
+      }));
+
       await updateDoc(conversationRef, {
         title,
         preview,
-        messages: updatedMessages,
+        messages: sanitizedMessages,
         updatedAt: Timestamp.now(),
         messageCount: updatedMessages.length,
       });

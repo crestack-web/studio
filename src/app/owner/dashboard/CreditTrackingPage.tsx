@@ -81,6 +81,37 @@ interface CreditSummary {
 
 type TabView = 'receivables' | 'payables' | 'customers' | 'suppliers';
 
+interface Supplier {
+  id: string;
+  businessId: string;
+  supplierName: string;
+  businessName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  paymentTerms: string;
+  customPaymentDays?: number;
+  creditLimit: number;
+  openingBalance: number;
+  currentBalance: number;
+  category: string;
+  status: string;
+  taxId?: string;
+  bankAccount?: any;
+  contactPerson?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastPurchaseDate?: Date;
+  lastPaymentDate?: Date;
+  totalPurchases: number;
+  totalPayments: number;
+  purchaseCount: number;
+  paymentCount: number;
+  averagePaymentDays: number;
+  creditUtilization: number;
+}
+
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export function CreditTrackingPage() {
@@ -119,6 +150,7 @@ export function CreditTrackingPage() {
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   
   // Form states for adding customer
   const [customerName, setCustomerName] = useState('');
@@ -138,6 +170,50 @@ export function CreditTrackingPage() {
 
     try {
       setLoading(true);
+
+      // Load suppliers for the suppliers tab
+      const suppliersQuery = query(
+        collection(firestore, 'businesses', businessId, 'suppliers'),
+        where('status', '==', 'active')
+      );
+      const suppliersSnapshot = await getDocs(suppliersQuery);
+      const suppliersList: Supplier[] = [];
+      
+      suppliersSnapshot.forEach(doc => {
+        const data = doc.data();
+        suppliersList.push({
+          id: doc.id,
+          businessId: data.businessId || businessId,
+          supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
+          businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
+          phone: data.phone || '',
+          email: data.email,
+          address: data.address,
+          notes: data.notes,
+          paymentTerms: data.paymentTerms || 'net_30',
+          customPaymentDays: data.customPaymentDays,
+          creditLimit: data.creditLimit || 0,
+          openingBalance: data.openingBalance || 0,
+          currentBalance: data.currentBalance || 0,
+          category: data.category || 'general',
+          status: data.status || 'active',
+          taxId: data.taxId,
+          bankAccount: data.bankAccount,
+          contactPerson: data.contactPerson,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          lastPaymentDate: data.lastPaymentDate?.toDate(),
+          totalPurchases: data.totalPurchases || 0,
+          totalPayments: data.totalPayments || 0,
+          purchaseCount: data.purchaseCount || 0,
+          paymentCount: data.paymentCount || 0,
+          averagePaymentDays: data.averagePaymentDays || 0,
+          creditUtilization: data.creditUtilization || 0,
+        });
+      });
+      
+      setSuppliers(suppliersList);
 
       // Load credit customers
       const customersQuery = query(
@@ -354,6 +430,12 @@ export function CreditTrackingPage() {
     }
   };
 
+  const formatDate = (timestamp: Timestamp | Date | undefined) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
+    return date.toLocaleDateString();
+  };
+
   const handleDownloadStatement = async () => {
     if (!businessId || !firestore || isDownloading) return;
 
@@ -565,30 +647,37 @@ export function CreditTrackingPage() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className={styles.tabNavigation}>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'receivables' ? styles.tabButtonActive : ''}`}
-          onClick={() => setActiveTab('receivables')}
-        >
-          <ArrowDownRight size={18} />
-          Receivables
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'payables' ? styles.tabButtonActive : ''}`}
-          onClick={() => setActiveTab('payables')}
-        >
-          <ArrowUpRight size={18} />
-          Payables
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'customers' ? styles.tabButtonActive : ''}`}
-          onClick={() => setActiveTab('customers')}
-        >
-          <Users size={18} />
-          Customers
-        </button>
-      </div>
+       {/* Tab Navigation */}
+       <div className={styles.tabNavigation}>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'receivables' ? styles.tabButtonActive : ''}`}
+           onClick={() => setActiveTab('receivables')}
+         >
+           <ArrowDownRight size={18} />
+           Receivables
+         </button>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'payables' ? styles.tabButtonActive : ''}`}
+           onClick={() => setActiveTab('payables')}
+         >
+           <ArrowUpRight size={18} />
+           Payables
+         </button>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'customers' ? styles.tabButtonActive : ''}`}
+           onClick={() => setActiveTab('customers')}
+         >
+           <Users size={18} />
+           Customers
+         </button>
+         <button
+           className={`${styles.tabButton} ${activeTab === 'suppliers' ? styles.tabButtonActive : ''}`}
+           onClick={() => setActiveTab('suppliers')}
+         >
+           <TrendingUp size={18} />
+           Suppliers
+         </button>
+       </div>
 
       {/* Content Area */}
       <div className={styles.contentArea}>
@@ -664,6 +753,52 @@ export function CreditTrackingPage() {
             <EyeOff size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
             <h3>No Payables</h3>
             <p>Payables will appear here when you have outstanding supplier invoices</p>
+          </div>
+        )}
+
+        {activeTab === 'suppliers' && (
+          <div className={styles.suppliersList}>
+            {suppliers.length === 0 ? (
+              <div className={styles.emptyState}>
+                <TrendingUp size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                <h3>No Suppliers Yet</h3>
+                <p>Add suppliers when receiving stock or create them in the Suppliers page</p>
+              </div>
+            ) : (
+              suppliers.map(supplier => (
+                <div key={supplier.id} className={styles.supplierCreditCard}>
+                  <div className={styles.supplierCreditHeader}>
+                    <div>
+                      <div className={styles.supplierCreditName}>{supplier.businessName || supplier.supplierName}</div>
+                      <div className={styles.supplierCreditMeta}>
+                        {supplier.purchaseCount} purchases • Last: {supplier.lastPurchaseDate ? formatDate(supplier.lastPurchaseDate) : 'Never'}
+                      </div>
+                    </div>
+                    {(supplier.currentBalance || 0) > 0 && (
+                      <div className={styles.supplierCreditBadge}>
+                        Owing: {formatMoney(supplier.currentBalance)}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.supplierCreditStats}>
+                    <div className={styles.supplierCreditStat}>
+                      <span className={styles.supplierCreditLabel}>Total Purchases</span>
+                      <span className={styles.supplierCreditValue}>{formatMoney(supplier.totalPurchases)}</span>
+                    </div>
+                    <div className={styles.supplierCreditStat}>
+                      <span className={styles.supplierCreditLabel}>Current Balance</span>
+                      <span className={`${styles.supplierCreditValue} ${supplier.currentBalance > 0 ? styles.supplierCreditOwing : ''}`}>
+                        {formatMoney(supplier.currentBalance)}
+                      </span>
+                    </div>
+                    <div className={styles.supplierCreditStat}>
+                      <span className={styles.supplierCreditLabel}>Average Payment</span>
+                      <span className={styles.supplierCreditValue}>{supplier.averagePaymentDays || 0} days</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
 

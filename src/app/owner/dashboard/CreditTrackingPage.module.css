@@ -392,6 +392,89 @@
   box-shadow: 0 8px 24px rgba(124, 58, 237, 0.1);
 }
 
+/* Suppliers List in Credit Tracking */
+.suppliersList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.supplierCreditCard {
+  background: var(--surface);
+  border: 2px solid var(--purple);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.supplierCreditCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
+}
+
+.supplierCreditHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.supplierCreditName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.supplierCreditMeta {
+  font-size: 0.85rem;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.supplierCreditBadge {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  color: #991B1B;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.supplierCreditStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.supplierCreditStat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.supplierCreditLabel {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.supplierCreditValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.supplierCreditOwing {
+  color: #EF4444;
+}
+
 .customerInfo {
   margin-bottom: 16px;
 }

@@ -295,6 +295,34 @@ service cloud.firestore {
       }
 
       // =====================
+      // STOCK REQUESTS SUBCOLLECTION (for staff requesting stock)
+      // =====================
+      match /stockRequests/{requestId} {
+        // Allow read for business owner and staff
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow create for business owner and staff (staff can request stock)
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow update/delete only for business owner
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
+      // RETURNS SUBCOLLECTION (for customer returns processing)
+      // =====================
+      match /returns/{returnId} {
+        // Allow read for business owner and staff
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow create for business owner and staff
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        
+        // Allow update/delete only for business owner
+        allow update, delete: if hasBusinessAccess(businessId);
+      }
+
+      // =====================
       // BANKING LAYER COLLECTIONS
       // =====================
 

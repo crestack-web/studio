@@ -88,8 +88,6 @@ export function WarehousePage() {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [accessReason, setAccessReason] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
   const [locationToDelete, setLocationToDelete] = useState<StockLocation | null>(null);
@@ -104,6 +102,8 @@ export function WarehousePage() {
   // Role-based access
   const [userRole, setUserRole] = useState<'owner' | 'admin' | 'warehouse_staff'>('owner');
   const [assignedLocation, setAssignedLocation] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessReason, setAccessReason] = useState('');
   
   // Stock transfer modal state
   const [showTransferModal, setShowTransferModal] = useState(false);

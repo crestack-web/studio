@@ -111,6 +111,7 @@ export function MobileAskMOPage() {
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<MOMessage[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,6 +228,11 @@ export function MobileAskMOPage() {
       }, 500);
     }
   }, []);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -579,7 +585,8 @@ export function MobileAskMOPage() {
       // Save bot message to conversation immediately
       if (currentConversationId) {
         console.log('💾 [MobileAskMO] Saving bot message to conversation');
-        const updatedMessages = [...messages, userMsg, { ...botMsg, content: fullContent }];
+        // Explicitly construct full messages array including user and bot messages
+        const updatedMessages = [...messagesRef.current, userMsg, { ...botMsg, content: fullContent }];
         await saveMessages(currentConversationId, updatedMessages);
       }
 
@@ -686,7 +693,7 @@ export function MobileAskMOPage() {
       setLoadingActions([]);
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef]);
 
   const cancelPendingAction = useCallback(async () => {
     const cancelMsg: MOMessage = {

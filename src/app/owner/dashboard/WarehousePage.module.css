@@ -34,10 +34,15 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.actionButton:hover {
+.actionButton:hover:not(:disabled) {
   background: var(--surface);
   border-color: var(--purple);
   color: var(--purple);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .pageTitle {
@@ -65,10 +70,10 @@
 }
 
 .totalStat {
-  padding: 16px;
-  background: linear-gradient(135deg, var(--surface) 0%, var(--bg-hover) 100%);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -90,8 +95,8 @@
 }
 
 .totalStat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.12);
   border-color: var(--purple);
 }
 
@@ -223,24 +228,6 @@
   letter-spacing: -0.01em;
 }
 
-.searchInput {
-  padding: 10px 14px;
-  font-size: 0.95rem;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text-1);
-  width: 250px;
-  transition: all 0.2s;
-  font-family: inherit;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.searchInput:focus {
-  outline: none;
-  border-color: var(--purple);
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
-}
 
 .emptyState {
   text-align: center;
@@ -455,15 +442,18 @@
 
 /* Add Button */
 .addButton {
-  background: var(--primary);
+  background: var(--purple);
   color: white;
-  border-color: var(--primary);
+  border-color: var(--purple);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
 }
 
-.addButton:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+.addButton:hover:not(:disabled) {
+  background: #6D28D9;
+  border-color: #6D28D9;
   color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
 }
 
 /* Delete Location Button */
@@ -931,10 +921,10 @@
 }
 
 .invoiceCard {
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
-  background: var(--bg);
   transition: all 0.2s;
 }
 
@@ -1022,6 +1012,11 @@
 .statusRejected {
   background: var(--red-bg);
   color: var(--red);
+}
+
+.statusPending {
+  background: var(--yellow-bg);
+  color: var(--yellow);
 }
 
 /* ── Invoice Modal ─────────────────────────── */
@@ -1127,41 +1122,45 @@
 }
 
 .searchInput {
-  padding: 10px 14px;
-  font-size: 0.875rem;
+  padding: 12px 16px;
+  font-size: 0.95rem;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: 10px;
+  background: var(--surface);
   color: var(--text-1);
   transition: all 0.2s;
   min-width: 280px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .searchInput:focus {
   outline: none;
   border-color: var(--purple);
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .qrButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: 10px;
+  background: var(--surface);
   color: var(--text-2);
   font-size: 1.25rem;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .qrButton:hover {
   background: var(--bg-hover);
-  border-color: var(--border-hover);
-  color: var(--text-1);
+  border-color: var(--purple);
+  color: var(--purple);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
 }
 
 /* ── Low Stock Alerts ───────────────────── */
@@ -1187,7 +1186,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   transition: all 0.2s;
@@ -1228,17 +1227,22 @@
   font-size: 0.875rem;
   font-weight: 500;
   background: var(--bg-hover);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 8px;
   color: var(--text-1);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.quickActionBtn:hover {
+.quickActionBtn:hover:not(:disabled) {
   background: var(--purple);
   color: white;
   border-color: var(--purple);
+}
+
+.quickActionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .viewAllLink {

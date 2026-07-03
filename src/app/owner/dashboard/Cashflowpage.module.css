@@ -446,6 +446,18 @@
   line-height: 1.5;
 }
 
+.calculatedTotal {
+  padding: 12px 16px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .modalActions {
   display: flex;
   gap: 12px;

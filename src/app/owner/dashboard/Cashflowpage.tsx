@@ -81,7 +81,7 @@ export default function Cashflowpage() {
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
-  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '' });
+  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0 });
 
   useEffect(() => {
     loadProducts();
@@ -698,7 +698,7 @@ export default function Cashflowpage() {
 
       showToast('✅ Stock added successfully');
       setActiveAction(null);
-      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '' });
+      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0 });
       loadProducts();
       loadData();
       loadSuppliers();
@@ -943,7 +943,7 @@ export default function Cashflowpage() {
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Cost Price per Unit</label>
+                  <label className={styles.formLabel}>Cost Price per Unit ({formatMoney(stockAddition.costPrice)})</label>
                   <input
                     type="number"
                     className={styles.formInput}
@@ -952,6 +952,17 @@ export default function Cashflowpage() {
                     placeholder="₦0.00"
                   />
                 </div>
+                {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                  <div className={styles.calculatedTotal}>
+                    <strong>Goods Total: </strong>
+                    <span style={{ color: 'var(--purple)', fontSize: '1.1rem', fontWeight: 700 }}>
+                      {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
+                    </span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>
+                      ({stockAddition.quantity} × {formatMoney(stockAddition.costPrice)})
+                    </span>
+                  </div>
+                )}
                 <div className={styles.formGroup}>
                   <label className={styles.checkboxLabel}>
                     <input

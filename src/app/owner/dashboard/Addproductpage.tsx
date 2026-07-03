@@ -65,12 +65,13 @@ interface ProductForm {
   manualSale: boolean;
   onlineStore: boolean;
   imageUrl: string;
+  // Supplier field for all business types
+  supplier?: string;
   // Restaurant-specific fields
   productType: ProductType;
   dishCategory?: DishCategory;
   preparationTime?: string;
   ingredientUnit?: IngredientUnit;
-  supplier?: string;
   reorderLevel?: string;
   expiryDateIngredient?: string;
   branch?: string;
@@ -105,6 +106,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const [formDirty, setFormDirty] = useState(false);
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [businessCategory, setBusinessCategory] = useState<string>('');
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
 
   // Fetch businessId from user document and check if restaurant
   useEffect(() => {
@@ -179,6 +181,28 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
               console.error('Error loading stock locations:', error);
               // Set empty locations on error - no defaults
               setStockLocations([]);
+            }
+
+            // Load suppliers for product assignment
+            try {
+              const suppliersQuery = collection(freshFirestore, 'businesses', bid, 'suppliers');
+              const suppliersSnapshot = await getDocs(suppliersQuery);
+              const loadedSuppliers: Array<{ id: string; name: string }> = [];
+              
+              suppliersSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.status === 'active') {
+                  loadedSuppliers.push({
+                    id: doc.id,
+                    name: data.supplierName || data.businessName || 'Unknown Supplier',
+                  });
+                }
+              });
+              
+              setSuppliers(loadedSuppliers);
+            } catch (error) {
+              console.error('Error loading suppliers:', error);
+              setSuppliers([]);
             }
           }
         }
@@ -572,51 +596,58 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           </div>
         )}
 
+        {/* Supplier field - Show for all product types */}
+        <div className={styles.row2}>
+          <div className={styles.group}>
+            <label className={styles.label}>Supplier</label>
+            <select 
+              className={styles.select} 
+              value={form.supplier || ''} 
+              onChange={e => set('supplier', e.target.value)}
+            >
+              <option value="">Select supplier (optional)</option>
+              {suppliers.map(supplier => (
+                <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+              ))}
+            </select>
+            <span className={styles.hint}>Link this product to a supplier for easier purchase ordering</span>
+          </div>
+          {form.productType === 'ingredient' && (
+            <div className={styles.group}>
+              <label className={styles.label}>Reorder Level</label>
+              <input 
+                className={styles.input} 
+                type="number" 
+                placeholder="e.g. 10" 
+                value={form.reorderLevel || ''} 
+                onChange={e => set('reorderLevel', e.target.value)} 
+              />
+            </div>
+          )}
+        </div>
+
         {/* Ingredient-specific fields */}
         {form.productType === 'ingredient' && (
-          <>
-            <div className={styles.row2}>
-              <div className={styles.group}>
-                <label className={styles.label}>Supplier</label>
-                <input 
-                  className={styles.input} 
-                  placeholder="e.g. Local Market" 
-                  value={form.supplier || ''} 
-                  onChange={e => set('supplier', e.target.value)} 
-                />
-              </div>
-              <div className={styles.group}>
-                <label className={styles.label}>Reorder Level</label>
-                <input 
-                  className={styles.input} 
-                  type="number" 
-                  placeholder="e.g. 10" 
-                  value={form.reorderLevel || ''} 
-                  onChange={e => set('reorderLevel', e.target.value)} 
-                />
-              </div>
+          <div className={styles.row2}>
+            <div className={styles.group}>
+              <label className={styles.label}>Expiry Date</label>
+              <input 
+                type="date" 
+                className={styles.input} 
+                value={form.expiryDateIngredient || ''} 
+                onChange={e => set('expiryDateIngredient', e.target.value)} 
+              />
             </div>
-            <div className={styles.row2}>
-              <div className={styles.group}>
-                <label className={styles.label}>Expiry Date</label>
-                <input 
-                  type="date" 
-                  className={styles.input} 
-                  value={form.expiryDateIngredient || ''} 
-                  onChange={e => set('expiryDateIngredient', e.target.value)} 
-                />
-              </div>
-              <div className={styles.group}>
-                <label className={styles.label}>Branch</label>
-                <input 
-                  className={styles.input} 
-                  placeholder="e.g. Main Branch" 
-                  value={form.branch || ''} 
-                  onChange={e => set('branch', e.target.value)} 
-                />
-              </div>
+            <div className={styles.group}>
+              <label className={styles.label}>Branch</label>
+              <input 
+                className={styles.input} 
+                placeholder="e.g. Main Branch" 
+                value={form.branch || ''} 
+                onChange={e => set('branch', e.target.value)} 
+              />
             </div>
-          </>
+          </div>
         )}
 
         <div className={styles.group} style={{ marginBottom: 0 }}>

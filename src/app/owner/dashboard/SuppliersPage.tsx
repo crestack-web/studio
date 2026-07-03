@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { checkFeatureAccess, Plan, BusinessCategory } from '@/lib/featureRegistry';
 import { Supplier } from './types';
@@ -65,10 +65,16 @@ export default function SuppliersPage() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [hasAccess, setHasAccess] = useState(true);
   const [accessReason, setAccessReason] = useState('');
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
+  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
 
   useEffect(() => {
     checkSupplierAccess();
   }, [user]);
+
+  useEffect(() => {
+    loadSuppliers();
+  }, [user?.businessId, firestore]);
 
   const checkSupplierAccess = async () => {
     if (!user?.id) return;
@@ -128,22 +134,6 @@ export default function SuppliersPage() {
       setHasAccess(true);
     }
   };
-
-  if (!hasAccess) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="text-4xl mb-4">🔒</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Feature Not Available</h3>
-          <p className="text-gray-600">{accessReason}</p>
-        </div>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    loadSuppliers();
-  }, [user?.businessId, firestore]);
 
   const loadSuppliers = async () => {
     if (!user?.businessId || !firestore) {
@@ -299,6 +289,66 @@ export default function SuppliersPage() {
     return date.toLocaleDateString();
   };
 
+  const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user?.businessId || !firestore) {
+      showToast('⚠️ Business ID not found');
+      return;
+    }
+
+    setIsCreatingSupplier(true);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const supplierName = formData.get('supplierName') as string;
+      const businessName = formData.get('businessName') as string;
+      const phone = formData.get('phone') as string;
+      const email = formData.get('email') as string;
+      const address = formData.get('address') as string;
+      const paymentTerms = formData.get('paymentTerms') as string;
+
+      const suppliersRef = collection(firestore, 'businesses', user.businessId, 'suppliers');
+      const newSupplier = {
+        businessId: user.businessId,
+        supplierName,
+        businessName,
+        phone,
+        email: email || null,
+        address: address || null,
+        paymentTerms,
+        customPaymentDays: null,
+        creditLimit: 0,
+        openingBalance: 0,
+        currentBalance: 0,
+        category: 'general',
+        status: 'active',
+        taxId: null,
+        bankAccount: null,
+        contactPerson: null,
+        notes: null,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        lastPurchaseDate: null,
+        lastPaymentDate: null,
+        totalPurchases: 0,
+        totalPayments: 0,
+        purchaseCount: 0,
+        paymentCount: 0,
+        averagePaymentDays: 0,
+        creditUtilization: 0,
+      };
+
+      await addDoc(suppliersRef, newSupplier);
+      showToast('✅ Supplier created successfully');
+      setShowAddSupplierModal(false);
+      loadSuppliers();
+    } catch (error) {
+      console.error('Error creating supplier:', error);
+      showToast('❌ Failed to create supplier');
+    } finally {
+      setIsCreatingSupplier(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.wrapper}>
@@ -320,13 +370,17 @@ export default function SuppliersPage() {
           <h2 className={styles.pageTitle}>Suppliers</h2>
           <p className={styles.pageDesc}>Manage your supplier relationships and purchase history</p>
         </div>
+        <button className={styles.addButton} onClick={() => setShowAddSupplierModal(true)}>
+          <span className={styles.addButtonIcon}>+</span>
+          Add Supplier
+        </button>
       </div>
 
-      {suppliers.length === 0 ? (
+      {suppliers.length === 0 && !showAddSupplierModal ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>🏢</div>
           <h3>No Suppliers Yet</h3>
-          <p>Add suppliers when receiving stock or manage them here</p>
+          <p>Add suppliers when receiving stock or create them here</p>
         </div>
       ) : (
         <div className={styles.content}>
@@ -345,6 +399,8 @@ export default function SuppliersPage() {
                     <p className={styles.supplierMeta}>
                       {supplier.purchaseCount} purchases • Last: {supplier.lastPurchaseDate ? formatDate(supplier.lastPurchaseDate) : 'Never'}
                     </p>
+                    {supplier.phone && <p className={styles.supplierContact}>📞 {supplier.phone}</p>}
+                    {supplier.email && <p className={styles.supplierContact}>✉️ {supplier.email}</p>}
                   </div>
                 </div>
                 <div className={styles.supplierStats}>
@@ -490,6 +546,118 @@ export default function SuppliersPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Add Supplier Modal */}
+      {showAddSupplierModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Add New Supplier</h2>
+              <button
+                onClick={() => setShowAddSupplierModal(false)}
+                className={styles.closeButton}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSupplier}>
+              <div className={styles.form}>
+                <div className={styles.formSection}>
+                  <h3 className={styles.formSectionTitle}>Basic Information</h3>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Supplier Name *</label>
+                      <input
+                        type="text"
+                        name="supplierName"
+                        className={styles.formInput}
+                        required
+                        placeholder="Contact person name"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Business Name *</label>
+                      <input
+                        type="text"
+                        name="businessName"
+                        className={styles.formInput}
+                        required
+                        placeholder="Company name"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Phone *</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        className={styles.formInput}
+                        required
+                        placeholder="+234 XXX XXX XXXX"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        className={styles.formInput}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      className={styles.formInput}
+                      placeholder="Full address"
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Payment Terms</label>
+                    <select
+                      name="paymentTerms"
+                      className={styles.formInput}
+                      defaultValue="net_30"
+                    >
+                      <option value="cash">Cash on Delivery</option>
+                      <option value="net_7">Net 7 days</option>
+                      <option value="net_14">Net 14 days</option>
+                      <option value="net_30">Net 30 days</option>
+                      <option value="net_60">Net 60 days</option>
+                      <option value="net_90">Net 90 days</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSupplierModal(false)}
+                    className={styles.cancelButton}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingSupplier}
+                    className={styles.submitButton}
+                  >
+                    {isCreatingSupplier ? 'Creating...' : 'Create Supplier'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

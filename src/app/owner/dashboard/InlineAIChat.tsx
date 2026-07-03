@@ -99,14 +99,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
      currentConversationId,
      setCurrentConversationId,
      businessSummary,
-     createConversation,
-     saveConversation,
-     saveMessages,
-     loadConversation,
-     deleteConversation,
-     renameConversation,
-     updateCredits,
-   } = useAskMO({
+      createConversation,
+      saveConversation,
+      saveMessages,
+      loadConversation,
+      deleteConversation,
+      renameConversation,
+      updateCredits,
+      resetToNewChat,
+    } = useAskMO({
      userId: user.id,
      userPlan: user.plan,
      businessId: user.businessId,
@@ -134,6 +135,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const messagesRef = useRef<MOMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -167,17 +169,35 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     };
   }, [isRecording]);
 
+  // Auto-load most recent conversation on mount to persist state across refresh/navigation
+  useEffect(() => {
+    if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
+      const mostRecent = conversations[0];
+      if (mostRecent.messages && mostRecent.messages.length > 0) {
+        console.log('📂 [InlineAIChat] Auto-loading most recent conversation:', mostRecent.id);
+        loadConversation(mostRecent.id);
+      }
+    }
+  }, [conversations, currentConversationId, messages.length, loadConversation]);
+
+  // Keep messagesRef in sync so save logic always uses latest state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const handleNewChat = useCallback(() => {
-    setMessages([]);
+    resetToNewChat();
     setInput('');
     setSelectedImage(null);
     setImagePreview(null);
     setAudioBlob(null);
     setAudioUrl(null);
+    setIsTyping(false);
+    setIsStreaming(false);
+    setLoadingStage(0);
+    setLoadingActions([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    setCurrentConversationId(null);
-    setShowHistory(false);
-  }, [setCurrentConversationId]);
+  }, [resetToNewChat]);
 
   const handlePurchaseSuccess = () => {
     window.location.reload();
@@ -419,7 +439,9 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
       await updateCredits(creditsConsumed);
 
-      await saveConversation();
+      if (currentConversationId) {
+        await saveMessages(currentConversationId, [...messagesRef.current, userMsg, botMsg]);
+      }
     } catch (error) {
       console.error('❌ [InlineAIChat] MO API error:', {
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -509,7 +531,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   );
 
   return (
-    <div className={styles.container} data-theme={theme}>
+    <div className={styles.container}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -560,15 +582,64 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {messages.length === 0 && (
+        {messages.length === 0 && conversations.length === 0 && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>
                 <MoIcon size={32} />
               </div>
               <h3>Hi, I'm Mo</h3>
-              <p>Your AI business assistant. I can help you understand your sales, cash flow, inventory, customer trends, and overall business performance. What would you like to explore today?</p>
+              <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--text-2)' }}>
+                Your AI business assistant. Ask me anything about your business.
+              </p>
+              
+              {dynamicSuggestions.length > 0 && (
+                <div className={styles.quickActions}>
+                  {dynamicSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      className={styles.quickActionChip}
+                      onClick={() => {
+                        setInput(suggestion.label);
+                        textareaRef.current?.focus();
+                      }}
+                    >
+                      {suggestion.icon}
+                      <span>{suggestion.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {messages.length === 0 && conversations.length > 0 && (
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-3)',
+            flexDirection: 'column',
+            gap: '12px',
+            padding: '40px 20px',
+            textAlign: 'center',
+          }}>
+            <div style={{ opacity: 0.3 }}>
+              <MoIcon size={48} />
+            </div>
+            <p style={{ fontSize: '14px' }}>Select a conversation from history or start a new chat</p>
+            <button 
+              className={styles.newChatBtn}
+              onClick={handleNewChat}
+              style={{ marginTop: '8px' }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              Start New Conversation
+            </button>
           </div>
         )}
 
