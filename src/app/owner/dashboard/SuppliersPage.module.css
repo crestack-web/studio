@@ -22,24 +22,26 @@
 }
 
 .addButton {
-  padding: 12px 24px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 9px 16px;
+  background: var(--purple) !important;
+  color: #fff !important;
+  border: 1px solid var(--purple) !important;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.2);
+  gap: 5px;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(107, 63, 231, 0.28);
 }
 
 .addButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+  background: var(--purple-dk) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(107, 63, 231, 0.38) !important;
 }
 
 .addButton:active {
