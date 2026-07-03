@@ -125,6 +125,11 @@ export function RecordSalePage() {
             if (data?.logoUrl) {
               setBusinessLogo(data.logoUrl);
             }
+            
+            // Load receipt type setting
+            if (data?.receiptType) {
+              setReceiptType(data.receiptType);
+            }
           }
         } catch (error) {
           console.error('Error loading business category:', error);

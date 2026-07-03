@@ -238,6 +238,9 @@ export default function SettingsPage() {
   // ── Inventory Deduction Mode ───────────────────────────
   const [inventoryDeductionMode, setInventoryDeductionMode] = useState<'immediate' | 'warehouse'>('immediate');
 
+  // ── Receipt Type Setting ───────────────────────────────
+  const [receiptTypeSetting, setReceiptTypeSetting] = useState<'supermarket' | 'invoice'>('supermarket');
+
   // ── Subscription info ───────────────────────────────────
   const [subscription, setSubscription] = useState({
     status: '',
@@ -377,6 +380,10 @@ export default function SettingsPage() {
               });
               // Load inventory deduction mode
               setInventoryDeductionMode(data.inventoryDeductionMode || 'immediate');
+              // Load receipt type setting
+              if (data.receiptType) {
+                setReceiptTypeSetting(data.receiptType);
+              }
             }
           }
 
@@ -806,6 +813,66 @@ export default function SettingsPage() {
                 onChange={() => handleInventoryDeductionModeChange('warehouse')}
               />
               <span>Warehouse Release (Wholesale)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Receipt Type Setting */}
+        <div className={styles.toggleRow} style={{ marginTop: '24px' }}>
+          <div>
+            <div className={styles.toggleLabel}>Receipt Type</div>
+            <div className={styles.rowDesc}>
+              Choose the receipt format: simple supermarket-style or full invoice with customer details
+            </div>
+          </div>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="receiptType"
+                value="supermarket"
+                checked={receiptTypeSetting === 'supermarket'}
+                onChange={async () => {
+                  setReceiptTypeSetting('supermarket');
+                  try {
+                    const { firestore } = initializeFirebase();
+                    if (user.businessId) {
+                      await updateDoc(doc(firestore, 'businesses', user.businessId), {
+                        receiptType: 'supermarket',
+                      });
+                      showToast('Receipt set to Supermarket style');
+                    }
+                  } catch (error) {
+                    console.error('Failed to save receipt type:', error);
+                    showToast('Failed to save receipt type');
+                  }
+                }}
+              />
+              <span>Supermarket Receipt</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="receiptType"
+                value="invoice"
+                checked={receiptTypeSetting === 'invoice'}
+                onChange={async () => {
+                  setReceiptTypeSetting('invoice');
+                  try {
+                    const { firestore } = initializeFirebase();
+                    if (user.businessId) {
+                      await updateDoc(doc(firestore, 'businesses', user.businessId), {
+                        receiptType: 'invoice',
+                      });
+                      showToast('Receipt set to Sale Invoice');
+                    }
+                  } catch (error) {
+                    console.error('Failed to save receipt type:', error);
+                    showToast('Failed to save receipt type');
+                  }
+                }}
+              />
+              <span>Sale Invoice</span>
             </label>
           </div>
         </div>

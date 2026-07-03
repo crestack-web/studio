@@ -686,13 +686,13 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               {m.expenseCard && (
                 <div className="my-3">
                   <div style={{
-                    background: '#fff3cd',
-                    border: '1px solid #ffc107',
+                    background: 'var(--warning-bg)',
+                    border: '1px solid var(--amber)',
                     borderRadius: '8px',
                     padding: '16px',
                     marginBottom: '8px'
                   }}>
-                    <h4 style={{ margin: '0 0 8px 0', color: '#856404' }}>✅ Expense Recorded</h4>
+                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--warning-text)' }}>✅ Expense Recorded</h4>
                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
                       <strong>{m.expenseCard.category}</strong><br/>
                       Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>

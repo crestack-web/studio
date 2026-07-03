@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+:root {
     --background: 240 5% 96%; /* light grey */
     --foreground: 224 71% 4%;
     --card: 0 0% 100%;
@@ -42,18 +42,49 @@
     --sidebar-ring: 258 86% 51%;
     --purple: #6B3FE7;
     --purple-dark: #4B24C1;
-    --white: #fff;
-    --text-muted: #6b7280;
-    --purple-mid: #a084e8;
     --purple-light: #ede9fe;
-    /* Additional variables for CreditPurchaseModal */
-    --bg-1: #ffffff;
+    --purple-mid: #a084e8;
+    --white: #fff;
+    /* Semantic color tokens for dark mode support */
+    --bg: #ffffff;
     --bg-2: #f3f4f6;
+    --surface: #f9fafb;
     --text-1: #1f2937;
     --text-2: #6b7280;
+    --text-3: #9ca3af;
+    --border-subtle: #e5e7eb;
+    --red: #dc2626;
+    --red-bg: #fee2e2;
+    --green: #16a34a;
+    --green-bg: #dcfce7;
+    --amber: #d97706;
+    --amber-bg: #fef3c7;
+    --teal: #0d9488;
+    --teal-bg: #ccfbf1;
+    --blue: #2563eb;
+    --blue-bg: #dbeafe;
+    --warning-bg: #fef3c7;
+    --warning-text: #92400e;
+    --success-bg: #dcfce7;
+    --success-text: #166534;
+    --danger-bg: #fee2e2;
+    --danger-text: #991b1b;
+    --input-bg: #ffffff;
+    --chat-bg: #f3f4f6;
+    --chat-bubble-user: #6B3FE7;
+    --chat-bubble-assistant: #ffffff;
+    --divider: #e5e7eb;
+    --icon-primary: #6b7280;
+    --icon-secondary: #9ca3af;
     --primary-rgb: 107, 63, 231;
     --primary-dark: #4B24C1;
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --transition: 0.2s ease;
   }
 
   .dark {
@@ -93,14 +124,46 @@
     --sidebar-accent-foreground: 210 20% 98%;
     --sidebar-border: 240 5% 20%;
     --sidebar-ring: 228 100% 98%;
-    /* Additional variables for CreditPurchaseModal */
-    --bg-1: #1f2937;
-    --bg-2: #374151;
-    --text-1: #f9fafb;
-    --text-2: #d1d5db;
+    /* Semantic color tokens for dark mode */
+    --bg: 240 5% 12%;
+    --bg-2: 240 5% 16%;
+    --surface: 240 5% 16%;
+    --text-1: 210 20% 98%;
+    --text-2: 215 28% 77%;
+    --text-3: 215 20% 65%;
+    --border-subtle: 240 5% 22%;
+    --red: #f87171;
+    --red-bg: 0 63% 25%;
+    --green: #4ade80;
+    --green-bg: 142 66% 25%;
+    --amber: #fbbf24;
+    --amber-bg: 45 83% 25%;
+    --teal: #2dd4bf;
+    --teal-bg: 173 58% 25%;
+    --blue: #60a5fa;
+    --blue-bg: 217 91% 25%;
+    --warning-bg: 45 83% 20%;
+    --warning-text: #fef3c7;
+    --success-bg: 142 66% 20%;
+    --success-text: #dcfce7;
+    --danger-bg: 0 63% 20%;
+    --danger-text: #fee2e2;
+    --input-bg: 240 5% 15%;
+    --chat-bg: 240 5% 12%;
+    --chat-bubble-user: #6B3FE7;
+    --chat-bubble-assistant: 240 5% 18%;
+    --divider: 240 5% 20%;
+    --icon-primary: 210 20% 98%;
+    --icon-secondary: 215 28% 77%;
     --primary-rgb: 107, 63, 231;
     --primary-dark: #4B24C1;
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --transition: 0.2s ease;
   }
 }
 
