@@ -3,7 +3,7 @@
 import { StepId } from "framer-motion";
 import { useState, useCallback, useEffect } from "react";
 import { initializeFirebase } from "@/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
 import { formatCurrency } from "@/lib/currency";
 
@@ -626,7 +626,11 @@ function StepProgress({ current }: { current: number }) {
 }
 
 // ΓöÇΓöÇ Step 1 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string) => void }) {
+function StepOne({ data, onChange, onGoogleSignIn }: { 
+  data: FormState; 
+  onChange: (k: keyof FormState, v: string) => void;
+  onGoogleSignIn: () => void;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Field label="What is your business name?" id="businessName" value={data.businessName}
@@ -637,6 +641,51 @@ function StepOne({ data, onChange }: { data: FormState; onChange: (k: keyof Form
         onChange={(v) => onChange("email", v)} placeholder="femi@example.com" autoComplete="email" />
       <Field label="Password" id="password" type="password" value={data.password}
         onChange={(v) => onChange("password", v)} placeholder="Min. 6 characters" autoComplete="new-password" />
+      
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+        <div style={{ flex: 1, height: 1, background: "#E8E8F0" }} />
+        <span style={{ fontSize: 12, color: "#8888A0" }}>or</span>
+        <div style={{ flex: 1, height: 1, background: "#E8E8F0" }} />
+      </div>
+
+      <button
+        type="button"
+        onClick={onGoogleSignIn}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          width: "100%",
+          padding: "13px 26px",
+          borderRadius: 13,
+          background: "white",
+          border: "1.5px solid #E8E8F0",
+          cursor: "pointer",
+          color: "#0A0A0F",
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 15,
+          fontWeight: 600,
+          transition: "all 0.2s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "#6B3FE7";
+          e.currentTarget.style.background = "#F4F4F8";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "#E8E8F0";
+          e.currentTarget.style.background = "white";
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Sign up with Google
+      </button>
+
       <p style={{ fontSize: 11, color: "#8888A0", lineHeight: 1.6 }}>
         By continuing you agree to Busmo's{" "}
         <a href="/terms" style={{ color: "#555568", textDecoration: "underline", textUnderlineOffset: 2 }}>Terms of Service</a>
@@ -963,6 +1012,7 @@ export default function BusmoOnboarding() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trialInfo, setTrialInfo] = useState<any>(null);
+  const [isGoogleAuth, setIsGoogleAuth] = useState(false);
   const [data, setData] = useState<FormState>({
     businessName: "", description: "", email: "", password: "",
     fullName: "", countryCode: "+234", phone: "", country: "nigeria",
@@ -1086,10 +1136,19 @@ export default function BusmoOnboarding() {
             // Step 1: Create Firebase Auth user (with duplicate handling)
             if (!userCreated && !userId) {
               try {
-                const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-                userId = userCredential.user.uid;
-                userCreated = true;
-                console.log('User created successfully:', userId);
+                // Check if user is already authenticated (e.g., via Google)
+                const currentUser = auth.currentUser;
+                if (currentUser && currentUser.email === data.email) {
+                  userId = currentUser.uid;
+                  userCreated = true;
+                  console.log('User already authenticated via Google:', userId);
+                } else {
+                  // Create new user with email/password
+                  const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+                  userId = userCredential.user.uid;
+                  userCreated = true;
+                  console.log('User created successfully:', userId);
+                }
               } catch (authError: any) {
                 if (authError.code === 'auth/email-already-in-use') {
                   // User already exists - try to sign them in instead
@@ -1258,7 +1317,35 @@ export default function BusmoOnboarding() {
     setStep(2);
   };
 
-  const valid = isStepValid(step, data);
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { auth, firestore } = initializeFirebase();
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Update form data with Google user info
+      setData(prev => ({
+        ...prev,
+        email: user.email || prev.email,
+        fullName: user.displayName || prev.fullName,
+      }));
+
+      // Set Google auth flag
+      setIsGoogleAuth(true);
+
+      // Move to step 2 to select business category
+      setStep(2);
+    } catch (error: any) {
+      setError("Google sign-up failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const valid = isStepValid(step, data, isGoogleAuth);
 
   if (done) {
     return (
@@ -1325,7 +1412,7 @@ export default function BusmoOnboarding() {
 
       {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
 
-      {step === 1 && <StepOne data={data} onChange={handleChange} />}
+      {step === 1 && <StepOne data={data} onChange={handleChange} onGoogleSignIn={handleGoogleSignIn} />}
       {step === 2 && <StepTwo data={data} onChange={handleChange} />}
       {step === 3 && <StepThree data={data} onChange={handleChange} onEdit={handleEdit} />}
 
@@ -1414,12 +1501,22 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function isStepValid(step: number, data: FormState) {
+function isStepValid(step: number, data: FormState, isGoogleAuth: boolean = false) {
   if (step === 1) {
-    return (
+    // Business name, full name, and email are always required
+    const basicFields = (
       !!data.businessName.trim() &&
       !!data.fullName.trim() &&
-      !!data.email.trim() &&
+      !!data.email.trim()
+    );
+    
+    // Password is only required if not using Google auth
+    if (isGoogleAuth) {
+      return basicFields;
+    }
+    
+    return (
+      basicFields &&
       !!data.password.trim() &&
       data.password.length >= 6
     );

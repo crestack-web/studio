@@ -41,8 +41,21 @@
 }
 
 .actionButton:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-3);
+  box-shadow: none;
+  transform: none;
+}
+
+.actionButton:disabled:hover {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-3);
+  transform: none;
+  box-shadow: none;
 }
 
 .pageTitle {
@@ -1137,30 +1150,6 @@
   outline: none;
   border-color: var(--purple);
   box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.qrButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text-2);
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.qrButton:hover {
-  background: var(--bg-hover);
-  border-color: var(--purple);
-  color: var(--purple);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
 }
 
 /* ── Low Stock Alerts ───────────────────── */

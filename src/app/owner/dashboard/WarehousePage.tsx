@@ -748,9 +748,6 @@ export function WarehousePage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <button className={styles.qrButton} title="Scan QR Code">
-              <Icon name="qr-code" size={18} />
-            </button>
           </div>
           <button
             className={`${styles.actionButton} ${styles.addButton}`}
