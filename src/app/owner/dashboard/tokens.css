@@ -54,7 +54,7 @@
 
 /* ── Light theme ── */
 [data-theme='light'] {
-  --bg: #F3F4F8;
+  --bg: #FFFFFF;
   --surface: #FFFFFF;
   --surface-2: #F8F8FC;
   --border: #E4E4EE;
