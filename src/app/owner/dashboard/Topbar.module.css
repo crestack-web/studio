@@ -150,4 +150,5 @@
 
 @media (max-width: 480px) {
   .userName, .userRole { display: none; }
+  .aiBtn { display: none; }
 }
