@@ -184,16 +184,22 @@ export function AddExpensePage() {
         return;
       }
 
-      // Check for potential duplicates (same category, amount, and date within last 5 seconds)
+      // Check for potential duplicates (same category and amount within last 5 seconds)
       const recentExpensesQuery = query(
         collection(firestore, 'businesses', businessId, 'expenses'),
         where('category', '==', form.category),
-        where('amount', '==', parseFloat(form.amount)),
-        where('date', '>=', Timestamp.fromDate(new Date(Date.now() - 5000)))
+        where('amount', '==', parseFloat(form.amount))
       );
       const recentExpenses = await getDocs(recentExpensesQuery);
       
-      if (!recentExpenses.empty) {
+      // Check if any of the recent expenses were created in the last 5 seconds
+      const fiveSecondsAgo = Date.now() - 5000;
+      const hasRecentDuplicate = recentExpenses.docs.some(doc => {
+        const createdAt = doc.data().createdAt?.toMillis?.() || 0;
+        return createdAt >= fiveSecondsAgo;
+      });
+      
+      if (hasRecentDuplicate) {
         showToast('⚠️ Possible duplicate expense detected. Please wait a moment before adding the same expense again.');
         setIsSubmitting(false);
         return;
