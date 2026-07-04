@@ -81,7 +81,7 @@ export default function Cashflowpage() {
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
-  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0 });
+  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0, paymentMethod: 'credit' as 'cash' | 'credit' | 'partial' });
 
   useEffect(() => {
     loadProducts();
@@ -582,77 +582,149 @@ export default function Cashflowpage() {
         return;
       }
 
-      const newStock = product.stock + stockAddition.quantity;
-      await updateDoc(doc(firestore, 'businesses', businessId, 'products', stockAddition.productId), {
-        stock: newStock,
-      });
-
       const purchaseAmount = stockAddition.costPrice * stockAddition.quantity;
+      
+      // Calculate payment amounts before transaction
+      let paidAmount = 0;
+      let creditAmount = 0;
+      let paymentMethod = 'cash';
 
-      // If marked as purchase, handle bank account and supplier linking
-      if (stockAddition.isPurchase) {
-        // If bank account selected, reduce bank balance
-        if (stockAddition.bankAccountId) {
-          const account = bankAccounts.find(a => a.id === stockAddition.bankAccountId);
-          if (!account) {
-            showToast('❌ Please select a valid bank account');
-            return;
-          }
+      // Validate payment amount for partial payment
+      if (stockAddition.paymentMethod === 'partial') {
+        if (stockAddition.paymentAmount <= 0 || stockAddition.paymentAmount >= purchaseAmount) {
+          showToast('❌ Partial payment amount must be greater than 0 and less than total');
+          return;
+        }
+        paidAmount = stockAddition.paymentAmount;
+        creditAmount = purchaseAmount - stockAddition.paymentAmount;
+        paymentMethod = 'partial';
+      } else if (stockAddition.paymentMethod === 'cash') {
+        paidAmount = purchaseAmount;
+        creditAmount = 0;
+        paymentMethod = 'cash';
+      } else if (stockAddition.paymentMethod === 'credit') {
+        paidAmount = 0;
+        creditAmount = purchaseAmount;
+        paymentMethod = 'credit';
+      }
 
-          if (account.currentBalance < purchaseAmount) {
-            showToast('❌ Insufficient bank balance for this purchase');
-            return;
-          }
-
-          const newBalance = account.currentBalance - purchaseAmount;
-          await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId), {
-            currentBalance: newBalance,
+      // Use Firestore transaction for atomic updates
+      await runTransaction(firestore, async (transaction) => {
+        // Update product stock
+        const productRef = doc(firestore, 'businesses', businessId, 'products', stockAddition.productId);
+        const productDoc = await transaction.get(productRef);
+        if (productDoc.exists()) {
+          const currentStock = productDoc.data().stock || 0;
+          transaction.update(productRef, {
+            stock: currentStock + stockAddition.quantity,
           });
-
-          // Record bank transaction
-          const transactionData = {
-            transactionNumber: `TXN-${Date.now()}`,
-            bankAccountId: account.id,
-            accountName: account.accountName,
-            type: 'money_out',
-            category: 'Purchase',
-            amount: purchaseAmount,
-            balanceAfter: newBalance,
-            description: `Purchase: ${product.name} - ${stockAddition.quantity} units from ${stockAddition.supplierId ? suppliers.find(s => s.id === stockAddition.supplierId)?.name || 'Supplier' : 'Unknown Supplier'}`,
-            createdAt: Timestamp.now(),
-          };
-          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
-        } else {
-          // No bank account selected - this is a cash purchase from revenue
-          // Record as expense without bank account
-          const cashTransactionData = {
-            transactionNumber: `CASH-${Date.now()}`,
-            type: 'money_out',
-            category: 'Cash Purchase',
-            amount: purchaseAmount,
-            description: `Cash purchase: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
-            createdAt: Timestamp.now(),
-          };
-          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), cashTransactionData);
         }
 
-        // Update supplier balance if supplier is selected
+        // Handle payment based on method
+        if (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') {
+          // If bank account selected, deduct from bank
+          if (stockAddition.bankAccountId) {
+            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
+            const accountDoc = await transaction.get(accountRef);
+            if (accountDoc.exists()) {
+              const currentBalance = accountDoc.data().currentBalance || 0;
+              if (currentBalance < paidAmount) {
+                throw new Error('Insufficient bank balance');
+              }
+              transaction.update(accountRef, {
+                currentBalance: currentBalance - paidAmount,
+              });
+
+              // Record bank transaction
+              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+              transaction.set(bankTxnRef, {
+                transactionNumber: `TXN-${Date.now()}`,
+                bankAccountId: stockAddition.bankAccountId,
+                accountName: accountDoc.data().accountName,
+                type: 'money_out',
+                category: stockAddition.paymentMethod === 'partial' ? 'Purchase Payment' : 'Purchase',
+                amount: paidAmount,
+                balanceAfter: currentBalance - paidAmount,
+                description: stockAddition.paymentMethod === 'partial' 
+                  ? `Partial payment: ${product.name} - ${stockAddition.quantity} units`
+                  : `Purchase: ${product.name} - ${stockAddition.quantity} units`,
+                createdAt: Timestamp.now(),
+              });
+            }
+          }
+        }
+
+        // If supplier is selected, update supplier balance and create ledger entry
         if (stockAddition.supplierId) {
-          const supplierDoc = await getDoc(doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId));
+          const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId);
+          const supplierDoc = await transaction.get(supplierRef);
+          
           if (supplierDoc.exists()) {
             const supplierData = supplierDoc.data();
             const currentBalance = supplierData.currentBalance || 0;
-            const newBalance = currentBalance + purchaseAmount;
+            const newBalance = currentBalance + creditAmount;
             
-            await updateDoc(doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId), {
+            transaction.update(supplierRef, {
               currentBalance: newBalance,
               totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
+              totalPayments: (supplierData.totalPayments || 0) + paidAmount,
               purchaseCount: (supplierData.purchaseCount || 0) + 1,
+              paymentCount: paidAmount > 0 ? (supplierData.paymentCount || 0) + 1 : supplierData.paymentCount,
               lastPurchaseDate: Timestamp.now(),
+              lastPaymentDate: paidAmount > 0 ? Timestamp.now() : supplierData.lastPaymentDate,
             });
 
+            // Create supplier ledger entry for purchase
+            const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+            transaction.set(ledgerRef, {
+              supplierId: stockAddition.supplierId,
+              businessId: businessId,
+              type: 'purchase',
+              amount: purchaseAmount,
+              balanceAfter: newBalance,
+              description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
+              reference: `SR-${Date.now()}`,
+              date: Timestamp.now(),
+              createdAt: Timestamp.now(),
+              createdBy: user?.id || 'system',
+              createdByName: user?.name || 'System',
+              metadata: {
+                productId: product.id,
+                productName: product.name,
+                quantity: stockAddition.quantity,
+                unitCost: stockAddition.costPrice,
+                paidAmount,
+                creditAmount,
+                paymentMethod,
+              },
+            });
+
+            // If payment was made, create payment ledger entry
+            if (paidAmount > 0) {
+              const paymentLedgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+              transaction.set(paymentLedgerRef, {
+                supplierId: stockAddition.supplierId,
+                businessId: businessId,
+                type: 'payment',
+                amount: paidAmount,
+                balanceAfter: newBalance,
+                description: `Payment for purchase: ${product.name}`,
+                reference: `PAY-${Date.now()}`,
+                date: Timestamp.now(),
+                createdAt: Timestamp.now(),
+                createdBy: user?.id || 'system',
+                createdByName: user?.name || 'System',
+                metadata: {
+                  productId: product.id,
+                  productName: product.name,
+                  paymentMethod,
+                },
+              });
+            }
+
             // Create stock receipt
-            const receiptData = {
+            const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
+            transaction.set(receiptRef, {
               receiptNumber: `SR-${Date.now()}`,
               supplierId: stockAddition.supplierId,
               supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
@@ -665,46 +737,49 @@ export default function Cashflowpage() {
               }],
               totalQuantity: stockAddition.quantity,
               totalCost: purchaseAmount,
-              paymentMethod: stockAddition.bankAccountId ? 'transfer' : 'cash',
-              paidAmount: stockAddition.bankAccountId ? purchaseAmount : 0,
-              creditAmount: stockAddition.bankAccountId ? 0 : purchaseAmount,
+              paymentMethod,
+              paidAmount,
+              creditAmount,
               receivedAt: new Date().toISOString(),
               receivedBy: user?.id || 'system',
               receivedByName: user?.name || 'System',
               notes: stockAddition.description,
               createdAt: Timestamp.now(),
-            };
-            await addDoc(collection(firestore, 'businesses', businessId, 'stockReceipts'), receiptData);
+            });
+          }
+        } else {
+          // No supplier - just record as expense if bank account used
+          if (stockAddition.bankAccountId && paidAmount > 0) {
+            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
+            const accountDoc = await transaction.get(accountRef);
+            if (accountDoc.exists()) {
+              const transactionData = {
+                transactionNumber: `STK-${Date.now()}`,
+                bankAccountId: stockAddition.bankAccountId,
+                accountName: accountDoc.data().accountName,
+                type: 'money_out',
+                category: 'Stock Addition',
+                amount: paidAmount,
+                balanceAfter: accountDoc.data().currentBalance - paidAmount,
+                description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
+                createdAt: Timestamp.now(),
+              };
+              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+              transaction.set(bankTxnRef, transactionData);
+            }
           }
         }
-      } else {
-        // Not a purchase - just record as stock addition expense if bank accounts exist
-        if (bankAccounts.length > 0) {
-          const defaultAccount = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
-          const transactionData = {
-            transactionNumber: `STK-${Date.now()}`,
-            bankAccountId: defaultAccount.id,
-            accountName: defaultAccount.accountName,
-            type: 'money_out',
-            category: 'Stock Addition',
-            amount: purchaseAmount,
-            balanceAfter: defaultAccount.currentBalance,
-            description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
-            createdAt: Timestamp.now(),
-          };
-          await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
-        }
-      }
+      });
 
-      showToast('✅ Stock added successfully');
+      showToast(`✅ Stock added successfully${creditAmount > 0 ? ` - ${formatMoney(creditAmount)} added to credit` : ''}`);
       setActiveAction(null);
-      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0 });
+      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0, paymentMethod: 'credit' as 'cash' | 'credit' | 'partial' });
       loadProducts();
       loadData();
       loadSuppliers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding stock:', error);
-      showToast('❌ Failed to add stock');
+      showToast(`❌ Failed to add stock: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -979,21 +1054,6 @@ export default function Cashflowpage() {
                 {stockAddition.isPurchase && (
                   <>
                     <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Select Bank Account (Optional)</label>
-                      <select
-                        className={styles.formInput}
-                        value={stockAddition.bankAccountId}
-                        onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
-                      >
-                        <option value="">Cash Purchase (from revenue)</option>
-                        {bankAccounts.map(account => (
-                          <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
-                        ))}
-                      </select>
-                      <span className={styles.formHint}>Leave empty to deduct from cash revenue</span>
-                    </div>
-
-                    <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Select Supplier (Optional)</label>
                       <select
                         className={styles.formInput}
@@ -1005,8 +1065,83 @@ export default function Cashflowpage() {
                           <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
                         ))}
                       </select>
-                      <span className={styles.formHint}>Link this purchase to a supplier</span>
+                      <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
                     </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Payment Method</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.paymentMethod}
+                        onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}
+                      >
+                        <option value="credit">Credit (Pay Later)</option>
+                        <option value="cash">Cash (Full Payment)</option>
+                        <option value="partial">Partial Payment</option>
+                      </select>
+                      <span className={styles.formHint}>
+                        {stockAddition.paymentMethod === 'credit' && 'Full amount will be added to supplier credit balance'}
+                        {stockAddition.paymentMethod === 'cash' && 'Full payment will be deducted from bank account'}
+                        {stockAddition.paymentMethod === 'partial' && 'Pay part now, add remainder to credit'}
+                      </span>
+                    </div>
+
+                    {stockAddition.paymentMethod === 'partial' && (
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Payment Amount</label>
+                        <input
+                          type="number"
+                          className={styles.formInput}
+                          value={stockAddition.paymentAmount}
+                          onChange={(e) => setStockAddition({ ...stockAddition, paymentAmount: parseFloat(e.target.value) || 0 })}
+                          placeholder="Enter payment amount"
+                          max={stockAddition.quantity * stockAddition.costPrice}
+                        />
+                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                          <div className={styles.paymentBreakdown}>
+                            <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
+                            <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
+                            <span style={{ color: 'var(--red)', fontWeight: 600 }}>
+                              Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Select Bank Account</label>
+                        <select
+                          className={styles.formInput}
+                          value={stockAddition.bankAccountId}
+                          onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
+                        >
+                          <option value="">Select bank account</option>
+                          {bankAccounts.map(account => (
+                            <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
+                          ))}
+                        </select>
+                        <span className={styles.formHint}>Required for cash and partial payments</span>
+                      </div>
+                    )}
+
+                    {stockAddition.supplierId && stockAddition.paymentMethod === 'credit' && (
+                      <div className={styles.creditInfo}>
+                        <div className={styles.creditInfoItem}>
+                          <span className={styles.creditInfoLabel}>Supplier:</span>
+                          <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.name}</span>
+                        </div>
+                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                          <div className={styles.creditInfoItem}>
+                            <span className={styles.creditInfoLabel}>Amount to Credit:</span>
+                            <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                              {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 
