@@ -10,6 +10,11 @@ import { useTranslation } from './LangContext';
 import { NavIcons } from './NavIcons';
 import styles from './WarehousePage.module.css';
 
+// Icon component wrapper for consistent usage
+const Icon = ({ name, size = 18 }: { name: string; size?: number }) => (
+  <NavIcons id={name} size={size} />
+);
+
 // Memoize the firebase instance to prevent re-initialization
 let cachedFirebaseInstance: ReturnType<typeof initializeFirebase> | null = null;
 const getFirebaseInstance = () => {
@@ -744,20 +749,22 @@ export function WarehousePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button className={styles.qrButton} title="Scan QR Code">
-              📷
+              <Icon name="qr-code" size={18} />
             </button>
           </div>
           <button
             className={`${styles.actionButton} ${styles.addButton}`}
             onClick={() => setShowAdjustmentModal(true)}
           >
-            ⚙️ Stock Adjustment
+            <Icon name="settings" size={18} />
+            <span style={{ marginLeft: 8 }}>Stock Adjustment</span>
           </button>
           <button
             className={`${styles.actionButton} ${styles.addButton}`}
             onClick={() => setShowAddModal(true)}
           >
-            ➕ Add Warehouse
+            <Icon name="add" size={18} />
+            <span style={{ marginLeft: 8 }}>Add Warehouse</span>
           </button>
         </div>
       </div>
@@ -768,38 +775,44 @@ export function WarehousePage() {
           className={`${styles.tabButton} ${activeTab === 'overview' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          📊 Overview
+          <Icon name="reports" size={16} />
+          <span style={{ marginLeft: 6 }}>Overview</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'pending' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          📋 Pending Releases
+          <Icon name="clipboard" size={16} />
+          <span style={{ marginLeft: 6 }}>Pending Releases</span>
           {pendingInvoices.length > 0 && <span className={styles.tabBadge}>{pendingInvoices.length}</span>}
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'released' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('released')}
         >
-          ✅ Released History
+          <Icon name="check-circle" size={16} />
+          <span style={{ marginLeft: 6 }}>Released History</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'locations' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('locations')}
         >
-          🏢 Locations
+          <Icon name="warehouse" size={16} />
+          <span style={{ marginLeft: 6 }}>Locations</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'transfers' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('transfers')}
         >
-          🔄 Transfers
+          <Icon name="stock-transfers" size={16} />
+          <span style={{ marginLeft: 6 }}>Transfers</span>
         </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('requests')}
         >
-          📦 Stock Requests
+          <Icon name="package" size={16} />
+          <span style={{ marginLeft: 6 }}>Stock Requests</span>
           {stockRequests.filter(r => r.status === 'pending').length > 0 && (
             <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
           )}
@@ -808,7 +821,8 @@ export function WarehousePage() {
           className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('returns')}
         >
-          ↩️ Returns
+          <Icon name="rotate" size={16} />
+          <span style={{ marginLeft: 6 }}>Returns</span>
           {returns.filter(r => r.status === 'pending').length > 0 && (
             <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
           )}
@@ -845,10 +859,15 @@ export function WarehousePage() {
 
           {/* Low Stock Alerts */}
           <div className={styles.lowStockSection}>
-            <h3 className={styles.sectionTitle}>⚠️ Low Stock Alerts</h3>
+            <h3 className={styles.sectionTitle}>
+              <Icon name="alert-triangle" size={20} />
+              <span style={{ marginLeft: 8 }}>Low Stock Alerts</span>
+            </h3>
             {products.filter(p => p.stock < 10).length === 0 ? (
               <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>✅</div>
+                <div className={styles.emptyIcon}>
+                  <Icon name="check-circle" size={48} />
+                </div>
                 <h3>All Stock Levels Healthy</h3>
                 <p>No products are running low on stock</p>
               </div>
@@ -904,10 +923,10 @@ export function WarehousePage() {
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
                   <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && '🏪'}
-                      {location.type === 'back_store' && '📦'}
-                      {location.type === 'warehouse' && '🏭'}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && '🏢'}
+                      {location.type === 'main_store' && <Icon name="warehouse" size={24} />}
+                      {location.type === 'back_store' && <Icon name="package" size={24} />}
+                      {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="warehouse" size={24} />}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -946,8 +965,8 @@ export function WarehousePage() {
               onClick={() => setSelectedLocation('all')}
             >
               <div className={styles.locationHeader}>
-                <div className={styles.locationContent}>
-                  <div className={styles.locationIcon}>📊</div>
+                  <div className={styles.locationContent}>
+                  <div className={styles.locationIcon}><Icon name="reports" size={24} /></div>
                   <h3 className={styles.locationName}>All Locations</h3>
                 </div>
               </div>
@@ -988,7 +1007,9 @@ export function WarehousePage() {
 
           {pendingInvoices.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📋</div>
+              <div className={styles.emptyIcon}>
+                <Icon name="clipboard" size={48} />
+              </div>
               <h3>No Pending Releases</h3>
               <p>All invoices have been processed</p>
             </div>
@@ -1024,7 +1045,8 @@ export function WarehousePage() {
                         setShowInvoiceModal(true);
                       }}
                     >
-                      📋 Review & Release
+                      <Icon name="clipboard" size={16} />
+                      <span style={{ marginLeft: 6 }}>Review & Release</span>
                     </button>
                   </div>
                 </div>
@@ -1052,7 +1074,9 @@ export function WarehousePage() {
 
           {releasedInvoices.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>✅</div>
+              <div className={styles.emptyIcon}>
+                <Icon name="check-circle" size={48} />
+              </div>
               <h3>No Released Invoices</h3>
               <p>No invoices have been released yet</p>
             </div>
@@ -1095,7 +1119,9 @@ export function WarehousePage() {
           
           {stockRequests.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📦</div>
+              <div className={styles.emptyIcon}>
+                <Icon name="package" size={48} />
+              </div>
               <h3>No Stock Requests</h3>
               <p>No stock requests have been submitted yet</p>
             </div>
@@ -1151,7 +1177,9 @@ export function WarehousePage() {
           
           {returns.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>↩️</div>
+              <div className={styles.emptyIcon}>
+                <Icon name="rotate" size={48} />
+              </div>
               <h3>No Returns</h3>
               <p>No returns have been submitted yet</p>
             </div>
@@ -1215,10 +1243,10 @@ export function WarehousePage() {
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
                     <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && '🏪'}
-                      {location.type === 'back_store' && '📦'}
-                      {location.type === 'warehouse' && '🏭'}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && '🏢'}
+                      {location.type === 'main_store' && <Icon name="warehouse" size={24} />}
+                      {location.type === 'back_store' && <Icon name="package" size={24} />}
+                      {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="warehouse" size={24} />}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -1270,7 +1298,9 @@ export function WarehousePage() {
           
           {transferHistory.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📊</div>
+              <div className={styles.emptyIcon}>
+                <Icon name="reports" size={48} />
+              </div>
               <h3>No Transfer History</h3>
               <p>No stock transfers have been recorded yet</p>
             </div>
@@ -1278,7 +1308,9 @@ export function WarehousePage() {
             <div className={styles.historyList}>
               {transferHistory.map(transfer => (
                 <div key={transfer.id} className={styles.historyItem}>
-                  <div className={styles.historyIcon}>🔄</div>
+                  <div className={styles.historyIcon}>
+                    <Icon name="stock-transfers" size={24} />
+                  </div>
                   <div className={styles.historyContent}>
                     <div className={styles.historyProduct}>{transfer.productName}</div>
                     <div className={styles.historyDetails}>
