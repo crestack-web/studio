@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
-import { Plus, Edit2, Trash2, Search, Factory, Package, TrendingUp, Clock, AlertCircle, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Factory, Package, TrendingUp, Clock, AlertCircle, DollarSign, X } from 'lucide-react';
 import styles from './ProductionPage.module.css';
 
 interface ProductionOrder {
@@ -299,9 +299,9 @@ export default function ProductionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={styles.page}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className={styles.spinner}></div>
           <p>Loading production orders...</p>
         </div>
       </div>
@@ -313,11 +313,11 @@ export default function ProductionPage() {
   const pendingCount = getPendingCount();
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className="text-2xl font-bold">Production Tracking</h1>
-          <p className="text-gray-600">Manage manufacturing production orders</p>
+          <h1 className={styles.heading}>Production Tracking</h1>
+          <p className={styles.sub}>Manage manufacturing production orders</p>
         </div>
         <button
           onClick={() => {
@@ -325,7 +325,7 @@ export default function ProductionPage() {
             setEditingOrder(null);
             setShowAddModal(true);
           }}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+          className={styles.primaryButton}
         >
           <Plus size={20} />
           New Production Order
@@ -333,85 +333,83 @@ export default function ProductionPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Factory className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Active Orders</p>
-              <p className="text-2xl font-bold">{productionOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length}</p>
-            </div>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Factory size={24} />
+          </div>
+          <div className={styles.statInfo}>
+            <p className={styles.statLabel}>Active Orders</p>
+            <p className={styles.statValue}>{productionOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Total Cost</p>
-              <p className="text-2xl font-bold">{formatMoney(productionOrders.reduce((sum, o) => sum + o.totalCost, 0))}</p>
-            </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <DollarSign size={24} />
+          </div>
+          <div className={styles.statInfo}>
+            <p className={styles.statLabel}>Total Cost</p>
+            <p className={styles.statValue}>{formatMoney(productionOrders.reduce((sum, o) => sum + o.totalCost, 0))}</p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Avg Yield</p>
-              <p className="text-2xl font-bold">
-                {productionOrders.filter(o => o.yieldPercentage).length > 0 
-                  ? (productionOrders.filter(o => o.yieldPercentage).reduce((sum, o) => sum + (o.yieldPercentage || 0), 0) / productionOrders.filter(o => o.yieldPercentage).length).toFixed(1) + '%'
-                  : '-'}
-              </p>
-            </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <TrendingUp size={24} />
+          </div>
+          <div className={styles.statInfo}>
+            <p className={styles.statLabel}>Avg Yield</p>
+            <p className={styles.statValue}>
+              {productionOrders.filter(o => o.yieldPercentage).length > 0 
+                ? (productionOrders.filter(o => o.yieldPercentage).reduce((sum, o) => sum + (o.yieldPercentage || 0), 0) / productionOrders.filter(o => o.yieldPercentage).length).toFixed(1) + '%'
+                : '-'}
+            </p>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Package className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Total Units</p>
-              <p className="text-2xl font-bold">{productionOrders.reduce((sum, o) => sum + o.quantity, 0).toLocaleString()}</p>
-            </div>
+        <div className={styles.statCard}>
+          <div className={styles.statIcon}>
+            <Package size={24} />
+          </div>
+          <div className={styles.statInfo}>
+            <p className={styles.statLabel}>Total Units</p>
+            <p className={styles.statValue}>{productionOrders.reduce((sum, o) => sum + o.quantity, 0).toLocaleString()}</p>
           </div>
         </div>
       </div>
 
       {/* Overdue Alert */}
       {overdueCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-red-600" />
-            <div>
-              <h3 className="font-semibold text-red-800">Overdue Orders</h3>
-              <p className="text-sm text-red-700">
-                {overdueCount} production orders are overdue. Please review and update their status.
-              </p>
-            </div>
+        <div className={`${styles.alertBox} ${styles.warning}`}>
+          <AlertCircle className={styles.alertIcon} size={24} />
+          <div className={styles.alertContent}>
+            <h3>Overdue Orders</h3>
+            <p>
+              {overdueCount} production orders are overdue. Please review and update their status.
+            </p>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className={styles.section}>
+        <div className={styles.filters}>
+          <div className={`${styles.filterGroup} ${styles.inputWithIcon}`}>
+            <Search className={styles.inputIcon} size={16} />
             <input
               type="text"
               placeholder="Search orders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
+              className={styles.filterInput}
             />
           </div>
           
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className={styles.filterSelect}
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -423,7 +421,7 @@ export default function ProductionPage() {
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
+            className={styles.filterSelect}
           >
             <option value="all">All Priorities</option>
             <option value="high">High</option>
@@ -434,56 +432,56 @@ export default function ProductionPage() {
       </div>
 
       {/* Production Orders Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Order #</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Product</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Quantity</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Target Date</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Priority</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Total Cost</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Yield</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Assigned To</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+              <th>Order #</th>
+              <th>Product</th>
+              <th>Quantity</th>
+              <th>Target Date</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Total Cost</th>
+              <th>Yield</th>
+              <th>Assigned To</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody>
             {filteredOrders.map(order => {
               const isOverdue = order.status !== 'completed' && 
                               order.status !== 'cancelled' && 
                               order.targetDate < new Date();
               
               return (
-                <tr key={order.id} className={`hover:bg-gray-50 ${isOverdue ? 'bg-red-50' : ''}`}>
-                  <td className="px-4 py-3 font-medium">{order.orderNumber}</td>
-                  <td className="px-4 py-3">
+                <tr key={order.id} className={isOverdue ? styles.overdue : ''}>
+                  <td>{order.orderNumber}</td>
+                  <td>
                     <div className="font-medium">{order.productName}</div>
                     <div className="text-sm text-gray-500">{order.unit}</div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     <span className="font-medium">{order.quantity}</span>
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td>
                     <div className={`flex items-center gap-2 ${isOverdue ? 'text-red-600' : ''}`}>
-                      <Clock className="w-4 h-4" />
+                      <Clock size={16} />
                       {order.targetDate.toLocaleDateString()}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${getPriorityColor(order.priority)}`}>
+                  <td>
+                    <span className={`${styles.badge} ${styles[order.priority]}`}>
                       {order.priority}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
+                  <td>
+                    <span className={`${styles.badge} ${styles[order.status.replace('-', '')]}`}>
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-medium">{formatMoney(order.totalCost)}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="font-medium">{formatMoney(order.totalCost)}</td>
+                  <td>
                     {order.yieldPercentage ? (
                       <span className={`font-medium ${order.yieldPercentage >= 90 ? 'text-green-600' : order.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {order.yieldPercentage.toFixed(1)}%
@@ -492,13 +490,13 @@ export default function ProductionPage() {
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm">{order.assignedToName || order.assignedTo || '-'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
+                  <td>{order.assignedToName || order.assignedTo || '-'}</td>
+                  <td>
+                    <div className={styles.actionButtons}>
                       {order.status === 'pending' && (
                         <button
                           onClick={() => handleStatusChange(order, 'in-progress')}
-                          className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+                          className={`${styles.iconButton} ${styles.iconButtonStart}`}
                           title="Start production"
                         >
                           Start
@@ -507,7 +505,7 @@ export default function ProductionPage() {
                       {order.status === 'in-progress' && (
                         <button
                           onClick={() => handleStatusChange(order, 'completed')}
-                          className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                          className={`${styles.iconButton} ${styles.iconButtonComplete}`}
                           title="Complete"
                         >
                           Complete
@@ -515,17 +513,17 @@ export default function ProductionPage() {
                       )}
                       <button
                         onClick={() => handleEdit(order)}
-                        className="p-1 hover:bg-gray-100 rounded"
+                        className={`${styles.iconButton} ${styles.iconButtonEdit}`}
                         title="Edit"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(order.id)}
-                        className="p-1 hover:bg-red-100 rounded text-red-600"
+                        className={`${styles.iconButton} ${styles.iconButtonDelete}`}
                         title="Delete"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -536,9 +534,10 @@ export default function ProductionPage() {
         </table>
         
         {filteredOrders.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <Factory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No production orders found</p>
+          <div className={styles.emptyState}>
+            <Factory size={64} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium mb-2">No production orders found</p>
+            <p className="text-sm">Create your first production order to get started</p>
             <button
               onClick={() => {
                 resetForm();
@@ -555,65 +554,77 @@ export default function ProductionPage() {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
-              {editingOrder ? 'Edit Production Order' : 'New Production Order'}
-            </h2>
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>
+                {editingOrder ? 'Edit Production Order' : 'New Production Order'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingOrder(null);
+                  resetForm();
+                }}
+                className={styles.closeButton}
+              >
+                <X size={18} />
+              </button>
+            </div>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Name</label>
+            <div className={styles.form}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Product Name</label>
                 <input
                   type="text"
                   value={formData.productName}
                   onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                   required
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Quantity</label>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Quantity</label>
                   <input
                     type="number"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className={styles.formInput}
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Unit</label>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Unit</label>
                   <input
                     type="text"
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className={styles.formInput}
                     placeholder="e.g., pieces, kg, liters"
                     required
                   />
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Target Date</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Target Date</label>
                 <input
                   type="date"
                   value={formData.targetDate}
                   onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                   required
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Priority</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Priority</label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formSelect}
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -621,32 +632,32 @@ export default function ProductionPage() {
                 </select>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Assigned To</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Assigned To</label>
                 <input
                   type="text"
                   value={formData.assignedTo}
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formInput}
                   placeholder="Staff name or ID"
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className={styles.formTextarea}
                   rows={3}
                   placeholder="Additional instructions or notes..."
                 />
               </div>
 
               {/* Bill of Materials */}
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-3">
-                  <label className="block text-sm font-medium">Bill of Materials</label>
+              <div className={styles.materialsSection}>
+                <div className={styles.materialsHeader}>
+                  <label className={styles.formLabel}>Bill of Materials</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -655,14 +666,14 @@ export default function ProductionPage() {
                         materials: [...formData.materials, { materialId: '', materialName: '', quantity: 0, unit: '', cost: 0 }]
                       });
                     }}
-                    className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                    className={styles.addMaterialButton}
                   >
                     + Add Material
                   </button>
                 </div>
                 
                 {formData.materials.map((material, index) => (
-                  <div key={index} className="grid grid-cols-5 gap-2 mb-2">
+                  <div key={index} className={styles.materialRow}>
                     <input
                       type="text"
                       placeholder="Material name"
@@ -672,7 +683,7 @@ export default function ProductionPage() {
                         newMaterials[index].materialName = e.target.value;
                         setFormData({ ...formData, materials: newMaterials });
                       }}
-                      className="px-2 py-1 border rounded text-sm"
+                      className={styles.formInput}
                     />
                     <input
                       type="number"
@@ -683,7 +694,7 @@ export default function ProductionPage() {
                         newMaterials[index].quantity = parseFloat(e.target.value) || 0;
                         setFormData({ ...formData, materials: newMaterials });
                       }}
-                      className="px-2 py-1 border rounded text-sm"
+                      className={styles.formInput}
                     />
                     <input
                       type="text"
@@ -694,7 +705,7 @@ export default function ProductionPage() {
                         newMaterials[index].unit = e.target.value;
                         setFormData({ ...formData, materials: newMaterials });
                       }}
-                      className="px-2 py-1 border rounded text-sm"
+                      className={styles.formInput}
                     />
                     <input
                       type="number"
@@ -705,7 +716,7 @@ export default function ProductionPage() {
                         newMaterials[index].cost = parseFloat(e.target.value) || 0;
                         setFormData({ ...formData, materials: newMaterials });
                       }}
-                      className="px-2 py-1 border rounded text-sm"
+                      className={styles.formInput}
                     />
                     <button
                       type="button"
@@ -713,7 +724,7 @@ export default function ProductionPage() {
                         const newMaterials = formData.materials.filter((_, i) => i !== index);
                         setFormData({ ...formData, materials: newMaterials });
                       }}
-                      className="text-red-600 hover:text-red-700 text-sm"
+                      className={styles.removeMaterialButton}
                     >
                       Remove
                     </button>
@@ -721,25 +732,23 @@ export default function ProductionPage() {
                 ))}
                 
                 {formData.materials.length > 0 && (
-                  <div className="bg-gray-50 p-3 rounded mt-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Total Material Cost:</span>
-                      <span className="font-medium">{formatMoney(formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0))}</span>
-                    </div>
+                  <div className={styles.materialsSummary}>
+                    <span>Total Material Cost:</span>
+                    <span className="font-medium">{formatMoney(formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0))}</span>
                   </div>
                 )}
               </div>
 
               {/* Labor Cost */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Estimated Labor Cost</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Estimated Labor Cost</label>
+                <div className={`${styles.inputWithIcon}`}>
+                  <DollarSign className={styles.inputIcon} size={16} />
                   <input
                     type="number"
                     value={formData.estimatedLaborCost}
                     onChange={(e) => setFormData({ ...formData, estimatedLaborCost: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                    className={styles.formInput}
                     placeholder="0.00"
                   />
                 </div>
@@ -747,10 +756,10 @@ export default function ProductionPage() {
 
               {/* Total Cost Summary */}
               {formData.materials.length > 0 || formData.estimatedLaborCost && (
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-purple-900">Total Production Cost:</span>
-                    <span className="text-xl font-bold text-purple-700">
+                <div className={styles.costSummary}>
+                  <div className={styles.costSummaryRow}>
+                    <span className={styles.costSummaryLabel}>Total Production Cost:</span>
+                    <span className={styles.costSummaryValue}>
                       {formatMoney(
                         formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0) + 
                         (parseFloat(formData.estimatedLaborCost) || 0)
@@ -761,20 +770,20 @@ export default function ProductionPage() {
               )}
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className={styles.modalActions}>
               <button
                 onClick={() => {
                   setShowAddModal(false);
                   setEditingOrder(null);
                   resetForm();
                 }}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className={styles.modalButton}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className={styles.modalButtonPrimary}
               >
                 {editingOrder ? 'Update' : 'Create'}
               </button>
