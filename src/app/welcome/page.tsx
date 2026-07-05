@@ -16,6 +16,7 @@ import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
 import { BuiltWithBusmo } from './components/BuiltWithBusmo';
 import { ScrollReveal, StaggerContainer, StaggerItem } from './components/ScrollReveal';
+import { FloatingChatWidget } from './components/FloatingChatWidget';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
@@ -258,6 +259,9 @@ export default function WelcomePage() {
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <Footer onNavigate={handleNavigate} />
       </ScrollReveal>
+
+      {/* FLOATING CHAT WIDGET */}
+      <FloatingChatWidget />
     </LangProvider>
   );
 }
