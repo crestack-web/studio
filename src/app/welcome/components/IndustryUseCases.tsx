@@ -4,22 +4,22 @@ import React from 'react';
 
 const INDUSTRIES = [
   {
-    name: "Supermarket",
-    icon: "🛒",
-    challenge: "Managing thousands of SKUs and preventing stock shortages",
-    solution: "Bulk product management, low stock alerts, and sales analytics"
-  },
-  {
-    name: "Pharmacy",
-    icon: "�",
-    challenge: "Tracking expiry dates and managing stock across multiple suppliers",
-    solution: "Automatic expiry alerts, supplier tracking, and real-time inventory levels"
-  },
-  {
     name: "Restaurant",
     icon: "🍽️",
     challenge: "Managing food costs and tracking daily profit margins",
     solution: "Recipe costing, daily profit tracking, and expense categorization"
+  },
+  {
+    name: "Wholesale",
+    icon: "📦",
+    challenge: "Managing bulk orders and tracking inventory across multiple clients",
+    solution: "Bulk order management, client tracking, and real-time inventory levels"
+  },
+  {
+    name: "Supermarket",
+    icon: "🛒",
+    challenge: "Managing thousands of SKUs and preventing stock shortages",
+    solution: "Bulk product management, low stock alerts, and sales analytics"
   }
 ];
 
