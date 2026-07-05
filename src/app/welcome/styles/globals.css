@@ -2526,6 +2526,92 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
   transform: scale(1.1);
 }
 
+/* Built With Busmo Section */
+.built-with-busmo-section {
+  padding: 80px 0;
+  background: linear-gradient(180deg, #fff 0%, #f8f7ff 100%);
+}
+
+.stories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-top: 48px;
+}
+
+.story-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.story-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+
+.story-video-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--grey-100);
+  overflow: hidden;
+}
+
+.story-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: linear-gradient(135deg, var(--purple-light) 0%, var(--grey-100) 100%);
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.placeholder-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.story-content {
+  padding: 24px;
+}
+
+.story-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.story-business {
+  font-size: 14px;
+  color: var(--purple);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.story-quote {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .support-section {

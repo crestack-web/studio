@@ -14,6 +14,7 @@ import { Footer } from './components/Footer';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { BuiltWithBusmo } from './components/BuiltWithBusmo';
 import { ScrollReveal, StaggerContainer, StaggerItem } from './components/ScrollReveal';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
@@ -174,6 +175,11 @@ export default function WelcomePage() {
       {/* INDUSTRY USE CASES */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <IndustryUseCases />
+      </ScrollReveal>
+
+      {/* BUILT WITH BUSMO */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <BuiltWithBusmo />
       </ScrollReveal>
 
       {/* SELL ONLINE / STOREFRONT */}
