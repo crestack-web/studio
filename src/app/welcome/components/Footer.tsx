@@ -62,8 +62,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, minimal = false }) =
         <div>
           <div className="footer-col-title">Legal</div>
           <ul className="footer-links">
-            <li><a>Privacy Policy</a></li>
-            <li><a>Terms of Service</a></li>
+            <li><a href="/privacy">Privacy Policy</a></li>
+            <li><a href="/terms">Terms of Service</a></li>
           </ul>
         </div>
       </div>
