@@ -37,13 +37,13 @@ function Field({
   autoComplete,
 }: FieldProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label htmlFor={id} style={{ fontSize: 12, fontWeight: 600, color: "#555568" }}>
         {label}
       </label>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {prefix && (
-          <span style={{ fontSize: 14, color: "#8888A0", padding: "0 8px" }}>{prefix}</span>
+          <span style={{ fontSize: 13, color: "#8888A0", padding: "0 8px" }}>{prefix}</span>
         )}
         <input
           id={id}
@@ -54,9 +54,9 @@ function Field({
           autoComplete={autoComplete}
           style={{
             flex: 1,
-            borderRadius: 12,
-            padding: "13px 16px",
-            fontSize: 14,
+            borderRadius: 11,
+            padding: "11px 14px",
+            fontSize: 13,
             color: "#0A0A0F",
             background: "white",
             outline: "none",
@@ -98,8 +98,8 @@ function SelectField({
   options,
 }: SelectFieldProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 600, color: "#555568" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label htmlFor={id} style={{ fontSize: 12, fontWeight: 600, color: "#555568" }}>
         {label}
       </label>
       <select
@@ -107,9 +107,9 @@ function SelectField({
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          borderRadius: 12,
-          padding: "13px 16px",
-          fontSize: 14,
+          borderRadius: 11,
+          padding: "11px 14px",
+          fontSize: 13,
           color: value ? "#0A0A0F" : "#8888A0",
           background: "white",
           outline: "none",
@@ -151,14 +151,14 @@ function PrimaryBtn({ children, ...props }: PrimaryBtnProps) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 7,
+        gap: 6,
         background: props.disabled ? "#E8E8F0" : "#6B3FE7",
         color: "white",
         fontWeight: 700,
-        fontSize: 15,
+        fontSize: 14,
         border: "none",
-        borderRadius: 14,
-        padding: "13px 22px",
+        borderRadius: 12,
+        padding: "11px 18px",
         cursor: props.disabled ? "not-allowed" : "pointer",
         opacity: props.disabled ? 0.6 : 1,
         fontFamily: "'Sora', sans-serif",
@@ -632,7 +632,7 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
   onGoogleSignIn: () => void;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <Field label="What is your business name?" id="businessName" value={data.businessName}
         onChange={(v) => onChange("businessName", v)} placeholder="Femi's Suya Spot" autoComplete="organization" />
       <Field label="Your full name" id="fullName" value={data.fullName}
@@ -642,9 +642,9 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
       <Field label="Password" id="password" type="password" value={data.password}
         onChange={(v) => onChange("password", v)} placeholder="Min. 6 characters" autoComplete="new-password" />
       
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
         <div style={{ flex: 1, height: 1, background: "#E8E8F0" }} />
-        <span style={{ fontSize: 12, color: "#8888A0" }}>or</span>
+        <span style={{ fontSize: 11, color: "#8888A0" }}>or</span>
         <div style={{ flex: 1, height: 1, background: "#E8E8F0" }} />
       </div>
 
@@ -655,16 +655,16 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 10,
+          gap: 8,
           width: "100%",
-          padding: "13px 26px",
-          borderRadius: 13,
+          padding: "11px 22px",
+          borderRadius: 12,
           background: "white",
           border: "1.5px solid #E8E8F0",
           cursor: "pointer",
           color: "#0A0A0F",
           fontFamily: "'DM Sans', sans-serif",
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: 600,
           transition: "all 0.2s",
         }}
@@ -677,7 +677,7 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
           e.currentTarget.style.background = "white";
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24">
+        <svg width="18" height="18" viewBox="0 0 24 24">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -686,7 +686,7 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
         Sign up with Google
       </button>
 
-      <p style={{ fontSize: 11, color: "#8888A0", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 10, color: "#8888A0", lineHeight: 1.6 }}>
         By continuing you agree to Busmo's{" "}
         <a href="/terms" style={{ color: "#555568", textDecoration: "underline", textUnderlineOffset: 2 }}>Terms of Service</a>
         {" "}and{" "}
@@ -751,24 +751,24 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Category Selection */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0F" }}>
           Select your business category
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 6 }}>
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => handleCategoryChange(cat.id)}
               style={{
-                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
-                fontSize: 13, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
+                padding: "8px 10px", borderRadius: 7, cursor: "pointer",
+                fontSize: 12, fontWeight: 500, color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
                 background: selectedCategory === cat.id ? "#F3EFFE" : "white",
                 border: selectedCategory === cat.id ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                textAlign: "left", display: "flex", alignItems: "center", gap: 5,
                 fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -784,7 +784,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
                 }
               }}
             >
-              <span style={{ fontSize: 16 }}>{cat.icon}</span>
+              <span style={{ fontSize: 14 }}>{cat.icon}</span>
               <span>{cat.label}</span>
             </button>
           ))}
@@ -792,22 +792,22 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
       </div>
 
       {/* Feature Selection */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0F" }}>
           Select features you need ({selectedFeatures.length} selected)
         </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, maxHeight: 250, overflowY: "auto", padding: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, maxHeight: 220, overflowY: "auto", padding: 3 }}>
           {availableFeatures.map((feature) => (
             <button
               key={feature}
               type="button"
               onClick={() => toggleFeature(feature)}
               style={{
-                padding: "10px 12px", borderRadius: 8, cursor: "pointer",
-                fontSize: 13, color: selectedFeatures.includes(feature) ? "#6B3FE7" : "#555568",
+                padding: "8px 10px", borderRadius: 7, cursor: "pointer",
+                fontSize: 12, color: selectedFeatures.includes(feature) ? "#6B3FE7" : "#555568",
                 background: selectedFeatures.includes(feature) ? "#F3EFFE" : "white",
                 border: selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "1px solid #E8E8F0",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                textAlign: "left", display: "flex", alignItems: "center", gap: 5,
                 fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
@@ -822,12 +822,12 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
                 ""
               }
             >
-              <span style={{ fontSize: 14 }}>
+              <span style={{ fontSize: 13 }}>
                 {selectedFeatures.includes(feature) ? "✓" : "○"}
               </span>
               <span>{feature}</span>
-              {PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#D97706", marginLeft: "auto" }}>PRO</span>}
-              {STANDARD_OR_PRO_FEATURES.includes(feature) && !PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 10, color: "#6B3FE7", marginLeft: "auto" }}>STD+</span>}
+              {PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 9, color: "#D97706", marginLeft: "auto" }}>PRO</span>}
+              {STANDARD_OR_PRO_FEATURES.includes(feature) && !PRO_ONLY_FEATURES.includes(feature) && <span style={{ fontSize: 9, color: "#6B3FE7", marginLeft: "auto" }}>STD+</span>}
             </button>
           ))}
         </div>
@@ -835,19 +835,19 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
 
       {/* Plan Recommendation */}
       <div style={{ 
-        padding: "16px", borderRadius: 12, background: "#F3EFFE", 
-        border: "1.5px solid #6B3FE7", display: "flex", flexDirection: "column", gap: 8 
+        padding: "14px", borderRadius: 10, background: "#F3EFFE", 
+        border: "1.5px solid #6B3FE7", display: "flex", flexDirection: "column", gap: 6 
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>💡</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#6B3FE7", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 18 }}>💡</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#6B3FE7", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Recommended Plan
           </span>
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "#0A0A0F", textTransform: "capitalize" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#0A0A0F", textTransform: "capitalize" }}>
           {recommendedPlan} Plan
         </div>
-        <p style={{ fontSize: 13, color: "#555568", margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: "#555568", margin: 0, lineHeight: 1.5 }}>
           {planReason}
         </p>
       </div>
@@ -855,15 +855,15 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   );
 }
 
-// ΓöÇΓöÇ Step 3 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Step 3 ───────────────────────────────────────────────────────────────────────────────
 function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: keyof FormState, v: string) => void; onEdit: () => void }) {
   const analysis = data.businessAnalysis;
   
   if (!analysis) {
     return (
-      <div style={{ textAlign: "center", padding: "40px 0" }}>
-        <div style={{ fontSize: 24, marginBottom: 16 }}>🤔</div>
-        <p style={{ color: "#8888A0" }}>Analyzing your business...</p>
+      <div style={{ textAlign: "center", padding: "32px 0" }}>
+        <div style={{ fontSize: 20, marginBottom: 12 }}>🤔</div>
+        <p style={{ color: "#8888A0", fontSize: 13 }}>Analyzing your business...</p>
       </div>
     );
   }
@@ -893,63 +893,63 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
   const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || analysis.businessType;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0A0A0F", marginBottom: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0F", marginBottom: 3 }}>
           Your Busmo setup:
         </h3>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px", background: "#F3EFFE", borderRadius: 12, border: "1px solid #E8E8F0" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px", background: "#F3EFFE", borderRadius: 10, border: "1px solid #E8E8F0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Business Category
           </span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: "#0A0A0F" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0F" }}>
             {categoryLabel}
           </span>
         </div>
 
         <div style={{ height: 1, background: "#E8E8F0" }} />
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Recommended Plan
           </span>
           <div style={{ 
-            padding: "12px 16px", 
+            padding: "10px 12px", 
             background: planColors.bg, 
             border: `2px solid ${planColors.border}`, 
-            borderRadius: 8,
+            borderRadius: 7,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between"
           }}>
             <div>
-              <span style={{ fontSize: 16, fontWeight: 700, color: planColors.text, textTransform: "capitalize" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: planColors.text, textTransform: "capitalize" }}>
                 {analysis.recommendedPlan} Plan
               </span>
               {analysis.recommendedPlanReason && (
-                <p style={{ fontSize: 12, color: "#555568", marginTop: 4 }}>
+                <p style={{ fontSize: 11, color: "#555568", marginTop: 3 }}>
                   {analysis.recommendedPlanReason}
                 </p>
               )}
             </div>
-            <div style={{ fontSize: 24 }}>💡</div>
+            <div style={{ fontSize: 20 }}>💡</div>
           </div>
         </div>
 
         <div style={{ height: 1, background: "#E8E8F0" }} />
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Selected Features ({selectedFeatures?.length || 0})
           </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(selectedFeatures || analysis.recommendedFeatures || []).map((feature: string, i: number) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: "#1DB954", fontSize: 16 }}>✓</span>
-                <span style={{ fontSize: 14, color: "#0A0A0F" }}>{feature}</span>
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ color: "#1DB954", fontSize: 14 }}>✓</span>
+                <span style={{ fontSize: 12, color: "#0A0A0F" }}>{feature}</span>
               </div>
             ))}
           </div>
@@ -958,15 +958,15 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
         {analysis.recommendedCategories && analysis.recommendedCategories.length > 0 && (
           <>
             <div style={{ height: 1, background: "#E8E8F0" }} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 Product Categories
               </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {analysis.recommendedCategories.map((category: string, i: number) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ color: "#6B3FE7", fontSize: 16 }}>📁</span>
-                    <span style={{ fontSize: 14, color: "#0A0A0F" }}>{category}</span>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "#6B3FE7", fontSize: 14 }}>📁</span>
+                    <span style={{ fontSize: 12, color: "#0A0A0F" }}>{category}</span>
                   </div>
                 ))}
               </div>
@@ -979,8 +979,8 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
         type="button"
         onClick={onEdit}
         style={{
-          padding: "12px 16px", borderRadius: 8, cursor: "pointer",
-          fontSize: 14, fontWeight: 600, color: "#6B3FE7",
+          padding: "10px 14px", borderRadius: 7, cursor: "pointer",
+          fontSize: 13, fontWeight: 600, color: "#6B3FE7",
           background: "white", border: "1px solid #6B3FE7",
           fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
         }}
@@ -1363,12 +1363,12 @@ export default function BusmoOnboarding() {
     <OnboardingShell>
       {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <svg width="70" height="70" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="40" cy="40" r="38" fill="#ffffff"></circle>
             <circle cx="40" cy="40" r="36" fill="none" stroke="#ffffff" strokeWidth="1.5"></circle>
-            <text x="11" y="24" fontSize="9" opacity="0.7">Γ£¿</text>
-            <text x="60" y="22" fontSize="8" opacity="0.6">Γ£¿</text>
+            <text x="11" y="24" fontSize="9" opacity="0.7">✨</text>
+            <text x="60" y="22" fontSize="8" opacity="0.6">✨</text>
             <circle cx="40" cy="36" r="20" fill="#F5C9A0"></circle>
             <path d="M20 32 C20 18 60 18 60 32 L60 25 C60 13 20 13 20 25 Z" fill="#2C1A0E"></path>
             <circle cx="31" cy="35" r="4" fill="white"></circle>
@@ -1390,7 +1390,7 @@ export default function BusmoOnboarding() {
           </svg>
         </div>
         <span style={{
-          fontSize: 12, color: "#8888A0", fontWeight: 500, letterSpacing: "0.04em"
+          fontSize: 11, color: "#8888A0", fontWeight: 500, letterSpacing: "0.04em"
         }}>
           {step} / 3
         </span>
@@ -1398,19 +1398,17 @@ export default function BusmoOnboarding() {
 
       <StepProgress current={step} />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: -4 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0A0A0F",
-          fontFamily: "'Sora', sans-serif", letterSpacing: "-0.025em", lineHeight: 1.22, marginBottom: 4 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: -3 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, color: "#0A0A0F",
+          fontFamily: "'Sora', sans-serif", letterSpacing: "-0.025em", lineHeight: 1.22, marginBottom: 3 }}>
           {STEP_COPY[step].title}
         </h1>
-        <p style={{ fontSize: 14, color: "#8888A0", lineHeight: 1.55 }}>
+        <p style={{ fontSize: 13, color: "#8888A0", lineHeight: 1.55 }}>
           {STEP_COPY[step].sub}
         </p>
       </div>
 
       <div style={{ height: 1, background: "#E8E8F0" }} />
-
-      {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
 
       {step === 1 && <StepOne data={data} onChange={handleChange} onGoogleSignIn={handleGoogleSignIn} />}
       {step === 2 && <StepTwo data={data} onChange={handleChange} />}
@@ -1418,7 +1416,7 @@ export default function BusmoOnboarding() {
 
       {/* Nav */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 12, paddingTop: 4,
+        display: "flex", alignItems: "center", gap: 10, paddingTop: 3,
         justifyContent: step === 1 ? "flex-end" : "space-between",
       }}>
         {step > 1 && (
@@ -1426,15 +1424,15 @@ export default function BusmoOnboarding() {
             type="button"
             onClick={handleBack}
             style={{
-              display: "flex", alignItems: "center", gap: 5,
-              fontSize: 14, fontWeight: 600, color: "#8888A0",
+              display: "flex", alignItems: "center", gap: 4,
+              fontSize: 13, fontWeight: 600, color: "#8888A0",
               background: "none", border: "none", cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif", padding: 0, transition: "color 0.15s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#555568")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "#8888A0")}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Back
@@ -1443,14 +1441,14 @@ export default function BusmoOnboarding() {
 
         <PrimaryBtn onClick={handleNext} disabled={!valid || isLoading || isAnalyzing}>
           {step < 2 ? "Continue" : step === 2 ? "Continue" : isLoading ? "Setting up..." : "Enter Busmo"}
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M6 4l4 4-4 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </PrimaryBtn>
       </div>
 
       {step === 1 && (
-        <p style={{ textAlign: "center", fontSize: 13, color: "#8888A0", marginTop: -4 }}>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#8888A0", marginTop: -3 }}>
           Already have an account?{" "}
           <a href="/login"
             style={{ color: "#6B3FE7", fontWeight: 600, textDecoration: "none" }}
@@ -1471,7 +1469,7 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
       style={{
         minHeight: "100vh",
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "32px 16px",
+        padding: "24px 12px",
         background: "radial-gradient(ellipse 80% 55% at 50% -10%, rgba(107,63,231,0.07) 0%, transparent 65%), #F4F4F8",
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
@@ -1483,18 +1481,18 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
         backgroundSize: "28px 28px",
       }} />
 
-      <div style={{ position: "relative", width: "100%", maxWidth: 460, zIndex: 1,
-        display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ position: "relative", width: "100%", maxWidth: 420, zIndex: 1,
+        display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{
-          background: "white", borderRadius: 28, padding: "28px 26px",
+          background: "white", borderRadius: 24, padding: "24px 22px",
           border: "1px solid #E8E8F0",
           boxShadow: "0 4px 6px rgba(0,0,0,0.04), 0 20px 48px rgba(107,63,231,0.09)",
-          display: "flex", flexDirection: "column", gap: 20,
+          display: "flex", flexDirection: "column", gap: 18,
         }}>
           {children}
         </div>
-        <p style={{ textAlign: "center", fontSize: 11, color: "#8888A0" }}>
-          ┬⌐ {new Date().getFullYear()} Busmo ┬╖ Built for African commerce
+        <p style={{ textAlign: "center", fontSize: 10, color: "#8888A0" }}>
+          © {new Date().getFullYear()} Busmo • Built for African commerce
         </p>
       </div>
     </div>
