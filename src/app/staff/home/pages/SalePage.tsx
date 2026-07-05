@@ -391,6 +391,7 @@ export function SalePage({ onComplete }: SalePageProps) {
           
           await updateDoc(productRef, {
             stock: newStock,
+            lastSaleDate: new Date(),
             updatedAt: Timestamp.now(),
           });
         }

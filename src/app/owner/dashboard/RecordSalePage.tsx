@@ -581,6 +581,7 @@ export function RecordSalePage() {
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
               lastSaleLocationName: sourceLocationName,
+              lastSaleDate: new Date(),
             });
           }
         }
