@@ -64,6 +64,7 @@ export function HomePage() {
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<string | null>(null);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
+  const [cashRunway, setCashRunway] = useState<number>(0);
 
   // Fetch real data on mount
   useEffect(() => {
@@ -253,6 +254,10 @@ export function HomePage() {
           cashBalance,
         });
 
+        // Calculate improved cash runway
+        const improvedCashRunway = await calculateCashRunway(businessId, firestore);
+        setCashRunway(improvedCashRunway);
+
         // Calculate and set forecast data
         const forecastData = calculateForecast(allProducts, sales, profit);
         setForecastItems(forecastData);
@@ -271,18 +276,110 @@ export function HomePage() {
     ? ((metrics.totalProfit / metrics.totalRevenue) * 100).toFixed(1)
     : '0';
 
-  // Calculate cash runway
-  const dailyBurn = metrics.totalExpenses / 30;
-  // For new users with no expenses or negative cash balance, show appropriate message
-  const cashRunway = dailyBurn > 0 && metrics.cashBalance > 0
-    ? Math.round(metrics.cashBalance / dailyBurn)
-    : metrics.totalExpenses === 0 && metrics.totalRevenue === 0
-      ? 0  // New user with no data
-      : metrics.cashBalance <= 0
-        ? 0  // Negative or zero cash
-        : 999; // No expenses but positive cash (unlimited runway)
+  // Calculate cash runway - improved accuracy
+  // Use actual bank balances and calculate average monthly burn from historical data
+  const calculateCashRunway = async (businessId: string, firestore: any) => {
+    try {
+      // Fetch bank accounts for actual cash balance
+      const bankAccountsQuery = query(
+        collection(firestore, 'businesses', businessId, 'bankAccounts')
+      );
+      const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+      let actualCashBalance = 0;
+      bankAccountsSnapshot.forEach(doc => {
+        const data = doc.data();
+        actualCashBalance += data.balance || 0;
+      });
+
+      // If no bank accounts, fall back to calculated balance
+      if (actualCashBalance === 0) {
+        actualCashBalance = metrics.cashBalance;
+      }
+
+      // Fetch expenses from last 90 days for more accurate burn rate
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      
+      const expensesQuery = query(
+        collection(firestore, 'businesses', businessId, 'expenses'),
+        where('createdAt', '>=', Timestamp.fromDate(ninetyDaysAgo))
+      );
+      const expensesSnapshot = await getDocs(expensesQuery);
+      let totalExpenses90Days = 0;
+      expensesSnapshot.forEach(doc => {
+        const data = doc.data();
+        totalExpenses90Days += data.amount || 0;
+      });
+
+      // Fetch sales from last 90 days for revenue inflow
+      const salesQuery = query(
+        collection(firestore, 'businesses', businessId, 'sales'),
+        where('createdAt', '>=', Timestamp.fromDate(ninetyDaysAgo))
+      );
+      const salesSnapshot = await getDocs(salesQuery);
+      let totalRevenue90Days = 0;
+      let totalCashCollected90Days = 0;
+      salesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const totalRevenue = data.totalRevenue || data.total || 0;
+        totalRevenue90Days += totalRevenue;
+        
+        // Calculate actual cash collected (excluding credit sales)
+        if (data.paymentBreakdown && Array.isArray(data.paymentBreakdown)) {
+          const cashPayment = data.paymentBreakdown
+            .filter((p: any) => p.method === 'cash' || p.method === 'transfer' || p.method === 'card')
+            .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+          totalCashCollected90Days += cashPayment;
+        } else {
+          totalCashCollected90Days += totalRevenue;
+        }
+      });
+
+      // Calculate monthly averages
+      const monthlyExpenses = totalExpenses90Days / 3;
+      const monthlyRevenue = totalRevenue90Days / 3;
+      const monthlyCashInflow = totalCashCollected90Days / 3;
+
+      // Calculate net burn rate (expenses - revenue)
+      // If revenue exceeds expenses, business is profitable (positive runway)
+      const netBurnRate = monthlyExpenses - monthlyCashInflow;
+
+      let calculatedRunway: number;
+      if (netBurnRate > 0 && actualCashBalance > 0) {
+        // Business is burning cash - calculate days until zero
+        calculatedRunway = Math.round(actualCashBalance / (netBurnRate / 30)); // Daily net burn
+      } else if (netBurnRate <= 0 && actualCashBalance > 0) {
+        // Business is profitable or breaking even - unlimited runway
+        calculatedRunway = 999;
+      } else if (actualCashBalance <= 0) {
+        // No cash - zero runway
+        calculatedRunway = 0;
+      } else if (totalExpenses90Days === 0 && totalRevenue90Days === 0) {
+        // New user with no data
+        calculatedRunway = 0;
+      } else {
+        // Fallback to simple calculation
+        const dailyBurn = metrics.totalExpenses / 30;
+        calculatedRunway = dailyBurn > 0 ? Math.round(actualCashBalance / dailyBurn) : 999;
+      }
+
+      return calculatedRunway;
+    } catch (error) {
+      console.error('Error calculating cash runway:', error);
+      // Fallback to simple calculation
+      const dailyBurn = metrics.totalExpenses / 30;
+      return dailyBurn > 0 && metrics.cashBalance > 0
+        ? Math.round(metrics.cashBalance / dailyBurn)
+        : metrics.totalExpenses === 0 && metrics.totalRevenue === 0
+          ? 0
+          : metrics.cashBalance <= 0
+            ? 0
+            : 999;
+    }
+  };
 
   // Format metrics for display
+  const dailyBurn = metrics.totalExpenses / 30;
   const displayMetrics = [
     { label: t('home.totalSales'), value: formatMoney(todayData.sales), trend: `+${todayData.transactions} txns`, trendType: 'up' as const },
     { label: t('home.netProfit'), value: formatMoney(todayData.profit), trend: `${profitMargin}% margin`, trendType: (profitMargin >= '25' ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
