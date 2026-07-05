@@ -29,7 +29,8 @@ interface BankAccount {
 
 interface Supplier {
   id: string;
-  name: string;
+  supplierName: string;
+  businessName: string;
   phone?: string;
   email?: string;
   currentBalance?: number;
@@ -128,7 +129,8 @@ export default function Cashflowpage() {
         const data = doc.data();
         suppliersList.push({
           id: doc.id,
-          name: data.supplierName || data.name || '',
+          supplierName: data.supplierName || 'Unnamed Supplier',
+          businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
           phone: data.phone,
           email: data.email,
           currentBalance: data.currentBalance || 0,
@@ -1062,7 +1064,7 @@ export default function Cashflowpage() {
                       >
                         <option value="">No supplier</option>
                         {suppliers.map(supplier => (
-                          <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                          <option key={supplier.id} value={supplier.id}>{supplier.supplierName || supplier.businessName}</option>
                         ))}
                       </select>
                       <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
@@ -1130,7 +1132,7 @@ export default function Cashflowpage() {
                       <div className={styles.creditInfo}>
                         <div className={styles.creditInfoItem}>
                           <span className={styles.creditInfoLabel}>Supplier:</span>
-                          <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.name}</span>
+                          <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || suppliers.find(s => s.id === stockAddition.supplierId)?.businessName}</span>
                         </div>
                         {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
                           <div className={styles.creditInfoItem}>
