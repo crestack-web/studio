@@ -68,6 +68,7 @@ export function SalePage({ onComplete }: SalePageProps) {
   const [businessAddress, setBusinessAddress] = useState<string>('');
   const [businessPhone, setBusinessPhone] = useState<string>('');
   const [businessCategory, setBusinessCategory] = useState<string>('');
+  const [receiptType, setReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch real products and business currency
@@ -136,6 +137,11 @@ export function SalePage({ onComplete }: SalePageProps) {
             // Load business logo
             if (businessData.logoUrl) {
               setBusinessLogo(businessData.logoUrl);
+            }
+
+            // Load receipt type setting
+            if (businessData.receiptType) {
+              setReceiptType(businessData.receiptType);
             }
             
             // Load business details for receipt
@@ -726,7 +732,7 @@ export function SalePage({ onComplete }: SalePageProps) {
             onComplete?.();
           }}
           isWholesale={businessCategory.toLowerCase().includes('wholesale') || businessCategory.toLowerCase().includes('distributor')}
-          receiptType={businessCategory.toLowerCase().includes('wholesale') || businessCategory.toLowerCase().includes('distributor') ? 'invoice' : 'supermarket'}
+          receiptType={receiptType}
         />
       )}
     </div>

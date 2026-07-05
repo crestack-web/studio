@@ -31,7 +31,7 @@ import {
   Feature as RegistryFeature,
   getRecommendedFeatures,
 } from '@/lib/featureRegistry';
-import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers, TrendingUp, Truck, ShoppingCart, ChefHat, Wrench, ShoppingBag, Mail, Briefcase, Gift, Sparkles, ClipboardList, AlertTriangle, UserCircle, Activity, UserCheck, UserCheck2, Landmark, RefreshCw, Upload, FileCheck, Menu } from 'lucide-react';
+import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Monitor, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers, TrendingUp, Truck, ShoppingCart, ChefHat, Wrench, ShoppingBag, Mail, Briefcase, Gift, Sparkles, ClipboardList, AlertTriangle, UserCircle, Activity, UserCheck, UserCheck2, Landmark, RefreshCw, Upload, FileCheck, Menu } from 'lucide-react';
 import styles from './SettingsPage.module.css';
 
 // ── Icon Mapping ─────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export default function SettingsPage() {
-  const { theme, toggleTheme, showToast, user } = useApp();
+  const { theme, setTheme, toggleTheme, showToast, user } = useApp();
   const { t, lang, setLang } = useTranslation();
   const {
     currency,
@@ -667,11 +667,16 @@ export default function SettingsPage() {
           {[
             { val: 'light', label: t('settings.themeLight'), icon: <Sun size={20} /> },
             { val: 'dark',  label: t('settings.themeDark'),  icon: <Moon size={20} /> },
+            { val: 'system', label: 'Device default', icon: <Monitor size={20} /> },
           ].map(opt => (
             <button
               key={opt.val}
               className={`${styles.themeBtn} ${theme === opt.val ? styles.themeBtnActive : ''}`}
-              onClick={toggleTheme}
+              onClick={() => {
+                if (opt.val === 'light' || opt.val === 'dark' || opt.val === 'system') {
+                  setTheme(opt.val);
+                }
+              }}
             >
               <span className={styles.themeIcon}>{typeof opt.icon === 'string' ? opt.icon : opt.icon}</span>
               <span>{opt.label}</span>

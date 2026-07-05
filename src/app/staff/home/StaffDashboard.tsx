@@ -4,7 +4,7 @@
  * Busmo staff portal dashboard component.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PageId, Permissions, StaffUser } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
@@ -56,11 +56,49 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   };
 
   const greeting = getGreeting();
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('staff-theme') as 'light' | 'dark' | 'system') || 'light';
+    }
+    return 'light';
+  });
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prev) => {
+      const newTheme = prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light';
+      localStorage.setItem('staff-theme', newTheme);
+      return newTheme;
+    });
   };
+
+  // Apply theme to document when theme changes
+  useEffect(() => {
+    const applyTheme = (themeValue: 'light' | 'dark' | 'system') => {
+      let actualTheme: 'light' | 'dark';
+      
+      if (themeValue === 'system') {
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } else {
+        actualTheme = themeValue;
+      }
+      
+      document.documentElement.setAttribute('data-theme', actualTheme);
+      document.body.setAttribute('data-theme', actualTheme);
+    };
+
+    applyTheme(theme);
+
+    // Listen for system theme changes when in system mode
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (theme === 'system') {
+        applyTheme(theme);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
 
   return (
     <div className="app">
@@ -69,7 +107,11 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       <Sidebar page={page} onChangePage={navigate} permissions={permissions!} open={sidebarOpen} />
 
       <div className="main">
-        <Topbar staff={staff!} onLogout={onLogout} onToggleSidebar={toggleSidebar} />
+        <Topbar 
+          staff={staff!} 
+          onToggleSidebar={toggleSidebar}
+          onLogout={onLogout}
+        />
 
         <div className="main-scroll">
           {page === 'home' && (

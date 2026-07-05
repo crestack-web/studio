@@ -342,7 +342,7 @@ export function MessagesPage({ hasAccess }: { hasAccess: boolean }) {
 //  Settings Page
 // ═══════════════════════════════════════════
 
-export function SettingsPage({ staff, theme, onToggleTheme, onLogout, onToast }: any) {
+export function SettingsPage({ staff, theme, onToggleTheme, onLogout, onToast }: { staff: any; theme: 'light' | 'dark' | 'system'; onToggleTheme: () => void; onLogout?: () => void; onToast: (msg: string) => void }) {
   const [staffData, setStaffData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

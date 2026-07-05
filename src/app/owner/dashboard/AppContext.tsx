@@ -52,6 +52,7 @@ type ToastState = {
 
 interface AppContextValue {
   theme: Theme;
+  setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
   activePage: PageId;
   navigateTo: (page: PageId) => void;
@@ -83,12 +84,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    const applyTheme = (themeValue: Theme) => {
+      let actualTheme: 'light' | 'dark';
+      
+      if (themeValue === 'system') {
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } else {
+        actualTheme = themeValue;
+      }
+      
+      document.documentElement.setAttribute('data-theme', actualTheme);
+    };
+
+    applyTheme(theme);
     localStorage.setItem('busmo-theme', theme);
+
+    // Listen for system theme changes when in system mode
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (theme === 'system') {
+        applyTheme(theme);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev: Theme) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prev: Theme) => {
+      if (prev === 'light') return 'dark';
+      if (prev === 'dark') return 'system';
+      return 'light';
+    });
   }, []);
 
   const [activePage, setActivePage] = useState<PageId>('home');
@@ -226,7 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <LangProvider>
       <AppContext.Provider value={{
-        theme, toggleTheme,
+        theme, setTheme, toggleTheme,
         activePage, navigateTo,
         sidebarCollapsed, sidebarOpen, toggleSidebar, openSidebar, closeSidebar,
         toast, showToast,

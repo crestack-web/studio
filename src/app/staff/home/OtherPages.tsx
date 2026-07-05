@@ -928,7 +928,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess }) => {
 ═══════════════════════════════════════ */
 interface SettingsPageProps {
   staff: { initials: string; name: string; role: string };
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'system';
   onToggleTheme: () => void;
   onLogout?: () => void;
   onToast: (msg: string) => void;

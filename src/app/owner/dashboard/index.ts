@@ -2,7 +2,7 @@
 //  BUSMO — Shared TypeScript Types
 // ═══════════════════════════════════════════
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'system';
 
 export type PageId =
   | 'home'
