@@ -2534,8 +2534,8 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 
 .stories-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
   margin-top: 48px;
 }
 
@@ -2545,6 +2545,8 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
   overflow: hidden;
   box-shadow: var(--shadow-card);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  max-width: 320px;
+  margin: 0 auto;
 }
 
 .story-card:hover {
@@ -2555,7 +2557,7 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 .story-video-wrapper {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 9 / 16;
   background: var(--grey-100);
   overflow: hidden;
 }
@@ -2587,33 +2589,78 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 }
 
 .story-content {
-  padding: 24px;
+  padding: 20px;
 }
 
 .story-name {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .story-business {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--purple);
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .story-quote {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.5;
   font-style: italic;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .built-with-busmo-section {
+    padding: 48px 0;
+  }
+
+  .stories-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 16px;
+    padding: 0 4%;
+    margin-top: 32px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .stories-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .story-card {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+    margin: 0;
+  }
+
+  .story-video-wrapper {
+    aspect-ratio: 9 / 16;
+  }
+
+  .story-content {
+    padding: 16px;
+  }
+
+  .story-name {
+    font-size: 16px;
+  }
+
+  .story-business {
+    font-size: 12px;
+  }
+
+  .story-quote {
+    font-size: 13px;
+  }
+
   .support-section {
     padding: 64px 4%;
   }

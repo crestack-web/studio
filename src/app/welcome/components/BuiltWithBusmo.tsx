@@ -4,11 +4,11 @@ import React from 'react';
 
 const STORIES = [
   {
-    name: "Coming Soon",
-    business: "Business Owner",
+    name: "Usama Idris Abdullahi",
+    business: "Founder of Goodboy Gnut",
     videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.mp4",
-    thumbnail: "",
-    quote: "Share your Busmo story with us."
+    thumbnail: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.jpg",
+    quote: "Building my business with Busmo has transformed how I manage operations."
   }
 ];
 
@@ -34,6 +34,7 @@ export const BuiltWithBusmo: React.FC = () => (
                   controls
                   poster={story.thumbnail}
                   className="story-video"
+                  preload="metadata"
                 >
                   <source src={story.videoUrl} type="video/mp4" />
                   Your browser does not support the video tag.
