@@ -32,24 +32,8 @@ export default function TermsAndConditionsPage() {
           <h2>Limitation of Liability</h2>
           <p>To the maximum extent permitted by applicable law, in no event shall the Company or its suppliers be liable for any special, incidental, indirect, or consequential damages whatsoever (including, but not to, damages for loss of profits, for loss of data or other information, for business interruption, for personal injury, for loss of privacy arising out of or in any way related to the use of or inability to use the Service).</p>
 
-          <h1 className="mt-16">Privacy Policy</h1>
-          <p>Your privacy is important to us. It is Busmo's policy to respect your privacy regarding any information we may collect from you across our website, and other sites we own and operate.</p>
-          
-          <h2>Information We Collect</h2>
-          <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.</p>
-          
-          <h2>How We Use Your Information</h2>
-          <p>We use the information we collect in various ways, including to:</p>
-          <ul>
-            <li>Provide, operate, and maintain our Service</li>
-            <li>Improve, personalize, and expand our Service</li>
-            <li>Understand and analyze how you use our Service</li>
-            <li>Develop new products, services, features, and functionality</li>
-            <li>Communicate with you, either directly or through one of our partners, including for customer service, to provide you with updates and other information relating to the Service, and for marketing and promotional purposes</li>
-          </ul>
-
-          <h2>Contact Us</h2>
-          <p>If you have any questions about these Terms and Conditions or Our Privacy Policy, You can contact us by email.</p>
+          <h2>Privacy Policy</h2>
+          <p>Please review our separate <a href="/privacy" className="text-primary underline">Privacy Policy</a> page.</p>
         </div>
       </div>
     </InvestorLayout>
