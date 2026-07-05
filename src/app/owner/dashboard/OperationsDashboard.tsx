@@ -5,8 +5,9 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit, doc, getDoc, updateDoc } from 'firebase/firestore';
 import styles from './OperationsDashboard.module.css';
+import { DashboardTour } from './components/DashboardTour';
 
 interface Product {
   id: string;
@@ -35,7 +36,7 @@ interface Sale {
 }
 
 export function OperationsDashboard() {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
   const { firestore } = initializeFirebase();
@@ -44,10 +45,66 @@ export function OperationsDashboard() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showTour, setShowTour] = useState(false);
+  const [tourCompleted, setTourCompleted] = useState(false);
 
   useEffect(() => {
     loadData();
+    checkTourStatus();
   }, [businessId, firestore]);
+
+  const checkTourStatus = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const userDoc = await getDoc(doc(firestore!, 'users', user.id));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const hasCompletedTour = userData.dashboardTourCompleted === true;
+        const isNewUser = !userData.hasUsedDashboard;
+        
+        setTourCompleted(hasCompletedTour);
+        
+        // Show tour for new users or those who haven't completed it
+        if (isNewUser || !hasCompletedTour) {
+          // Delay tour start to allow dashboard to render
+          setTimeout(() => setShowTour(true), 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking tour status:', error);
+    }
+  };
+
+  const handleTourComplete = async () => {
+    setShowTour(false);
+    setTourCompleted(true);
+    
+    if (user?.id) {
+      try {
+        await updateDoc(doc(firestore!, 'users', user.id), {
+          dashboardTourCompleted: true,
+          hasUsedDashboard: true,
+        });
+      } catch (error) {
+        console.error('Error updating tour status:', error);
+      }
+    }
+  };
+
+  const handleTourSkip = async () => {
+    setShowTour(false);
+    
+    if (user?.id) {
+      try {
+        await updateDoc(doc(firestore!, 'users', user.id), {
+          hasUsedDashboard: true,
+        });
+      } catch (error) {
+        console.error('Error updating tour status:', error);
+      }
+    }
+  };
 
   const loadData = async () => {
     if (!businessId || !firestore) {
@@ -201,11 +258,19 @@ export function OperationsDashboard() {
           <h2 className={styles.pageTitle}>Operations Dashboard</h2>
           <p className={styles.pageDesc}>Overview of your inventory, suppliers, and operations</p>
         </div>
+        {tourCompleted && (
+          <button
+            onClick={() => setShowTour(true)}
+            className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-2"
+          >
+            🎯 Show Tour Again
+          </button>
+        )}
       </div>
 
       {/* Key Metrics */}
-      <div className={styles.metricsGrid}>
-        <div className={styles.metricCard}>
+      <div className={styles.metricsGrid} data-tour="metrics-grid">
+        <div className={styles.metricCard} data-tour="metric-stock">
           <div className={styles.metricIcon}>📦</div>
           <div className={styles.metricInfo}>
             <div className={styles.metricLabel}>Total Stock Value</div>
@@ -214,7 +279,7 @@ export function OperationsDashboard() {
           </div>
         </div>
         
-        <div className={styles.metricCard}>
+        <div className={styles.metricCard} data-tour="metric-low-stock">
           <div className={styles.metricIcon}>⚠️</div>
           <div className={styles.metricInfo}>
             <div className={styles.metricLabel}>Low Stock</div>
@@ -223,7 +288,7 @@ export function OperationsDashboard() {
           </div>
         </div>
         
-        <div className={styles.metricCard}>
+        <div className={styles.metricCard} data-tour="metric-suppliers">
           <div className={styles.metricIcon}>🏭</div>
           <div className={styles.metricInfo}>
             <div className={styles.metricLabel}>Active Suppliers</div>
@@ -232,7 +297,7 @@ export function OperationsDashboard() {
           </div>
         </div>
         
-        <div className={styles.metricCard}>
+        <div className={styles.metricCard} data-tour="metric-sales">
           <div className={styles.metricIcon}>💰</div>
           <div className={styles.metricInfo}>
             <div className={styles.metricLabel}>Daily Sales</div>
@@ -243,12 +308,12 @@ export function OperationsDashboard() {
       </div>
 
       {/* AI Insights */}
-      <div className={styles.insightsSection}>
+      <div className={styles.insightsSection} data-tour="ai-insights">
         <h3 className={styles.sectionTitle}>AI Insights</h3>
         
         <div className={styles.insightsGrid}>
           {/* Products to Restock */}
-          <div className={styles.insightCard}>
+          <div className={styles.insightCard} data-tour="insight-restock">
             <div className={styles.insightHeader}>
               <div className={styles.insightIcon}>🔄</div>
               <h4 className={styles.insightTitle}>Products to Restock</h4>
@@ -270,7 +335,7 @@ export function OperationsDashboard() {
           </div>
 
           {/* Dead Stock Alerts */}
-          <div className={styles.insightCard}>
+          <div className={styles.insightCard} data-tour="insight-dead-stock">
             <div className={styles.insightHeader}>
               <div className={styles.insightIcon}>💀</div>
               <h4 className={styles.insightTitle}>Dead Stock Alerts</h4>
@@ -292,7 +357,7 @@ export function OperationsDashboard() {
           </div>
 
           {/* Fast-Moving Products */}
-          <div className={styles.insightCard}>
+          <div className={styles.insightCard} data-tour="insight-fast-moving">
             <div className={styles.insightHeader}>
               <div className={styles.insightIcon}>🚀</div>
               <h4 className={styles.insightTitle}>Fast-Moving Products</h4>
@@ -314,7 +379,7 @@ export function OperationsDashboard() {
           </div>
 
           {/* Supplier Recommendation */}
-          <div className={styles.insightCard}>
+          <div className={styles.insightCard} data-tour="insight-supplier">
             <div className={styles.insightHeader}>
               <div className={styles.insightIcon}>🏆</div>
               <h4 className={styles.insightTitle}>Top Supplier</h4>
@@ -340,18 +405,18 @@ export function OperationsDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className={styles.actionsSection}>
+      <div className={styles.actionsSection} data-tour="quick-actions">
         <h3 className={styles.sectionTitle}>Quick Actions</h3>
         <div className={styles.actionsGrid}>
-          <button className={styles.actionButton}>
+          <button className={styles.actionButton} data-tour="action-receive">
             <span className={styles.actionIcon}>📥</span>
             <span className={styles.actionLabel}>Receive Stock</span>
           </button>
-          <button className={styles.actionButton}>
+          <button className={styles.actionButton} data-tour="action-restock">
             <span className={styles.actionIcon}>🔄</span>
             <span className={styles.actionLabel}>Restock Items</span>
           </button>
-          <button className={styles.actionButton}>
+          <button className={styles.actionButton} data-tour="action-move">
             <span className={styles.actionIcon}>📦</span>
             <span className={styles.actionLabel}>Move Stock</span>
           </button>
@@ -369,6 +434,14 @@ export function OperationsDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Dashboard Tour */}
+      {showTour && (
+        <DashboardTour
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
+        />
+      )}
     </div>
   );
 }
