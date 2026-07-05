@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, where } from 'firebase/firestore';
 
 interface User {
   id: string;
@@ -41,22 +41,59 @@ export default function UserManagement() {
       const snapshot = await getDocs(usersQuery);
       
       const usersList: User[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      for (const docSnapshot of snapshot.docs) {
+        const data = docSnapshot.data();
+        
+        // Fetch additional business data if businessId exists
+        let totalSales = data.totalSales || 0;
+        let totalProducts = data.totalProducts || 0;
+        let totalStaff = data.totalStaff || 0;
+        
+        if (data.businessId) {
+          try {
+            const businessDoc = await getDoc(doc(firestore, 'businesses', data.businessId));
+            if (businessDoc.exists()) {
+              const businessData = businessDoc.data();
+              
+              // Count products
+              const productsQuery = query(collection(firestore, 'businesses', data.businessId, 'products'));
+              const productsSnapshot = await getDocs(productsQuery);
+              totalProducts = productsSnapshot.size;
+              
+              // Count staff
+              const staffQuery = query(collection(firestore, 'businesses', data.businessId, 'staff'));
+              const staffSnapshot = await getDocs(staffQuery);
+              totalStaff = staffSnapshot.size;
+              
+              // Count sales (last 30 days for more accurate data)
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              const salesQuery = query(
+                collection(firestore, 'businesses', data.businessId, 'sales'),
+                where('createdAt', '>=', thirtyDaysAgo)
+              );
+              const salesSnapshot = await getDocs(salesQuery);
+              totalSales = salesSnapshot.size;
+            }
+          } catch (error) {
+            console.error('Error fetching business data for user:', error);
+          }
+        }
+        
         usersList.push({
-          id: doc.id,
+          id: docSnapshot.id,
           name: data.name || data.displayName || 'Unknown',
           email: data.email || '',
           businessName: data.businessName || '',
           plan: data.plan || 'free',
           dateJoined: data.createdAt?.toDate().toLocaleDateString() || 'N/A',
           lastActive: data.lastActive?.toDate().toLocaleDateString() || 'N/A',
-          totalSales: data.totalSales || 0,
-          totalProducts: data.totalProducts || 0,
-          totalStaff: data.totalStaff || 0,
+          totalSales,
+          totalProducts,
+          totalStaff,
           askMOUsage: data.askMOUsage || 0,
         });
-      });
+      }
       
       setUsers(usersList);
     } catch (error) {

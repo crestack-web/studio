@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { initializeFirebase } from '@/firebase';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface SupportMessage {
   id: string;
@@ -18,6 +21,10 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [userEmail, setUserEmail] = useState('visitor');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,6 +34,34 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserEmail(user.email || 'user');
+        setUserId(user.uid);
+        
+        // Fetch user's business data
+        try {
+          const { firestore } = initializeFirebase();
+          if (firestore) {
+            const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              setBusinessId(data.businessId || null);
+              setBusinessName(data.businessName || null);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user business data:', error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -49,8 +84,11 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          userEmail: 'visitor',
+          userEmail,
           category: 'general',
+          userId,
+          businessId,
+          businessName,
         }),
       });
 
