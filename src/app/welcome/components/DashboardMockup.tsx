@@ -8,18 +8,24 @@ export const DashboardMockup: React.FC = () => (
       <div className="section-head center">
         <div className="section-label">See Busmo in Action</div>
         <h2 className="section-title">
-          Here's what your dashboard looks like
+          Watch how Busmo transforms your business
         </h2>
         <p className="section-sub">
-          A clean, intuitive dashboard designed for African business owners.
+          See how easy it is to record sales, track inventory, and get AI-powered insights.
         </p>
       </div>
 
-      <img
-        src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1782083392/4_000_sale_recorded_-_1_opqytc.png"
-        alt="Busmo Dashboard Mockup"
-        className="dashboard-mockup-image"
-      />
+      <div className="video-container">
+        <video
+          src="https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783273004/busmo_demo_gwytnk.mp4"
+          controls
+          poster="https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783273004/busmo_demo_gwytnk.jpg"
+          className="demo-video"
+          preload="metadata"
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
     </div>
   </section>
 );
