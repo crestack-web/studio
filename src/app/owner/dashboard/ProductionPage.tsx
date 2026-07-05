@@ -338,38 +338,42 @@ export default function ProductionPage() {
           <div className="flex items-center gap-3">
             <Factory className="w-8 h-8 text-purple-600" />
             <div>
-              <p className="text-sm text-gray-500">Total Orders</p>
-              <p className="text-2xl font-bold">{productionOrders.length}</p>
+              <p className="text-sm text-gray-500">Active Orders</p>
+              <p className="text-2xl font-bold">{productionOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled').length}</p>
             </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center gap-3">
-            <Clock className={`w-8 h-8 ${pendingCount > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />
+            <DollarSign className="w-8 h-8 text-purple-600" />
             <div>
-              <p className="text-sm text-gray-500">Pending</p>
-              <p className="text-2xl font-bold">{pendingCount}</p>
+              <p className="text-sm text-gray-500">Total Cost</p>
+              <p className="text-2xl font-bold">{formatMoney(productionOrders.reduce((sum, o) => sum + o.totalCost, 0))}</p>
             </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center gap-3">
-            <TrendingUp className={`w-8 h-8 ${inProgressCount > 0 ? 'text-purple-600' : 'text-gray-400'}`} />
+            <TrendingUp className="w-8 h-8 text-purple-600" />
             <div>
-              <p className="text-sm text-gray-500">In Progress</p>
-              <p className="text-2xl font-bold">{inProgressCount}</p>
+              <p className="text-sm text-gray-500">Avg Yield</p>
+              <p className="text-2xl font-bold">
+                {productionOrders.filter(o => o.yieldPercentage).length > 0 
+                  ? (productionOrders.filter(o => o.yieldPercentage).reduce((sum, o) => sum + (o.yieldPercentage || 0), 0) / productionOrders.filter(o => o.yieldPercentage).length).toFixed(1) + '%'
+                  : '-'}
+              </p>
             </div>
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className={`w-8 h-8 ${overdueCount > 0 ? 'text-red-600' : 'text-gray-400'}`} />
+            <Package className="w-8 h-8 text-purple-600" />
             <div>
-              <p className="text-sm text-gray-500">Overdue</p>
-              <p className="text-2xl font-bold">{overdueCount}</p>
+              <p className="text-sm text-gray-500">Total Units</p>
+              <p className="text-2xl font-bold">{productionOrders.reduce((sum, o) => sum + o.quantity, 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
