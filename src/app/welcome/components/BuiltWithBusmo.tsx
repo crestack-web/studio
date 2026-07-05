@@ -6,7 +6,7 @@ const STORIES = [
   {
     name: "Coming Soon",
     business: "Business Owner",
-    videoUrl: "",
+    videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.mp4",
     thumbnail: "",
     quote: "Share your Busmo story with us."
   }
