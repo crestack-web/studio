@@ -91,7 +91,7 @@ export default function Cashflowpage() {
 
   useEffect(() => {
     loadData();
-  }, [businessId, firestore, dateFilter, customStartDate, customEndDate]);
+  }, [businessId, firestore, dateFilter, customStartDate, customEndDate, products]);
 
   const loadProducts = async () => {
     if (!businessId || !firestore) return;
@@ -281,35 +281,54 @@ export default function Cashflowpage() {
           }
         }
         
-        // Determine if sale has bank/POS payments
-        const hasBankPayment = data.paymentBreakdown?.some((p: any) => 
-          p.method === 'transfer' || p.method === 'card' || p.method === 'pos'
-        );
+        // Calculate payment breakdown totals
+        const paymentBreakdown = data.paymentBreakdown || [];
+        const bankPayment = paymentBreakdown
+          .filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method))
+          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const cashPayment = paymentBreakdown
+          .filter((p: any) => p.method === 'cash')
+          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const creditPayment = paymentBreakdown
+          .filter((p: any) => p.method === 'credit')
+          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
         
-        if (hasBankPayment) {
+        // Add bank/POS portion to transactions
+        if (bankPayment > 0) {
           transactionMap.set(`sale-${doc.id}`, {
             id: `sale-${doc.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
             type: 'Sale',
             description: `Sale #${doc.id.slice(-6)}`,
-            amount: amount,
+            amount: bankPayment,
             credit: true,
             accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
           });
           
-          cashBalance += amount;
-          if (date >= monthStart) monthIn += amount;
+          cashBalance += bankPayment;
+          if (date >= monthStart) monthIn += bankPayment;
+        }
+        
+        // For cash sales, add as transaction too (to show in recent transactions)
+        if (cashPayment > 0) {
+          transactionMap.set(`sale-cash-${doc.id}`, {
+            id: `sale-cash-${doc.id}`,
+            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            type: 'Cash Sale',
+            description: `Sale #${doc.id.slice(-6)}`,
+            amount: cashPayment,
+            credit: true,
+            accountName: 'Cash',
+          });
+          
+          if (date >= monthStart) monthIn += cashPayment;
+        }
+        
+        // Track credit sales separately in monthIn
+        if (creditPayment > 0 && date >= monthStart) {
+          monthIn += creditPayment;
         }
       });
-      
-      // Convert map to array and sort transactions by date (most recent first)
-      const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      setTransactions(sortedTransactions);
       
       // Fetch expenses and integrate them into cashflow
       const expensesQuery = query(
@@ -374,6 +393,15 @@ export default function Cashflowpage() {
           }
         }
       }
+      
+      // Convert map to array and sort transactions by date (most recent first)
+      const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      setTransactions(sortedTransactions);
 
       // Calculate stock value from products using costPrice
       const stockValue = products.reduce((sum: number, product: any) => {
