@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
-import { Plus, Edit2, Trash2, Search, Factory, Package, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Factory, Package, TrendingUp, Clock, AlertCircle, DollarSign } from 'lucide-react';
 import styles from './ProductionPage.module.css';
 
 interface ProductionOrder {
@@ -33,6 +33,8 @@ interface ProductionOrder {
   totalMaterialCost: number;
   estimatedLaborCost: number;
   totalCost: number;
+  actualYield?: number;
+  yieldPercentage?: number;
   notes?: string;
   createdAt: Date;
 }
@@ -67,6 +69,8 @@ export default function ProductionPage() {
     priority: 'medium',
     assignedTo: '',
     notes: '',
+    materials: [] as Array<{ materialId: string; materialName: string; quantity: number; unit: string; cost: number }>,
+    estimatedLaborCost: '',
   });
 
   // Check feature access
@@ -152,10 +156,10 @@ export default function ProductionPage() {
         targetDate: new Date(formData.targetDate),
         assignedTo: formData.assignedTo,
         notes: formData.notes,
-        materials: [],
-        totalMaterialCost: 0,
-        estimatedLaborCost: 0,
-        totalCost: 0,
+        materials: formData.materials,
+        totalMaterialCost: formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0),
+        estimatedLaborCost: parseFloat(formData.estimatedLaborCost) || 0,
+        totalCost: formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0) + (parseFloat(formData.estimatedLaborCost) || 0),
         createdAt: new Date(),
       };
 
@@ -229,6 +233,8 @@ export default function ProductionPage() {
       priority: order.priority,
       assignedTo: order.assignedTo || '',
       notes: order.notes || '',
+      materials: order.materials || [],
+      estimatedLaborCost: order.estimatedLaborCost?.toString() || '',
     });
     setShowAddModal(true);
   };
@@ -242,6 +248,8 @@ export default function ProductionPage() {
       priority: 'medium',
       assignedTo: '',
       notes: '',
+      materials: [],
+      estimatedLaborCost: '',
     });
   };
 
@@ -293,7 +301,7 @@ export default function ProductionPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p>Loading production orders...</p>
         </div>
       </div>
@@ -317,7 +325,7 @@ export default function ProductionPage() {
             setEditingOrder(null);
             setShowAddModal(true);
           }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
         >
           <Plus size={20} />
           New Production Order
@@ -328,7 +336,7 @@ export default function ProductionPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center gap-3">
-            <Factory className="w-8 h-8 text-blue-600" />
+            <Factory className="w-8 h-8 text-purple-600" />
             <div>
               <p className="text-sm text-gray-500">Total Orders</p>
               <p className="text-2xl font-bold">{productionOrders.length}</p>
@@ -348,7 +356,7 @@ export default function ProductionPage() {
         
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center gap-3">
-            <TrendingUp className={`w-8 h-8 ${inProgressCount > 0 ? 'text-blue-600' : 'text-gray-400'}`} />
+            <TrendingUp className={`w-8 h-8 ${inProgressCount > 0 ? 'text-purple-600' : 'text-gray-400'}`} />
             <div>
               <p className="text-sm text-gray-500">In Progress</p>
               <p className="text-2xl font-bold">{inProgressCount}</p>
@@ -432,6 +440,8 @@ export default function ProductionPage() {
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Target Date</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Priority</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Total Cost</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Yield</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Assigned To</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
             </tr>
@@ -468,13 +478,23 @@ export default function ProductionPage() {
                       {order.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3 font-medium">{formatMoney(order.totalCost)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {order.yieldPercentage ? (
+                      <span className={`font-medium ${order.yieldPercentage >= 90 ? 'text-green-600' : order.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {order.yieldPercentage.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm">{order.assignedToName || order.assignedTo || '-'}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       {order.status === 'pending' && (
                         <button
                           onClick={() => handleStatusChange(order, 'in-progress')}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
                           title="Start production"
                         >
                           Start
@@ -521,7 +541,7 @@ export default function ProductionPage() {
                 setEditingOrder(null);
                 setShowAddModal(true);
               }}
-              className="mt-4 text-blue-600 hover:underline"
+              className="mt-4 text-purple-600 hover:underline"
             >
               Create your first production order
             </button>
@@ -618,6 +638,123 @@ export default function ProductionPage() {
                   placeholder="Additional instructions or notes..."
                 />
               </div>
+
+              {/* Bill of Materials */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium">Bill of Materials</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        materials: [...formData.materials, { materialId: '', materialName: '', quantity: 0, unit: '', cost: 0 }]
+                      });
+                    }}
+                    className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  >
+                    + Add Material
+                  </button>
+                </div>
+                
+                {formData.materials.map((material, index) => (
+                  <div key={index} className="grid grid-cols-5 gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Material name"
+                      value={material.materialName}
+                      onChange={(e) => {
+                        const newMaterials = [...formData.materials];
+                        newMaterials[index].materialName = e.target.value;
+                        setFormData({ ...formData, materials: newMaterials });
+                      }}
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      value={material.quantity || ''}
+                      onChange={(e) => {
+                        const newMaterials = [...formData.materials];
+                        newMaterials[index].quantity = parseFloat(e.target.value) || 0;
+                        setFormData({ ...formData, materials: newMaterials });
+                      }}
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Unit"
+                      value={material.unit}
+                      onChange={(e) => {
+                        const newMaterials = [...formData.materials];
+                        newMaterials[index].unit = e.target.value;
+                        setFormData({ ...formData, materials: newMaterials });
+                      }}
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Cost"
+                      value={material.cost || ''}
+                      onChange={(e) => {
+                        const newMaterials = [...formData.materials];
+                        newMaterials[index].cost = parseFloat(e.target.value) || 0;
+                        setFormData({ ...formData, materials: newMaterials });
+                      }}
+                      className="px-2 py-1 border rounded text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newMaterials = formData.materials.filter((_, i) => i !== index);
+                        setFormData({ ...formData, materials: newMaterials });
+                      }}
+                      className="text-red-600 hover:text-red-700 text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                
+                {formData.materials.length > 0 && (
+                  <div className="bg-gray-50 p-3 rounded mt-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Total Material Cost:</span>
+                      <span className="font-medium">{formatMoney(formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0))}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Labor Cost */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Estimated Labor Cost</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="number"
+                    value={formData.estimatedLaborCost}
+                    onChange={(e) => setFormData({ ...formData, estimatedLaborCost: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Total Cost Summary */}
+              {formData.materials.length > 0 || formData.estimatedLaborCost && (
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-purple-900">Total Production Cost:</span>
+                    <span className="text-xl font-bold text-purple-700">
+                      {formatMoney(
+                        formData.materials.reduce((sum, m) => sum + (m.quantity * m.cost), 0) + 
+                        (parseFloat(formData.estimatedLaborCost) || 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex gap-3 mt-6">
@@ -633,7 +770,7 @@ export default function ProductionPage() {
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
               >
                 {editingOrder ? 'Update' : 'Create'}
               </button>
