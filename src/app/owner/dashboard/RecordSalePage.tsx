@@ -353,6 +353,35 @@ export function RecordSalePage() {
   async function confirmSale() {
     if (!cart.length) return showToast(t('sale.selectProducts'));
     if (isProcessingSale) return; // Prevent duplicate submissions
+
+    // Validate stock availability before processing sale
+    if (!firestore || !businessId) {
+      return showToast('System not ready. Please refresh the page.');
+    }
+
+    const stockValidationErrors: string[] = [];
+    
+    // Check stock for each item in cart
+    for (const item of cart) {
+      const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
+      const productDoc = await getDoc(productRef);
+      
+      if (productDoc.exists()) {
+        const data = productDoc.data();
+        const currentStock = data.stock || data.quantity || 0;
+        
+        if (currentStock < item.qty) {
+          stockValidationErrors.push(
+            `${item.name}: Requested ${item.qty}, but only ${currentStock} available`
+          );
+        }
+      }
+    }
+
+    if (stockValidationErrors.length > 0) {
+      showToast(`Insufficient stock:\n${stockValidationErrors.join('\n')}`);
+      return;
+    }
     
     // Validate payment amounts match total
     const totalPayment = paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0);
@@ -564,6 +593,12 @@ export function RecordSalePage() {
           if (productDoc.exists()) {
             const data = productDoc.data();
             const currentStock = data.stock || data.quantity || 0;
+            
+            // Double-check stock availability in transaction (prevents race conditions)
+            if (currentStock < item.qty) {
+              throw new Error(`Insufficient stock for ${item.name}. Only ${currentStock} available.`);
+            }
+            
             const newStock = Math.max(0, currentStock - item.qty);
             
             // Update stockByLocation - use dynamic locations
@@ -572,6 +607,12 @@ export function RecordSalePage() {
             // Only deduct from location if sourceLocation is specified and exists
             if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
               const currentLocationStock = stockByLocation[sourceLocation] || 0;
+              
+              // Double-check location stock availability
+              if (currentLocationStock < item.qty) {
+                throw new Error(`Insufficient stock at ${sourceLocationName} for ${item.name}. Only ${currentLocationStock} available.`);
+              }
+              
               const newLocationStock = Math.max(0, currentLocationStock - item.qty);
               stockByLocation[sourceLocation] = newLocationStock;
             }
@@ -581,7 +622,6 @@ export function RecordSalePage() {
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
               lastSaleLocationName: sourceLocationName,
-              lastSaleDate: new Date(),
             });
           }
         }
@@ -713,6 +753,12 @@ export function RecordSalePage() {
           if (productDoc.exists()) {
             const data = productDoc.data();
             const currentStock = data.stock || data.quantity || 0;
+            
+            // Double-check stock availability in transaction (prevents race conditions)
+            if (currentStock < item.qty) {
+              throw new Error(`Insufficient stock for ${item.name}. Only ${currentStock} available.`);
+            }
+            
             const newStock = Math.max(0, currentStock - item.qty);
             
             // Update stockByLocation - use dynamic locations
@@ -721,6 +767,12 @@ export function RecordSalePage() {
             // Only deduct from location if sourceLocation is specified and exists
             if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
               const currentLocationStock = stockByLocation[sourceLocation] || 0;
+              
+              // Double-check location stock availability
+              if (currentLocationStock < item.qty) {
+                throw new Error(`Insufficient stock at ${sourceLocationName} for ${item.name}. Only ${currentLocationStock} available.`);
+              }
+              
               const newLocationStock = Math.max(0, currentLocationStock - item.qty);
               stockByLocation[sourceLocation] = newLocationStock;
             }
