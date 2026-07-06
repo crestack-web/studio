@@ -19,7 +19,8 @@ service cloud.firestore {
     function isAdmin() {
       // This is now safe and non-recursive
       return isSignedIn() && (
-        request.auth.token.email == 'crestack@gmail.com'
+        request.auth.token.email == 'taheeratorganic@gmail.com'
+        || request.auth.token.email == 'crestack@gmail.com'
         || exists(/databases/$(database)/documents/admin_permissions/$(request.auth.uid))
       );
     }
