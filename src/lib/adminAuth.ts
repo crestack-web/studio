@@ -4,6 +4,7 @@ import { initializeFirebase } from '@/firebase';
 
 // Whitelisted admin emails
 const ADMIN_EMAILS = [
+  'taheeratorganic@gmail.com',
   'sxeedtxheer@gmail.com',
   'admin@busmo.io',
   'majnuncode@gmail.com',
