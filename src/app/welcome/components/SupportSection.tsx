@@ -153,57 +153,59 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
           </div>
 
           {isChatOpen ? (
-            <div className="chat-widget" style={{ position: 'static', margin: '0', maxHeight: '520px' }}>
-              <div className="chat-header">
-                <div className="chat-header-info">
-                  <div className="chat-avatar">🎧</div>
-                  <div>
-                    <p className="chat-title">Busmo Support</p>
-                    <p className="chat-status">Online</p>
-                  </div>
-                </div>
-                <button className="chat-close" onClick={() => setIsChatOpen(false)}>
-                  ✕
-                </button>
-              </div>
-
-              <div className="chat-messages" style={{ minHeight: '220px' }}>
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`chat-message ${msg.sender === 'user' ? 'user' : 'support'}`}
-                  >
-                    <div className="chat-bubble">{msg.text}</div>
-                  </div>
-                ))}
-                {isSending && (
-                  <div className="chat-message support">
-                    <div className="chat-bubble" style={{ opacity: 0.7 }}>
-                      Support is typing...
+            <div className="chat-widget-overlay" onClick={() => setIsChatOpen(false)}>
+              <div className="chat-widget" onClick={(e) => e.stopPropagation()}>
+                <div className="chat-header">
+                  <div className="chat-header-info">
+                    <div className="chat-avatar">🎧</div>
+                    <div>
+                      <p className="chat-title">Busmo Support</p>
+                      <p className="chat-status">Online</p>
                     </div>
                   </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                  <button className="chat-close" onClick={() => setIsChatOpen(false)} aria-label="Close chat">
+                    ✕
+                  </button>
+                </div>
 
-              <form
-                className="chat-input-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage();
-                }}
-              >
-                <input
-                  className="chat-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  disabled={isSending}
-                />
-                <button type="submit" className="chat-send" disabled={isSending || !input.trim()}>
-                  ➤
-                </button>
-              </form>
+                <div className="chat-messages" style={{ minHeight: '220px' }}>
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`chat-message ${msg.sender === 'user' ? 'user' : 'support'}`}
+                    >
+                      <div className="chat-bubble">{msg.text}</div>
+                    </div>
+                  ))}
+                  {isSending && (
+                    <div className="chat-message support">
+                      <div className="chat-bubble" style={{ opacity: 0.7 }}>
+                        Support is typing...
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form
+                  className="chat-input-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendMessage();
+                  }}
+                >
+                  <input
+                    className="chat-input"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your message..."
+                    disabled={isSending}
+                  />
+                  <button type="submit" className="chat-send" disabled={isSending || !input.trim()}>
+                    ➤
+                  </button>
+                </form>
+              </div>
             </div>
           ) : (
             <button
