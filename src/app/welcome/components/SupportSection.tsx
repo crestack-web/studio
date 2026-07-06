@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
+import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
 
 interface SupportMessage {
   id: string;
@@ -139,10 +141,25 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
 
   const handleRequestHumanAgent = async () => {
     setIsBotMode(false);
+    
+    // Create Chatwoot conversation if enabled
+    if (CHATWOOT_CONFIG.enabled) {
+      const chatwootUser: ChatwootUser = {
+        id: userId || userEmail,
+        name: userEmail,
+        email: userEmail,
+        businessId: businessId || undefined,
+        businessName: businessName || undefined,
+      };
+      
+      await chatwootService.identifyUser(chatwootUser);
+      await chatwootService.toggleChat(true);
+    }
+
     const escalationMsg: SupportMessage = {
       id: `escalation-${Date.now()}`,
       sender: 'support',
-      text: "I've requested a human agent for you. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo if you need immediate assistance.",
+      text: "I've connected you with our support team via Chatwoot. A human agent will be with you shortly. In the meantime, I can still help with general questions about Busmo if you need immediate assistance.",
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, escalationMsg]);
@@ -193,35 +210,58 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
       setMessages((prev) => [...prev, botMsg]);
       setIsSending(false);
     } else {
-      // Human agent mode - send to support API
+      // Human agent mode - integrate with Chatwoot
       try {
-        const res = await fetch('/api/support', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            userEmail,
-            category: 'general',
-            userId,
-            businessId,
-            businessName,
-            conversationHistory,
-            requestHumanAgent: true,
-          }),
-        });
+        if (CHATWOOT_CONFIG.enabled) {
+          // Send message to Chatwoot
+          const chatwootUser: ChatwootUser = {
+            id: userId || userEmail,
+            name: userEmail,
+            email: userEmail,
+            businessId: businessId || undefined,
+            businessName: businessName || undefined,
+          };
+          
+          await chatwootService.identifyUser(chatwootUser);
+          await chatwootService.toggleChat(true);
+          
+          const supportMsg: SupportMessage = {
+            id: `chatwoot-${Date.now()}`,
+            sender: 'support',
+            text: "I've opened a Chatwoot conversation for you. Please check the chat widget in the bottom right corner to continue with our support team.",
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, supportMsg]);
+        } else {
+          // Fallback to old behavior if Chatwoot not enabled
+          const res = await fetch('/api/support', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              userEmail,
+              category: 'general',
+              userId,
+              businessId,
+              businessName,
+              conversationHistory,
+              requestHumanAgent: true,
+            }),
+          });
 
-        if (!res.ok) throw new Error('Failed to send message');
+          if (!res.ok) throw new Error('Failed to send message');
 
-        const data = await res.json();
+          const data = await res.json();
 
-        const supportMsg: SupportMessage = {
-          id: data.id || `support-${Date.now()}`,
-          sender: 'support',
-          text: data.reply || "Thanks for reaching out! Our support team has been notified and will get back to you shortly.",
-          createdAt: new Date().toISOString(),
-        };
+          const supportMsg: SupportMessage = {
+            id: data.id || `support-${Date.now()}`,
+            sender: 'support',
+            text: data.reply || "Thanks for reaching out! Our support team has been notified and will get back to you shortly.",
+            createdAt: new Date().toISOString(),
+          };
 
-        setMessages((prev) => [...prev, supportMsg]);
+          setMessages((prev) => [...prev, supportMsg]);
+        }
       } catch (err) {
         const fallback: SupportMessage = {
           id: `support-${Date.now()}`,
