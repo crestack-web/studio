@@ -46,12 +46,19 @@ export default function UserManagement() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const usersQuery = query(
-        collection(firestore, 'users'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-      const snapshot = await getDocs(usersQuery);
+      let snapshot;
+      
+      try {
+        const usersQuery = query(
+          collection(firestore, 'users'),
+          orderBy('createdAt', 'desc'),
+          limit(100)
+        );
+        snapshot = await getDocs(usersQuery);
+      } catch (indexError) {
+        console.warn('Index not available for users query, trying without orderBy:', indexError);
+        snapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
+      }
       
       const usersList: User[] = [];
       for (const docSnapshot of snapshot.docs) {
