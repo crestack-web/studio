@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 interface SupportMessage {
   id: string;
@@ -26,6 +26,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string | null>(null);
   const [isBotMode, setIsBotMode] = useState(true);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -64,6 +65,48 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
     return () => unsubscribe();
   }, []);
 
+  const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
+    try {
+      const { firestore } = initializeFirebase();
+      if (!firestore) return;
+
+      if (sender === 'user') {
+        const docRef = await addDoc(collection(firestore, 'supportMessages'), {
+          userId: userId || userEmail,
+          userEmail,
+          businessId: businessId || null,
+          businessName: businessName || null,
+          message: text,
+          status: 'unread',
+          category: 'general',
+          createdAt: serverTimestamp(),
+          replies: [],
+        });
+        setCurrentConversationId(docRef.id);
+      } else if (parentMessageId && currentConversationId) {
+        const docRef = doc(firestore, 'supportMessages', parentMessageId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const replies = data.replies || [];
+          replies.push({
+            message: text,
+            sender: 'admin',
+            createdAt: new Date().toISOString(),
+          });
+          
+          await updateDoc(docRef, {
+            replies,
+            status: 'open',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving message to Firestore:', error);
+    }
+  };
+
   const getBotResponse = (text: string): string => {
     const lower = text.toLowerCase();
     if (lower.includes('price') || lower.includes('cost') || lower.includes('plan')) {
@@ -100,6 +143,9 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
     setInput('');
     setIsSending(true);
 
+    // Save user message to Firestore
+    await saveMessageToFirestore(text, 'user');
+
     let replyText: string;
 
     if (isBotMode) {
@@ -110,6 +156,12 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
         text: replyText,
         createdAt: new Date().toISOString(),
       };
+      
+      // Save bot response to Firestore
+      if (currentConversationId) {
+        await saveMessageToFirestore(replyText, 'support', currentConversationId);
+      }
+      
       setMessages((prev) => [...prev, botMsg]);
       setIsSending(false);
     } else {

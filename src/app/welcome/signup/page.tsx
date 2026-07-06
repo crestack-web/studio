@@ -1206,7 +1206,7 @@ export default function BusmoOnboarding() {
                     category: CATEGORIES.find(c => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                     country: data.country,
                     createdAt: Timestamp.now(),
-                    avatarContent: '≡ƒæñ',
+                    avatarContent: '👤',
                     avatarBg: '#6B3FE7',
                     avatarColor: '#fff',
                     displayName: data.fullName,
