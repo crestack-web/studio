@@ -107,25 +107,45 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
     }
   };
 
-  const getBotResponse = (text: string): string => {
-    const lower = text.toLowerCase();
-    if (lower.includes('price') || lower.includes('cost') || lower.includes('plan')) {
-      return "We have flexible pricing plans starting from ₦5,000/month. Would you like to see our full pricing details?";
+  const getBotResponse = async (text: string, conversationHistory: any[] = []): Promise<string> => {
+    if (!isBotMode) {
+      return "I've requested a human agent. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo.";
     }
-    if (lower.includes('demo') || lower.includes('trial') || lower.includes('try')) {
-      return "Great choice! You can sign up for a 14-day free trial. No credit card required. Would you like me to help you get started?";
+
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          userEmail,
+          userId,
+          businessId,
+          businessName,
+          conversationHistory,
+          requestHumanAgent: false,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to get MO AI response');
+
+      const data = await res.json();
+      return data.reply || "I'm here to help! Could you tell me more about what you need?";
+    } catch (error) {
+      console.error('Error getting MO AI response:', error);
+      return "I'm here to help! Could you tell me more about what you need?";
     }
-    if (lower.includes('feature') || lower.includes('can it') || lower.includes('does it')) {
-      return "Busmo offers inventory management, sales tracking, AI assistant (Mo), supplier management, and detailed analytics. What specific feature are you interested in?";
-    }
-    if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
-      return "Hello! 👋 Welcome to Busmo. How can I help you today? I can assist with pricing, features, demos, or any questions you have.";
-    }
-    if (lower.includes('agent') || lower.includes('human') || lower.includes('talk to someone')) {
-      setIsBotMode(false);
-      return "I'm connecting you to a support agent. They'll be with you shortly. In the meantime, please describe your issue.";
-    }
-    return "Thanks for your message! I can help with pricing, features, demos, and general questions. Or would you prefer to talk to a human agent?";
+  };
+
+  const handleRequestHumanAgent = async () => {
+    setIsBotMode(false);
+    const escalationMsg: SupportMessage = {
+      id: `escalation-${Date.now()}`,
+      sender: 'support',
+      text: "I've requested a human agent for you. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo if you need immediate assistance.",
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, escalationMsg]);
   };
 
   const sendMessage = async () => {
@@ -143,21 +163,29 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
     setInput('');
     setIsSending(true);
 
+    // Build conversation history for context
+    const conversationHistory = messages.map((msg) => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text,
+    }));
+
     // Save user message to Firestore
     await saveMessageToFirestore(text, 'user');
 
     let replyText: string;
 
     if (isBotMode) {
-      replyText = getBotResponse(text);
+      // Use MO AI for intelligent responses
+      replyText = await getBotResponse(text, conversationHistory);
+      
       const botMsg: SupportMessage = {
-        id: `bot-${Date.now()}`,
+        id: `mo-${Date.now()}`,
         sender: 'support',
         text: replyText,
         createdAt: new Date().toISOString(),
       };
       
-      // Save bot response to Firestore
+      // Save MO AI response to Firestore
       if (currentConversationId) {
         await saveMessageToFirestore(replyText, 'support', currentConversationId);
       }
@@ -165,6 +193,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
       setMessages((prev) => [...prev, botMsg]);
       setIsSending(false);
     } else {
+      // Human agent mode - send to support API
       try {
         const res = await fetch('/api/support', {
           method: 'POST',
@@ -176,6 +205,8 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
             userId,
             businessId,
             businessName,
+            conversationHistory,
+            requestHumanAgent: true,
           }),
         });
 
@@ -186,7 +217,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
         const supportMsg: SupportMessage = {
           id: data.id || `support-${Date.now()}`,
           sender: 'support',
-          text: data.reply || "Thanks for reaching out! Our team will get back to you shortly.",
+          text: data.reply || "Thanks for reaching out! Our support team has been notified and will get back to you shortly.",
           createdAt: new Date().toISOString(),
         };
 
@@ -195,7 +226,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
         const fallback: SupportMessage = {
           id: `support-${Date.now()}`,
           sender: 'support',
-          text: "Thanks for reaching out! Our team will get back to you shortly.",
+          text: "Thanks for reaching out! Our support team has been notified and will get back to you shortly.",
           createdAt: new Date().toString(),
         };
         setMessages((prev) => [...prev, fallback]);
@@ -246,13 +277,32 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
             <div className="chat-widget" onClick={(e) => e.stopPropagation()}>
               <div className="chat-header">
                 <div className="chat-header-info">
-                  <div className="chat-avatar">🤖</div>
+                  <div className="chat-avatar">{isBotMode ? '🤖' : '👤'}</div>
                   <div>
-                    <p className="chat-title">{isBotMode ? 'Busmo Assistant' : 'Support Agent'}</p>
-                    <p className="chat-status">{isBotMode ? 'Online • Bot' : 'Online • Agent'}</p>
+                    <p className="chat-title">{isBotMode ? 'MO AI Assistant' : 'Human Support Agent'}</p>
+                    <p className="chat-status">{isBotMode ? 'Online • AI-Powered' : 'Online • Agent'}</p>
                   </div>
                 </div>
-                <button className="chat-close" onClick={() => setIsChatOpen(false)} aria-label="Close chat">
+                {isBotMode && (
+                  <button
+                    onClick={handleRequestHumanAgent}
+                    style={{
+                      padding: '6px 12px',
+                      background: 'transparent',
+                      border: '1px solid #6B3FE7',
+                      color: '#6B3FE7',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    title="Request human agent"
+                  >
+                    👤 Human
+                  </button>
+                )}
+                <button className="chat-close" onClick={() => setIsChatOpen(false)} aria-label="Close chat" style={{ marginLeft: '8px' }}>
                   ✕
                 </button>
               </div>
