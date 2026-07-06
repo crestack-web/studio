@@ -3,7 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 // Whitelisted admin emails
-const ADMIN_EMAILS = [
+export const ADMIN_EMAILS = [
   'taheeratorganic@gmail.com',
   'sxeedtxheer@gmail.com',
   'admin@busmo.io',

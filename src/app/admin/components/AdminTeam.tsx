@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query } from 'firebase/firestore';
 import { Eye, Edit, Ban, Check, X, Users, Plus, Shield, Search, Trash2 } from 'lucide-react';
 
 interface AdminUser {
@@ -22,7 +22,7 @@ interface AdminUser {
     askmo: boolean;
     notifications: boolean;
   };
-  status: 'active' | 'disabled';
+  status: 'active' | 'disabled' | 'removed';
   lastActive?: string;
   createdAt: string;
 }
@@ -56,7 +56,18 @@ export default function AdminTeam() {
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
 
   // Edit permissions state
-  const [editingPermissions, setEditingPermissions] = useState<AdminUser['permissions']>({});
+  const [editingPermissions, setEditingPermissions] = useState<AdminUser['permissions']>({
+    overview: false,
+    users: false,
+    businesses: false,
+    staff: false,
+    support: false,
+    features: false,
+    analytics: false,
+    churn: false,
+    askmo: false,
+    notifications: false,
+  });
   const [editingRole, setEditingRole] = useState<'admin' | 'super_admin'>('admin');
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
 
