@@ -11,7 +11,7 @@ import ProductAdoption from './ProductAdoption';
 import ChurnDetection from './ChurnDetection';
 import AskMOAnalytics from './AskMOAnalytics';
 import NotificationCenter from './NotificationCenter';
-import StaffManagement from './StaffManagement';
+import AdminTeam from './AdminTeam';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'businesses', label: 'Businesses', icon: '🏢' },
-    { id: 'staff', label: 'Staff Management', icon: '👔' },
+    { id: 'team', label: 'Admin Team', icon: '👔' },
     { id: 'support', label: 'Support', icon: '💬' },
     { id: 'features', label: 'Feature Requests', icon: '💡' },
     { id: 'analytics', label: 'Analytics', icon: '📈' },
@@ -42,8 +42,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return <UserManagement />;
       case 'businesses':
         return <BusinessTimeline />;
-      case 'staff':
-        return <StaffManagement />;
+      case 'team':
+        return <AdminTeam />;
       case 'support':
         return <SupportInbox />;
       case 'features':
