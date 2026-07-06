@@ -30,12 +30,19 @@ export default function BusinessTimeline() {
   const loadBusinessTimelines = async () => {
     try {
       setLoading(true);
-      const businessesQuery = query(
-        collection(firestore, 'businesses'),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      );
-      const snapshot = await getDocs(businessesQuery);
+      let snapshot;
+      
+      try {
+        const businessesQuery = query(
+          collection(firestore, 'businesses'),
+          orderBy('createdAt', 'desc'),
+          limit(20)
+        );
+        snapshot = await getDocs(businessesQuery);
+      } catch (indexError) {
+        console.warn('Index not available for businesses query, trying without orderBy:', indexError);
+        snapshot = await getDocs(query(collection(firestore, 'businesses'), limit(20)));
+      }
       
       const timelinesList: BusinessTimeline[] = [];
       
