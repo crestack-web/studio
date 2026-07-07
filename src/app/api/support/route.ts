@@ -1,41 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, addDoc, serverTimestamp, getDoc, doc, query, where, orderBy, limit, getDocs, updateDoc, arrayUnion } from 'firebase/firestore';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Import MO AI services
-async function askMO(message: string, userId: string, businessId: string, conversationHistory: any[]) {
+// Support-specific AI - separate from business intelligence AI
+async function askSupportAI(message: string, conversationHistory: any[]) {
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:3000';
-    const url = `${backendUrl}/api/ask-mo`;
-
-    const historyToSend = conversationHistory
-      .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
-      .slice(-10)
-      .map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        content: msg.content,
-      }));
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        userId,
-        businessId,
-        conversationHistory: historyToSend,
-        language: 'en',
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`MO AI API returned ${response.status}`);
+    const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
+    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
+      console.error('Google Gen AI API key is missing for support AI');
+      return "I'm here to help! Could you tell me more about what you need?";
     }
 
-    const data = await response.json();
-    return data.answer || "I'm here to help! Could you tell me more about what you need?";
+    const genAI = new GoogleGenerativeAI(googleApiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-pro',
+      systemInstruction: `You are MO Support, a helpful customer support assistant for Busmo - a business management platform.
+
+Your role is to help users with:
+- Account and billing questions
+- Feature explanations and how-to guides
+- Technical troubleshooting
+- General product information
+- Plan comparisons and upgrades
+
+You should:
+- Be friendly, patient, and professional
+- Ask clarifying questions when needed
+- Provide step-by-step instructions when helpful
+- Escalate to human agents for complex account issues
+- Never access or discuss business data, sales, or financial information
+- Focus on product features and user experience
+
+If you cannot answer a question or it requires account-specific actions, suggest the user contact support@busmo.io or use the human agent option.`
+    });
+
+    const historyToSend = conversationHistory
+      .slice(-10)
+      .map((msg: any) => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text || msg.content }]
+      }));
+
+    const chat = model.startChat({
+      history: historyToSend
+    });
+
+    const result = await chat.sendMessage([{ text: message }]);
+    const response = result.response;
+    const text = response.text();
+
+    return text || "I'm here to help! Could you tell me more about what you need?";
   } catch (error) {
-    console.error('Error calling MO AI:', error);
+    console.error('Error calling support AI:', error);
     return "I'm here to help! Could you tell me more about what you need?";
   }
 }
@@ -107,8 +124,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Call MO AI for intelligent response
-    const aiResponse = await askMO(message, userId || userEmail, userData.businessId || '', conversationHistory);
+    // Call Support AI for intelligent response (separate from business intelligence AI)
+    const aiResponse = await askSupportAI(message, conversationHistory);
 
     // Add MO AI's response as a reply
     const botMessageRef = doc(firestore, 'supportMessages', userMessageDoc.id);

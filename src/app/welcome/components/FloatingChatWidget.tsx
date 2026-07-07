@@ -65,7 +65,7 @@ export const FloatingChatWidget: React.FC = () => {
     if (!text) return;
 
     const userMsg: SupportMessage = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       sender: 'user',
       text,
       createdAt: new Date().toISOString(),

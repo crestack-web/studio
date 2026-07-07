@@ -294,7 +294,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     }
 
     const userMsg: MOMessage = {
-      id: (Date.now()).toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: 'user',
       content: finalMessage,
       timestamp: new Date(),
@@ -411,7 +411,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       const rendered = data.rendered;
       
       const botMsg: MOMessage = {
-        id: (Date.now() + 1).toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'bot',
         content: data.answer || "I'm analysing your business data...",
         timestamp: new Date(),
