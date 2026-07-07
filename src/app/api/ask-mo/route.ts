@@ -210,10 +210,17 @@ export async function POST(request: NextRequest) {
     });
 
     const chat = model.startChat({
-      history: conversationHistory.map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }))
+      history: conversationHistory
+        .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
+        .map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        }))
+        .filter((history: any, index: number, arr: any[]) => {
+          // Ensure first message is from user
+          if (index === 0 && history.role !== 'user') return false;
+          return true;
+        })
     });
 
     let result;
