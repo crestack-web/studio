@@ -893,7 +893,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           <textarea
             ref={textareaRef}
             className={styles.textInput}
-            placeholder="Ask MO anything about your business... (Shift+Enter for new line)"
+            placeholder="Ask MO..."
             value={input}
             onChange={(e) => {
               setInput(e.target.value);

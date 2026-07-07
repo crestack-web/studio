@@ -1200,7 +1200,7 @@ export function MobileAskMOPage() {
           <textarea
             ref={textareaRef}
             className={styles.input}
-            placeholder={isRecording ? "Recording..." : "Ask MO anything about your business..."}
+            placeholder={isRecording ? "Recording..." : "Ask MO..."}
             value={input}
             onChange={e => {
               setInput(e.target.value);
