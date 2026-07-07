@@ -123,7 +123,10 @@ export function Topbar() {
         {user.plan === 'pro' && <BranchSwitcher />}
 
         <button className={`${styles.iconBtn} ${styles.aiBtn}`} onClick={toggleAIPanel} title="Ask MO AI Assistant">
-          <MoIcon size={40} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+            <MoIcon size={40} />
+            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: 'var(--purple)' }}>Ask AI</span>
+          </div>
         </button>
 
         <button className={styles.iconBtn} onClick={toggleTheme} title={t('topbar.toggleTheme')}>
