@@ -123,9 +123,9 @@ export function Topbar() {
         {user.plan === 'pro' && <BranchSwitcher />}
 
         <button className={`${styles.iconBtn} ${styles.aiBtn}`} onClick={toggleAIPanel} title="Ask MO AI Assistant">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-            <MoIcon size={40} />
-            <span style={{ fontSize: '0.65rem', fontWeight: '600', color: 'var(--purple)' }}>Ask AI</span>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
+            <MoIcon size={48} />
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--purple)' }}>Ask AI</span>
           </div>
         </button>
 
