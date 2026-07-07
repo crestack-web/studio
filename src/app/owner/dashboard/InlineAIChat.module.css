@@ -510,7 +510,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--text-3);
+  background: var(--purple);
   animation: typing 1.4s infinite ease-in-out;
 }
 
@@ -529,9 +529,27 @@
 @keyframes typing {
   0%, 60%, 100% {
     transform: translateY(0);
+    opacity: 0.4;
   }
   30% {
     transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+.loadingText {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  animation: fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
   }
 }
 

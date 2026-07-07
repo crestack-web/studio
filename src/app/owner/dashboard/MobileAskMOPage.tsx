@@ -1110,38 +1110,21 @@ export function MobileAskMOPage() {
               </div>
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
-              {loadingStage === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cpu size={20} className={styles.loadingIcon} />
-                  <span>Analyzing your request...</span>
-                </div>
-              )}
-              {loadingStage === 2 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lightbulb size={20} className={styles.loadingIcon} />
-                  <span>Reviewing business data...</span>
-                </div>
-              )}
-              {loadingStage === 3 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Settings size={20} className={styles.loadingIcon} />
-                    <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Processing business data</span>
+                  <div className={styles.typingIndicator}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
-                  {loadingActions.map((action, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)', paddingLeft: '28px' }}>
-                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>✓</span>
-                      <span>{action.replace('✓ ', '')}</span>
-                    </div>
-                  ))}
+                  <span className={styles.loadingText}>Thinking</span>
                 </div>
-              )}
-              {loadingStage === 4 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }}>✨</span>
-                  <span>Generating insights...</span>
-                </div>
-              )}
+                {loadingActions.length > 0 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '4px' }}>
+                    {loadingActions[loadingActions.length - 1]}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

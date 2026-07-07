@@ -801,37 +801,21 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               <MoIcon size={16} />
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
-              {loadingStage === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cpu size={20} className={styles.loadingIcon} />
-                  <span>Understanding request...</span>
-                </div>
-              )}
-              {loadingStage === 2 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lightbulb size={20} className={styles.loadingIcon} />
-                  <span>Reviewing business data...</span>
-                </div>
-              )}
-              {loadingStage === 3 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Settings size={20} className={styles.loadingIcon} />
-                    <span>Processing...</span>
+                  <div className={styles.typingIndicator}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-2)', flexWrap: 'wrap' }}>
-                    {loadingActions.map((action, idx) => (
-                      <span key={idx}>✓ {action}</span>
-                    ))}
+                  <span className={styles.loadingText}>Thinking</span>
+                </div>
+                {loadingActions.length > 0 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '4px' }}>
+                    {loadingActions[loadingActions.length - 1]}
                   </div>
-                </div>
-              )}
-              {loadingStage === 4 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>✨</span>
-                  <span>Generating insights...</span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
