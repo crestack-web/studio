@@ -22,6 +22,7 @@ export const FloatingChatWidget: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string | null>(null);
+  const [showHumanAgentOption, setShowHumanAgentOption] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -74,6 +75,7 @@ export const FloatingChatWidget: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsSending(true);
+    setShowHumanAgentOption(true); // Show human agent option after first message
 
     try {
       const res = await fetch('/api/support', {
@@ -86,6 +88,61 @@ export const FloatingChatWidget: React.FC = () => {
           userId,
           businessId,
           businessName,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to send message');
+
+      const data = await res.json();
+
+      const supportMsg: SupportMessage = {
+        id: data.id || `support-${Date.now()}`,
+        sender: 'support',
+        text: data.reply || "Thanks for reaching out! Our team will get back to you shortly.",
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, supportMsg]);
+    } catch (err) {
+      const fallback: SupportMessage = {
+        id: `support-${Date.now()}`,
+        sender: 'support',
+        text: "Thanks for reaching out! Our team will get back to you shortly.",
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, fallback]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const requestHumanAgent = async () => {
+    const text = input.trim() || "I would like to speak with a human agent.";
+    
+    const userMsg: SupportMessage = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      sender: 'user',
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setIsSending(true);
+    setShowHumanAgentOption(false);
+
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          userEmail,
+          category: 'general',
+          userId,
+          businessId,
+          businessName,
+          requestHumanAgent: true,
         }),
       });
 
@@ -191,6 +248,17 @@ export const FloatingChatWidget: React.FC = () => {
                 </div>
               </div>
             ))}
+            
+            {showHumanAgentOption && !isSending && (
+              <div className="flex justify-center my-2">
+                <button
+                  onClick={requestHumanAgent}
+                  className="text-xs text-purple-600 hover:text-purple-700 underline"
+                >
+                  Talk to a human agent instead
+                </button>
+              </div>
+            )}
             
             {isSending && (
               <div className="flex justify-start">
