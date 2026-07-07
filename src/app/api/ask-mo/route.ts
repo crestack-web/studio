@@ -279,6 +279,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ [Ask MO API] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    
+    console.error('❌ [Ask MO API] Error details:', {
+      name: errorName,
+      message: errorMessage,
+      stack: errorStack,
+    });
     
     if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
       return NextResponse.json(
@@ -291,8 +299,30 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    if (errorMessage.includes('API key') || errorMessage.includes('GENAI_API_KEY')) {
+      return NextResponse.json(
+        { 
+          error: 'Google AI API key configuration error',
+          message: 'The Google AI API key is not configured or invalid. Please check your environment variables.',
+          details: errorMessage
+        },
+        { status: 500 }
+      );
+    }
+    
+    if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+      return NextResponse.json(
+        { 
+          error: 'Request timeout',
+          message: 'The request to Google AI timed out. Please try again.',
+          details: errorMessage
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error', message: errorMessage },
+      { error: 'Internal server error', message: errorMessage, details: errorStack },
       { status: 500 }
     );
   }

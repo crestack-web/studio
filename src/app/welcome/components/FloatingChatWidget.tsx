@@ -131,12 +131,19 @@ export const FloatingChatWidget: React.FC = () => {
 
       {/* Chat Widget */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-          style={{
-            boxShadow: '0 8px 40px rgba(0, 0, 0, 0.12)',
-            height: '520px',
-          }}
-        >
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-[9999] animate-in fade-in duration-200"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none">
+            <div 
+              className="bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto w-full max-w-sm"
+              style={{
+                boxShadow: '0 8px 40px rgba(0, 0, 0, 0.12)',
+                maxHeight: '70vh',
+              }}
+            >
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -229,6 +236,8 @@ export const FloatingChatWidget: React.FC = () => {
             </p>
           </div>
         </div>
+          </div>
+        </>
       )}
     </>
   );

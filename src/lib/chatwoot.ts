@@ -1,5 +1,7 @@
 import { CHATWOOT_CONFIG, CHATWOOT_TAGS, CHATWOOT_INBOXES, ESCALATION_TRIGGERS, ChatwootUser } from './chatwoot-config';
 
+export type { ChatwootUser };
+
 export interface ChatwootMessage {
   content: string;
   sender: 'user' | 'agent';
