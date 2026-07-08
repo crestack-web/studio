@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
 import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
 
@@ -16,10 +16,16 @@ interface SupportMessage {
 
 interface SupportSectionProps {
   onNavigate?: (page: string) => void;
+  externalChatOpen?: boolean;
+  onExternalChatOpenChange?: (open: boolean) => void;
 }
 
-export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, externalChatOpen, onExternalChatOpenChange }) => {
+  const [internalChatOpen, setInternalChatOpen] = useState(false);
+  
+  // Use external state if provided (for floating button), otherwise use internal state
+  const isChatOpen = externalChatOpen !== undefined ? externalChatOpen : internalChatOpen;
+  const setIsChatOpen = onExternalChatOpenChange || setInternalChatOpen;
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -29,7 +35,17 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
   const [businessName, setBusinessName] = useState<string | null>(null);
   const [isBotMode, setIsBotMode] = useState(true);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,6 +158,24 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
   const handleRequestHumanAgent = async () => {
     setIsBotMode(false);
     
+    // Save the human agent request to Firestore and notify admin
+    try {
+      const { firestore } = initializeFirebase();
+      if (firestore && currentConversationId) {
+        await updateDoc(doc(firestore, 'supportMessages', currentConversationId), {
+          status: 'needs_human',
+          'replies': arrayUnion({
+            message: "User has requested to speak with a human agent. Please respond to this conversation.",
+            sender: 'system',
+            createdAt: new Date().toISOString(),
+            type: 'human_agent_request',
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting human agent:', error);
+    }
+
     // Create Chatwoot conversation if enabled
     if (CHATWOOT_CONFIG.enabled) {
       const chatwootUser: ChatwootUser = {
@@ -152,8 +186,12 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
         businessName: businessName || undefined,
       };
       
-      await chatwootService.identifyUser(chatwootUser);
-      await chatwootService.toggleChat(true);
+      try {
+        await chatwootService.identifyUser(chatwootUser);
+        await chatwootService.toggleChat(true);
+      } catch (error) {
+        console.error('Error opening Chatwoot:', error);
+      }
     }
 
     const escalationMsg: SupportMessage = {
@@ -276,12 +314,21 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
     }
   };
 
+  const openChat = () => {
+    if (isMobile) {
+      // On mobile, navigate to dedicated help page
+      window.location.href = '/welcome/help';
+    } else {
+      setIsChatOpen(true);
+    }
+  };
+
   return (
     <section className="support-section">
       <div className="max-w">
         <div className="section-head center">
-          <div className="section-label">Support</div>
-          <h2 className="section-title">Need Help?</h2>
+          <div className="section-label">Help Center</div>
+          <h2 className="section-title">How Can We Help?</h2>
           <p className="section-sub">Our team is here to help you succeed with Busmo.</p>
         </div>
         <div className="support-grid">
@@ -304,8 +351,9 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate }) =>
 
         <div style={{ textAlign: 'center', marginTop: '32px' }}>
           <button
+            data-support-chat-trigger
             className="btn-primary"
-            onClick={() => setIsChatOpen(true)}
+            onClick={openChat}
             style={{ padding: '12px 32px', fontSize: '1rem' }}
           >
             💬 Chat with Support

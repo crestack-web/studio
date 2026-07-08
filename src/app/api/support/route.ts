@@ -9,7 +9,8 @@ async function askSupportAI(message: string, conversationHistory: any[]) {
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
       console.error('Google Gen AI API key is missing for support AI');
-      return "I'm here to help! Could you tell me more about what you need?";
+      // Return a more helpful fallback message
+      return "I'm currently experiencing some technical difficulties. I've saved your message and our support team will get back to you shortly. In the meantime, you can click the 'Human' button to speak with a live agent.";
     }
 
     const genAI = new GoogleGenerativeAI(googleApiKey);

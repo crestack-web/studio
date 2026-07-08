@@ -1340,18 +1340,20 @@ export default function BusmoOnboarding() {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      // Update form data with Google user info
+      // Update form data with Google user info and default category/features
       setData(prev => ({
         ...prev,
         email: user.email || prev.email,
         fullName: user.displayName || prev.fullName,
+        selectedCategory: prev.selectedCategory || "retail",
+        selectedFeatures: Array.isArray(prev.selectedFeatures) ? prev.selectedFeatures : CATEGORY_FEATURES["retail"],
       }));
 
       // Set Google auth flag
       setIsGoogleAuth(true);
 
-      // Stay on step 1 to collect business name and phone number
-      // Don't skip to step 2
+      // Auto-advance to step 2 after Google auth
+      setStep(2);
     } catch (error: any) {
       setError("Google sign-up failed. Please try again.");
     } finally {
@@ -1515,18 +1517,22 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
 
 function isStepValid(step: number, data: FormState, isGoogleAuth: boolean = false) {
   if (step === 1) {
-    // Business name, full name, email, and phone are always required
+    if (isGoogleAuth) {
+      // For Google auth, only email and fullName are required (auto-filled)
+      // Business name and phone can be collected later or made optional
+      return (
+        !!data.email.trim() &&
+        !!data.fullName.trim()
+      );
+    }
+    
+    // For email/password signup, all fields are required
     const basicFields = (
       !!data.businessName.trim() &&
       !!data.fullName.trim() &&
       !!data.email.trim() &&
       !!data.phone.trim()
     );
-    
-    // Password is only required if not using Google auth
-    if (isGoogleAuth) {
-      return basicFields;
-    }
     
     return (
       basicFields &&

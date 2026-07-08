@@ -12,6 +12,7 @@ export type Page =
   | 'verify'
   | 'download'
   | 'busmogo'
+  | 'help'
   | 'support';
 
 export interface NavLink {

@@ -57,13 +57,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, minimal = false }) =
             <li><a onClick={() => onNavigate('download')}>Download App</a></li>
           </ul>
         </div>
-        <div>
-          <div className="footer-col-title">Company</div>
-          <ul className="footer-links">
-            <li><a onClick={() => onNavigate('home')}>Features</a></li>
-            <li><a>Contact</a></li>
-          </ul>
-        </div>
+          <div>
+            <div className="footer-col-title">Support</div>
+            <ul className="footer-links">
+              <li><a onClick={() => onNavigate('help')}>Help Center</a></li>
+              <li><a>Contact</a></li>
+            </ul>
+          </div>
         <div>
           <div className="footer-col-title">Legal</div>
           <ul className="footer-links">
