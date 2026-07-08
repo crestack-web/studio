@@ -130,8 +130,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<number>(0);
-  const [loadingActions, setLoadingActions] = useState<string[]>([]);
+  const [loadingText, setLoadingText] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -194,8 +193,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setAudioUrl(null);
     setIsTyping(false);
     setIsStreaming(false);
-    setLoadingStage(0);
-    setLoadingActions([]);
+    setLoadingText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [resetToNewChat]);
 
@@ -312,8 +310,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setIsTyping(true);
     setIsStreaming(true);
     setStreamedContent('');
-    setLoadingStage(1);
-    setLoadingActions([]);
+    setLoadingText('Thinking');
 
     // Create conversation if this is the first message
     if (!currentConversationId) {
@@ -325,40 +322,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setLoadingStage(2);
-
-    const thinkingMessages = [
-      'Reviewing sales data',
-      'Checking cashflow',
-      'Looking at expenses',
-      'Comparing performance',
-      'Identifying opportunities',
-      'Analyzing inventory',
-      'Calculating profitability',
-      'Reviewing branch performance',
-    ];
-    
-    for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 600));
-    }
-    
-    setLoadingStage(3);
-
-    const actions = [
-      'Retrieved sales records',
-      'Analyzed expenses',
-      'Calculated profitability',
-      'Checked inventory',
-      'Reviewed branch performance',
-    ];
-    
-    for (const action of actions) {
-      await new Promise(resolve => setTimeout(resolve, 400));
-      setLoadingActions(prev => [...prev, action]);
-    }
-    
-    setLoadingStage(4);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setLoadingText('Generating insights');
 
     try {
       console.log('💬 Sending message to Ask MO API');
@@ -479,8 +444,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setIsTyping(false);
       setIsStreaming(false);
       setStreamedContent('');
-      setLoadingStage(0);
-      setLoadingActions([]);
+      setLoadingText('');
       setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId]);
@@ -801,20 +765,13 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               <MoIcon size={16} />
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className={styles.typingIndicator}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <span className={styles.loadingText}>Thinking</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className={styles.typingIndicator}>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
-                {loadingActions.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '4px' }}>
-                    {loadingActions[loadingActions.length - 1]}
-                  </div>
-                )}
+                <span className={styles.loadingText}>{loadingText}</span>
               </div>
             </div>
           </div>

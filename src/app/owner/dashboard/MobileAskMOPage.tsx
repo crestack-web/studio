@@ -105,8 +105,7 @@ export function MobileAskMOPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<number>(0);
-  const [loadingActions, setLoadingActions] = useState<string[]>([]);
+  const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
@@ -268,8 +267,7 @@ export function MobileAskMOPage() {
     setAudioUrl(null);
     setIsTyping(false);
     setIsStreaming(false);
-    setLoadingStage(0);
-    setLoadingActions([]);
+    setLoadingText('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [resetToNewChat]);
 
@@ -278,8 +276,7 @@ export function MobileAskMOPage() {
     setShowHistory(false);
     setIsTyping(false);
     setIsStreaming(false);
-    setLoadingStage(0);
-    setLoadingActions([]);
+    setLoadingText('');
   }, [loadConversation]);
 
   const handlePurchaseSuccess = () => {
@@ -439,8 +436,7 @@ export function MobileAskMOPage() {
     setIsTyping(true);
     setIsStreaming(true);
     setStreamedContent('');
-    setLoadingStage(1);
-    setLoadingActions([]);
+    setLoadingText('Thinking');
 
     // Create conversation immediately on first message (before API call)
     if (!currentConversationId) {
@@ -451,44 +447,8 @@ export function MobileAskMOPage() {
       }
     }
 
-    // Stage 1: Understanding Request
-    console.log('🔄 [MobileAskMO] Stage 1: Understanding Request');
-    await new Promise(resolve => setTimeout(resolve, 600));
-    setLoadingStage(2);
-
-    // Stage 2: Analyzing Business Data (dynamic rotation)
-    console.log('🔄 [MobileAskMO] Stage 2: Analyzing Business Data');
-    const analysisMessages = [
-      'Analyzing your business...',
-      'Retrieving sales data',
-      'Checking inventory levels',
-      'Reviewing cash flow',
-      'Calculating performance metrics',
-    ];
-    
-    for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
-    setLoadingStage(3);
-
-    // Stage 3: Progressive Business Actions
-    console.log('🔄 [MobileAskMO] Stage 3: Progressive Business Actions');
-    const actions = [
-      '✓ Retrieved sales records',
-      '✓ Analyzed inventory data',
-      '✓ Calculated profitability',
-      '✓ Identified trends',
-      '✓ Generating insights...',
-    ];
-    
-    for (const action of actions) {
-      await new Promise(resolve => setTimeout(resolve, 350));
-      setLoadingActions(prev => [...prev, action]);
-    }
-    
-    setLoadingStage(4);
-    console.log('✅ [MobileAskMO] Loading stages completed', { time: Date.now() - requestStartTime });
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setLoadingText('Generating insights');
 
     try {
       console.log('💾 [MobileAskMO] Saving user message to conversation');
@@ -689,8 +649,7 @@ export function MobileAskMOPage() {
       setIsTyping(false);
       setIsStreaming(false);
       setStreamedContent('');
-      setLoadingStage(0);
-      setLoadingActions([]);
+      setLoadingText('');
       setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef]);
@@ -1110,20 +1069,13 @@ export function MobileAskMOPage() {
               </div>
             </div>
             <div className={`${styles.bubble} ${styles.botBubble}`}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className={styles.typingIndicator}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <span className={styles.loadingText}>Thinking</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className={styles.typingIndicator}>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
-                {loadingActions.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '4px' }}>
-                    {loadingActions[loadingActions.length - 1]}
-                  </div>
-                )}
+                <span className={styles.loadingText}>{loadingText}</span>
               </div>
             </div>
           </div>
