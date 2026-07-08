@@ -339,11 +339,32 @@ function parseSaleData(message: string): Record<string, any> {
     }
   }
 
+  // Extract payment method
+  const methodKeywords: Record<string, string> = {
+    'transfer': 'transfer',
+    'bank': 'transfer',
+    'cash': 'cash',
+    'pos': 'pos',
+    'card': 'pos',
+    'credit': 'credit',
+    'on credit': 'credit',
+    'later': 'credit',
+  };
+
+  let paymentType = 'cash'; // Default to cash
+  for (const [keyword, method] of Object.entries(methodKeywords)) {
+    if (lower.includes(keyword)) {
+      paymentType = method;
+      break;
+    }
+  }
+
   return {
     items,
     productName: items[0]?.productName,
     quantity: items[0]?.quantity,
     price: items[0]?.price,
+    paymentType,
   };
 }
 

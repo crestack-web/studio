@@ -208,7 +208,7 @@ async function handleRecordSale(
     businessId: context.businessId,
     userId: context.userId,
     items: saleItems,
-    paymentType: 'cash',
+    paymentType: data.paymentType || 'cash',
     source: 'mo_ai',
     recordedBy: {
       uid: context.userId,
