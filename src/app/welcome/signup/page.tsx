@@ -707,6 +707,16 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
     (typeof data.selectedFeatures === 'string' ? JSON.parse(data.selectedFeatures) : CATEGORY_FEATURES["retail"])
   );
 
+  // Sync local state with parent data when it changes (e.g., after Google auth)
+  useEffect(() => {
+    if (data.selectedCategory && data.selectedCategory !== selectedCategory) {
+      setSelectedCategory(data.selectedCategory);
+    }
+    if (data.selectedFeatures && Array.isArray(data.selectedFeatures) && data.selectedFeatures !== selectedFeatures) {
+      setSelectedFeatures(data.selectedFeatures);
+    }
+  }, [data.selectedCategory, data.selectedFeatures]);
+
   // Get features for selected category
   const availableFeatures = CATEGORY_FEATURES[selectedCategory] || CATEGORY_FEATURES["retail"];
 
