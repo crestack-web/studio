@@ -87,6 +87,32 @@
   color: var(--text-2);
 }
 
+/* ── Ask MO AI Button ── */
+.aiBtn {
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  gap: 8px;
+  background: linear-gradient(135deg, #7C3AED 0%, #1DB954 100%);
+  border: none;
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25);
+  white-space: nowrap;
+}
+
+.aiBtn:hover {
+  background: linear-gradient(135deg, #6D28D9 0%, #16A34A 100%);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  transform: translateY(-1px);
+}
+
+.aiBtn svg {
+  color: white;
+}
+
 .notifDot {
   position: absolute;
   top: 4px;
