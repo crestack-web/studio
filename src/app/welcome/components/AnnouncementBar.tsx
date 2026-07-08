@@ -6,12 +6,11 @@ export const AnnouncementBar: React.FC = () => {
       <div className="announcement-content">
         <span className="announcement-icon">✨</span>
         <span className="announcement-text">
-          <strong>Limited Time Offer:</strong> Get 50% off your first 3 months! Use code{' '}
-          <code className="promo-code">BUSMO2024</code> at checkout.
+          <strong>New:</strong> Record expenses, sales & products by text. Try it now!
         </span>
       </div>
       <a href="/welcome/signup" className="announcement-cta">
-        Claim Offer
+        Get Started
       </a>
     </div>
   );
