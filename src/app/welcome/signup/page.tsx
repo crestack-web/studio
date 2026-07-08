@@ -640,6 +640,8 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
         onChange={(v) => onChange("fullName", v)} placeholder="Femi Adeleke" autoComplete="name" />
       <Field label="Email address" id="email" type="email" value={data.email}
         onChange={(v) => onChange("email", v)} placeholder="femi@example.com" autoComplete="email" />
+      <Field label="Phone number" id="phone" type="tel" value={data.phone}
+        onChange={(v) => onChange("phone", v)} placeholder="08012345678" autoComplete="tel" />
       <Field label="Password" id="password" type="password" value={data.password}
         onChange={(v) => onChange("password", v)} placeholder="Min. 6 characters" autoComplete="new-password" />
       
@@ -1348,8 +1350,8 @@ export default function BusmoOnboarding() {
       // Set Google auth flag
       setIsGoogleAuth(true);
 
-      // Move to step 2 to select business category
-      setStep(2);
+      // Stay on step 1 to collect business name and phone number
+      // Don't skip to step 2
     } catch (error: any) {
       setError("Google sign-up failed. Please try again.");
     } finally {
@@ -1513,11 +1515,12 @@ function OnboardingShell({ children }: { children: React.ReactNode }) {
 
 function isStepValid(step: number, data: FormState, isGoogleAuth: boolean = false) {
   if (step === 1) {
-    // Business name, full name, and email are always required
+    // Business name, full name, email, and phone are always required
     const basicFields = (
       !!data.businessName.trim() &&
       !!data.fullName.trim() &&
-      !!data.email.trim()
+      !!data.email.trim() &&
+      !!data.phone.trim()
     );
     
     // Password is only required if not using Google auth
