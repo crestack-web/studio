@@ -199,7 +199,13 @@ export async function checkFeatureAccess(
     const subscriptionStatus = userData?.subscriptionStatus;
     const trialEndDate = userData?.trialEndDate?.toDate();
     const selectedFeatures = userData?.selectedFeatures || [];
+    const lifetimeAccess = userData?.lifetimeAccess;
     const now = new Date();
+
+    // Users with lifetime access have unlimited feature access
+    if (lifetimeAccess === true) {
+      return { eligible: true };
+    }
 
     // Check if user is in trial mode
     const isInTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;

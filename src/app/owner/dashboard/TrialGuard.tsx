@@ -52,7 +52,14 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         const subscriptionStatus = userData.subscriptionStatus;
         const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
         const userRole = userData.role;
+        const lifetimeAccess = userData.lifetimeAccess;
         const now = new Date();
+
+        // Users with lifetime access can bypass all subscription checks
+        if (lifetimeAccess === true) {
+          setIsLoading(false);
+          return;
+        }
 
         // Staff users don't need trial - they can access dashboard
         if (userRole === 'Staff') {

@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
       updateData.lifetimeAccess = true;
     }
     
+    // Support pro plan with lifetime access
+    if (plan === 'pro') {
+      updateData.lifetimeAccess = true;
+    }
+    
     await db.collection('users').doc(userId).update(updateData);
     
     return NextResponse.json({ 
