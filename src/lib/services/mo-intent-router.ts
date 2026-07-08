@@ -378,41 +378,53 @@ function parseProductData(message: string): ProductIntent {
     costPrice: 0,
   };
 
-  // Pattern: "Add product: Coca-Cola, price 500, cost 200, stock 100"
-  const nameMatch = message.match(/(?:add|create|new)\s+(?:product|item)?[:\s]+(.+?)(?:,|$)/i);
-  if (nameMatch) {
-    result.name = nameMatch[1].trim();
-  }
+  // Remove the action words first to get the product name
+  let cleanedMessage = message
+    .replace(/^(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)?[:\s]*/i, '')
+    .trim();
 
-  // Extract price
-  const priceMatch = message.match(/(?:price|selling\s+price|sell)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
+  // Extract price first (to remove it from the name)
+  const priceMatch = message.match(/(?:price|selling\s+price|sell|for|@)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
   if (priceMatch) {
     result.price = parseInt(priceMatch[1].replace(/,/g, ''));
+    // Remove price pattern from cleaned message
+    cleanedMessage = cleanedMessage.replace(/(?:price|selling\s+price|sell|for|@)[:\s]+(?:₦?\d+(?:,\d+)*)/i, '').trim();
   }
 
   // Extract cost
-  const costMatch = message.match(/(?:cost|cost\s+price|buying\s+price)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
+  const costMatch = message.match(/(?:cost|cost\s+price|buying\s+price|buy)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
   if (costMatch) {
     result.costPrice = parseInt(costMatch[1].replace(/,/g, ''));
+    // Remove cost pattern from cleaned message
+    cleanedMessage = cleanedMessage.replace(/(?:cost|cost\s+price|buying\s+price|buy)[:\s]+(?:₦?\d+(?:,\d+)*)/i, '').trim();
   }
 
   // Extract stock
   const stockMatch = message.match(/(?:stock|quantity|qty)[:\s]+(\d+)/i);
   if (stockMatch) {
     result.stock = parseInt(stockMatch[1]);
+    // Remove stock pattern from cleaned message
+    cleanedMessage = cleanedMessage.replace(/(?:stock|quantity|qty)[:\s]+\d+/i, '').trim();
   }
 
   // Extract category
   const categoryMatch = message.match(/(?:category|type)[:\s]+(.+?)(?:,|$)/i);
   if (categoryMatch) {
     result.category = categoryMatch[1].trim();
+    // Remove category pattern from cleaned message
+    cleanedMessage = cleanedMessage.replace(/(?:category|type)[:\s]+.+?(?:,|$)/i, '').trim();
   }
 
   // Extract SKU
   const skuMatch = message.match(/(?:sku|code)[:\s]+([A-Z0-9-]+)/i);
   if (skuMatch) {
     result.sku = skuMatch[1];
+    // Remove SKU pattern from cleaned message
+    cleanedMessage = cleanedMessage.replace(/(?:sku|code)[:\s]+[A-Z0-9-]+/i, '').trim();
   }
+
+  // What's left is the product name
+  result.name = cleanedMessage.replace(/[,，]/g, '').trim();
 
   return result;
 }
@@ -634,10 +646,16 @@ function parsePurchaseData(message: string): Record<string, any> {
     paymentMethod: 'cash',
   };
 
+  // Remove action words first
+  let cleanedMessage = message
+    .replace(/^(?:record|log)\s+(?:a\s+)?(?:purchase|stock|restock|replenishment)[:\s]*/i, '')
+    .trim();
+
   // Extract supplier
   const supplierMatch = message.match(/(?:from|supplier|vendor)[:\s]+(.+?)(?:,|$|for|₦|₦?\d)/i);
   if (supplierMatch) {
     result.supplier = supplierMatch[1].trim();
+    cleanedMessage = cleanedMessage.replace(/(?:from|supplier|vendor)[:\s]+.+?(?:,|$|for|₦|₦?\d)/i, '').trim();
   }
 
   // Extract payment method
@@ -657,23 +675,34 @@ function parsePurchaseData(message: string): Record<string, any> {
     }
   }
 
-  // Extract items (similar to sale parsing)
-  const itemPatterns = [
-    /(?:bought|purchased|ordered)\s+(\d+)\s+(.+?)(?:\s+for\s+|\s+@\s+)?(?:₦?(\d+(?:,\d+)*))?/gi,
-  ];
-
-  for (const pattern of itemPatterns) {
-    let match;
-    while ((match = pattern.exec(message)) !== null) {
-      const quantity = match[1] || 1;
-      const productName = match[2] || match[3] || match[0];
-      const priceStr = match[4] || match[3];
-      const price = priceStr ? parseInt(priceStr.replace(/,/g, '')) : undefined;
-
+  // Extract items - look for pattern: "10 Coca-Cola", "5 bags rice", etc.
+  const itemPattern = /(\d+)\s+(.+?)(?:\s+(?:for|@|₦)\s+?(?:\d+(?:,\d+)*))?(?:,|$)/gi;
+  let match;
+  while ((match = itemPattern.exec(cleanedMessage)) !== null) {
+    const quantity = parseInt(match[1]);
+    let productName = match[2].trim();
+    
+    // Remove price if it got captured in the product name
+    productName = productName.replace(/(?:for|@|₦)\s+?\d+(?:,\d+)*/gi, '').trim();
+    
+    if (productName && quantity > 0) {
       result.items.push({
-        productName: productName.trim(),
+        productName,
         quantity,
-        price,
+        price: undefined,
+      });
+    }
+  }
+
+  // If no items found with pattern, try simpler approach
+  if (result.items.length === 0) {
+    // Look for "bought X product" pattern
+    const boughtMatch = message.match(/(?:bought|purchased|ordered)\s+(\d+)\s+(.+?)(?:,|$|for|@)/i);
+    if (boughtMatch) {
+      result.items.push({
+        productName: boughtMatch[2].trim(),
+        quantity: parseInt(boughtMatch[1]),
+        price: undefined,
       });
     }
   }
@@ -697,23 +726,36 @@ function parseInventoryData(message: string): Record<string, any> {
     reason: '',
   };
 
-  // Extract product name
-  const productMatch = message.match(/(?:adjust|update|correct|modify)\s+(?:inventory|stock)\s+(?:of|for)?[:\s]+(.+?)(?:,|$|by|to|add|remove)/i);
-  if (productMatch) {
-    result.productName = productMatch[1].trim();
-  }
+  // Remove action words first
+  let cleanedMessage = message
+    .replace(/^(?:adjust|update|correct|modify|add|remove)\s+(?:inventory|stock|quantity)\s+(?:of|for|to|by)?[:\s]*/i, '')
+    .trim();
 
-  // Extract adjustment amount
-  const adjustmentMatch = message.match(/(?:by|to|add|remove)\s+([+-]?\d+)/i);
-  if (adjustmentMatch) {
-    result.adjustment = parseInt(adjustmentMatch[1]);
+  // Extract adjustment amount (positive for add, negative for remove)
+  const addMatch = message.match(/(?:add|increase)\s+(\d+)/i);
+  const removeMatch = message.match(/(?:remove|decrease|reduce)\s+(\d+)/i);
+  const byMatch = message.match(/(?:by|to)\s+([+-]?\d+)/i);
+  
+  if (addMatch) {
+    result.adjustment = parseInt(addMatch[1]);
+    cleanedMessage = cleanedMessage.replace(/(?:add|increase)\s+\d+/i, '').trim();
+  } else if (removeMatch) {
+    result.adjustment = -parseInt(removeMatch[1]);
+    cleanedMessage = cleanedMessage.replace(/(?:remove|decrease|reduce)\s+\d+/i, '').trim();
+  } else if (byMatch) {
+    result.adjustment = parseInt(byMatch[1]);
+    cleanedMessage = cleanedMessage.replace(/(?:by|to)\s+[+-]?\d+/i, '').trim();
   }
 
   // Extract reason
-  const reasonMatch = message.match(/(?:reason|because|due to)[:\s]+(.+?)(?:,|$)/i);
+  const reasonMatch = message.match(/(?:reason|because|due to|for)[:\s]+(.+?)(?:,|$)/i);
   if (reasonMatch) {
     result.reason = reasonMatch[1].trim();
+    cleanedMessage = cleanedMessage.replace(/(?:reason|because|due to|for)[:\s]+.+?(?:,|$)/i, '').trim();
   }
+
+  // What's left is the product name
+  result.productName = cleanedMessage.replace(/[,，]/g, '').trim();
 
   return result;
 }
