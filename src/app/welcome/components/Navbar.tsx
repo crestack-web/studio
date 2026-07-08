@@ -14,9 +14,8 @@ const BusmoLogo = () => (
 const NAV_LINKS: { label: string; page: Page }[] = [
   { label: 'Home', page: 'home' },
   { label: 'For Sellers', page: 'seller' },
-  { label: 'Investors', page: 'invest' },
   { label: 'Download Busmo', page: 'download' },
-  { label: 'Support', page: 'support' },
+  { label: 'Help Center', page: 'help' },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
@@ -40,8 +39,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
       window.location.href = '/verify';
     } else if (p === 'download') {
       window.location.href = '/welcome/download';
-    } else if (p === 'support') {
-      window.location.href = '/welcome/support';
+    } else if (p === 'help') {
+      window.location.href = '/welcome/help';
     } else {
       window.location.href = '/';
     }

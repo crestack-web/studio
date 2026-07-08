@@ -37,8 +37,8 @@ export default function WelcomePage() {
       window.location.href = '/invest';
     } else if (page === 'download') {
       window.location.href = '/welcome/download';
-    } else if (page === 'support') {
-      window.location.href = '/welcome/support';
+    } else if (page === 'help') {
+      window.location.href = '/welcome/help';
     } else {
       window.location.href = '/';
     }
@@ -181,11 +181,6 @@ export default function WelcomePage() {
       {/* BUILT WITH BUSMO */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <BuiltWithBusmo />
-      </ScrollReveal>
-
-      {/* SELL ONLINE / STOREFRONT */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <MarketSection onNavigate={handleNavigate} />
       </ScrollReveal>
 
       {/* ASK MO SECTION */}
