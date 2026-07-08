@@ -610,12 +610,30 @@ function parsePurchaseData(message: string): Record<string, any> {
     items: [],
     supplier: '',
     totalAmount: 0,
+    paymentMethod: 'cash',
   };
 
   // Extract supplier
   const supplierMatch = message.match(/(?:from|supplier|vendor)[:\s]+(.+?)(?:,|$|for|₦|₦?\d)/i);
   if (supplierMatch) {
     result.supplier = supplierMatch[1].trim();
+  }
+
+  // Extract payment method
+  const methodKeywords: Record<string, string> = {
+    'transfer': 'transfer',
+    'bank': 'transfer',
+    'cash': 'cash',
+    'pos': 'pos',
+    'card': 'card',
+    'credit': 'credit',
+  };
+
+  for (const [keyword, method] of Object.entries(methodKeywords)) {
+    if (message.toLowerCase().includes(keyword)) {
+      result.paymentMethod = method;
+      break;
+    }
   }
 
   // Extract items (similar to sale parsing)
@@ -626,7 +644,7 @@ function parsePurchaseData(message: string): Record<string, any> {
   for (const pattern of itemPatterns) {
     let match;
     while ((match = pattern.exec(message)) !== null) {
-      const quantity = parseInt(match[1]) || 1;
+      const quantity = match[1] || 1;
       const productName = match[2] || match[3] || match[0];
       const priceStr = match[4] || match[3];
       const price = priceStr ? parseInt(priceStr.replace(/,/g, '')) : undefined;

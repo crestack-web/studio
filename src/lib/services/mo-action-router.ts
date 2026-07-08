@@ -640,6 +640,7 @@ async function handleRecordPurchase(
     items,
     supplier: data.supplier,
     totalAmount: data.totalAmount,
+    paymentMethod: data.paymentMethod,
   });
 
   if (!result.success) {
