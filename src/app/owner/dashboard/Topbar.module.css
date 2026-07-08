@@ -174,7 +174,34 @@
   color: var(--text-3);
 }
 
+@media (max-width: 768px) {
+  .titleBlock {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100vw - 180px);
+  }
+  
+  .title {
+    font-size: 0.95rem;
+  }
+  
+  .subtitle {
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 @media (max-width: 480px) {
   .userName, .userRole { display: none; }
   .aiBtn { display: none; }
+  
+  .title {
+    font-size: 0.85rem;
+  }
+  
+  .subtitle {
+    font-size: 0.65rem;
+  }
 }
