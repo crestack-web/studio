@@ -6,6 +6,7 @@ import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
 import { formatCurrency } from "@/lib/currency";
+import { sendOwnerWelcomeEmailSeries } from "@/services/email/owner-welcome-series";
 
 // If you have these components elsewhere, import them here
 // import Field from "./Field";
@@ -1304,6 +1305,17 @@ export default function BusmoOnboarding() {
 
         // Always allow entry to Busmo, regardless of setup status
         setError(null);
+        
+        // Send welcome email series to owner (non-blocking)
+        sendOwnerWelcomeEmailSeries({
+          email: data.email,
+          name: data.fullName,
+          businessName: data.businessName,
+        }).catch((emailError) => {
+          console.error('Failed to send owner welcome email series:', emailError);
+          // Non-critical: user can still use the app even if emails fail
+        });
+        
         setDone(true);
       }
     }

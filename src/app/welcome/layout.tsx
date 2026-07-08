@@ -1,11 +1,11 @@
 import './styles/globals.css';
 import { AnnouncementBar } from './components/AnnouncementBar';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children, showAnnouncement = true }: { children: React.ReactNode; showAnnouncement?: boolean }) {
   return (
     <html lang="en">
-      <body>
-        <AnnouncementBar />
+      <body className={showAnnouncement ? 'has-announcement' : ''}>
+        {showAnnouncement && <AnnouncementBar />}
         {children}
       </body>
     </html>

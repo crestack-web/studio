@@ -7,6 +7,13 @@
 import { recordSale, findProductByName } from './record-sale-service';
 import { addProduct } from './add-product-service';
 import { addExpense } from './add-expense-service';
+import { updateProduct } from './update-product-service';
+import { deleteProduct } from './delete-product-service';
+import { addCustomer } from './add-customer-service';
+import { addSupplier } from './add-supplier-service';
+import { recordPayment } from './record-payment-service';
+import { recordPurchase } from './record-purchase-service';
+import { adjustInventory } from './adjust-inventory-service';
 
 export interface ActionContext {
   businessId: string;
@@ -361,12 +368,63 @@ async function handleUpdateProduct(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement update product service integration
+  // Find product by name first to get productId
+  const productSearch = await findProductByName(context.businessId, data.name);
+  
+  if (!productSearch.found) {
+    if (productSearch.matches && productSearch.matches.length > 0) {
+      return {
+        success: false,
+        action: 'update_product',
+        message: `I found multiple products matching "${data.name}":\n\n${productSearch.matches.map((p: any, i: number) => `${i + 1}. ${p.name}`).join('\n')}\n\nPlease specify which one you want to update.`,
+        requiresClarification: true,
+        clarification: {
+          message: 'Multiple products found',
+          options: productSearch.matches.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+          })),
+        },
+      };
+    }
+    return {
+      success: false,
+      action: 'update_product',
+      message: `Product "${data.name}" not found in your inventory.`,
+    };
+  }
+
+  const result = await updateProduct({
+    businessId: context.businessId,
+    userId: context.userId,
+    productId: productSearch.product.id,
+    productName: data.name,
+    price: data.price,
+    costPrice: data.costPrice,
+    stock: data.stock,
+    category: data.category,
+    description: data.description,
+    sku: data.sku,
+    unit: data.unit,
+    lowStockThreshold: data.lowStockThreshold,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'update_product',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'update_product',
-    message: 'Product update feature is being implemented. Please use the Products page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      productId: result.productId,
+    },
   };
 }
 
@@ -377,12 +435,55 @@ async function handleDeleteProduct(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement delete product service integration
+  // Find product by name first to get productId
+  const productSearch = await findProductByName(context.businessId, data.productName);
+  
+  if (!productSearch.found) {
+    if (productSearch.matches && productSearch.matches.length > 0) {
+      return {
+        success: false,
+        action: 'delete_product',
+        message: `I found multiple products matching "${data.productName}":\n\n${productSearch.matches.map((p: any, i: number) => `${i + 1}. ${p.name}`).join('\n')}\n\nPlease specify which one you want to delete.`,
+        requiresClarification: true,
+        clarification: {
+          message: 'Multiple products found',
+          options: productSearch.matches.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+          })),
+        },
+      };
+    }
+    return {
+      success: false,
+      action: 'delete_product',
+      message: `Product "${data.productName}" not found in your inventory.`,
+    };
+  }
+
+  const result = await deleteProduct({
+    businessId: context.businessId,
+    userId: context.userId,
+    productId: productSearch.product.id,
+    productName: data.productName,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'delete_product',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'delete_product',
-    message: 'Product deletion feature is being implemented. Please use the Products page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      productId: result.productId,
+    },
   };
 }
 
@@ -393,12 +494,39 @@ async function handleAddCustomer(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement add customer service integration
+  if (!data.name) {
+    return {
+      success: false,
+      action: 'add_customer',
+      message: 'Customer name is required. Please provide the customer name.',
+    };
+  }
+
+  const result = await addCustomer({
+    businessId: context.businessId,
+    userId: context.userId,
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    address: data.address,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'add_customer',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'add_customer',
-    message: 'Customer creation feature is being implemented. Please use the Customers page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      customerId: result.customerId,
+    },
   };
 }
 
@@ -409,12 +537,39 @@ async function handleAddSupplier(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement add supplier service integration
+  if (!data.name) {
+    return {
+      success: false,
+      action: 'add_supplier',
+      message: 'Supplier name is required. Please provide the supplier name.',
+    };
+  }
+
+  const result = await addSupplier({
+    businessId: context.businessId,
+    userId: context.userId,
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    address: data.address,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'add_supplier',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'add_supplier',
-    message: 'Supplier creation feature is being implemented. Please use the Suppliers page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      supplierId: result.supplierId,
+    },
   };
 }
 
@@ -425,12 +580,40 @@ async function handleRecordPayment(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement record payment service integration
+  if (!data.amount || data.amount <= 0) {
+    return {
+      success: false,
+      action: 'record_payment',
+      message: 'Payment amount is required. Please provide the amount.',
+    };
+  }
+
+  const result = await recordPayment({
+    businessId: context.businessId,
+    userId: context.userId,
+    amount: data.amount,
+    method: data.method || 'cash',
+    customer: data.customer,
+    reference: data.reference,
+    description: data.description,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'record_payment',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'record_payment',
-    message: 'Payment recording feature is being implemented. Please use the appropriate page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      paymentId: result.paymentId,
+    },
   };
 }
 
@@ -441,12 +624,40 @@ async function handleRecordPurchase(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement record purchase service integration
+  const items = data.items || [];
+  
+  if (items.length === 0) {
+    return {
+      success: false,
+      action: 'record_purchase',
+      message: 'No purchase items provided. Please specify at least one item.',
+    };
+  }
+
+  const result = await recordPurchase({
+    businessId: context.businessId,
+    userId: context.userId,
+    items,
+    supplier: data.supplier,
+    totalAmount: data.totalAmount,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'record_purchase',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'record_purchase',
-    message: 'Purchase recording feature is being implemented. Please use the appropriate page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      purchaseId: result.purchaseId,
+    },
   };
 }
 
@@ -457,12 +668,46 @@ async function handleAdjustInventory(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
-  // TODO: Implement inventory adjustment service integration
+  if (!data.productName) {
+    return {
+      success: false,
+      action: 'adjust_inventory',
+      message: 'Product name is required. Please specify which product to adjust.',
+    };
+  }
+
+  if (!data.adjustment || data.adjustment === 0) {
+    return {
+      success: false,
+      action: 'adjust_inventory',
+      message: 'Adjustment amount is required. Please specify how much to add or remove.',
+    };
+  }
+
+  const result = await adjustInventory({
+    businessId: context.businessId,
+    userId: context.userId,
+    productName: data.productName,
+    adjustment: data.adjustment,
+    reason: data.reason,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'adjust_inventory',
+      message: result.message,
+      error: result.error,
+    };
+  }
+
   return {
-    success: false,
+    success: true,
     action: 'adjust_inventory',
-    message: 'Inventory adjustment feature is being implemented. Please use the Inventory page for now.',
-    error: 'Not implemented',
+    message: result.message,
+    data: {
+      newStock: result.newStock,
+    },
   };
 }
 
