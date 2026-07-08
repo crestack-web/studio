@@ -74,6 +74,51 @@ export function detectIntent(
     /^(?:spent|paid|payment)\s+(?:₦|naira|n\d+|\d+)/i,
   ];
 
+  // Update product patterns
+  const updateProductPatterns = [
+    /^(?:update|edit|modify|change)\s+(?:the\s+)?(?:product|item|inventory)/i,
+    /^(?:change|set|update)\s+(?:price|cost|stock|name)\s+(?:of|for)/i,
+  ];
+
+  // Delete product patterns
+  const deleteProductPatterns = [
+    /^(?:delete|remove|archive)\s+(?:the\s+)?(?:product|item|inventory)/i,
+  ];
+
+  // Customer patterns
+  const customerPatterns = [
+    /^(?:add|create|new|register)\s+(?:a\s+)?(?:customer|client|buyer)/i,
+  ];
+
+  // Supplier patterns
+  const supplierPatterns = [
+    /^(?:add|create|new|register)\s+(?:a\s+)?(?:supplier|vendor|distributor)/i,
+  ];
+
+  // Payment patterns
+  const paymentPatterns = [
+    /^(?:record|log)\s+(?:a\s+)?(?:payment|collection|receipt)/i,
+    /^(?:received|collected|got)\s+(?:payment|money|cash)/i,
+  ];
+
+  // Purchase patterns
+  const purchasePatterns = [
+    /^(?:record|log)\s+(?:a\s+)?(?:purchase|stock|restock|replenishment)/i,
+    /^(?:bought|purchased|ordered)\s+(?:stock|inventory|items)/i,
+  ];
+
+  // Inventory adjustment patterns
+  const inventoryPatterns = [
+    /^(?:adjust|update|correct|modify)\s+(?:inventory|stock)/i,
+    /^(?:add|remove)\s+(?:stock|inventory|quantity)/i,
+  ];
+
+  // Navigation patterns (explicit navigation requests)
+  const navigationPatterns = [
+    /^(?:open|go|take\s+me|navigate)\s+(?:to|the)?\s*(?:sales|products|inventory|customers|suppliers|expenses|dashboard|reports)/i,
+    /^(?:show|display)\s+(?:the\s+)?(?:sales|products|inventory|customers|suppliers|expenses)\s+page/i,
+  ];
+
   // Check for sale intent
   for (const pattern of salePatterns) {
     if (pattern.test(lower)) {
@@ -119,6 +164,112 @@ export function detectIntent(
     }
   }
 
+  // Check for navigation intent (explicit navigation requests)
+  for (const pattern of navigationPatterns) {
+    if (pattern.test(lower)) {
+      return {
+        intent: 'navigate',
+        confidence: 0.9,
+        data: parseNavigationData(message),
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for update product intent
+  for (const pattern of updateProductPatterns) {
+    if (pattern.test(lower)) {
+      const productData = parseProductData(message);
+      if (productData.name) {
+        return {
+          intent: 'update_product',
+          confidence: 0.85,
+          data: { ...productData, originalMessage: message },
+          requiresConfirmation: true,
+        };
+      }
+    }
+  }
+
+  // Check for delete product intent
+  for (const pattern of deleteProductPatterns) {
+    if (pattern.test(lower)) {
+      const productName = message.match(/(?:delete|remove|archive)\s+(?:the\s+)?(?:product|item|inventory)?[:\s]+(.+?)(?:$|\.|,)/i)?.[1];
+      if (productName) {
+        return {
+          intent: 'delete_product',
+          confidence: 0.85,
+          data: { productName: productName.trim() },
+          requiresConfirmation: true,
+        };
+      }
+    }
+  }
+
+  // Check for customer intent
+  for (const pattern of customerPatterns) {
+    if (pattern.test(lower)) {
+      const customerData = parseCustomerData(message);
+      return {
+        intent: 'add_customer',
+        confidence: 0.85,
+        data: customerData,
+        requiresConfirmation: true,
+      };
+    }
+  }
+
+  // Check for supplier intent
+  for (const pattern of supplierPatterns) {
+    if (pattern.test(lower)) {
+      const supplierData = parseSupplierData(message);
+      return {
+        intent: 'add_supplier',
+        confidence: 0.85,
+        data: supplierData,
+        requiresConfirmation: true,
+      };
+    }
+  }
+
+  // Check for payment intent
+  for (const pattern of paymentPatterns) {
+    if (pattern.test(lower)) {
+      const paymentData = parsePaymentData(message);
+      return {
+        intent: 'record_payment',
+        confidence: 0.85,
+        data: paymentData,
+        requiresConfirmation: true,
+      };
+    }
+  }
+
+  // Check for purchase intent
+  for (const pattern of purchasePatterns) {
+    if (pattern.test(lower)) {
+      const purchaseData = parsePurchaseData(message);
+      return {
+        intent: 'record_purchase',
+        confidence: 0.85,
+        data: purchaseData,
+        requiresConfirmation: true,
+      };
+    }
+  }
+
+  // Check for inventory adjustment intent
+  for (const pattern of inventoryPatterns) {
+    if (pattern.test(lower)) {
+      const inventoryData = parseInventoryData(message);
+      return {
+        intent: 'adjust_inventory',
+        confidence: 0.85,
+        data: inventoryData,
+        requiresConfirmation: true,
+      };
+    }
+  }
   // Check for question/analysis intent
   const questionPatterns = [
     /^(?:what|how|why|when|where|who|show|tell|explain|analyze|summarize)/i,
@@ -301,6 +452,228 @@ function parseExpenseData(message: string): ExpenseIntent {
   const dateMatch = message.match(/(?:on|date)[:\s]+(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4})/i);
   if (dateMatch) {
     result.date = dateMatch[1];
+  }
+
+  return result;
+}
+
+/**
+ * Parse navigation data from message
+ */
+function parseNavigationData(message: string): Record<string, any> {
+  const lower = message.toLowerCase();
+  
+  // Extract target page
+  const pageKeywords: Record<string, string> = {
+    'sales': '/owner/dashboard/sales',
+    'products': '/owner/dashboard/products',
+    'inventory': '/owner/dashboard/inventory',
+    'customers': '/owner/dashboard/customers',
+    'suppliers': '/owner/dashboard/suppliers',
+    'expenses': '/owner/dashboard/expenses',
+    'dashboard': '/owner/dashboard',
+    'reports': '/owner/dashboard/reports',
+  };
+
+  for (const [keyword, route] of Object.entries(pageKeywords)) {
+    if (lower.includes(keyword)) {
+      return { target: route, keyword };
+    }
+  }
+
+  return { target: '/owner/dashboard' };
+}
+
+/**
+ * Parse customer data from message
+ */
+function parseCustomerData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+  };
+
+  // Extract name
+  const nameMatch = message.match(/(?:add|create|new)\s+(?:customer|client|buyer)?[:\s]+(.+?)(?:,|$|phone|email|address)/i);
+  if (nameMatch) {
+    result.name = nameMatch[1].trim();
+  }
+
+  // Extract phone
+  const phoneMatch = message.match(/(?:phone|mobile|contact)[:\s]+(\d+)/i);
+  if (phoneMatch) {
+    result.phone = phoneMatch[1];
+  }
+
+  // Extract email
+  const emailMatch = message.match(/(?:email|mail)[:\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+  if (emailMatch) {
+    result.email = emailMatch[1];
+  }
+
+  // Extract address
+  const addressMatch = message.match(/(?:address|location)[:\s]+(.+?)(?:,|$)/i);
+  if (addressMatch) {
+    result.address = addressMatch[1].trim();
+  }
+
+  return result;
+}
+
+/**
+ * Parse supplier data from message
+ */
+function parseSupplierData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+  };
+
+  // Extract name
+  const nameMatch = message.match(/(?:add|create|new)\s+(?:supplier|vendor|distributor)?[:\s]+(.+?)(?:,|$|phone|email|address)/i);
+  if (nameMatch) {
+    result.name = nameMatch[1].trim();
+  }
+
+  // Extract phone
+  const phoneMatch = message.match(/(?:phone|mobile|contact)[:\s]+(\d+)/i);
+  if (phoneMatch) {
+    result.phone = phoneMatch[1];
+  }
+
+  // Extract email
+  const emailMatch = message.match(/(?:email|mail)[:\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+  if (emailMatch) {
+    result.email = emailMatch[1];
+  }
+
+  // Extract address
+  const addressMatch = message.match(/(?:address|location)[:\s]+(.+?)(?:,|$)/i);
+  if (addressMatch) {
+    result.address = addressMatch[1].trim();
+  }
+
+  return result;
+}
+
+/**
+ * Parse payment data from message
+ */
+function parsePaymentData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    amount: 0,
+    method: 'cash',
+    customer: '',
+    reference: '',
+  };
+
+  // Extract amount
+  const amountMatch = message.match(/(?:₦?(\d+(?:,\d+)*)|(\d+)\s*(?:naira|n))/i);
+  if (amountMatch) {
+    result.amount = parseInt((amountMatch[1] || amountMatch[2]).replace(/,/g, ''));
+  }
+
+  // Extract payment method
+  const methodKeywords: Record<string, string> = {
+    'transfer': 'transfer',
+    'bank': 'transfer',
+    'cash': 'cash',
+    'pos': 'pos',
+    'card': 'card',
+  };
+
+  for (const [keyword, method] of Object.entries(methodKeywords)) {
+    if (message.toLowerCase().includes(keyword)) {
+      result.method = method;
+      break;
+    }
+  }
+
+  // Extract customer name
+  const customerMatch = message.match(/(?:from|customer|client)[:\s]+(.+?)(?:,|$|₦|₦?\d)/i);
+  if (customerMatch) {
+    result.customer = customerMatch[1].trim();
+  }
+
+  return result;
+}
+
+/**
+ * Parse purchase data from message
+ */
+function parsePurchaseData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    items: [],
+    supplier: '',
+    totalAmount: 0,
+  };
+
+  // Extract supplier
+  const supplierMatch = message.match(/(?:from|supplier|vendor)[:\s]+(.+?)(?:,|$|for|₦|₦?\d)/i);
+  if (supplierMatch) {
+    result.supplier = supplierMatch[1].trim();
+  }
+
+  // Extract items (similar to sale parsing)
+  const itemPatterns = [
+    /(?:bought|purchased|ordered)\s+(\d+)\s+(.+?)(?:\s+for\s+|\s+@\s+)?(?:₦?(\d+(?:,\d+)*))?/gi,
+  ];
+
+  for (const pattern of itemPatterns) {
+    let match;
+    while ((match = pattern.exec(message)) !== null) {
+      const quantity = parseInt(match[1]) || 1;
+      const productName = match[2] || match[3] || match[0];
+      const priceStr = match[4] || match[3];
+      const price = priceStr ? parseInt(priceStr.replace(/,/g, '')) : undefined;
+
+      result.items.push({
+        productName: productName.trim(),
+        quantity,
+        price,
+      });
+    }
+  }
+
+  // Extract total amount
+  const amountMatch = message.match(/(?:total|for|amount)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
+  if (amountMatch) {
+    result.totalAmount = parseInt(amountMatch[1].replace(/,/g, ''));
+  }
+
+  return result;
+}
+
+/**
+ * Parse inventory adjustment data from message
+ */
+function parseInventoryData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    productName: '',
+    adjustment: 0,
+    reason: '',
+  };
+
+  // Extract product name
+  const productMatch = message.match(/(?:adjust|update|correct|modify)\s+(?:inventory|stock)\s+(?:of|for)?[:\s]+(.+?)(?:,|$|by|to|add|remove)/i);
+  if (productMatch) {
+    result.productName = productMatch[1].trim();
+  }
+
+  // Extract adjustment amount
+  const adjustmentMatch = message.match(/(?:by|to|add|remove)\s+([+-]?\d+)/i);
+  if (adjustmentMatch) {
+    result.adjustment = parseInt(adjustmentMatch[1]);
+  }
+
+  // Extract reason
+  const reasonMatch = message.match(/(?:reason|because|due to)[:\s]+(.+?)(?:,|$)/i);
+  if (reasonMatch) {
+    result.reason = reasonMatch[1].trim();
   }
 
   return result;

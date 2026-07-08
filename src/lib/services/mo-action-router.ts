@@ -51,6 +51,35 @@ export async function executeAction(
       case 'add_expense':
         return await handleAddExpense(data, context);
       
+      case 'update_product':
+        return await handleUpdateProduct(data, context);
+      
+      case 'delete_product':
+        return await handleDeleteProduct(data, context);
+      
+      case 'add_customer':
+        return await handleAddCustomer(data, context);
+      
+      case 'add_supplier':
+        return await handleAddSupplier(data, context);
+      
+      case 'record_payment':
+        return await handleRecordPayment(data, context);
+      
+      case 'record_purchase':
+        return await handleRecordPurchase(data, context);
+      
+      case 'adjust_inventory':
+        return await handleAdjustInventory(data, context);
+      
+      case 'navigate':
+        return {
+          success: true,
+          action: 'navigate',
+          message: `Navigating to ${data.target || 'dashboard'}`,
+          data: { route: data.target },
+        };
+      
       case 'ask_question':
         return {
           success: true,
@@ -322,6 +351,118 @@ async function handleAddExpense(
       expenseId: result.expenseId,
       expense: result.expense,
     },
+  };
+}
+
+/**
+ * Handle update_product intent
+ */
+async function handleUpdateProduct(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement update product service integration
+  return {
+    success: false,
+    action: 'update_product',
+    message: 'Product update feature is being implemented. Please use the Products page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle delete_product intent
+ */
+async function handleDeleteProduct(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement delete product service integration
+  return {
+    success: false,
+    action: 'delete_product',
+    message: 'Product deletion feature is being implemented. Please use the Products page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle add_customer intent
+ */
+async function handleAddCustomer(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement add customer service integration
+  return {
+    success: false,
+    action: 'add_customer',
+    message: 'Customer creation feature is being implemented. Please use the Customers page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle add_supplier intent
+ */
+async function handleAddSupplier(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement add supplier service integration
+  return {
+    success: false,
+    action: 'add_supplier',
+    message: 'Supplier creation feature is being implemented. Please use the Suppliers page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle record_payment intent
+ */
+async function handleRecordPayment(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement record payment service integration
+  return {
+    success: false,
+    action: 'record_payment',
+    message: 'Payment recording feature is being implemented. Please use the appropriate page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle record_purchase intent
+ */
+async function handleRecordPurchase(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement record purchase service integration
+  return {
+    success: false,
+    action: 'record_purchase',
+    message: 'Purchase recording feature is being implemented. Please use the appropriate page for now.',
+    error: 'Not implemented',
+  };
+}
+
+/**
+ * Handle adjust_inventory intent
+ */
+async function handleAdjustInventory(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  // TODO: Implement inventory adjustment service integration
+  return {
+    success: false,
+    action: 'adjust_inventory',
+    message: 'Inventory adjustment feature is being implemented. Please use the Inventory page for now.',
+    error: 'Not implemented',
   };
 }
 
