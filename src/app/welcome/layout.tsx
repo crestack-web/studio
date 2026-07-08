@@ -4,7 +4,7 @@ import { AnnouncementBar } from './components/AnnouncementBar';
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="has-announcement">
+      <body>
         <AnnouncementBar />
         {children}
       </body>
