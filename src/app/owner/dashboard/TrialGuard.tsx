@@ -67,6 +67,45 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           return;
         }
 
+        // If user is in trial mode, check if trial is still valid
+        if (subscriptionStatus === 'trial') {
+          if (!trialEndDate) {
+            // Trial status but no end date - set default 3-day trial
+            const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
+            await updateDoc(doc(firestore, 'users', user.uid), {
+              trialEndDate: admin.firestore.FieldValue.serverTimestamp(),
+              trialStartDate: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          if (trialEndDate > now) {
+            // Trial is still active
+            const timeDiff = trialEndDate.getTime() - now.getTime();
+            const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+            setTrialInfo({
+              daysRemaining,
+              hoursRemaining,
+              minutesRemaining,
+              isExpired: false,
+              trialEndDate,
+            });
+            setIsLoading(false);
+            return;
+          } else {
+            // Trial has expired
+            setIsExpired(true);
+            await updateDoc(doc(firestore, 'users', user.uid), {
+              subscriptionStatus: 'expired',
+            });
+            return;
+          }
+        }
+
         // If already subscribed, check if subscription is still valid
         if (subscriptionStatus === 'active') {
           if (subscriptionEndDate && subscriptionEndDate < now) {
@@ -96,38 +135,49 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           return;
         }
 
-        if (!trialEndDate) {
-          // No trial end date - treat as expired
-          setIsExpired(true);
+        // If no subscription status and no trial end date, set up trial
+        if (!subscriptionStatus && !trialEndDate) {
+          const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
+          await updateDoc(doc(firestore, 'users', user.uid), {
+            trialEndDate: admin.firestore.FieldValue.serverTimestamp(),
+            trialStartDate: admin.firestore.FieldValue.serverTimestamp(),
+            subscriptionStatus: 'trial',
+          });
           setIsLoading(false);
           return;
         }
 
-        const timeDiff = trialEndDate.getTime() - now.getTime();
-        
-        if (timeDiff <= 0) {
-          // Trial expired - downgrade to recommended plan
-          const trialPlan = userData.trialPlan || userData.plan || 'starter';
-          setIsExpired(true);
-          // Update subscription status and downgrade to recommended plan
-          await updateDoc(doc(firestore, 'users', user.uid), {
-            subscriptionStatus: 'expired',
-            plan: trialPlan, // Downgrade to the recommended plan based on selected features
-          });
-        } else {
-          // Trial still active - calculate remaining time
-          const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-          const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        // If we have a trial end date but no subscription status, check if trial is valid
+        if (trialEndDate && !subscriptionStatus) {
+          const timeDiff = trialEndDate.getTime() - now.getTime();
+          
+          if (timeDiff > 0) {
+            // Trial is still active
+            const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-          setTrialInfo({
-            daysRemaining,
-            hoursRemaining,
-            minutesRemaining,
-            isExpired: false,
-            trialEndDate,
-          });
+            setTrialInfo({
+              daysRemaining,
+              hoursRemaining,
+              minutesRemaining,
+              isExpired: false,
+              trialEndDate,
+            });
+            setIsLoading(false);
+            return;
+          } else {
+            // Trial has expired
+            setIsExpired(true);
+            await updateDoc(doc(firestore, 'users', user.uid), {
+              subscriptionStatus: 'expired',
+            });
+            return;
+          }
         }
+
+        // Default: allow access
+        setIsLoading(false);
       } catch (error) {
         console.error('Trial guard error:', error);
       } finally {
