@@ -892,10 +892,10 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 .pricing-toggle button { font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; background: none; color: var(--text-muted); transition: all 0.2s; }
 .pricing-toggle button.active { background: white; color: var(--purple); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .save-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--green-light); color: var(--green); font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: 100px; margin-left: 12px; vertical-align: middle; }
-.plans-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; padding: 0 5% 80px; max-width: 1200px; margin: 0 auto; }
+.plans-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; padding: 0 5% 80px; max-width: 1100px; margin: 0 auto; }
 @media(max-width:1024px) { .plans-grid { grid-template-columns: repeat(2,1fr); } }
 @media(max-width:580px) { .plans-grid { grid-template-columns: 1fr; } }
-.plan-card { border: 1.5px solid var(--grey-200); border-radius: var(--radius-lg); padding: 28px 22px; background: var(--white); position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+.plan-card { border: 1.5px solid var(--grey-200); border-radius: var(--radius); padding: 24px; background: var(--white); position: relative; transition: transform 0.2s, box-shadow 0.2s; }
 .plan-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
 .plan-card.popular { border-color: var(--purple); box-shadow: var(--shadow); }
 .popular-tag { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--purple); color: white; font-size: 0.72rem; font-weight: 700; padding: 4px 14px; border-radius: 100px; white-space: nowrap; }
@@ -907,7 +907,7 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 .plan-divider { border: none; border-top: 1px solid var(--grey-200); margin: 20px 0; }
 .plan-feature-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 12px; }
 .plan-features { list-style: none; }
-.plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.83rem; color: var(--text-secondary); padding: 5px 0; }
+.plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.875rem; color: var(--text-secondary); padding: 6px 0; }
 .plan-features li .check { color: var(--green); flex-shrink: 0; margin-top: 1px; }
 .plan-features li .cross { color: var(--red); flex-shrink: 0; margin-top: 1px; }
 .plan-features li.inactive { color: var(--text-muted); }
