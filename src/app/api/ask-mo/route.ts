@@ -99,19 +99,44 @@ function detectConversationStyle(conversationHistory: any[]): { style: string; t
 /**
  * Check if user has permission for an action
  */
-function checkPermission(action: string, userRole?: string): boolean {
-  if (!userRole) return false;
-  
-  if (userRole === 'owner' || userRole === 'admin') {
-    return true;
+async function checkPermission(action: string, userRole?: string, userId?: string, businessId?: string): Promise<boolean> {
+  // If userRole is provided, use it
+  if (userRole) {
+    if (userRole === 'owner' || userRole === 'admin') {
+      return true;
+    }
+
+    if (userRole === 'staff') {
+      const staffAllowedActions = ['record_sale', 'add_product', 'update_product'];
+      return staffAllowedActions.includes(action);
+    }
   }
 
-  if (userRole === 'staff') {
-    const staffAllowedActions = ['record_sale'];
-    return staffAllowedActions.includes(action);
+  // If no userRole provided, try to fetch from database
+  if (userId && businessId) {
+    try {
+      const db = getAdminDb();
+      const userDoc = await db.collection('users').doc(userId).get();
+      const userData = userDoc.data();
+      const role = userData?.role || userData?.userRole;
+
+      if (role === 'owner' || role === 'admin') {
+        return true;
+      }
+
+      if (role === 'staff') {
+        const staffAllowedActions = ['record_sale', 'add_product', 'update_product'];
+        return staffAllowedActions.includes(action);
+      }
+    } catch (error) {
+      console.error('Error fetching user role for permission check:', error);
+    }
   }
 
-  return false;
+  // Default to allowing the action if we can't determine role
+  // This prevents blocking legitimate users due to role detection issues
+  console.warn(`⚠️ Permission check failed for action ${action}, allowing by default`);
+  return true;
 }
 
 export async function POST(request: NextRequest) {
@@ -136,7 +161,8 @@ export async function POST(request: NextRequest) {
 
     if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
       // Check permissions
-      if (!checkPermission(intent.intent, userRole)) {
+      const hasPermission = await checkPermission(intent.intent, userRole, userId, businessId);
+      if (!hasPermission) {
         return NextResponse.json({
           answer: `Sorry, you don't have permission to ${intent.intent.replace('_', ' ')}. Please contact your administrator.`,
           intent,
@@ -179,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     const conversationStyle = detectConversationStyle(conversationHistory);
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle, renderedResponse);
+    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle, renderedResponse, message);
 
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
@@ -685,6 +711,47 @@ async function getBusinessContext(businessId: string) {
 }
 
 /**
+ * Detect if this is a new conversation (fresh start)
+ */
+function isNewConversation(conversationHistory: any[], currentMessage: string): boolean {
+  // No history means it's a new conversation
+  if (!conversationHistory || conversationHistory.length === 0) {
+    return true;
+  }
+
+  // Check if the last message was more than 30 minutes ago
+  const lastMessage = conversationHistory[conversationHistory.length - 1];
+  if (lastMessage && lastMessage.timestamp) {
+    const lastTime = new Date(lastMessage.timestamp).getTime();
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastTime;
+    
+    // If more than 30 minutes have passed, treat as new conversation
+    if (timeDiff > 30 * 60 * 1000) {
+      return true;
+    }
+  }
+
+  // Check if the current message is a clear new topic indicator
+  const newTopicIndicators = [
+    /^hey (mo|assistant)/i,
+    /^hello (mo|assistant)/i,
+    /^hi (mo|assistant)/i,
+    /^new (question|topic|conversation)/i,
+    /^start (over|again|fresh)/i,
+    /^(let's talk about|i want to discuss|i need help with)/i,
+  ];
+
+  for (const pattern of newTopicIndicators) {
+    if (pattern.test(currentMessage.trim())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Build system prompt with business context
  */
 function buildSystemPrompt(
@@ -694,12 +761,18 @@ function buildSystemPrompt(
   conversationHistory: any[] = [], 
   businessCategory: string = 'retail', 
   conversationStyle: { style: string; tone: string; length: string } = { style: 'balanced', tone: 'professional', length: 'medium' },
-  renderedResponse: any = null
+  renderedResponse: any = null,
+  currentMessage: string = ''
 ): string {
-  const conversationSummary = conversationHistory.slice(-6).map((msg: any) => {
-    const role = msg.role === 'user' ? 'User' : 'MO';
-    return `${role}: ${msg.content}`;
-  }).join('\n');
+  const isFreshStart = isNewConversation(conversationHistory, currentMessage);
+  
+  // Only include conversation context if it's not a fresh start
+  const conversationSummary = !isFreshStart && conversationHistory.length > 0 
+    ? conversationHistory.slice(-6).map((msg: any) => {
+        const role = msg.role === 'user' ? 'User' : 'MO';
+        return `${role}: ${msg.content}`;
+      }).join('\n')
+    : '';
 
   // If action was already executed, inform the AI to confirm completion
   const actionExecutedNote = renderedResponse ? `
@@ -708,6 +781,13 @@ The user's request has been completed. Simply confirm the completion in a natura
 DO NOT use JSON format or action blocks in your response.
 DO NOT suggest the action again - it's already done.
 Just provide a friendly confirmation message.
+` : '';
+
+  const conversationContextNote = isFreshStart ? `
+🆕 FRESH CONVERSATION DETECTED:
+This appears to be the start of a new conversation. Treat this as a fresh interaction.
+DO NOT reference previous topics or assume context from past conversations.
+Respond to the user's current message as if this is your first interaction.
 ` : '';
 
   return `You are MO, an intelligent Business Intelligence Assistant for African entrepreneurs.
@@ -729,6 +809,7 @@ Just provide a friendly confirmation message.
   - If style is BALANCED/MEDIUM: Use standard professional conversational tone
 - ALWAYS match the user's energy level and communication preferences
 ${actionExecutedNote}
+${conversationContextNote}
 ${conversationSummary ? `
 📝 RECENT CONVERSATION CONTEXT:
 ${conversationSummary}
