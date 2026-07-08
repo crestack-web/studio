@@ -68,9 +68,8 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const TEAM_MEMBERS = [
-  { name: 'Sarah', role: 'Support Lead', avatar: '👩‍💼', online: true },
-  { name: 'John', role: 'Support Agent', avatar: '👨‍💼', online: true },
-  { name: 'Emily', role: 'Support Agent', avatar: '👩‍💻', online: false },
+  { name: 'Victoria', role: 'Support Lead', online: true },
+  { name: 'Majnun', role: 'Support Agent', online: true },
 ];
 
 // ─── Component ───────────────────────────────────────────────────
@@ -232,7 +231,7 @@ export const FloatingChatWidget: React.FC = () => {
       if (firestore && currentConversationId) {
         await updateDoc(doc(firestore, 'supportMessages', currentConversationId), {
           status: 'needs_human',
-          'replies': arrayUnion({
+          replies: arrayUnion({
             message: "User requested human agent.",
             sender: 'system',
             createdAt: new Date().toISOString(),
@@ -443,8 +442,24 @@ export const FloatingChatWidget: React.FC = () => {
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-        {isBotMode ? 'AI Online' : 'Agent Online'}
+        {isBotMode ? 'MO AI Online' : 'Agent Online'}
       </span>
+    );
+  };
+
+  const renderAvatar = (member: typeof TEAM_MEMBERS[0], isBot = false) => {
+    if (isBot) {
+      return (
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center text-white text-lg">
+          <Bot size={20} />
+        </div>
+      );
+    }
+    
+    return (
+      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+        <img src="/busmogo.png" alt={member.name} className="w-full h-full object-cover" />
+      </div>
     );
   };
 
@@ -532,10 +547,10 @@ export const FloatingChatWidget: React.FC = () => {
                 {TEAM_MEMBERS.filter(m => m.online).map((member, idx) => (
                   <div 
                     key={idx} 
-                    className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white flex items-center justify-center text-sm"
+                    className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white flex items-center justify-center text-sm overflow-hidden"
                     title={`${member.name} - ${member.role}`}
                   >
-                    {member.avatar}
+                    <img src="/busmogo.png" alt={member.name} className="w-full h-full object-cover" />
                   </div>
                 ))}
               </div>
@@ -843,9 +858,7 @@ export const FloatingChatWidget: React.FC = () => {
                   >
                     <ChevronRight size={20} className="rotate-180" />
                   </button>
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center text-white text-lg">
-                    {isBotMode ? '🤖' : '👤'}
-                  </div>
+                  {renderAvatar(isBotMode ? { name: 'MO', role: 'AI Assistant', online: true } : { name: 'Agent', role: 'Support', online: true }, isBotMode)}
                   <div className="flex-1">
                     <div className="font-semibold text-sm text-gray-900">
                       {isBotMode ? 'MO AI Assistant' : 'Human Support Agent'}

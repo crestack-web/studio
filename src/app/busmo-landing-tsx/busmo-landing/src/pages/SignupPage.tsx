@@ -48,7 +48,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
           <li><span className="perk-check">✓</span> Track inventory, expenses, and staff</li>
           <li><span className="perk-check">✓</span> Sell online with Busmo Market</li>
           <li><span className="perk-check">✓</span> AI insights that speak your language</li>
-          <li><span className="perk-check">✓</span> 7-day free trial — no credit card needed</li>
+          <li><span className="perk-check">✓</span> 3-day free trial — no credit card needed</li>
         </ul>
       </div>
 

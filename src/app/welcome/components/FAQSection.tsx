@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 const FAQS = [
   {
     q: 'How does the free trial work?',
-    a: 'All plans come with a 7-day free trial. No credit card is required to start. You get full access to all features during the trial. At the end of your trial, choose the plan that fits your business — or cancel anytime.',
+    a: 'All plans come with a 3-day free trial. No credit card is required to start. You get full access to all features during the trial. At the end of your trial, choose the plan that fits your business — or cancel anytime.',
   },
   {
     q: 'Is Busmo another accounting app?',

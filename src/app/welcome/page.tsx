@@ -246,7 +246,7 @@ export default function WelcomePage() {
           <h2>The Future of Your Business<br />Starts With Clarity.</h2>
           <p>Join smart business owners across Africa who are building their future with Busmo.</p>
           <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
-          <div className="cta-note">7-day free trial · No credit card · Works offline</div>
+          <div className="cta-note">3-day free trial · No credit card · Works offline</div>
         </div>
       </ScrollReveal>
 
