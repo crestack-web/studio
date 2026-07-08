@@ -136,7 +136,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
           <>
             <button className="onboard-back" onClick={back}>← Back</button>
             <div className="signup-right-title">Choose Your Plan</div>
-            <div className="signup-right-sub">Step 3 of 3 — Start with a 7-day free trial</div>
+            <div className="signup-right-sub">Step 3 of 3 — Start with a 3-day free trial</div>
             {[
               { key: 'starter', name: 'Starter', price: '₦20,000/mo', desc: 'For small retailers & startups', popular: false },
               { key: 'standard', name: 'Standard', price: '₦50,000/mo', desc: 'For growing businesses', popular: true },
