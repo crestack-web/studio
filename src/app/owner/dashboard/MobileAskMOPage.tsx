@@ -682,9 +682,13 @@ export function MobileAskMOPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }
 
-  function formatContent(content: string) {
+  function formatContent(content: string, role: 'user' | 'bot' = 'bot') {
     // Split by newlines first
     const lines = content.split('\n');
+    
+    // For user messages, use white text (on purple background)
+    // For bot messages, use text-1 color
+    const textColor = role === 'user' ? 'white' : 'var(--text-1)';
     
     return lines.map((line, lineIndex) => {
       // Skip empty lines but preserve spacing
@@ -704,7 +708,7 @@ export function MobileAskMOPage() {
                 padding: '6px 8px',
                 background: cellIndex === 0 ? 'var(--bg-3)' : 'var(--bg-2)',
                 borderRadius: '4px',
-                color: 'var(--text-1)',
+                color: textColor,
                 fontWeight: cellIndex === 0 ? 600 : 400,
                 fontSize: cellIndex === 0 ? '12px' : '13px'
               }}>
@@ -719,9 +723,9 @@ export function MobileAskMOPage() {
       if (line.trim().match(/^[-*]\s+/)) {
         const listContent = line.trim().replace(/^[-*]\s+/, '');
         return (
-          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '6px', color: 'var(--text-1)' }}>
-            <span style={{ color: 'var(--primary)', fontWeight: 600 }}>•</span>
-            <span style={{ lineHeight: '1.6' }}>{formatInlineMarkdown(listContent)}</span>
+          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '6px', color: textColor }}>
+            <span style={{ color: role === 'user' ? 'rgba(255,255,255,0.8)' : 'var(--primary)', fontWeight: 600 }}>•</span>
+            <span style={{ lineHeight: '1.6' }}>{formatInlineMarkdown(listContent, role)}</span>
           </div>
         );
       }
@@ -735,11 +739,11 @@ export function MobileAskMOPage() {
           <div key={lineIndex} style={{
             fontSize,
             fontWeight: 600,
-            color: 'var(--text-1)',
+            color: textColor,
             marginBottom: '12px',
             marginTop: '8px'
           }}>
-            {formatInlineMarkdown(headerContent)}
+            {formatInlineMarkdown(headerContent, role)}
           </div>
         );
       }
@@ -747,20 +751,21 @@ export function MobileAskMOPage() {
       // Regular paragraph with inline markdown
       return (
         <React.Fragment key={lineIndex}>
-          <span style={{ lineHeight: '1.7', display: 'block', marginBottom: lineIndex < lines.length - 1 && lines[lineIndex + 1].trim() ? '0.75rem' : '0', color: 'var(--text-1)' }}>
-            {formatInlineMarkdown(line)}
+          <span style={{ lineHeight: '1.7', display: 'block', marginBottom: lineIndex < lines.length - 1 && lines[lineIndex + 1].trim() ? '0.75rem' : '0', color: textColor }}>
+            {formatInlineMarkdown(line, role)}
           </span>
         </React.Fragment>
       );
     });
   }
   
-  function formatInlineMarkdown(text: string) {
+  function formatInlineMarkdown(text: string, role: 'user' | 'bot' = 'bot') {
     // Bold with **text**
     let parts = text.split(/\*\*([^*]+)\*\*/g);
+    const textColor = role === 'user' ? 'white' : 'var(--text-1)';
     const formatted = parts.map((part, index) => {
       if (index % 2 === 1) {
-        return <strong key={index} style={{ fontWeight: 600, color: 'var(--text-1)' }}>{part}</strong>;
+        return <strong key={index} style={{ fontWeight: 600, color: textColor }}>{part}</strong>;
       }
       // Italic with *text*
       const italicParts = part.split(/\*([^*]+)\*/g);
@@ -934,7 +939,7 @@ export function MobileAskMOPage() {
                   }}
                 />
               )}
-              {formatContent(m.content)}
+              {formatContent(m.content, m.role)}
               {/* Sale Confirmation */}
               {m.role === 'bot' && m.saleCard && (
                 <div style={{ marginTop: '12px' }}>
