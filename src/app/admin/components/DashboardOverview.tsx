@@ -17,7 +17,6 @@ interface DashboardMetrics {
   totalInventory: number;
   totalAskMOConversations: number;
   paidSubscribers: number;
-  freePlanUsers: number;
   trialUsers: number;
 }
 
@@ -43,7 +42,6 @@ export default function DashboardOverview() {
     totalInventory: 0,
     totalAskMOConversations: 0,
     paidSubscribers: 0,
-    freePlanUsers: 0,
     trialUsers: 0,
   });
   const [userGrowthData, setUserGrowthData] = useState<ChartData[]>([]);
@@ -126,15 +124,23 @@ export default function DashboardOverview() {
       );
       const newBusinessesThisMonth = await safeGetCount(newBusinessesMonthQuery);
 
-      // Get total inventory items
-      const totalInventory = await safeGetCount(collection(firestore, 'products'));
+      // Get total inventory items (aggregate from all businesses)
+      let totalInventory = 0;
+      try {
+        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
+        for (const businessDoc of businessesSnapshot.docs) {
+          const productsCount = await safeGetCount(collection(firestore, 'businesses', businessDoc.id, 'products'));
+          totalInventory += productsCount;
+        }
+      } catch (e) {
+        console.warn('Failed to get total inventory count:', e);
+      }
 
       // Get Ask MO conversations
       const totalAskMOConversations = await safeGetCount(collection(firestore, 'askMoConversations'));
 
       // Get subscription counts
       let paidSubscribers = 0;
-      let freePlanUsers = 0;
       let trialUsers = 0;
 
       try {
@@ -145,14 +151,14 @@ export default function DashboardOverview() {
       }
 
       try {
-        const freeQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'free'));
-        freePlanUsers = await safeGetCount(freeQuery);
-      } catch (e) {
-        console.warn('Failed to get free plan users count:', e);
-      }
-
-      try {
-        const trialQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'trial'));
+        // Get active trial users (created within last 3 days and plan is 'trial')
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+        const trialQuery = query(
+          collection(firestore, 'businesses'),
+          where('plan', '==', 'trial'),
+          where('createdAt', '>=', threeDaysAgo)
+        );
         trialUsers = await safeGetCount(trialQuery);
       } catch (e) {
         console.warn('Failed to get trial users count:', e);
@@ -170,7 +176,6 @@ export default function DashboardOverview() {
         totalInventory,
         totalAskMOConversations,
         paidSubscribers,
-        freePlanUsers,
         trialUsers,
       });
 
@@ -326,8 +331,7 @@ export default function DashboardOverview() {
     { label: 'Total Inventory Items', value: metrics.totalInventory, icon: '📦', color: 'orange' },
     { label: 'Ask MO Conversations', value: metrics.totalAskMOConversations, icon: '🤖', color: 'pink' },
     { label: 'Paid Subscribers', value: metrics.paidSubscribers, icon: '💎', color: 'green' },
-    { label: 'Free Plan Users', value: metrics.freePlanUsers, icon: '🆓', color: 'gray' },
-    { label: 'Trial Users', value: metrics.trialUsers, icon: '⏳', color: 'yellow' },
+    { label: 'Trial Users (Active)', value: metrics.trialUsers, icon: '⏳', color: 'yellow' },
   ];
 
   const colorClasses = {
@@ -337,7 +341,6 @@ export default function DashboardOverview() {
     indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200',
     pink: 'bg-pink-50 text-pink-700 border-pink-200',
-    gray: 'bg-gray-50 text-gray-700 border-gray-200',
     yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   };
 

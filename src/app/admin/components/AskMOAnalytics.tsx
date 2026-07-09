@@ -12,6 +12,9 @@ interface AskMOAnalytics {
   slowResponses: number;
   userSatisfaction: number;
   businessBreakdown: { businessId: string; businessName: string; conversationCount: number }[];
+  totalCreditsConsumed: number;
+  totalConversationsStarted: number;
+  averageConversationTime: number;
 }
 
 export default function AskMOAnalytics() {
@@ -28,18 +31,13 @@ export default function AskMOAnalytics() {
     try {
       setLoading(true);
       
-      // Get total conversations
-      const conversationsSnapshot = await getCountFromServer(collection(firestore, 'askMoConversations'));
-      const totalConversations = conversationsSnapshot.data().count;
-
-      // Get conversations for detailed analysis
-      const conversationsQuery = query(
-        collection(firestore, 'askMoConversations'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-      const conversationsListSnapshot = await getDocs(conversationsQuery);
-      
+      // Get total conversations from user conversations
+      const usersSnapshot = await getDocs(collection(firestore, 'users'));
+      let totalConversations = 0;
+      let totalCreditsConsumed = 0;
+      let totalConversationsStarted = 0;
+      let totalConversationTime = 0;
+      let conversationTimeCount = 0;
       let totalMessages = 0;
       let failedResponses = 0;
       let slowResponses = 0;
@@ -48,48 +46,75 @@ export default function AskMOAnalytics() {
       const questionCounts: { [key: string]: number } = {};
       const businessCounts: { [key: string]: { name: string; count: number } } = {};
 
-      conversationsListSnapshot.forEach(doc => {
-        const data = doc.data();
-        const messages = data.messages || [];
-        totalMessages += messages.length;
-
-        // Check for failed responses
-        if (data.hasFailedResponse) {
-          failedResponses++;
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        
+        // Aggregate user-level metrics
+        totalCreditsConsumed += userData?.moCreditsConsumed || 0;
+        totalConversationsStarted += userData?.moTotalConversations || 0;
+        
+        const avgTime = userData?.moAverageConversationTime || 0;
+        if (avgTime > 0) {
+          totalConversationTime += avgTime;
+          conversationTimeCount++;
         }
 
-        // Check for slow responses (response time > 5 seconds)
-        if (data.responseTime && data.responseTime > 5000) {
-          slowResponses++;
-        }
+        // Get user's conversations for detailed analysis
+        const conversationsQuery = query(
+          collection(firestore, 'users', userDoc.id, 'mo_conversations'),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+        const conversationsSnapshot = await getDocs(conversationsQuery);
+        
+        totalConversations += conversationsSnapshot.size;
 
-        // User satisfaction
-        if (data.userRating !== undefined) {
-          satisfactionSum += data.userRating;
-          satisfactionCount++;
-        }
+        conversationsSnapshot.forEach(doc => {
+          const data = doc.data();
+          const messages = data.messages || [];
+          totalMessages += messages.length;
 
-        // Track most common questions
-        if (data.firstQuestion) {
-          const question = data.firstQuestion.toLowerCase();
-          questionCounts[question] = (questionCounts[question] || 0) + 1;
-        }
-
-        // Track by business
-        if (data.businessId) {
-          if (!businessCounts[data.businessId]) {
-            businessCounts[data.businessId] = {
-              name: data.businessName || 'Unknown Business',
-              count: 0,
-            };
+          // Check for failed responses
+          if (data.hasFailedResponse) {
+            failedResponses++;
           }
-          businessCounts[data.businessId].count++;
-        }
-      });
+
+          // Check for slow responses (response time > 5 seconds)
+          if (data.responseTime && data.responseTime > 5000) {
+            slowResponses++;
+          }
+
+          // User satisfaction
+          if (data.userRating !== undefined) {
+            satisfactionSum += data.userRating;
+            satisfactionCount++;
+          }
+
+          // Track most common questions
+          if (messages.length > 0 && messages[0].role === 'user') {
+            const question = messages[0].content?.toLowerCase().substring(0, 100) || '';
+            if (question) {
+              questionCounts[question] = (questionCounts[question] || 0) + 1;
+            }
+          }
+
+          // Track by business
+          if (data.businessId) {
+            if (!businessCounts[data.businessId]) {
+              businessCounts[data.businessId] = {
+                name: data.businessName || 'Unknown Business',
+                count: 0,
+              };
+            }
+            businessCounts[data.businessId].count++;
+          }
+        });
+      }
 
       // Calculate averages
       const avgMessagesPerConversation = totalConversations > 0 ? totalMessages / totalConversations : 0;
       const userSatisfaction = satisfactionCount > 0 ? satisfactionSum / satisfactionCount : 0;
+      const averageConversationTime = conversationTimeCount > 0 ? totalConversationTime / conversationTimeCount : 0;
 
       // Get most common questions
       const mostCommonQuestions = Object.entries(questionCounts)
@@ -114,6 +139,9 @@ export default function AskMOAnalytics() {
         slowResponses,
         userSatisfaction,
         businessBreakdown,
+        totalCreditsConsumed,
+        totalConversationsStarted,
+        averageConversationTime,
       });
     } catch (error) {
       console.error('Error loading Ask MO analytics:', error);
@@ -169,6 +197,26 @@ export default function AskMOAnalytics() {
             {analytics.totalConversations > 0 ? ((analytics.failedResponses / analytics.totalConversations) * 100).toFixed(1) : 0}%
           </p>
           <p className="text-sm text-gray-600">Failure Rate</p>
+        </div>
+      </div>
+
+      {/* Usage Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+          <p className="text-2xl font-bold text-indigo-700">{analytics.totalCreditsConsumed.toLocaleString()}</p>
+          <p className="text-sm text-indigo-600">Total Credits Consumed</p>
+        </div>
+        <div className="bg-teal-50 rounded-xl p-4 border border-teal-200">
+          <p className="text-2xl font-bold text-teal-700">{analytics.totalConversationsStarted.toLocaleString()}</p>
+          <p className="text-sm text-teal-600">Total Conversations Started</p>
+        </div>
+        <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+          <p className="text-2xl font-bold text-orange-700">
+            {analytics.averageConversationTime > 0 
+              ? `${Math.floor(analytics.averageConversationTime / 60)}m ${Math.round(analytics.averageConversationTime % 60)}s`
+              : 'N/A'}
+          </p>
+          <p className="text-sm text-orange-600">Avg Conversation Time</p>
         </div>
       </div>
 
