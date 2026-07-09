@@ -110,7 +110,7 @@ export function detectIntent(
   // Inventory adjustment patterns
   const inventoryPatterns = [
     /^(?:adjust|update|correct|modify)\s+(?:inventory|stock)/i,
-    /^(?:add|remove)\s+(?:stock|inventory|quantity)/i,
+    /^(?:add|remove|restock|replenish)\s+(?:stock|inventory|quantity)/i,
   ];
 
   // Navigation patterns (explicit navigation requests)
@@ -747,20 +747,24 @@ function parseInventoryData(message: string): Record<string, any> {
 
   // Remove action words first
   let cleanedMessage = message
-    .replace(/^(?:adjust|update|correct|modify|add|remove)\s+(?:inventory|stock|quantity)\s+(?:of|for|to|by)?[:\s]*/i, '')
+    .replace(/^(?:adjust|update|correct|modify|add|remove|restock|replenish)\s+(?:inventory|stock|quantity)\s+(?:of|for|to|by|with)?[:\s]*/i, '')
     .trim();
 
   // Extract adjustment amount (positive for add, negative for remove)
-  const addMatch = message.match(/(?:add|increase)\s+(\d+)/i);
+  const addMatch = message.match(/(?:add|increase|restock|replenish)\s+(\d+)/i);
   const removeMatch = message.match(/(?:remove|decrease|reduce)\s+(\d+)/i);
-  const byMatch = message.match(/(?:by|to)\s+([+-]?\d+)/i);
+  const byMatch = message.match(/(?:by|to|with)\s+([+-]?\d+)/i);
+  const withMatch = message.match(/(?:with)\s+(\d+)/i);
   
   if (addMatch) {
     result.adjustment = parseInt(addMatch[1]);
-    cleanedMessage = cleanedMessage.replace(/(?:add|increase)\s+\d+/i, '').trim();
+    cleanedMessage = cleanedMessage.replace(/(?:add|increase|restock|replenish)\s+\d+/i, '').trim();
   } else if (removeMatch) {
     result.adjustment = -parseInt(removeMatch[1]);
     cleanedMessage = cleanedMessage.replace(/(?:remove|decrease|reduce)\s+\d+/i, '').trim();
+  } else if (withMatch) {
+    result.adjustment = parseInt(withMatch[1]);
+    cleanedMessage = cleanedMessage.replace(/(?:with)\s+\d+/i, '').trim();
   } else if (byMatch) {
     result.adjustment = parseInt(byMatch[1]);
     cleanedMessage = cleanedMessage.replace(/(?:by|to)\s+[+-]?\d+/i, '').trim();
