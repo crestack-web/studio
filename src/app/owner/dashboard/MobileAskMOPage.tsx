@@ -55,11 +55,14 @@ export function MobileAskMOPage() {
      setMessages,
      creditsUsed,
      creditsRemaining,
+     totalCreditsConsumed,
      planLimit,
      conversations,
      currentConversationId,
      setCurrentConversationId,
      businessSummary,
+     totalConversationsStarted,
+     averageConversationTime,
      createConversation,
      saveMessages,
      saveConversation,
@@ -105,6 +108,7 @@ export function MobileAskMOPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
+  const [showUsageStats, setShowUsageStats] = useState(false);
   const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const [pendingAction, setPendingAction] = useState<any>(null);
@@ -844,23 +848,33 @@ export function MobileAskMOPage() {
           <MoIcon size={18} />
         </div>
         <h3 className={styles.headerTitle}>Ask MO</h3>
-        <div 
-          className={styles.tokenCounter}
-          onClick={() => setShowCreditPurchase(true)}
-          style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
-          title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
-        >
-          <img
-            src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
-            alt="Token"
-            width={14}
-            height={14}
-            style={{ borderRadius: '50%' }}
-          />
-          <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
-          {creditsRemaining !== -1 && (
-            <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
-          )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div 
+            className={styles.tokenCounter}
+            onClick={() => setShowUsageStats(true)}
+            style={{ cursor: 'pointer' }}
+            title="View usage statistics"
+          >
+            <BarChart size={16} style={{ color: 'var(--primary)' }} />
+          </div>
+          <div 
+            className={styles.tokenCounter}
+            onClick={() => setShowCreditPurchase(true)}
+            style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
+            title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
+          >
+            <img
+              src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
+              alt="Token"
+              width={14}
+              height={14}
+              style={{ borderRadius: '50%' }}
+            />
+            <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
+            {creditsRemaining !== -1 && (
+              <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -869,6 +883,195 @@ export function MobileAskMOPage() {
         onClose={() => setShowCreditPurchase(false)}
         onSuccess={handlePurchaseSuccess}
       />
+
+      {/* Usage Statistics Modal */}
+      {showUsageStats && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-1)', margin: 0 }}>
+                Usage Statistics
+              </h3>
+              <button
+                onClick={() => setShowUsageStats(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '8px',
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 24, height: 24, color: 'var(--text-2)' }}>
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Credits Consumed */}
+              <div style={{
+                backgroundColor: 'var(--bg-2)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: '50%', 
+                    backgroundColor: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <DollarSign size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-2)', margin: 0, fontWeight: 500 }}>
+                      Total Credits Consumed
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-1)', margin: 0 }}>
+                      {totalCreditsConsumed.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conversations Started */}
+              <div style={{
+                backgroundColor: 'var(--bg-2)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Cpu size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-2)', margin: 0, fontWeight: 500 }}>
+                      Total Conversations
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-1)', margin: 0 }}>
+                      {totalConversationsStarted.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Average Conversation Time */}
+              <div style={{
+                backgroundColor: 'var(--bg-2)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#F59E0B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Lightbulb size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-2)', margin: 0, fontWeight: 500 }}>
+                      Avg. Conversation Time
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-1)', margin: 0 }}>
+                      {averageConversationTime > 0 
+                        ? `${Math.floor(averageConversationTime / 60)}m ${Math.round(averageConversationTime % 60)}s`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Credits Remaining */}
+              <div style={{
+                backgroundColor: 'var(--bg-2)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#6366F1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Package size={20} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-2)', margin: 0, fontWeight: 500 }}>
+                      Credits Remaining
+                    </p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-1)', margin: 0 }}>
+                      {creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowUsageStats(false)}
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px',
+                backgroundColor: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>

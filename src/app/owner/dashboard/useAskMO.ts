@@ -68,10 +68,13 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
   const messagesRef = useRef<MOMessage[]>([]);
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsRemaining, setCreditsRemaining] = useState(2500);
+  const [totalCreditsConsumed, setTotalCreditsConsumed] = useState(0);
   const [planLimit, setPlanLimit] = useState(10);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [businessSummary, setBusinessSummary] = useState<any>(null);
+  const [totalConversationsStarted, setTotalConversationsStarted] = useState(0);
+  const [averageConversationTime, setAverageConversationTime] = useState(0);
 
   // Plan-based limitations
   const PLAN_LIMITS = {
@@ -114,6 +117,18 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           }
           
           setCreditsRemaining(storedCredits);
+
+          // Load total credits consumed
+          const totalConsumed = userData?.moCreditsConsumed || 0;
+          setTotalCreditsConsumed(totalConsumed);
+
+          // Load total conversations started
+          const totalConvStarted = userData?.moTotalConversations || 0;
+          setTotalConversationsStarted(totalConvStarted);
+
+          // Load average conversation time
+          const avgConvTime = userData?.moAverageConversationTime || 0;
+          setAverageConversationTime(avgConvTime);
 
           // Load business analysis from onboarding if available
           const businessAnalysis = userData?.businessAnalysis;
@@ -569,6 +584,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         messageCount: 1,
+        startTime: Timestamp.now(), // Track when conversation started
       };
 
       // Only include branchId and branchName if they are defined
@@ -581,6 +597,12 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
       const docRef = await addDoc(collection(firestore, 'users', userId, 'mo_conversations'), conversationData);
       const newConversationId = docRef.id;
+
+      // Increment total conversations count
+      setTotalConversationsStarted(prev => prev + 1);
+      await updateDoc(doc(firestore, 'users', userId), {
+        moTotalConversations: totalConversationsStarted + 1,
+      }).catch(err => console.error('Error updating conversation count:', err));
 
       // Add to conversations list
       const newConversation: Conversation = {
@@ -603,7 +625,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       console.error('Error creating conversation:', error);
       return '';
     }
-  }, [userId, businessId, branchId, branchName]);
+  }, [userId, businessId, branchId, branchName, totalConversationsStarted]);
 
   // Save messages incrementally to current conversation
   const saveMessages = useCallback(async (conversationId: string, updatedMessages: MOMessage[]) => {
@@ -640,13 +662,31 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         ...(msg.expenseCard && { expenseCard: msg.expenseCard }),
       }));
 
+      // Calculate conversation duration if this is the first save with multiple messages
+      const startTime = conversationData?.startTime;
+      let durationSeconds = 0;
+      if (startTime && updatedMessages.length > 1) {
+        const endTime = Timestamp.now();
+        durationSeconds = (endTime.toMillis() - startTime.toMillis()) / 1000;
+      }
+
       await updateDoc(conversationRef, {
         title,
         preview,
         messages: sanitizedMessages,
         updatedAt: Timestamp.now(),
         messageCount: updatedMessages.length,
+        ...(durationSeconds > 0 && { durationSeconds, endTime: Timestamp.now() }),
       });
+
+      // Update average conversation time if we have a duration
+      if (durationSeconds > 0) {
+        const newAvg = (averageConversationTime * totalConversationsStarted + durationSeconds) / (totalConversationsStarted + 1);
+        setAverageConversationTime(newAvg);
+        await updateDoc(doc(firestore, 'users', userId), {
+          moAverageConversationTime: newAvg,
+        }).catch(err => console.error('Error updating average conversation time:', err));
+      }
 
       // Update conversations list
       setConversations(prev => prev.map(c => 
@@ -663,7 +703,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     } catch (error) {
       console.error('Error saving messages:', error);
     }
-  }, [userId]);
+  }, [userId, averageConversationTime, totalConversationsStarted]);
 
   // Load messages for a specific conversation
   const loadConversation = useCallback(async (conversationId: string) => {
@@ -738,12 +778,14 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         const { firestore } = initializeFirebase();
         updateDoc(doc(firestore, 'users', userId), {
           moCreditsRemaining: newRemaining,
+          moCreditsConsumed: totalCreditsConsumed + creditsConsumed,
         }).catch(err => console.error('Error saving credits:', err));
         return newRemaining;
       });
       setCreditsUsed(prev => prev + creditsConsumed);
+      setTotalCreditsConsumed(prev => prev + creditsConsumed);
     }
-  }, [userPlan, userId]);
+  }, [userPlan, userId, totalCreditsConsumed]);
 
   function generateConversationTitle(messages: MOMessage[]): string {
     if (messages.length === 0) return 'New Conversation';
@@ -777,11 +819,14 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     setMessages,
     creditsUsed,
     creditsRemaining,
+    totalCreditsConsumed,
     planLimit,
     conversations,
     currentConversationId,
     setCurrentConversationId,
     businessSummary,
+    totalConversationsStarted,
+    averageConversationTime,
     createConversation,
     saveConversation,
     saveMessages,
