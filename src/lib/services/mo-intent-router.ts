@@ -113,6 +113,51 @@ export function detectIntent(
     /^(?:add|remove|restock|replenish)\s+(?:stock|inventory|quantity)/i,
   ];
 
+  // Reports and analytics patterns
+  const reportPatterns = [
+    /^(?:generate|create|show|get|give me)\s+(?:a\s+)?(?:report|sales report|analytics)/i,
+    /^(?:show|what are|tell me about)\s+(?:sales|revenue|profit|performance)/i,
+    /^(?:how much|what's the)\s+(?:sales|revenue|profit)/i,
+    /^(?:best\s+selling|top\s+products|product\s+performance)/i,
+    /^(?:profit\s+and\s+loss|p&l|income\s+statement)/i,
+  ];
+
+  // Low stock patterns
+  const lowStockPatterns = [
+    /^(?:show|get|check)\s+(?:low\s+stock|out of stock|stock alerts)/i,
+    /^(?:what\s+products|which products)\s+(?:are|is)\s+(?:low|out of stock)/i,
+    /^(?:reorder|restock)\s+(?:suggestions|recommendations)/i,
+  ];
+
+  // Expiry management patterns
+  const expiryPatterns = [
+    /^(?:show|get|check)\s+(?:expiring|expiry|expir(ed|ing))/i,
+    /^(?:what\s+products|which products)\s+(?:are|is)\s+(?:expiring|expired)/i,
+    /^(?:waste|spoilage|expired\s+items)/i,
+  ];
+
+  // Financial insights patterns
+  const financialPatterns = [
+    /^(?:show|get|check)\s+(?:cash flow|financials|finances)/i,
+    /^(?:revenue\s+vs|revenue\s+and\s+expenses)/i,
+    /^(?:outstanding|unpaid|credit)\s+(?:payments|debts)/i,
+    /^(?:how much|what's the)\s+(?:cash flow|net cash)/i,
+  ];
+
+  // Customer insights patterns
+  const customerInsightsPatterns = [
+    /^(?:show|get|check)\s+(?:customers|customer\s+insights|customer\s+data)/i,
+    /^(?:best\s+customers|top\s+customers|loyal customers)/i,
+    /^(?:customer\s+segmentation|segment\s+customers)/i,
+  ];
+
+  // Price optimization patterns
+  const pricePatterns = [
+    /^(?:show|get|check)\s+(?:price\s+optimization|price\s+suggestions)/i,
+    /^(?:optimize|adjust|change)\s+(?:prices|pricing)/i,
+    /^(?:bulk\s+price|price\s+update)/i,
+  ];
+
   // Navigation patterns (explicit navigation requests)
   const navigationPatterns = [
     /^(?:open|go|take\s+me|navigate)\s+(?:to|the)?\s*(?:sales|products|inventory|customers|suppliers|expenses|dashboard|reports)/i,
@@ -267,6 +312,83 @@ export function detectIntent(
         confidence: 0.85,
         data: inventoryData,
         requiresConfirmation: true,
+      };
+    }
+  }
+
+  // Check for report intent
+  for (const pattern of reportPatterns) {
+    if (pattern.test(lower)) {
+      const reportData = parseReportData(message);
+      return {
+        intent: 'generate_report',
+        confidence: 0.85,
+        data: reportData,
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for low stock intent
+  for (const pattern of lowStockPatterns) {
+    if (pattern.test(lower)) {
+      return {
+        intent: 'get_low_stock',
+        confidence: 0.85,
+        data: { message },
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for expiry intent
+  for (const pattern of expiryPatterns) {
+    if (pattern.test(lower)) {
+      const expiryData = parseExpiryData(message);
+      return {
+        intent: 'get_expiry_info',
+        confidence: 0.85,
+        data: expiryData,
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for financial insights intent
+  for (const pattern of financialPatterns) {
+    if (pattern.test(lower)) {
+      const financialData = parseFinancialData(message);
+      return {
+        intent: 'get_financial_insights',
+        confidence: 0.85,
+        data: financialData,
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for customer insights intent
+  for (const pattern of customerInsightsPatterns) {
+    if (pattern.test(lower)) {
+      const customerData = parseCustomerInsightsData(message);
+      return {
+        intent: 'get_customer_insights',
+        confidence: 0.85,
+        data: customerData,
+        requiresConfirmation: false,
+      };
+    }
+  }
+
+  // Check for price optimization intent
+  for (const pattern of pricePatterns) {
+    if (pattern.test(lower)) {
+      const priceData = parsePriceData(message);
+      return {
+        intent: 'get_price_optimization',
+        confidence: 0.85,
+        data: priceData,
+        requiresConfirmation: false,
       };
     }
   }
@@ -779,6 +901,153 @@ function parseInventoryData(message: string): Record<string, any> {
 
   // What's left is the product name
   result.productName = cleanedMessage.replace(/[,，]/g, '').trim();
+
+  return result;
+}
+
+/**
+ * Parse report data from message
+ */
+function parseReportData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    reportType: 'sales',
+    period: 'month',
+  };
+
+  // Extract period
+  if (message.toLowerCase().includes('today')) {
+    result.period = 'today';
+  } else if (message.toLowerCase().includes('week') || message.toLowerCase().includes('this week')) {
+    result.period = 'week';
+  } else if (message.toLowerCase().includes('month') || message.toLowerCase().includes('this month')) {
+    result.period = 'month';
+  } else if (message.toLowerCase().includes('year') || message.toLowerCase().includes('this year')) {
+    result.period = 'year';
+  }
+
+  // Extract report type
+  if (message.toLowerCase().includes('profit') || message.toLowerCase().includes('loss') || message.toLowerCase().includes('p&l')) {
+    result.reportType = 'profit_loss';
+  } else if (message.toLowerCase().includes('product') || message.toLowerCase().includes('performance')) {
+    result.reportType = 'product_performance';
+  } else if (message.toLowerCase().includes('sales')) {
+    result.reportType = 'sales';
+  }
+
+  return result;
+}
+
+/**
+ * Parse expiry data from message
+ */
+function parseExpiryData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    daysThreshold: 30,
+  };
+
+  // Extract days threshold
+  const daysMatch = message.match(/(\d+)\s*(?:days?)/i);
+  if (daysMatch) {
+    result.daysThreshold = parseInt(daysMatch[1]);
+  } else if (message.toLowerCase().includes('week')) {
+    result.daysThreshold = 7;
+  } else if (message.toLowerCase().includes('month')) {
+    result.daysThreshold = 30;
+  }
+
+  return result;
+}
+
+/**
+ * Parse financial data from message
+ */
+function parseFinancialData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    insightType: 'cash_flow',
+    period: 'month',
+  };
+
+  // Extract period
+  if (message.toLowerCase().includes('today')) {
+    result.period = 'today';
+  } else if (message.toLowerCase().includes('week')) {
+    result.period = 'week';
+  } else if (message.toLowerCase().includes('month')) {
+    result.period = 'month';
+  } else if (message.toLowerCase().includes('year')) {
+    result.period = 'year';
+  }
+
+  // Extract insight type
+  if (message.toLowerCase().includes('cash flow')) {
+    result.insightType = 'cash_flow';
+  } else if (message.toLowerCase().includes('revenue') && message.toLowerCase().includes('expense')) {
+    result.insightType = 'revenue_vs_expenses';
+  } else if (message.toLowerCase().includes('outstanding') || message.toLowerCase().includes('credit')) {
+    result.insightType = 'outstanding_payments';
+  }
+
+  return result;
+}
+
+/**
+ * Parse customer insights data from message
+ */
+function parseCustomerInsightsData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    insightType: 'all_customers',
+    period: 'month',
+  };
+
+  // Extract period
+  if (message.toLowerCase().includes('today')) {
+    result.period = 'today';
+  } else if (message.toLowerCase().includes('week')) {
+    result.period = 'week';
+  } else if (message.toLowerCase().includes('month')) {
+    result.period = 'month';
+  } else if (message.toLowerCase().includes('year')) {
+    result.period = 'year';
+  }
+
+  // Extract insight type
+  if (message.toLowerCase().includes('segment')) {
+    result.insightType = 'segmentation';
+  } else if (message.toLowerCase().includes('best') || message.toLowerCase().includes('top') || message.toLowerCase().includes('loyal')) {
+    result.insightType = 'top_customers';
+  } else if (message.toLowerCase().includes('reward')) {
+    result.insightType = 'reward_eligible';
+  }
+
+  return result;
+}
+
+/**
+ * Parse price data from message
+ */
+function parsePriceData(message: string): Record<string, any> {
+  const result: Record<string, any> = {
+    action: 'get_suggestions',
+  };
+
+  // Extract action
+  if (message.toLowerCase().includes('bulk') || message.toLowerCase().includes('all')) {
+    result.action = 'bulk_update';
+  } else if (message.toLowerCase().includes('optimize')) {
+    result.action = 'optimize';
+  }
+
+  // Extract category if specified
+  const categoryMatch = message.match(/(?:category|type)[:\s]+(.+?)(?:,|$)/i);
+  if (categoryMatch) {
+    result.category = categoryMatch[1].trim();
+  }
+
+  // Extract margin target
+  const marginMatch = message.match(/(\d+)%?\s*(?:margin)/i);
+  if (marginMatch) {
+    result.marginTarget = parseInt(marginMatch[1]);
+  }
 
   return result;
 }

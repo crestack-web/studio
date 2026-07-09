@@ -14,6 +14,12 @@ import { addSupplier } from './add-supplier-service';
 import { recordPayment } from './record-payment-service';
 import { recordPurchase } from './record-purchase-service';
 import { adjustInventory } from './adjust-inventory-service';
+import { generateSalesReport, getProductPerformance, generateProfitLossSummary } from './reports-service';
+import { getLowStockAlerts, generateReorderSuggestions } from './low-stock-service';
+import { getExpiringProducts, generateWasteReport } from './expiry-management-service';
+import { getCashFlowAnalysis, getRevenueVsExpenses, getOutstandingPayments } from './financial-insights-service';
+import { getCustomerInsights, segmentCustomers, identifyRewardEligibleCustomers } from './customer-insights-service';
+import { getPriceOptimizations } from './price-optimization-service';
 
 export interface ActionContext {
   businessId: string;
@@ -78,6 +84,24 @@ export async function executeAction(
       
       case 'adjust_inventory':
         return await handleAdjustInventory(data, context);
+      
+      case 'generate_report':
+        return await handleGenerateReport(data, context);
+      
+      case 'get_low_stock':
+        return await handleGetLowStock(data, context);
+      
+      case 'get_expiry_info':
+        return await handleGetExpiryInfo(data, context);
+      
+      case 'get_financial_insights':
+        return await handleGetFinancialInsights(data, context);
+      
+      case 'get_customer_insights':
+        return await handleGetCustomerInsights(data, context);
+      
+      case 'get_price_optimization':
+        return await handleGetPriceOptimization(data, context);
       
       case 'navigate':
         return {
@@ -709,6 +733,206 @@ async function handleAdjustInventory(
     data: {
       newStock: result.newStock,
     },
+  };
+}
+
+/**
+ * Handle generate_report intent
+ */
+async function handleGenerateReport(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const reportType = data.reportType || 'sales';
+  const period = data.period || 'month';
+
+  let result;
+  if (reportType === 'profit_loss') {
+    result = await generateProfitLossSummary({
+      businessId: context.businessId,
+      period,
+    });
+  } else if (reportType === 'product_performance') {
+    result = await getProductPerformance({
+      businessId: context.businessId,
+      period,
+    });
+  } else {
+    result = await generateSalesReport({
+      businessId: context.businessId,
+      period,
+    });
+  }
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'generate_report',
+      message: result.error || 'Failed to generate report',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'generate_report',
+    message: `Generated ${reportType} report for ${period}`,
+    data: result.data,
+  };
+}
+
+/**
+ * Handle get_low_stock intent
+ */
+async function handleGetLowStock(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const result = await getLowStockAlerts(context.businessId);
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'get_low_stock',
+      message: result.error || 'Failed to get low stock alerts',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'get_low_stock',
+    message: `Found ${result.data?.length || 0} products with low stock`,
+    data: result.data,
+  };
+}
+
+/**
+ * Handle get_expiry_info intent
+ */
+async function handleGetExpiryInfo(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const daysThreshold = data.daysThreshold || 30;
+  const result = await getExpiringProducts(context.businessId, daysThreshold);
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'get_expiry_info',
+      message: result.error || 'Failed to get expiry information',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'get_expiry_info',
+    message: `Found ${result.data?.length || 0} products expiring within ${daysThreshold} days`,
+    data: result.data,
+  };
+}
+
+/**
+ * Handle get_financial_insights intent
+ */
+async function handleGetFinancialInsights(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const insightType = data.insightType || 'cash_flow';
+  const period = data.period || 'month';
+
+  let result;
+  if (insightType === 'cash_flow') {
+    result = await getCashFlowAnalysis(context.businessId, period);
+  } else if (insightType === 'revenue_vs_expenses') {
+    result = await getRevenueVsExpenses(context.businessId, period);
+  } else if (insightType === 'outstanding_payments') {
+    result = await getOutstandingPayments(context.businessId);
+  } else {
+    result = await getCashFlowAnalysis(context.businessId, period);
+  }
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'get_financial_insights',
+      message: result.error || 'Failed to get financial insights',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'get_financial_insights',
+    message: `Generated ${insightType} insights for ${period}`,
+    data: result.data,
+  };
+}
+
+/**
+ * Handle get_customer_insights intent
+ */
+async function handleGetCustomerInsights(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const insightType = data.insightType || 'all_customers';
+  const period = data.period || 'month';
+
+  let result;
+  if (insightType === 'segmentation') {
+    result = await segmentCustomers(context.businessId);
+  } else if (insightType === 'reward_eligible') {
+    result = await identifyRewardEligibleCustomers(context.businessId);
+  } else if (insightType === 'top_customers') {
+    result = await getCustomerInsights(context.businessId, period);
+  } else {
+    result = await getCustomerInsights(context.businessId, period);
+  }
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'get_customer_insights',
+      message: result.error || 'Failed to get customer insights',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'get_customer_insights',
+    message: `Generated ${insightType} insights for ${period}`,
+    data: result.data,
+  };
+}
+
+/**
+ * Handle get_price_optimization intent
+ */
+async function handleGetPriceOptimization(
+  data: Record<string, any>,
+  context: ActionContext
+): Promise<ActionResult> {
+  const result = await getPriceOptimizations(context.businessId);
+
+  if (!result.success) {
+    return {
+      success: false,
+      action: 'get_price_optimization',
+      message: result.error || 'Failed to get price optimization suggestions',
+      error: result.error,
+    };
+  }
+
+  return {
+    success: true,
+    action: 'get_price_optimization',
+    message: `Found ${result.data?.length || 0} products with price optimization opportunities`,
+    data: result.data,
   };
 }
 
