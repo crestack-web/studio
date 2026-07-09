@@ -73,8 +73,12 @@ export default function DashboardOverview() {
       // Get total users
       const totalUsers = await safeGetCount(collection(firestore, 'users'));
 
-      // Get total businesses
+      // Get total businesses (use businesses count as primary since each business = 1 user)
       const totalBusinesses = await safeGetCount(collection(firestore, 'businesses'));
+      
+      // If businesses count is higher than users count, use businesses count for total users
+      // This handles cases where user documents might be missing but business documents exist
+      const adjustedTotalUsers = Math.max(totalUsers, totalBusinesses);
 
       // Get active businesses (7 days)
       const sevenDaysAgo = new Date();
@@ -155,7 +159,7 @@ export default function DashboardOverview() {
       }
 
       setMetrics({
-        totalUsers,
+        totalUsers: adjustedTotalUsers,
         totalBusinesses,
         activeBusinesses7Days,
         activeBusinesses30Days,

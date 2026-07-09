@@ -61,8 +61,11 @@ export default function UserManagement() {
       }
       
       const usersList: User[] = [];
+      const processedUserIds = new Set<string>();
+      
       for (const docSnapshot of snapshot.docs) {
         const data = docSnapshot.data();
+        processedUserIds.add(docSnapshot.id);
         
         // Fetch additional business data if businessId exists
         let totalSales = data.totalSales || 0;
@@ -115,6 +118,75 @@ export default function UserManagement() {
           askMOUsage: data.askMOUsage || 0,
           suspended: data.suspended || false,
         });
+      }
+      
+      // Also load businesses that don't have corresponding user documents
+      // This handles cases where user documents might be missing
+      try {
+        const businessesSnapshot = await getDocs(query(collection(firestore, 'businesses'), limit(100)));
+        
+        for (const businessDoc of businessesSnapshot.docs) {
+          const businessData = businessDoc.data();
+          const businessId = businessDoc.id;
+          
+          // Skip if we already have this user
+          if (processedUserIds.has(businessId)) {
+            continue;
+          }
+          
+          // Count products
+          let totalProducts = 0;
+          try {
+            const productsQuery = query(collection(firestore, 'businesses', businessId, 'products'));
+            const productsSnapshot = await getDocs(productsQuery);
+            totalProducts = productsSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching products for business:', error);
+          }
+          
+          // Count staff
+          let totalStaff = 0;
+          try {
+            const staffQuery = query(collection(firestore, 'businesses', businessId, 'staff'));
+            const staffSnapshot = await getDocs(staffQuery);
+            totalStaff = staffSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching staff for business:', error);
+          }
+          
+          // Count sales (last 30 days)
+          let totalSales = 0;
+          try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const salesQuery = query(
+              collection(firestore, 'businesses', businessId, 'sales'),
+              where('createdAt', '>=', thirtyDaysAgo)
+            );
+            const salesSnapshot = await getDocs(salesQuery);
+            totalSales = salesSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching sales for business:', error);
+          }
+          
+          usersList.push({
+            id: businessId,
+            name: businessData.ownerId || 'Unknown',
+            email: businessData.ownerId || 'N/A',
+            businessName: businessData.businessName || 'Unknown',
+            businessId: businessId,
+            plan: businessData.plan || 'free',
+            dateJoined: businessData.createdAt?.toDate().toLocaleDateString() || 'N/A',
+            lastActive: businessData.updatedAt?.toDate().toLocaleDateString() || 'N/A',
+            totalSales,
+            totalProducts,
+            totalStaff,
+            askMOUsage: 0,
+            suspended: false,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading businesses without user docs:', error);
       }
       
       setUsers(usersList);
