@@ -169,6 +169,7 @@ export const FloatingChatWidget: React.FC = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [chatwootConversationId, setChatwootConversationId] = useState<number | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -384,7 +385,7 @@ export const FloatingChatWidget: React.FC = () => {
       setIsSending(false);
       setIsTyping(false);
     } else {
-      // Human agent mode
+      // Human agent mode - send message to Chatwoot
       try {
         if (CHATWOOT_CONFIG.enabled) {
           const chatwootUser: ChatwootUser = {
@@ -396,12 +397,26 @@ export const FloatingChatWidget: React.FC = () => {
           };
           
           await chatwootService.identifyUser(chatwootUser);
+          
+          // Create Chatwoot conversation if not exists
+          if (!chatwootConversationId) {
+            const conversation = await chatwootService.createConversation();
+            if (conversation && conversation.id) {
+              setChatwootConversationId(conversation.id);
+            }
+          }
+          
+          // Send message to Chatwoot
+          if (chatwootConversationId) {
+            await chatwootService.sendMessage(chatwootConversationId, text, 'user');
+          }
+          
           await chatwootService.toggleChat(true);
           
           const supportMsg: SupportMessage = {
             id: `chatwoot-${Date.now()}`,
             sender: 'support',
-            text: "I've opened a Chatwoot conversation for you. Please check the chat widget in the bottom right corner to continue with our support team.",
+            text: "I've sent your message to our support team. They'll respond here shortly.",
             createdAt: new Date().toISOString(),
             status: 'read',
           };
