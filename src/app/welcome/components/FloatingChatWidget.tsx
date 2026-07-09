@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { MessageCircle, X, Send, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -169,11 +169,6 @@ export const FloatingChatWidget: React.FC = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  
-  // Help center state
-  const [helpSearch, setHelpSearch] = useState('');
-  const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -457,9 +452,8 @@ export const FloatingChatWidget: React.FC = () => {
     }
   };
 
-  const handleArticleClick = (article: HelpArticle) => {
-    setSelectedArticle(article);
-    setActiveTab('help');
+  const openHelpCenter = () => {
+    window.location.href = '/welcome/help';
   };
 
   const openChat = () => {
@@ -485,15 +479,6 @@ export const FloatingChatWidget: React.FC = () => {
     setMessages([]);
   };
 
-  // ─── Help Center Functions ────────────────────────────────────
-  const filteredArticles = HELP_ARTICLES.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                         article.excerpt.toLowerCase().includes(helpSearch.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = ['all', ...Array.from(new Set(HELP_ARTICLES.map(a => a.category)))];
 
   // ─── Online Status Check ───────────────────────────────────────
   useEffect(() => {
@@ -683,10 +668,7 @@ export const FloatingChatWidget: React.FC = () => {
               )}
             </button>
             <button
-              onClick={() => {
-                setActiveTab('help');
-                setIsChatOpen(false);
-              }}
+              onClick={openHelpCenter}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative ${
                 activeTab === 'help' && !isChatOpen
                   ? 'text-purple-600' 
@@ -726,31 +708,20 @@ export const FloatingChatWidget: React.FC = () => {
                   </div>
                 </button>
 
-
-                {/* Popular Articles */}
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                    Popular Articles
-                  </h3>
-                  <div className="space-y-2">
-                    {HELP_ARTICLES.filter(a => a.popular).map((article) => (
-                      <button
-                        key={article.id}
-                        onClick={() => handleArticleClick(article)}
-                        className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
-                      >
-                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
-                          📄
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-900 truncate">{article.title}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">{article.category}</div>
-                        </div>
-                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                      </button>
-                    ))}
+                {/* Browse Help Center Link */}
+                <button
+                  onClick={openHelpCenter}
+                  className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
+                >
+                  <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
+                    📚
                   </div>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-gray-900">Browse Help Center</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Search articles, guides, and tutorials</div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 flex-shrink-0 group-hover:text-purple-600 transition-colors" />
+                </button>
 
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 pt-2 pb-4">
@@ -811,96 +782,20 @@ export const FloatingChatWidget: React.FC = () => {
 
             {/* ─── Help Tab ─────────────────────────────────────── */}
             {activeTab === 'help' && !isChatOpen && (
-              <div className="p-4 space-y-4">
-                {/* Search */}
-                <div className="relative">
-                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search for help..."
-                    value={helpSearch}
-                    onChange={(e) => setHelpSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                  />
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-4xl mb-4">
+                  📚
                 </div>
-
-                {/* Categories */}
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                        selectedCategory === cat
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-500'
-                      }`}
-                    >
-                      {cat === 'all' ? 'All' : cat}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Articles */}
-                <div className="space-y-2">
-                  {filteredArticles.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-4xl mb-3">🔍</div>
-                      <p className="text-sm text-gray-500">No help articles found</p>
-                    </div>
-                  ) : (
-                    filteredArticles.map((article) => (
-                      <button
-                        key={article.id}
-                        onClick={() => setSelectedArticle(article)}
-                        className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
-                      >
-                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
-                          📄
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-900">{article.title}</div>
-                          <div className="text-xs text-gray-500 mt-1 line-clamp-2">{article.excerpt}</div>
-                          <span className="inline-block mt-2 text-[10px] font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
-                            {article.category}
-                          </span>
-                        </div>
-                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0 mt-1" />
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ─── Article View ─────────────────────────────────── */}
-            {selectedArticle && (
-              <div className="h-full flex flex-col bg-white">
-                <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-                  <button
-                    onClick={() => setSelectedArticle(null)}
-                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <ChevronRight size={20} className="rotate-180" />
-                  </button>
-                  <h3 className="font-semibold text-sm flex-1">{selectedArticle.title}</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  <div className="prose prose-sm max-w-none">
-                    <p className="text-gray-600 leading-relaxed">{selectedArticle.content}</p>
-                    <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-100">
-                      <p className="text-sm text-purple-900">
-                        <strong>Need more help?</strong> Start a conversation with our support team.
-                      </p>
-                      <button
-                        onClick={openChat}
-                        className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                      >
-                        Contact Support
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Help Center</h3>
+                <p className="text-sm text-gray-500 max-w-[260px] mb-6">
+                  Browse our comprehensive help center with articles, guides, and tutorials
+                </p>
+                <button
+                  onClick={openHelpCenter}
+                  className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                >
+                  Open Help Center
+                </button>
               </div>
             )}
 
