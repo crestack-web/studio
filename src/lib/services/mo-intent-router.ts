@@ -405,6 +405,25 @@ function parseProductData(message: string): ProductIntent {
     result.stock = parseInt(stockMatch[1]);
     // Remove stock pattern from cleaned message
     cleanedMessage = cleanedMessage.replace(/(?:stock|quantity|qty)[:\s]+\d+/i, '').trim();
+  } else {
+    // Check for out of stock phrases
+    const outOfStockPatterns = [
+      /out of stock/i,
+      /out\s+of\s+stock/i,
+      /zero stock/i,
+      /no stock/i,
+      /stock out/i,
+      /empty/i,
+      /depleted/i,
+    ];
+    
+    for (const pattern of outOfStockPatterns) {
+      if (pattern.test(message)) {
+        result.stock = 0;
+        cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+        break;
+      }
+    }
   }
 
   // Extract category
