@@ -71,12 +71,18 @@ export default function UserManagement() {
         let totalSales = data.totalSales || 0;
         let totalProducts = data.totalProducts || 0;
         let totalStaff = data.totalStaff || 0;
+        let plan = data.plan || 'free';
+        let businessName = data.businessName || '';
         
         if (data.businessId) {
           try {
             const businessDoc = await getDoc(doc(firestore, 'businesses', data.businessId));
             if (businessDoc.exists()) {
               const businessData = businessDoc.data();
+              
+              // Get plan from business document (primary source)
+              plan = businessData.plan || 'free';
+              businessName = businessData.businessName || businessName;
               
               // Count products
               const productsQuery = query(collection(firestore, 'businesses', data.businessId, 'products'));
@@ -107,15 +113,15 @@ export default function UserManagement() {
           id: docSnapshot.id,
           name: data.name || data.displayName || 'Unknown',
           email: data.email || '',
-          businessName: data.businessName || '',
+          businessName: businessName,
           businessId: data.businessId,
-          plan: data.plan || 'free',
+          plan: plan,
           dateJoined: data.createdAt?.toDate().toLocaleDateString() || 'N/A',
           lastActive: data.lastActive?.toDate().toLocaleDateString() || 'N/A',
           totalSales,
           totalProducts,
           totalStaff,
-          askMOUsage: data.askMOUsage || 0,
+          askMOUsage: data.moCreditsConsumed || 0,
           suspended: data.suspended || false,
         });
       }
@@ -175,7 +181,7 @@ export default function UserManagement() {
             email: businessData.ownerId || 'N/A',
             businessName: businessData.businessName || 'Unknown',
             businessId: businessId,
-            plan: businessData.plan || 'free',
+            plan: businessData.plan || 'trial',
             dateJoined: businessData.createdAt?.toDate().toLocaleDateString() || 'N/A',
             lastActive: businessData.updatedAt?.toDate().toLocaleDateString() || 'N/A',
             totalSales,
@@ -255,6 +261,14 @@ export default function UserManagement() {
     if (!selectedUser || !newPlan) return;
 
     try {
+      // Update plan in business document (primary source)
+      if (selectedUser.user.businessId) {
+        await updateDoc(doc(firestore, 'businesses', selectedUser.user.businessId), {
+          plan: newPlan
+        });
+      }
+      
+      // Also update in user document for consistency
       await updateDoc(doc(firestore, 'users', selectedUser.user.id), {
         plan: newPlan
       });
@@ -337,7 +351,6 @@ export default function UserManagement() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           >
             <option value="all">All Plans</option>
-            <option value="free">Free</option>
             <option value="trial">Trial</option>
             <option value="paid">Paid</option>
           </select>
@@ -604,7 +617,6 @@ export default function UserManagement() {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         <option value="">Select new plan</option>
-                        <option value="free">Free</option>
                         <option value="trial">Trial</option>
                         <option value="paid">Paid</option>
                       </select>
