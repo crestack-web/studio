@@ -49,7 +49,7 @@ export function RecordSalePage() {
       if (event.detail.actionType === 'sale_recorded' || event.detail.actionType === 'general_update') {
         // Refresh product list after a short delay to allow backend to process the changes
         setTimeout(() => {
-          fetchProducts();
+          refreshProducts();
         }, 1000); // 1 second delay to allow backend to process
       }
     };
