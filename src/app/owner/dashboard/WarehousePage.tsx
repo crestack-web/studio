@@ -753,7 +753,7 @@ export function WarehousePage() {
             className={`${styles.actionButton} ${styles.addButton}`}
             onClick={() => setShowAdjustmentModal(true)}
           >
-            <Icon name="settings" size={18} />
+            <Icon name="inventory" size={18} />
             <span style={{ marginLeft: 8 }}>Stock Adjustment</span>
           </button>
           <button
@@ -772,7 +772,7 @@ export function WarehousePage() {
           className={`${styles.tabButton} ${activeTab === 'overview' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          <Icon name="reports" size={16} />
+          <Icon name="home" size={16} />
           <span style={{ marginLeft: 6 }}>Overview</span>
         </button>
         <button
@@ -808,7 +808,7 @@ export function WarehousePage() {
           className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('requests')}
         >
-          <Icon name="package" size={16} />
+          <Icon name="box" size={16} />
           <span style={{ marginLeft: 6 }}>Stock Requests</span>
           {stockRequests.filter(r => r.status === 'pending').length > 0 && (
             <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
@@ -818,7 +818,7 @@ export function WarehousePage() {
           className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('returns')}
         >
-          <Icon name="rotate" size={16} />
+          <Icon name="archive" size={16} />
           <span style={{ marginLeft: 6 }}>Returns</span>
           {returns.filter(r => r.status === 'pending').length > 0 && (
             <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
