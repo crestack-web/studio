@@ -56,7 +56,14 @@ export default function UserManagement() {
       setTotalUsers(countSnapshot.data().count);
     } catch (error) {
       console.error('Error getting total users count:', error);
-      setTotalUsers(0);
+      // Fallback: try to get users count by fetching all users
+      try {
+        const snapshot = await getDocs(collection(firestore, 'users'));
+        setTotalUsers(snapshot.size);
+      } catch (fallbackError) {
+        console.error('Error getting total users count with fallback:', fallbackError);
+        setTotalUsers(0);
+      }
     }
   }, [firestore]);
 
@@ -88,70 +95,112 @@ export default function UserManagement() {
         const data = docSnapshot.data();
         processedUserIds.add(docSnapshot.id);
         
-        // Fetch additional business data if businessId exists
+        // Safely extract user properties with fallback values
+        const userId = docSnapshot.id;
+        const email = data.email || 'N/A';
+        const name = data.name || data.displayName || data.firstName + ' ' + data.lastName || 'Unknown User';
+        const createdAt = data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString();
+        const lastActive = data.lastActive ? data.lastActive.toDate().toISOString() : new Date().toISOString();
+        
+        // Format dates for display
+        const dateJoined = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : 'N/A';
+        const lastActiveDisplay = data.lastActive ? data.lastActive.toDate().toLocaleDateString() : 'N/A';
+        
+        // Extract plan from user data (fallback to free if not available)
+        let plan = data.plan || 'free';
+        let businessName = data.businessName || 'Personal Account';
+        let businessId = data.businessId || null;
+        
+        // Initialize metrics with default values
         let totalSales = data.totalSales || 0;
         let totalProducts = data.totalProducts || 0;
         let totalStaff = data.totalStaff || 0;
-        let plan = data.plan || 'free';
-        let businessName = data.businessName || '';
+        let askMOUsage = data.moCreditsConsumed || 0;
         let totalExpenses = 0;
         let totalSuppliers = 0;
         let totalCustomers = 0;
         let totalRevenue = 0;
         let isActive = false;
         
+        // If businessId exists, fetch additional business data
         if (data.businessId) {
           try {
             const businessDoc = await getDoc(doc(firestore, 'businesses', data.businessId));
             if (businessDoc.exists()) {
               const businessData = businessDoc.data();
               
-              // Get plan from business document (primary source)
-              plan = businessData.plan || 'free';
+              // Update plan from business document (primary source)
+              plan = businessData.plan || plan;
               businessName = businessData.businessName || businessName;
+              businessId = data.businessId;
               
               // Count products
-              const productsQuery = query(collection(firestore, 'businesses', data.businessId, 'products'));
-              const productsSnapshot = await getDocs(productsQuery);
-              totalProducts = productsSnapshot.size;
+              try {
+                const productsQuery = query(collection(firestore, 'businesses', data.businessId, 'products'));
+                const productsSnapshot = await getDocs(productsQuery);
+                totalProducts = productsSnapshot.size;
+              } catch (error) {
+                console.error('Error fetching products for business:', data.businessId, error);
+              }
               
               // Count staff
-              const staffQuery = query(collection(firestore, 'businesses', data.businessId, 'staff'));
-              const staffSnapshot = await getDocs(staffQuery);
-              totalStaff = staffSnapshot.size;
+              try {
+                const staffQuery = query(collection(firestore, 'businesses', data.businessId, 'staff'));
+                const staffSnapshot = await getDocs(staffQuery);
+                totalStaff = staffSnapshot.size;
+              } catch (error) {
+                console.error('Error fetching staff for business:', data.businessId, error);
+              }
               
               // Count sales (last 30 days for more accurate data)
-              const thirtyDaysAgo = new Date();
-              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-              const salesQuery = query(
-                collection(firestore, 'businesses', data.businessId, 'sales'),
-                where('createdAt', '>=', thirtyDaysAgo)
-              );
-              const salesSnapshot = await getDocs(salesQuery);
-              totalSales = salesSnapshot.size;
+              try {
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                const salesQuery = query(
+                  collection(firestore, 'businesses', data.businessId, 'sales'),
+                  where('createdAt', '>=', thirtyDaysAgo)
+                );
+                const salesSnapshot = await getDocs(salesQuery);
+                totalSales = salesSnapshot.size;
+                
+                // Calculate total revenue from sales
+                salesSnapshot.forEach(saleDoc => {
+                  const saleData = saleDoc.data();
+                  if (saleData.amount) {
+                    const amount = parseFloat(saleData.amount) || 0;
+                    totalRevenue += amount;
+                  }
+                });
+              } catch (error) {
+                console.error('Error fetching sales for business:', data.businessId, error);
+              }
               
               // Count expenses
-              const expensesQuery = query(collection(firestore, 'businesses', data.businessId, 'expenses'));
-              const expensesSnapshot = await getDocs(expensesQuery);
-              totalExpenses = expensesSnapshot.size;
+              try {
+                const expensesQuery = query(collection(firestore, 'businesses', data.businessId, 'expenses'));
+                const expensesSnapshot = await getDocs(expensesQuery);
+                totalExpenses = expensesSnapshot.size;
+              } catch (error) {
+                console.error('Error fetching expenses for business:', data.businessId, error);
+              }
               
               // Count suppliers
-              const suppliersQuery = query(collection(firestore, 'businesses', data.businessId, 'suppliers'));
-              const suppliersSnapshot = await getDocs(suppliersQuery);
-              totalSuppliers = suppliersSnapshot.size;
+              try {
+                const suppliersQuery = query(collection(firestore, 'businesses', data.businessId, 'suppliers'));
+                const suppliersSnapshot = await getDocs(suppliersQuery);
+                totalSuppliers = suppliersSnapshot.size;
+              } catch (error) {
+                console.error('Error fetching suppliers for business:', data.businessId, error);
+              }
               
               // Count customers
-              const customersQuery = query(collection(firestore, 'businesses', data.businessId, 'customers'));
-              const customersSnapshot = await getDocs(customersQuery);
-              totalCustomers = customersSnapshot.size;
-              
-              // Calculate total revenue
-              salesSnapshot.forEach(saleDoc => {
-                const saleData = saleDoc.data();
-                if (saleData.amount) {
-                  totalRevenue += parseFloat(saleData.amount) || 0;
-                }
-              });
+              try {
+                const customersQuery = query(collection(firestore, 'businesses', data.businessId, 'customers'));
+                const customersSnapshot = await getDocs(customersQuery);
+                totalCustomers = customersSnapshot.size;
+              } catch (error) {
+                console.error('Error fetching customers for business:', data.businessId, error);
+              }
               
               // Check if business is active
               if (businessData.lastActive) {
@@ -159,10 +208,16 @@ export default function UserManagement() {
                 const now = new Date();
                 const diffInDays = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
                 isActive = diffInDays <= 30; // Active if used in last 30 days
+              } else if (data.lastActive) {
+                const lastActiveDate = data.lastActive.toDate();
+                const now = new Date();
+                const diffInDays = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
+                isActive = diffInDays <= 30;
               }
             }
           } catch (error) {
-            console.error('Error fetching business data for user:', error);
+            console.error('Error fetching business data for user:', userId, error);
+            // Even if business data fails, still add the user with basic info
           }
         }
         
@@ -333,6 +388,11 @@ export default function UserManagement() {
     loadUsers();
   }, [loadUsers]);
 
+  // Refresh data when filters change
+  useEffect(() => {
+    loadUsers();
+  }, [searchTerm, filterPlan, filterStatus, sortBy, sortOrder]);
+
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch = 
@@ -355,10 +415,15 @@ export default function UserManagement() {
       let comparison = 0;
       switch (sortBy) {
         case 'dateJoined':
-          comparison = new Date(b.dateJoined).getTime() - new Date(a.dateJoined).getTime();
+          // Convert date strings to timestamps for comparison
+          const dateA = a.dateJoined !== 'N/A' ? new Date(a.dateJoined).getTime() : 0;
+          const dateB = b.dateJoined !== 'N/A' ? new Date(b.dateJoined).getTime() : 0;
+          comparison = dateB - dateA; // Descending by default
           break;
         case 'lastActive':
-          comparison = new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
+          const lastActiveA = a.lastActive !== 'N/A' ? new Date(a.lastActive).getTime() : 0;
+          const lastActiveB = b.lastActive !== 'N/A' ? new Date(b.lastActive).getTime() : 0;
+          comparison = lastActiveB - lastActiveA; // Descending by default
           break;
         case 'totalSales':
           comparison = b.totalSales - a.totalSales;
@@ -372,10 +437,21 @@ export default function UserManagement() {
         case 'totalProducts':
           comparison = b.totalProducts - a.totalProducts;
           break;
+        case 'email':
+          comparison = a.email.localeCompare(b.email);
+          break;
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'plan':
+          comparison = a.plan.localeCompare(b.plan);
+          break;
         default:
           comparison = 0;
       }
-      return sortOrder === 'asc' ? comparison : -comparison;
+      
+      // Reverse if ascending order is requested
+      return sortOrder === 'asc' ? -comparison : comparison;
     });
     return sorted;
   }, [filteredUsers, sortBy, sortOrder]);
@@ -568,6 +644,9 @@ export default function UserManagement() {
               <option value="askMOUsage">Ask MO Usage</option>
               <option value="totalRevenue">Total Revenue</option>
               <option value="totalProducts">Total Products</option>
+              <option value="email">Email</option>
+              <option value="name">Name</option>
+              <option value="plan">Plan</option>
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}

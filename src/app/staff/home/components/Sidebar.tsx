@@ -40,9 +40,14 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
         <div className="logo-w">
           <div className="logo-ic">
             <img 
-              src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1780960538/Graphic_Designing_Workshop_Instagram_Promotional_Post_1_q7mhgo.png" 
+              src="/sidebar-logo.png" 
               alt="Busmo Logo"
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = "/email-logo.png";
+              }}
             />
           </div>
           <div className="logo-txt">

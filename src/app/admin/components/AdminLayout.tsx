@@ -72,8 +72,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">B</span>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                  <img 
+                    src="/sidebar-logo.png" 
+                    alt="Busmo Logo" 
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = "/favicon.png";
+                    }}
+                  />
                 </div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Busmo Admin
