@@ -782,7 +782,7 @@ export function MobileAskMOPage() {
                     <div className={styles.historyItemContent}>
                       <div className={styles.historyTitle}>{conv.title}</div>
                       <div className={styles.historyDate}>
-                        {conv.updatedAt.toLocaleDateString(langMeta.locale, { 
+                        {conv.updatedAt.toLocaleDateString(langMeta.code, { 
                           month: 'short', 
                           day: 'numeric' 
                         })}
