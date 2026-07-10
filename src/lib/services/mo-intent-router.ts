@@ -1217,7 +1217,7 @@ export function validateIntent(
   return intent;
 }
 
-function generateFollowUpSuggestions(intent: IntentResult, actionResult?: any): string[] {
+function generateFollowUpSuggestions(intent: IntentData, actionResult?: any): string[] {
   const suggestions = [];
   
   // Generate appropriate follow-up suggestions based on intent

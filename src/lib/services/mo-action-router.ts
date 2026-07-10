@@ -20,6 +20,7 @@ import { getExpiringProducts, generateWasteReport } from './expiry-management-se
 import { getCashFlowAnalysis, getRevenueVsExpenses, getOutstandingPayments } from './financial-insights-service';
 import { getCustomerInsights, segmentCustomers, identifyRewardEligibleCustomers } from './customer-insights-service';
 import { getPriceOptimizations } from './price-optimization-service';
+import { triggerActionRefresh } from '@/utils/dataRefresh';
 
 export interface ActionContext {
   businessId: string;

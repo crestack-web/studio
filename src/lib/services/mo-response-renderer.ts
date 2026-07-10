@@ -6,16 +6,25 @@
 
 import { ActionResult } from './mo-action-router';
 
+export interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'mo';
+  timestamp: Date;
+  type?: 'text' | 'action' | 'error';
+  actionResult?: ActionResult;
+}
+
+// Define the RenderedResponse type
 export interface RenderedResponse {
   text: string;
   card?: SaleCard | ProductCard | ExpenseCard;
-  metrics?: Array<{ label: string; value: string; trend?: string }>;
-  alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
+  alerts?: Array<{ type: 'success' | 'warning' | 'error' | 'info'; message: string }>;
   suggestions?: string[];
-  quickActions?: Array<{ label: string; action: string }>;
 }
 
-export interface SaleCard {
+// Define card types
+interface SaleCard {
   type: 'sale';
   items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
   totalRevenue: number;
@@ -23,7 +32,7 @@ export interface SaleCard {
   timestamp: Date;
 }
 
-export interface ProductCard {
+interface ProductCard {
   type: 'product';
   name: string;
   price: number;
@@ -33,11 +42,12 @@ export interface ProductCard {
   message: string;
 }
 
-export interface ExpenseCard {
+interface ExpenseCard {
   type: 'expense';
   category: string;
   amount: number;
-  date: string;
+  description?: string;
+  date?: string;
   message: string;
 }
 
