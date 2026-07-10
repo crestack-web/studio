@@ -56,6 +56,17 @@ export function RecordSalePage() {
   const [customPrice, setCustomPrice] = useState('');
   const [customCost, setCustomCost] = useState('');
 
+  // Discount fields
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+
+  // Customer linking
+  const [selectedCustomer, setSelectedCustomer] = useState<string>('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+
   // Warehouse source selection
   const [sourceLocation, setSourceLocation] = useState('main_store');
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
@@ -179,11 +190,11 @@ export function RecordSalePage() {
           
           setStockLocations(loadedLocations);
           
-           // Show stock source selector if there are any custom locations (warehouses) created
+           // Show stock source selector only if there's an actual warehouse location created
            const hasWarehouse = loadedLocations.some(loc => 
-             loc.type === 'warehouse' || loc.type === 'back_store' || loc.type === 'main_store'
+             loc.type === 'warehouse' || loc.type === 'back_store'
            );
-           setShowStockSource(loadedLocations.length > 0);
+           setShowStockSource(hasWarehouse);
         } catch (error) {
           console.error('Error loading stock locations:', error);
           // Set empty locations on error
@@ -383,10 +394,10 @@ export function RecordSalePage() {
       return;
     }
     
-    // Validate payment amounts match total
+    // Validate payment amounts match final total (after discount)
     const totalPayment = paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0);
-    if (totalPayment !== subtotal) {
-      return showToast(`Payment total (${formatMoney(totalPayment)}) must match sale total (${formatMoney(subtotal)})`);
+    if (totalPayment !== finalTotal) {
+      return showToast(`Payment total (${formatMoney(totalPayment)}) must match sale total (${formatMoney(finalTotal)})`);
     }
 
     // Validate credit payment details
@@ -446,7 +457,7 @@ export function RecordSalePage() {
           productId: item.id,
           name: item.name,
           price: item.price,
-          costPrice: item.costPrice,
+          costPrice: item.costPrice
           quantity: item.qty,
           emoji: item.emoji,
         })),
@@ -472,6 +483,13 @@ export function RecordSalePage() {
         createdAt: new Date(),
         recordedAt: new Date(),
       };
+
+      // Save sale to Firestore
+      const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // Record audit trail for sale creation
+      try {
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
@@ -918,7 +936,11 @@ export function RecordSalePage() {
   }
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const profit   = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0);
+  const discount = discountType === 'percentage' 
+    ? (discountValue > 0 ? (subtotal * discountValue) / 100 : 0)
+    : discountValue;
+  const finalTotal = subtotal - discount;
+  const profit   = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
 
   if (!isMounted) {
     return null;
@@ -1103,6 +1125,11 @@ export function RecordSalePage() {
                     <div className={styles.cartInfo}>
                       <div className={styles.cartName}>{item.name}</div>
                       <div className={styles.cartPrice}>{formatMoney(item.price * item.qty)}</div>
+                      {showStockSource && sourceLocation && (
+                        <div className={styles.cartSource}>
+                          Source: {stockLocations.find(loc => loc.id === sourceLocation)?.name || 'Main Store'}
+                        </div>
+                      )}
                     </div>
                     <div className={styles.cartQtyControl}>
                       <button onClick={() => updateQty(item.id, -1)}>−</button>
@@ -1115,20 +1142,58 @@ export function RecordSalePage() {
               )}
             </div>
 
-            {/* Totals */}
-            {cart.length > 0 && (
-              <div className={styles.totals}>
-                <div className={styles.totalRow}>
-                  <span>{t('sale.subtotal')}</span><span>{formatMoney(subtotal)}</span>
-                </div>
-                <div className={[styles.totalRow, styles.totalMain].join(' ')}>
-                  <span>{t('sale.grandTotal')}</span><span>{formatMoney(subtotal)}</span>
-                </div>
-                <div className={[styles.totalRow, styles.totalProfit].join(' ')}>
-                  <span>{t('sale.profit')}</span><span>{formatMoney(profit)}</span>
-                </div>
+      {/* Totals */}
+      {cart.length > 0 && (
+        <div className={styles.totals}>
+          <div className={styles.totalRow}>
+            <span>{t('sale.subtotal')}</span><span>{formatMoney(subtotal)}</span>
+          </div>
+          
+          {/* Discount Section */}
+          <div className={styles.discountSection}>
+            <div className={styles.discountRow}>
+              <span>Discount:</span>
+              <select
+                className={styles.discountSelect}
+                value={discountType}
+                onChange={(e) => {
+                  setDiscountType(e.target.value as 'fixed' | 'percentage');
+                  setDiscountValue(0);
+                }}
+              >
+                <option value="fixed">Fixed Amount</option>
+                <option value="percentage">Percentage (%)</option>
+              </select>
+            </div>
+            <div className={styles.discountInputRow}>
+              <input
+                type="number"
+                className={styles.discountInput}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                min={0}
+                max={discountType === 'percentage' ? 100 : subtotal}
+              />
+              <span className={styles.discountLabel}>
+                {discountType === 'percentage' ? '%' : currencyCode}
+              </span>
+            </div>
+            {discount > 0 && (
+              <div className={styles.discountAmount}>
+                Discount Amount: -{formatMoney(discount)}
               </div>
             )}
+          </div>
+
+          <div className={[styles.totalRow, styles.totalMain].join(' ')}>
+            <span>{t('sale.grandTotal')}</span><span>{formatMoney(finalTotal)}</span>
+          </div>
+          <div className={[styles.totalRow, styles.totalProfit].join(' ')}>
+            <span>{t('sale.profit')}</span><span>{formatMoney(profit)}</span>
+          </div>
+        </div>
+      )}
 
             {/* Source Location Selection - Only show for retail/wholesale or pro users with multiple branches */}
             {cart.length > 0 && showStockSource && (
@@ -1151,12 +1216,87 @@ export function RecordSalePage() {
               </div>
             )}
 
-            {/* Payment method - Allow split payments */}
-            <div className={styles.paymentSection}>
-              <div className={styles.paymentLabel}>{t('sale.paymentMethod')} - Split Payment</div>
+      {/* Customer Selection - Show for wholesale/distributor or when credit is used */}
+      {(businessCategory.includes('wholesale') || businessCategory.includes('distributor') || paymentBreakdown.some(pb => pb.method === 'credit')) && (
+        <div className={styles.customerSection}>
+          <div className={styles.customerLabel}>Customer Information (Optional)</div>
+          
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Select Existing Customer</label>
+            <select 
+              className={styles.formInput}
+              value={selectedCustomer}
+              onChange={(e) => {
+                setSelectedCustomer(e.target.value);
+                if (e.target.value) {
+                  setShowNewCustomer(false);
+                }
+              }}
+            >
+              <option value="">-- Select Customer (Optional) --</option>
+              {creditCustomers.map(customer => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name} {customer.currentBalance > 0 ? `(Balance: ${formatMoney(customer.currentBalance)})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              {/* Credit Customer Selection - Show only when credit is selected */}
-              {paymentBreakdown.some(pb => pb.method === 'credit') && (
+          {!selectedCustomer && showNewCustomer && (
+            <>
+              <div className={styles.creditDivider}>OR</div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Customer Name</label>
+                <input 
+                  className={styles.formInput}
+                  placeholder="Enter customer name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Phone Number</label>
+                <input 
+                  className={styles.formInput}
+                  placeholder="Enter phone number"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          
+          {!selectedCustomer && (
+            <button 
+              type="button"
+              className={styles.addNewCustomerBtn}
+              onClick={() => setShowNewCustomer(!showNewCustomer)}
+            >
+              {showNewCustomer ? '− Hide New Customer Form' : '+ Add New Customer'}
+            </button>
+          )}
+          
+          {selectedCustomer && (
+            <div className={styles.selectedCustomerInfo}>
+              <span>Selected: {creditCustomers.find(c => c.id === selectedCustomer)?.name}</span>
+              <button 
+                type="button"
+                className={styles.clearCustomerBtn}
+                onClick={() => setSelectedCustomer('')}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Payment method - Allow split payments */}
+      <div className={styles.paymentSection}>
+        <div className={styles.paymentLabel}>{t('sale.paymentMethod')} - Split Payment</div>
+
+        {/* Credit Customer Selection - Show only when credit is selected */}
+        {paymentBreakdown.some(pb => pb.method === 'credit') && (
                 <div className={styles.creditSection}>
                   <div className={styles.creditLabel}>Credit Customer Details</div>
                   
@@ -1383,7 +1523,3 @@ const PAYMENT_METHODS = [
   { id: 'cash',     label: 'Cash',      icon: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20' },
   { id: 'transfer', label: 'Transfer',  icon: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01' },
   { id: 'pos',      label: 'POS',       icon: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22' },
-  { id: 'card',     label: 'Card',      icon: 'M3 10h18a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2v-8a2 2 0 012-2z' },
-  { id: 'credit',   label: 'Credit',    icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
-];
-

@@ -166,6 +166,7 @@
 .cartInfo  { flex: 1; min-width: 0; }
 .cartName  { font-size: 0.85rem; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cartPrice { font-size: 0.8rem; color: var(--text-2); }
+.cartSource { font-size: 0.75rem; color: var(--purple); font-weight: 500; margin-top: 2px; }
 
 .cartQtyControl {
   display: flex;
