@@ -446,87 +446,333 @@ export function CreditTrackingPage() {
       const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
       const businessData = businessDoc.data();
       const businessName = businessData?.businessName || 'Your Business';
+      const businessAddress = businessData?.address || businessData?.businessAddress || '';
+      const businessPhone = businessData?.phone || businessData?.businessPhone || '';
+      const businessEmail = businessData?.email || '';
 
-      // Generate CSV content
-      let csvContent = 'CREDIT TRACKING STATEMENT\n';
-      csvContent += `Business: ${businessName}\n`;
-      csvContent += `Generated: ${new Date().toLocaleString()}\n`;
-      csvContent += `${'='.repeat(80)}\n\n`;
+      // Generate PDF-ready HTML content
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Credit Statement - ${businessName}</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              color: #333;
+              line-height: 1.6;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .header h1 {
+              color: #2563eb;
+              font-size: 28px;
+              margin-bottom: 10px;
+            }
+            .header .subtitle {
+              color: #666;
+              font-size: 14px;
+            }
+            .business-info {
+              background: #f8f9fa;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 30px;
+            }
+            .business-info p {
+              margin: 5px 0;
+              font-size: 14px;
+            }
+            .section {
+              margin-bottom: 30px;
+            }
+            .section-title {
+              background: #2563eb;
+              color: white;
+              padding: 10px 15px;
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 15px;
+              border-radius: 4px 4px 0 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              background: white;
+              border: 1px solid #ddd;
+            }
+            th {
+              background: #f1f5f9;
+              color: #334155;
+              padding: 12px;
+              text-align: left;
+              font-weight: bold;
+              border-bottom: 2px solid #e2e8f0;
+            }
+            td {
+              padding: 10px 12px;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            tr:hover {
+              background: #f8f9fa;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .summary-card {
+              background: white;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 15px;
+              text-align: center;
+            }
+            .summary-label {
+              font-size: 12px;
+              color: #64748b;
+              margin-bottom: 5px;
+              text-transform: uppercase;
+            }
+            .summary-value {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e293b;
+            }
+            .status-paid { color: #16a34a; }
+            .status-overdue { color: #dc2626; }
+            .status-pending { color: #f59e0b; }
+            .status-partial { color: #3b82f6; }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #64748b;
+              font-size: 12px;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 20px;
+            }
+            .transaction-details {
+              margin-top: 15px;
+              padding: 15px;
+              background: #f8f9fa;
+              border-left: 3px solid #2563eb;
+            }
+            .transaction-details h4 {
+              color: #1e293b;
+              margin-bottom: 10px;
+            }
+            .products-list {
+              list-style: none;
+              padding-left: 0;
+            }
+            .products-list li {
+              padding: 5px 0;
+              border-bottom: 1px dashed #ddd;
+            }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <!-- Header -->
+          <div class="header">
+            <h1>CREDIT TRACKING STATEMENT</h1>
+            <div class="subtitle">Generated on ${new Date().toLocaleString()}</div>
+          </div>
 
-      // Summary Section
-      csvContent += 'SUMMARY\n';
-      csvContent += `${'='.repeat(80)}\n`;
-      csvContent += `Total Outstanding,${formatMoney(summary.totalOutstanding).replace(/[^0-9.,]/g, '')}\n`;
-      csvContent += `Overdue Amount,${formatMoney(summary.overdueAmount).replace(/[^0-9.,]/g, '')}\n`;
-      csvContent += `Due This Week,${formatMoney(summary.dueThisWeek).replace(/[^0-9.,]/g, '')}\n`;
-      csvContent += `Due This Month,${formatMoney(summary.dueThisMonth).replace(/[^0-9.,]/g, '')}\n`;
-      csvContent += `Total Customers,${summary.totalCustomers}\n`;
-      csvContent += `Active Credits,${summary.activeCredits}\n`;
-      csvContent += `Paid This Month,${formatMoney(summary.paidThisMonth).replace(/[^0-9.,]/g, '')}\n`;
-      csvContent += `\n`;
+          <!-- Business Information -->
+          <div class="business-info">
+            <p><strong>Business:</strong> ${businessName}</p>
+            ${businessAddress ? `<p><strong>Address:</strong> ${businessAddress}</p>` : ''}
+            ${businessPhone ? `<p><strong>Phone:</strong> ${businessPhone}</p>` : ''}
+            ${businessEmail ? `<p><strong>Email:</strong> ${businessEmail}</p>` : ''}
+            <p><strong>Report Period:</strong> ${new Date().toLocaleDateString()}</p>
+          </div>
 
-      // Customers Section
-      csvContent += 'CREDIT CUSTOMERS\n';
-      csvContent += `${'='.repeat(80)}\n`;
-      csvContent += `Name,Phone,Email,Current Balance,Credit Limit\n`;
-      
-      customers.forEach(customer => {
-        csvContent += `${customer.name},${customer.phone || 'N/A'},${customer.email || 'N/A'},${customer.currentBalance},${customer.totalCreditLimit || 0}\n`;
-      });
-      csvContent += `\n`;
+          <!-- Summary Section -->
+          <div class="section">
+            <div class="section-title">EXECUTIVE SUMMARY</div>
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="summary-label">Total Outstanding</div>
+                <div class="summary-value">${formatMoney(summary.totalOutstanding)}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Overdue Amount</div>
+                <div class="summary-value status-overdue">${formatMoney(summary.overdueAmount)}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Due This Week</div>
+                <div class="summary-value status-pending">${formatMoney(summary.dueThisWeek)}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Due This Month</div>
+                <div class="summary-value">${formatMoney(summary.dueThisMonth)}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Paid This Month</div>
+                <div class="summary-value status-paid">${formatMoney(summary.paidThisMonth)}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Total Customers</div>
+                <div class="summary-value">${summary.totalCustomers}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label">Active Credits</div>
+                <div class="summary-value">${summary.activeCredits}</div>
+              </div>
+            </div>
+          </div>
 
-      // Transactions Section
-      csvContent += 'CREDIT TRANSACTIONS\n';
-      csvContent += `${'='.repeat(80)}\n`;
-      csvContent += `Customer Name,Transaction Date,Due Date,Original Amount,Paid Amount,Remaining,Status\n`;
-      
-      transactions.forEach(transaction => {
-        csvContent += `${transaction.customerName},${transaction.issuedDate.toLocaleDateString()},${transaction.dueDate.toLocaleDateString()},${transaction.originalAmount},${transaction.paidAmount},${transaction.remainingAmount},${transaction.status}\n`;
-      });
-      csvContent += `\n`;
+          <!-- Receivables Section -->
+          <div class="section">
+            <div class="section-title">CREDIT TRANSACTIONS (RECEIVABLES)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Sale ID</th>
+                  <th>Date</th>
+                  <th>Due Date</th>
+                  <th>Original</th>
+                  <th>Paid</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  <th>Recorded By</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transactions.map(transaction => `
+                  <tr>
+                    <td><strong>${transaction.customerName}</strong></td>
+                    <td>${transaction.saleId}</td>
+                    <td>${transaction.issuedDate.toLocaleDateString()}</td>
+                    <td>${transaction.dueDate.toLocaleDateString()}</td>
+                    <td>${formatMoney(transaction.originalAmount)}</td>
+                    <td class="status-paid">${formatMoney(transaction.paidAmount)}</td>
+                    <td><strong>${formatMoney(transaction.remainingAmount)}</strong></td>
+                    <td><span class="status-${transaction.status}">${transaction.status.toUpperCase()}</span></td>
+                    <td>${transaction.recordedByName}</td>
+                  </tr>
+                  ${transaction.products && transaction.products.length > 0 ? `
+                    <tr>
+                      <td colspan="9">
+                        <div class="transaction-details">
+                          <h4>Products:</h4>
+                          <ul class="products-list">
+                            ${transaction.products.map((product, idx) => `
+                              <li>${idx + 1}. ${product.name} - Qty: ${product.quantity} × ${formatMoney(product.price)} = ${formatMoney(product.quantity * product.price)}</li>
+                            `).join('')}
+                          </ul>
+                          ${transaction.notes ? `<p><strong>Notes:</strong> ${transaction.notes}</p>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                  ` : ''}
+                `).join('')}
+              </tbody>
+            </table>
+            ${transactions.length === 0 ? '<p style="text-align: center; padding: 20px; color: #666;">No credit transactions found</p>' : ''}
+          </div>
 
-      // Detailed Transaction Information
-      csvContent += 'DETAILED TRANSACTIONS WITH PRODUCTS\n';
-      csvContent += `${'='.repeat(80)}\n`;
-      
-      transactions.forEach((transaction, index) => {
-        csvContent += `\nTransaction #${index + 1}\n`;
-        csvContent += `Customer: ${transaction.customerName}\n`;
-        csvContent += `Sale ID: ${transaction.saleId}\n`;
-        csvContent += `Date: ${transaction.issuedDate.toLocaleDateString()}\n`;
-        csvContent += `Due Date: ${transaction.dueDate.toLocaleDateString()}\n`;
-        csvContent += `Status: ${transaction.status}\n`;
-        csvContent += `Original Amount: ${transaction.originalAmount}\n`;
-        csvContent += `Paid Amount: ${transaction.paidAmount}\n`;
-        csvContent += `Remaining Amount: ${transaction.remainingAmount}\n`;
-        csvContent += `Recorded By: ${transaction.recordedByName}\n`;
-        
-        if (transaction.products && transaction.products.length > 0) {
-          csvContent += `Products:\n`;
-          transaction.products.forEach((product, pIndex) => {
-            csvContent += `  ${pIndex + 1}. ${product.name} - Qty: ${product.quantity} × Price: ${product.price} = ${product.price * product.quantity}\n`;
-          });
-        }
-        
-        if (transaction.notes) {
-          csvContent += `Notes: ${transaction.notes}\n`;
-        }
-        
-        csvContent += `${'-'.repeat(80)}\n`;
-      });
+          <!-- Customers Section -->
+          <div class="section">
+            <div class="section-title">CREDIT CUSTOMERS</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Current Balance</th>
+                  <th>Credit Limit</th>
+                  <th>Customer Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${customers.map(customer => `
+                  <tr>
+                    <td><strong>${customer.name}</strong></td>
+                    <td>${customer.phone || 'N/A'}</td>
+                    <td>${customer.email || 'N/A'}</td>
+                    <td><strong>${formatMoney(customer.currentBalance)}</strong></td>
+                    <td>${formatMoney(customer.totalCreditLimit || 0)}</td>
+                    <td>${customer.businessType === 'business' ? 'Business' : 'Individual'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            ${customers.length === 0 ? '<p style="text-align: center; padding: 20px; color: #666;">No credit customers found</p>' : ''}
+          </div>
 
-      // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `credit_statement_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+          <!-- Payables Section -->
+          <div class="section">
+            <div class="section-title">PAYABLES (SUPPLIERS)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  <th>Category</th>
+                  <th>Total Purchases</th>
+                  <th>Total Payments</td>
+                  <th>Current Balance</th>
+                  <th>Payment Terms</th>
+                  <th>Last Purchase</th>
+                  <th>Last Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${suppliers.map(supplier => `
+                  <tr>
+                    <td><strong>${supplier.businessName || supplier.supplierName}</strong></td>
+                    <td>${supplier.category}</td>
+                    <td>${formatMoney(supplier.totalPurchases)}</td>
+                    <td>${formatMoney(supplier.totalPayments)}</td>
+                    <td><strong>${formatMoney(supplier.currentBalance)}</strong></td>
+                    <td>${supplier.paymentTerms}${supplier.customPaymentDays ? ` (${supplier.customPaymentDays} days)` : ''}</td>
+                    <td>${supplier.lastPurchaseDate ? supplier.lastPurchaseDate.toLocaleDateString() : 'N/A'}</td>
+                    <td>${supplier.lastPaymentDate ? supplier.lastPaymentDate.toLocaleDateString() : 'N/A'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            ${suppliers.length === 0 ? '<p style="text-align: center; padding: 20px; color: #666;">No suppliers found</p>' : ''}
+          </div>
 
-      showToast('Statement downloaded successfully');
+          <!-- Footer -->
+          <div class="footer">
+            <p>This statement was generated automatically by Busmo</p>
+            <p>${new Date().toLocaleString()}</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Open print window for PDF generation
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+        showToast('PDF download started - use print dialog to save as PDF');
+      }
     } catch (error) {
       console.error('Error downloading statement:', error);
       showToast('Failed to download statement');
