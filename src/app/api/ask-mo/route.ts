@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Render the result
-        renderedResponse = renderResponse(actionResult);
+        renderedResponse = renderResponse(actionResult.message || actionResult.data?.message || 'Action completed', actionResult, intent);
         console.log('✅ [Ask MO API] Action executed and rendered');
       } catch (error) {
         console.error('❌ [Ask MO API] Error executing action:', error);
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       // Return structured response if action was executed
       if (renderedResponse) {
         return NextResponse.json({
-          answer: renderedResponse.text,
+          answer: renderedResponse.content,
           rendered: renderedResponse,
           actionResult,
           intent,
@@ -243,7 +243,7 @@ CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks
     console.log('✅ [Ask MO API] Response generated');
 
     // If action was executed, use the rendered response instead of raw AI text
-    const finalAnswer = renderedResponse ? renderedResponse.text : text;
+    const finalAnswer = renderedResponse ? renderedResponse.content : text;
 
     return NextResponse.json({
       answer: finalAnswer,
