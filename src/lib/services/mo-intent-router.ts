@@ -54,30 +54,39 @@ export function detectIntent(
 ): IntentData {
   const lower = message.toLowerCase().trim();
 
-  // Sale patterns
+  // Enhanced sale patterns with more flexible matching
   const salePatterns = [
     /^(?:record|log|add|make)\s+(?:a\s+)?(?:sale|sales|transaction)/i,
     /^(?:sold|sell)\s+/i,
     /(\d+)\s*(?:bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?)/i,
     /^(?:customer\s+bought|buyer\s+purchased)/i,
+    /(?:record|add|log)\s+(?:sale|sales):\s*/i,  // Explicit sale prefix
+    /(?:sold|just\s+sold)\s+\d+.+for/i,  // "sold 5 items for..."
+    /(?:made|did)\s+a\s+sale/i,  // "made a sale"
   ];
 
-  // Product patterns
+  // Enhanced product patterns with more flexible matching
   const productPatterns = [
     /^(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)/i,
     /^(?:add|create)\s+\d+\s+(?:new\s+)?(?:products?|items?|inventory)/i,
+    /(?:add|create|register)\s+(?:product|item):\s*/i,  // Explicit product prefix
+    /(?:new|create)\s+(?:product|item)\s+named/i,  // "create product named..."
   ];
 
-  // Expense patterns
+  // Enhanced expense patterns with more flexible matching
   const expensePatterns = [
     /^(?:record|log|add|track)\s+(?:an?\s+)?(?:expense|expenses|cost|spending|payment)/i,
     /^(?:spent|paid|payment)\s+(?:₦|naira|n\d+|\d+)/i,
+    /(?:add|record|log)\s+(?:expense|cost):\s*/i,  // Explicit expense prefix
+    /(?:paid|spent)\s+₦?\d+/i,  // "paid ₦5000" or "spent 5000"
+    /(?:expense|cost)\s+of\s+₦?\d+/i,  // "expense of ₦5000"
   ];
 
   // Update product patterns
   const updateProductPatterns = [
     /^(?:update|edit|modify|change)\s+(?:the\s+)?(?:product|item|inventory)/i,
     /^(?:change|set|update)\s+(?:price|cost|stock|name)\s+(?:of|for)/i,
+    /(?:update|modify)\s+(?:product|item):\s*/i,  // Explicit update prefix
   ];
 
   // Delete product patterns
@@ -392,6 +401,7 @@ export function detectIntent(
       };
     }
   }
+  
   // Check for question/analysis intent
   const questionPatterns = [
     /^(?:what|how|why|when|where|who|show|tell|explain|analyze|summarize)/i,
@@ -420,25 +430,38 @@ export function detectIntent(
 }
 
 /**
- * Parse sale data from message
+ * Parse sale data from message with enhanced flexibility
  */
 function parseSaleData(message: string): Record<string, any> {
   const lower = message.toLowerCase();
   const items: SaleItemIntent[] = [];
 
-  // Pattern: "Sold 2 Coca-Cola for 5000" or "Record sale: 3 rice @ 15000 each"
+  // More comprehensive patterns for extracting sales data
   const itemPatterns = [
-    /(?:sold|sell|add|record|log)\s+(\d+)\s+(.+?)(?:\s+for\s+|\s+@\s+|\s+at\s+)?(?:₦?(\d+(?:,\d+)*))?/gi,
-    /(\d+)\s+(bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?)\s+(?:of\s+)?(.+?)(?:\s+for\s+|\s+@\s+)?(?:₦?(\d+(?:,\d+)*))?/gi,
+    // Pattern: "Record sale: 2 Coca-Cola at ₦500 each"
+    /(?:record\s+sale:|sold|sell|add|log)\s+(\d+)\s+(.+?)(?:\s+at\s+|@|\s+for\s+)(?:₦?(\d+(?:,\d+)*))\s+(?:each|per)/gi,
+    // Pattern: "Sold 2 Coca-Cola for ₦1000"  
+    /(?:sold|sell|add|record|log)\s+(\d+)\s+(.+?)(?:\s+for\s+|\s+@\s+|\s+at\s+)?(?:₦?(\d+(?:,\d+)*))/gi,
+    // Pattern: "2 Coca-Cola 500 each" 
+    /(\d+)\s+(bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?)\s+(?:of\s+)?(.+?)(?:\s+at\s+|\s+@\s+|\s+for\s+)?(?:₦?(\d+(?:,\d+)*))\s+(?:each|per)/gi,
+    // Pattern: "2 Coca-Cola ₦500" (quantity, product, price)
+    /(\d+)\s+(.+?)\s+(?:₦?(\d+(?:,\d+)*))/gi,
   ];
 
   for (const pattern of itemPatterns) {
     let match;
+    // Reset lastIndex for reuse of global regex
+    pattern.lastIndex = 0;
     while ((match = pattern.exec(message)) !== null) {
-      const quantity = parseInt(match[1]) || 1;
-      const productName = match[2] || match[3] || match[0];
-      const priceStr = match[4] || match[3];
+      const quantity = parseInt(match[1]) || parseInt(match[2]) || 1;
+      const productName = match[2] || match[3] || match[4] || '';
+      const priceStr = match[3] || match[4] || match[5];
       const price = priceStr ? parseInt(priceStr.replace(/,/g, '')) : undefined;
+
+      // Skip if product name is too generic (likely a false match)
+      if (!productName || productName.trim().toLowerCase().match(/^(and|or|the|a|an|of|for|at|@)$/)) {
+        continue;
+      }
 
       items.push({
         productName: productName.trim(),
@@ -448,20 +471,20 @@ function parseSaleData(message: string): Record<string, any> {
     }
   }
 
-  // If no structured items found, try to extract any product mentions
+  // If no structured items found, try to extract any product mentions with improved logic
   if (items.length === 0) {
-    // Pattern: "3 Coca-Cola 5000"
-    const simpleMatch = message.match(/(\d+)\s+(.+?)\s+(?:₦?(\d+(?:,\d+)*))/i);
-    if (simpleMatch) {
+    // Look for quantity-price combinations more broadly
+    const quantityMatches = message.match(/\b(\d{1,3})\s+(?:bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?|items?)\s+(.+?)(?:\s+for\s+|\s+at\s+|\s+@\s+)?(?:₦?(\d+(?:,\d+)*))/i);
+    if (quantityMatches) {
       items.push({
-        productName: simpleMatch[2].trim(),
-        quantity: parseInt(simpleMatch[1]),
-        price: simpleMatch[3] ? parseInt(simpleMatch[3].replace(/,/g, '')) : undefined,
+        productName: quantityMatches[2].trim(),
+        quantity: parseInt(quantityMatches[1]),
+        price: quantityMatches[3] ? parseInt(quantityMatches[3].replace(/,/g, '')) : undefined,
       });
     }
   }
 
-  // Extract payment method
+  // Extract payment method with broader pattern matching
   const methodKeywords: Record<string, string> = {
     'transfer': 'transfer',
     'bank': 'transfer',
@@ -471,6 +494,8 @@ function parseSaleData(message: string): Record<string, any> {
     'credit': 'credit',
     'on credit': 'credit',
     'later': 'credit',
+    'credit sale': 'credit',
+    'pay later': 'credit',
   };
 
   let paymentType = 'cash'; // Default to cash
@@ -491,7 +516,7 @@ function parseSaleData(message: string): Record<string, any> {
 }
 
 /**
- * Parse product data from message
+ * Parse product data from message with enhanced flexibility
  */
 function parseProductData(message: string): ProductIntent {
   const result: ProductIntent = {
@@ -503,75 +528,111 @@ function parseProductData(message: string): ProductIntent {
   // Remove the action words first to get the product name
   let cleanedMessage = message
     .replace(/^(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)?[:\s]*/i, '')
+    .replace(/^(?:add|create|new|register)\s+(?:product|item|inventory):\s*/i, '')  // New explicit pattern
     .trim();
 
-  // Extract price first (to remove it from the name)
-  const priceMatch = message.match(/(?:price|selling\s+price|sell|for|@)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
-  if (priceMatch) {
-    result.price = parseInt(priceMatch[1].replace(/,/g, ''));
-    // Remove price pattern from cleaned message
-    cleanedMessage = cleanedMessage.replace(/(?:price|selling\s+price|sell|for|@)[:\s]+(?:₦?\d+(?:,\d+)*)/i, '').trim();
-  }
-
-  // Extract cost
-  const costMatch = message.match(/(?:cost|cost\s+price|buying\s+price|buy)[:\s]+(?:₦?(\d+(?:,\d+)*))/i);
-  if (costMatch) {
-    result.costPrice = parseInt(costMatch[1].replace(/,/g, ''));
-    // Remove cost pattern from cleaned message
-    cleanedMessage = cleanedMessage.replace(/(?:cost|cost\s+price|buying\s+price|buy)[:\s]+(?:₦?\d+(?:,\d+)*)/i, '').trim();
-  }
-
-  // Extract stock
-  const stockMatch = message.match(/(?:stock|quantity|qty)[:\s]+(\d+)/i);
-  if (stockMatch) {
-    result.stock = parseInt(stockMatch[1]);
-    // Remove stock pattern from cleaned message
-    cleanedMessage = cleanedMessage.replace(/(?:stock|quantity|qty)[:\s]+\d+/i, '').trim();
-  } else {
-    // Check for out of stock phrases
-    const outOfStockPatterns = [
-      /out of stock/i,
-      /out\s+of\s+stock/i,
-      /zero stock/i,
-      /no stock/i,
-      /stock out/i,
-      /empty/i,
-      /depleted/i,
-    ];
-    
-    for (const pattern of outOfStockPatterns) {
-      if (pattern.test(message)) {
-        result.stock = 0;
-        cleanedMessage = cleanedMessage.replace(pattern, '').trim();
-        break;
-      }
+  // Extract price with more flexible patterns
+  const pricePatterns = [
+    /(?:price|selling\s+price|sell|for|@|at)[:\s]+(?:₦?(\d+(?:,\d+)*))/i,
+    /(?:₦?(\d+(?:,\d+)*))\s+(?:per|each|unit)/i,  // "₦500 per unit"
+    /at\s+₦?(\d+(?:,\d+)*)\s+(?:each|per)/i,      // "at ₦500 each"
+  ];
+  
+  for (const pattern of pricePatterns) {
+    const priceMatch = message.match(pattern);
+    if (priceMatch && priceMatch[1]) {
+      result.price = parseInt(priceMatch[1].replace(/,/g, ''));
+      // Remove price pattern from cleaned message
+      cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+      break;
     }
   }
 
-  // Extract category
-  const categoryMatch = message.match(/(?:category|type)[:\s]+(.+?)(?:,|$)/i);
-  if (categoryMatch) {
-    result.category = categoryMatch[1].trim();
-    // Remove category pattern from cleaned message
-    cleanedMessage = cleanedMessage.replace(/(?:category|type)[:\s]+.+?(?:,|$)/i, '').trim();
+  // Extract cost with more flexible patterns
+  const costPatterns = [
+    /(?:cost|cost\s+price|buying\s+price|buy|purchase\s+price)[:\s]+(?:₦?(\d+(?:,\d+)*))/i,
+    /cost\s+of\s+₦?(\d+(?:,\d+)*)/i,  // "cost of ₦500"
+  ];
+  
+  for (const pattern of costPatterns) {
+    const costMatch = message.match(pattern);
+    if (costMatch && costMatch[1]) {
+      result.costPrice = parseInt(costMatch[1].replace(/,/g, ''));
+      // Remove cost pattern from cleaned message
+      cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+      break;
+    }
   }
 
-  // Extract SKU
-  const skuMatch = message.match(/(?:sku|code)[:\s]+([A-Z0-9-]+)/i);
-  if (skuMatch) {
-    result.sku = skuMatch[1];
-    // Remove SKU pattern from cleaned message
-    cleanedMessage = cleanedMessage.replace(/(?:sku|code)[:\s]+[A-Z0-9-]+/i, '').trim();
+  // Extract stock with more flexible patterns
+  const stockPatterns = [
+    /(?:stock|quantity|qty|initial\s+stock|opening\s+stock)[:\s]+(\d+)/i,
+    /(\d+)\s+(?:items?|units?|pieces?|pcs?|bags?|bottles?|cans?|boxes?|packs?|cartons?)/i,  // "5 bottles"
+  ];
+  
+  for (const pattern of stockPatterns) {
+    const stockMatch = message.match(pattern);
+    if (stockMatch && stockMatch[1]) {
+      result.stock = parseInt(stockMatch[1]);
+      // Remove stock pattern from cleaned message
+      cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+      break;
+    }
   }
 
-  // What's left is the product name
-  result.name = cleanedMessage.replace(/[,，]/g, '').trim();
+  // Extract category with more flexible patterns
+  const categoryPatterns = [
+    /(?:category|type|kind)[:\s]+(.+?)(?:,|$|₦|naira|\d+)/i,
+    /(?:in|under|as)\s+(?:the\s+)?(.+?)\s+(?:category|type)/i,  // "in food category"
+  ];
+  
+  for (const pattern of categoryPatterns) {
+    const categoryMatch = message.match(pattern);
+    if (categoryMatch && categoryMatch[1]) {
+      result.category = categoryMatch[1].trim();
+      // Remove category pattern from cleaned message
+      cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+      break;
+    }
+  }
+
+  // Extract SKU with more flexible patterns
+  const skuPatterns = [
+    /(?:sku|code|product\s+code)[:\s]+([A-Z0-9-]+)/i,
+    /(?:with\s+)?(?:sku|code)\s+([A-Z0-9-]+)/i,
+  ];
+  
+  for (const pattern of skuPatterns) {
+    const skuMatch = message.match(pattern);
+    if (skuMatch && skuMatch[1]) {
+      result.sku = skuMatch[1];
+      // Remove SKU pattern from cleaned message
+      cleanedMessage = cleanedMessage.replace(pattern, '').trim();
+      break;
+    }
+  }
+
+  // What's left after removing structured data is the product name
+  // Clean up any remaining artifacts
+  result.name = cleanedMessage
+    .replace(/[,，]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // If name is still empty, try to extract it from the original message differently
+  if (!result.name) {
+    // Try to find the product name after the action verb
+    const nameMatch = message.match(/(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)\s+(.+?)(?:\s+with|\s+price|\s+cost|\s+stock|$)/i);
+    if (nameMatch) {
+      result.name = nameMatch[1].trim();
+    }
+  }
 
   return result;
 }
 
 /**
- * Parse expense data from message
+ * Parse expense data from message with enhanced flexibility
  */
 function parseExpenseData(message: string): ExpenseIntent {
   const result: ExpenseIntent = {
@@ -579,53 +640,132 @@ function parseExpenseData(message: string): ExpenseIntent {
     amount: 0,
   };
 
-  // Extract amount
-  const amountMatch = message.match(/(?:₦?(\d+(?:,\d+)*)|(\d+)\s*(?:naira|n))/i);
-  if (amountMatch) {
-    result.amount = parseInt((amountMatch[1] || amountMatch[2]).replace(/,/g, ''));
-  }
-
-  // Extract category
-  const categoryKeywords: Record<string, string> = {
-    'rent': 'Rent',
-    'electricity': 'Utilities',
-    'electric': 'Utilities',
-    'power': 'Utilities',
-    'water': 'Utilities',
-    'internet': 'Utilities',
-    'salary': 'Payroll',
-    'salaries': 'Payroll',
-    'wages': 'Payroll',
-    'transport': 'Transportation',
-    'fuel': 'Transportation',
-    'delivery': 'Transportation',
-    'supplies': 'Supplies',
-    'restock': 'Supplies',
-    'inventory': 'Supplies',
-    'marketing': 'Marketing',
-    'advertising': 'Marketing',
-    'repair': 'Maintenance',
-    'maintenance': 'Maintenance',
-    'office': 'Office Supplies',
-  };
-
-  for (const [keyword, category] of Object.entries(categoryKeywords)) {
-    if (message.toLowerCase().includes(keyword)) {
-      result.category = category;
+  // Extract amount with more flexible patterns
+  const amountPatterns = [
+    /(?:₦|naira\s+|n\s+|^|\s)(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)(?:\s+naira|\s+ngn|$|\s)/i,
+    /(?:paid|spent|expense|cost)\s+(?:₦|naira\s+|n\s+)?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+    /(?:₦|naira\s+|n\s+)?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s+(?:for|on|expense|payment)/i,
+  ];
+  
+  for (const pattern of amountPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      result.amount = parseInt(match[1].replace(/,/g, ''));
       break;
     }
   }
 
-  // Extract description
-  const descMatch = message.match(/(?:for|description|note)[:\s]+(.+?)(?:$|₦|₦?\d)/i);
-  if (descMatch) {
-    result.description = descMatch[1].trim();
+  // Extract category with expanded keyword mapping
+  const categoryKeywords: Record<string, string> = {
+    'rent': 'Rent',
+    'house rent': 'Rent',
+    'office rent': 'Rent',
+    'electricity': 'Utilities',
+    'electric': 'Utilities',
+    'power': 'Utilities',
+    'light bill': 'Utilities',
+    'water': 'Utilities',
+    'internet': 'Utilities',
+    'wifi': 'Utilities',
+    'salary': 'Payroll',
+    'salaries': 'Payroll',
+    'wages': 'Payroll',
+    'wage': 'Payroll',
+    'staff salary': 'Payroll',
+    'transport': 'Transportation',
+    'transportation': 'Transportation',
+    'fuel': 'Transportation',
+    'gas': 'Transportation',
+    'delivery': 'Transportation',
+    'logistics': 'Transportation',
+    'taxi': 'Transportation',
+    'bus fare': 'Transportation',
+    'supplies': 'Supplies',
+    'restock': 'Supplies',
+    'inventory': 'Supplies',
+    'goods': 'Goods & Materials',
+    'materials': 'Goods & Materials',
+    'marketing': 'Marketing',
+    'advertising': 'Marketing',
+    'ads': 'Marketing',
+    'adverts': 'Marketing',
+    'repair': 'Maintenance',
+    'maintenance': 'Maintenance',
+    'fix': 'Maintenance',
+    'service charge': 'Maintenance',
+    'office': 'Office Supplies',
+    'stationery': 'Office Supplies',
+    'office supplies': 'Office Supplies',
+    'food': 'Food & Catering',
+    'catering': 'Food & Catering',
+    'meals': 'Food & Catering',
+    'snacks': 'Food & Catering',
+    'insurance': 'Insurance',
+    'premium': 'Insurance',
+    'loan': 'Loan Payment',
+    'debt': 'Loan Payment',
+    'repayment': 'Loan Payment',
+    'loan repayment': 'Loan Payment',
+    'subscription': 'Subscriptions',
+    'software': 'Subscriptions',
+    'platform fee': 'Subscriptions',
+    'membership': 'Subscriptions',
+    'legal': 'Legal & Professional',
+    'lawyer': 'Legal & Professional',
+    'accountant': 'Legal & Professional',
+    'consultant': 'Legal & Professional',
+    'professional': 'Legal & Professional',
+  };
+
+  // Check for category in message (case insensitive)
+  let matchedCategory = false;
+  for (const [keyword, category] of Object.entries(categoryKeywords)) {
+    if (message.toLowerCase().includes(keyword.toLowerCase())) {
+      result.category = category;
+      matchedCategory = true;
+      break;
+    }
   }
 
-  // Extract date
-  const dateMatch = message.match(/(?:on|date)[:\s]+(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4})/i);
-  if (dateMatch) {
-    result.date = dateMatch[1];
+  // Extract description with more flexible patterns
+  const descPatterns = [
+    /(?:for|description|note|reason)[:\s]+(.+?)(?:$|₦|naira|\d+)/i,
+    /(?:paid|spent|expense)\s+(?:₦|naira|n)?\d+(?:,\d+)*\s+(?:for|on|to)\s+(.+?)(?:$|\.|,)/i,
+    /(?:expense|payment)\s+(?:of\s+)?(?:₦|naira|n)?\d+(?:,\d+)*\s+(?:for|on|to)\s+(.+?)(?:$|\.|,)/i,
+  ];
+  
+  for (const pattern of descPatterns) {
+    const descMatch = message.match(pattern);
+    if (descMatch) {
+      result.description = descMatch[1].trim();
+      break;
+    }
+  }
+
+  // Extract date with more flexible patterns
+  const datePatterns = [
+    /(?:on|date)[:\s]+(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}|\d{2}-\d{2}-\d{4})/i,
+    /(?:for|in)\s+(?:the\s+)?(?:month\s+of\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i,
+    /(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2}),?\s*(\d{4})/i,
+  ];
+  
+  for (const pattern of datePatterns) {
+    const dateMatch = message.match(pattern);
+    if (dateMatch) {
+      // Handle month-year format
+      if (dateMatch[1] && dateMatch[2] && isNaN(parseInt(dateMatch[1]))) {
+        // Month name found
+        const monthNames = ["January", "February", "March", "April", "May", "June", 
+                           "July", "August", "September", "October", "November", "December"];
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === dateMatch[1].toLowerCase());
+        if (monthIndex !== -1) {
+          result.date = `${dateMatch[2]}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+        }
+      } else if (dateMatch[1]) {
+        result.date = dateMatch[1];
+      }
+      break;
+    }
   }
 
   return result;
@@ -1076,3 +1216,129 @@ export function validateIntent(
 
   return intent;
 }
+
+function generateFollowUpSuggestions(intent: IntentResult, actionResult?: any): string[] {
+  const suggestions = [];
+  
+  // Generate appropriate follow-up suggestions based on intent
+  switch(intent.intent) {
+    case 'ask_question':
+      suggestions.push(
+        `Check your ${PAGE_NAMES.dashboard} for an overview of business metrics`,
+        `Look at ${PAGE_NAMES.reports} for detailed analytics`,
+        `Visit ${PAGE_NAMES.products} to manage inventory`,
+        `Go to ${PAGE_NAMES.expenses} to review spending`
+      );
+      break;
+    case 'record_sale':
+      suggestions.push(
+        `Check ${PAGE_NAMES.sales} page to review transactions`,
+        `Visit ${PAGE_NAMES.products} to see updated inventory`,
+        `Review ${PAGE_NAMES.dashboard} for updated metrics`,
+        `Look at ${PAGE_NAMES.reports} for sales trends`
+      );
+      break;
+    case 'add_expense':
+      suggestions.push(
+        `Visit ${PAGE_NAMES.expenses} page to review all expenses`,
+        `Check ${PAGE_NAMES.dashboard} for updated financial metrics`,
+        `Review ${PAGE_NAMES.reports} for expense trends`,
+        `Look at ${PAGE_NAMES.analytics} for cost breakdown`
+      );
+      break;
+    case 'add_product':
+      suggestions.push(
+        `Check ${PAGE_NAMES.products} page to see all items`,
+        `Visit ${PAGE_NAMES.inventory} for stock management`,
+        `Review ${PAGE_NAMES.dashboard} for product metrics`,
+        `Look at ${PAGE_NAMES.reports} for product performance`
+      );
+      break;
+    case 'view_sales':
+      suggestions.push(
+        `Visit ${PAGE_NAMES.sales} page for transaction history`,
+        `Check ${PAGE_NAMES.reports} for sales analytics`,
+        `Review ${PAGE_NAMES.dashboard} for sales metrics`,
+        `Look at ${PAGE_NAMES.products} to see best sellers`
+      );
+      break;
+    case 'view_inventory':
+      suggestions.push(
+        `Check ${PAGE_NAMES.products} page for detailed product info`,
+        `Visit ${PAGE_NAMES.inventory} for stock management`,
+        `Review ${PAGE_NAMES.dashboard} for inventory metrics`,
+        `Look at ${PAGE_NAMES.reports} for inventory trends`
+      );
+      break;
+    case 'view_expenses':
+      suggestions.push(
+        `Visit ${PAGE_NAMES.expenses} page for detailed expense tracking`,
+        `Check ${PAGE_NAMES.reports} for expense analytics`,
+        `Review ${PAGE_NAMES.dashboard} for financial metrics`,
+        `Look at ${PAGE_NAMES.analytics} for cost breakdown`
+      );
+      break;
+    case 'view_customers':
+      suggestions.push(
+        `Check ${PAGE_NAMES.customers} page for client details`,
+        `Review ${PAGE_NAMES.dashboard} for customer metrics`,
+        `Look at ${PAGE_NAMES.reports} for customer analytics`,
+        `Visit ${PAGE_NAMES.sales} to see customer transactions`
+      );
+      break;
+    case 'view_suppliers':
+      suggestions.push(
+        `Check ${PAGE_NAMES.suppliers} page for vendor details`,
+        `Review ${PAGE_NAMES.dashboard} for supplier metrics`,
+        `Look at ${PAGE_NAMES.reports} for procurement analytics`,
+        `Visit ${PAGE_NAMES.expenses} to see supplier payments`
+      );
+      break;
+    case 'view_staff':
+      suggestions.push(
+        `Check ${PAGE_NAMES.staff} page for employee details`,
+        `Review ${PAGE_NAMES.dashboard} for staff metrics`,
+        `Look at ${PAGE_NAMES.reports} for staff performance`,
+        `Visit ${PAGE_NAMES.settings} for staff management`
+      );
+      break;
+    case 'view_reports':
+      suggestions.push(
+        `Check ${PAGE_NAMES.reports} page for all analytics`,
+        `Review ${PAGE_NAMES.dashboard} for key metrics`,
+        `Look at ${PAGE_NAMES.analytics} for detailed insights`,
+        `Visit ${PAGE_NAMES.sales} for transaction reports`
+      );
+      break;
+    default:
+      suggestions.push(
+        `Visit ${PAGE_NAMES.dashboard} for business overview`,
+        `Check ${PAGE_NAMES.reports} for analytics`,
+        `Manage ${PAGE_NAMES.products} for inventory`,
+        `Track ${PAGE_NAMES.sales} for revenue`,
+        `Monitor ${PAGE_NAMES.expenses} for costs`
+      );
+  }
+  
+  // Limit to 3 suggestions max
+  return suggestions.slice(0, 3);
+}
+
+// Define the actual page names for navigation guidance
+const PAGE_NAMES = {
+  dashboard: "Dashboard",
+  products: "Products",
+  inventory: "Inventory",
+  sales: "Record Sale",
+  expenses: "Expenses",
+  reports: "Reports",
+  analytics: "Analytics",
+  customers: "Customers",
+  suppliers: "Suppliers",
+  staff: "Staff",
+  ask_mo: "Ask MO",
+  settings: "Settings"
+};
+
+// Export PAGE_NAMES for use in other modules
+export { PAGE_NAMES };

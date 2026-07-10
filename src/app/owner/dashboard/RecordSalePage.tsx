@@ -12,6 +12,7 @@ import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { BrevoService } from '@/services/email/brevo-service';
 import { ReceiptGenerator } from './ReceiptGenerator';
+import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './RecordSalePage.module.css';
 
 // ═══════════════════════════════════════════
@@ -40,6 +41,27 @@ export function RecordSalePage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Add effect to listen for data refresh events triggered by MO
+  useEffect(() => {
+    const handleDataRefresh = (event: CustomEvent) => {
+      console.log('🔄 [RecordSalePage] Received data refresh event:', event.detail);
+      if (event.detail.actionType === 'sale_recorded' || event.detail.actionType === 'general_update') {
+        // Refresh product list after a short delay to allow backend to process the changes
+        setTimeout(() => {
+          fetchProducts();
+        }, 1000); // 1 second delay to allow backend to process
+      }
+    };
+
+    // Subscribe to action events
+    subscribeToActionEvents(handleDataRefresh);
+    
+    // Clean up subscription on unmount
+    return () => {
+      console.log('🧹 [RecordSalePage] Unsubscribing from data refresh events');
+    };
+  }, [businessId]); // Add businessId as dependency if it's available
 
   // Credit tracking fields
   const [selectedCreditCustomer, setSelectedCreditCustomer] = useState<string>('');

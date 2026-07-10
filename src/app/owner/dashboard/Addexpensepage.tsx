@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './Addexpensepage.module.css';
 
 // ═══════════════════════════════════════════
@@ -73,11 +74,14 @@ export function AddExpensePage() {
     description: '', linkedProduct: '', quantityReceived: '',
     isRecurring: false, recurFrequency: 'Monthly', recurNextDate: '',
   });
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
   const [receipt, setReceipt] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null>;
 
   const set = useCallback((key: keyof ExpenseForm, val: string | boolean) => {
     setForm(prev => ({ ...prev, [key]: val }));

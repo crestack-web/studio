@@ -13,6 +13,7 @@ import { MoIcon } from './NavIcons';
 import { InlineAIChat } from './InlineAIChat';
 import { RestaurantHealthScore } from './RestaurantHealthScore';
 import { LANGUAGES } from './translations';
+import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './HomePage.module.css';
 
 // MO Suggestion chips with translation keys
@@ -70,6 +71,27 @@ export function HomePage() {
   useEffect(() => {
     fetchData();
   }, [selectedPeriod, user.id, firestore]);
+
+  // Add effect to listen for data refresh events triggered by MO
+  useEffect(() => {
+    const handleDataRefresh = (event: CustomEvent) => {
+      console.log('🔄 [HomePage] Received data refresh event:', event.detail);
+      // Refresh data after a short delay to allow backend to process the changes
+      setTimeout(() => {
+        fetchData();
+      }, 1000); // 1 second delay to allow backend to process
+    };
+
+    // Subscribe to action events
+    subscribeToActionEvents(handleDataRefresh);
+    
+    // Clean up subscription on unmount
+    return () => {
+      // In a real implementation, we would have an unsubscribe function
+      // For now, we'll just log that cleanup happened
+      console.log('🧹 [HomePage] Unsubscribing from data refresh events');
+    };
+  }, [user.id, firestore, selectedPeriod]);
 
   async function fetchData() {
     try {

@@ -1,143 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import admin from 'firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
-import { executeAction } from '@/lib/services/mo-action-router';
-import { renderResponse } from '@/lib/services/mo-response-renderer';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { executeAction, renderResponse } from '@/lib/services/mo-action-router';
+import { buildSystemPrompt, detectConversationStyle, getBusinessContext } from '@/services/ai/system-prompt-builder';
+import { checkPermission } from '@/services/permissions/check-permission';
+import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Get category-specific advice for AI responses
- */
-function getCategorySpecificAdvice(category: string): string {
-  const adviceMap: Record<string, string> = {
-    retail: 'Focus on inventory turnover, customer retention, and seasonal trends.',
-    restaurant: 'Focus on food cost management, table turnover, and menu optimization.',
-    grocery: 'Focus on expiry management, supplier relationships, and bulk purchasing.',
-    fashion: 'Focus on seasonal inventory, trend analysis, and customer preferences.',
-    electronics: 'Focus on warranty management, product lifecycle, and technical support.',
-    manufacturing: 'Focus on production efficiency, raw material costs, and quality control.',
-    services: 'Focus on appointment scheduling, customer satisfaction, and service delivery.',
-    pharmacy: 'Focus on expiry tracking, regulatory compliance, and health trends.',
-    supermarket: 'Focus on multi-category management, shelf space optimization, and supplier negotiations.',
-    cafe: 'Focus on ingredient costs, peak hour management, and customer experience.',
-    wholesale: 'Focus on bulk pricing, distributor relationships, and volume discounts.',
-    distributor: 'Focus on supply chain efficiency, logistics, and retailer relationships.',
-  };
-  
-  return adviceMap[category.toLowerCase()] || adviceMap.retail;
-}
+// Define the actual page names for navigation guidance
+const PAGE_NAMES = {
+  dashboard: "Dashboard",
+  products: "Products",
+  inventory: "Inventory",
+  sales: "Record Sale",
+  expenses: "Expenses",
+  reports: "Reports",
+  analytics: "Analytics",
+  customers: "Customers",
+  suppliers: "Suppliers",
+  staff: "Staff",
+  ask_mo: "Ask MO",
+  settings: "Settings"
+};
 
-/**
- * Detect user's conversation style from history
- */
-function detectConversationStyle(conversationHistory: any[]): { style: string; tone: string; length: string } {
-  if (conversationHistory.length === 0) {
-    return { style: 'balanced', tone: 'professional', length: 'medium' };
-  }
+const BUSINESS_CONTEXT_PROMPT = `
+You are MO, a business intelligence assistant for Busmo SaaS platform. You help business owners manage their operations.
 
-  const userMessages = conversationHistory.filter((msg: any) => msg.role === 'user');
-  if (userMessages.length === 0) {
-    return { style: 'balanced', tone: 'professional', length: 'medium' };
-  }
+TEXT COMMAND FORMATTING GUIDELINES:
+- Use explicit action prefixes: "Record sale:", "Add expense:", "Add product:"
+- Include currency symbols with amounts: "₦5000" instead of "5000"
+- Specify units clearly: "5 bottles", "10 pieces", etc.
+- Separate operations into individual commands rather than combining multiple operations
+- Use clear, direct language avoiding ambiguous terms like "that thing" or "stuff"
 
-  const recentMessages = userMessages.slice(-5);
-  let totalWords = 0;
-  let formalCount = 0;
-  let casualCount = 0;
-  let shortCount = 0;
-  let longCount = 0;
+BUSINESS DATA STRUCTURE:
+- Sales data is stored in 'sales' collection under businesses/{businessId}/sales
+- Product/inventory data is in businesses/{businessId}/products
+- Expense data is in businesses/{businessId}/expenses
+- Customer data is in businesses/{businessId}/customers
+- Supplier data is in businesses/{businessId}/suppliers
+- Staff data is in businesses/{businessId}/staff
 
-  recentMessages.forEach((msg: any) => {
-    const content = msg.content || '';
-    const words = content.split(/\s+/).length;
-    totalWords += words;
+PAGE NAVIGATION REFERENCE:
+- Dashboard/Home page is accessed via "${PAGE_NAMES.dashboard}" in the sidebar
+- Products/Inventory page is accessed via "${PAGE_NAMES.products}" or "${PAGE_NAMES.inventory}" in the sidebar
+- Sales page is accessed via "${PAGE_NAMES.sales}" in the sidebar
+- Expenses page is accessed via "${PAGE_NAMES.expenses}" in the sidebar
+- Reports page is accessed via "${PAGE_NAMES.reports}" or "${PAGE_NAMES.analytics}" in the sidebar
+- Customers page is accessed via "${PAGE_NAMES.customers}" in the sidebar
+- Staff page is accessed via "${PAGE_NAMES.staff}" in the sidebar (for Pro users)
+- MO Assistant page is accessed via "${PAGE_NAMES.ask_mo}" in the sidebar
+- Suppliers page is accessed via "${PAGE_NAMES.suppliers}" in the sidebar
+- Settings page is accessed via "${PAGE_NAMES.settings}" in the sidebar
 
-    if (/\b(please|kindly|would|could|may|regarding|concerning|appreciate)\b/i.test(content)) {
-      formalCount++;
-    }
-    if (/\b(hey|hi|yo|what's up|gonna|wanna|gotta|cool|awesome)\b/i.test(content)) {
-      casualCount++;
-    }
+USER ACCESS LEVELS:
+- Owner/Admin: Full access to all pages
+- Manager: Access to most operational pages but limited settings access
+- Cashier/Sales Staff: Access to POS, inventory lookup, and basic reporting
+- View-only Staff: Access to dashboard and limited reports only
 
-    if (words < 10) shortCount++;
-    if (words > 30) longCount++;
-  });
+BUSINESS TYPES SUPPORTED:
+- Retail: General retail shops
+- Restaurant: Food service establishments
+- Wholesale: Bulk goods distribution
+- Service: Service-based businesses
+- Manufacturing: Production-based businesses
+- E-commerce: Online businesses
 
-  const avgWords = totalWords / recentMessages.length;
-  
-  let style = 'balanced';
-  let tone = 'professional';
-  let length = 'medium';
-
-  if (formalCount > casualCount) {
-    tone = 'formal';
-  } else if (casualCount > formalCount) {
-    tone = 'casual';
-  }
-
-  if (avgWords < 15) {
-    length = 'short';
-    style = 'concise';
-  } else if (avgWords > 25) {
-    length = 'detailed';
-    style = 'detailed';
-  }
-
-  if (shortCount > longCount) {
-    length = 'short';
-    style = 'concise';
-  } else if (longCount > shortCount) {
-    length = 'detailed';
-    style = 'detailed';
-  }
-
-  return { style, tone, length };
-}
-
-/**
- * Check if user has permission for an action
- */
-async function checkPermission(action: string, userRole?: string, userId?: string, businessId?: string): Promise<boolean> {
-  // If userRole is provided, use it
-  if (userRole) {
-    if (userRole === 'owner' || userRole === 'admin') {
-      return true;
-    }
-
-    if (userRole === 'staff') {
-      const staffAllowedActions = ['record_sale', 'add_product', 'update_product'];
-      return staffAllowedActions.includes(action);
-    }
-  }
-
-  // If no userRole provided, try to fetch from database
-  if (userId && businessId) {
-    try {
-      const db = getAdminDb();
-      const userDoc = await db.collection('users').doc(userId).get();
-      const userData = userDoc.data();
-      const role = userData?.role || userData?.userRole;
-
-      if (role === 'owner' || role === 'admin') {
-        return true;
-      }
-
-      if (role === 'staff') {
-        const staffAllowedActions = ['record_sale', 'add_product', 'update_product'];
-        return staffAllowedActions.includes(action);
-      }
-    } catch (error) {
-      console.error('Error fetching user role for permission check:', error);
-    }
-  }
-
-  // Default to allowing the action if we can't determine role
-  // This prevents blocking legitimate users due to role detection issues
-  console.warn(`⚠️ Permission check failed for action ${action}, allowing by default`);
-  return true;
-}
+When suggesting navigation, always use the exact sidebar button names as referenced above.
+`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -389,540 +320,4 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Fetch business context from Firestore
- */
-async function getBusinessContext(businessId: string) {
-  try {
-    const db = getAdminDb();
-    const context: any = {
-      businessName: '',
-      businessCategory: '',
-      totalSales: 0,
-      todaySales: 0,
-      totalProfit: 0,
-      todayProfit: 0,
-      totalProducts: 0,
-      lowStockCount: 0,
-      outOfStockCount: 0,
-      totalExpenses: 0,
-      staffCount: 0,
-      totalInventoryValue: 0,
-      pendingCollections: 0,
-      suppliersCount: 0,
-      totalSpentOnSuppliers: 0,
-      stockReceiptsCount: 0,
-      stockTransfersCount: 0,
-      supplierCreditBalance: 0,
-      customerCreditBalance: 0,
-      pendingCreditPayments: 0,
-      totalBankBalance: 0,
-      bankAccountsCount: 0,
-      recentBankTransactions: 0,
-      totalStaffActions: 0,
-      staffSalesCount: 0,
-      staffRevenue: 0,
-      totalMoneyIn: 0,
-      totalMoneyOut: 0,
-      netCashFlow: 0,
-    };
-
-    const profileSnapshot = await db.collection('businesses').doc(businessId).collection('profile').limit(1).get();
-    if (!profileSnapshot.empty) {
-      const data = profileSnapshot.docs[0].data();
-      context.businessName = data.businessName || 'Your Business';
-      context.businessCategory = data.category || 'General Retail';
-    }
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-      .orderBy('createdAt', 'desc')
-      .limit(200)
-      .get();
-
-    context.sales = [];
-    const productSalesMap = new Map<string, { quantity: number; revenue: number; profit: number }>();
-
-    salesSnapshot.forEach(doc => {
-      const data = doc.data();
-      const total = data.totalRevenue || data.total || 0;
-      const profit = data.profit || 0;
-      const saleDate = data.createdAt?.toDate() || new Date();
-      
-      context.totalSales += total;
-      context.totalProfit += profit;
-      
-      if (saleDate >= today) {
-        context.todaySales += total;
-        context.todayProfit += profit;
-      }
-
-      context.sales.push({
-        id: doc.id,
-        totalRevenue: total,
-        profit: profit,
-        paymentMethod: data.paymentMethod || 'cash',
-        products: data.products || [],
-        createdAt: saleDate,
-        recordedBy: data.recordedBy?.displayName || 'Unknown',
-      });
-
-      if (data.products && Array.isArray(data.products)) {
-        data.products.forEach((product: any) => {
-          const productName = product.name || 'Unknown';
-          const quantity = product.quantity || 0;
-          const productRevenue = product.price * quantity;
-          const productCost = (product.costPrice || 0) * quantity;
-          const productProfit = productRevenue - productCost;
-
-          if (!productSalesMap.has(productName)) {
-            productSalesMap.set(productName, { quantity: 0, revenue: 0, profit: 0 });
-          }
-          const stats = productSalesMap.get(productName)!;
-          stats.quantity += quantity;
-          stats.revenue += productRevenue;
-          stats.profit += productProfit;
-        });
-      }
-    });
-
-    context.bestSellingProducts = Array.from(productSalesMap.entries())
-      .map(([name, stats]) => ({
-        name,
-        quantitySold: stats.quantity,
-        totalRevenue: stats.revenue,
-        totalProfit: stats.profit,
-      }))
-      .sort((a, b) => b.quantitySold - a.quantitySold)
-      .slice(0, 10);
-
-    const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
-      .where('active', '==', true)
-      .limit(200)
-      .get();
-
-    context.totalProducts = productsSnapshot.size;
-    context.products = [];
-
-    let totalInventoryValue = 0;
-    productsSnapshot.forEach(doc => {
-      const data = doc.data();
-      const stock = data.stock || 0;
-      const costPrice = data.cost || data.costPrice || 0;
-      const sellingPrice = data.price || 0;
-      const threshold = data.lowStockThreshold || 10;
-
-      totalInventoryValue += stock * costPrice;
-
-      if (stock === 0) context.outOfStockCount++;
-      else if (stock <= threshold) context.lowStockCount++;
-
-      context.products.push({
-        id: doc.id,
-        name: data.name || 'Unknown',
-        sku: data.attributes?.sku || data.sku || null,
-        stock: stock,
-        unit: data.unit || 'pcs',
-        costPrice: costPrice,
-        sellingPrice: sellingPrice,
-        stockValue: stock * costPrice,
-        category: data.category || 'General',
-        supplier: data.supplier || null,
-        reorderLevel: data.reorderLevel || threshold,
-        lowStockThreshold: threshold,
-        isLowStock: stock > 0 && stock <= threshold,
-        isOutOfStock: stock === 0,
-      });
-    });
-    context.totalInventoryValue = totalInventoryValue;
-
-    const expensesSnapshot = await db.collection('businesses').doc(businessId).collection('expenses')
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-
-    expensesSnapshot.forEach(doc => {
-      const data = doc.data();
-      context.totalExpenses += data.amount || 0;
-    });
-
-    const staffSnapshot = await db.collection('businesses').doc(businessId).collection('staff')
-      .where('active', '==', true)
-      .limit(50)
-      .get();
-
-    context.staffCount = staffSnapshot.size;
-
-    try {
-      const pendingSnapshot = await db.collection('businesses').doc(businessId).collection('pendingBillings')
-        .where('status', '==', 'pending')
-        .limit(100)
-        .get();
-      pendingSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.pendingCollections += data.amount || data.total || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching pending collections:', error);
-    }
-
-    try {
-      const suppliersSnapshot = await db.collection('businesses').doc(businessId).collection('suppliers')
-        .where('active', '==', true)
-        .limit(100)
-        .get();
-      context.suppliersCount = suppliersSnapshot.size;
-      suppliersSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.totalSpentOnSuppliers += data.totalAmountSpent || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-    }
-    
-    try {
-      const receiptsSnapshot = await db.collection('businesses').doc(businessId).collection('stockReceipts')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-        .limit(100)
-        .get();
-      context.stockReceiptsCount = receiptsSnapshot.size;
-    } catch (error) {
-      console.error('Error fetching stock receipts:', error);
-    }
-    
-    try {
-      const transfersSnapshot = await db.collection('businesses').doc(businessId).collection('stockTransfers')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-        .limit(100)
-        .get();
-      context.stockTransfersCount = transfersSnapshot.size;
-    } catch (error) {
-      console.error('Error fetching stock transfers:', error);
-    }
-
-    try {
-      const supplierCreditSnapshot = await db.collection('businesses').doc(businessId).collection('supplier_credit')
-        .where('status', '==', 'active')
-        .limit(100)
-        .get();
-      supplierCreditSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.supplierCreditBalance += data.outstandingBalance || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching supplier credit:', error);
-    }
-    
-    try {
-      const customerCreditSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
-        .limit(100)
-        .get();
-      customerCreditSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.customerCreditBalance += data.currentBalance || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching customer credit:', error);
-    }
-    
-    try {
-      const creditTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('credit_transactions')
-        .where('status', '==', 'pending')
-        .limit(100)
-        .get();
-      creditTransactionsSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.pendingCreditPayments += data.remainingAmount || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching credit transactions:', error);
-    }
-
-    try {
-      const bankAccountsSnapshot = await db.collection('businesses').doc(businessId).collection('bankAccounts')
-        .where('isActive', '==', true)
-        .limit(50)
-        .get();
-      context.bankAccountsCount = bankAccountsSnapshot.size;
-      bankAccountsSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.totalBankBalance += data.currentBalance || 0;
-      });
-    } catch (error) {
-      console.error('Error fetching bank accounts:', error);
-    }
-    
-    try {
-      const bankTransactionsSnapshot = await db.collection('businesses').doc(businessId).collection('bankTransactions')
-        .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-        .limit(100)
-        .get();
-      context.recentBankTransactions = bankTransactionsSnapshot.size;
-    } catch (error) {
-      console.error('Error fetching bank transactions:', error);
-    }
-
-    try {
-      const staffActivitySnapshot = await db.collection('businesses').doc(businessId).collection('staffActivity')
-        .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-        .limit(100)
-        .get();
-      context.totalStaffActions = staffActivitySnapshot.size;
-      staffActivitySnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.action === 'sale') {
-          context.staffSalesCount++;
-          context.staffRevenue += data.amount || 0;
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching staff activity:', error);
-    }
-
-    try {
-      const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
-        .where('date', '>=', admin.firestore.Timestamp.fromDate(thirtyDaysAgo))
-        .limit(100)
-        .get();
-      cashFlowSnapshot.forEach(doc => {
-        const data = doc.data();
-        context.totalMoneyIn += data.moneyIn || 0;
-        context.totalMoneyOut += data.moneyOut || 0;
-      });
-      context.netCashFlow = context.totalMoneyIn - context.totalMoneyOut;
-    } catch (error) {
-      console.error('Error fetching cash flow:', error);
-    }
-
-    return context;
-  } catch (error) {
-    console.error('❌ [Ask MO API] Error fetching business context:', error);
-    return {};
-  }
-}
-
-/**
- * Detect if this is a new conversation (fresh start)
- */
-function isNewConversation(conversationHistory: any[], currentMessage: string): boolean {
-  // No history means it's a new conversation
-  if (!conversationHistory || conversationHistory.length === 0) {
-    return true;
-  }
-
-  // Check if the last message was more than 30 minutes ago
-  const lastMessage = conversationHistory[conversationHistory.length - 1];
-  if (lastMessage && lastMessage.timestamp) {
-    const lastTime = new Date(lastMessage.timestamp).getTime();
-    const currentTime = Date.now();
-    const timeDiff = currentTime - lastTime;
-    
-    // If more than 30 minutes have passed, treat as new conversation
-    if (timeDiff > 30 * 60 * 1000) {
-      return true;
-    }
-  }
-
-  // Check if the current message is a clear new topic indicator
-  const newTopicIndicators = [
-    /^hey (mo|assistant)/i,
-    /^hello (mo|assistant)/i,
-    /^hi (mo|assistant)/i,
-    /^new (question|topic|conversation)/i,
-    /^start (over|again|fresh)/i,
-    /^(let's talk about|i want to discuss|i need help with)/i,
-  ];
-
-  for (const pattern of newTopicIndicators) {
-    if (pattern.test(currentMessage.trim())) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Build system prompt with business context
- */
-function buildSystemPrompt(
-  businessContext: any, 
-  language: string, 
-  languageName: string, 
-  conversationHistory: any[] = [], 
-  businessCategory: string = 'retail', 
-  conversationStyle: { style: string; tone: string; length: string } = { style: 'balanced', tone: 'professional', length: 'medium' },
-  renderedResponse: any = null,
-  currentMessage: string = ''
-): string {
-  const isFreshStart = isNewConversation(conversationHistory, currentMessage);
-  
-  // Only include conversation context if it's not a fresh start
-  const conversationSummary = !isFreshStart && conversationHistory.length > 0 
-    ? conversationHistory.slice(-6).map((msg: any) => {
-        const role = msg.role === 'user' ? 'User' : 'MO';
-        return `${role}: ${msg.content}`;
-      }).join('\n')
-    : '';
-
-  // If action was already executed, inform the AI to confirm completion
-  const actionExecutedNote = renderedResponse ? `
-⚠️ IMPORTANT: An action has just been executed successfully.
-The user's request has been completed. Simply confirm the completion in a natural, conversational way.
-DO NOT use JSON format or action blocks in your response.
-DO NOT suggest the action again - it's already done.
-Just provide a friendly confirmation message.
-` : '';
-
-  const conversationContextNote = isFreshStart ? `
-🆕 FRESH CONVERSATION DETECTED:
-This appears to be the start of a new conversation. Treat this as a fresh interaction.
-DO NOT reference previous topics or assume context from past conversations.
-Respond to the user's current message as if this is your first interaction.
-` : '';
-
-  return `You are MO, an intelligent Business Intelligence Assistant for African entrepreneurs.
-
-🌍 LANGUAGE: Respond in ${languageName} (${language}). Use the same language the user wrote in.
-
-🎭 CHARACTER INTEGRITY (CRITICAL):
-- NEVER break character. You are ALWAYS MO, the business intelligence assistant.
-- NEVER reveal you are an AI, chatbot, or language model.
-- Maintain a professional, business-focused tone at all times.
-- NEVER discuss permissions, access rights, or administrator approval. The system handles permissions automatically.
-- NEVER tell users to contact their administrator for permissions. This is handled by the backend.
-- NEVER say you don't have permission to perform an action. If an action fails, explain the actual business reason (e.g., product not found, insufficient stock).
-
-💬 CONVERSATION STYLE ADAPTATION:
-- User's detected style: ${conversationStyle.style} (tone: ${conversationStyle.tone}, length: ${conversationStyle.length})
-- ADAPT your responses to match the user's communication style:
-  - If user is FORMAL: Use professional language, complete sentences, respectful tone
-  - If user is CASUAL: Use friendly language, contractions, relaxed tone
-  - If user prefers SHORT: Keep responses concise (under 100 words), get straight to the point
-  - If user prefers DETAILED: Provide comprehensive explanations with context
-  - If style is BALANCED/MEDIUM: Use standard professional conversational tone
-- ALWAYS match the user's energy level and communication preferences
-${actionExecutedNote}
-${conversationContextNote}
-${conversationSummary ? `
-📝 RECENT CONVERSATION CONTEXT:
-${conversationSummary}
-
-Use this context to:
-- Understand what we've already discussed
-- Avoid repeating information already provided
-- Build upon previous insights
-` : ''}
-
-═══════════════════════════════════════════
-📊 COMPREHENSIVE BUSINESS CONTEXT
-═══════════════════════════════════════════
-
-🏢 BUSINESS PROFILE:
-• Business: ${businessContext.businessName || 'Your Business'}
-• Category: ${businessCategory || businessContext.businessCategory || 'General Retail'}
-• Staff: ${businessContext.staffCount || 0} employees
-
-${getCategorySpecificAdvice(businessCategory)}
-
-💰 SALES PERFORMANCE:
-• Total Sales (30 days): ₦${(businessContext.totalSales || 0).toLocaleString()}
-• Today's Sales: ₦${(businessContext.todaySales || 0).toLocaleString()}
-• Total Profit: ₦${(businessContext.totalProfit || 0).toLocaleString()}
-• Today's Profit: ₦${(businessContext.todayProfit || 0).toLocaleString()}
-${businessContext.bestSellingProducts && businessContext.bestSellingProducts.length > 0 ? `
-• Best-Selling Products (Top 5):
-${businessContext.bestSellingProducts.slice(0, 5).map((p: any, i: number) => `  ${i + 1}. ${p.name}: ${p.quantitySold} sold (₦${p.totalRevenue.toLocaleString()})`).join('\n')}` : ''}
-
-📦 INVENTORY STATUS:
-• Total Products: ${businessContext.totalProducts || 0}
-• Total Inventory Value: ₦${(businessContext.totalInventoryValue || 0).toLocaleString()} (calculated using cost price)
-• ⚠️ OUT OF STOCK: ${businessContext.outOfStockCount || 0} products
-• 🔴 LOW STOCK: ${businessContext.lowStockCount || 0} products
-${businessContext.products && businessContext.products.length > 0 ? `
-• Low Stock Items:
-${businessContext.products.filter((p: any) => p.isLowStock).slice(0, 10).map((p: any) => `  - ${p.name}: ${p.stock} ${p.unit} (threshold: ${p.lowStockThreshold})`).join('\n') || '  None'}
-• Out of Stock Items:
-${businessContext.products.filter((p: any) => p.isOutOfStock).slice(0, 10).map((p: any) => `  - ${p.name}`).join('\n') || '  None'}` : ''}
-
-💵 EXPENSES:
-• Total Expenses (30 days): ₦${(businessContext.totalExpenses || 0).toLocaleString()}
-
-🏦 BANKING & CASH FLOW:
-• Total Bank Balance: ₦${(businessContext.totalBankBalance || 0).toLocaleString()}
-• Bank Accounts: ${businessContext.bankAccountsCount || 0}
-• Recent Transactions (30 days): ${businessContext.recentBankTransactions || 0}
-• Money In (30 days): ₦${(businessContext.totalMoneyIn || 0).toLocaleString()}
-• Money Out (30 days): ₦${(businessContext.totalMoneyOut || 0).toLocaleString()}
-• Net Cash Flow: ₦${(businessContext.netCashFlow || 0).toLocaleString()}
-
-👥 STAFF PERFORMANCE:
-• Staff Count: ${businessContext.staffCount || 0}
-• Staff Sales (30 days): ${businessContext.staffSalesCount || 0}
-• Staff Revenue: ₦${(businessContext.staffRevenue || 0).toLocaleString()}
-• Total Staff Actions: ${businessContext.totalStaffActions || 0}
-
-🤝 SUPPLIERS & CREDIT:
-• Active Suppliers: ${businessContext.suppliersCount || 0}
-• Total Spent on Suppliers: ₦${(businessContext.totalSpentOnSuppliers || 0).toLocaleString()}
-• Stock Receipts (30 days): ${businessContext.stockReceiptsCount || 0}
-• Stock Transfers (30 days): ${businessContext.stockTransfersCount || 0}
-• Supplier Credit Balance: ₦${(businessContext.supplierCreditBalance || 0).toLocaleString()}
-• Customer Credit Balance: ₦${(businessContext.customerCreditBalance || 0).toLocaleString()}
-• Pending Credit Payments: ₦${(businessContext.pendingCreditPayments || 0).toLocaleString()}
-• Pending Collections: ₦${(businessContext.pendingCollections || 0).toLocaleString()}
-
-═══════════════════════════════════════════
-
-🎯 OPERATIONAL BEHAVIOR (CRITICAL):
-
-You are an OPERATIONAL AI ASSISTANT that EXECUTES business operations directly.
-
-NEVER navigate users to pages unless they EXPLICITLY request navigation.
-
-When users request operational tasks, you MUST:
-1. Detect the intent (record sale, add product, record expense, etc.)
-2. Extract all available parameters from their message
-3. If information is missing, ask ONLY for the missing fields
-4. When enough information exists, the system will automatically execute the backend operation
-5. Wait for the backend response
-6. Communicate the outcome naturally and conversationally
-
-DO NOT say:
-- "You can record this on the Sales page"
-- "Go to Products to add this item"
-- "Navigate to Expenses to track this"
-- "You don't have permission to do this"
-- "Contact your administrator for access"
-- "Sales Permission" or "Expense Permission"
-
-DO say:
-- "I'll record that sale for you right away."
-- "Let me add that product to your inventory."
-- "I'll track that expense for you."
-
-The backend system will handle:
-- Business ID, User ID, Branch ID, Warehouse ID
-- Currency, Country, Business Category
-- Financial Year context
-- Inventory updates, profit calculations
-- Dashboard metric refreshes
-
-You NEVER need to ask users for these values - they are injected automatically.
-
-Navigation is ONLY for explicit requests like:
-- "Open Products page"
-- "Take me to Dashboard"
-- "Go to Inventory"
-
-CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
 }

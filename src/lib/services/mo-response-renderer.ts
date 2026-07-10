@@ -42,43 +42,63 @@ export interface ExpenseCard {
 }
 
 /**
- * Render action result into UI-friendly format
+ * Render MO response with enhanced feedback for text command issues
  */
-export function renderResponse(result: ActionResult): RenderedResponse {
-  if (!result.success) {
-    return {
-      text: result.message,
-      alerts: [
-        {
-          type: 'error',
-          message: result.message,
-        },
-      ],
-    };
+export function renderResponse(
+  message: string,
+  actionResult?: ActionResult,
+  intent?: { intent: string; data: Record<string, any> }
+): Message {
+  const baseMessage: Message = {
+    id: Date.now().toString(),
+    content: message,
+    sender: 'mo',
+    timestamp: new Date(),
+    type: 'text',
+  };
+
+  if (actionResult) {
+    baseMessage.actionResult = actionResult;
+    
+    // Enhance error messages with guidance for better text commands
+    if (!actionResult.success) {
+      baseMessage.type = 'error';
+      
+      // If it's a parsing or validation error, provide specific guidance
+      if (actionResult.error?.includes('Product not found') || 
+          actionResult.message.includes('not found')) {
+        baseMessage.content = `${actionResult.message}\n\n💡 Tip: Make sure to spell product names exactly as they appear in your inventory. You can check the ${PAGE_NAMES.products} page for correct names.`;
+      } else if (actionResult.error?.includes('Invalid amount') || 
+                 actionResult.error?.includes('Amount')) {
+        baseMessage.content = `${actionResult.message}\n\n💡 Tip: Include currency symbols with amounts (e.g., "₦5000" instead of just "5000").`;
+      } else if (actionResult.error?.includes('Category')) {
+        baseMessage.content = `${actionResult.message}\n\n💡 Tip: Use standard expense categories like "Rent", "Utilities", "Payroll", "Transportation", etc.`;
+      } else {
+        baseMessage.content = `${actionResult.message}\n\n💡 Tip: Try using more structured commands like "Record sale: 5 items at ₦200 each" or "Add expense: Rent ₦5000".`;
+      }
+    } else {
+      baseMessage.type = 'action';
+    }
   }
 
-  switch (result.action) {
-    case 'record_sale':
-      return renderSaleResponse(result);
-    
-    case 'add_product':
-      return renderProductResponse(result);
-    
-    case 'add_expense':
-      return renderExpenseResponse(result);
-    
-    case 'ask_question':
-      return {
-        text: result.message || 'Here\'s what I found:',
-        suggestions: generateFollowUpSuggestions(result.data),
-      };
-    
-    default:
-      return {
-        text: result.message,
-      };
-  }
+  return baseMessage;
 }
+
+// Define the actual page names for navigation guidance
+const PAGE_NAMES = {
+  dashboard: "Dashboard",
+  products: "Products",
+  inventory: "Inventory",
+  sales: "Record Sale",
+  expenses: "Expenses",
+  reports: "Reports",
+  analytics: "Analytics",
+  customers: "Customers",
+  suppliers: "Suppliers",
+  staff: "Staff",
+  ask_mo: "Ask MO",
+  settings: "Settings"
+};
 
 /**
  * Render sale response

@@ -139,7 +139,7 @@ export async function executeAction(
 }
 
 /**
- * Handle record_sale intent
+ * Handle record_sale intent with enhanced error handling
  */
 async function handleRecordSale(
   data: Record<string, any>,
@@ -161,7 +161,7 @@ async function handleRecordSale(
     return {
       success: false,
       action: 'record_sale',
-      message: 'No sale items provided. Please specify at least one product.',
+      message: 'No sale items provided. Please specify at least one product in the format: "Record sale: 5 items at ₦200 each".',
     };
   }
 
@@ -192,7 +192,7 @@ async function handleRecordSale(
       return {
         success: false,
         action: 'record_sale',
-        message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling.`,
+        message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling. You can verify product names on the ${PAGE_NAMES.products} page.`,
       };
     }
 
@@ -255,6 +255,15 @@ async function handleRecordSale(
   const totalProfit = result.data?.totalProfit || 0;
   const totalRevenue = result.data?.totalRevenue || 0;
 
+  // Trigger data refresh event for sales
+  triggerActionRefresh('sale_recorded', { 
+    businessId: context.businessId,
+    userId: context.userId,
+    saleId: result.saleId,
+    totalRevenue,
+    items: productSummaries
+  });
+
   return {
     success: true,
     action: 'record_sale',
@@ -276,12 +285,37 @@ async function handleRecordSale(
 }
 
 /**
- * Handle add_product intent
+ * Handle add_product intent with enhanced error handling
  */
 async function handleAddProduct(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
+  // Validate required fields with better error messages
+  if (!data.name || !data.name.trim()) {
+    return {
+      success: false,
+      action: 'add_product',
+      message: 'Please specify a product name. Use format: "Add product: Bread ₦300 cost ₦200".',
+    };
+  }
+
+  if (!data.price || data.price <= 0) {
+    return {
+      success: false,
+      action: 'add_product',
+      message: 'Please specify a selling price for the product. Use format: "Add product: Bread ₦300 cost ₦200".',
+    };
+  }
+
+  if (!data.costPrice || data.costPrice <= 0) {
+    return {
+      success: false,
+      action: 'add_product',
+      message: 'Please specify the cost price for the product. Use format: "Add product: Bread ₦300 cost ₦200".',
+    };
+  }
+
   const result = await addProduct({
     businessId: context.businessId,
     userId: context.userId,
@@ -330,6 +364,14 @@ async function handleAddProduct(
     };
   }
 
+  // Trigger data refresh event for products
+  triggerActionRefresh('product_added', { 
+    businessId: context.businessId,
+    userId: context.userId,
+    productId: result.productId,
+    productName: data.name
+  });
+
   return {
     success: true,
     action: 'add_product',
@@ -342,12 +384,29 @@ async function handleAddProduct(
 }
 
 /**
- * Handle add_expense intent
+ * Handle add_expense intent with enhanced error handling
  */
 async function handleAddExpense(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
+  // Validate required fields with better error messages
+  if (!data.amount || data.amount <= 0) {
+    return {
+      success: false,
+      action: 'add_expense',
+      message: 'Please specify a valid expense amount. Use format: "Add expense: Rent ₦5000".',
+    };
+  }
+
+  if (!data.category) {
+    return {
+      success: false,
+      action: 'add_expense',
+      message: 'Please specify an expense category. Common categories include: Rent, Utilities, Payroll, Transportation, Supplies, Marketing, Maintenance.',
+    };
+  }
+
   const result = await addExpense({
     businessId: context.businessId,
     userId: context.userId,
@@ -373,6 +432,15 @@ async function handleAddExpense(
       error: result.error,
     };
   }
+
+  // Trigger data refresh event for expenses
+  triggerActionRefresh('expense_added', { 
+    businessId: context.businessId,
+    userId: context.userId,
+    expenseId: result.expenseId,
+    amount: data.amount,
+    category: data.category
+  });
 
   return {
     success: true,
@@ -967,4 +1035,101 @@ export function validatePermission(
     allowed: false,
     reason: 'Unauthorized',
   };
+}
+
+// Define the actual page names for navigation guidance
+const PAGE_NAMES = {
+  dashboard: "Dashboard",
+  products: "Products",
+  inventory: "Inventory",
+  sales: "Record Sale",
+  expenses: "Expenses",
+  reports: "Reports",
+  analytics: "Analytics",
+  customers: "Customers",
+  suppliers: "Suppliers",
+  staff: "Staff",
+  ask_mo: "Ask MO",
+  settings: "Settings"
+};
+
+function generateNavigationSuggestions(intent: string, result: any): string[] {
+  const suggestions = [];
+  
+  switch(intent) {
+    case 'record_sale':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.sales} page to review this transaction`,
+        `Visit the ${PAGE_NAMES.products} page to see updated inventory`,
+        `Review the ${PAGE_NAMES.dashboard} for updated metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for sales trends`
+      );
+      break;
+    case 'add_expense':
+      suggestions.push(
+        `Visit the ${PAGE_NAMES.expenses} page to see all expenses`,
+        `Check the ${PAGE_NAMES.dashboard} for updated financial metrics`,
+        `Review the ${PAGE_NAMES.reports} page for expense analysis`,
+        `Look at the ${PAGE_NAMES.analytics} section for cost breakdown`
+      );
+      break;
+    case 'add_product':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.products} page to see your new item`,
+        `Visit the ${PAGE_NAMES.inventory} page to manage stock levels`,
+        `Review the ${PAGE_NAMES.dashboard} for product metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for product performance`
+      );
+      break;
+    case 'update_product':
+      suggestions.push(
+        `Visit the ${PAGE_NAMES.products} page to see the updated item`,
+        `Check the ${PAGE_NAMES.inventory} page for stock adjustments`,
+        `Review the ${PAGE_NAMES.dashboard} for updated metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for impact analysis`
+      );
+      break;
+    case 'record_stock_movement':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.inventory} page for updated stock levels`,
+        `Visit the ${PAGE_NAMES.products} page to see affected items`,
+        `Review the ${PAGE_NAMES.dashboard} for inventory metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for stock movements`
+      );
+      break;
+    case 'add_customer':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.customers} page to see the new client`,
+        `Review the ${PAGE_NAMES.dashboard} for customer metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for customer analytics`,
+        `Visit the ${PAGE_NAMES.sales} page to track future transactions`
+      );
+      break;
+    case 'add_supplier':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.suppliers} page to see the new vendor`,
+        `Review the ${PAGE_NAMES.dashboard} for supplier metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for procurement analytics`,
+        `Visit the ${PAGE_NAMES.expenses} page to track future payments`
+      );
+      break;
+    case 'add_staff':
+      suggestions.push(
+        `Check the ${PAGE_NAMES.staff} page to see the new employee`,
+        `Review the ${PAGE_NAMES.dashboard} for team metrics`,
+        `Look at the ${PAGE_NAMES.reports} page for staff analytics`,
+        `Visit the ${PAGE_NAMES.settings} page for role management`
+      );
+      break;
+    default:
+      suggestions.push(
+        `Visit the ${PAGE_NAMES.dashboard} for business overview`,
+        `Check the ${PAGE_NAMES.reports} for analytics`,
+        `Manage ${PAGE_NAMES.products} for inventory`,
+        `Track ${PAGE_NAMES.sales} for revenue`,
+        `Monitor ${PAGE_NAMES.expenses} for costs`
+      );
+  }
+  
+  return suggestions;
 }

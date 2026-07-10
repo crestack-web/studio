@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { collection, addDoc, Timestamp, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
+import { subscribeToActionEvents } from '@/utils/dataRefresh';
 
 // ═══════════════════════════════════════════
 //  AddProductPage — full product registration
@@ -94,7 +95,7 @@ function expiryIsSoon(date: string): boolean {
 }
 
 export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps) {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currency } = useCurrency();
   const { firestore } = initializeFirebase();
@@ -107,6 +108,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [businessCategory, setBusinessCategory] = useState<string>('');
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
 
   // Fetch businessId from user document and check if restaurant
   useEffect(() => {
@@ -213,6 +215,65 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
 
     fetchBusinessId();
   }, []);
+
+  // Add effect to listen for data refresh events
+  useEffect(() => {
+    if (!businessId) return;
+    
+    const handleDataRefresh = (event: CustomEvent) => {
+      console.log('🔄 [AddProductPage] Received data refresh event:', event.detail);
+      if (event.detail.actionType === 'product_added' || 
+          event.detail.actionType === 'product_updated' || 
+          event.detail.actionType === 'general_update') {
+        // Refresh ingredients list to get latest data
+        refreshIngredients();
+        setLastRefreshTime(new Date());
+      }
+    };
+
+    // Subscribe to action events
+    const unsubscribe = subscribeToActionEvents(handleDataRefresh);
+    
+    // Clean up subscription on unmount
+    return () => {
+      console.log('🧹 [AddProductPage] Unsubscribing from data refresh events');
+      unsubscribe();
+    };
+  }, [businessId, isRestaurant]);
+  
+  const refreshIngredients = async () => {
+    if (!businessId || !isRestaurant) return;
+    
+    try {
+      const { firestore: freshFirestore } = initializeFirebase();
+      if (!freshFirestore) {
+        console.error('Firestore not initialized');
+        return;
+      }
+      
+      const ingredientsQuery = collection(freshFirestore, 'businesses', businessId, 'products');
+      const ingredientsSnapshot = await getDocs(ingredientsQuery);
+      const ingredientsList: any[] = [];
+      
+      ingredientsSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.productType === 'ingredient') {
+          ingredientsList.push({
+            id: doc.id,
+            name: data.name,
+            unit: data.ingredientUnit || data.unit,
+            currentQuantity: data.stock || 0,
+          });
+        }
+      });
+      
+      setAvailableIngredients(ingredientsList);
+      console.log('✅ [AddProductPage] Ingredients refreshed successfully');
+    } catch (error) {
+      console.error('❌ [AddProductPage] Error refreshing ingredients:', error);
+      showToast('Error refreshing ingredients. Please try again.');
+    }
+  };
 
   // Warn user when trying to leave with unsaved changes
   useEffect(() => {
