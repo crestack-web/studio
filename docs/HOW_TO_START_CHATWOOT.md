@@ -38,7 +38,36 @@ You need to **install and start Chatwoot** at `https://support.busmo.io`. Here a
 - Domain name pointed to your server
 - Ports 3000 and 3030 open
 
-### Steps:
+### Quick Start with Automated Scripts
+
+We've created automated setup scripts for you:
+
+**Linux/Mac:**
+```bash
+# Make the script executable
+chmod +x scripts/setup-chatwoot-docker.sh
+
+# Run the setup script
+sudo ./scripts/setup-chatwoot-docker.sh
+```
+
+**Windows:**
+```cmd
+# Run the setup script as Administrator
+scripts\setup-chatwoot-docker.bat
+```
+
+The script will:
+1. Check prerequisites
+2. Create `/opt/chatwoot` directory (or `C:\chatwoot` on Windows)
+3. Clone Chatwoot repository
+4. Generate SECRET_KEY_BASE automatically
+5. Configure `.env` with Busmo-specific settings
+6. Start all Docker containers
+7. Run database migrations and seed
+8. Provide next steps
+
+### Manual Setup (Step-by-Step)
 
 #### 1. **Prepare Server**
 ```bash
@@ -183,7 +212,26 @@ curl https://support.busmo.io/api/v1/accounts/1 \
 # Should return JSON with account info
 ```
 
+### Verify Busmo Integration
+
+After updating `.env.local` and restarting Busmo:
+
+1. Open your Busmo application
+2. Look for the Chatwoot widget (bottom-right corner)
+3. Click the widget to open chat
+4. Send a test message
+5. Verify it appears in Chatwoot dashboard at `https://support.busmo.io/dashboard`
+
 ---
+
+## Files Created
+
+The following files have been created to help you set up Chatwoot:
+
+1. **`scripts/setup-chatwoot-docker.sh`** - Automated setup script for Linux/Mac
+2. **`scripts/setup-chatwoot-docker.bat`** - Automated setup script for Windows
+3. **`docs/HOW_TO_START_CHATWOOT.md`** - This comprehensive guide
+
 
 ## Common Issues
 

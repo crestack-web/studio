@@ -82,6 +82,14 @@ export function RecordSalePage() {
   const [bankAccountId, setBankAccountId] = useState<string | null>(null);
   const [receiptType, setReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
 
+  // Calculations (must be after all state declarations)
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const discount = discountType === 'percentage' 
+    ? (discountValue > 0 ? (subtotal * discountValue) / 100 : 0)
+    : discountValue;
+  const finalTotal = subtotal - discount;
+  const profit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
+
   // Fetch real products from Firestore
   useEffect(() => {
     async function fetchProducts() {
@@ -191,9 +199,7 @@ export function RecordSalePage() {
           setStockLocations(loadedLocations);
           
            // Show stock source selector only if there's an actual warehouse location created
-           const hasWarehouse = loadedLocations.some(loc => 
-             loc.type === 'warehouse' || loc.type === 'back_store'
-           );
+           const hasWarehouse = loadedLocations.some(loc => loc.type === 'warehouse');
            setShowStockSource(hasWarehouse);
         } catch (error) {
           console.error('Error loading stock locations:', error);
@@ -434,34 +440,38 @@ export function RecordSalePage() {
       const staffId = userData?.staffId || null;
       const staffName = userData?.displayName || user.displayName || 'Unknown';
 
-      // Calculate expected cash and bank collections
-      const splitPayment = paymentBreakdown.find(pb => pb.method === 'split');
-      const splitAmount = splitPayment?.amount || 0;
-      const splitCashPortion = splitAmount * 0.5; // 50% of split goes to cash
-      const splitBankPortion = splitAmount * 0.5; // 50% of split goes to bank
+    // Get source location name
+    const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
+    const sourceLocationName = selectedLocation?.name || 'Main Store';
 
-      const expectedCash = paymentBreakdown
-        .filter(pb => pb.method === 'cash')
-        .reduce((sum, pb) => sum + pb.amount, 0) + splitCashPortion;
-      const expectedBank = paymentBreakdown
-        .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method))
-        .reduce((sum, pb) => sum + pb.amount, 0) + splitBankPortion;
+    // Calculate expected cash and bank collections
+    const splitPayment = paymentBreakdown.find(pb => pb.method === 'split');
+    const splitAmount = splitPayment?.amount || 0;
+    const splitCashPortion = splitAmount * 0.5;
+    const splitBankPortion = splitAmount * 0.5;
 
-      // Get source location name
-      const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
-      const sourceLocationName = selectedLocation?.name || 'Main Store';
+    const expectedCash = paymentBreakdown
+      .filter(pb => pb.method === 'cash')
+      .reduce((sum, pb) => sum + pb.amount, 0) + splitCashPortion;
+    const expectedBank = paymentBreakdown
+      .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method))
+      .reduce((sum, pb) => sum + pb.amount, 0) + splitBankPortion;
 
-      // Create sale document with staff tracking and source location
-      const saleData = {
+    // Create sale document with staff tracking and source location
+    const saleData = {
         products: cart.map(item => ({
           productId: item.id,
           name: item.name,
           price: item.price,
-          costPrice: item.costPrice
+          costPrice: item.costPrice,
           quantity: item.qty,
           emoji: item.emoji,
         })),
-        totalRevenue: subtotal,
+        totalRevenue: finalTotal,
+        subtotal: subtotal,
+        discount: discount,
+        discountType: discountType,
+        discountValue: discountValue,
         totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
         profit: profit,
         paymentBreakdown: paymentBreakdown,
@@ -469,6 +479,9 @@ export function RecordSalePage() {
         expectedCash,
         expectedBank,
         note: note,
+        customerId: selectedCustomer || undefined,
+        customerName: selectedCustomer ? creditCustomers.find(c => c.id === selectedCustomer)?.name : (showNewCustomer ? customerName : undefined),
+        customerPhone: selectedCustomer ? creditCustomers.find(c => c.id === selectedCustomer)?.phone : (showNewCustomer ? customerPhone : undefined),
         businessId: businessId,
         sourceLocation: sourceLocation,
         sourceLocationName: sourceLocationName,
@@ -483,13 +496,6 @@ export function RecordSalePage() {
         createdAt: new Date(),
         recordedAt: new Date(),
       };
-
-      // Save sale to Firestore
-      const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
-
-      // Record audit trail for sale creation
-      try {
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
@@ -935,16 +941,17 @@ export function RecordSalePage() {
     }
   }
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const discount = discountType === 'percentage' 
-    ? (discountValue > 0 ? (subtotal * discountValue) / 100 : 0)
-    : discountValue;
-  const finalTotal = subtotal - discount;
-  const profit   = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
-
   if (!isMounted) {
     return null;
   }
+
+  // Recalculate for render (cart may have changed)
+  const renderSubtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const renderDiscount = discountType === 'percentage' 
+    ? (discountValue > 0 ? (renderSubtotal * discountValue) / 100 : 0)
+    : discountValue;
+  const renderFinalTotal = renderSubtotal - renderDiscount;
+  const renderProfit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - renderDiscount;
 
   return (
     <div className={styles.wrapper}>
@@ -1146,7 +1153,7 @@ export function RecordSalePage() {
       {cart.length > 0 && (
         <div className={styles.totals}>
           <div className={styles.totalRow}>
-            <span>{t('sale.subtotal')}</span><span>{formatMoney(subtotal)}</span>
+            <span>{t('sale.subtotal')}</span><span>{formatMoney(renderSubtotal)}</span>
           </div>
           
           {/* Discount Section */}
@@ -1173,24 +1180,24 @@ export function RecordSalePage() {
                 onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
                 placeholder="0"
                 min={0}
-                max={discountType === 'percentage' ? 100 : subtotal}
+                max={discountType === 'percentage' ? 100 : renderSubtotal}
               />
               <span className={styles.discountLabel}>
                 {discountType === 'percentage' ? '%' : currencyCode}
               </span>
             </div>
-            {discount > 0 && (
+            {renderDiscount > 0 && (
               <div className={styles.discountAmount}>
-                Discount Amount: -{formatMoney(discount)}
+                Discount Amount: -{formatMoney(renderDiscount)}
               </div>
             )}
           </div>
 
           <div className={[styles.totalRow, styles.totalMain].join(' ')}>
-            <span>{t('sale.grandTotal')}</span><span>{formatMoney(finalTotal)}</span>
+            <span>{t('sale.grandTotal')}</span><span>{formatMoney(renderFinalTotal)}</span>
           </div>
           <div className={[styles.totalRow, styles.totalProfit].join(' ')}>
-            <span>{t('sale.profit')}</span><span>{formatMoney(profit)}</span>
+            <span>{t('sale.profit')}</span><span>{formatMoney(renderProfit)}</span>
           </div>
         </div>
       )}
@@ -1523,3 +1530,4 @@ const PAYMENT_METHODS = [
   { id: 'cash',     label: 'Cash',      icon: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20' },
   { id: 'transfer', label: 'Transfer',  icon: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01' },
   { id: 'pos',      label: 'POS',       icon: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22' },
+];

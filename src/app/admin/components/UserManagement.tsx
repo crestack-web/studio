@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, limit, doc, getDoc, where, updateDoc } from 'firebase/firestore';
-import { Eye, Edit, Ban, Check, X, MessageCircle, Building, Calendar, Activity, Package, Users, Zap } from 'lucide-react';
+import { collection, getDocs, query, orderBy, limit, doc, getDoc, where, updateDoc, getCountFromServer } from 'firebase/firestore';
+import { Eye, Edit, Ban, Check, X, MessageCircle, Building, Calendar, Activity, Package, Users, Zap, Search, Filter, Download, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 interface User {
   id: string;
@@ -19,6 +19,11 @@ interface User {
   totalStaff: number;
   askMOUsage: number;
   suspended?: boolean;
+  totalExpenses: number;
+  totalSuppliers: number;
+  totalCustomers: number;
+  totalRevenue: number;
+  isActive: boolean;
 }
 
 interface UserDetail {
@@ -33,31 +38,47 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlan, setFilterPlan] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('dateJoined');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [newPlan, setNewPlan] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const usersPerPage = 50;
 
-  useEffect(() => {
-    loadUsers();
+  // Fetch total user count
+  const fetchTotalUsers = useCallback(async () => {
+    try {
+      const countSnapshot = await getCountFromServer(collection(firestore, 'users'));
+      setTotalUsers(countSnapshot.data().count);
+    } catch (error) {
+      console.error('Error getting total users count:', error);
+      setTotalUsers(0);
+    }
   }, [firestore]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
+      await fetchTotalUsers();
+      
       let snapshot;
       
       try {
+        const offsetValue = (currentPage - 1) * usersPerPage;
         const usersQuery = query(
           collection(firestore, 'users'),
           orderBy('createdAt', 'desc'),
-          limit(100)
+          limit(usersPerPage)
         );
         snapshot = await getDocs(usersQuery);
       } catch (indexError) {
         console.warn('Index not available for users query, trying without orderBy:', indexError);
-        snapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
+        const usersQuery = query(collection(firestore, 'users'), limit(usersPerPage));
+        snapshot = await getDocs(usersQuery);
       }
       
       const usersList: User[] = [];
@@ -73,6 +94,11 @@ export default function UserManagement() {
         let totalStaff = data.totalStaff || 0;
         let plan = data.plan || 'free';
         let businessName = data.businessName || '';
+        let totalExpenses = 0;
+        let totalSuppliers = 0;
+        let totalCustomers = 0;
+        let totalRevenue = 0;
+        let isActive = false;
         
         if (data.businessId) {
           try {
@@ -103,6 +129,37 @@ export default function UserManagement() {
               );
               const salesSnapshot = await getDocs(salesQuery);
               totalSales = salesSnapshot.size;
+              
+              // Count expenses
+              const expensesQuery = query(collection(firestore, 'businesses', data.businessId, 'expenses'));
+              const expensesSnapshot = await getDocs(expensesQuery);
+              totalExpenses = expensesSnapshot.size;
+              
+              // Count suppliers
+              const suppliersQuery = query(collection(firestore, 'businesses', data.businessId, 'suppliers'));
+              const suppliersSnapshot = await getDocs(suppliersQuery);
+              totalSuppliers = suppliersSnapshot.size;
+              
+              // Count customers
+              const customersQuery = query(collection(firestore, 'businesses', data.businessId, 'customers'));
+              const customersSnapshot = await getDocs(customersQuery);
+              totalCustomers = customersSnapshot.size;
+              
+              // Calculate total revenue
+              salesSnapshot.forEach(saleDoc => {
+                const saleData = saleDoc.data();
+                if (saleData.amount) {
+                  totalRevenue += parseFloat(saleData.amount) || 0;
+                }
+              });
+              
+              // Check if business is active
+              if (businessData.lastActive) {
+                const lastActiveDate = businessData.lastActive.toDate();
+                const now = new Date();
+                const diffInDays = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
+                isActive = diffInDays <= 30; // Active if used in last 30 days
+              }
             }
           } catch (error) {
             console.error('Error fetching business data for user:', error);
@@ -123,6 +180,11 @@ export default function UserManagement() {
           totalStaff,
           askMOUsage: data.moCreditsConsumed || 0,
           suspended: data.suspended || false,
+          totalExpenses,
+          totalSuppliers,
+          totalCustomers,
+          totalRevenue,
+          isActive,
         });
       }
       
@@ -175,6 +237,65 @@ export default function UserManagement() {
             console.error('Error fetching sales for business:', error);
           }
           
+          // Count expenses
+          let totalExpenses = 0;
+          try {
+            const expensesQuery = query(collection(firestore, 'businesses', businessId, 'expenses'));
+            const expensesSnapshot = await getDocs(expensesQuery);
+            totalExpenses = expensesSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching expenses for business:', error);
+          }
+          
+          // Count suppliers
+          let totalSuppliers = 0;
+          try {
+            const suppliersQuery = query(collection(firestore, 'businesses', businessId, 'suppliers'));
+            const suppliersSnapshot = await getDocs(suppliersQuery);
+            totalSuppliers = suppliersSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching suppliers for business:', error);
+          }
+          
+          // Count customers
+          let totalCustomers = 0;
+          try {
+            const customersQuery = query(collection(firestore, 'businesses', businessId, 'customers'));
+            const customersSnapshot = await getDocs(customersQuery);
+            totalCustomers = customersSnapshot.size;
+          } catch (error) {
+            console.error('Error fetching customers for business:', error);
+          }
+          
+          // Calculate total revenue
+          let totalRevenue = 0;
+          try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const salesQuery = query(
+              collection(firestore, 'businesses', businessId, 'sales'),
+              where('createdAt', '>=', thirtyDaysAgo)
+            );
+            const salesSnapshot = await getDocs(salesQuery);
+            salesSnapshot.forEach(saleDoc => {
+              const saleData = saleDoc.data();
+              if (saleData.amount) {
+                totalRevenue += parseFloat(saleData.amount) || 0;
+              }
+            });
+          } catch (error) {
+            console.error('Error calculating revenue for business:', error);
+          }
+          
+          // Check if business is active
+          let isActive = false;
+          if (businessData.lastActive) {
+            const lastActiveDate = businessData.lastActive.toDate();
+            const now = new Date();
+            const diffInDays = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
+            isActive = diffInDays <= 30; // Active if used in last 30 days
+          }
+          
           usersList.push({
             id: businessId,
             name: businessData.ownerId || 'Unknown',
@@ -189,6 +310,11 @@ export default function UserManagement() {
             totalStaff,
             askMOUsage: 0,
             suspended: false,
+            totalExpenses,
+            totalSuppliers,
+            totalCustomers,
+            totalRevenue,
+            isActive,
           });
         }
       } catch (error) {
@@ -201,26 +327,66 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [firestore, currentPage, fetchTotalUsers]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.businessName && user.businessName.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesPlan = filterPlan === 'all' || user.plan === filterPlan;
-    
-    return matchesSearch && matchesPlan;
-  });
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (sortBy === 'dateJoined') return new Date(b.dateJoined).getTime() - new Date(a.dateJoined).getTime();
-    if (sortBy === 'lastActive') return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
-    if (sortBy === 'totalSales') return b.totalSales - a.totalSales;
-    if (sortBy === 'askMOUsage') return b.askMOUsage - a.askMOUsage;
-    return 0;
-  });
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.businessName && user.businessName.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesPlan = filterPlan === 'all' || user.plan === filterPlan;
+      const matchesStatus = filterStatus === 'all' || 
+                           (filterStatus === 'active' && user.isActive) || 
+                           (filterStatus === 'inactive' && !user.isActive) ||
+                           (filterStatus === 'suspended' && user.suspended);
+      
+      return matchesSearch && matchesPlan && matchesStatus;
+    });
+  }, [users, searchTerm, filterPlan, filterStatus]);
+
+  const sortedUsers = useMemo(() => {
+    const sorted = [...filteredUsers].sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'dateJoined':
+          comparison = new Date(b.dateJoined).getTime() - new Date(a.dateJoined).getTime();
+          break;
+        case 'lastActive':
+          comparison = new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
+          break;
+        case 'totalSales':
+          comparison = b.totalSales - a.totalSales;
+          break;
+        case 'askMOUsage':
+          comparison = b.askMOUsage - a.askMOUsage;
+          break;
+        case 'totalRevenue':
+          comparison = b.totalRevenue - a.totalRevenue;
+          break;
+        case 'totalProducts':
+          comparison = b.totalProducts - a.totalProducts;
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [filteredUsers, sortBy, sortOrder]);
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  
+  // Apply pagination to sorted results
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * usersPerPage;
+    return sortedUsers.slice(startIndex, startIndex + usersPerPage);
+  }, [sortedUsers, currentPage, usersPerPage]);
 
   const loadUserDetail = async (user: User) => {
     try {
@@ -323,77 +489,124 @@ export default function UserManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 text-gray-600 font-medium">Loading users...</p>
+        <p className="text-gray-500 text-sm">Fetching user data from all systems</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">User Management</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+        <div className="mt-4 md:mt-0 flex items-center gap-3">
+          <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            {totalUsers} total users
+          </span>
+          <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium flex items-center gap-2 transition-colors">
+            <Download size={16} />
+            Export
+          </button>
+        </div>
+      </div>
       
       {/* Filters */}
-      <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
+      <div className="bg-white rounded-xl p-4 mb-6 border border-gray-200 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
+          
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <select
+              value={filterPlan}
+              onChange={(e) => setFilterPlan(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="all">All Plans</option>
+              <option value="trial">Trial</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+          
           <select
-            value={filterPlan}
-            onChange={(e) => setFilterPlan(e.target.value)}
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           >
-            <option value="all">All Plans</option>
-            <option value="trial">Trial</option>
-            <option value="paid">Paid</option>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
           </select>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          >
-            <option value="dateJoined">Date Joined</option>
-            <option value="lastActive">Last Active</option>
-            <option value="totalSales">Total Sales</option>
-            <option value="askMOUsage">Ask MO Usage</option>
-          </select>
+          
+          <div className="flex gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="dateJoined">Date Joined</option>
+              <option value="lastActive">Last Active</option>
+              <option value="totalSales">Total Sales</option>
+              <option value="askMOUsage">Ask MO Usage</option>
+              <option value="totalRevenue">Total Revenue</option>
+              <option value="totalProducts">Total Products</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-gray-200">
         <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Business</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Plan</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Date Joined</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">Last Active</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Sales</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Products</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Staff</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Ask MO</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">User</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Business</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Plan</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Status</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Date Joined</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Last Active</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Sales</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Products</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Revenue</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Ask MO</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700 border-b border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {sortedUsers.map((user) => (
-              <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+            {paginatedUsers.map((user) => (
+              <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                 <td className="py-3 px-4">
                   <div>
                     <div className="font-medium text-gray-900">{user.name}</div>
-                    <div className="text-sm text-gray-500">{user.email}</div>
+                    <div className="text-sm text-gray-500 truncate max-w-xs">{user.email}</div>
                   </div>
                 </td>
-                <td className="py-3 px-4 text-gray-700">{user.businessName || 'N/A'}</td>
+                <td className="py-3 px-4 text-gray-700 max-w-xs truncate">{user.businessName || 'N/A'}</td>
                 <td className="py-3 px-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     user.plan === 'paid' ? 'bg-green-100 text-green-800' :
@@ -403,12 +616,26 @@ export default function UserManagement() {
                     {user.plan}
                   </span>
                 </td>
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    {user.isActive ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-gray-400" />
+                    )}
+                    <span className={`text-xs ${
+                      user.isActive ? 'text-green-600' : 'text-gray-500'
+                    }`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </td>
                 <td className="py-3 px-4 text-gray-700">{user.dateJoined}</td>
                 <td className="py-3 px-4 text-gray-700">{user.lastActive}</td>
-                <td className="py-3 px-4 text-right text-gray-700">{user.totalSales.toLocaleString()}</td>
-                <td className="py-3 px-4 text-right text-gray-700">{user.totalProducts}</td>
-                <td className="py-3 px-4 text-right text-gray-700">{user.totalStaff}</td>
-                <td className="py-3 px-4 text-right text-gray-700">{user.askMOUsage}</td>
+                <td className="py-3 px-4 text-right text-gray-700 font-medium">{user.totalSales.toLocaleString()}</td>
+                <td className="py-3 px-4 text-right text-gray-700 font-medium">{user.totalProducts}</td>
+                <td className="py-3 px-4 text-right text-gray-700 font-medium">₦{user.totalRevenue.toLocaleString()}</td>
+                <td className="py-3 px-4 text-right text-gray-700 font-medium">{user.askMOUsage}</td>
                 <td className="py-3 px-4">
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -426,9 +653,48 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {sortedUsers.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No users found matching your criteria
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <div className="text-sm text-gray-700">
+            Showing <span className="font-medium">{(currentPage - 1) * usersPerPage + 1}</span> to{' '}
+            <span className="font-medium">{Math.min(currentPage * usersPerPage, sortedUsers.length)}</span> of{' '}
+            <span className="font-medium">{sortedUsers.length}</span> results
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-md text-sm font-medium ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded-md text-sm font-medium ${
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {paginatedUsers.length === 0 && (
+        <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <Search className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No users found</h3>
+          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
         </div>
       )}
 
@@ -551,12 +817,15 @@ export default function UserManagement() {
                       </p>
                     </div>
                     <div className="bg-white rounded-lg p-3">
-                      <p className="text-gray-500 text-sm">Currency</p>
-                      <p className="font-semibold">{selectedUser.businessData.currency || 'USD'}</p>
+                      <p className="text-gray-500 text-sm">Revenue (30 days)</p>
+                      <p className="font-semibold flex items-center gap-2">
+                        <Zap size={16} className="text-amber-600" />
+                        ₦{selectedUser.user.totalRevenue.toLocaleString()}
+                      </p>
                     </div>
                     <div className="bg-white rounded-lg p-3">
-                      <p className="text-gray-500 text-sm">Business ID</p>
-                      <p className="font-semibold text-xs">{selectedUser.user.businessId}</p>
+                      <p className="text-gray-500 text-sm">Currency</p>
+                      <p className="font-semibold">{selectedUser.businessData.currency || 'USD'}</p>
                     </div>
                   </div>
                 </div>

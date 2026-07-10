@@ -995,10 +995,97 @@ export function CreditTrackingPage() {
         )}
 
         {activeTab === 'payables' && (
-          <div className={styles.emptyState}>
-            <EyeOff size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-            <h3>No Payables</h3>
-            <p>Payables will appear here when you have outstanding supplier invoices</p>
+          <div className={styles.payablesList}>
+            {suppliers.length === 0 ? (
+              <div className={styles.emptyState}>
+                <EyeOff size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                <h3>No Payables</h3>
+                <p>Payables will appear here when you have outstanding supplier invoices</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary Stats for Payables */}
+                <div className={styles.payablesSummary}>
+                  <div className={styles.payableStatCard}>
+                    <div className={styles.payableStatLabel}>Total Outstanding</div>
+                    <div className={styles.payableStatValue}>
+                      {formatMoney(suppliers.reduce((sum, s) => sum + (s.currentBalance || 0), 0))}
+                    </div>
+                  </div>
+                  <div className={styles.payableStatCard}>
+                    <div className={styles.payableStatLabel}>Total Purchases</div>
+                    <div className={styles.payableStatValue}>
+                      {formatMoney(suppliers.reduce((sum, s) => sum + (s.totalPurchases || 0), 0))}
+                    </div>
+                  </div>
+                  <div className={styles.payableStatCard}>
+                    <div className={styles.payableStatLabel}>Total Payments</div>
+                    <div className={styles.payableStatValue}>
+                      {formatMoney(suppliers.reduce((sum, s) => sum + (s.totalPayments || 0), 0))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Supplier Payables List */}
+                <div className={styles.supplierPayablesList}>
+                  {suppliers
+                    .filter(supplier => (supplier.currentBalance || 0) > 0)
+                    .map(supplier => (
+                      <div key={supplier.id} className={styles.supplierPayableCard}>
+                        <div className={styles.supplierPayableHeader}>
+                          <div>
+                            <div className={styles.supplierPayableName}>
+                              {supplier.businessName || supplier.supplierName}
+                            </div>
+                            <div className={styles.supplierPayableMeta}>
+                              {supplier.purchaseCount} purchases • avg {supplier.averagePaymentDays || 0} days
+                            </div>
+                          </div>
+                          <div className={styles.supplierPayableAmount}>
+                            {formatMoney(supplier.currentBalance)}
+                          </div>
+                        </div>
+                        
+                        <div className={styles.supplierPayableDetails}>
+                          <div className={styles.supplierPayableDetail}>
+                            <span className={styles.supplierPayableLabel}>Payment Terms:</span>
+                            <span>{supplier.paymentTerms}{supplier.customPaymentDays ? ` (${supplier.customPaymentDays} days)` : ''}</span>
+                          </div>
+                          <div className={styles.supplierPayableDetail}>
+                            <span className={styles.supplierPayableLabel}>Last Purchase:</span>
+                            <span>{supplier.lastPurchaseDate ? formatDate(supplier.lastPurchaseDate) : 'Never'}</span>
+                          </div>
+                          <div className={styles.supplierPayableDetail}>
+                            <span className={styles.supplierPayableLabel}>Last Payment:</span>
+                            <span>{supplier.lastPaymentDate ? formatDate(supplier.lastPaymentDate) : 'Never'}</span>
+                          </div>
+                        </div>
+
+                        <div className={styles.supplierPayableActions}>
+                          <button
+                            className={styles.paySupplierButton}
+                            onClick={() => {
+                              // Navigate to Cashflow page to record payment
+                              window.location.href = '/owner/dashboard/cashflow';
+                            }}
+                          >
+                            <DollarSign size={16} />
+                            Record Payment
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                {suppliers.filter(supplier => (supplier.currentBalance || 0) > 0).length === 0 && (
+                  <div className={styles.emptyState}>
+                    <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                    <h3>All Caught Up!</h3>
+                    <p>No outstanding supplier payments</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

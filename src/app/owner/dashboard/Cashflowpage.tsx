@@ -14,7 +14,7 @@ import styles from './Cashflowpage.module.css';
 //  CashflowPage — Bank accounts + stock + cash flow tracking
 // ═══════════════════════════════════════════
 
-type ActionId = 'add-stock' | 'reduce-stock' | 'add-money' | 'take-money' | 'add-account' | null;
+type ActionId = 'add-purchase' | 'reduce-stock' | 'add-money' | 'take-money' | 'add-account' | 'pay-supplier' | null;
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 interface BankAccount {
@@ -24,7 +24,7 @@ interface BankAccount {
   currentBalance: number;
   isActive: boolean;
   isDefault: boolean;
-  isPosDefault?: boolean; // Default for POS/bank payments
+  isPosDefault?: boolean;
 }
 
 interface Supplier {
@@ -82,7 +82,29 @@ export default function Cashflowpage() {
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
-  const [stockAddition, setStockAddition] = useState({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0, paymentMethod: 'credit' as 'cash' | 'credit' | 'partial' });
+  const [stockAddition, setStockAddition] = useState({ 
+    productId: '', 
+    quantity: 0, 
+    costPrice: 0, 
+    description: '', 
+    purchaseDate: new Date().toISOString().split('T')[0],
+    referenceNumber: `PUR-${Date.now().toString().slice(-8)}`,
+    warehouse: '',
+    bankAccountId: '', 
+    supplierId: '', 
+    paymentAmount: 0, 
+    paymentMethod: 'credit' as 'cash' | 'credit' | 'partial',
+    notes: ''
+  });
+  
+  // Supplier payment form
+  const [supplierPayment, setSupplierPayment] = useState({
+    supplierId: '',
+    amount: 0,
+    paymentMethod: 'cash' as 'cash' | 'transfer' | 'pos',
+    bankAccountId: '',
+    description: ''
+  });
 
   useEffect(() => {
     loadProducts();
@@ -603,7 +625,7 @@ export default function Cashflowpage() {
     }
   };
 
-  const handleAddStock = async () => {
+  const handleAddPurchase = async () => {
     if (!businessId || !firestore) return;
     try {
       const product = products.find(p => p.id === stockAddition.productId);
@@ -713,7 +735,7 @@ export default function Cashflowpage() {
               amount: purchaseAmount,
               balanceAfter: newBalance,
               description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
-              reference: `SR-${Date.now()}`,
+              reference: stockAddition.referenceNumber,
               date: Timestamp.now(),
               createdAt: Timestamp.now(),
               createdBy: user?.id || 'system',
@@ -726,6 +748,8 @@ export default function Cashflowpage() {
                 paidAmount,
                 creditAmount,
                 paymentMethod,
+                purchaseDate: stockAddition.purchaseDate,
+                notes: stockAddition.notes,
               },
             });
 
@@ -755,7 +779,7 @@ export default function Cashflowpage() {
             // Create stock receipt
             const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
             transaction.set(receiptRef, {
-              receiptNumber: `SR-${Date.now()}`,
+              receiptNumber: stockAddition.referenceNumber,
               supplierId: stockAddition.supplierId,
               supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
               items: [{
@@ -773,7 +797,7 @@ export default function Cashflowpage() {
               receivedAt: new Date().toISOString(),
               receivedBy: user?.id || 'system',
               receivedByName: user?.name || 'System',
-              notes: stockAddition.description,
+              notes: stockAddition.notes,
               createdAt: Timestamp.now(),
             });
           }
@@ -791,7 +815,7 @@ export default function Cashflowpage() {
                 category: 'Stock Addition',
                 amount: paidAmount,
                 balanceAfter: accountDoc.data().currentBalance - paidAmount,
-                description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.description}`,
+                description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.notes}`,
                 createdAt: Timestamp.now(),
               };
               const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
@@ -801,15 +825,132 @@ export default function Cashflowpage() {
         }
       });
 
-      showToast(`✅ Stock added successfully${creditAmount > 0 ? ` - ${formatMoney(creditAmount)} added to credit` : ''}`);
+      showToast(`✅ Purchase recorded successfully${creditAmount > 0 ? ` - ${formatMoney(creditAmount)} added to credit` : ''}`);
       setActiveAction(null);
-      setStockAddition({ productId: '', quantity: 0, costPrice: 0, description: '', isPurchase: false, bankAccountId: '', supplierId: '', paymentAmount: 0, paymentMethod: 'credit' as 'cash' | 'credit' | 'partial' });
+      setStockAddition({ 
+        productId: '', 
+        quantity: 0, 
+        costPrice: 0, 
+        description: '', 
+        purchaseDate: new Date().toISOString().split('T')[0],
+        referenceNumber: `PUR-${Date.now().toString().slice(-8)}`,
+        warehouse: '',
+        bankAccountId: '', 
+        supplierId: '', 
+        paymentAmount: 0, 
+        paymentMethod: 'credit',
+        notes: ''
+      });
       loadProducts();
       loadData();
       loadSuppliers();
     } catch (error: any) {
-      console.error('Error adding stock:', error);
-      showToast(`❌ Failed to add stock: ${error.message || 'Unknown error'}`);
+      console.error('Error recording purchase:', error);
+      showToast(`❌ Failed to record purchase: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handlePaySupplier = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      if (!supplierPayment.supplierId || supplierPayment.amount <= 0) {
+        showToast('❌ Please select a supplier and enter a valid amount');
+        return;
+      }
+
+      const supplier = suppliers.find(s => s.id === supplierPayment.supplierId);
+      if (!supplier) {
+        showToast('❌ Supplier not found');
+        return;
+      }
+
+      if (supplier.currentBalance && supplier.currentBalance < supplierPayment.amount) {
+        showToast('❌ Payment amount exceeds supplier balance');
+        return;
+      }
+
+      const paymentAmount = supplierPayment.amount;
+      const newBalance = (supplier.currentBalance || 0) - paymentAmount;
+
+      // Use Firestore transaction for atomic updates
+      await runTransaction(firestore, async (transaction) => {
+        // Update supplier balance
+        const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', supplierPayment.supplierId);
+        const supplierDoc = await transaction.get(supplierRef);
+        
+        if (supplierDoc.exists()) {
+          const supplierData = supplierDoc.data();
+          transaction.update(supplierRef, {
+            currentBalance: newBalance,
+            totalPayments: (supplierData.totalPayments || 0) + paymentAmount,
+            paymentCount: (supplierData.paymentCount || 0) + 1,
+            lastPaymentDate: Timestamp.now(),
+          });
+
+          // Create supplier ledger entry for payment
+          const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+          transaction.set(ledgerRef, {
+            supplierId: supplierPayment.supplierId,
+            businessId: businessId,
+            type: 'payment',
+            amount: paymentAmount,
+            balanceAfter: newBalance,
+            description: supplierPayment.description || `Payment to ${supplier.supplierName || supplier.businessName}`,
+            reference: `PAY-${Date.now()}`,
+            date: Timestamp.now(),
+            createdAt: Timestamp.now(),
+            createdBy: user?.id || 'system',
+            createdByName: user?.name || 'System',
+            metadata: {
+              paymentMethod: supplierPayment.paymentMethod,
+            },
+          });
+
+          // If bank account selected, deduct from bank
+          if (supplierPayment.bankAccountId && (supplierPayment.paymentMethod === 'cash' || supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos')) {
+            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', supplierPayment.bankAccountId);
+            const accountDoc = await transaction.get(accountRef);
+            if (accountDoc.exists()) {
+              const currentBalance = accountDoc.data().currentBalance || 0;
+              if (currentBalance < paymentAmount) {
+                throw new Error('Insufficient bank balance');
+              }
+              transaction.update(accountRef, {
+                currentBalance: currentBalance - paymentAmount,
+              });
+
+              // Record bank transaction
+              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+              transaction.set(bankTxnRef, {
+                transactionNumber: `TXN-${Date.now()}`,
+                bankAccountId: supplierPayment.bankAccountId,
+                accountName: accountDoc.data().accountName,
+                type: 'money_out',
+                category: 'Supplier Payment',
+                amount: paymentAmount,
+                balanceAfter: currentBalance - paymentAmount,
+                description: `Payment to ${supplier.supplierName || supplier.businessName}`,
+                createdAt: Timestamp.now(),
+              });
+            }
+          }
+        }
+      });
+
+      showToast(`✅ Payment of ${formatMoney(paymentAmount)} made to ${supplier.supplierName || supplier.businessName}`);
+      setActiveAction(null);
+      setSupplierPayment({
+        supplierId: '',
+        amount: 0,
+        paymentMethod: 'cash',
+        bankAccountId: '',
+        description: ''
+      });
+      loadData();
+      loadSuppliers();
+    } catch (error: any) {
+      console.error('Error paying supplier:', error);
+      showToast(`❌ Failed to pay supplier: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -930,11 +1071,11 @@ export default function Cashflowpage() {
 
       {/* ── ACTION CARDS ── */}
       <div className={styles.actionButtons}>
-        <button className={styles.actionButton} onClick={() => setActiveAction('add-stock')}>
+        <button className={styles.actionButton} onClick={() => setActiveAction('add-purchase')}>
           <span className={styles.actionIcon}>
-            <Package size={20} />
+            <ShoppingCart size={20} />
           </span>
-          <span>Add Stock</span>
+          <span>Add Purchase</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('reduce-stock')}>
           <span className={styles.actionIcon}>
@@ -954,6 +1095,14 @@ export default function Cashflowpage() {
           </span>
           <span>Take Money</span>
         </button>
+        {suppliers.length > 0 && (
+          <button className={styles.actionButton} onClick={() => setActiveAction('pay-supplier')}>
+            <span className={styles.actionIcon}>
+              <Building2 size={20} />
+            </span>
+            <span>Pay Supplier</span>
+          </button>
+        )}
       </div>
 
       {/* ── ACTION FORMS (shown when active) ── */}
@@ -1021,9 +1170,9 @@ export default function Cashflowpage() {
               </div>
             )}
 
-            {activeAction === 'add-stock' && (
-              <form onSubmit={(e) => { e.preventDefault(); handleAddStock(); }}>
-                <h3 className={styles.modalTitle}>Add Stock</h3>
+            {activeAction === 'add-purchase' && (
+              <form onSubmit={(e) => { e.preventDefault(); handleAddPurchase(); }}>
+                <h3 className={styles.modalTitle}>Add Purchase</h3>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Select Product</label>
                   <select
@@ -1068,126 +1217,130 @@ export default function Cashflowpage() {
                     </span>
                   </div>
                 )}
+                
                 <div className={styles.formGroup}>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={stockAddition.isPurchase}
-                      onChange={(e) => setStockAddition({ ...stockAddition, isPurchase: e.target.checked })}
-                    />
-                    <ShoppingCart size={16} style={{ marginRight: '8px' }} />
-                    <span>This is a Purchase</span>
-                  </label>
-                  <span className={styles.formHint}>Mark as purchase to link with supplier and bank account</span>
+                  <label className={styles.formLabel}>Purchase Reference Number</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    value={stockAddition.referenceNumber}
+                    onChange={(e) => setStockAddition({ ...stockAddition, referenceNumber: e.target.value })}
+                    placeholder="PUR-00000000"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Purchase Date</label>
+                  <input
+                    type="date"
+                    className={styles.formInput}
+                    value={stockAddition.purchaseDate}
+                    onChange={(e) => setStockAddition({ ...stockAddition, purchaseDate: e.target.value })}
+                  />
                 </div>
 
-                {stockAddition.isPurchase && (
-                  <>
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Select Supplier (Optional)</label>
-                      <select
-                        className={styles.formInput}
-                        value={stockAddition.supplierId}
-                        onChange={(e) => setStockAddition({ ...stockAddition, supplierId: e.target.value })}
-                      >
-                        <option value="">No supplier</option>
-                        {suppliers.map(supplier => (
-                          <option key={supplier.id} value={supplier.id}>{supplier.supplierName || supplier.businessName}</option>
-                        ))}
-                      </select>
-                      <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Select Supplier (Optional)</label>
+                  <select
+                    className={styles.formInput}
+                    value={stockAddition.supplierId}
+                    onChange={(e) => setStockAddition({ ...stockAddition, supplierId: e.target.value })}
+                  >
+                    <option value="">No supplier</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.supplierName || supplier.businessName}</option>
+                    ))}
+                  </select>
+                  <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Payment Method</label>
+                  <select
+                    className={styles.formInput}
+                    value={stockAddition.paymentMethod}
+                    onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}
+                  >
+                    <option value="credit">Credit (Pay Later)</option>
+                    <option value="cash">Cash (Full Payment)</option>
+                    <option value="partial">Partial Payment</option>
+                  </select>
+                  <span className={styles.formHint}>
+                    {stockAddition.paymentMethod === 'credit' && 'Full amount will be added to supplier credit balance'}
+                    {stockAddition.paymentMethod === 'cash' && 'Full payment will be deducted from bank account'}
+                    {stockAddition.paymentMethod === 'partial' && 'Pay part now, add remainder to credit'}
+                  </span>
+                </div>
+
+                {stockAddition.paymentMethod === 'partial' && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Payment Amount</label>
+                    <input
+                      type="number"
+                      className={styles.formInput}
+                      value={stockAddition.paymentAmount}
+                      onChange={(e) => setStockAddition({ ...stockAddition, paymentAmount: parseFloat(e.target.value) || 0 })}
+                      placeholder="Enter payment amount"
+                      max={stockAddition.quantity * stockAddition.costPrice}
+                    />
+                    {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                      <div className={styles.paymentBreakdown}>
+                        <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
+                        <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
+                        <span style={{ color: 'var(--red)', fontWeight: 600 }}>
+                          Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Select Bank Account</label>
+                    <select
+                      className={styles.formInput}
+                      value={stockAddition.bankAccountId}
+                      onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
+                    >
+                      <option value="">Select bank account</option>
+                      {bankAccounts.map(account => (
+                        <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
+                      ))}
+                    </select>
+                    <span className={styles.formHint}>Required for cash and partial payments</span>
+                  </div>
+                )}
+
+                {stockAddition.supplierId && stockAddition.paymentMethod === 'credit' && (
+                  <div className={styles.creditInfo}>
+                    <div className={styles.creditInfoItem}>
+                      <span className={styles.creditInfoLabel}>Supplier:</span>
+                      <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || suppliers.find(s => s.id === stockAddition.supplierId)?.businessName}</span>
                     </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Payment Method</label>
-                      <select
-                        className={styles.formInput}
-                        value={stockAddition.paymentMethod}
-                        onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}
-                      >
-                        <option value="credit">Credit (Pay Later)</option>
-                        <option value="cash">Cash (Full Payment)</option>
-                        <option value="partial">Partial Payment</option>
-                      </select>
-                      <span className={styles.formHint}>
-                        {stockAddition.paymentMethod === 'credit' && 'Full amount will be added to supplier credit balance'}
-                        {stockAddition.paymentMethod === 'cash' && 'Full payment will be deducted from bank account'}
-                        {stockAddition.paymentMethod === 'partial' && 'Pay part now, add remainder to credit'}
-                      </span>
-                    </div>
-
-                    {stockAddition.paymentMethod === 'partial' && (
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel}>Payment Amount</label>
-                        <input
-                          type="number"
-                          className={styles.formInput}
-                          value={stockAddition.paymentAmount}
-                          onChange={(e) => setStockAddition({ ...stockAddition, paymentAmount: parseFloat(e.target.value) || 0 })}
-                          placeholder="Enter payment amount"
-                          max={stockAddition.quantity * stockAddition.costPrice}
-                        />
-                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                          <div className={styles.paymentBreakdown}>
-                            <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
-                            <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
-                            <span style={{ color: 'var(--red)', fontWeight: 600 }}>
-                              Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
-                            </span>
-                          </div>
-                        )}
+                    {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                      <div className={styles.creditInfoItem}>
+                        <span className={styles.creditInfoLabel}>Amount to Credit:</span>
+                        <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                          {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
+                        </span>
                       </div>
                     )}
-
-                    {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel}>Select Bank Account</label>
-                        <select
-                          className={styles.formInput}
-                          value={stockAddition.bankAccountId}
-                          onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
-                        >
-                          <option value="">Select bank account</option>
-                          {bankAccounts.map(account => (
-                            <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
-                          ))}
-                        </select>
-                        <span className={styles.formHint}>Required for cash and partial payments</span>
-                      </div>
-                    )}
-
-                    {stockAddition.supplierId && stockAddition.paymentMethod === 'credit' && (
-                      <div className={styles.creditInfo}>
-                        <div className={styles.creditInfoItem}>
-                          <span className={styles.creditInfoLabel}>Supplier:</span>
-                          <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || suppliers.find(s => s.id === stockAddition.supplierId)?.businessName}</span>
-                        </div>
-                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                          <div className={styles.creditInfoItem}>
-                            <span className={styles.creditInfoLabel}>Amount to Credit:</span>
-                            <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
-                              {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
 
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Description</label>
+                  <label className={styles.formLabel}>Notes (Optional)</label>
                   <textarea
                     className={styles.formInput}
-                    value={stockAddition.description}
-                    onChange={(e) => setStockAddition({ ...stockAddition, description: e.target.value })}
-                    placeholder="Enter description"
+                    value={stockAddition.notes}
+                    onChange={(e) => setStockAddition({ ...stockAddition, notes: e.target.value })}
+                    placeholder="Enter notes"
                     rows={3}
                   />
                 </div>
                 <div className={styles.modalActions}>
                   <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button type="submit" className={styles.modalButtonPrimary}>Add Stock</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Record Purchase</button>
                 </div>
               </form>
             )}
@@ -1360,6 +1513,90 @@ export default function Cashflowpage() {
                 <div className={styles.modalActions}>
                   <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
                   <button type="submit" className={styles.modalButtonPrimary}>Take Money</button>
+                </div>
+              </form>
+            )}
+
+            {activeAction === 'pay-supplier' && (
+              <form onSubmit={(e) => { e.preventDefault(); handlePaySupplier(); }}>
+                <h3 className={styles.modalTitle}>Pay Supplier</h3>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Select Supplier</label>
+                  <select
+                    className={styles.formInput}
+                    value={supplierPayment.supplierId}
+                    onChange={(e) => setSupplierPayment({ ...supplierPayment, supplierId: e.target.value })}
+                  >
+                    <option value="">Select a supplier</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.supplierName || supplier.businessName} 
+                        {supplier.currentBalance ? ` (Balance: ${formatMoney(supplier.currentBalance)})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {supplierPayment.supplierId && (
+                  <div className={styles.creditInfo}>
+                    <div className={styles.creditInfoItem}>
+                      <span className={styles.creditInfoLabel}>Current Balance:</span>
+                      <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                        {formatMoney(suppliers.find(s => s.id === supplierPayment.supplierId)?.currentBalance || 0)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Payment Amount</label>
+                  <input
+                    type="number"
+                    className={styles.formInput}
+                    value={supplierPayment.amount}
+                    onChange={(e) => setSupplierPayment({ ...supplierPayment, amount: parseFloat(e.target.value) || 0 })}
+                    placeholder="Enter payment amount"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Payment Method</label>
+                  <select
+                    className={styles.formInput}
+                    value={supplierPayment.paymentMethod}
+                    onChange={(e) => setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value as 'cash' | 'transfer' | 'pos' })}
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="transfer">Bank Transfer</option>
+                    <option value="pos">POS / Card</option>
+                  </select>
+                </div>
+                {(supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos') && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Select Bank Account</label>
+                    <select
+                      className={styles.formInput}
+                      value={supplierPayment.bankAccountId}
+                      onChange={(e) => setSupplierPayment({ ...supplierPayment, bankAccountId: e.target.value })}
+                    >
+                      <option value="">Select bank account</option>
+                      {bankAccounts.map(account => (
+                        <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
+                      ))}
+                    </select>
+                    <span className={styles.formHint}>Required for bank transfer and POS payments</span>
+                  </div>
+                )}
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Description (Optional)</label>
+                  <textarea
+                    className={styles.formInput}
+                    value={supplierPayment.description}
+                    onChange={(e) => setSupplierPayment({ ...supplierPayment, description: e.target.value })}
+                    placeholder="Enter payment description"
+                    rows={3}
+                  />
+                </div>
+                <div className={styles.modalActions}>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                  <button type="submit" className={styles.modalButtonPrimary}>Record Payment</button>
                 </div>
               </form>
             )}

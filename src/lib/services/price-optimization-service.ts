@@ -113,7 +113,7 @@ export async function applyBulkPriceUpdate(
     const db = getAdminDb();
 
     const productsRef = db.collection('businesses').doc(businessId).collection('products');
-    let query = productsRef;
+    let query: admin.firestore.Query = productsRef as any;
     
     if (params.category) {
       query = query.where('category', '==', params.category);
