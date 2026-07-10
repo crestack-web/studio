@@ -232,12 +232,11 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     };
 
     // Subscribe to action events
-    const unsubscribe = subscribeToActionEvents(handleDataRefresh);
+    subscribeToActionEvents(handleDataRefresh);
     
     // Clean up subscription on unmount
     return () => {
       console.log('🧹 [AddProductPage] Unsubscribing from data refresh events');
-      unsubscribe();
     };
   }, [businessId, isRestaurant]);
   

@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
-import { executeAction, renderResponse } from '@/lib/services/mo-action-router';
-import { buildSystemPrompt, detectConversationStyle, getBusinessContext } from '@/services/ai/system-prompt-builder';
-import { checkPermission } from '@/services/permissions/check-permission';
-import { v4 as uuidv4 } from 'uuid';
+import { executeAction } from '@/lib/services/mo-action-router';
+import { renderResponse } from '@/lib/services/mo-response-renderer';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -91,8 +89,10 @@ export async function POST(request: NextRequest) {
     let renderedResponse = null;
 
     if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
-      // Check permissions
-      const hasPermission = await checkPermission(intent.intent, userRole, userId, businessId);
+      // Check permissions (inline implementation)
+      const hasPermission = userRole === 'owner' || userRole === 'admin' || 
+        (userRole === 'staff' && ['record_sale', 'add_product', 'update_product'].includes(intent.intent));
+      
       if (!hasPermission) {
         return NextResponse.json({
           answer: `Sorry, you don't have permission to ${intent.intent.replace('_', ' ')}. Please contact your administrator.`,
@@ -126,18 +126,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Generate AI response for conversational context
-    let businessContext = {};
-    if (businessId) {
-      try {
-        businessContext = await getBusinessContext(businessId);
-      } catch (error) {
-        console.error('❌ [Ask MO API] Error loading business context:', error);
-      }
-    }
-
-    const conversationStyle = detectConversationStyle(conversationHistory);
-    const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, businessCategory, conversationStyle, renderedResponse, message);
-
     const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
     if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
       console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
@@ -158,6 +146,32 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Build simple system prompt inline
+    const systemPrompt = `${BUSINESS_CONTEXT_PROMPT}
+
+🌍 LANGUAGE: Respond in ${languageName} (${language}). Use the same language the user wrote in.
+
+🎭 CHARACTER INTEGRITY (CRITICAL):
+- NEVER break character. You are ALWAYS MO, the business intelligence assistant.
+- NEVER reveal you are an AI, chatbot, or language model.
+- Maintain a professional, business-focused tone at all times.
+- NEVER discuss permissions, access rights, or administrator approval. The system handles permissions automatically.
+- NEVER tell users to contact their administrator for permissions. This is handled by the backend.
+- NEVER say you don't have permission to perform an action. If an action fails, explain the actual business reason (e.g., product not found, insufficient stock).
+
+🎯 OPERATIONAL BEHAVIOR (CRITICAL):
+You are an OPERATIONAL AI ASSISTANT that EXECUTES business operations directly.
+NEVER navigate users to pages unless they EXPLICITLY request navigation.
+When users request operational tasks, you MUST:
+1. Detect the intent (record sale, add product, record expense, etc.)
+2. Extract all available parameters from their message
+3. If information is missing, ask ONLY for the missing fields
+4. When enough information exists, the system will automatically execute the backend operation
+5. Wait for the backend response
+6. Communicate the outcome naturally and conversationally
+
+CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
     const modelName = image ? 'gemini-pro-vision' : 'gemini-pro-latest';
@@ -236,7 +250,6 @@ export async function POST(request: NextRequest) {
       intent,
       actionResult,
       rendered: renderedResponse,
-      businessContext,
       timestamp: new Date().toISOString()
     });
 

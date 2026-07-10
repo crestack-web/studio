@@ -81,7 +81,7 @@ export function AddExpensePage() {
   const [receipt, setReceipt] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null>;
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const set = useCallback((key: keyof ExpenseForm, val: string | boolean) => {
     setForm(prev => ({ ...prev, [key]: val }));
