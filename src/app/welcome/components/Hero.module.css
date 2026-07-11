@@ -34,22 +34,24 @@
 }
 
 .hero-content-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 240px;
+  display: flex;
   gap: 48px;
   align-items: start;
   width: 100%;
 }
 
 .hero-text-content {
+  flex: 1;
   max-width: 100%;
   text-align: left;
 }
 
 .hero-image-container {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  width: 240px;
 }
 
 .image-wrapper {
@@ -88,12 +90,17 @@
   }
 
   .hero-content-wrapper {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 24px;
   }
 
   .hero-text-content {
     text-align: center;
+  }
+
+  .hero-image-container {
+    width: 100%;
+    order: -1;
   }
 
   .image-wrapper {
