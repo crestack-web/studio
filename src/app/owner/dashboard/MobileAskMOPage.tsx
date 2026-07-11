@@ -99,6 +99,7 @@ export function MobileAskMOPage() {
     });
   };
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [dynamicSuggestions, setDynamicSuggestions] = useState([
     { label: "Analyze my sales", icon: <BarChart size={20} /> },
     { label: "Cash flow summary", icon: <DollarSign size={20} /> },
@@ -302,7 +303,24 @@ export function MobileAskMOPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      
+      // Try to use a supported MIME type
+      let mimeType = 'audio/webm';
+      const supportedTypes = [
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/mp4',
+        'audio/wav'
+      ];
+      
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       const chunks: BlobPart[] = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {
@@ -310,7 +328,7 @@ export function MobileAskMOPage() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
@@ -331,7 +349,7 @@ export function MobileAskMOPage() {
       setRecordingTime(0);
     } catch (error) {
       console.error('Error starting recording:', error);
-      showToast('Could not access microphone');
+      showToast('Could not access microphone. Please check permissions.');
     }
   };
 
@@ -1124,17 +1142,36 @@ export function MobileAskMOPage() {
           </div>
         )}
         <div className={styles.inputWrapper}>
-          <button
-            className={styles.attachBtn}
-            onClick={() => fileInputRef.current?.click()}
-            title="Upload image"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className={styles.attachBtn}
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              title="Add attachment"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+            {showAttachmentMenu && (
+              <div className={styles.attachmentMenu}>
+                <button
+                  className={styles.attachmentMenuItem}
+                  onClick={() => {
+                    setShowAttachmentMenu(false);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18 }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span>Image</span>
+                </button>
+              </div>
+            )}
+          </div>
           <input
             ref={fileInputRef}
             type="file"
