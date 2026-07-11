@@ -25,20 +25,16 @@
 
 .typingIndicator {
   display: flex;
-  align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  background: var(--purple-lt);
-  border-radius: 20px;
-  max-width: fit-content;
+  padding: 4px 0;
 }
 
 .typingIndicator span {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--purple);
-  animation: typingPulse 1.4s infinite ease-in-out;
+  animation: typing 1.4s infinite ease-in-out;
 }
 
 .typingIndicator span:nth-child(1) {
@@ -53,27 +49,27 @@
   animation-delay: 0.4s;
 }
 
-@keyframes typingPulse {
+@keyframes typing {
   0%, 60%, 100% {
-    transform: scale(0.8);
-    opacity: 0.6;
+    transform: translateY(0);
+    opacity: 0.4;
   }
   30% {
-    transform: scale(1.2);
+    transform: translateY(-8px);
     opacity: 1;
   }
 }
 
 .loadingText {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--purple);
+  color: var(--text-2);
   animation: fadeInOut 2s ease-in-out infinite;
 }
 
 @keyframes fadeInOut {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.5;
   }
   50% {
     opacity: 1;
@@ -1399,333 +1395,3 @@
     font-size: 14px;
   }
 }
-
-/* Enhanced input container with better spacing */
-.inputContainer {
-  padding: 16px;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-}
-
-/* Enhanced input wrapper with better focus states */
-.inputWrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: 28px;
-  padding: 8px 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.inputWrapper:focus-within {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: var(--bg);
-}
-
-/* Enhanced text input styling */
-.textInput {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--text-1);
-  font-size: 15px;
-  line-height: 1.5;
-  resize: none;
-  min-height: 24px;
-  max-height: 120px;
-  padding: 8px 4px;
-  font-family: inherit;
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: 12px;
-  outline: none;
-}
-
-.textInput::placeholder {
-  color: var(--text-3);
-  transition: color 0.2s;
-}
-
-.textInput:focus::placeholder {
-  color: var(--text-2);
-}
-
-.textInput:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.textInput::selection {
-  background: rgba(124, 58, 237, 0.2);
-}
-
-/* Enhanced send button with branding */
-.sendButton {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: var(--purple);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-}
-
-.sendButton svg {
-  width: 20px;
-  height: 20px;
-  transition: transform 0.2s;
-}
-
-.sendButton:hover:not(:disabled) {
-  background: #6D28D9;
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
-}
-
-.sendButton:active:not(:disabled) {
-  transform: translateY(0) scale(0.95);
-  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.3);
-}
-
-.sendButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-  background: var(--text-3);
-}
-
-.sendButton.active {
-  background: var(--purple);
-}
-
-/* Enhanced mic button */
-.micBtn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: var(--gray-2);
-  color: var(--text-2);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-  position: relative;
-  overflow: hidden;
-}
-
-.micBtn:hover {
-  background: var(--gray-3);
-  color: var(--text-1);
-  transform: scale(1.05);
-}
-
-.micBtn:active {
-  transform: scale(0.92);
-}
-
-.micBtn.recording {
-  background: var(--red);
-  color: white;
-  animation: pulse-recording 1.5s ease-in-out infinite;
-}
-
-/* Enhanced suggestion chips container */
-.suggestionChips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 8px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  -ms-overflow-style: thin;
-}
-
-.suggestionChips::-webkit-scrollbar {
-  height: 4px;
-}
-
-.suggestionChips::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
-
-/* Enhanced suggestion chip styling */
-.suggestionChip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.suggestionChip:hover {
-  background: var(--bg);
-  border-color: var(--purple);
-  color: var(--text-1);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.suggestionChip:active {
-  transform: translateY(0);
-}
-
-.suggestionIcon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-/* Content container for message text */
-.content {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-1);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.content p {
-  margin: 0 0 8px 0;
-}
-
-.content p:last-child {
-  margin-bottom: 0;
-}
-
-/* Alerts */
-.alerts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.alert {
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.alert-warning {
-  background: var(--yellow-bg);
-  color: var(--yellow);
-  border: 1px solid var(--yellow-border);
-}
-
-.alert-info {
-  background: var(--blue-bg);
-  color: var(--blue);
-  border: 1px solid var(--blue-border);
-}
-
-.alert-success {
-  background: var(--green-bg);
-  color: var(--green);
-  border: 1px solid var(--green-border);
-}
-
-.alert-error {
-  background: var(--red-bg);
-  color: var(--red);
-  border: 1px solid var(--red-border);
-}
-
-/* Avatar containers */
-.avatarContainer {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.userAvatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--gray-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-2);
-  flex-shrink: 0;
-}
-
-.botAvatarContainer {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.moAvatarSm {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--purple);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-}
-
-/* Image and audio containers */
-.imageContainer {
-  margin: 8px 0;
-  border-radius: 8px;
-  overflow: hidden;
-  max-width: 200px;
-}
-
-.imageContainer img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.audioContainer {
-  margin: 8px 0;
-}
-
-/* Sale Card Container */
-.saleCardContainer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-/* ==================== Modern Input Area ==================== */
-/* ... rest of existing code ... */

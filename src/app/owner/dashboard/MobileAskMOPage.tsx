@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
@@ -10,7 +12,6 @@ import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
-import { triggerActionRefresh } from '@/utils/dataRefresh';
 
 interface MOMessage {
   id: string;
@@ -107,7 +108,7 @@ export function MobileAskMOPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
-  const [loadingText, setLoadingText] = useState('MO is thinking...');
+  const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
@@ -118,15 +119,6 @@ export function MobileAskMOPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-refresh function to trigger UI updates after successful MO actions
-  const triggerDataRefresh = useCallback((actionType?: string, data?: any) => {
-    if (actionType) {
-      triggerActionRefresh(actionType, data);
-    } else {
-      triggerActionRefresh('general_update');
-    }
-  }, []);
 
   // Auto-load most recent conversation on mount to persist state across refresh/navigation
   useEffect(() => {
@@ -188,13 +180,6 @@ export function MobileAskMOPage() {
           setMessages(prev => [...prev, successMsg]);
           setPendingAction(null);
           
-          // Trigger UI refresh after successful action
-          triggerDataRefresh('sale_recorded', { 
-            productId: result.data.productId, 
-            quantity: saleData.quantity, 
-            revenue: result.data.totalRevenue 
-          });
-          
           // Save conversation after successful action
           if (currentConversationId) {
             await saveConversation();
@@ -231,7 +216,7 @@ export function MobileAskMOPage() {
     } finally {
       setIsExecutingAction(false);
     }
-  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation, triggerDataRefresh]);
+  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation]);
 
   // Check for pre-filled question from other pages
   useEffect(() => {
@@ -375,10 +360,10 @@ export function MobileAskMOPage() {
     }
   };
 
-  const send = useCallback(async (message: string) => {
+  const send = useCallback(async (text?: string) => {
     const requestStartTime = Date.now();
     console.log('🚀 [MobileAskMO] send() called', { 
-      hasText: !!message, 
+      hasText: !!text, 
       hasInput: !!input, 
       hasImage: !!selectedImage, 
       hasAudio: !!audioBlob,
@@ -391,7 +376,7 @@ export function MobileAskMOPage() {
       return;
     }
     
-    const msg = (message ?? input).trim();
+    const msg = (text ?? input).trim();
     if (!msg && !selectedImage && !audioBlob) {
       console.log('⚠️ [MobileAskMO] No content to send');
       return;
@@ -454,23 +439,6 @@ export function MobileAskMOPage() {
     setIsTyping(true);
     setIsStreaming(true);
     setStreamedContent('');
-          
-    // Set initial dynamic loading text based on message content
-    if (finalMessage.toLowerCase().includes('sale') || finalMessage.toLowerCase().includes('sell')) {
-      setLoadingText('Analyzing your sales data...');
-    } else if (finalMessage.toLowerCase().includes('expense') || finalMessage.toLowerCase().includes('spend') || finalMessage.toLowerCase().includes('paid')) {
-      setLoadingText('Processing your expense entry...');
-    } else if (finalMessage.toLowerCase().includes('product') || finalMessage.toLowerCase().includes('add') || finalMessage.toLowerCase().includes('create')) {
-      setLoadingText('Adding to your product catalog...');
-    } else if (finalMessage.toLowerCase().includes('report') || finalMessage.toLowerCase().includes('show') || finalMessage.toLowerCase().includes('analyze') || finalMessage.toLowerCase().includes('how much') || finalMessage.toLowerCase().includes('what are')) {
-      setLoadingText('Generating business insights...');
-    } else if (finalMessage.toLowerCase().includes('inventory') || finalMessage.toLowerCase().includes('stock')) {
-      setLoadingText('Checking your inventory...');
-    } else if (finalMessage.toLowerCase().includes('customer') || finalMessage.toLowerCase().includes('client')) {
-      setLoadingText('Looking up customer data...');
-    } else {
-      setLoadingText('MO is thinking...');
-    }
     setLoadingText('Thinking');
 
     // Create conversation immediately on first message (before API call)
@@ -629,24 +597,6 @@ export function MobileAskMOPage() {
           const updatedMessagesWithCard = [...messages, userMsg, botMsgWithCard];
           await saveMessages(currentConversationId, updatedMessagesWithCard);
         }
-      } else if (data.intent && (data.intent.intent === 'add_expense' || data.intent.intent === 'record_sale' || data.intent.intent === 'add_product')) {
-        // Trigger UI refresh for successful actions that modify business data
-        if (data.actionResult && data.actionResult.success) {
-          console.log('🔄 [MobileAskMO] Data modification detected, triggering UI refresh');
-          let actionType = 'general_update';
-          switch(data.intent.intent) {
-            case 'record_sale':
-              actionType = 'sale_recorded';
-              break;
-            case 'add_expense':
-              actionType = 'expense_added';
-              break;
-            case 'add_product':
-              actionType = 'product_added';
-              break;
-          }
-          triggerDataRefresh(actionType, data.actionResult.data);
-        }
       }
 
       const totalTime = Date.now() - requestStartTime;
@@ -705,358 +655,541 @@ export function MobileAskMOPage() {
       setLoadingText('');
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef, triggerDataRefresh]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef]);
+
+  const cancelPendingAction = useCallback(async () => {
+    const cancelMsg: MOMessage = {
+      id: (Date.now()).toString(),
+      role: 'bot',
+      content: 'Sale recording cancelled.',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, cancelMsg]);
+    setPendingAction(null);
+    
+    // Save conversation after cancellation
+    if (currentConversationId) {
+      await saveConversation();
+    }
+  }, [currentConversationId, saveConversation]);
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function formatContent(content: string, role: 'user' | 'bot' = 'bot') {
+    // Split by newlines first
+    const lines = content.split('\n');
+    
+    // For user messages, use white text (on purple background)
+    // For bot messages, use text-1 color
+    const textColor = role === 'user' ? 'white' : 'var(--text-1)';
+    
+    return lines.map((line, lineIndex) => {
+      // Skip empty lines but preserve spacing
+      if (!line.trim()) {
+        return <div key={lineIndex} style={{ height: '0.5rem' }} />;
+      }
+      
+      // Check for table row (starts with |)
+      if (line.trim().startsWith('|')) {
+        const cells = line.split('|').filter(cell => cell.trim() !== '');
+        return (
+          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '13px', overflowX: 'auto' }}>
+            {cells.map((cell, cellIndex) => (
+              <div key={cellIndex} style={{
+                flex: 1,
+                minWidth: '80px',
+                padding: '6px 8px',
+                background: cellIndex === 0 ? 'var(--bg-3)' : 'var(--bg-2)',
+                borderRadius: '4px',
+                color: textColor,
+                fontWeight: cellIndex === 0 ? 600 : 400,
+                fontSize: cellIndex === 0 ? '12px' : '13px'
+              }}>
+                {cell.trim()}
+              </div>
+            ))}
+          </div>
+        );
+      }
+      
+      // Check for list items (starts with - or *)
+      if (line.trim().match(/^[-*]\s+/)) {
+        const listContent = line.trim().replace(/^[-*]\s+/, '');
+        return (
+          <div key={lineIndex} style={{ display: 'flex', gap: '8px', marginBottom: '6px', color: textColor }}>
+            <span style={{ color: role === 'user' ? 'rgba(255,255,255,0.8)' : 'var(--primary)', fontWeight: 600 }}>•</span>
+            <span style={{ lineHeight: '1.6' }}>{formatInlineMarkdown(listContent, role)}</span>
+          </div>
+        );
+      }
+      
+      // Check for headers (starts with #)
+      if (line.trim().startsWith('#')) {
+        const headerContent = line.trim().replace(/^#+\s+/, '');
+        const headerLevel = line.match(/^#+/)?.[0].length || 1;
+        const fontSize = headerLevel === 1 ? '18px' : headerLevel === 2 ? '16px' : '14px';
+        return (
+          <div key={lineIndex} style={{
+            fontSize,
+            fontWeight: 600,
+            color: textColor,
+            marginBottom: '12px',
+            marginTop: '8px'
+          }}>
+            {formatInlineMarkdown(headerContent, role)}
+          </div>
+        );
+      }
+      
+      // Regular paragraph with inline markdown
+      return (
+        <React.Fragment key={lineIndex}>
+          <span style={{ lineHeight: '1.7', display: 'block', marginBottom: lineIndex < lines.length - 1 && lines[lineIndex + 1].trim() ? '0.75rem' : '0', color: textColor }}>
+            {formatInlineMarkdown(line, role)}
+          </span>
+        </React.Fragment>
+      );
+    });
+  }
+  
+  function formatInlineMarkdown(text: string, role: 'user' | 'bot' = 'bot') {
+    // Bold with **text**
+    let parts = text.split(/\*\*([^*]+)\*\*/g);
+    const textColor = role === 'user' ? 'white' : 'var(--text-1)';
+    const formatted = parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={index} style={{ fontWeight: 600, color: textColor }}>{part}</strong>;
+      }
+      // Italic with *text*
+      const italicParts = part.split(/\*([^*]+)\*/g);
+      if (italicParts.length > 1) {
+        return italicParts.map((italicPart, i) => {
+          if (i % 2 === 1) {
+            return <em key={i} style={{ fontStyle: 'italic' }}>{italicPart}</em>;
+          }
+          return italicPart;
+        });
+      }
+      return part;
+    });
+    return formatted;
+  }
+
+  function formatRecordingTime(seconds: number) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function shouldShowActionChips(message: MOMessage): boolean {
+    // Only show action chips for bot messages with analytics/data content
+    if (message.role !== 'bot') return false;
+    
+    const content = message.content.toLowerCase();
+    const analyticsKeywords = ['sales', 'revenue', 'profit', 'inventory', 'stock', 'forecast', 'report', 'analytics', 'data', 'trend', 'growth', 'performance'];
+    
+    // Check if content contains analytics-related keywords
+    const hasAnalyticsContent = analyticsKeywords.some(keyword => content.includes(keyword));
+    
+    // Don't show for greetings, confirmations, short answers, or errors
+    const isShortResponse = message.content.length < 100;
+    const isGreeting = /^(hi|hello|hey|good morning|good afternoon|good evening)/i.test(content);
+    const isConfirmation = /^(yes|no|ok|sure|certainly|absolutely|of course|understood|got it)/i.test(content);
+    const isError = content.includes('error') || content.includes('sorry') || content.includes('apologize');
+    
+    return hasAnalyticsContent && !isShortResponse && !isGreeting && !isConfirmation && !isError;
+  }
+
+  // Prevent mobile page from showing on desktop breakpoint
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Redirect to desktop Ask MO if on desktop
+  useEffect(() => {
+    if (!isMobile) {
+      // On desktop, redirect to home page which will show the AI panel
+      navigateTo('home');
+    }
+  }, [isMobile, navigateTo]);
+
+  if (!isMobile) {
+    return null;
+  }
 
   return (
-    <div className={`${styles.container} ${theme}`}>
+    <div className={styles.container} data-theme={theme}>
       {/* Header */}
       <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <button 
-            className={styles.backButton} 
-            onClick={() => navigateTo('home')}
-            aria-label="Back to dashboard"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <div className={styles.headerTitle}>
-            <div className={styles.moAvatarLg}>
-              <MoIcon size={24} />
-            </div>
-            <div>
-              <h2>MO AI Assistant</h2>
-              <p className={styles.statusText}>Online • Ready to help</p>
-            </div>
-          </div>
+        <button className={styles.backBtn} onClick={() => navigateTo('home')} title="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div className={styles.moAvatar}>
+          <MoIcon size={18} />
         </div>
-        <div className={styles.headerRight}>
-          <button 
-            className={`${styles.historyBtn} ${showHistory ? styles.active : ''}`}
-            onClick={() => setShowHistory(!showHistory)}
-            aria-label="Chat history"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-          </button>
-          <button 
-            className={styles.newChatBtn}
-            onClick={resetToNewChat}
-            aria-label="New chat"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
+        <h3 className={styles.headerTitle}>Ask MO</h3>
+        <div 
+          className={styles.tokenCounter}
+          onClick={() => setShowCreditPurchase(true)}
+          style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
+          title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
+        >
+          <img
+            src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
+            alt="Token"
+            width={14}
+            height={14}
+            style={{ borderRadius: '50%' }}
+          />
+          <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
+          {creditsRemaining !== -1 && (
+            <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className={`${styles.mainContent} ${showHistory ? styles.historyOpen : ''}`}>
-        {/* History Panel */}
-        {showHistory && (
-          <div className={styles.historyPanel}>
-            <div className={styles.historyHeader}>
-              <h3>Chat History</h3>
-              <button onClick={() => setShowHistory(false)} className={styles.closeHistory}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            <div className={styles.historyList}>
-              {conversations.length > 0 ? (
-                conversations.map((conv) => (
-                  <div 
-                    key={conv.id}
-                    className={`${styles.historyItem} ${currentConversationId === conv.id ? styles.active : ''}`}
-                    onClick={() => {
-                      loadConversation(conv.id);
-                      setShowHistory(false);
-                    }}
-                  >
-                    <div className={styles.historyItemContent}>
-                      <div className={styles.historyTitle}>{conv.title}</div>
-                      <div className={styles.historyDate}>
-                        {conv.updatedAt.toLocaleDateString(langMeta.code, { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </div>
-                    </div>
+      <CreditPurchaseModal 
+        isOpen={showCreditPurchase}
+        onClose={() => setShowCreditPurchase(false)}
+        onSuccess={handlePurchaseSuccess}
+      />
+
+      {/* Messages */}
+      <div className={styles.messages} ref={messagesContainerRef}>
+        {messages.length === 0 && conversations.length === 0 && (
+          <div className={styles.emptyChat}>
+            <div className={styles.emptyChatContent}>
+              <div className={styles.moAvatarLg}>
+                <MoIcon size={48} />
+              </div>
+              <h3>Hi, I'm Mo</h3>
+              <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--text-2)' }}>Your AI business assistant. Ask me anything about your business.</p>
+              
+              {dynamicSuggestions.length > 0 && (
+                <div className={styles.quickActions}>
+                  {dynamicSuggestions.map((suggestion, index) => (
                     <button
-                      className={styles.deleteConv}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Are you sure you want to delete this conversation?')) {
-                          deleteConversation(conv.id);
-                        }
+                      key={index}
+                      className={styles.quickActionChip}
+                      onClick={() => {
+                        setInput(suggestion.label);
+                        textareaRef.current?.focus();
                       }}
-                      aria-label="Delete conversation"
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 6H21M19 6V20C19 21 18 22 17 22H7C6 22 5 21 5 20V6M8 6V4C8 3 9 2 10 2H14C15 2 16 3 16 4V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                      {suggestion.icon}
+                      <span>{suggestion.label}</span>
                     </button>
-                  </div>
-                ))
-              ) : (
-                <div className={styles.noHistory}>
-                  <p>No conversations yet</p>
+                  ))}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Suggestions Panel */}
-        {!messages.length && !showHistory && (
-          <div className={styles.suggestionsPanel}>
-            <div className={styles.suggestionsHeader}>
-              <h3>How can MO help you?</h3>
-              <p>Quick examples to get started</p>
-            </div>
-            <div className={styles.suggestionsGrid}>
-              <button className={styles.suggestionChip} onClick={() => send("Analyze my sales")}>
-                <div className={styles.suggestionIcon}>📊</div>
-                <span>Analyze sales</span>
-              </button>
-              <button className={styles.suggestionChip} onClick={() => send("Cash flow summary")}>
-                <div className={styles.suggestionIcon}>📈</div>
-                <span>Cash flow</span>
-              </button>
-              <button className={styles.suggestionChip} onClick={() => send("Inventory insights")}>
-                <div className={styles.suggestionIcon}>📦</div>
-                <span>Inventory</span>
-              </button>
-              <button className={styles.suggestionChip} onClick={() => send("Business health check")}>
-                <div className={styles.suggestionIcon}>💡</div>
-                <span>Health check</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Chat Container */}
-        <div className={styles.chatContainer} ref={messagesContainerRef}>
-          {/* Messages will be rendered here */}
-          {messages.map((m, index) => (
-            <div key={m.id} className={`${styles.message} ${m.role}`}>
-              <div className={styles.avatarContainer}>
-                {m.role === 'user' ? (
-                  <div className={styles.userAvatar}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                  </div>
-                ) : (
-                  <div className={styles.botAvatarContainer}>
-                    <div className={styles.moAvatarSm}>
-                      <MoIcon size={18} />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className={`${styles.bubble} ${m.role === 'user' ? styles.userBubble : styles.botBubble}`}>
-                {m.imageUrl && (
-                  <div className={styles.imageContainer}>
-                    <img src={m.imageUrl} alt="Uploaded" />
-                  </div>
-                )}
-                {m.audioUrl && (
-                  <div className={styles.audioContainer}>
-                    <audio controls>
-                      <source src={m.audioUrl} type="audio/webm" />
-                      Your browser does not support the audio element.
-                    </audio>
-                  </div>
-                )}
-                <div className={styles.content}>
-                  {m.content.split('\n').map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                </div>
-                {m.quickActions && (
-                  <div className={styles.quickActions}>
-                    {m.quickActions.map((action, i) => (
-                      <button key={i} onClick={() => send(action.action)}>
-                        {action.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {m.metrics && (
-                  <div className={styles.metrics}>
-                    {m.metrics.map((metric, i) => (
-                      <div key={i} className={styles.metric}>
-                        <span className={styles.metricLabel}>{metric.label}</span>
-                        <span className={styles.metricValue}>{metric.value}</span>
-                        {metric.trend && (
-                          <span className={styles.metricTrend}>
-                            {metric.trend === 'up' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {m.followUpSuggestions && (
-                  <div className={styles.followUpSuggestions}>
-                    {m.followUpSuggestions.map((suggestion, i) => (
-                      <button key={i} onClick={() => send(suggestion)}>
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {m.expandableSections && (
-                  <div className={styles.expandableSections}>
-                    {m.expandableSections.map((section, i) => (
-                      <div key={section.id} className={styles.expandableSection}>
-                        <button 
-                          className={styles.expandableHeader}
-                          onClick={() => {
-                            const newExpandedSections = new Set(expandedSections);
-                            if (newExpandedSections.has(section.id)) {
-                              newExpandedSections.delete(section.id);
-                            } else {
-                              newExpandedSections.add(section.id);
-                            }
-                            setExpandedSections(newExpandedSections);
-                          }}
-                        >
-                          {section.title}
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 18L9 12L15 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                        {expandedSections.has(section.id) && (
-                          <div className={styles.expandableContent}>
-                            {section.content.split('\n').map((line, i) => (
-                              <p key={i}>{line}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {m.alerts && (
-                  <div className={styles.alerts}>
-                    {m.alerts.map((alert, i) => (
-                      <div key={i} className={`${styles.alert} ${styles[`alert-${alert.type}`]}`}>
-                        {alert.message}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {m.saleCard && (
-                  <SaleConfirmationCard 
-                    items={m.saleCard.items}
-                    totalRevenue={m.saleCard.totalRevenue}
-                    totalProfit={m.saleCard.totalProfit}
-                    timestamp={m.saleCard.timestamp}
-                  />
-                )}
-              </div>
-            </div>
-          ))}
-
-          {isTyping && (
-            <div className={`${styles.message} ${styles.bot}`}>
+        {messages.map(m => (
+          <div
+            key={m.id}
+            className={`${styles.message} ${m.role === 'user' ? styles.user : styles.bot}`}
+          >
+            {m.role === 'bot' && (
               <div className={styles.botAvatarContainer}>
                 <div className={styles.moAvatarSm}>
                   <MoIcon size={18} />
                 </div>
               </div>
-              <div className={`${styles.bubble} ${styles.botBubble}`}>        
+            )}
+            <div className={`${styles.bubble} ${m.role === 'user' ? styles.userBubble : styles.botBubble}`}>
+              {m.imageUrl && (
+                <img
+                  src={m.imageUrl}
+                  alt="Uploaded"
+                  style={{
+                    maxWidth: '200px',
+                    borderRadius: '8px',
+                    marginBottom: '8px',
+                    display: 'block',
+                  }}
+                />
+              )}
+              {m.audioUrl && (
+                <audio
+                  src={m.audioUrl}
+                  controls
+                  style={{
+                    width: '100%',
+                    maxWidth: '250px',
+                    marginBottom: '8px',
+                    display: 'block',
+                  }}
+                />
+              )}
+              {formatContent(m.content, m.role)}
+              {/* Sale Confirmation */}
+              {m.role === 'bot' && m.saleCard && (
+                <div style={{ marginTop: '12px' }}>
+                  <SaleConfirmationCard
+                    items={m.saleCard.items}
+                    totalRevenue={m.saleCard.totalRevenue}
+                    totalProfit={m.saleCard.totalProfit}
+                    timestamp={m.saleCard.timestamp}
+                  />
+                  {pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={executePendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        onClick={cancelPendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--bg-2)',
+                          color: 'var(--text-1)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {m.role === 'bot' && m.metrics && m.metrics.length > 0 && (
+                <div className={styles.metrics}>
+                  {m.metrics.map((metric, idx) => (
+                    <div key={idx} className={styles.metric}>
+                      <span className={styles.metricLabel}>{metric.label}</span>
+                      <span className={styles.metricValue}>{metric.value}</span>
+                      {metric.trend && (
+                        <span className={`${styles.metricTrend} ${metric.trend.startsWith('+') ? styles.trendUp : styles.trendDown}`}>
+                          {metric.trend}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {m.role === 'bot' && shouldShowActionChips(m) && m.quickActions && m.quickActions.length > 0 && (
+                <div className={styles.quickActions}>
+                  {m.quickActions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      className={styles.quickAction}
+                      onClick={() => send(action.action)}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {m.role === 'bot' && shouldShowActionChips(m) && m.followUpSuggestions && m.followUpSuggestions.length > 0 && (
+                <div className={styles.followUpSuggestions}>
+                  <span className={styles.followUpLabel}>Explore:</span>
+                  {m.followUpSuggestions.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      className={styles.followUpSuggestion}
+                      onClick={() => send(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {m.role === 'bot' && m.expandableSections && m.expandableSections.length > 0 && (
+                <div className={styles.expandableSections}>
+                  {m.expandableSections.map((section, idx) => {
+                    const isExpanded = expandedSections.has(section.id);
+                    return (
+                      <div key={idx} className={styles.expandableSection}>
+                        <button
+                          className={styles.expandableHeader}
+                          onClick={() => {
+                            setExpandedSections(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(section.id)) {
+                                newSet.delete(section.id);
+                              } else {
+                                newSet.add(section.id);
+                              }
+                              return newSet;
+                            });
+                          }}
+                        >
+                          <span className={styles.expandableTitle}>{section.title}</span>
+                          <span className={`${styles.expandableIcon} ${isExpanded ? styles.expanded : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <div className={styles.expandableContent}>
+                            {formatContent(section.content)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className={`${styles.message} ${styles.bot}`}>
+            <div className={styles.botAvatarContainer}>
+              <div className={styles.moAvatarSm}>
+                <MoIcon size={18} />
+              </div>
+            </div>
+            <div className={`${styles.bubble} ${styles.botBubble}`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className={styles.typingIndicator}>
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-                <span className={styles.loadingText}>{loadingText}</span>   
+                <span className={styles.loadingText}>{loadingText}</span>
               </div>
             </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-        {/* Input Area */}
-        <div className={styles.inputContainer}>
-          <div className={styles.inputWrapper}>
-            <textarea 
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  send('');
-                }
+
+      {/* Input */}
+      <div className={styles.inputArea}>
+        {imagePreview && (
+          <div className={styles.imagePreview}>
+            <img src={imagePreview} alt="Preview" />
+            <button
+              className={styles.removeImage}
+              onClick={() => {
+                setSelectedImage(null);
+                setImagePreview(null);
               }}
-            />
-            <button 
-              className={styles.sendBtn}
-              onClick={() => send('')}
-              disabled={isSending}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 12L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 2L12 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              ✕
             </button>
           </div>
-          <div className={styles.inputActions}>
-            <button 
-              className={styles.actionBtn}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSending}
+        )}
+        {audioUrl && (
+          <div className={styles.audioPreview}>
+            <audio src={audioUrl} controls />
+            <button
+              className={styles.removeAudio}
+              onClick={() => {
+                setAudioBlob(null);
+                setAudioUrl(null);
+                setRecordingTime(0);
+              }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L12 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M19 15L12 12L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button 
-              className={styles.actionBtn}
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isSending}
-            >
-              {isRecording ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
-                </svg>
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L12 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M19 15L12 12L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-            <button 
-              className={styles.actionBtn}
-              onClick={cancelRecording}
-              disabled={isSending}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              ✕
             </button>
           </div>
-          <input 
-            type="file" 
+        )}
+        <div className={styles.inputWrapper}>
+          <button
+            className={styles.attachBtn}
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload image"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+          <input
             ref={fileInputRef}
+            type="file"
             accept="image/*"
-            onChange={handleImageSelect}
             style={{ display: 'none' }}
+            onChange={handleImageSelect}
           />
+          <button
+            className={`${styles.micBtn} ${isRecording ? styles.recording : ''}`}
+            onClick={isRecording ? stopRecording : startRecording}
+            title={isRecording ? "Stop recording" : "Record voice"}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          {isRecording && (
+            <span className={styles.recordingTime}>{formatRecordingTime(recordingTime)}</span>
+          )}
+          <textarea
+            ref={textareaRef}
+            className={styles.input}
+            placeholder={isRecording ? "Recording..." : "Ask MO..."}
+            value={input}
+            onChange={e => {
+              setInput(e.target.value);
+              if (textareaRef.current) autoResize(textareaRef.current);
+            }}
+            onKeyDown={handleKey}
+            rows={1}
+            disabled={isRecording || isTranscribing}
+            inputMode="text"
+          />
+          {isRecording && (
+            <button
+              className={styles.cancelRecordingBtn}
+              onClick={cancelRecording}
+              title="Cancel recording"
+            >
+              ✕
+            </button>
+          )}
+          <button
+            className={styles.sendBtn}
+            onClick={() => send()}
+            disabled={!input.trim() && !selectedImage && !audioBlob}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
