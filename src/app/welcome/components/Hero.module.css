@@ -37,20 +37,23 @@
   align-items: center;
   gap: 40px;
   justify-content: space-between;
+  flex-wrap: nowrap;
 }
 
 .hero-text-content {
-  flex: 1;
-  max-width: 480px;
+  flex: 1 1 50%;
+  max-width: 520px;
   text-align: left;
 }
 
 .hero-image-container {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   order: 2;
+  width: 240px;
+  height: 240px;
 }
 
 .image-wrapper {
