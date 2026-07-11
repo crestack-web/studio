@@ -1,4 +1,4 @@
-t "use client";
+"use client";
 
 import React from 'react';
 import { Page } from '../types';
