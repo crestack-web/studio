@@ -775,14 +775,14 @@ export function WarehousePage() {
           <Icon name="home" size={16} />
           <span style={{ marginLeft: 6 }}>Overview</span>
         </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'pending' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          <Icon name="clipboard" size={16} />
-          <span style={{ marginLeft: 6 }}>Pending Releases</span>
-          {pendingInvoices.length > 0 && <span className={styles.tabBadge}>{pendingInvoices.length}</span>}
-        </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'pending' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('pending')}
+          >
+            <Icon name="inbox" size={16} />
+            <span style={{ marginLeft: 6 }}>Pending Releases</span>
+            {pendingInvoices.length > 0 && <span className={styles.tabBadge}>{pendingInvoices.length}</span>}
+          </button>
         <button
           className={`${styles.tabButton} ${activeTab === 'released' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('released')}
@@ -804,26 +804,26 @@ export function WarehousePage() {
           <Icon name="stock-transfers" size={16} />
           <span style={{ marginLeft: 6 }}>Transfers</span>
         </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('requests')}
-        >
-          <Icon name="box" size={16} />
-          <span style={{ marginLeft: 6 }}>Stock Requests</span>
-          {stockRequests.filter(r => r.status === 'pending').length > 0 && (
-            <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
-          )}
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('returns')}
-        >
-          <Icon name="archive" size={16} />
-          <span style={{ marginLeft: 6 }}>Returns</span>
-          {returns.filter(r => r.status === 'pending').length > 0 && (
-            <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
-          )}
-        </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('requests')}
+          >
+            <Icon name="package" size={16} />
+            <span style={{ marginLeft: 6 }}>Stock Requests</span>
+            {stockRequests.filter(r => r.status === 'pending').length > 0 && (
+              <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
+            )}
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('returns')}
+          >
+            <Icon name="rotate" size={16} />
+            <span style={{ marginLeft: 6 }}>Returns</span>
+            {returns.filter(r => r.status === 'pending').length > 0 && (
+              <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
+            )}
+          </button>
       </div>
 
       {/* Overview Tab */}
@@ -920,10 +920,10 @@ export function WarehousePage() {
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
                   <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && <Icon name="warehouse" size={24} />}
+                      {location.type === 'main_store' && <Icon name="shop" size={24} />}
                       {location.type === 'back_store' && <Icon name="package" size={24} />}
                       {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="warehouse" size={24} />}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="map-pin" size={24} />}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -963,9 +963,9 @@ export function WarehousePage() {
             >
               <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
-                  <div className={styles.locationIcon}><Icon name="reports" size={24} /></div>
-                  <h3 className={styles.locationName}>All Locations</h3>
-                </div>
+                   <div className={styles.locationIcon}><Icon name="branches" size={24} /></div>
+                   <h3 className={styles.locationName}>All Locations</h3>
+                 </div>
               </div>
               <div className={styles.locationStats}>
                 <div className={styles.locationStat}>
@@ -1005,7 +1005,7 @@ export function WarehousePage() {
           {pendingInvoices.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
-                <Icon name="clipboard" size={48} />
+                <Icon name="check-circle" size={48} />
               </div>
               <h3>No Pending Releases</h3>
               <p>All invoices have been processed</p>
@@ -1117,7 +1117,7 @@ export function WarehousePage() {
           {stockRequests.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
-                <Icon name="package" size={48} />
+                <Icon name="inbox" size={48} />
               </div>
               <h3>No Stock Requests</h3>
               <p>No stock requests have been submitted yet</p>
@@ -1175,7 +1175,7 @@ export function WarehousePage() {
           {returns.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
-                <Icon name="rotate" size={48} />
+                <Icon name="archive" size={48} />
               </div>
               <h3>No Returns</h3>
               <p>No returns have been submitted yet</p>
@@ -1240,10 +1240,10 @@ export function WarehousePage() {
                 <div className={styles.locationHeader}>
                   <div className={styles.locationContent}>
                     <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && <Icon name="warehouse" size={24} />}
+                      {location.type === 'main_store' && <Icon name="shop" size={24} />}
                       {location.type === 'back_store' && <Icon name="package" size={24} />}
                       {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="warehouse" size={24} />}
+                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="map-pin" size={24} />}
                     </div>
                     <h3 className={styles.locationName}>{location.name}</h3>
                   </div>
@@ -1296,7 +1296,7 @@ export function WarehousePage() {
           {transferHistory.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
-                <Icon name="reports" size={48} />
+                <Icon name="truck" size={48} />
               </div>
               <h3>No Transfer History</h3>
               <p>No stock transfers have been recorded yet</p>
@@ -1306,7 +1306,7 @@ export function WarehousePage() {
               {transferHistory.map(transfer => (
                 <div key={transfer.id} className={styles.historyItem}>
                   <div className={styles.historyIcon}>
-                    <Icon name="stock-transfers" size={24} />
+                    <Icon name="truck" size={24} />
                   </div>
                   <div className={styles.historyContent}>
                     <div className={styles.historyProduct}>{transfer.productName}</div>

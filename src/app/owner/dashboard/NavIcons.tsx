@@ -131,6 +131,8 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
       return <svg {...base} style={s}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>;
     case 'box':
       return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
+    case 'shop':
+      return <svg {...base} style={s}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.29-.57A2 2 0 004.16 9H2M17 13l2.29-.57A2 2 0 0021.84 9H22M17 13l2-8h-9M17 13l2.29-.57A2 2 0 0021.84 9M9 21a1 1 0 100-2 1 1 0 000 2z"/><path d="M19 21a1 1 0 100-2 1 1 0 000 2z"/></svg>;
     case 'truck':
       return <svg {...base} style={s}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
     case 'archive':
