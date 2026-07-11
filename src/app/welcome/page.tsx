@@ -163,6 +163,30 @@ export default function WelcomePage() {
               <div className="feat-desc">Record sales and manage inventory without internet. Syncs automatically when back online.</div>
               <span className="feat-tag">Offline-first</span>
             </div>
+            <div className="feat-card">
+              <div className="feat-icon">💰</div>
+              <div className="feat-title">Expense Management</div>
+              <div className="feat-desc">Track every naira going out. Log expenses by category, attach receipts, and understand where your money goes.</div>
+              <span className="feat-tag">Financial Control</span>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon">📈</div>
+              <div className="feat-title">Cash Flow Monitoring</div>
+              <div className="feat-desc">See money in vs money out in real-time. Visualize cash flow trends and never run out of working capital.</div>
+              <span className="feat-tag">Essential</span>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon">🏦</div>
+              <div className="feat-title">Credit Tracking</div>
+              <div className="feat-desc">Manage customer credit limits, track outstanding balances, and get alerts for overdue payments. Control credit risk.</div>
+              <span className="feat-tag">Growth</span>
+            </div>
+            <div className="feat-card">
+              <div className="feat-icon">💎</div>
+              <div className="feat-title">Money Control</div>
+              <div className="feat-desc">Complete financial oversight — view profit margins, identify money leaks, and make data-driven decisions to grow wealth.</div>
+              <span className="feat-tag">Premium</span>
+            </div>
           </div>
         </div>
       </section>
