@@ -5,7 +5,6 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { Plus, Edit2, Trash2, Search, Users, DollarSign, TrendingUp, Phone, Mail, MapPin, Calendar, Filter } from 'lucide-react';
 import styles from './CustomersPage.module.css';
 
@@ -68,19 +67,7 @@ export default function CustomersPage() {
     city: '',
     notes: '',
   });
-
-  // Check feature access
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (user?.id) {
-        const hasAccess = await checkFeatureAccess(user.id, 'customer-management');
-        if (!hasAccess.eligible) {
-          showToast('This feature requires a Standard plan or higher');
-        }
-      }
-    };
-    checkAccess();
-  }, [user]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load customers
   useEffect(() => {
@@ -159,7 +146,10 @@ export default function CustomersPage() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return; // Prevent double submission
+    
     try {
+      setIsSaving(true);
       if (!user?.businessId) return;
       
       const { firestore } = initializeFirebase();
@@ -195,6 +185,8 @@ export default function CustomersPage() {
     } catch (error) {
       console.error('Failed to save customer:', error);
       showToast('Failed to save customer');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -599,8 +591,9 @@ export default function CustomersPage() {
               <button
                 onClick={handleSave}
                 className={`${styles.modalButton} ${styles.primary}`}
+                disabled={isSaving}
               >
-                {editingCustomer ? 'Update' : 'Add'}
+                {isSaving ? 'Saving...' : (editingCustomer ? 'Update' : 'Add')}
               </button>
             </div>
           </div>
