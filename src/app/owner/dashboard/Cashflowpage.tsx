@@ -66,6 +66,7 @@ export default function Cashflowpage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
   const [activeAction, setActiveAction] = useState<ActionId>(null);
   const [stats, setStats] = useState({
     cashBalance: 0,
@@ -109,6 +110,7 @@ export default function Cashflowpage() {
   useEffect(() => {
     loadProducts();
     loadSuppliers();
+    loadPurchases();
   }, [businessId, firestore]);
 
   useEffect(() => {
@@ -159,6 +161,38 @@ export default function Cashflowpage() {
       setSuppliers(suppliersList);
     } catch (error) {
       console.error('Error loading suppliers:', error);
+    }
+  };
+
+  const loadPurchases = async () => {
+    if (!businessId || !firestore) return;
+    try {
+      const receiptsQuery = query(
+        collection(firestore, 'businesses', businessId, 'stockReceipts'),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      const receiptsSnapshot = await getDocs(receiptsQuery);
+      const purchasesList: any[] = [];
+      receiptsSnapshot.forEach(doc => {
+        const data = doc.data();
+        purchasesList.push({
+          id: doc.id,
+          receiptNumber: data.receiptNumber,
+          supplierId: data.supplierId,
+          supplierName: data.supplierName,
+          items: data.items || [],
+          totalQuantity: data.totalQuantity,
+          totalCost: data.totalCost,
+          paymentMethod: data.paymentMethod,
+          paidAmount: data.paidAmount,
+          creditAmount: data.creditAmount,
+          createdAt: data.createdAt?.toDate() || new Date(),
+        });
+      });
+      setPurchases(purchasesList);
+    } catch (error) {
+      console.error('Error loading purchases:', error);
     }
   };
 
@@ -842,6 +876,7 @@ export default function Cashflowpage() {
       loadProducts();
       loadData();
       loadSuppliers();
+      loadPurchases();
     } catch (error: any) {
       console.error('Error recording purchase:', error);
       showToast(`❌ Failed to record purchase: ${error.message || 'Unknown error'}`);
@@ -1639,6 +1674,65 @@ export default function Cashflowpage() {
                 </div>
                 <div className={`${styles.transactionAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
                   {t.credit ? '+' : '-'}{formatMoney(t.amount)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── PURCHASE LIST ── */}
+      <div className={styles.transactionsSection}>
+        <h2 className={styles.sectionTitle}>Purchase List</h2>
+        {purchases.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.3 }}>
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <div style={{ fontWeight: 600, marginBottom: '4px' }}>No purchases recorded</div>
+            <div style={{ fontSize: '0.8rem' }}>Add stock purchases to see them here</div>
+          </div>
+        ) : (
+          <div className={styles.transactionList}>
+            {purchases.map(p => (
+              <div key={p.id} className={styles.transactionCard}>
+                <div className={styles.transactionHeader}>
+                  <span className={styles.transactionNumber}>{p.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                  <span className={`${styles.transactionType} ${p.creditAmount > 0 ? styles.moneyOut : styles.moneyIn}`}>
+                    {p.paymentMethod.toUpperCase()}
+                  </span>
+                </div>
+                <div className={styles.transactionDetails}>
+                  <div className={styles.transactionDetail}>
+                    <span className={styles.transactionLabel}>Receipt:</span>
+                    <span className={styles.transactionValue}>{p.receiptNumber}</span>
+                  </div>
+                  <div className={styles.transactionDetail}>
+                    <span className={styles.transactionLabel}>Supplier:</span>
+                    <span className={styles.transactionValue}>{p.supplierName || 'No supplier'}</span>
+                  </div>
+                  <div className={styles.transactionDetail}>
+                    <span className={styles.transactionLabel}>Items:</span>
+                    <span className={styles.transactionValue}>{p.items.map((i: any) => i.productName).join(', ')}</span>
+                  </div>
+                </div>
+                <div className={styles.transactionDetails}>
+                  <div className={styles.transactionDetail}>
+                    <span className={styles.transactionLabel}>Total Cost:</span>
+                    <span className={styles.transactionValue}>{formatMoney(p.totalCost)}</span>
+                  </div>
+                  {p.creditAmount > 0 && (
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Credit:</span>
+                      <span className={`${styles.transactionValue} ${styles.moneyOut}`}>{formatMoney(p.creditAmount)}</span>
+                    </div>
+                  )}
+                  {p.paidAmount > 0 && (
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Paid:</span>
+                      <span className={`${styles.transactionValue} ${styles.moneyIn}`}>{formatMoney(p.paidAmount)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
