@@ -141,22 +141,20 @@ export default function Cashflowpage() {
   const loadSuppliers = async () => {
     if (!businessId || !firestore) return;
     try {
-      const suppliersQuery = query(
-        collection(firestore, 'businesses', businessId, 'suppliers'),
-        where('active', '==', true)
-      );
-      const suppliersSnapshot = await getDocs(suppliersQuery);
+      const suppliersSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'suppliers'));
       const suppliersList: Supplier[] = [];
       suppliersSnapshot.forEach(doc => {
         const data = doc.data();
-        suppliersList.push({
-          id: doc.id,
-          supplierName: data.supplierName || 'Unnamed Supplier',
-          businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
-          phone: data.phone,
-          email: data.email,
-          currentBalance: data.currentBalance || 0,
-        });
+        if (data.status === 'active') {
+          suppliersList.push({
+            id: doc.id,
+            supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
+            businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
+            phone: data.phone || '',
+            email: data.email,
+            currentBalance: data.currentBalance || 0,
+          });
+        }
       });
       setSuppliers(suppliersList);
     } catch (error) {
