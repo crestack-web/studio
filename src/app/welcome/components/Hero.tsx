@@ -1,9 +1,8 @@
-"use client";
+t "use client";
 
 import React from 'react';
 import { Page } from '../types';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
-import { OfflineSaleSection } from './OfflineSaleSection';
 
 interface HeroProps {
   onNavigate: (page: Page) => void;
@@ -47,11 +46,6 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => (
             />
           </div>
         </div>
-      </div>
-
-      {/* Works Offline Section */}
-      <div className="offline-section-wrapper">
-        <OfflineSaleSection />
       </div>
 
       {/* Dashboard preview cards */}
