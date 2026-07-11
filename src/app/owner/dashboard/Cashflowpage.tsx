@@ -78,6 +78,8 @@ export default function Cashflowpage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [transactionLimit, setTransactionLimit] = useState(5);
+  const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
 
   // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
@@ -1782,7 +1784,32 @@ export default function Cashflowpage() {
 
       {/* ── TRANSACTIONS LIST ── */}
       <div className={styles.transactionsSection}>
-        <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Show:</span>
+            {[2, 5, 10, 20].map(limit => (
+              <button
+                key={limit}
+                onClick={() => setTransactionLimit(limit)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: transactionLimit === limit ? '2px solid var(--purple)' : '1px solid var(--border)',
+                  background: transactionLimit === limit ? 'var(--purple)' : 'var(--surface)',
+                  color: transactionLimit === limit ? '#fff' : 'var(--text-1)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: transactionLimit === limit ? 600 : 400,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {limit}
+              </button>
+            ))}
+          </div>
+        </div>
+        
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
             {t('common.loading')}...
@@ -1797,29 +1824,77 @@ export default function Cashflowpage() {
           </div>
         ) : (
           <div className={styles.transactionList}>
-            {transactions.map(t => (
-              <div key={t.id} className={styles.transactionCard}>
-                <div className={styles.transactionHeader}>
-                  <span className={styles.transactionNumber}>{t.date}</span>
-                  <span className={`${styles.transactionType} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
-                    {t.credit ? '↑' : '↓'} {t.type}
-                  </span>
-                </div>
-                <div className={styles.transactionDetails}>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Account:</span>
-                    <span className={styles.transactionValue}>{t.accountName || 'N/A'}</span>
+            {transactions.slice(0, transactionLimit).map(t => {
+              const isExpanded = expandedTransaction === t.id;
+              return (
+                <div 
+                  key={t.id} 
+                  className={styles.transactionCard}
+                  onClick={() => setExpandedTransaction(isExpanded ? null : t.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className={styles.transactionHeader}>
+                    <span className={styles.transactionNumber}>{t.date}</span>
+                    <span className={`${styles.transactionType} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                      {t.credit ? '↑' : '↓'} {t.type}
+                    </span>
                   </div>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Description:</span>
-                    <span className={styles.transactionValue}>{t.description}</span>
+                  <div className={styles.transactionDetails}>
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Account:</span>
+                      <span className={styles.transactionValue}>{t.accountName || 'N/A'}</span>
+                    </div>
+                    <div className={styles.transactionDetail}>
+                      <span className={styles.transactionLabel}>Description:</span>
+                      <span className={styles.transactionValue}>{t.description}</span>
+                    </div>
                   </div>
+                  <div className={`${styles.transactionAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                    {t.credit ? '+' : '-'}{formatMoney(t.amount)}
+                  </div>
+                  
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className={styles.expandedDetails} onClick={e => e.stopPropagation()}>
+                      <div className={styles.transactionDetail}>
+                        <span className={styles.transactionLabel}>Transaction ID:</span>
+                        <span className={styles.transactionValue}>{t.id}</span>
+                      </div>
+                      <div className={styles.transactionDetail}>
+                        <span className={styles.transactionLabel}>Type:</span>
+                        <span className={styles.transactionValue}>{t.type}</span>
+                      </div>
+                      <div className={styles.transactionDetail}>
+                        <span className={styles.transactionLabel}>Amount:</span>
+                        <span className={`${styles.transactionValue} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                          {t.credit ? 'Credit' : 'Debit'}: {formatMoney(t.amount)}
+                        </span>
+                      </div>
+                      <div className={styles.transactionDetail}>
+                        <span className={styles.transactionLabel}>Date:</span>
+                        <span className={styles.transactionValue}>{t.date}</span>
+                      </div>
+                      {t.accountName && (
+                        <div className={styles.transactionDetail}>
+                          <span className={styles.transactionLabel}>Account Name:</span>
+                          <span className={styles.transactionValue}>{t.accountName}</span>
+                        </div>
+                      )}
+                      <div className={styles.transactionDetail}>
+                        <span className={styles.transactionLabel}>Description:</span>
+                        <span className={styles.transactionValue}>{t.description || 'No description'}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className={`${styles.transactionAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
-                  {t.credit ? '+' : '-'}{formatMoney(t.amount)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+        
+        {!loading && transactions.length > transactionLimit && (
+          <div style={{ textAlign: 'center', marginTop: '16px', color: 'var(--text-3)', fontSize: '0.9rem' }}>
+            Showing {transactionLimit} of {transactions.length} transactions. Click a chip to view more.
           </div>
         )}
       </div>

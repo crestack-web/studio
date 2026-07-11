@@ -960,6 +960,77 @@
   }
 }
 
+/* Expanded Transaction Details */
+.expandedDetails {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: expandIn 0.3s ease-out;
+  background: var(--bg);
+  padding: 16px;
+  border-radius: 12px;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Transaction Limit Chips */
+.transactionLimitChips {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.limitChip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.limitChip:hover {
+  border-color: var(--purple);
+  transform: translateY(-1px);
+}
+
+.limitChip.active {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
+}
+
+/* Transaction Counter */
+.transactionCounter {
+  text-align: center;
+  margin-top: 16px;
+  padding: 12px;
+  color: var(--text-3);
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
 /* Scrollbar Styling */
 .page::-webkit-scrollbar {
   height: 8px;
