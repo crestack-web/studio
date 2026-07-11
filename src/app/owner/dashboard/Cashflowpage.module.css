@@ -179,9 +179,10 @@
 }
 
 .accountHeader {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 8px 14px;
   margin-bottom: 16px;
 }
 
@@ -199,7 +200,8 @@
 }
 
 .accountInfo {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
 }
 
@@ -218,27 +220,33 @@
 }
 
 .defaultBadge {
-  padding: 5px 10px;
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 6px 12px;
   background: linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%);
   color: #16A34A;
   border-radius: 8px;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
+  white-space: nowrap;
 }
 
 .posDefaultBadge {
-  padding: 5px 10px;
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 6px 12px;
   background: linear-gradient(135deg, #EDE8FC 0%, #DDD6FE 100%);
   color: #7C3AED;
   border-radius: 8px;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   box-shadow: 0 2px 6px rgba(124, 58, 237, 0.15);
+  white-space: nowrap;
 }
 
 .accountBalance {
