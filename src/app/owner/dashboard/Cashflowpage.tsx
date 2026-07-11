@@ -80,6 +80,8 @@ export default function Cashflowpage() {
   const [customEndDate, setCustomEndDate] = useState('');
   const [transactionLimit, setTransactionLimit] = useState(5);
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
@@ -1051,10 +1053,57 @@ export default function Cashflowpage() {
     confirm(`${action}: ${description} - ${formatMoney(parseFloat(amount))}`);
   }
 
+  // Get unique transaction types
+  const getTransactionTypes = (): string[] => {
+    const types = new Set<string>();
+    transactions.forEach(t => types.add(t.type));
+    return Array.from(types).sort();
+  };
+
+  // Filter transactions by type
+  const getFilteredTransactions = () => {
+    if (transactionTypeFilter === 'all') return transactions;
+    return transactions.filter(t => t.type === transactionTypeFilter);
+  };
+
+  // Download cashflow statement as PDF
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      const statementContent = `Cashflow Statement\n==================\nGenerated: ${new Date().toLocaleString()}\nDate Range: ${dateFilter === 'custom' ? `${customStartDate} to ${customEndDate}` : dateFilter}\n\nSUMMARY\n-------\nCash Balance: ${formatMoney(stats.cashBalance)}\nStock Value: ${formatMoney(stats.stockValue)}\nMonth In: +${formatMoney(stats.monthIn)}\nMonth Out: -${formatMoney(stats.monthOut)}\n\nTRANSACTIONS (${transactions.length} total)\n-----------\n${transactions.map(t => `${t.date} | ${t.type} | ${t.credit ? 'IN' : 'OUT'} | ${formatMoney(t.amount)}\n  Account: ${t.accountName || 'N/A'}\n  Description: ${t.description}\n`).join('\n')}\n\nPURCHASES (${purchases.length} total)\n---------\n${purchases.map(p => `${p.createdAt.toLocaleDateString()} | ${p.paymentMethod.toUpperCase()}\n  Receipt: ${p.receiptNumber}\n  Supplier: ${p.supplierName || 'No supplier'}\n  Total: ${formatMoney(p.totalCost)}\n  ${p.creditAmount > 0 ? `Credit: ${formatMoney(p.creditAmount)}` : ''}\n  ${p.paidAmount > 0 ? `Paid: ${formatMoney(p.paidAmount)}` : ''}\n`).join('\n')}`;
+
+      const blob = new Blob([statementContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cashflow-statement-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      showToast('✅ Cashflow statement downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading statement:', error);
+      showToast('❌ Failed to download statement');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const transactionTypes = getTransactionTypes();
+
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>{t('cashflow.title')}</h1>
-      <p className={styles.sub}>{t('cashflow.subtitle')}</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 className={styles.heading}>{t('cashflow.title')}</h1>
+          <p className={styles.sub}>{t('cashflow.subtitle')}</p>
+        </div>
+        <button onClick={handleDownloadPDF} disabled={isDownloading || loading || transactions.length === 0} style={{ padding: '10px 20px', background: 'var(--purple)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 600, cursor: isDownloading ? 'not-allowed' : 'pointer', opacity: (isDownloading || loading || transactions.length === 0) ? 0.6 : 1, transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isDownloading ? 'Downloading...' : 'Download Statement'}
+        </button>
+      </div>
 
       {/* ── DATE FILTER ── */}
       <div className={styles.dateFilterContainer}>
@@ -1786,24 +1835,15 @@ export default function Cashflowpage() {
       <div className={styles.transactionsSection}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Show:</span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Type:</span>
+            <button onClick={() => setTransactionTypeFilter('all')} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === 'all' ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === 'all' ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === 'all' ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === 'all' ? 600 : 400, transition: 'all 0.2s' }}>All</button>
+            {transactionTypes.slice(0, 5).map(type => (
+              <button key={type} onClick={() => setTransactionTypeFilter(type)} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === type ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === type ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === type ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === type ? 600 : 400, transition: 'all 0.2s' }}>{type}</button>
+            ))}
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>Show:</span>
             {[2, 5, 10, 20].map(limit => (
-              <button
-                key={limit}
-                onClick={() => setTransactionLimit(limit)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: transactionLimit === limit ? '2px solid var(--purple)' : '1px solid var(--border)',
-                  background: transactionLimit === limit ? 'var(--purple)' : 'var(--surface)',
-                  color: transactionLimit === limit ? '#fff' : 'var(--text-1)',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  fontWeight: transactionLimit === limit ? 600 : 400,
-                  transition: 'all 0.2s'
-                }}
-              >
+              <button key={limit} onClick={() => setTransactionLimit(limit)} style={{ padding: '6px 14px', borderRadius: '20px', border: transactionLimit === limit ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionLimit === limit ? 'var(--purple)' : 'var(--surface)', color: transactionLimit === limit ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: transactionLimit === limit ? 600 : 400, transition: 'all 0.2s' }}>
                 {limit}
               </button>
             ))}
@@ -1824,7 +1864,7 @@ export default function Cashflowpage() {
           </div>
         ) : (
           <div className={styles.transactionList}>
-            {transactions.slice(0, transactionLimit).map(t => {
+            {getFilteredTransactions().slice(0, transactionLimit).map(t => {
               const isExpanded = expandedTransaction === t.id;
               return (
                 <div 
