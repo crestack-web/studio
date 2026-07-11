@@ -918,7 +918,7 @@ export function MobileAskMOPage() {
                     {m.expandableSections.map((section, i) => (
                       <div key={section.id} className={styles.expandableSection}>
                         <button 
-                          className={styles.expandableSectionTitle}
+                          className={styles.expandableHeader}
                           onClick={() => {
                             const newExpandedSections = new Set(expandedSections);
                             if (newExpandedSections.has(section.id)) {
@@ -935,7 +935,7 @@ export function MobileAskMOPage() {
                           </svg>
                         </button>
                         {expandedSections.has(section.id) && (
-                          <div className={styles.expandableSectionContent}>
+                          <div className={styles.expandableContent}>
                             {section.content.split('\n').map((line, i) => (
                               <p key={i}>{line}</p>
                             ))}
@@ -945,6 +945,7 @@ export function MobileAskMOPage() {
                     ))}
                   </div>
                 )}
+
                 {m.alerts && (
                   <div className={styles.alerts}>
                     {m.alerts.map((alert, i) => (

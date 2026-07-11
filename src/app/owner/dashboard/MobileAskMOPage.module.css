@@ -1604,3 +1604,128 @@
   font-size: 14px;
   line-height: 1;
 }
+
+/* Content container for message text */
+.content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.content p {
+  margin: 0 0 8px 0;
+}
+
+.content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Alerts */
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.alert {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-warning {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  border: 1px solid var(--yellow-border);
+}
+
+.alert-info {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid var(--blue-border);
+}
+
+.alert-success {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+
+.alert-error {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid var(--red-border);
+}
+
+/* Avatar containers */
+.avatarContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.userAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--gray-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.botAvatarContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.moAvatarSm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Image and audio containers */
+.imageContainer {
+  margin: 8px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.imageContainer img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.audioContainer {
+  margin: 8px 0;
+}
+
+/* Sale Card Container */
+.saleCardContainer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ==================== Modern Input Area ==================== */
+/* ... rest of existing code ... */
