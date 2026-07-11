@@ -87,7 +87,7 @@ export default function CashReconciliationPage() {
     if (!user.businessId || !selectedDate) return;
     
     try {
-      const salesRef = collection(firestore, 'merchants', user.businessId, 'sales');
+      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
       
       // Get start and end of selected date
       const startDate = new Date(selectedDate);
