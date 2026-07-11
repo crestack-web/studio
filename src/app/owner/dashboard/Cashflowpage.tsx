@@ -98,6 +98,16 @@ export default function Cashflowpage() {
     notes: ''
   });
   
+  // New product form state
+  const [showNewProductForm, setShowNewProductForm] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    costPrice: 0,
+    sellingPrice: 0,
+    category: '',
+    unit: 'piece'
+  });
+  
   // Supplier payment form
   const [supplierPayment, setSupplierPayment] = useState({
     supplierId: '',
@@ -193,6 +203,44 @@ export default function Cashflowpage() {
       setPurchases(purchasesList);
     } catch (error) {
       console.error('Error loading purchases:', error);
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!businessId || !firestore) return;
+    if (!newProduct.name || !newProduct.costPrice) {
+      showToast('Please fill in product name and cost price');
+      return;
+    }
+
+    try {
+      const productRef = await addDoc(collection(firestore, 'businesses', businessId, 'products'), {
+        name: newProduct.name,
+        cost: newProduct.costPrice,
+        sellingPrice: newProduct.sellingPrice || newProduct.costPrice * 1.2,
+        category: newProduct.category || 'General',
+        unit: newProduct.unit,
+        stock: 0,
+        active: true,
+        createdAt: Timestamp.now(),
+        createdBy: user?.id || 'system',
+        createdByName: user?.name || 'System',
+      });
+
+      // Reload products to include the new one
+      await loadProducts();
+
+      // Select the newly created product
+      setStockAddition({ ...stockAddition, productId: productRef.id, costPrice: newProduct.costPrice });
+
+      // Reset new product form
+      setNewProduct({ name: '', costPrice: 0, sellingPrice: 0, category: '', unit: 'piece' });
+      setShowNewProductForm(false);
+
+      showToast('Product created successfully');
+    } catch (error) {
+      console.error('Error creating product:', error);
+      showToast('Failed to create product');
     }
   };
 
@@ -1206,175 +1254,270 @@ export default function Cashflowpage() {
             {activeAction === 'add-purchase' && (
               <form onSubmit={(e) => { e.preventDefault(); handleAddPurchase(); }}>
                 <h3 className={styles.modalTitle}>Add Purchase</h3>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Select Product</label>
-                  <select
-                    className={styles.formInput}
-                    value={stockAddition.productId}
-                    onChange={(e) => setStockAddition({ ...stockAddition, productId: e.target.value })}
-                  >
-                    <option value="">Select a product</option>
-                    {products.map(product => (
-                      <option key={product.id} value={product.id}>{product.name} (Stock: {product.stock})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Quantity to Add</label>
-                  <input
-                    type="number"
-                    className={styles.formInput}
-                    value={stockAddition.quantity}
-                    onChange={(e) => setStockAddition({ ...stockAddition, quantity: parseFloat(e.target.value) || 0 })}
-                    placeholder="e.g., 50"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Cost Price per Unit ({formatMoney(stockAddition.costPrice)})</label>
-                  <input
-                    type="number"
-                    className={styles.formInput}
-                    value={stockAddition.costPrice}
-                    onChange={(e) => setStockAddition({ ...stockAddition, costPrice: parseFloat(e.target.value) || 0 })}
-                    placeholder="₦0.00"
-                  />
-                </div>
-                {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                  <div className={styles.calculatedTotal}>
-                    <strong>Goods Total: </strong>
-                    <span style={{ color: 'var(--purple)', fontSize: '1.1rem', fontWeight: 700 }}>
-                      {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
-                    </span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>
-                      ({stockAddition.quantity} × {formatMoney(stockAddition.costPrice)})
-                    </span>
-                  </div>
-                )}
                 
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Purchase Reference Number</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={stockAddition.referenceNumber}
-                    onChange={(e) => setStockAddition({ ...stockAddition, referenceNumber: e.target.value })}
-                    placeholder="PUR-00000000"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Purchase Date</label>
-                  <input
-                    type="date"
-                    className={styles.formInput}
-                    value={stockAddition.purchaseDate}
-                    onChange={(e) => setStockAddition({ ...stockAddition, purchaseDate: e.target.value })}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Select Supplier (Optional)</label>
-                  <select
-                    className={styles.formInput}
-                    value={stockAddition.supplierId}
-                    onChange={(e) => setStockAddition({ ...stockAddition, supplierId: e.target.value })}
-                  >
-                    <option value="">No supplier</option>
-                    {suppliers.map(supplier => (
-                      <option key={supplier.id} value={supplier.id}>{supplier.supplierName || supplier.businessName}</option>
-                    ))}
-                  </select>
-                  <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Payment Method</label>
-                  <select
-                    className={styles.formInput}
-                    value={stockAddition.paymentMethod}
-                    onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}
-                  >
-                    <option value="credit">Credit (Pay Later)</option>
-                    <option value="cash">Cash (Full Payment)</option>
-                    <option value="partial">Partial Payment</option>
-                  </select>
-                  <span className={styles.formHint}>
-                    {stockAddition.paymentMethod === 'credit' && 'Full amount will be added to supplier credit balance'}
-                    {stockAddition.paymentMethod === 'cash' && 'Full payment will be deducted from bank account'}
-                    {stockAddition.paymentMethod === 'partial' && 'Pay part now, add remainder to credit'}
-                  </span>
-                </div>
-
-                {stockAddition.paymentMethod === 'partial' && (
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Payment Amount</label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      value={stockAddition.paymentAmount}
-                      onChange={(e) => setStockAddition({ ...stockAddition, paymentAmount: parseFloat(e.target.value) || 0 })}
-                      placeholder="Enter payment amount"
-                      max={stockAddition.quantity * stockAddition.costPrice}
-                    />
-                    {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                      <div className={styles.paymentBreakdown}>
-                        <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
-                        <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
-                        <span style={{ color: 'var(--red)', fontWeight: 600 }}>
-                          Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
-                        </span>
-                      </div>
-                    )}
+                {!showNewProductForm ? (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Select Product</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.productId}
+                        onChange={(e) => setStockAddition({ ...stockAddition, productId: e.target.value })}
+                      >
+                        <option value="">Select a product</option>
+                        {products.map(product => (
+                          <option key={product.id} value={product.id}>{product.name} (Stock: {product.stock})</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setShowNewProductForm(true)}
+                        style={{ marginTop: '8px', fontSize: '0.9rem', color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        + Create new product
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.newProductForm}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Product Name</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={newProduct.name}
+                        onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                        placeholder="e.g., Rice 50kg"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Cost Price per Unit</label>
+                      <input
+                        type="number"
+                        className={styles.formInput}
+                        value={newProduct.costPrice}
+                        onChange={(e) => setNewProduct({ ...newProduct, costPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="₦0.00"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Selling Price (Optional)</label>
+                      <input
+                        type="number"
+                        className={styles.formInput}
+                        value={newProduct.sellingPrice}
+                        onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="₦0.00"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Category</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={newProduct.category}
+                        onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                        placeholder="e.g., Food Items"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Unit</label>
+                      <select
+                        className={styles.formInput}
+                        value={newProduct.unit}
+                        onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
+                      >
+                        <option value="piece">Piece</option>
+                        <option value="kg">Kilogram</option>
+                        <option value="liter">Liter</option>
+                        <option value="box">Box</option>
+                        <option value="carton">Carton</option>
+                        <option value="pack">Pack</option>
+                      </select>
+                    </div>
+                    <div className={styles.modalActions}>
+                      <button
+                        type="button"
+                        className={styles.modalButton}
+                        onClick={() => {
+                          setShowNewProductForm(false);
+                          setNewProduct({ name: '', costPrice: 0, sellingPrice: 0, category: '', unit: 'piece' });
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.modalButtonPrimary}
+                        onClick={handleCreateProduct}
+                      >
+                        Create Product
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Select Bank Account</label>
-                    <select
-                      className={styles.formInput}
-                      value={stockAddition.bankAccountId}
-                      onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
-                    >
-                      <option value="">Select bank account</option>
-                      {bankAccounts.map(account => (
-                        <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
-                      ))}
-                    </select>
-                    <span className={styles.formHint}>Required for cash and partial payments</span>
-                  </div>
-                )}
-
-                {stockAddition.supplierId && stockAddition.paymentMethod === 'credit' && (
-                  <div className={styles.creditInfo}>
-                    <div className={styles.creditInfoItem}>
-                      <span className={styles.creditInfoLabel}>Supplier:</span>
-                      <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || suppliers.find(s => s.id === stockAddition.supplierId)?.businessName}</span>
+                {!showNewProductForm && (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Quantity to Add</label>
+                      <input
+                        type="number"
+                        className={styles.formInput}
+                        value={stockAddition.quantity}
+                        onChange={(e) => setStockAddition({ ...stockAddition, quantity: parseFloat(e.target.value) || 0 })}
+                        placeholder="e.g., 50"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Cost Price per Unit ({formatMoney(stockAddition.costPrice)})</label>
+                      <input
+                        type="number"
+                        className={styles.formInput}
+                        value={stockAddition.costPrice}
+                        onChange={(e) => setStockAddition({ ...stockAddition, costPrice: parseFloat(e.target.value) || 0 })}
+                        placeholder="₦0.00"
+                      />
                     </div>
                     {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                      <div className={styles.creditInfoItem}>
-                        <span className={styles.creditInfoLabel}>Amount to Credit:</span>
-                        <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                      <div className={styles.calculatedTotal}>
+                        <strong>Goods Total: </strong>
+                        <span style={{ color: 'var(--purple)', fontSize: '1.1rem', fontWeight: 700 }}>
                           {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>
+                          ({stockAddition.quantity} × {formatMoney(stockAddition.costPrice)})
                         </span>
                       </div>
                     )}
-                  </div>
-                )}
+                    
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Purchase Reference Number</label>
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={stockAddition.referenceNumber}
+                        onChange={(e) => setStockAddition({ ...stockAddition, referenceNumber: e.target.value })}
+                        placeholder="PUR-00000000"
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Purchase Date</label>
+                      <input
+                        type="date"
+                        className={styles.formInput}
+                        value={stockAddition.purchaseDate}
+                        onChange={(e) => setStockAddition({ ...stockAddition, purchaseDate: e.target.value })}
+                      />
+                    </div>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Notes (Optional)</label>
-                  <textarea
-                    className={styles.formInput}
-                    value={stockAddition.notes}
-                    onChange={(e) => setStockAddition({ ...stockAddition, notes: e.target.value })}
-                    placeholder="Enter notes"
-                    rows={3}
-                  />
-                </div>
-                <div className={styles.modalActions}>
-                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button type="submit" className={styles.modalButtonPrimary}>Record Purchase</button>
-                </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Select Supplier (Optional)</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.supplierId}
+                        onChange={(e) => setStockAddition({ ...stockAddition, supplierId: e.target.value })}
+                      >
+                        <option value="">No supplier</option>
+                        {suppliers.map(supplier => (
+                          <option key={supplier.id} value={supplier.id}>{supplier.supplierName || supplier.businessName}</option>
+                        ))}
+                      </select>
+                      <span className={styles.formHint}>Link this purchase to a supplier for credit tracking</span>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Payment Method</label>
+                      <select
+                        className={styles.formInput}
+                        value={stockAddition.paymentMethod}
+                        onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}
+                      >
+                        <option value="credit">Credit (Pay Later)</option>
+                        <option value="cash">Cash (Full Payment)</option>
+                        <option value="partial">Partial Payment</option>
+                      </select>
+                      <span className={styles.formHint}>
+                        {stockAddition.paymentMethod === 'credit' && 'Full amount will be added to supplier credit balance'}
+                        {stockAddition.paymentMethod === 'cash' && 'Full payment will be deducted from bank account'}
+                        {stockAddition.paymentMethod === 'partial' && 'Pay part now, add remainder to credit'}
+                      </span>
+                    </div>
+
+                    {stockAddition.paymentMethod === 'partial' && (
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Payment Amount</label>
+                        <input
+                          type="number"
+                          className={styles.formInput}
+                          value={stockAddition.paymentAmount}
+                          onChange={(e) => setStockAddition({ ...stockAddition, paymentAmount: parseFloat(e.target.value) || 0 })}
+                          placeholder="Enter payment amount"
+                          max={stockAddition.quantity * stockAddition.costPrice}
+                        />
+                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                          <div className={styles.paymentBreakdown}>
+                            <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
+                            <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
+                            <span style={{ color: 'var(--red)', fontWeight: 600 }}>
+                              Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel}>Select Bank Account</label>
+                        <select
+                          className={styles.formInput}
+                          value={stockAddition.bankAccountId}
+                          onChange={(e) => setStockAddition({ ...stockAddition, bankAccountId: e.target.value })}
+                        >
+                          <option value="">Select bank account</option>
+                          {bankAccounts.map(account => (
+                            <option key={account.id} value={account.id}>{account.accountName} - {account.bankName} (Bal: {formatMoney(account.currentBalance)})</option>
+                          ))}
+                        </select>
+                        <span className={styles.formHint}>Required for cash and partial payments</span>
+                      </div>
+                    )}
+
+                    {stockAddition.supplierId && stockAddition.paymentMethod === 'credit' && (
+                      <div className={styles.creditInfo}>
+                        <div className={styles.creditInfoItem}>
+                          <span className={styles.creditInfoLabel}>Supplier:</span>
+                          <span className={styles.creditInfoValue}>{suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || suppliers.find(s => s.id === stockAddition.supplierId)?.businessName}</span>
+                        </div>
+                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
+                          <div className={styles.creditInfoItem}>
+                            <span className={styles.creditInfoLabel}>Amount to Credit:</span>
+                            <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                              {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Notes (Optional)</label>
+                      <textarea
+                        className={styles.formInput}
+                        value={stockAddition.notes}
+                        onChange={(e) => setStockAddition({ ...stockAddition, notes: e.target.value })}
+                        placeholder="Enter notes"
+                        rows={3}
+                      />
+                    </div>
+                    <div className={styles.modalActions}>
+                      <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
+                      <button type="submit" className={styles.modalButtonPrimary}>Record Purchase</button>
+                    </div>
+                  </>
+                )}
               </form>
             )}
 
