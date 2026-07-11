@@ -12,8 +12,8 @@ export async function transcribeAudio(audioBlob: Blob, language: string = 'en'):
     const arrayBuffer = await audioBlob.arrayBuffer();
     const base64Audio = Buffer.from(arrayBuffer).toString('base64');
 
-    // Use Gemini Pro Vision for audio transcription
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
+    // Use Gemini 1.5 Pro which supports audio
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
     const prompt = `Transcribe this audio message accurately. 
     - If the audio is in ${language}, respond in ${language}
