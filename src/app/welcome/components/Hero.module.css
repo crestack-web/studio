@@ -42,12 +42,13 @@
 }
 
 .hero-text-content {
-  flex: 0 0 calc(100% - 240px - 48px);
+  flex: 1;
   text-align: left;
 }
 
 .hero-image-container {
-  flex: 0 0 240px;
+  flex-shrink: 0;
+  width: 240px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
