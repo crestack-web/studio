@@ -500,6 +500,20 @@ export default function Cashflowpage() {
         }
       }
       
+      // Add purchases to transactions
+      purchases.forEach(purchase => {
+        const purchaseDate = purchase.createdAt?.toDate() || new Date();
+        transactionMap.set(`purchase-${purchase.id}`, {
+          id: `purchase-${purchase.id}`,
+          date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          type: 'Purchase',
+          description: `Receipt: ${purchase.receiptNumber} | Supplier: ${purchase.supplierName || 'No supplier'}`,
+          amount: purchase.totalCost,
+          credit: false,
+          accountName: purchase.paymentMethod === 'cash' ? 'Cash' : 'Bank',
+        });
+      });
+
       // Convert map to array and sort transactions by date (most recent first)
       const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
         const dateA = new Date(a.date);
@@ -1066,11 +1080,11 @@ export default function Cashflowpage() {
     return transactions.filter(t => t.type === transactionTypeFilter);
   };
 
-  // Download cashflow statement as PDF
+  // Download cashflow statement as text file
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
     try {
-      const statementContent = `Cashflow Statement\n==================\nGenerated: ${new Date().toLocaleString()}\nDate Range: ${dateFilter === 'custom' ? `${customStartDate} to ${customEndDate}` : dateFilter}\n\nSUMMARY\n-------\nCash Balance: ${formatMoney(stats.cashBalance)}\nStock Value: ${formatMoney(stats.stockValue)}\nMonth In: +${formatMoney(stats.monthIn)}\nMonth Out: -${formatMoney(stats.monthOut)}\n\nTRANSACTIONS (${transactions.length} total)\n-----------\n${transactions.map(t => `${t.date} | ${t.type} | ${t.credit ? 'IN' : 'OUT'} | ${formatMoney(t.amount)}\n  Account: ${t.accountName || 'N/A'}\n  Description: ${t.description}\n`).join('\n')}\n\nPURCHASES (${purchases.length} total)\n---------\n${purchases.map(p => `${p.createdAt.toLocaleDateString()} | ${p.paymentMethod.toUpperCase()}\n  Receipt: ${p.receiptNumber}\n  Supplier: ${p.supplierName || 'No supplier'}\n  Total: ${formatMoney(p.totalCost)}\n  ${p.creditAmount > 0 ? `Credit: ${formatMoney(p.creditAmount)}` : ''}\n  ${p.paidAmount > 0 ? `Paid: ${formatMoney(p.paidAmount)}` : ''}\n`).join('\n')}`;
+      const statementContent = `Cashflow Statement\n==================\nGenerated: ${new Date().toLocaleString()}\nDate Range: ${dateFilter === 'custom' ? `${customStartDate} to ${customEndDate}` : dateFilter}\n\nSUMMARY\n-------\nCash Balance: ${formatMoney(stats.cashBalance)}\nStock Value: ${formatMoney(stats.stockValue)}\nMonth In: +${formatMoney(stats.monthIn)}\nMonth Out: -${formatMoney(stats.monthOut)}\n\nTRANSACTIONS (${transactions.length} total)\n-----------\n${transactions.map(t => `${t.date} | ${t.type} | ${t.credit ? 'IN' : 'OUT'} | ${formatMoney(t.amount)}\n  Account: ${t.accountName || 'N/A'}\n  Description: ${t.description}\n`).join('\n')}`;
 
       const blob = new Blob([statementContent], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
@@ -1838,7 +1852,7 @@ export default function Cashflowpage() {
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Type:</span>
             <button onClick={() => setTransactionTypeFilter('all')} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === 'all' ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === 'all' ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === 'all' ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === 'all' ? 600 : 400, transition: 'all 0.2s' }}>All</button>
-            {transactionTypes.slice(0, 5).map(type => (
+            {transactionTypes.map(type => (
               <button key={type} onClick={() => setTransactionTypeFilter(type)} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === type ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === type ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === type ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === type ? 600 : 400, transition: 'all 0.2s' }}>{type}</button>
             ))}
             <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>Show:</span>
@@ -1939,64 +1953,6 @@ export default function Cashflowpage() {
         )}
       </div>
 
-      {/* ── PURCHASE LIST ── */}
-      <div className={styles.transactionsSection}>
-        <h2 className={styles.sectionTitle}>Purchase List</h2>
-        {purchases.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.3 }}>
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            </svg>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>No purchases recorded</div>
-            <div style={{ fontSize: '0.8rem' }}>Add stock purchases to see them here</div>
-          </div>
-        ) : (
-          <div className={styles.transactionList}>
-            {purchases.map(p => (
-              <div key={p.id} className={styles.transactionCard}>
-                <div className={styles.transactionHeader}>
-                  <span className={styles.transactionNumber}>{p.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                  <span className={`${styles.transactionType} ${p.creditAmount > 0 ? styles.moneyOut : styles.moneyIn}`}>
-                    {p.paymentMethod.toUpperCase()}
-                  </span>
-                </div>
-                <div className={styles.transactionDetails}>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Receipt:</span>
-                    <span className={styles.transactionValue}>{p.receiptNumber}</span>
-                  </div>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Supplier:</span>
-                    <span className={styles.transactionValue}>{p.supplierName || 'No supplier'}</span>
-                  </div>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Items:</span>
-                    <span className={styles.transactionValue}>{p.items.map((i: any) => i.productName).join(', ')}</span>
-                  </div>
-                </div>
-                <div className={styles.transactionDetails}>
-                  <div className={styles.transactionDetail}>
-                    <span className={styles.transactionLabel}>Total Cost:</span>
-                    <span className={styles.transactionValue}>{formatMoney(p.totalCost)}</span>
-                  </div>
-                  {p.creditAmount > 0 && (
-                    <div className={styles.transactionDetail}>
-                      <span className={styles.transactionLabel}>Credit:</span>
-                      <span className={`${styles.transactionValue} ${styles.moneyOut}`}>{formatMoney(p.creditAmount)}</span>
-                    </div>
-                  )}
-                  {p.paidAmount > 0 && (
-                    <div className={styles.transactionDetail}>
-                      <span className={styles.transactionLabel}>Paid:</span>
-                      <span className={`${styles.transactionValue} ${styles.moneyIn}`}>{formatMoney(p.paidAmount)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
