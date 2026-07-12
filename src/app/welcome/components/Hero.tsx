@@ -29,27 +29,17 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               Busmo gives you instant profit clarity, smart forecasts, and AI insights —
               so you can make confident business decisions every day.
             </p>
-            <div className="hero-cta">
-              <button className="btn-primary btn-dominant" onClick={() => onNavigate('signup')}>
-                Get Started
-              </button>
-              <button className="btn-outline" onClick={() => setShowVideo(true)}>
-                Watch 2 minutes demo
-              </button>
-            </div>
-            <div className="hero-note">3-day free trial · Works offline · Cancel anytime</div>
+          <div className="hero-cta">
+            <button className="btn-primary btn-dominant" onClick={() => onNavigate('signup')}>
+              Get Started
+            </button>
+            <button className="btn-outline" onClick={() => setShowVideo(true)}>
+              Watch 2 minutes demo
+            </button>
           </div>
-
-          <div className="hero-image-container">
-            <div className="image-wrapper">
-              <img
-                src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1778779581/latino-hair-salon-owner-taking-care-client_v6l5gm.jpg"
-                alt="Business owner"
-                className="hero-image"
-              />
-            </div>
-          </div>
+          <div className="hero-note">3-day free trial · Works offline · Cancel anytime</div>
         </div>
+      </div>
       </div>
 
       {showVideo && (
