@@ -92,6 +92,29 @@ export async function POST(request: NextRequest) {
       console.log('🆕 [Ask MO API] New conversation detected, clearing history');
     }
 
+    // Detect if user is asking about starting a new business (outside their current business)
+    const newBusinessPatterns = [
+      /want to start/i,
+      /thinking of starting/i,
+      /planning to start/i,
+      /considering starting/i,
+      /how do i start/i,
+      /should i start/i,
+      /new business idea/i,
+      /business to start/i,
+      /what business should/i,
+      /looking to start/i,
+      /want to open/i,
+      /thinking about opening/i,
+      /planning to open/i,
+    ];
+    
+    const isNewBusinessInquiry = newBusinessPatterns.some(pattern => pattern.test(message));
+    
+    if (isNewBusinessInquiry) {
+      console.log('💡 [Ask MO API] New business inquiry detected');
+    }
+
     // Step 1: Detect intent using pattern matching
     const intent = detectIntent(message);
     console.log('🎯 [Ask MO API] Intent detected:', intent.intent, 'confidence:', intent.confidence);
@@ -160,7 +183,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build simple system prompt inline
-    const systemPrompt = `${BUSINESS_CONTEXT_PROMPT}
+    let systemPrompt = `${BUSINESS_CONTEXT_PROMPT}
 
 🌍 LANGUAGE: Respond in ${languageName} (${language}). Use the same language the user wrote in.
 
@@ -184,6 +207,31 @@ When users request operational tasks, you MUST:
 6. Communicate the outcome naturally and conversationally
 
 CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
+
+    // Add new business inquiry specific instructions
+    if (isNewBusinessInquiry) {
+      systemPrompt += `
+
+🚀 NEW BUSINESS INQUIRY MODE:
+The user is asking about starting a NEW business (outside their current business activity).
+Your role shifts from operational assistant to business advisor.
+
+IMPORTANT BEHAVIOR:
+- DO NOT use their current business data to answer questions about the new business
+- Ask clarifying questions to understand their situation:
+  * What type of business are they considering?
+  * What is their budget/capital available?
+  * What skills/experience do they have?
+  * What is their location/target market?
+  * What are their goals (income, lifestyle, growth)?
+  * What resources do they have (time, equipment, space)?
+- Provide advice based on their specific situation, not generic advice
+- Consider local market conditions, competition, and feasibility
+- Be realistic about challenges and requirements
+- Suggest practical next steps based on their answers
+
+Remember: This is about a NEW business venture, not their existing business. Treat it as a fresh inquiry.`;
+    }
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
     const modelName = image ? 'gemini-pro-vision' : 'gemini-pro-latest';
