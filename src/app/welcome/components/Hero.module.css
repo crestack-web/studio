@@ -34,21 +34,18 @@
 }
 
 .hero-content-wrapper {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
   gap: 48px;
-  align-items: flex-start;
+  align-items: start;
   width: 100%;
 }
 
 .hero-text-content {
-  flex: 1;
   text-align: left;
 }
 
 .hero-image-container {
-  flex-shrink: 0;
-  width: 240px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -96,6 +93,7 @@
 
   .hero-text-content {
     text-align: center;
+    max-width: 100%;
   }
 
   .hero-image-container {
