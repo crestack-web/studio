@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Page } from '../types';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
 
@@ -42,27 +41,29 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
           <div className="hero-note">3-day free trial · Works offline · Cancel anytime</div>
         </div>
       </div>
-      </div>
 
-      {showVideo && typeof window !== 'undefined' && createPortal(
-        <div className="video-modal" onClick={() => { setShowVideo(false); setShowDemoForm(false); }}>
-          <div className="video-content" onClick={(e) => e.stopPropagation()}>
-            <button className="video-close" onClick={() => { setShowVideo(false); setShowDemoForm(false); }}>×</button>
-            
-            {!showDemoForm ? (
-              <>
-                <video controls autoPlay className="demo-video">
-                  <source src="https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783273004/busmo_demo_gwytnk.mp4" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <div className="demo-request-cta">
-                  <p>Want to see how Busmo can transform your specific business?</p>
-                  <button className="btn-primary" onClick={() => setShowDemoForm(true)}>
-                    Request a Full Demo
-                  </button>
-                </div>
-              </>
-            ) : (
+        {showVideo && (
+          <div className="demo-section">
+          <div className="demo-header">
+            <h3>Watch Demo</h3>
+            <button className="demo-close" onClick={() => { setShowVideo(false); setShowDemoForm(false); }}>×</button>
+          </div>
+          
+          {!showDemoForm ? (
+            <div className="demo-video-container">
+              <video controls autoPlay className="demo-video">
+                <source src="https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783273004/busmo_demo_gwytnk.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              <div className="demo-request-cta">
+                <p>Want to see how Busmo can transform your specific business?</p>
+                <button className="btn-primary" onClick={() => setShowDemoForm(true)}>
+                  Request a Full Demo
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="demo-form-container">
               <div className="demo-form">
                 <h3>Request a Full Demo</h3>
                 <p>Fill out the form below and we'll schedule a personalized demo for your business.</p>
@@ -86,11 +87,11 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
                   </div>
                 </form>
               </div>
-            )}
-          </div>
-        </div>,
-        document.body
+            </div>
+          )}
+        </div>
       )}
+      </div>
     </div>
   );
 };
