@@ -1,8 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { DemoVideoSection } from './components/DemoVideoSection';
 import { OfflineSaleSection } from './components/OfflineSaleSection';
 import { MoSection } from './components/MoSection';
 import { MarketSection } from './components/MarketSection';
@@ -20,6 +21,8 @@ import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
 
 export default function WelcomePage() {
+  const [showDemoVideo, setShowDemoVideo] = useState(false);
+
   // Navigation handler for buttons
   const handleNavigate = (page: Page | string) => {
     if (page === 'home') {
@@ -49,7 +52,10 @@ export default function WelcomePage() {
       <Navbar currentPage="home" onNavigate={(page) => handleNavigate(page)} />
 
       {/* HERO */}
-      <Hero onNavigate={handleNavigate} />
+      <Hero onNavigate={handleNavigate} onWatchDemo={() => setShowDemoVideo(true)} />
+
+      {/* DEMO VIDEO SECTION - shows when button is clicked */}
+      <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
       {/* TESTIMONIALS - moved higher for social proof */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
