@@ -78,7 +78,19 @@ export async function POST(request: NextRequest) {
       hasImage: !!image,
       businessId,
       language,
+      conversationHistoryLength: conversationHistory.length,
     });
+
+    // Detect if this is a new conversation start (greeting, new topic, etc.)
+    const isNewConversation = conversationHistory.length === 0 || 
+      /^(hi|hello|hey|good morning|good afternoon|good evening|mo|hey mo|start new|new chat|fresh start)/i.test(message.trim());
+
+    // If it's a new conversation, clear conversation history to prevent context bleeding
+    const effectiveHistory = isNewConversation ? [] : conversationHistory;
+
+    if (isNewConversation) {
+      console.log('🆕 [Ask MO API] New conversation detected, clearing history');
+    }
 
     // Step 1: Detect intent using pattern matching
     const intent = detectIntent(message);
@@ -181,7 +193,7 @@ CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks
     });
 
     const chat = model.startChat({
-      history: conversationHistory
+      history: effectiveHistory
         .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
         .map((msg: any) => ({
           role: msg.role === 'user' ? 'user' : 'model',

@@ -197,19 +197,9 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
           setConversations(loadedConversations);
 
-          // Auto-load the most recent conversation if available
-          if (loadedConversations.length > 0 && !currentConversationId) {
-            const mostRecent = loadedConversations[0];
-            if (mostRecent.messages && mostRecent.messages.length > 0) {
-              console.log('📂 [useAskMO] Auto-loading most recent conversation:', mostRecent.id);
-              const messagesWithDates = mostRecent.messages.map((msg: any) => ({
-                ...msg,
-                timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp || Date.now()),
-              }));
-              setMessages(messagesWithDates);
-              setCurrentConversationId(mostRecent.id);
-            }
-          }
+          // Don't auto-load conversations - let user choose to start fresh or continue
+          // This prevents past conversation context from bleeding into new conversations
+          console.log('📂 [useAskMO] Conversations loaded, starting fresh');
         } catch (error) {
           console.error('Error loading conversations:', error);
         }

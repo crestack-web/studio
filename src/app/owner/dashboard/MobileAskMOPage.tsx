@@ -121,16 +121,8 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-load most recent conversation on mount to persist state across refresh/navigation
-  useEffect(() => {
-    if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
-      const mostRecent = conversations[0];
-      if (mostRecent.messages && mostRecent.messages.length > 0) {
-        console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
-        loadConversation(mostRecent.id);
-      }
-    }
-  }, [conversations, currentConversationId, messages.length, loadConversation]);
+  // Don't auto-load conversations - start fresh each time
+  // This prevents past conversation context from bleeding into new conversations
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
@@ -512,7 +504,7 @@ export function MobileAskMOPage() {
         image: finalImageUrl,
         businessId: user.businessId || user.id,
         userId: user.id,
-        conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+        conversationHistory: currentConversationId ? messages.slice(-10).map(m => ({ role: m.role, content: m.content })) : [],
         userPlan: user.plan || 'starter',
         language: lang,
         languageName: langMeta.name,
