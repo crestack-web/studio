@@ -169,10 +169,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   }, [isRecording]);
 
   // Auto-load most recent conversation on mount to persist state across refresh/navigation
-  // Disabled on mobile to prevent loading issues
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    if (!isMobile && conversations.length > 0 && !currentConversationId && messages.length === 0) {
+    if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
       const mostRecent = conversations[0];
       if (mostRecent.messages && mostRecent.messages.length > 0) {
         console.log('📂 [InlineAIChat] Auto-loading most recent conversation:', mostRecent.id);

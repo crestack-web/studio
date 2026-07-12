@@ -698,6 +698,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
   // Load messages for a specific conversation
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
+      console.log('📂 [useAskMO] Loading conversation:', conversationId);
       const { firestore } = initializeFirebase();
       const docRef = doc(firestore, 'users', userId, 'mo_conversations', conversationId);
       const docSnap = await getDoc(docRef);
@@ -705,6 +706,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       if (docSnap.exists()) {
         const data = docSnap.data();
         const loadedMessages = data.messages || [];
+        console.log('📂 [useAskMO] Loaded messages count:', loadedMessages.length);
         
         // Convert Firestore timestamps back to Date objects for proper rendering
         const messagesWithDates = loadedMessages.map((msg: any) => ({
@@ -714,9 +716,15 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         
         setMessages(messagesWithDates);
         setCurrentConversationId(conversationId);
+        console.log('✅ [useAskMO] Conversation loaded successfully');
+      } else {
+        console.error('❌ [useAskMO] Conversation not found:', conversationId);
       }
     } catch (error) {
-      console.error('Error loading conversation:', error);
+      console.error('❌ [useAskMO] Error loading conversation:', error);
+      // Reset to empty state on error to prevent stuck loading state
+      setMessages([]);
+      setCurrentConversationId(null);
     }
   }, [userId, setMessages]);
 
