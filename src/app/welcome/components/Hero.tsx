@@ -55,12 +55,6 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
                 <source src="https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783273004/busmo_demo_gwytnk.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
-              <div className="demo-request-cta">
-                <p>Want to see how Busmo can transform your specific business?</p>
-                <button className="btn-primary" onClick={() => setShowDemoForm(true)}>
-                  Request a Full Demo
-                </button>
-              </div>
             </div>
           ) : (
             <div className="demo-form-container">
