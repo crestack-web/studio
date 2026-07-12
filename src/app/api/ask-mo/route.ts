@@ -4,6 +4,10 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
 import { executeAction } from '@/lib/services/mo-action-router';
 import { renderResponse } from '@/lib/services/mo-response-renderer';
+import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
+import { getCalculationEngine } from '@/lib/services/mo-calculation-engine';
+import { getReasoningEngine } from '@/lib/services/mo-reasoning-engine';
+import { getProactiveInsightsEngine } from '@/lib/services/mo-proactive-insights';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -22,7 +26,44 @@ const PAGE_NAMES = {
 };
 
 const BUSINESS_CONTEXT_PROMPT = `
-You are MO, a business intelligence assistant for Busmo SaaS platform. You help business owners manage their operations.
+You are MO, the AI Operating Intelligence for Busmo. You are NOT a chatbot, NOT customer support, NOT an accounting assistant. You are the strategic business intelligence that helps African business owners make better decisions.
+
+CORE IDENTITY:
+- Think like: Founder, CEO, CFO, Operations Manager, Sales Manager, Business Consultant, Financial Analyst, Supply Chain Expert, Risk Analyst, Business Coach
+- Every response should make the business owner think: "This AI understands my business better than I do."
+- Before responding, internally reason through the business context instead of simply answering the last message
+
+INTERNAL BUSINESS BRAIN:
+Continuously maintain and evolve understanding of:
+- Business Profile: Industry, business model, stage (idea/startup/growing/mature), location, staff count, products, services, customers, suppliers, revenue streams, goals, challenges, risks, priorities
+- Financial State: Opening capital, cash available, inventory value, assets, liabilities, expected expenses, expected income, monthly burn, profit trend
+- Operational State: Suppliers, customers, outstanding invoices, credit sales, inventory shortages/surplus, production capacity, delivery status, staff performance
+- Conversation Memory: Never ask again for information already learned. Build business profile continuously from conversations
+
+RESPONSE PHILOSOPHY:
+1. STOP BEING REACTIVE - Before responding, analyze the business context. Calculate. Estimate. Challenge assumptions. Think ahead.
+2. UNDERSTAND INTENT - Never respond literally. Identify the user's actual goal. Every message should begin with: "What is the user actually trying to accomplish?"
+3. ALWAYS THINK AHEAD - Answer: "What will this business owner need next?" Anticipate problems and prevent expensive mistakes.
+4. PERFORM CALCULATIONS AUTOMATICALLY - When users mention money, price, capital, profit, inventory, quantity, time, margins: automatically calculate. Never leave numbers unexplored.
+5. CHALLENGE ASSUMPTIONS - Don't blindly agree. Respectfully challenge: yield, hidden charges, moisture deductions, packaging, delivery, etc.
+6. PRIORITIZE ACTIONS - Decide what matters most. Guide users one important step at a time. Don't overwhelm.
+7. BECOME PROACTIVE - Notice things automatically: "I notice you have inventory but no supplier recorded," "Your profit margin dropped," "You haven't reordered your best seller."
+8. SHOW REASONING RESULTS - Show progress with business snapshots. Users should always understand where the business stands.
+9. ASK BETTER QUESTIONS - Replace generic questions with intelligent ones that improve future advice.
+10. USE MEMORY PROPERLY - If you know capital, location, industry, suppliers, products, goals: use that knowledge continuously.
+11. EXPLAIN DECISIONS - Don't only recommend. Explain why.
+12. THINK LIKE A CONSULTANT - Each answer should include: Observation, Analysis, Risk, Recommendation, Next Step.
+13. ADAPT TO BUSINESS STAGE:
+   - Idea Stage: Focus on validation, customers, pricing, costs
+   - Startup Stage: Focus on cash flow, operations, first customers
+   - Growing Business: Focus on automation, hiring, expansion
+   - Established Business: Focus on efficiency, margins, scaling
+
+RESPONSE STYLE:
+- Avoid: "Great initiative," "Fantastic business," "Excellent idea," "Happy to help"
+- Be: Confident, direct, practical, insightful
+- Every sentence should move the business forward
+- No unnecessary compliments
 
 TEXT COMMAND FORMATTING GUIDELINES:
 - Use explicit action prefixes: "Record sale:", "Add expense:", "Add product:"
@@ -58,12 +99,18 @@ USER ACCESS LEVELS:
 - View-only Staff: Access to dashboard and limited reports only
 
 BUSINESS TYPES SUPPORTED:
-- Retail: General retail shops
-- Restaurant: Food service establishments
+- Retail: General retail shops (know: fast moving inventory, dead stock, reorder points, margin optimization)
+- Restaurant: Food service establishments (know: food cost, wastage, recipe costing, menu engineering, peak hours)
 - Wholesale: Bulk goods distribution
 - Service: Service-based businesses
-- Manufacturing: Production-based businesses
+- Manufacturing: Production-based businesses (know: production cost, yield, capacity, downtime)
 - E-commerce: Online businesses
+
+INDUSTRY-SPECIFIC INTELLIGENCE:
+Every industry has different intelligence. Become an expert in the user's industry.
+- Plastic Recycling: Know PET grades, color separation, moisture, yield loss, processing stages, buyers, export quality, collection networks
+- Agriculture: Know seasons, inputs, yield, harvest planning
+- Construction: Know project costing, materials, labour
 
 When suggesting navigation, always use the exact sidebar button names as referenced above.
 `;
@@ -90,6 +137,110 @@ export async function POST(request: NextRequest) {
 
     if (isNewConversation) {
       console.log('🆕 [Ask MO API] New conversation detected, clearing history');
+      // Reset business profile for new conversation
+      const profileManager = getBusinessProfileManager();
+      profileManager.reset();
+    }
+
+    // Get business profile manager instance
+    const profileManager = getBusinessProfileManager();
+
+    // Get current business snapshot
+    const businessSnapshot = profileManager.getSnapshot();
+    const businessProfile = profileManager.getProfile();
+    const industryIntelligence = profileManager.getIndustryIntelligence();
+
+    console.log('🧠 [Ask MO API] Business Profile:', {
+      stage: businessProfile.stage,
+      industry: businessProfile.industry,
+      location: businessProfile.location,
+      hasCapital: businessProfile.openingCapital !== undefined,
+    });
+
+    // Run calculation engine on message
+    const calculationEngine = getCalculationEngine();
+    const calculations = calculationEngine.generateInsights(message, {
+      capital: businessProfile.openingCapital,
+      expenses: businessProfile.expectedExpenses,
+      revenue: businessProfile.expectedIncome,
+    });
+    
+    if (calculations.length > 0) {
+      console.log('📊 [Ask MO API] Calculations generated:', calculations.length);
+    }
+
+    // Run reasoning engine on context
+    const reasoningEngine = getReasoningEngine();
+    const reasoning = reasoningEngine.reason({
+      message,
+      businessProfile,
+      businessSnapshot,
+      calculations,
+      conversationHistory: effectiveHistory,
+    });
+    
+    console.log('🧠 [Ask MO API] Reasoning completed:', {
+      intent: reasoning.userIntent,
+      goal: reasoning.actualGoal,
+      recommendedAction: reasoning.recommendedAction,
+    });
+
+    // Generate proactive insights from business data
+    const proactiveInsightsEngine = getProactiveInsightsEngine();
+    let proactiveInsights: any[] = [];
+    
+    // Only generate insights if we have business data
+    if (businessId) {
+      try {
+        const db = getAdminDb();
+        const businessData: any = {};
+        
+        // Load recent sales
+        const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
+          .orderBy('createdAt', 'desc')
+          .limit(20)
+          .get();
+        businessData.sales = salesSnapshot.docs.map(doc => doc.data());
+        
+        // Load products
+        const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
+          .where('active', '==', true)
+          .get();
+        businessData.products = productsSnapshot.docs.map(doc => doc.data());
+        
+        // Load recent expenses
+        const expensesSnapshot = await db.collection('businesses').doc(businessId).collection('expenses')
+          .orderBy('createdAt', 'desc')
+          .limit(20)
+          .get();
+        businessData.expenses = expensesSnapshot.docs.map(doc => doc.data());
+        
+        // Load customers
+        const customersSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
+          .get();
+        businessData.customers = customersSnapshot.docs.map(doc => doc.data());
+        
+        // Load suppliers
+        const suppliersSnapshot = await db.collection('businesses').doc(businessId).collection('suppliers')
+          .where('active', '==', true)
+          .get();
+        businessData.suppliers = suppliersSnapshot.docs.map(doc => doc.data());
+        
+        // Load cash flow
+        const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
+          .orderBy('date', 'desc')
+          .limit(30)
+          .get();
+        businessData.cashFlow = cashFlowSnapshot.docs.map(doc => doc.data());
+        
+        proactiveInsights = proactiveInsightsEngine.generateInsights(businessData, businessProfile);
+        
+        if (proactiveInsights.length > 0) {
+          console.log('🔍 [Ask MO API] Proactive insights generated:', proactiveInsights.length);
+        }
+      } catch (error) {
+        console.error('Error generating proactive insights:', error);
+      }
     }
 
     // Detect if user is asking about starting a new business (outside their current business)
@@ -207,6 +358,61 @@ When users request operational tasks, you MUST:
 6. Communicate the outcome naturally and conversationally
 
 CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
+
+    // Add business context to system prompt
+    if (businessSnapshot.openingCapital !== undefined || businessProfile.industry || businessProfile.location) {
+      systemPrompt += `
+
+📊 CURRENT BUSINESS CONTEXT:
+${businessSnapshot.openingCapital !== undefined ? `- Opening Capital: ₦${businessSnapshot.openingCapital.toLocaleString()}` : ''}
+${businessSnapshot.cashAvailable !== undefined ? `- Cash Available: ₦${businessSnapshot.cashAvailable.toLocaleString()}` : ''}
+${businessSnapshot.profit !== undefined ? `- Current Profit: ₦${businessSnapshot.profit.toLocaleString()}` : ''}
+${businessProfile.industry ? `- Industry: ${businessProfile.industry}` : ''}
+${businessProfile.location ? `- Location: ${businessProfile.location}` : ''}
+${businessProfile.stage ? `- Business Stage: ${businessProfile.stage}` : ''}
+${businessSnapshot.nextRecommendedAction ? `- Recommended Next Action: ${businessSnapshot.nextRecommendedAction}` : ''}
+${industryIntelligence ? `- Industry Intelligence: ${industryIntelligence}` : ''}
+
+Use this context to provide tailored advice. Never ask for information already shown above.`;
+    }
+
+    // Add stage-specific advice to system prompt
+    const stageAdvice = profileManager.getStageSpecificAdvice();
+    if (stageAdvice && !stageAdvice.includes('Define your business stage')) {
+      systemPrompt += `
+
+🎯 STAGE-SPECIFIC FOCUS:
+${stageAdvice}
+
+Tailor your advice to this business stage.`;
+    }
+
+    // Add calculation results to system prompt if available
+    if (calculations.length > 0) {
+      systemPrompt += `
+
+📊 AUTOMATIC FINANCIAL ANALYSIS:
+${calculationEngine.formatForAIResponse(calculations)}
+
+Use these calculations in your response. Show the user you understand their numbers and provide insights based on them.`;
+    }
+
+    // Add reasoning results to system prompt
+    systemPrompt += `
+
+🧠 INTERNAL REASONING:
+${reasoningEngine.formatForAIResponse(reasoning)}
+
+Use this reasoning to guide your response. Focus on the user's actual goal and the recommended action.`;
+
+    // Add proactive insights to system prompt if available
+    if (proactiveInsights.length > 0) {
+      systemPrompt += `
+
+${proactiveInsightsEngine.formatForAIResponse(proactiveInsights)}
+
+Use these insights to provide proactive recommendations. Don't wait for the user to ask about these issues.`;
+    }
 
     // Add new business inquiry specific instructions
     if (isNewBusinessInquiry) {
