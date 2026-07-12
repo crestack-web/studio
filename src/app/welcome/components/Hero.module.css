@@ -202,6 +202,76 @@
   background: #000;
 }
 
+.demo-request-cta {
+  text-align: center;
+  padding: 20px;
+  color: #fff;
+}
+
+.demo-request-cta p {
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+.demo-form {
+  padding: 20px;
+  color: #fff;
+}
+
+.demo-form h3 {
+  margin-bottom: 12px;
+  font-size: 1.5rem;
+}
+
+.demo-form p {
+  margin-bottom: 20px;
+  color: #ccc;
+}
+
+.demo-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.demo-input:focus {
+  outline: none;
+  border-color: #6b3fe7;
+}
+
+.demo-textarea {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.95rem;
+  resize: vertical;
+}
+
+.demo-textarea:focus {
+  outline: none;
+  border-color: #6b3fe7;
+}
+
+.demo-form-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.demo-form-buttons button {
+  flex: 1;
+  min-width: 140px;
+}
+
 .hero-note {
   font-size: 0.85rem;
   color: #6b7280;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Page } from '../types';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
 
@@ -43,10 +44,10 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
       </div>
       </div>
 
-      {showVideo && (
-        <div className="video-modal" onClick={() => setShowVideo(false)}>
+      {showVideo && typeof window !== 'undefined' && createPortal(
+        <div className="video-modal" onClick={() => { setShowVideo(false); setShowDemoForm(false); }}>
           <div className="video-content" onClick={(e) => e.stopPropagation()}>
-            <button className="video-close" onClick={() => setShowVideo(false)}>×</button>
+            <button className="video-close" onClick={() => { setShowVideo(false); setShowDemoForm(false); }}>×</button>
             
             {!showDemoForm ? (
               <>
@@ -87,7 +88,8 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
