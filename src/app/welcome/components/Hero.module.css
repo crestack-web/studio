@@ -87,13 +87,12 @@
   }
 
   .hero-content-wrapper {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 24px;
   }
 
   .hero-text-content {
     text-align: center;
-    max-width: 100%;
   }
 
   .hero-image-container {
