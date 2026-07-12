@@ -5,9 +5,7 @@ import { detectIntent } from '@/lib/services/mo-intent-router';
 import { executeAction } from '@/lib/services/mo-action-router';
 import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
-import { getCalculationEngine } from '@/lib/services/mo-calculation-engine';
-import { getReasoningEngine } from '@/lib/services/mo-reasoning-engine';
-import { getProactiveInsightsEngine } from '@/lib/services/mo-proactive-insights';
+import { getMasterProcessor } from '@/lib/services/mo-master-processor';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -157,43 +155,11 @@ export async function POST(request: NextRequest) {
       hasCapital: businessProfile.openingCapital !== undefined,
     });
 
-    // Run calculation engine on message
-    const calculationEngine = getCalculationEngine();
-    const calculations = calculationEngine.generateInsights(message, {
-      capital: businessProfile.openingCapital,
-      expenses: businessProfile.expectedExpenses,
-      revenue: businessProfile.expectedIncome,
-    });
-    
-    if (calculations.length > 0) {
-      console.log('📊 [Ask MO API] Calculations generated:', calculations.length);
-    }
-
-    // Run reasoning engine on context
-    const reasoningEngine = getReasoningEngine();
-    const reasoning = reasoningEngine.reason({
-      message,
-      businessProfile,
-      businessSnapshot,
-      calculations,
-      conversationHistory: effectiveHistory,
-    });
-    
-    console.log('🧠 [Ask MO API] Reasoning completed:', {
-      intent: reasoning.userIntent,
-      goal: reasoning.actualGoal,
-      recommendedAction: reasoning.recommendedAction,
-    });
-
-    // Generate proactive insights from business data
-    const proactiveInsightsEngine = getProactiveInsightsEngine();
-    let proactiveInsights: any[] = [];
-    
-    // Only generate insights if we have business data
+    // Load business data for master processor
+    let businessData: any = {};
     if (businessId) {
       try {
         const db = getAdminDb();
-        const businessData: any = {};
         
         // Load recent sales
         const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
@@ -233,15 +199,30 @@ export async function POST(request: NextRequest) {
           .get();
         businessData.cashFlow = cashFlowSnapshot.docs.map(doc => doc.data());
         
-        proactiveInsights = proactiveInsightsEngine.generateInsights(businessData, businessProfile);
-        
-        if (proactiveInsights.length > 0) {
-          console.log('🔍 [Ask MO API] Proactive insights generated:', proactiveInsights.length);
-        }
       } catch (error) {
-        console.error('Error generating proactive insights:', error);
+        console.error('Error loading business data:', error);
       }
     }
+
+    // Run Master Processor - orchestrates all MO engines
+    const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
+    const processingResult = await masterProcessor.process({
+      message,
+      businessId: businessId || 'default',
+      userId: userId || 'default',
+      conversationId: conversationHistory.length > 0 ? 'current' : 'new',
+      conversationHistory: effectiveHistory,
+      businessData,
+      userRole,
+      language,
+      languageName,
+    });
+
+    console.log('� [Ask MO API] Master Processing completed:', {
+      processingTime: processingResult.processingTime,
+      intent: processingResult.intent.primaryIntent,
+      principlesScore: processingResult.principlesScore,
+    });
 
     // Detect if user is asking about starting a new business (outside their current business)
     const newBusinessPatterns = [
@@ -388,11 +369,11 @@ Tailor your advice to this business stage.`;
     }
 
     // Add calculation results to system prompt if available
-    if (calculations.length > 0) {
+    if (processingResult.calculations.length > 0) {
       systemPrompt += `
 
 📊 AUTOMATIC FINANCIAL ANALYSIS:
-${calculationEngine.formatForAIResponse(calculations)}
+${processingResult.calculations.map((c: any) => `${c.type}: ${c.result}`).join('\n')}
 
 Use these calculations in your response. Show the user you understand their numbers and provide insights based on them.`;
     }
@@ -401,15 +382,17 @@ Use these calculations in your response. Show the user you understand their numb
     systemPrompt += `
 
 🧠 INTERNAL REASONING:
-${reasoningEngine.formatForAIResponse(reasoning)}
+Intent: ${processingResult.intent.primaryIntent}
+Goal: ${processingResult.reasoning.actualGoal}
+Recommended: ${processingResult.reasoning.recommendedAction}
 
 Use this reasoning to guide your response. Focus on the user's actual goal and the recommended action.`;
 
     // Add proactive insights to system prompt if available
-    if (proactiveInsights.length > 0) {
+    if (processingResult.opportunities.length > 0) {
       systemPrompt += `
 
-${proactiveInsightsEngine.formatForAIResponse(proactiveInsights)}
+${processingResult.opportunities.map((o: any) => `[${o.type.toUpperCase()}] ${o.message}`).join('\n')}
 
 Use these insights to provide proactive recommendations. Don't wait for the user to ask about these issues.`;
     }
@@ -437,6 +420,31 @@ IMPORTANT BEHAVIOR:
 - Suggest practical next steps based on their answers
 
 Remember: This is about a NEW business venture, not their existing business. Treat it as a fresh inquiry.`;
+    }
+
+    // Add master processor results to system prompt
+    if (processingResult.finalResponse) {
+      systemPrompt += `
+
+${processingResult.finalResponse}`;
+    }
+
+    // Add Busmo action suggestion if available
+    if (processingResult.busmoAction) {
+      systemPrompt += `
+
+🎯 SUGGESTED BUSMO ACTION:
+${processingResult.busmoAction.description}
+Confidence: ${(processingResult.busmoAction.confidence * 100).toFixed(0)}%
+${processingResult.busmoAction.requiresConfirmation ? '(Requires confirmation)' : '(Auto-executable)'}`;
+    }
+
+    // Add next action if available
+    if (processingResult.nextAction) {
+      systemPrompt += `
+
+🎯 RECOMMENDED NEXT ACTION:
+${processingResult.nextAction}`;
     }
 
     const genAI = new GoogleGenerativeAI(googleApiKey);
