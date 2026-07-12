@@ -4,7 +4,7 @@ import React from 'react';
 
 export const OfflineSaleSection: React.FC = () => (
   <section className="offline-sale-section">
-    <div className="max-w">
+    <div className="offline-sale-content">
       <div className="section-head center">
         <div className="section-label">Works Offline</div>
         <h2 className="section-title">
