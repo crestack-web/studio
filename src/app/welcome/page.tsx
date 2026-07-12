@@ -3,7 +3,6 @@
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
-import { DashboardMockup } from './components/DashboardMockup';
 import { OfflineSaleSection } from './components/OfflineSaleSection';
 import { MoSection } from './components/MoSection';
 import { MarketSection } from './components/MarketSection';
@@ -56,9 +55,6 @@ export default function WelcomePage() {
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <TestimonialsSection />
       </ScrollReveal>
-
-      {/* DASHBOARD MOCKUP */}
-      <DashboardMockup />
 
       {/* OFFLINE SALE RECORDING */}
       <OfflineSaleSection />
