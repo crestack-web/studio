@@ -95,6 +95,7 @@ export function WarehousePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
+  const [isCreatingWarehouse, setIsCreatingWarehouse] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<StockLocation | null>(null);
   const [transferHistory, setTransferHistory] = useState<any[]>([]);
   
@@ -1454,8 +1455,15 @@ export function WarehousePage() {
                       return;
                     }
 
+                    setIsCreatingWarehouse(true);
+                    console.log('📦 [WarehousePage] Creating warehouse:', {
+                      name: newLocationName.trim(),
+                      type: slug,
+                      businessId,
+                    });
+
                     try {
-                      await addDoc(
+                      const docRef = await addDoc(
                         collection(firestore, 'businesses', businessId, 'stockLocations'),
                         {
                           name: newLocationName.trim(),
@@ -1464,18 +1472,21 @@ export function WarehousePage() {
                         }
                       );
 
+                      console.log('✅ [WarehousePage] Warehouse created successfully:', docRef.id);
                       await loadStockLocations();
                       setShowAddModal(false);
                       setNewLocationName('');
                       showToast('✅ Warehouse created successfully');
                     } catch (error) {
-                      console.error('Error creating warehouse:', error);
+                      console.error('❌ [WarehousePage] Error creating warehouse:', error);
                       showToast('❌ Failed to create warehouse');
+                    } finally {
+                      setIsCreatingWarehouse(false);
                     }
                   }}
-                  disabled={!newLocationName.trim()}
+                  disabled={!newLocationName.trim() || isCreatingWarehouse}
                 >
-                  Create Warehouse
+                  {isCreatingWarehouse ? 'Creating...' : 'Create Warehouse'}
                 </button>
               </div>
             </div>
