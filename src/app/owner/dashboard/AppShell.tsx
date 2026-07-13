@@ -41,6 +41,7 @@ import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
 import { WarehousePage } from './WarehousePage';
 import { StockTransfersPage } from './StockTransfersPage';
+import { usePageTracking } from '@/hooks/usePageTracking'; // Import the page tracking hook
 import styles from './AppShell.module.css';
 
 // ═══════════════════════════════════════════
@@ -90,6 +91,9 @@ export function AppShell() {
   const { activePage } = useApp();
   const isMobileAskMO = activePage === 'mo-mobile';
 
+  // Use the page tracking hook to track user activity
+  usePageTracking();
+
   const currentPage = PAGE_MAP[activePage] ?? (
     <div className={styles.placeholder}>
       <h2>Coming Soon</h2>
@@ -121,4 +125,3 @@ export function AppShell() {
     </div>
   );
 }
-

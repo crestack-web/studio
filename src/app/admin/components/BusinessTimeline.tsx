@@ -7,6 +7,7 @@ import { collection, getDocs, query, orderBy, limit, doc, getDoc, getCountFromSe
 interface BusinessTimeline {
   businessId: string;
   businessName: string;
+  businessCategory: string; // Added business category field
   ownerEmail: string;
   timeline: TimelineEvent[];
   stats: BusinessStats;
@@ -225,6 +226,7 @@ export default function BusinessTimeline() {
         timelinesList.push({
           businessId,
           businessName: businessData.name || 'Unknown Business',
+          businessCategory: businessData.category || businessData.selectedCategory || 'Unknown Category', // Added business category
           ownerEmail,
           timeline,
           stats: {
@@ -257,7 +259,8 @@ export default function BusinessTimeline() {
 
   const filteredTimelines = timelines.filter(business => 
     business.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    business.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    business.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    business.businessCategory.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -342,6 +345,9 @@ export default function BusinessTimeline() {
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{selectedBusiness.businessName}</h3>
                 <p className="text-gray-600">{selectedBusiness.ownerEmail}</p>
+                <div className="mt-2 inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  {selectedBusiness.businessCategory}
+                </div>
               </div>
               <div className="mt-4 md:mt-0 flex items-center gap-4">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -426,6 +432,9 @@ export default function BusinessTimeline() {
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {business.stats.plan}
+                      </span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                        {business.businessCategory}
                       </span>
                     </div>
                     <p className="text-gray-600 mb-3">{business.ownerEmail}</p>

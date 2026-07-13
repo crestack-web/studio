@@ -15,6 +15,7 @@ const ChurnDetection = dynamic(() => import('./ChurnDetection'), { ssr: false })
 const AskMOAnalytics = dynamic(() => import('./AskMOAnalytics'), { ssr: false });
 const NotificationCenter = dynamic(() => import('./NotificationCenter'), { ssr: false });
 const AdminTeam = dynamic(() => import('./AdminTeam'), { ssr: false });
+const UserActivityAnalytics = dynamic(() => import('./UserActivityAnalytics'), { ssr: false }); // Added UserActivityAnalytics
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
@@ -28,10 +29,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'businesses', label: 'Businesses', icon: '🏢' },
+    { id: 'user-activity', label: 'Activity Analytics', icon: '📈' }, // Changed ID to be more specific
     { id: 'team', label: 'Admin Team', icon: '👔' },
     { id: 'support', label: 'Support', icon: '💬' },
     { id: 'features', label: 'Feature Requests', icon: '💡' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
+    { id: 'product-analytics', label: 'Product Adoption', icon: '📊' },
     { id: 'churn', label: 'Churn Detection', icon: '⚠️' },
     { id: 'askmo', label: 'Ask MO', icon: '🤖' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
@@ -45,13 +47,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return <Suspense fallback={<LoadingFallback />}><UserManagement /></Suspense>;
       case 'businesses':
         return <Suspense fallback={<LoadingFallback />}><BusinessTimeline /></Suspense>;
+      case 'user-activity': // Activity Analytics tab
+        return <Suspense fallback={<LoadingFallback />}><UserActivityAnalytics /></Suspense>;
       case 'team':
         return <Suspense fallback={<LoadingFallback />}><AdminTeam /></Suspense>;
       case 'support':
         return <Suspense fallback={<LoadingFallback />}><SupportInbox /></Suspense>;
       case 'features':
         return <Suspense fallback={<LoadingFallback />}><FeatureRequests /></Suspense>;
-      case 'analytics':
+      case 'product-analytics':
         return <Suspense fallback={<LoadingFallback />}><ProductAdoption /></Suspense>;
       case 'churn':
         return <Suspense fallback={<LoadingFallback />}><ChurnDetection /></Suspense>;
@@ -99,36 +103,41 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
-              Back to Dashboard
+              Exit Admin
             </button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
-          <nav className="flex flex-wrap">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-purple-50 to-indigo-50 text-purple-700 border-b-2 border-purple-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <span>{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Navigation */}
+          <nav className="lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
+              <ul className="space-y-2">
+                {tabs.map((tab) => (
+                  <li key={tab.id}>
+                    <button
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="text-lg">{tab.icon}</span>
+                      <span className="font-medium">{tab.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </nav>
-        </div>
 
-        {/* Content Area */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          {renderContent()}
+          {/* Main Content */}
+          <main className="flex-1">
+            {renderContent()}
+          </main>
         </div>
       </div>
     </div>

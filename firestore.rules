@@ -32,12 +32,18 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
     
+    // Helper function to check if user is an admin
+    function isAdmin() {
+      return request.auth.token.email in ['taheeratorganic@gmail.com', 'sxeedtxheer@gmail.com', 'admin@busmo.io', 'majnuncode@gmail.com'];
+    }
+    
     // =====================
     // USERS COLLECTION
     // =====================
     match /users/{userId} {
       // Allow read for authenticated user reading their own data
-      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // Allow read for admin users
+      allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
       
       // Allow user to create their own profile during signup
       allow create: if isAuthenticated() && request.auth.uid == userId;
@@ -64,6 +70,16 @@ service cloud.firestore {
         allow update: if isAuthenticated() && request.auth.uid == userId;
         allow delete: if isAuthenticated() && request.auth.uid == userId;
       }
+      
+      // =====================
+      // PAGE VISITS SUBCOLLECTION (for user activity tracking)
+      // =====================
+      match /pageVisits/{pageVisitId} {
+        allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin();
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if isAuthenticated() && request.auth.uid == userId;
+        allow delete: if isAdmin(); // Only admins can delete page visit records
+      }
     }
     
     // =====================
@@ -71,22 +87,22 @@ service cloud.firestore {
     // =====================
     match /businesses/{businessId} {
       // Temporarily allow read for any authenticated user for debugging
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() || isAdmin();
 
       // Allow creation if user is authenticated
       allow create: if isAuthenticated();
 
       // Allow write if user has access to this business
-      allow update, delete: if hasBusinessAccess(businessId);
+      allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
 
       // =====================
       // PROFILE SUBCOLLECTION
       // =====================
       match /profile/{profileId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId);
-        allow update: if hasBusinessAccess(businessId);
-        allow delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
+        allow update: if hasBusinessAccess(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -94,39 +110,39 @@ service cloud.firestore {
       // =====================
       match /branches/{branchId} {
         // Allow read if user has access to parent business
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow create if user has access to parent business
-        allow create: if hasBusinessAccess(businessId);
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
         
         // Allow update/delete if user has access to parent business
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
         
         // Branch staff subcollection
         match /staff/{staffId} {
-          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-          allow write: if hasBusinessAccess(businessId);
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+          allow write: if hasBusinessAccess(businessId) || isAdmin();
         }
         
         // Branch sales subcollection
         match /sales/{saleId} {
-          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-          allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-          allow update, delete: if hasBusinessAccess(businessId);
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+          allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+          allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
         }
         
         // Branch products subcollection
         match /products/{productId} {
-          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-          allow create: if hasBusinessAccess(businessId);
-          allow update, delete: if hasBusinessAccess(businessId);
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+          allow create: if hasBusinessAccess(businessId) || isAdmin();
+          allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
         }
         
         // Branch expenses subcollection
         match /expenses/{expenseId} {
-          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-          allow create: if hasBusinessAccess(businessId);
-          allow update, delete: if hasBusinessAccess(businessId);
+          allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+          allow create: if hasBusinessAccess(businessId) || isAdmin();
+          allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
         }
       }
 
@@ -134,9 +150,9 @@ service cloud.firestore {
       // SALES SUBCOLLECTION
       // =====================
       match /sales/{saleId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -144,37 +160,37 @@ service cloud.firestore {
       // =====================
       match /products/{productId} {
         // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        allow create: if hasBusinessAccess(businessId);
-        allow update: if hasBusinessAccess(businessId);
-        allow delete: if hasBusinessAccess(businessId);
+        allow read: if isAuthenticated() || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
+        allow update: if hasBusinessAccess(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
       // EXPENSES SUBCOLLECTION
       // =====================
       match /expenses/{expenseId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
       // STAFF SUBCOLLECTION
       // =====================
       match /staff/{staffId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow write: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow write: if hasBusinessAccess(businessId) || isAdmin();
       }
       
       // =====================
       // ATTENDANCE SUBCOLLECTION
       // =====================
       match /attendance/{attendanceId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
       }
       
       // =====================
@@ -182,176 +198,34 @@ service cloud.firestore {
       // =====================
       match /conversations/{conversationId} {
         // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update for business owner and staff
-        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow delete only for business owner
-        allow delete: if isBusinessOwner(businessId);
+        allow delete: if isBusinessOwner(businessId) || isAdmin();
       }
 
       // =====================
       // CREDIT CUSTOMERS SUBCOLLECTION (for credit tracking)
       // =====================
       match /credit_customers/{customerId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
-      // CREDIT TRANSACTIONS SUBCOLLECTION (for credit tracking)
+      // CREDIT TRANSACTIONS SUBCOLLECTION (for credit transaction history)
       // =====================
       match /credit_transactions/{transactionId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // INVOICES SUBCOLLECTION (for sale invoices)
-      // =====================
-      match /invoices/{invoiceId} {
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // DOCUMENT TEMPLATES SUBCOLLECTION
-      // =====================
-      match /documentTemplates/{templateId} {
-        // Allow read for any authenticated user with business access
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        // Allow create/update for authenticated users (templates are auto-created on first access)
-        allow create: if isAuthenticated();
-        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        // Prevent deletion to maintain historical invoice integrity
-        allow delete: if isBusinessOwner(businessId);
-      }
-
-      // =====================
-      // OPERATIONS LAYER COLLECTIONS
-      // =====================
-
-      // =====================
-      // SUPPLIERS SUBCOLLECTION (auto-generated from stock receipts)
-      // =====================
-      match /suppliers/{supplierId} {
-        // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        
-        // Allow create (auto-generated during stock receipt) for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // STOCK RECEIPTS SUBCOLLECTION (for receiving stock)
-      // =====================
-      match /stockReceipts/{receiptId} {
-        // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        
-        // Allow create for business owner and staff (staff can receive stock)
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // STOCK TRANSFERS SUBCOLLECTION (for moving stock between locations)
-      // =====================
-      match /stockTransfers/{transferId} {
-        // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        
-        // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // STOCK LOCATIONS SUBCOLLECTION (for warehouse/location management)
-      // =====================
-      match /stockLocations/{locationId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow create only for business owner
-        allow create: if hasBusinessAccess(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // STOCK REQUESTS SUBCOLLECTION (for staff requesting stock)
-      // =====================
-      match /stockRequests/{requestId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow create for business owner and staff (staff can request stock)
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // RETURNS SUBCOLLECTION (for customer returns processing)
-      // =====================
-      match /returns/{returnId} {
-        // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // BANKING LAYER COLLECTIONS
-      // =====================
-
-      // =====================
-      // BANK ACCOUNTS SUBCOLLECTION (for managing multiple bank accounts)
-      // =====================
-      match /bankAccounts/{accountId} {
-        // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        
-        // Allow create only for business owner
-        allow create: if hasBusinessAccess(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
-      }
-
-      // =====================
-      // BANK TRANSACTIONS SUBCOLLECTION (for tracking bank transactions)
-      // =====================
-      match /bankTransactions/{transactionId} {
-        // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
-        
-        // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
-        
-        // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -359,13 +233,13 @@ service cloud.firestore {
       // =====================
       match /cashFlow/{flowId} {
         // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() || isAdmin();
         
         // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -373,13 +247,13 @@ service cloud.firestore {
       // =====================
       match /supplier_credit/{creditId} {
         // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() || isAdmin();
         
         // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -387,13 +261,13 @@ service cloud.firestore {
       // =====================
       match /cashReconciliations/{reconciliationId} {
         // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow create for business owner and staff
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -401,13 +275,13 @@ service cloud.firestore {
       // =====================
       match /staffActivity/{activityId} {
         // Temporarily allow read for any authenticated user for debugging
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated() || isAdmin();
         
         // Allow create for business owner and staff (auto-generated on actions)
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
 
       // =====================
@@ -415,13 +289,13 @@ service cloud.firestore {
       // =====================
       match /auditTrail/{auditId} {
         // Allow read for business owner and staff
-        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow create for business owner and staff (auto-generated on changes)
-        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId);
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         
         // Allow update/delete only for business owner
-        allow update, delete: if hasBusinessAccess(businessId);
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
       }
     }
     
@@ -433,29 +307,29 @@ service cloud.firestore {
       allow read: if true;
       
       // Allow write only if authenticated and is the business owner
-      allow write: if isAuthenticated() && 
-                    request.auth.uid == resource.data.businessId;
+      allow write: if (isAuthenticated() && 
+                    request.auth.uid == resource.data.businessId) || isAdmin();
     }
     
     // =====================
     // AI CONVERSATIONS (for MO chat history)
     // =====================
     match /conversations/{conversationId} {
-      allow read: if isAuthenticated() && 
-                     resource.data.userId == request.auth.uid;
-      allow write: if isAuthenticated() && 
-                      request.resource.data.userId == request.auth.uid;
+      allow read: if (isAuthenticated() && 
+                     resource.data.userId == request.auth.uid) || isAdmin();
+      allow write: if (isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid) || isAdmin();
     }
     
     // =====================
     // REFERRALS COLLECTION (for referral program)
     // =====================
     match /referrals/{referralId} {
-      allow read: if isAuthenticated() && 
+      allow read: if (isAuthenticated() && 
                      (resource.data.referrerId == request.auth.uid || 
-                      resource.data.referredUserId == request.auth.uid);
+                      resource.data.referredUserId == request.auth.uid)) || isAdmin();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && resource.data.referrerId == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.referrerId == request.auth.uid) || isAdmin();
     }
   }
 }
