@@ -611,7 +611,7 @@ export function MobileAskMOPage() {
         
         // Save the updated message with sale card to conversation
         if (currentConversationId) {
-          const updatedMessagesWithCard = [...messages, userMsg, botMsgWithCard];
+          const updatedMessagesWithCard = [...messagesRef.current, userMsg, botMsgWithCard];
           await saveMessages(currentConversationId, updatedMessagesWithCard);
         }
       }
