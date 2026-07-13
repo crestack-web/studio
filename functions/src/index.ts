@@ -693,12 +693,26 @@ export const paystackWebhook = functions.https.onRequest(
       const paymentDoc = await paymentRef.get();
 
       if (paymentDoc.exists) {
+        const paymentData = paymentDoc.data();
+        
         await paymentRef.update({
           status: 'success',
           verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
           webhookData: event.data,
         });
         console.log('💰 [Paystack Webhook] Payment updated in Firestore');
+
+        // Trigger email notification via Next.js API
+        try {
+          const response = await fetch(`${process.env.PUBLIC_APP_URL || 'https://busmo.web.app'}/api/payments/verify-subscription`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference }),
+          });
+          console.log('💰 [Paystack Webhook] Email notification triggered:', response.status);
+        } catch (emailError) {
+          console.error('❌ [Paystack Webhook] Failed to trigger email notification:', emailError);
+        }
       }
     }
 

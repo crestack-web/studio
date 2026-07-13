@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emails';
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,6 +94,30 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ [verify-subscription] Payment logged successfully');
+
+    // Send subscription receipt email (non-blocking)
+    const userData = userDoc.data();
+    const userEmail = userData.email;
+    const userName = userData.name || userData.displayName || 'User';
+    const businessName = userData.businessName || 'Your Business';
+
+    // Calculate next billing date
+    const nextBillingDate = new Date(subscriptionEndDate);
+
+    sendSubscriptionReceiptEmail({
+      email: userEmail,
+      name: userName,
+      businessName: businessName,
+      planName: plan,
+      amount: transaction.amount / 100,
+      currency: transaction.currency,
+      transactionId: reference,
+      billingPeriod: billing === 'yearly' ? 'Yearly' : 'Monthly',
+      nextBillingDate: nextBillingDate.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }),
+    }).catch((emailError) => {
+      console.error('❌ [verify-subscription] Failed to send receipt email:', emailError);
+      // Don't fail the request if email fails
+    });
 
     return NextResponse.json({ 
       success: true, 
