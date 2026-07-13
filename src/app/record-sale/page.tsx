@@ -1,4 +1,3 @@
-
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
@@ -75,6 +74,10 @@ function RecordSalePageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastSaleDetails, setLastSaleDetails] = useState<SaleDetails | null>(null);
 
+  // Discount fields
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
   const firestore = useFirestore();
   const { user: authUser } = useUser();
 
@@ -104,11 +107,23 @@ function RecordSalePageContent() {
     return selectedProduct.variants?.find(v => v.id === selectedVariantId);
   }, [selectedProduct, selectedVariantId]);
 
-  const totalAmount = useMemo(() => {
+  const baseAmount = useMemo(() => {
     if (!selectedProduct) return 0;
     const price = selectedProduct.hasVariants ? selectedVariant?.price : selectedProduct.price;
     return (price || 0) * quantity;
   }, [selectedProduct, selectedVariant, quantity]);
+
+  const discountAmount = useMemo(() => {
+    if (discountType === 'percentage') {
+      return (baseAmount * discountValue) / 100;
+    } else {
+      return Math.min(discountValue, baseAmount); // Ensure discount doesn't exceed total
+    }
+  }, [baseAmount, discountType, discountValue]);
+
+  const totalAmount = useMemo(() => {
+    return baseAmount - discountAmount;
+  }, [baseAmount, discountAmount]);
 
   const stockAvailable = useMemo(() => {
     if (!selectedProduct) return 0;
@@ -121,6 +136,7 @@ function RecordSalePageContent() {
     setSelectedVariantId(undefined);
     setQuantity(1);
     setPaymentType('cash');
+    setDiscountValue(0); // Reset discount when form resets
   }
 
   const handleProductChange = (productId: string) => {
@@ -164,7 +180,11 @@ function RecordSalePageContent() {
         productName: selectedProduct.name,
         variantId: selectedVariant?.id || null,
         variantName: selectedVariant?.name || null,
-        amount: totalAmount,
+        amount: totalAmount, // Final amount after discount
+        baseAmount: baseAmount, // Original amount before discount
+        discountType: discountType,
+        discountValue: discountValue,
+        discountAmount: discountAmount,
         quantity,
         paymentType,
         source: 'pos', // Point of Sale
@@ -172,35 +192,56 @@ function RecordSalePageContent() {
     };
 
     try {
+        console.log('📦 [RecordSale] Starting transaction for sale:', {
+            businessId,
+            productId: selectedProduct.id,
+            quantity,
+            totalAmount,
+        });
+
         await runTransaction(firestore, async (transaction) => {
             const productRef = doc(firestore, `businesses/${businessId}/products`, selectedProduct.id);
             const productSnap = await transaction.get(productRef);
 
             if (!productSnap.exists()) {
+                console.error('❌ [RecordSale] Product not found:', selectedProduct.id);
                 throw new Error("Product not found in inventory.");
             }
 
             const productData = productSnap.data() as Product;
+            console.log('✅ [RecordSale] Product found:', productData.name);
             
             if (selectedProduct.hasVariants && selectedVariant) {
                 const variantIndex = productData.variants?.findIndex(v => v.id === selectedVariant.id);
                 if (variantIndex === undefined || variantIndex < 0) {
+                     console.error('❌ [RecordSale] Variant not found:', selectedVariant.id);
                      throw new Error("Variant not found.");
                 }
                 const newVariants = [...(productData.variants || [])];
                 newVariants[variantIndex].quantity -= quantity;
+                console.log('📦 [RecordSale] Updating variant stock:', {
+                    variantId: selectedVariant.id,
+                    oldQuantity: newVariants[variantIndex].quantity + quantity,
+                    newQuantity: newVariants[variantIndex].quantity,
+                });
                 transaction.update(productRef, { variants: newVariants });
             } else {
                 const newQuantity = productData.quantity - quantity;
+                console.log('📦 [RecordSale] Updating product stock:', {
+                    oldQuantity: productData.quantity,
+                    newQuantity,
+                });
                 transaction.update(productRef, { quantity: newQuantity });
             }
 
             // Now create the sale document
             const salesCollectionRef = collection(firestore, `businesses/${businessId}/sales`);
             const newSaleRef = doc(salesCollectionRef);
+            console.log('💰 [RecordSale] Creating sale document:', saleData);
             transaction.set(newSaleRef, saleData);
         });
 
+        console.log('✅ [RecordSale] Transaction completed successfully');
         toast({
           title: "Sale Recorded",
           description: `Sold ${quantity} of ${selectedProduct.name}${selectedVariant ? ` (${selectedVariant.name})` : ''}.`,
@@ -337,6 +378,43 @@ function RecordSalePageContent() {
                                 {formatCurrency(totalAmount, businessData?.country)}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Discount Section */}
+                    <div className="space-y-4 border-t pt-4 border-gray-200">
+                        <div className="space-y-2">
+                            <Label>Discount</Label>
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-1 space-y-2">
+                                    <Select value={discountType} onValueChange={(value) => setDiscountType(value as 'fixed' | 'percentage')}>
+                                        <SelectTrigger className="h-10 text-base">
+                                            <SelectValue placeholder="Discount Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="fixed">Fixed Amount</SelectItem>
+                                            <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="w-24 space-y-2">
+                                    <Input
+                                        type="number"
+                                        placeholder="0"
+                                        className="h-10 text-base text-right"
+                                        value={discountValue}
+                                        onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                                        min="0"
+                                        max={discountType === 'percentage' ? 100 : baseAmount}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {discountAmount > 0 && (
+                            <div className="text-sm text-green-600 font-medium bg-green-50 p-2 rounded-md">
+                                Discount Applied: -{formatCurrency(discountAmount, businessData?.country)}
+                            </div>
+                        )}
                     </div>
                     
                     <div className="space-y-3">

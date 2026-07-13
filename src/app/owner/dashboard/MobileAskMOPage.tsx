@@ -268,12 +268,19 @@ export function MobileAskMOPage() {
   }, [resetToNewChat]);
 
   const handleLoadConversation = useCallback(async (conversationId: string) => {
-    await loadConversation(conversationId);
-    setShowHistory(false);
-    setIsTyping(false);
-    setIsStreaming(false);
-    setLoadingText('');
-  }, [loadConversation]);
+    console.log('📂 [MobileAskMO] Loading conversation:', conversationId);
+    try {
+      await loadConversation(conversationId);
+      console.log('✅ [MobileAskMO] Conversation loaded successfully');
+      setShowHistory(false);
+      setIsTyping(false);
+      setIsStreaming(false);
+      setLoadingText('');
+    } catch (error) {
+      console.error('❌ [MobileAskMO] Failed to load conversation:', error);
+      showToast('Failed to load conversation. Please try again.');
+    }
+  }, [loadConversation, showToast]);
 
   const handlePurchaseSuccess = () => {
     // Refresh credits after successful purchase
