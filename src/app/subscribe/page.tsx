@@ -145,7 +145,8 @@ export default function SubscribePage() {
       console.log('Amount:', amount, 'Billing cycle:', billingCycle);
 
       // Call Firebase Function to initialize subscription payment
-      const callbackUrl = `${window.location.origin}/subscribe/success`;
+      // Use production URL for callback to avoid localhost redirects
+      const callbackUrl = 'https://busmo.web.app/subscribe/success';
       console.log('🔗 [Subscribe] Callback URL:', callbackUrl);
       
       const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {

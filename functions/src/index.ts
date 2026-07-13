@@ -445,9 +445,11 @@ export const initializePayment = functions.https.onRequest(
 
     // Determine callback URL based on payment type
     const paymentType = metadata?.payment_type || (billing === 'yearly' ? 'yearly_subscription' : 'monthly_subscription');
+    // Use production URL for callback to avoid localhost redirects
+    const productionUrl = 'https://busmo.web.app';
     const callbackUrl = paymentType === 'credit_purchase'
-      ? `${process.env.PUBLIC_APP_URL || 'https://busmo.io'}/dashboard`
-      : `${process.env.PUBLIC_APP_URL || 'https://busmo.io'}/subscribe/success`;
+      ? `${productionUrl}/dashboard`
+      : `${productionUrl}/subscribe/success`;
 
     console.log('💳 [Initialize Payment] Paystack request:', { email, amount: paystackAmount, currency: paystackCurrency, paymentType, callbackUrl });
 
