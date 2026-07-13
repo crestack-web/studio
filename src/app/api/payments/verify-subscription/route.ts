@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
     // Calculate subscription end date
     const subscriptionEndDate = new Date();
     if (billing === 'monthly') {
-      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+      // Monthly: 30 days from now
+      subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
     } else {
       subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
     }

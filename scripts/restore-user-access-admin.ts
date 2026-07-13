@@ -34,7 +34,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-async function restoreUserAccess(email: string, plan: string = 'standard') {
+async function restoreUserAccess(email: string, plan: string = 'standard', billing: string = 'monthly') {
   console.log('🔍 Restoring access for email:', email);
   
   // Find user by email
@@ -74,9 +74,14 @@ async function restoreUserAccess(email: string, plan: string = 'standard') {
 
   console.log('✅ User found:', { userId, currentPlan: userData.plan });
 
-  // Calculate subscription end date (default to 1 year from now)
+  // Calculate subscription end date based on billing cycle
   const subscriptionEndDate = new Date();
-  subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+  if (billing === 'yearly') {
+    subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+  } else {
+    // Monthly: 30 days from now
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+  }
 
   // Update user's plan
   await db.collection('users').doc(userId).update({
@@ -91,6 +96,7 @@ async function restoreUserAccess(email: string, plan: string = 'standard') {
     userId, 
     email, 
     plan, 
+    billing,
     subscriptionEndDate: subscriptionEndDate.toISOString() 
   });
 }
