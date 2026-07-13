@@ -109,12 +109,17 @@ function SubscriptionSuccessContent() {
           </svg>
         </div>
         <h2 className="text-2xl font-bold font-headline text-[#0A0A0F] mb-3">
-          Payment Successful!
+          Congratulations! 🎉
         </h2>
         <p className="text-[#555568] mb-6">
-          Your subscription has been activated. Redirecting you to the dashboard...
+          Your subscription has been activated successfully. You now have full access to all Busmo features.
         </p>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-4 border-purple-600 mx-auto"></div>
+        <button
+          onClick={() => router.push('/owner/dashboard')}
+          className="w-full bg-[#6B3FE7] text-white font-semibold rounded-xl h-12 flex items-center justify-center text-base transition hover:bg-[#4B27B0]"
+        >
+          Go to Dashboard
+        </button>
       </div>
     </div>
   );

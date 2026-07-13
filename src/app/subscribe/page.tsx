@@ -145,6 +145,9 @@ export default function SubscribePage() {
       console.log('Amount:', amount, 'Billing cycle:', billingCycle);
 
       // Call Firebase Function to initialize subscription payment
+      const callbackUrl = `${window.location.origin}/subscribe/success`;
+      console.log('🔗 [Subscribe] Callback URL:', callbackUrl);
+      
       const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,9 +158,11 @@ export default function SubscribePage() {
           amount: amount, // Send amount in Naira
           currency: 'NGN',
           billing: billingCycle,
+          callback_url: callbackUrl, // Explicitly set callback URL
           metadata: {
             plan: selectedPlan,
             billing: billingCycle,
+            userId: user.uid,
           },
         }),
       });
