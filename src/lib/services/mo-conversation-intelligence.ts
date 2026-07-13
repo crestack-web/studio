@@ -11,6 +11,7 @@ import { getConversationMemoryEngine, MemoryContext } from './mo-conversation-me
 import { getConversationPatternAvoidanceEngine, PatternContext, StructureSuggestion } from './mo-pattern-avoidance';
 import { getBusinessMentorPersonalityEngine, PersonalityContext, PersonalityGuidance } from './mo-mentor-personality';
 import { getConversationSelfReviewEngine, ReviewContext, ReviewResult } from './mo-conversation-self-review';
+import { getMOIdentityProtection, BusinessDataContext, UserQuestion, IdentityProtectionResult } from './mo-identity-protection';
 
 export interface ConversationIntelligenceInput {
   businessId: string;
@@ -33,12 +34,16 @@ export interface ConversationIntelligenceOutput {
   memorySummary: any;
   systemPromptAdditions: string;
   confidence: number;
+  identityProtectionResult: IdentityProtectionResult;
 }
 
 export class ConversationIntelligenceEngine {
   
   // Process user message through all conversation intelligence components
   async processMessage(input: ConversationIntelligenceInput): Promise<ConversationIntelligenceOutput> {
+    // 0. IDENTITY PROTECTION - First priority: determine if this is about their business data
+    const identityProtectionResult = this.runIdentityProtection(input);
+    
     // 1. Conversation Director - Analyze user and decide strategy
     const directorDecision = this.runConversationDirector(input);
     
@@ -63,7 +68,7 @@ export class ConversationIntelligenceEngine {
     // 8. Business Mentor Personality - Apply mentor principles
     const personalityGuidance = this.runMentorPersonality(directorDecision, input);
     
-    // 9. Generate system prompt additions
+    // 9. Generate system prompt additions (includes identity protection prompts)
     const systemPromptAdditions = this.generateSystemPromptAdditions({
       directorDecision,
       rhythmSuggestion,
@@ -71,6 +76,7 @@ export class ConversationIntelligenceEngine {
       lengthDecision,
       structureSuggestion,
       personalityGuidance,
+      identityProtectionResult,
     });
     
     // 10. Self-review will be done after response generation
@@ -111,6 +117,7 @@ export class ConversationIntelligenceEngine {
       memorySummary,
       systemPromptAdditions,
       confidence,
+      identityProtectionResult,
     };
   }
   
@@ -197,6 +204,49 @@ export class ConversationIntelligenceEngine {
       timestamp: input.timestamp,
       importance: 0.5,
     }, memoryContext);
+  }
+  
+  // Run Identity Protection - First priority check
+  private runIdentityProtection(input: ConversationIntelligenceInput): IdentityProtectionResult {
+    const identityProtection = getMOIdentityProtection();
+    
+    // Assess business data context
+    const businessContext: BusinessDataContext = {
+      businessId: input.businessId,
+      hasSalesData: input.businessData?.totalSales !== undefined,
+      hasInventoryData: input.businessData?.totalInventoryValue !== undefined,
+      hasCashFlowData: input.businessData?.netCashFlow !== undefined,
+      hasCreditData: input.businessData?.customerCreditBalance !== undefined,
+      hasExpenseData: input.businessData?.totalExpenses !== undefined,
+      hasStaffData: input.businessData?.staffCount !== undefined,
+      hasBankData: input.businessData?.totalBankBalance !== undefined,
+      dataFreshness: 'recent', // Would be calculated from actual timestamps
+      dataCompleteness: this.calculateDataCompleteness(input.businessData),
+    };
+    
+    // Analyze question intent
+    const question = identityProtection.analyzeQuestionIntent(input.userMessage, businessContext);
+    
+    // Determine data priority
+    return identityProtection.determineDataPriority(question, businessContext);
+  }
+  
+  // Calculate data completeness score (0-1)
+  private calculateDataCompleteness(businessData: any): number {
+    if (!businessData) return 0;
+    
+    const relevantFields = [
+      'totalSales',
+      'totalInventoryValue',
+      'netCashFlow',
+      'customerCreditBalance',
+      'totalExpenses',
+      'staffCount',
+      'totalBankBalance',
+    ];
+    
+    const presentFields = relevantFields.filter(field => businessData[field] !== undefined);
+    return presentFields.length / relevantFields.length;
   }
   
   // Run Conversation Rhythm
@@ -304,8 +354,14 @@ export class ConversationIntelligenceEngine {
     lengthDecision: LengthDecision;
     structureSuggestion: StructureSuggestion;
     personalityGuidance: PersonalityGuidance;
+    identityProtectionResult: IdentityProtectionResult;
   }): string {
     const additions: string[] = [];
+    
+    // IDENTITY PROTECTION - First priority
+    if (components.identityProtectionResult.systemPromptAdditions) {
+      additions.push(components.identityProtectionResult.systemPromptAdditions);
+    }
     
     // Conversation Mode and Goal
     additions.push(`\n\n## CONVERSATION INTELLIGENCE`);
