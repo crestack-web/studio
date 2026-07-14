@@ -381,38 +381,56 @@ function RecordSalePageContent() {
                     </div>
 
                     {/* Discount Section */}
-                    <div className="space-y-4 border-t pt-4 border-gray-200">
-                        <div className="space-y-2">
-                            <Label>Discount</Label>
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1 space-y-2">
-                                    <Select value={discountType} onValueChange={(value) => setDiscountType(value as 'fixed' | 'percentage')}>
-                                        <SelectTrigger className="h-10 text-base">
-                                            <SelectValue placeholder="Discount Type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="fixed">Fixed Amount</SelectItem>
-                                            <SelectItem value="percentage">Percentage (%)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-24 space-y-2">
-                                    <Input
-                                        type="number"
-                                        placeholder="0"
-                                        className="h-10 text-base text-right"
-                                        value={discountValue}
-                                        onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
-                                        min="0"
-                                        max={discountType === 'percentage' ? 100 : baseAmount}
-                                    />
-                                </div>
+                    <div className="space-y-3 border-t pt-4 border-gray-200">
+                        <Label className="text-base font-semibold">Discount (Optional)</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="discount-type" className="text-sm text-gray-600">Type</Label>
+                                <Select 
+                                    value={discountType} 
+                                    onValueChange={(value) => setDiscountType(value as 'fixed' | 'percentage')}
+                                    disabled={!selectedProduct || isLoading}
+                                >
+                                    <SelectTrigger id="discount-type" className="h-11 text-base">
+                                        <SelectValue placeholder="Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="fixed">Fixed</SelectItem>
+                                        <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="discount-value" className="text-sm text-gray-600">
+                                    {discountType === 'percentage' ? 'Percentage' : 'Amount'}
+                                </Label>
+                                <Input
+                                    id="discount-value"
+                                    type="number"
+                                    placeholder="0"
+                                    className="h-11 text-base"
+                                    value={discountValue || ''}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        if (!isNaN(val) && val >= 0) {
+                                            setDiscountValue(val);
+                                        } else if (e.target.value === '') {
+                                            setDiscountValue(0);
+                                        }
+                                    }}
+                                    min="0"
+                                    max={discountType === 'percentage' ? 100 : baseAmount}
+                                    disabled={!selectedProduct || isLoading}
+                                />
                             </div>
                         </div>
                         
                         {discountAmount > 0 && (
-                            <div className="text-sm text-green-600 font-medium bg-green-50 p-2 rounded-md">
-                                Discount Applied: -{formatCurrency(discountAmount, businessData?.country)}
+                            <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                                <span className="text-sm text-green-700">Discount Applied:</span>
+                                <span className="text-sm font-semibold text-green-700">
+                                    -{formatCurrency(discountAmount, businessData?.country)}
+                                </span>
                             </div>
                         )}
                     </div>
