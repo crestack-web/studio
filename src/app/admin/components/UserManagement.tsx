@@ -164,18 +164,15 @@ export default function UserManagement() {
                 console.error('Error fetching staff for business:', data.businessId, error);
               }
               
-              // Count sales (last 30 days for more accurate data)
+              // Count all sales and calculate total revenue
               try {
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
                 const salesQuery = query(
-                  collection(firestore, 'businesses', data.businessId, 'sales'),
-                  where('createdAt', '>=', thirtyDaysAgo)
+                  collection(firestore, 'businesses', data.businessId, 'sales')
                 );
                 const salesSnapshot = await getDocs(salesQuery);
                 totalSales = salesSnapshot.size;
                 
-                // Calculate total revenue from sales
+                // Calculate total revenue from all sales
                 salesSnapshot.forEach(saleDoc => {
                   const saleData = saleDoc.data();
                   if (saleData.amount) {
@@ -999,14 +996,14 @@ export default function UserManagement() {
                       </p>
                     </div>
                     <div className="bg-white rounded-lg p-3">
-                      <p className="text-gray-500 text-sm">Sales (30 days)</p>
+                      <p className="text-gray-500 text-sm">Sales (All Time)</p>
                       <p className="font-semibold flex items-center gap-2">
                         <Activity size={16} className="text-green-600" />
                         {selectedUser.user.totalSales}
                       </p>
                     </div>
                     <div className="bg-white rounded-lg p-3">
-                      <p className="text-gray-500 text-sm">Revenue (30 days)</p>
+                      <p className="text-gray-500 text-sm">Revenue (All Time)</p>
                       <p className="font-semibold flex items-center gap-2">
                         <Zap size={16} className="text-amber-600" />
                         ₦{selectedUser.user.totalRevenue.toLocaleString()}
