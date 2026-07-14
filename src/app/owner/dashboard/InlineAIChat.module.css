@@ -163,13 +163,32 @@
 .messages {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
+}
+
+.messages::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
 }
 
 .emptyChat {
