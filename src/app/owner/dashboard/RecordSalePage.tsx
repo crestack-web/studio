@@ -4,13 +4,14 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { useBranch } from '@/context/BranchContext';
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy, Timestamp, limit } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { BrevoService } from '@/services/email/brevo-service';
+import { sendFirstSaleCelebrationEmail } from '@/services/email/business-activity-emails';
 import { ReceiptGenerator } from './ReceiptGenerator';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './RecordSalePage.module.css';
@@ -479,45 +480,49 @@ export function RecordSalePage() {
       .filter(pb => ['transfer', 'pos', 'card'].includes(pb.method))
       .reduce((sum, pb) => sum + pb.amount, 0) + splitBankPortion;
 
-    // Create sale document with staff tracking and source location
-    const saleData = {
-        products: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          costPrice: item.costPrice,
-          quantity: item.qty,
-          emoji: item.emoji,
-        })),
-        totalRevenue: finalTotal,
-        subtotal: subtotal,
-        discount: discount,
-        discountType: discountType,
-        discountValue: discountValue,
-        totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
-        profit: profit,
-        paymentBreakdown: paymentBreakdown,
-        paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
-        expectedCash,
-        expectedBank,
-        note: note,
-        customerId: selectedCustomer || undefined,
-        customerName: selectedCustomer ? creditCustomers.find(c => c.id === selectedCustomer)?.name : (showNewCustomer ? customerName : undefined),
-        customerPhone: selectedCustomer ? creditCustomers.find(c => c.id === selectedCustomer)?.phone : (showNewCustomer ? customerPhone : undefined),
-        businessId: businessId,
-        sourceLocation: sourceLocation,
-        sourceLocationName: sourceLocationName,
-        bankAccountId: bankAccountId,
-        recordedBy: {
-          uid: user.uid,
-          email: user.email,
-          displayName: staffName,
-          role: userRole,
-          staffId: staffId,
-        },
-        createdAt: new Date(),
-        recordedAt: new Date(),
-      };
+      // Create sale document with staff tracking and source location
+      const saleData: any = {
+          products: cart.map(item => ({
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            costPrice: item.costPrice,
+            quantity: item.qty,
+            emoji: item.emoji,
+          })),
+          totalRevenue: finalTotal,
+          subtotal: subtotal,
+          discount: discount,
+          discountType: discountType,
+          discountValue: discountValue,
+          totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
+          profit: profit,
+          paymentBreakdown: paymentBreakdown,
+          paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
+          expectedCash,
+          expectedBank,
+          note: note,
+          businessId: businessId,
+          sourceLocation: sourceLocation,
+          sourceLocationName: sourceLocationName,
+          bankAccountId: bankAccountId,
+          recordedBy: {
+            uid: user.uid,
+            email: user.email,
+            displayName: staffName,
+            role: userRole,
+            staffId: staffId,
+          },
+          createdAt: new Date(),
+          recordedAt: new Date(),
+        };
+
+      // Only add customer fields if a customer is actually selected (not empty string)
+      if (selectedCustomer && selectedCustomer.trim() !== '' && selectedCustomer !== 'undefined') {
+        saleData.customerId = selectedCustomer;
+        saleData.customerName = creditCustomers.find(c => c.id === selectedCustomer)?.name || customerName;
+        saleData.customerPhone = creditCustomers.find(c => c.id === selectedCustomer)?.phone || customerPhone;
+      }
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
@@ -678,6 +683,9 @@ export function RecordSalePage() {
         // Check if low stock notifications are enabled
         const ownerDoc = await getDoc(doc(firestore, 'users', user.uid));
         const emailPrefs = ownerDoc.data()?.emailPreferences;
+        const businessName = ownerDoc.data()?.businessName || 'Your Business';
+        const ownerEmail = user.email;
+        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
         
         if (emailPrefs?.lowStock !== false) {
           const lowStockItems: Array<{ name: string; stock: number; threshold: number }> = [];
@@ -702,9 +710,6 @@ export function RecordSalePage() {
 
           // Send low stock alert if any items are below threshold
           if (lowStockItems.length > 0) {
-            const businessName = ownerDoc.data()?.businessName || 'Your Business';
-            const ownerEmail = user.email;
-            
             if (ownerEmail) {
               await BrevoService.sendLowStockAlertEmail(
                 ownerEmail,
@@ -715,8 +720,31 @@ export function RecordSalePage() {
             }
           }
         }
+
+        // Check if this is the first sale and send celebration email
+        if (emailPrefs?.firstSale !== false && ownerEmail) {
+          const salesQuery = query(
+            collection(firestore, 'businesses', businessId, 'sales'),
+            orderBy('createdAt', 'desc'),
+            limit(2)
+          );
+          const salesSnapshot = await getDocs(salesQuery);
+          
+          // If this is the first sale (snapshot size is 1, which is the sale we just created)
+          if (salesSnapshot.size === 1) {
+          await sendFirstSaleCelebrationEmail({
+            email: ownerEmail,
+            name: ownerName,
+            businessName,
+            saleAmount: subtotal,
+            productName: cart.length > 0 ? cart[0].name : 'First Sale',
+            currency: currencyCode,
+          });
+            console.log('First sale celebration email sent');
+          }
+        }
       } catch (emailError) {
-        console.error('Failed to send low stock alert:', emailError);
+        console.error('Failed to send email notifications:', emailError);
         // Don't fail the sale if email fails
       }
       }

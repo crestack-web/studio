@@ -8,6 +8,7 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, addDoc, updateDoc, doc, getDoc, Timestamp, runTransaction, limit } from 'firebase/firestore';
 import { useBranch } from '@/context/BranchContext';
 import { UserCircle, TrendingUp, TrendingDown, DollarSign, Calendar, Filter, Download, Plus, ArrowUpRight, ArrowDownRight, Users, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { sendCustomerPaymentOverdueEmail } from '@/services/email/credit-emails';
 import styles from './CreditTrackingPage.module.css';
 
 // ═══════════════════════════════════════════
@@ -117,7 +118,7 @@ let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null
 export function CreditTrackingPage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
-  const { formatMoney } = useCurrency();
+  const { formatMoney, currencyCode } = useCurrency();
   const { businessId } = useBranch();
   const { firestore } = React.useMemo(() => {
     if (!firestoreInstance) {
@@ -150,6 +151,7 @@ export function CreditTrackingPage() {
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   
   // Form states for adding customer
@@ -387,6 +389,66 @@ export function CreditTrackingPage() {
       showToast('Failed to record payment');
     } finally {
       setIsRecordingPayment(false);
+    }
+  };
+
+  const handleSendReminder = async (transaction: CreditTransaction) => {
+    if (!businessId || !firestore) return;
+
+    try {
+      setIsSendingReminder(true);
+
+      // Get customer details
+      const customerRef = doc(firestore, 'businesses', businessId, 'credit_customers', transaction.customerId);
+      const customerDoc = await getDoc(customerRef);
+      
+      if (!customerDoc.exists()) {
+        showToast('Customer not found');
+        setIsSendingReminder(false);
+        return;
+      }
+
+      const customerData = customerDoc.data();
+      const customerEmail = customerData.email;
+      const customerName = customerData.name;
+
+      // Get business details
+      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+      const businessName = businessDoc.data()?.businessName || 'Your Business';
+      const ownerEmail = businessDoc.data()?.email;
+
+      if (customerEmail && ownerEmail) {
+        // Calculate days overdue
+        const daysOverdue = Math.floor((new Date().getTime() - transaction.dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Send overdue payment email
+        await sendCustomerPaymentOverdueEmail({
+          email: customerEmail,
+          customerName,
+          businessName,
+          amount: transaction.remainingAmount,
+          dueDate: transaction.dueDate.toLocaleDateString(),
+          daysOverdue,
+          currency: currencyCode,
+        });
+
+        // Update transaction reminder status
+        await updateDoc(doc(firestore, 'businesses', businessId, 'credit_transactions', transaction.id), {
+          reminderSent: true,
+          reminderCount: (transaction.reminderCount || 0) + 1,
+          lastReminderDate: Timestamp.now(),
+        });
+
+        showToast('Reminder email sent successfully');
+        loadData();
+      } else {
+        showToast('Customer email not available');
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      showToast('Failed to send reminder');
+    } finally {
+      setIsSendingReminder(false);
     }
   };
 
