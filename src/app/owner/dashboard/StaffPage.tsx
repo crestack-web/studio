@@ -646,14 +646,13 @@ export default function StaffPage() {
       // Send staff role update email notification
       if (editingStaff.email && ownerEmail) {
         try {
-          const permissionNames = Object.keys(newStaffPermissions).filter(key => newStaffPermissions[key]);
           await sendStaffRoleUpdatedEmail({
             email: editingStaff.email,
-            name: editingStaff.name,
+            staffName: editingStaff.name,
             businessName,
+            oldRole: editingStaff.role,
             newRole: editingStaff.role,
             updatedDate: new Date().toLocaleDateString(),
-            permissions: permissionNames,
           });
           console.log('Staff role update email sent');
         } catch (emailError) {

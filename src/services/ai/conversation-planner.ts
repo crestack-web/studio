@@ -123,12 +123,12 @@ export class ConversationPlanner {
       responseDepth,
       topicType,
       topicChanged,
-      shouldRetrieveData: dataRequirements.salesData || 
+      shouldRetrieveData: !!(dataRequirements.salesData || 
                          dataRequirements.inventoryData || 
                          dataRequirements.expenseData ||
                          dataRequirements.customerData ||
                          dataRequirements.staffData ||
-                         dataRequirements.businessMetrics,
+                         dataRequirements.businessMetrics),
       dataRequirements,
       shouldPerformAction,
       actionType,
@@ -483,13 +483,13 @@ export class ConversationPlanner {
 
     // Map action patterns to action types
     const actionMappings: Array<{ pattern: RegExp; type: string }> = [
-      [/record (a|the)?\s*sale/i, 'record_sale'],
-      [/record (a|the)?\s*expense/i, 'record_expense'],
-      [/add (a|the)?\s*customer/i, 'add_customer'],
-      [/add (a|the)?\s*supplier/i, 'add_supplier'],
-      [/add (a|the)?\s*staff/i, 'add_staff'],
-      [/create (a|the)?\s*product/i, 'create_product'],
-      [/send (a|the)?\s*email/i, 'send_email'],
+      { pattern: /record (a|the)?\s*sale/i, type: 'record_sale' },
+      { pattern: /record (a|the)?\s*expense/i, type: 'record_expense' },
+      { pattern: /add (a|the)?\s*customer/i, type: 'add_customer' },
+      { pattern: /add (a|the)?\s*supplier/i, type: 'add_supplier' },
+      { pattern: /add (a|the)?\s*staff/i, type: 'add_staff' },
+      { pattern: /create (a|the)?\s*product/i, type: 'create_product' },
+      { pattern: /send (a|the)?\s*email/i, type: 'send_email' },
     ];
 
     for (const { pattern, type } of actionMappings) {
