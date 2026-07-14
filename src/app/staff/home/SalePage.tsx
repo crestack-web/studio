@@ -394,57 +394,64 @@ export const SalePage: React.FC<SalePageProps> = ({
                 Payment Method - Split Payment
               </div>
               <div className="pm-g">
-                {(['Cash', 'Transfer', 'Card'] as PayMethod[]).map((m) => (
-                  <div key={m.toLowerCase()} className="pm-card">
-                    <div
-                      className={`pmo${paymentMethods[m.toLowerCase() as keyof typeof paymentMethods] > 0 ? ' act' : ''}`}
-                      onClick={() => {
-                        const key = m.toLowerCase() as keyof typeof paymentMethods;
-                        const current = paymentMethods[key];
-                        if (current === 0) {
-                          setPaymentMethods(prev => ({ ...prev, [key]: subtotal }));
-                        } else {
-                          setPaymentMethods(prev => ({ ...prev, [key]: 0 }));
-                        }
-                      }}
-                      role="radio" aria-checked={paymentMethods[m.toLowerCase() as keyof typeof paymentMethods] > 0} tabIndex={0}
-                    >
-                      <div className="pmo-ic">
-                        {m === 'Cash' && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M22 10H2"/>
-                          </svg>
-                        )}
-                        {m === 'Transfer' && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                          </svg>
-                        )}
-                        {m === 'Card' && (
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                            <line x1="1" y1="10" x2="23" y2="10"/>
-                          </svg>
-                        )}
-                      </div>
-                      <div className="pmo-lbl">{m}</div>
-                    </div>
-                    {paymentMethods[m.toLowerCase() as keyof typeof paymentMethods] > 0 && (
-                      <input
-                        type="number"
-                        className="pm-amount"
-                        value={paymentMethods[m.toLowerCase() as keyof typeof paymentMethods]}
-                        onChange={(e) => {
-                          const key = m.toLowerCase() as keyof typeof paymentMethods;
-                          const value = Math.max(0, Number(e.target.value));
-                          setPaymentMethods(prev => ({ ...prev, [key]: value }));
+                {(['Cash', 'Transfer', 'Card'] as PayMethod[]).map((m) => {
+                  const key = m.toLowerCase() as keyof typeof paymentMethods;
+                  const amount = paymentMethods[key];
+                  const isActive = amount > 0;
+                  return (
+                    <div key={key} className="pm-card">
+                      <div
+                        className={`pmo${isActive ? ' act' : ''}`}
+                        onClick={() => {
+                          if (!isActive) {
+                            setPaymentMethods(prev => ({ ...prev, [key]: 0 }));
+                          } else {
+                            setPaymentMethods(prev => {
+                              const rest = { ...prev };
+                              delete rest[key];
+                              return rest;
+                            });
+                          }
                         }}
-                        placeholder="Amount"
-                      />
-                    )}
-                  </div>
-                ))}
+                        role="radio" aria-checked={isActive} tabIndex={0}
+                      >
+                        <div className="pmo-ic">
+                          {m === 'Cash' && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M22 10H2"/>
+                            </svg>
+                          )}
+                          {m === 'Transfer' && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                              <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                          )}
+                          {m === 'Card' && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                              <line x1="1" y1="10" x2="23" y2="10"/>
+                            </svg>
+                          )}
+                        </div>
+                        <div className="pmo-lbl">{m}</div>
+                      </div>
+                      {isActive && (
+                        <input
+                          type="number"
+                          className="pm-amount"
+                          value={amount || ''}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                            setPaymentMethods(prev => ({ ...prev, [key]: value }));
+                          }}
+                          placeholder="Amount"
+                          min="0"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div style={{ 
                 display: 'flex', 

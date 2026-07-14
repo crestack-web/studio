@@ -1394,13 +1394,14 @@ export function RecordSalePage() {
                 {PAYMENT_METHODS.map(pm => {
                   const paymentBreakdownItem = paymentBreakdown.find(pb => pb.method === pm.id);
                   const amount = paymentBreakdownItem?.amount || 0;
+                  const isActive = paymentBreakdownItem !== undefined;
                   return (
                     <div key={pm.id} className={styles.paymentMethodCard}>
                       <button
-                        className={[styles.payMethod, amount > 0 ? styles.payActive : ''].join(' ')}
+                        className={[styles.payMethod, isActive ? styles.payActive : ''].join(' ')}
                         onClick={() => {
-                          if (amount === 0) {
-                            setPaymentBreakdown(prev => [...prev, { method: pm.id as PaymentMethod, amount: subtotal }]);
+                          if (!isActive) {
+                            setPaymentBreakdown(prev => [...prev, { method: pm.id as PaymentMethod, amount: 0 }]);
                           } else {
                             setPaymentBreakdown(prev => prev.filter(pb => pb.method !== pm.id));
                           }
@@ -1411,16 +1412,17 @@ export function RecordSalePage() {
                         </svg>
                         <div className={styles.payLabel}>{pm.label}</div>
                       </button>
-                      {amount > 0 && (
+                      {isActive && (
                         <input
                           type="number"
                           className={styles.paymentAmountInput}
-                          value={amount}
+                          value={amount || ''}
                           onChange={(e) => {
-                            const value = Math.max(0, Number(e.target.value));
+                            const value = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
                             setPaymentBreakdown(prev => prev.map(pb => pb.method === pm.id ? { ...pb, amount: value } : pb));
                           }}
                           placeholder="Amount"
+                          min="0"
                         />
                       )}
                     </div>
