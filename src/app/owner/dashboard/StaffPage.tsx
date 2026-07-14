@@ -14,6 +14,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { BrevoService } from '@/services/email/brevo-service';
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
+import AttendanceTab from './AttendanceTab';
 
 interface StaffMember {
   id: string;
@@ -40,6 +41,10 @@ interface StaffMember {
   hourlyRate?: number;
   attendanceRecords?: AttendanceRecord[];
   payrollRecords?: PayrollRecord[];
+  // Payroll fields
+  paymentFrequency?: string;
+  nextPaymentDate?: string;
+  paymentAccount?: string;
 }
 
 interface AttendanceRecord {
@@ -897,6 +902,11 @@ export default function StaffPage() {
         )
       )}
 
+      {/* Attendance Tab */}
+      {activeTab === 'attendance' && (
+        <AttendanceTab staffMembers={staffMembers} showToast={showToast} />
+      )}
+
       {/* Chat Tab */}
       {activeTab === 'chat' && (
         <ChatPanel
@@ -907,97 +917,9 @@ export default function StaffPage() {
         />
       )}
 
-      {/* Attendance Tab - Restaurant Only */}
-      {activeTab === 'attendance' && isRestaurant && (
-        <Card>
-          <CardHeader>
-            <CardIcon bg="var(--blue-bg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2}>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </CardIcon>
-            Staff Attendance
-          </CardHeader>
-          <div style={{ padding: '20px' }}>
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <Button variant="primary" size="sm">Clock In All</Button>
-              <Button variant="subtle" size="sm">Clock Out All</Button>
-              <Button variant="subtle" size="sm">View Attendance Report</Button>
-            </div>
-            
-            <div style={{ 
-              border: '1px solid var(--border)', 
-              borderRadius: '8px', 
-              overflow: 'hidden' 
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: 'var(--bg)' }}>
-                  <tr>
-                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Staff</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Status</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Clock In</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Clock Out</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Hours</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {staffMembers.map(member => (
-                    <tr key={member.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ 
-                            width: '32px', 
-                            height: '32px', 
-                            borderRadius: '50%', 
-                            background: member.avatarBg, 
-                            color: member.avatarColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 600
-                          }}>
-                            {member.initials}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{member.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{member.role}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          padding: '4px 8px', 
-                          borderRadius: '12px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 500,
-                          background: 'var(--green-bg)',
-                          color: 'var(--green)'
-                        }}>
-                          Present
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>9:00 AM</td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>-</td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>0h</td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <Button variant="subtle" size="sm">Clock Out</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
-      )}
 
-      {/* Payroll Tab - Restaurant Only */}
-      {activeTab === 'payroll' && isRestaurant && (
+      {/* Payroll Tab - All Business Types */}
+      {activeTab === 'payroll' && (
         <Card>
           <CardHeader>
             <CardIcon bg="var(--green-bg)">
@@ -1006,81 +928,141 @@ export default function StaffPage() {
                 <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
               </svg>
             </CardIcon>
-            Payroll Management
+            Payroll & Salary Management
           </CardHeader>
           <div style={{ padding: '20px' }}>
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <Button variant="primary" size="sm">Generate Weekly Payroll</Button>
-              <Button variant="subtle" size="sm">Generate Monthly Payroll</Button>
-              <Button variant="subtle" size="sm">Payroll History</Button>
+            <div style={{ 
+              marginBottom: '20px', 
+              padding: '16px', 
+              background: 'linear-gradient(135deg, var(--green-bg), var(--blue-bg))',
+              borderRadius: '8px',
+              border: '1px solid var(--green)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>💰</span>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-1)' }}>
+                  Owner Wallet Integration Coming Soon
+                </div>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-2)', lineHeight: 1.5 }}>
+                Soon you'll be able to pay staff salaries directly from your owner wallet. Configure staff salary amounts and payment dates below.
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                onClick={() => setShowPayrollModal(true)}
+              >
+                + Configure Salary
+              </Button>
+              <Button variant="subtle" size="sm" onClick={() => showToast('Payroll history coming soon')}>
+                Payroll History
+              </Button>
+              <Button variant="subtle" size="sm" onClick={() => showToast('Export feature coming soon')}>
+                Export
+              </Button>
             </div>
 
-            <div style={{ 
-              border: '1px solid var(--border)', 
-              borderRadius: '8px', 
-              overflow: 'hidden' 
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: 'var(--bg)' }}>
-                  <tr>
-                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Staff</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Base Salary</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Overtime Hours</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Overtime Pay</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Total Pay</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {staffMembers.map(member => (
-                    <tr key={member.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ 
-                            width: '32px', 
-                            height: '32px', 
-                            borderRadius: '50%', 
-                            background: member.avatarBg, 
-                            color: member.avatarColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 600
-                          }}>
-                            {member.initials}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{member.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{member.role}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>
-                        ₦{member.salary?.toLocaleString() || '0'}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>0h</td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>₦0</td>
-                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600 }}>
-                        ₦{member.salary?.toLocaleString() || '0'}
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          padding: '4px 8px', 
-                          borderRadius: '12px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 500,
-                          background: 'var(--amber-bg)',
-                          color: 'var(--amber)'
-                        }}>
-                          Pending
-                        </span>
-                      </td>
+            {staffMembers.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px 20px',
+                background: 'var(--bg)',
+                borderRadius: '8px',
+                border: '1px solid var(--border)'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👥</div>
+                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-1)', marginBottom: '8px' }}>
+                  No staff members yet
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '20px' }}>
+                  Add staff members first to configure their salaries.
+                </div>
+                <Button variant="primary" onClick={() => setShowAddModal(true)}>+ Add Staff Member</Button>
+              </div>
+            ) : (
+              <div style={{ 
+                border: '1px solid var(--border)', 
+                borderRadius: '8px', 
+                overflow: 'hidden' 
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ background: 'var(--bg)' }}>
+                    <tr>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Staff</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Base Salary (₦)</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Payment Frequency</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Next Payment</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Status</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {staffMembers.map(member => (
+                      <tr key={member.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              borderRadius: '50%', 
+                              background: member.avatarBg, 
+                              color: member.avatarColor,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}>
+                              {member.initials}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{member.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{member.role}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600 }}>
+                          ₦{(member.salary || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>
+                          {member.paymentFrequency || 'Monthly'}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>
+                          {member.nextPaymentDate || 'Not set'}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '4px 8px', 
+                            borderRadius: '12px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 500,
+                            background: member.salary ? 'var(--green-bg)' : 'var(--amber-bg)',
+                            color: member.salary ? 'var(--green)' : 'var(--amber)'
+                          }}>
+                            {member.salary ? 'Configured' : 'Not Set'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <Button 
+                            variant="subtle" 
+                            size="sm"
+                            onClick={() => {
+                              setEditingStaff(member);
+                              setShowPayrollModal(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </Card>
       )}
