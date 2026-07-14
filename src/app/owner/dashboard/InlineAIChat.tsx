@@ -143,10 +143,10 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const speechRecognitionRef = useRef<any>(null);
 
-  // Auto-scroll to bottom when messages change or typing state changes
+  // Auto-scroll to top when messages change (for better UX - user reads from top)
   useEffect(() => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      messagesContainerRef.current.scrollTop = 0;
     }
   }, [messages, isTyping, isStreaming]);
 
