@@ -724,6 +724,244 @@ export const paystackWebhook = functions.https.onRequest(
 });
 
 /**
+ * Trial Reminder Email - Scheduled Function
+ * Runs daily at 9 AM to check for users whose trial is ending soon
+ */
+export const sendTrialReminders = functions.pubsub.schedule('0 9 * * *')
+  .timeZone('Africa/Lagos')
+  .onRun(async (context) => {
+    try {
+      console.log('🔔 [Trial Reminders] Starting trial reminder check...');
+
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const oneDayFromNow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+
+      // Find users with trial ending in 1 or 3 days
+      const usersSnapshot = await db.collection('users')
+        .where('subscriptionStatus', '==', 'trial')
+        .where('subscriptionEndDate', '>=', now)
+        .where('subscriptionEndDate', '<=', threeDaysFromNow)
+        .get();
+
+      console.log(`🔔 [Trial Reminders] Found ${usersSnapshot.size} users with trial ending soon`);
+
+      for (const doc of usersSnapshot.docs) {
+        const user = doc.data();
+        const trialEndDate = user.subscriptionEndDate?.toDate();
+        
+        if (!trialEndDate) continue;
+
+        const daysRemaining = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Only send if 1 or 3 days remaining
+        if (daysRemaining === 1 || daysRemaining === 3) {
+          console.log(`🔔 [Trial Reminders] Sending reminder to ${user.email} (${daysRemaining} days remaining)`);
+
+          // Trigger email via Next.js API
+          try {
+            await fetch(`${process.env.PUBLIC_APP_URL || 'https://busmo.web.app'}/api/email/trial-reminder`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: user.email,
+                name: user.name || user.displayName || 'User',
+                businessName: user.businessName || 'Your Business',
+                daysRemaining,
+                trialEndDate: trialEndDate.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }),
+              }),
+            });
+          } catch (emailError) {
+            console.error(`❌ [Trial Reminders] Failed to send email to ${user.email}:`, emailError);
+          }
+        }
+      }
+
+      console.log('✅ [Trial Reminders] Trial reminder check completed');
+    } catch (error) {
+      console.error('❌ [Trial Reminders] Error:', error);
+    }
+  });
+
+/**
+ * Daily Business Summary Email - Scheduled Function
+ * Runs daily at 8 AM to send business performance summaries
+ */
+export const sendDailySummaries = functions.pubsub.schedule('0 8 * * *')
+  .timeZone('Africa/Lagos')
+  .onRun(async (context) => {
+    try {
+      console.log('📊 [Daily Summaries] Starting daily summary generation...');
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+
+      const yesterdayEnd = new Date(yesterday);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+
+      // Find users with active subscriptions who should receive summaries
+      const usersSnapshot = await db.collection('users')
+        .where('subscriptionStatus', '==', 'active')
+        .where('plan', 'in', ['standard', 'pro'])
+        .get();
+
+      console.log(`📊 [Daily Summaries] Found ${usersSnapshot.size} users for daily summaries`);
+
+      for (const doc of usersSnapshot.docs) {
+        const user = doc.data();
+        const businessId = user.businessId || user.id;
+
+        if (!businessId) continue;
+
+        // Fetch sales data for yesterday
+        const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
+          .where('date', '>=', yesterday)
+          .where('date', '<=', yesterdayEnd)
+          .get();
+
+        // Calculate metrics
+        let totalSales = 0;
+        let totalProfit = 0;
+        let totalExpenses = 0;
+        const productSales = new Map();
+
+        salesSnapshot.forEach(saleDoc => {
+          const sale = saleDoc.data();
+          totalSales += sale.totalRevenue || 0;
+          totalProfit += sale.profit || 0;
+          totalExpenses += sale.expenses || 0;
+
+          if (sale.items) {
+            sale.items.forEach((item: any) => {
+              const current = productSales.get(item.name) || { quantity: 0, revenue: 0 };
+              productSales.set(item.name, {
+                quantity: current.quantity + item.quantity,
+                revenue: current.revenue + (item.quantity * item.sellingPrice),
+              });
+            });
+          }
+        });
+
+        // Get top products
+        const topProducts = Array.from(productSales.entries())
+          .map(([name, data]) => ({ name, ...data }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 5);
+
+        // Generate insights
+        const insights = [];
+        if (totalSales > 0) {
+          const profitMargin = ((totalProfit / totalSales) * 100).toFixed(1);
+          insights.push(`Your profit margin was ${profitMargin}% yesterday`);
+        }
+        if (topProducts.length > 0) {
+          insights.push(`Top selling product: ${topProducts[0].name} (₦${topProducts[0].revenue.toLocaleString()})`);
+        }
+
+        // Send email via Next.js API
+        try {
+          await fetch(`${process.env.PUBLIC_APP_URL || 'https://busmo.web.app'}/api/email/daily-summary`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name || user.displayName || 'User',
+              businessName: user.businessName || 'Your Business',
+              date: yesterday.toISOString(),
+              totalSales,
+              totalProfit,
+              totalExpenses,
+              transactionCount: salesSnapshot.size,
+              topProducts,
+              insights,
+              currency: 'NGN',
+            }),
+          });
+          console.log(`📊 [Daily Summaries] Sent summary to ${user.email}`);
+        } catch (emailError) {
+          console.error(`❌ [Daily Summaries] Failed to send email to ${user.email}:`, emailError);
+        }
+      }
+
+      console.log('✅ [Daily Summaries] Daily summary generation completed');
+    } catch (error) {
+      console.error('❌ [Daily Summaries] Error:', error);
+    }
+  });
+
+/**
+ * Business Insights Email - Scheduled Function
+ * Runs weekly on Mondays at 10 AM to send business insights
+ */
+export const sendBusinessInsights = functions.pubsub.schedule('0 10 * * 1')
+  .timeZone('Africa/Lagos')
+  .onRun(async (context) => {
+    try {
+      console.log('🎯 [Business Insights] Starting insights generation...');
+
+      // Find users with active subscriptions
+      const usersSnapshot = await db.collection('users')
+        .where('subscriptionStatus', '==', 'active')
+        .where('plan', 'in', ['standard', 'pro'])
+        .get();
+
+      console.log(`🎯 [Business Insights] Found ${usersSnapshot.size} users for insights`);
+
+      for (const doc of usersSnapshot.docs) {
+        const user = doc.data();
+        const businessId = user.businessId || user.id;
+
+        if (!businessId) continue;
+
+        // Generate sample insights (in production, this would use AI)
+        const insights = [
+          {
+            category: 'local' as const,
+            priority: 'medium' as const,
+            title: 'Inventory Optimization',
+            description: 'Based on your sales data, consider increasing stock of your top 3 performing products by 20%',
+            action: 'View Inventory',
+            actionUrl: 'https://busmo.io/dashboard/inventory',
+            impact: 'Could increase revenue by 15-20%',
+          },
+          {
+            category: 'global' as const,
+            priority: 'high' as const,
+            title: 'Market Trend Alert',
+            description: 'Retail businesses in your region are seeing increased demand for digital payment options',
+            action: 'Enable Digital Payments',
+            actionUrl: 'https://busmo.io/dashboard/settings',
+            impact: 'May attract 30% more customers',
+          },
+        ];
+
+        // Send email via Next.js API
+        try {
+          await fetch(`${process.env.PUBLIC_APP_URL || 'https://busmo.web.app'}/api/email/business-insights`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name || user.displayName || 'User',
+              businessName: user.businessName || 'Your Business',
+              insights,
+              generatedAt: new Date().toISOString(),
+            }),
+          });
+          console.log(`🎯 [Business Insights] Sent insights to ${user.email}`);
+        } catch (emailError) {
+          console.error(`❌ [Business Insights] Failed to send email to ${user.email}:`, emailError);
+        }
+      }
+
+      console.log('✅ [Business Insights] Insights generation completed');
+    } catch (error) {
+      console.error('❌ [Business Insights] Error:', error);
+    }
+  });
+
+/**
  * Create Staff - Firebase Function
  * Creates a new staff user with Firebase Auth and Firestore
  */

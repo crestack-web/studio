@@ -110,20 +110,34 @@ export function DashboardTour({ onComplete, onSkip }: DashboardTourProps) {
   const spotlightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const targetElement = document.querySelector(`[data-tour="${TOUR_STEPS[currentStep].target}"]`) as HTMLElement;
-    
-    if (targetElement) {
-      setHighlightedElement(targetElement);
-      const rect = targetElement.getBoundingClientRect();
-      setPosition({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-        height: rect.height,
-      });
+    const findAndHighlightElement = () => {
+      const targetElement = document.querySelector(`[data-tour="${TOUR_STEPS[currentStep].target}"]`) as HTMLElement;
       
-      // Scroll element into view
-      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (targetElement) {
+        setHighlightedElement(targetElement);
+        const rect = targetElement.getBoundingClientRect();
+        setPosition({
+          top: rect.top + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          height: rect.height,
+        });
+        
+        // Scroll element into view
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (!findAndHighlightElement()) {
+      // If not found, retry after a short delay (for loading states)
+      const timer = setTimeout(() => {
+        findAndHighlightElement();
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
   }, [currentStep]);
 
