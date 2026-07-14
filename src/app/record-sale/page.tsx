@@ -172,6 +172,15 @@ function RecordSalePageContent() {
         return;
     }
 
+    if (totalAmount <= 0) {
+        toast({
+            variant: 'destructive',
+            title: 'Invalid Amount',
+            description: 'Total amount after discount must be greater than 0.',
+        });
+        return;
+    }
+
     setIsLoading(true);
 
     const saleData = {
@@ -382,16 +391,16 @@ function RecordSalePageContent() {
 
                     {/* Discount Section */}
                     <div className="space-y-3 border-t pt-4 border-gray-200">
-                        <Label className="text-base font-semibold">Discount (Optional)</Label>
+                        <Label className="text-base font-semibold text-gray-900">Discount (Optional)</Label>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
-                                <Label htmlFor="discount-type" className="text-sm text-gray-600">Type</Label>
+                                <Label htmlFor="discount-type" className="text-sm font-medium text-gray-700">Type</Label>
                                 <Select 
                                     value={discountType} 
                                     onValueChange={(value) => setDiscountType(value as 'fixed' | 'percentage')}
                                     disabled={!selectedProduct || isLoading}
                                 >
-                                    <SelectTrigger id="discount-type" className="h-11 text-base">
+                                    <SelectTrigger id="discount-type" className="h-10 text-sm border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
                                         <SelectValue placeholder="Type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -401,14 +410,14 @@ function RecordSalePageContent() {
                                 </Select>
                             </div>
                             <div className="space-y-1">
-                                <Label htmlFor="discount-value" className="text-sm text-gray-600">
+                                <Label htmlFor="discount-value" className="text-sm font-medium text-gray-700">
                                     {discountType === 'percentage' ? 'Percentage' : 'Amount'}
                                 </Label>
                                 <Input
                                     id="discount-value"
                                     type="number"
                                     placeholder="0"
-                                    className="h-11 text-base"
+                                    className="h-10 text-sm border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                     value={discountValue || ''}
                                     onChange={(e) => {
                                         const val = parseFloat(e.target.value);
@@ -426,9 +435,9 @@ function RecordSalePageContent() {
                         </div>
                         
                         {discountAmount > 0 && (
-                            <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                                <span className="text-sm text-green-700">Discount Applied:</span>
-                                <span className="text-sm font-semibold text-green-700">
+                            <div className="flex justify-between items-center bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                                <span className="text-sm text-purple-700 font-medium">Discount Applied:</span>
+                                <span className="text-sm font-semibold text-purple-700">
                                     -{formatCurrency(discountAmount, businessData?.country)}
                                 </span>
                             </div>
