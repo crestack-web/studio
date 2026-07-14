@@ -183,6 +183,24 @@ service cloud.firestore {
         allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
         allow write: if hasBusinessAccess(businessId) || isAdmin();
       }
+
+      // =====================
+      // SUPPLIERS SUBCOLLECTION
+      // =====================
+      match /suppliers/{supplierId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // PURCHASES SUBCOLLECTION
+      // =====================
+      match /purchases/{purchaseId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
       
       // =====================
       // ATTENDANCE SUBCOLLECTION
