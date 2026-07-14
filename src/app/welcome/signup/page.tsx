@@ -571,6 +571,7 @@ type FormState = {
   businessAnalysis?: any;
   selectedCategory?: string;
   selectedFeatures?: string[];
+  googleUserId?: string;
 };
 
 // ΓöÇΓöÇ Step Progress Bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
@@ -1155,24 +1156,31 @@ export default function BusmoOnboarding() {
           try {
             const { auth, firestore } = initializeFirebase();
             
-            // Step 1: Create Firebase Auth user (with duplicate handling)
+            // Step 1: Handle Firebase Auth user creation
             if (!userCreated && !userId) {
               try {
-                // Check if user is already authenticated (e.g., via Google)
-                const currentUser = auth.currentUser;
-                if (currentUser && currentUser.email === data.email) {
-                  userId = currentUser.uid;
+                // For Google auth users, use the Google user ID directly
+                if (data.googleUserId) {
+                  userId = data.googleUserId;
                   userCreated = true;
-                  console.log('User already authenticated via Google:', userId);
+                  console.log('Using Google authenticated user ID:', userId);
                 } else {
-                  // Create new user with email/password
-                  const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-                  userId = userCredential.user.uid;
-                  userCreated = true;
-                  console.log('User created successfully:', userId);
+                  // Check if user is already authenticated
+                  const currentUser = auth.currentUser;
+                  if (currentUser && currentUser.email === data.email) {
+                    userId = currentUser.uid;
+                    userCreated = true;
+                    console.log('User already authenticated:', userId);
+                  } else {
+                    // Create new user with email/password
+                    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+                    userId = userCredential.user.uid;
+                    userCreated = true;
+                    console.log('User created successfully:', userId);
+                  }
                 }
               } catch (authError: any) {
-                if (authError.code === 'auth/email-already-in-use') {
+                if (authError.code === 'auth/email-already-in-use' && !data.googleUserId) {
                   // User already exists - try to sign them in instead
                   console.log('User already exists, attempting to sign in...');
                   try {
@@ -1192,14 +1200,11 @@ export default function BusmoOnboarding() {
                       throw authError;
                     }
                   }
-                } else if (authError.code === 'auth/weak-password') {
-                  setError('Password should be at least 6 characters.');
-                  setIsLoading(false);
-                  return;
-                } else if (authError.code === 'auth/invalid-email') {
-                  setError('Invalid email address.');
-                  setIsLoading(false);
-                  return;
+                } else if (data.googleUserId) {
+                  // For Google auth users, use the Google ID even if other errors occur
+                  console.log('Using Google ID despite error:', data.googleUserId);
+                  userId = data.googleUserId;
+                  userCreated = true;
                 } else {
                   throw authError;
                 }
@@ -1394,8 +1399,10 @@ export default function BusmoOnboarding() {
         ...prev,
         email: user.email || prev.email,
         fullName: user.displayName || prev.fullName,
+        businessName: prev.businessName || `${user.displayName || 'My'} Business`,
         selectedCategory: prev.selectedCategory || "retail",
         selectedFeatures: Array.isArray(prev.selectedFeatures) ? prev.selectedFeatures : CATEGORY_FEATURES["retail"],
+        googleUserId: user.uid,
       }));
 
       // Set Google auth flag
