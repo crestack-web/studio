@@ -1026,6 +1026,8 @@ export default function BusmoOnboarding() {
   const [error, setError] = useState<string | null>(null);
   const [trialInfo, setTrialInfo] = useState<any>(null);
   const [isGoogleAuth, setIsGoogleAuth] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  
   const [data, setData] = useState<FormState>({
     businessName: "", description: "", email: "", password: "",
     fullName: "", countryCode: "+234", phone: "", country: "nigeria",
@@ -1037,10 +1039,17 @@ export default function BusmoOnboarding() {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Check for trial information from pricing page
+  // Check for trial information and referral code
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const isTrial = searchParams.get('trial');
+    const ref = searchParams.get('ref');
+    
+    // Capture referral code from URL
+    if (ref) {
+      setReferralCode(ref);
+      console.log('Referral code captured:', ref);
+    }
     
     if (isTrial === 'true') {
       const trialInfoStr = localStorage.getItem('busmo_trial_info');
@@ -1317,6 +1326,36 @@ export default function BusmoOnboarding() {
 
         // Always allow entry to Busmo, regardless of setup status
         setError(null);
+        
+        // Track referral if user was referred
+        if (referralCode && userId) {
+          try {
+            const trackResponse = await fetch('/api/referrals/track-signup', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                referredId: userId,
+                referrerId: referralCode,
+                signupData: {
+                  email: data.email,
+                  name: data.fullName,
+                }
+              }),
+            });
+            
+            if (trackResponse.ok) {
+              console.log('✅ Referral tracked successfully');
+            } else {
+              const trackData = await trackResponse.json();
+              console.warn('Failed to track referral:', trackData.error);
+            }
+          } catch (referralError) {
+            console.error('Error tracking referral:', referralError);
+            // Non-critical: user can still use the app even if referral tracking fails
+          }
+        }
         
         // Send welcome email series to owner (non-blocking)
         sendOwnerWelcomeEmailSeries({

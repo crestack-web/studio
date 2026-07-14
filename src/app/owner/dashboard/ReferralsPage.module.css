@@ -114,3 +114,28 @@
   font-size: 0.78rem;
   color: var(--text-3);
 }
+
+/* ── Transaction list ── */
+.transactionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transactionItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+
+.transactionItem:hover {
+  border-color: var(--purple);
+  box-shadow: var(--shadow-sm);
+}

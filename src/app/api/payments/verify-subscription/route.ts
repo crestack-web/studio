@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
-import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emails';
+
+const COMMISSION_RATE = 0.20; // 20% referral commission
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,6 +68,8 @@ export async function POST(request: NextRequest) {
       subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
     }
 
+    const paymentAmount = transaction.amount / 100; // Convert from kobo to Naira
+
     // Update user document
     await updateDoc(userRef, {
       plan: plan,
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
       subscriptionStartDate: new Date(),
       subscriptionEndDate: subscriptionEndDate,
       lastPaymentReference: reference,
-      lastPaymentAmount: transaction.amount / 100, // Convert from kobo to Naira
+      lastPaymentAmount: paymentAmount,
       lastPaymentDate: new Date(),
       updatedAt: new Date(),
     });
@@ -86,7 +90,7 @@ export async function POST(request: NextRequest) {
       reference: reference,
       plan: plan,
       billing: billing,
-      amount: transaction.amount / 100,
+      amount: paymentAmount,
       currency: transaction.currency,
       status: 'success',
       paidAt: transaction.paid_at ? new Date(transaction.paid_at * 1000) : new Date(),
@@ -94,6 +98,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ [verify-subscription] Payment logged successfully');
+
+    // Process referral commission if user was referred
+    try {
+      await processReferralCommission(firestore, userId, plan, paymentAmount);
+    } catch (referralError) {
+      console.error('⚠️ [verify-subscription] Referral processing failed:', referralError);
+      // Don't fail the main flow if referral processing fails
+    }
 
     // Send subscription receipt email (non-blocking)
     const userData = userDoc.data();
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest) {
       name: userName,
       businessName: businessName,
       planName: plan,
-      amount: transaction.amount / 100,
+      amount: paymentAmount,
       currency: transaction.currency,
       transactionId: reference,
       billingPeriod: billing === 'yearly' ? 'Yearly' : 'Monthly',
@@ -130,4 +142,89 @@ export async function POST(request: NextRequest) {
     console.error('❌ [verify-subscription] Error:', error);
     return NextResponse.json({ error: 'Payment verification failed' }, { status: 500 });
   }
+}
+
+// Process referral commission
+async function processReferralCommission(firestore: any, userId: string, plan: string, paymentAmount: number) {
+  try {
+    // Find referral record
+    const referralsQuery = query(
+      collection(firestore, 'referrals'),
+      where('referredId', '==', userId)
+    );
+    const referralsSnapshot = await getDocs(referralsQuery);
+    
+    if (referralsSnapshot.empty) {
+      console.log('ℹ️ [referral] No referral found for user:', userId);
+      return;
+    }
+
+    const referralDoc = referralsSnapshot.docs[0];
+    const referralData = referralDoc.data();
+    const referrerId = referralData.referrerId;
+
+    if (!referrerId) {
+      console.log('ℹ️ [referral] No referrer ID found');
+      return;
+    }
+
+    // Calculate commission (20% of payment amount)
+    const commissionAmount = paymentAmount * COMMISSION_RATE;
+
+    // Get referrer's current balance
+    const referrerRef = doc(firestore, 'users', referrerId);
+    const referrerDoc = await getDoc(referrerRef);
+    
+    if (!referrerDoc.exists()) {
+      console.error('❌ [referral] Referrer not found:', referrerId);
+      return;
+    }
+
+    const referrerData = referrerDoc.data();
+    const currentBalance = referrerData.referralBalance || 0;
+    const totalEarned = referrerData.totalEarned || 0;
+
+    // Update referral record
+    await updateDoc(referralDoc.ref, {
+      status: 'active',
+      hasSubscribed: true,
+      subscriptionPlan: plan,
+      subscriptionDate: new Date(),
+      commissionEarned: commissionAmount,
+      updatedAt: newTimestamp(),
+    });
+
+    // Update referrer's balance and stats
+    await updateDoc(referrerRef, {
+      referralBalance: currentBalance + commissionAmount,
+      totalEarned: totalEarned + commissionAmount,
+      activeReferrals: (referrerData.activeReferrals || 0) + 1,
+      updatedAt: newTimestamp(),
+    });
+
+    // Log commission transaction
+    await addDoc(collection(firestore, 'referral_transactions'), {
+      referrerId: referrerId,
+      referredId: userId,
+      type: 'commission',
+      amount: commissionAmount,
+      plan: plan,
+      paymentReference: referralDoc.id,
+      createdAt: newTimestamp(),
+    });
+
+    console.log('✅ [referral] Commission credited:', {
+      referrerId,
+      amount: commissionAmount,
+      plan: plan
+    });
+
+  } catch (error) {
+    console.error('❌ [referral] Error processing commission:', error);
+    throw error;
+  }
+}
+
+function newTimestamp() {
+  return serverTimestamp();
 }
