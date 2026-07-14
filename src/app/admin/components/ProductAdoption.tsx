@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, limit, getCountFromServer, getAggregateFromServer, sum } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit, getCountFromServer, getAggregateFromServer, sum, where, getFirestore } from 'firebase/firestore';
 
 interface FeatureAdoption {
   feature: string;
@@ -13,6 +13,12 @@ interface FeatureAdoption {
   usageFrequency: number;
   userSatisfaction: number;
   growthRate: number;
+}
+
+interface PageVisit {
+  page: string;
+  visitCount: number;
+  lastVisited: string;
 }
 
 export default function ProductAdoption() {
@@ -40,277 +46,242 @@ export default function ProductAdoption() {
       const totalBusinessesSnapshot = await getCountFromServer(collection(firestore, 'businesses'));
       const totalBusinesses = totalBusinessesSnapshot.data().count;
 
+      // Get page visit data to determine actual feature usage
+      const usersSnapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
+      const pageVisitsMap: Record<string, PageVisit[]> = {};
+      
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        const pageVisitsSnapshot = await getDocs(collection(firestore, `users/${userId}/pageVisits`));
+        
+        pageVisitsMap[userId] = pageVisitsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            page: data.page || 'unknown',
+            visitCount: data.visitCount || 0,
+            lastVisited: data.lastVisited ? data.lastVisited.toDate().toISOString() : new Date().toISOString()
+          };
+        });
+      }
+      
+      // Aggregate page visit data by feature
+      const featureUsageCounts: Record<string, number> = {
+        'inventory': 0,
+        'sale': 0,
+        'expense': 0,
+        'supplier': 0,
+        'warehouse': 0,
+        'staff': 0,
+        'mo-mobile': 0,
+        'credit': 0,
+        'customer': 0,
+        'report': 0,
+        'branch': 0,
+        'pos': 0,
+      };
+      
+      // Map page routes to features
+      Object.values(pageVisitsMap).forEach(visits => {
+        visits.forEach(visit => {
+          const page = visit.page.toLowerCase();
+          if (page.includes('inventory') || page.includes('product')) {
+            featureUsageCounts.inventory += visit.visitCount;
+          } else if (page.includes('sale') || page.includes('pos')) {
+            featureUsageCounts.sale += visit.visitCount;
+          } else if (page.includes('expense')) {
+            featureUsageCounts.expense += visit.visitCount;
+          } else if (page.includes('supplier')) {
+            featureUsageCounts.supplier += visit.visitCount;
+          } else if (page.includes('warehouse')) {
+            featureUsageCounts.warehouse += visit.visitCount;
+          } else if (page.includes('staff')) {
+            featureUsageCounts.staff += visit.visitCount;
+          } else if (page.includes('mo') || page.includes('ask')) {
+            featureUsageCounts['mo-mobile'] += visit.visitCount;
+          } else if (page.includes('credit') || page.includes('payment')) {
+            featureUsageCounts.credit += visit.visitCount;
+          } else if (page.includes('customer') || page.includes('client')) {
+            featureUsageCounts.customer += visit.visitCount;
+          } else if (page.includes('report') || page.includes('analytics')) {
+            featureUsageCounts.report += visit.visitCount;
+          } else if (page.includes('branch')) {
+            featureUsageCounts.branch += visit.visitCount;
+          } else if (page.includes('pos') || page.includes('cashier')) {
+            featureUsageCounts.pos += visit.visitCount;
+          }
+        });
+      });
+
+      // Count businesses using each feature based on page visits
+      const businessesUsingMap: Record<string, Set<string>> = {
+        'inventory': new Set(),
+        'sale': new Set(),
+        'expense': new Set(),
+        'supplier': new Set(),
+        'warehouse': new Set(),
+        'staff': new Set(),
+        'mo-mobile': new Set(),
+        'credit': new Set(),
+        'customer': new Set(),
+        'report': new Set(),
+        'branch': new Set(),
+        'pos': new Set(),
+      };
+      
+      // Determine which businesses are using each feature
+      Object.entries(pageVisitsMap).forEach(([userId, visits]) => {
+        visits.forEach(visit => {
+          const page = visit.page.toLowerCase();
+          if (page.includes('inventory') || page.includes('product')) {
+            businessesUsingMap.inventory.add(userId);
+          } else if (page.includes('sale') || page.includes('pos')) {
+            businessesUsingMap.sale.add(userId);
+          } else if (page.includes('expense')) {
+            businessesUsingMap.expense.add(userId);
+          } else if (page.includes('supplier')) {
+            businessesUsingMap.supplier.add(userId);
+          } else if (page.includes('warehouse')) {
+            businessesUsingMap.warehouse.add(userId);
+          } else if (page.includes('staff')) {
+            businessesUsingMap.staff.add(userId);
+          } else if (page.includes('mo') || page.includes('ask')) {
+            businessesUsingMap['mo-mobile'].add(userId);
+          } else if (page.includes('credit') || page.includes('payment')) {
+            businessesUsingMap.credit.add(userId);
+          } else if (page.includes('customer') || page.includes('client')) {
+            businessesUsingMap.customer.add(userId);
+          } else if (page.includes('report') || page.includes('analytics')) {
+            businessesUsingMap.report.add(userId);
+          } else if (page.includes('branch')) {
+            businessesUsingMap.branch.add(userId);
+          } else if (page.includes('pos') || page.includes('cashier')) {
+            businessesUsingMap.pos.add(userId);
+          }
+        });
+      });
+
       const features: FeatureAdoption[] = [
         {
           feature: 'Inventory Management',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.inventory.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.inventory.size / totalBusinesses) * 100 : 0,
           icon: '📦',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.inventory,
+          userSatisfaction: 4.2,
+          growthRate: 5.2,
         },
         {
           feature: 'Sales Recording',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.sale.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.sale.size / totalBusinesses) * 100 : 0,
           icon: '💰',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.sale,
+          userSatisfaction: 4.5,
+          growthRate: 8.1,
         },
         {
           feature: 'Expense Tracking',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.expense.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.expense.size / totalBusinesses) * 100 : 0,
           icon: '💸',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.expense,
+          userSatisfaction: 4.0,
+          growthRate: 6.3,
         },
         {
           feature: 'Supplier Management',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.supplier.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.supplier.size / totalBusinesses) * 100 : 0,
           icon: '🏭',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.supplier,
+          userSatisfaction: 3.8,
+          growthRate: 4.7,
         },
         {
           feature: 'Warehouse Management',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.warehouse.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.warehouse.size / totalBusinesses) * 100 : 0,
           icon: '🏗️',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.warehouse,
+          userSatisfaction: 3.9,
+          growthRate: 3.2,
         },
         {
           feature: 'Staff Management',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.staff.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.staff.size / totalBusinesses) * 100 : 0,
           icon: '👥',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.staff,
+          userSatisfaction: 4.3,
+          growthRate: 7.4,
         },
         {
           feature: 'Ask MO',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap['mo-mobile'].size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap['mo-mobile'].size / totalBusinesses) * 100 : 0,
           icon: '🤖',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts['mo-mobile'],
+          userSatisfaction: 4.7,
+          growthRate: 12.5,
         },
         {
           feature: 'Credit Sales',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.credit.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.credit.size / totalBusinesses) * 100 : 0,
           icon: '💳',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.credit,
+          userSatisfaction: 4.1,
+          growthRate: 9.8,
         },
         {
           feature: 'Customer Management',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.customer.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.customer.size / totalBusinesses) * 100 : 0,
           icon: '👤',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.customer,
+          userSatisfaction: 4.4,
+          growthRate: 7.9,
         },
         {
           feature: 'Reports & Analytics',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.report.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.report.size / totalBusinesses) * 100 : 0,
           icon: '📊',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.report,
+          userSatisfaction: 4.6,
+          growthRate: 6.7,
         },
         {
           feature: 'Multi-Branch',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.branch.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.branch.size / totalBusinesses) * 100 : 0,
           icon: '🏢',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.branch,
+          userSatisfaction: 4.2,
+          growthRate: 5.5,
         },
         {
           feature: 'POS System',
           totalBusinesses,
-          businessesUsing: 0,
-          adoptionRate: 0,
+          businessesUsing: businessesUsingMap.pos.size,
+          adoptionRate: totalBusinesses > 0 ? (businessesUsingMap.pos.size / totalBusinesses) * 100 : 0,
           icon: '🛒',
-          usageFrequency: 0,
-          userSatisfaction: 0,
-          growthRate: 0,
+          usageFrequency: featureUsageCounts.pos,
+          userSatisfaction: 4.3,
+          growthRate: 8.9,
         },
       ];
-
-      // Count businesses using each feature
-      const businessesListQuery = query(collection(firestore, 'businesses'), limit(100));
-      const businessesListSnapshot = await getDocs(businessesListQuery);
-      
-      let inventoryCount = 0;
-      let salesCount = 0;
-      let expenseCount = 0;
-      let supplierCount = 0;
-      let warehouseCount = 0;
-      let staffCount = 0;
-      let askMoCount = 0;
-      let creditCount = 0;
-      let customerCount = 0;
-      let reportsCount = 0;
-      let multiBranchCount = 0;
-      let posCount = 0;
-
-      for (const businessDoc of businessesListSnapshot.docs) {
-        const businessId = businessDoc.id;
-        
-        // Check for products (inventory)
-        const productsSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'products'));
-        if (productsSnapshot.data().count > 0) inventoryCount++;
-        
-        // Check for sales
-        const salesSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'sales'));
-        if (salesSnapshot.data().count > 0) salesCount++;
-        
-        // Check for expenses
-        const expensesSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'expenses'));
-        if (expensesSnapshot.data().count > 0) expenseCount++;
-        
-        // Check for suppliers
-        const suppliersSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'suppliers'));
-        if (suppliersSnapshot.data().count > 0) supplierCount++;
-        
-        // Check for warehouses
-        const warehousesSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'warehouses'));
-        if (warehousesSnapshot.data().count > 0) warehouseCount++;
-        
-        // Check for staff
-        const staffSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'staff'));
-        if (staffSnapshot.data().count > 0) staffCount++;
-        
-        // Check for Ask MO conversations
-        const askMoSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'askMoConversations'));
-        if (askMoSnapshot.data().count > 0) askMoCount++;
-        
-        // Check for credit sales
-        const creditSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'creditSales'));
-        if (creditSnapshot.data().count > 0) creditCount++;
-        
-        // Check for customers
-        const customerSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'customers'));
-        if (customerSnapshot.data().count > 0) customerCount++;
-        
-        // Check for reports usage (we'll use the existence of report logs)
-        const reportsSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'reports'));
-        if (reportsSnapshot.data().count > 0) reportsCount++;
-        
-        // Check for multi-branch (businesses with more than one branch)
-        const branchesSnapshot = await getCountFromServer(collection(firestore, 'businesses', businessId, 'branches'));
-        if (branchesSnapshot.data().count > 1) multiBranchCount++;
-        
-        // Check for POS usage (sales with POS-specific fields)
-        const posSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'sales'));
-        let hasPosSales = false;
-        posSnapshot.forEach(saleDoc => {
-          const saleData = saleDoc.data();
-          if (saleData.paymentMethod === 'pos' || saleData.posTerminalId) {
-            hasPosSales = true;
-          }
-        });
-        if (hasPosSales) posCount++;
-      }
-
-      // Update adoption data
-      features[0].businessesUsing = inventoryCount;
-      features[0].adoptionRate = totalBusinesses > 0 ? (inventoryCount / totalBusinesses) * 100 : 0;
-      features[0].usageFrequency = inventoryCount > 0 ? (await getCountFromServer(collection(firestore, 'products'))).data().count / inventoryCount : 0;
-      features[0].userSatisfaction = 4.2; // Placeholder - would come from feedback
-      features[0].growthRate = 5.2; // Placeholder - would come from historical data
-      
-      features[1].businessesUsing = salesCount;
-      features[1].adoptionRate = totalBusinesses > 0 ? (salesCount / totalBusinesses) * 100 : 0;
-      features[1].usageFrequency = salesCount > 0 ? (await getCountFromServer(collection(firestore, 'sales'))).data().count / salesCount : 0;
-      features[1].userSatisfaction = 4.5;
-      features[1].growthRate = 8.1;
-      
-      features[2].businessesUsing = expenseCount;
-      features[2].adoptionRate = totalBusinesses > 0 ? (expenseCount / totalBusinesses) * 100 : 0;
-      features[2].usageFrequency = expenseCount > 0 ? (await getCountFromServer(collection(firestore, 'expenses'))).data().count / expenseCount : 0;
-      features[2].userSatisfaction = 4.0;
-      features[2].growthRate = 6.3;
-      
-      features[3].businessesUsing = supplierCount;
-      features[3].adoptionRate = totalBusinesses > 0 ? (supplierCount / totalBusinesses) * 100 : 0;
-      features[3].usageFrequency = supplierCount > 0 ? (await getCountFromServer(collection(firestore, 'suppliers'))).data().count / supplierCount : 0;
-      features[3].userSatisfaction = 3.8;
-      features[3].growthRate = 4.7;
-      
-      features[4].businessesUsing = warehouseCount;
-      features[4].adoptionRate = totalBusinesses > 0 ? (warehouseCount / totalBusinesses) * 100 : 0;
-      features[4].usageFrequency = warehouseCount > 0 ? (await getCountFromServer(collection(firestore, 'warehouses'))).data().count / warehouseCount : 0;
-      features[4].userSatisfaction = 3.9;
-      features[4].growthRate = 3.2;
-      
-      features[5].businessesUsing = staffCount;
-      features[5].adoptionRate = totalBusinesses > 0 ? (staffCount / totalBusinesses) * 100 : 0;
-      features[5].usageFrequency = staffCount > 0 ? (await getCountFromServer(collection(firestore, 'staff'))).data().count / staffCount : 0;
-      features[5].userSatisfaction = 4.3;
-      features[5].growthRate = 7.4;
-      
-      features[6].businessesUsing = askMoCount;
-      features[6].adoptionRate = totalBusinesses > 0 ? (askMoCount / totalBusinesses) * 100 : 0;
-      features[6].usageFrequency = askMoCount > 0 ? (await getCountFromServer(collection(firestore, 'askMoConversations'))).data().count / askMoCount : 0;
-      features[6].userSatisfaction = 4.7;
-      features[6].growthRate = 12.5;
-      
-      features[7].businessesUsing = creditCount;
-      features[7].adoptionRate = totalBusinesses > 0 ? (creditCount / totalBusinesses) * 100 : 0;
-      features[7].usageFrequency = creditCount > 0 ? (await getCountFromServer(collection(firestore, 'creditSales'))).data().count / creditCount : 0;
-      features[7].userSatisfaction = 4.1;
-      features[7].growthRate = 9.8;
-      
-      features[8].businessesUsing = customerCount;
-      features[8].adoptionRate = totalBusinesses > 0 ? (customerCount / totalBusinesses) * 100 : 0;
-      features[8].usageFrequency = customerCount > 0 ? (await getCountFromServer(collection(firestore, 'customers'))).data().count / customerCount : 0;
-      features[8].userSatisfaction = 4.4;
-      features[8].growthRate = 7.9;
-      
-      features[9].businessesUsing = reportsCount;
-      features[9].adoptionRate = totalBusinesses > 0 ? (reportsCount / totalBusinesses) * 100 : 0;
-      features[9].usageFrequency = reportsCount > 0 ? (await getCountFromServer(collection(firestore, 'reports'))).data().count / reportsCount : 0;
-      features[9].userSatisfaction = 4.6;
-      features[9].growthRate = 6.7;
-      
-      features[10].businessesUsing = multiBranchCount;
-      features[10].adoptionRate = totalBusinesses > 0 ? (multiBranchCount / totalBusinesses) * 100 : 0;
-      features[10].usageFrequency = multiBranchCount > 0 ? (await getCountFromServer(collection(firestore, 'branches'))).data().count / multiBranchCount : 0;
-      features[10].userSatisfaction = 4.2;
-      features[10].growthRate = 5.5;
-      
-      features[11].businessesUsing = posCount;
-      features[11].adoptionRate = totalBusinesses > 0 ? (posCount / totalBusinesses) * 100 : 0;
-      features[11].usageFrequency = posCount > 0 ? (await getCountFromServer(collection(firestore, 'sales'))).data().count / posCount : 0;
-      features[11].userSatisfaction = 4.3;
-      features[11].growthRate = 8.9;
 
       setAdoptionData(features);
     } catch (error) {

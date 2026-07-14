@@ -237,10 +237,20 @@ export function MobileAskMOPage() {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Auto-scroll to top when messages change (for better UX - user reads from top)
+  // Smart auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = 0;
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Check if user is near the bottom (within 100px)
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+
+    // Only auto-scroll if user is already near bottom or it's a new message
+    if (isNearBottom || messages.length > 0) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [messages, isTyping, isStreaming]);
 

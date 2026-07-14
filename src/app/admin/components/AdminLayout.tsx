@@ -33,7 +33,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'team', label: 'Admin Team', icon: '👔' },
     { id: 'support', label: 'Support', icon: '💬' },
     { id: 'features', label: 'Feature Requests', icon: '💡' },
-    { id: 'product-analytics', label: 'Product Adoption', icon: '📊' },
+    { id: 'product-analytics', label: 'Product Adoption Analytics', icon: '📈', 'aria-label': 'View Product Adoption Analytics' },
     { id: 'churn', label: 'Churn Detection', icon: '⚠️' },
     { id: 'askmo', label: 'Ask MO', icon: '🤖' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
@@ -56,6 +56,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       case 'features':
         return <Suspense fallback={<LoadingFallback />}><FeatureRequests /></Suspense>;
       case 'product-analytics':
+        // Render Product Adoption Analytics component
         return <Suspense fallback={<LoadingFallback />}><ProductAdoption /></Suspense>;
       case 'churn':
         return <Suspense fallback={<LoadingFallback />}><ChurnDetection /></Suspense>;
