@@ -6,6 +6,7 @@ import { executeAction } from '@/lib/services/mo-action-router';
 import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
 import { getMasterProcessor } from '@/lib/services/mo-master-processor';
+import { createConversationPlanner, ConversationContext } from '@/services/ai/conversation-planner';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -148,6 +149,34 @@ export async function POST(request: NextRequest) {
     const businessProfile = profileManager.getProfile();
     const industryIntelligence = profileManager.getIndustryIntelligence();
 
+    // STEP 1: Initialize Conversation Planner
+    const conversationContext: ConversationContext = {
+      previousMessages: effectiveHistory.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      currentTopic: undefined,
+      previousTopics: [],
+      businessContext: businessId ? {
+        businessId,
+        businessName: 'Your Business',
+        industry: businessProfile.industry,
+        plan: businessProfile.businessModel,
+      } : undefined,
+      userPreferences: {
+        prefersDetailedResponses: undefined,
+        prefersDataVisualizations: undefined,
+        prefersActionOriented: undefined,
+      },
+    };
+
+    const planner = createConversationPlanner(conversationContext);
+
+    // STEP 2: Run Conversation Planner Pipeline
+    console.log('🧠 [Ask MO API] Running conversation planner...');
+    const plannedResponse = await planner.planResponse(message);
+    console.log('🎯 [Ask MO API] Planner decisions:', plannedResponse.reasoning);
+
     console.log('🧠 [Ask MO API] Business Profile:', {
       stage: businessProfile.stage,
       industry: businessProfile.industry,
@@ -155,53 +184,104 @@ export async function POST(request: NextRequest) {
       hasCapital: businessProfile.openingCapital !== undefined,
     });
 
-    // Load business data for master processor
+    // STEP 3: Load business data selectively based on planner requirements
     let businessData: any = {};
-    if (businessId) {
+    if (businessId && plannedResponse.shouldRetrieveData) {
       try {
         const db = getAdminDb();
-        
-        // Load recent sales
-        const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
-          .orderBy('createdAt', 'desc')
-          .limit(20)
-          .get();
-        businessData.sales = salesSnapshot.docs.map(doc => doc.data());
-        
-        // Load products
-        const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
-          .where('active', '==', true)
-          .get();
-        businessData.products = productsSnapshot.docs.map(doc => doc.data());
-        
-        // Load recent expenses
-        const expensesSnapshot = await db.collection('businesses').doc(businessId).collection('expenses')
-          .orderBy('createdAt', 'desc')
-          .limit(20)
-          .get();
-        businessData.expenses = expensesSnapshot.docs.map(doc => doc.data());
-        
-        // Load customers
-        const customersSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
-          .get();
-        businessData.customers = customersSnapshot.docs.map(doc => doc.data());
-        
-        // Load suppliers
-        const suppliersSnapshot = await db.collection('businesses').doc(businessId).collection('suppliers')
-          .where('active', '==', true)
-          .get();
-        businessData.suppliers = suppliersSnapshot.docs.map(doc => doc.data());
-        
-        // Load cash flow
-        const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
-          .orderBy('date', 'desc')
-          .limit(30)
-          .get();
-        businessData.cashFlow = cashFlowSnapshot.docs.map(doc => doc.data());
+        const dataReqs = plannedResponse.dataRequirements;
+
+        // Load sales data only if required
+        if (dataReqs.salesData) {
+          const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
+            .orderBy('createdAt', 'desc');
+          
+          // Apply time range filter
+          if (dataReqs.timeRange === 'today') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            salesQuery.where('createdAt', '>=', today);
+          } else if (dataReqs.timeRange === 'week') {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            salesQuery.where('createdAt', '>=', weekAgo);
+          } else if (dataReqs.timeRange === 'month') {
+            const monthAgo = new Date();
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            salesQuery.where('createdAt', '>=', monthAgo);
+          }
+          
+          const salesSnapshot = await salesQuery.limit(50).get();
+          businessData.sales = salesSnapshot.docs.map(doc => doc.data());
+          console.log('📊 [Ask MO API] Loaded sales data:', businessData.sales.length, 'records');
+        }
+
+        // Load inventory data only if required
+        if (dataReqs.inventoryData) {
+          const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
+            .where('active', '==', true)
+            .get();
+          businessData.products = productsSnapshot.docs.map(doc => doc.data());
+          console.log('📦 [Ask MO API] Loaded inventory data:', businessData.products.length, 'products');
+        }
+
+        // Load expense data only if required
+        if (dataReqs.expenseData) {
+          const expensesQuery = db.collection('businesses').doc(businessId).collection('expenses')
+            .orderBy('createdAt', 'desc');
+          
+          // Apply time range filter
+          if (dataReqs.timeRange === 'today') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            expensesQuery.where('createdAt', '>=', today);
+          } else if (dataReqs.timeRange === 'week') {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            expensesQuery.where('createdAt', '>=', weekAgo);
+          } else if (dataReqs.timeRange === 'month') {
+            const monthAgo = new Date();
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            expensesQuery.where('createdAt', '>=', monthAgo);
+          }
+          
+          const expensesSnapshot = await expensesQuery.limit(50).get();
+          businessData.expenses = expensesSnapshot.docs.map(doc => doc.data());
+          console.log('💰 [Ask MO API] Loaded expense data:', businessData.expenses.length, 'records');
+        }
+
+        // Load customer data only if required
+        if (dataReqs.customerData) {
+          const customersSnapshot = await db.collection('businesses').doc(businessId).collection('credit_customers')
+            .get();
+          businessData.customers = customersSnapshot.docs.map(doc => doc.data());
+          console.log('👥 [Ask MO API] Loaded customer data:', businessData.customers.length, 'customers');
+        }
+
+        // Load staff data only if required
+        if (dataReqs.staffData) {
+          const staffSnapshot = await db.collection('businesses').doc(businessId).collection('staff')
+            .get();
+          businessData.staff = staffSnapshot.docs.map(doc => doc.data());
+          console.log('👷 [Ask MO API] Loaded staff data:', businessData.staff.length, 'staff');
+        }
+
+        // Load business metrics for deep analysis
+        if (dataReqs.businessMetrics) {
+          // Load cash flow
+          const cashFlowSnapshot = await db.collection('businesses').doc(businessId).collection('cashFlow')
+            .orderBy('date', 'desc')
+            .limit(30)
+            .get();
+          businessData.cashFlow = cashFlowSnapshot.docs.map(doc => doc.data());
+          console.log('📈 [Ask MO API] Loaded business metrics');
+        }
         
       } catch (error) {
         console.error('Error loading business data:', error);
       }
+    } else {
+      console.log('⏭️ [Ask MO API] Skipping data load (not required by planner)');
     }
 
     // Run Master Processor - orchestrates all MO engines
@@ -314,7 +394,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build simple system prompt inline
+    // Build system prompt - use planner's generated prompt as base
     let systemPrompt = `${BUSINESS_CONTEXT_PROMPT}
 
 🌍 LANGUAGE: Respond in ${languageName} (${language}). Use the same language the user wrote in.
@@ -338,7 +418,9 @@ When users request operational tasks, you MUST:
 5. Wait for the backend response
 6. Communicate the outcome naturally and conversationally
 
-CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.`;
+CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.
+
+${plannedResponse.systemPrompt}`;
 
     // Add business context to system prompt
     if (businessSnapshot.openingCapital !== undefined || businessProfile.industry || businessProfile.location) {
@@ -519,11 +601,22 @@ ${processingResult.nextAction}`;
     // If action was executed, use the rendered response instead of raw AI text
     const finalAnswer = renderedResponse ? renderedResponse.content : text;
 
+    // STEP 4: Update conversation context after response
+    planner.updateContext(message, finalAnswer);
+    console.log('🔄 [Ask MO API] Conversation context updated');
+
     return NextResponse.json({
       answer: finalAnswer,
       intent,
       actionResult,
       rendered: renderedResponse,
+      planner: {
+        intent: plannedResponse.intent,
+        conversationGoal: plannedResponse.conversationGoal,
+        responseDepth: plannedResponse.responseDepth,
+        topicType: plannedResponse.topicType,
+        topicChanged: plannedResponse.topicChanged,
+      },
       timestamp: new Date().toISOString()
     });
 

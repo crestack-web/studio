@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emails';
+import { sendSubscriptionRenewedEmail } from '@/services/email/subscription-lifecycle-emails';
+import { sendReferralConvertedToPaidEmail, sendReferralRewardEarnedEmail } from '@/services/email/referral-emails';
 
 const COMMISSION_RATE = 0.20; // 20% referral commission
 
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
     const userEmail = userData.email;
     const userName = userData.name || userData.displayName || 'User';
     const businessName = userData.businessName || 'Your Business';
+    const previousPlan = userData.plan;
 
     // Calculate next billing date
     const nextBillingDate = new Date(subscriptionEndDate);
@@ -130,6 +133,23 @@ export async function POST(request: NextRequest) {
       console.error('❌ [verify-subscription] Failed to send receipt email:', emailError);
       // Don't fail the request if email fails
     });
+
+    // Send subscription renewed email if this is a renewal (user already had a plan)
+    if (previousPlan && previousPlan !== 'free') {
+      sendSubscriptionRenewedEmail({
+        email: userEmail,
+        name: userName,
+        businessName: businessName,
+        planName: plan,
+        amount: paymentAmount,
+        billingPeriod: billing === 'yearly' ? 'Yearly' : 'Monthly',
+        nextBillingDate: nextBillingDate.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }),
+        currency: transaction.currency,
+      }).catch((emailError) => {
+        console.error('❌ [verify-subscription] Failed to send renewal email:', emailError);
+        // Don't fail the request if email fails
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -218,6 +238,49 @@ async function processReferralCommission(firestore: any, userId: string, plan: s
       amount: commissionAmount,
       plan: plan
     });
+
+    // Send referral emails (non-blocking)
+    const referrerEmail = referrerData.email;
+    const referrerName = referrerData.name || referrerData.displayName || 'Referrer';
+    const referrerBusinessName = referrerData.businessName || 'Your Business';
+
+    // Get referred user info
+    const referredUserDoc = await getDoc(doc(firestore, 'users', userId));
+    const referredUserData = referredUserDoc.data();
+    const referredUserName = referredUserData?.name || referredUserData?.displayName || 'User';
+    const referredUserBusinessName = referredUserData?.businessName || 'Their Business';
+
+    if (referrerEmail) {
+      // Send referral converted to paid email
+      sendReferralConvertedToPaidEmail({
+        email: referrerEmail,
+        name: referrerName,
+        businessName: referrerBusinessName,
+        referralName: referredUserName,
+        referralEmail: userId,
+        planName: plan,
+        conversionDate: new Date().toLocaleDateString(),
+        rewardAmount: commissionAmount,
+        currency: 'NGN',
+      }).catch((emailError) => {
+        console.error('❌ [referral] Failed to send converted email:', emailError);
+      });
+
+      // Send referral reward earned email
+      sendReferralRewardEarnedEmail({
+        email: referrerEmail,
+        name: referrerName,
+        businessName: referrerBusinessName,
+        referralName: referredUserName,
+        referralEmail: userId,
+        rewardAmount: commissionAmount,
+        rewardType: 'credit',
+        earnedDate: new Date().toLocaleDateString(),
+        currency: 'NGN',
+      }).catch((emailError) => {
+        console.error('❌ [referral] Failed to send reward earned email:', emailError);
+      });
+    }
 
   } catch (error) {
     console.error('❌ [referral] Error processing commission:', error);

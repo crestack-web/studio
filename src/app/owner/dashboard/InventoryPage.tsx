@@ -11,6 +11,7 @@ import { useFirestore } from '@/firebase/provider';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, runTransaction, deleteDoc } from 'firebase/firestore';
 import { useApp } from './AppContext';
 import { useBranch } from '@/context/BranchContext';
+import { sendOutOfStockAlertEmail, sendOverstockWarningEmail } from '@/services/email/inventory-emails';
 import './inventory.css';
 
 const InventoryPage: React.FC = () => {
@@ -176,6 +177,52 @@ const InventoryPage: React.FC = () => {
 
       console.log('✅ Product updated in Firestore:', updated.id);
       showToast('✅ Product updated successfully');
+
+      // Check for out of stock or overstock conditions and send alerts
+      try {
+        const ownerDoc = await getDoc(doc(firestore, 'users', user.id));
+        const businessName = ownerDoc.data()?.businessName || 'Your Business';
+        const ownerEmail = ownerDoc.data()?.email;
+        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
+        const emailPrefs = ownerDoc.data()?.emailPreferences;
+
+        if (emailPrefs?.outOfStock !== false && ownerEmail) {
+          // Check if out of stock
+          if (updated.stock === 0) {
+            await sendOutOfStockAlertEmail({
+              email: ownerEmail,
+              name: ownerName,
+              businessName,
+              outOfStockItems: [{ 
+                name: updated.name,
+                lastSaleDate: updated.lastSaleDate || 'N/A',
+              }],
+            });
+            console.log('Out of stock alert email sent');
+          }
+        }
+
+        if (emailPrefs?.overstock !== false && ownerEmail) {
+          // Check for overstock (more than 100 units as a threshold)
+          const OVERSTOCK_THRESHOLD = 100;
+          if (updated.stock > OVERSTOCK_THRESHOLD) {
+            await sendOverstockWarningEmail({
+              email: ownerEmail,
+              name: ownerName,
+              businessName,
+              overstockItems: [{
+                name: updated.name,
+                currentStock: updated.stock,
+                optimalStock: OVERSTOCK_THRESHOLD,
+                daysSinceLastSale: updated.lastSaleDate ? Math.floor((Date.now() - new Date(updated.lastSaleDate).getTime()) / (1000 * 60 * 60 * 24)) : 30,
+              }],
+            });
+            console.log('Overstock warning email sent');
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send inventory email alerts:', emailError);
+      }
 
       // Update local state
       setProducts(prev =>

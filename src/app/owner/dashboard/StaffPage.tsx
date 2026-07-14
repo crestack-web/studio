@@ -13,6 +13,7 @@ import { initializeFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { BrevoService } from '@/services/email/brevo-service';
+import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/email/team-management-emails';
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
 import AttendanceTab from './AttendanceTab';
 
@@ -468,6 +469,9 @@ export default function StaffPage() {
       const currentUserId = auth.currentUser?.uid || '';
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
       const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessName = ownerDoc.data()?.businessName || 'Your Business';
+      const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
+      const ownerEmail = ownerDoc.data()?.email;
 
       // Remove from businesses/staff collection
       await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffToRemove.id), {
@@ -480,6 +484,23 @@ export default function StaffPage() {
         role: 'Removed',
         businessId: null,
       }, { merge: true });
+
+      // Send staff removal email notification
+      if (staffToRemove.email && ownerEmail) {
+        try {
+          await sendStaffRemovedEmail({
+            email: staffToRemove.email,
+            staffName: staffToRemove.name,
+            businessName,
+            role: staffToRemove.role || 'Staff',
+            removedDate: new Date().toLocaleDateString(),
+            reason: 'Staff member removed by business owner',
+          });
+          console.log('Staff removal email sent');
+        } catch (emailError) {
+          console.error('Failed to send staff removal email:', emailError);
+        }
+      }
 
       setStaffMembers((prev) => prev.filter((s) => s.id !== staffToRemove.id));
       setConversations((prev) => {
@@ -608,6 +629,9 @@ export default function StaffPage() {
       const currentUserId = auth.currentUser?.uid || '';
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
       const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessName = ownerDoc.data()?.businessName || 'Your Business';
+      const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
+      const ownerEmail = ownerDoc.data()?.email;
 
       // Update permissions in Firestore
       await setDoc(doc(firestore, 'businesses', businessId, 'staff', editingStaff.id), {
@@ -618,6 +642,24 @@ export default function StaffPage() {
       await setDoc(doc(firestore, 'users', editingStaff.id), {
         permissions: newStaffPermissions,
       }, { merge: true });
+
+      // Send staff role update email notification
+      if (editingStaff.email && ownerEmail) {
+        try {
+          const permissionNames = Object.keys(newStaffPermissions).filter(key => newStaffPermissions[key]);
+          await sendStaffRoleUpdatedEmail({
+            email: editingStaff.email,
+            name: editingStaff.name,
+            businessName,
+            newRole: editingStaff.role,
+            updatedDate: new Date().toLocaleDateString(),
+            permissions: permissionNames,
+          });
+          console.log('Staff role update email sent');
+        } catch (emailError) {
+          console.error('Failed to send staff role update email:', emailError);
+        }
+      }
 
       // Update local state
       setStaffMembers((prev) =>

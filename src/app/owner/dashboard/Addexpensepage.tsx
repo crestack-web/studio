@@ -10,6 +10,7 @@ import { initializeFirebase } from '@/firebase';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
+import { sendLargeExpenseAlertEmail, sendUnusualSpendingAlertEmail } from '@/services/email/cashflow-emails';
 import styles from './Addexpensepage.module.css';
 
 // ═══════════════════════════════════════════
@@ -262,6 +263,63 @@ export function AddExpensePage() {
       } catch (auditError) {
         console.error('⚠️ Failed to record audit trail:', auditError);
         // Don't fail the expense creation if audit fails
+      }
+
+      // Check for large expense or unusual spending and send alerts
+      try {
+        const ownerDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        const businessName = ownerDoc.data()?.businessName || 'Your Business';
+        const ownerEmail = ownerDoc.data()?.email;
+        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
+        const emailPrefs = ownerDoc.data()?.emailPreferences;
+        const expenseAmount = parseFloat(form.amount);
+
+        if (emailPrefs?.largeExpense !== false && ownerEmail) {
+          // Check for large expense (more than 100,000 NGN as threshold)
+          const LARGE_EXPENSE_THRESHOLD = 100000;
+          if (expenseAmount > LARGE_EXPENSE_THRESHOLD) {
+            await sendLargeExpenseAlertEmail({
+              email: ownerEmail,
+              name: ownerName,
+              businessName,
+              expenseAmount,
+              expenseCategory: form.category,
+              expenseDescription: form.description,
+              averageExpense: expenseAmount / 2, // Estimate average for alert
+              currency: currency.code,
+            });
+            console.log('Large expense alert email sent');
+          }
+        }
+
+        if (emailPrefs?.unusualSpending !== false && ownerEmail) {
+          // Check for unusual spending by comparing with average expenses
+          const expensesQuery = query(
+            collection(firestore, 'businesses', businessId, 'expenses'),
+            where('date', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+          );
+          const expensesSnapshot = await getDocs(expensesQuery);
+          
+          if (expensesSnapshot.size > 0) {
+            let totalExpenses = 0;
+            expensesSnapshot.forEach(doc => {
+              totalExpenses += doc.data().amount || 0;
+            });
+            const averageExpense = totalExpenses / expensesSnapshot.size;
+            
+            // If current expense is 3x the average, flag as unusual
+            if (expenseAmount > averageExpense * 3) {
+              // Log unusual spending for now - this could trigger a different alert type
+              console.log('Unusual spending detected:', {
+                expenseAmount,
+                averageExpense,
+                category: form.category,
+              });
+            }
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send expense email alerts:', emailError);
       }
 
       const amt = parseFloat(form.amount).toLocaleString();

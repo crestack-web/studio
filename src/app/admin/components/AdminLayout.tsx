@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'businesses', label: 'Businesses', icon: '🏢' },
-    { id: 'user-activity', label: 'Activity Analytics', icon: '📈' }, // Changed ID to be more specific
+    { id: 'analytics', label: 'Activity Analytics', icon: '📈' }, // Updated label
     { id: 'team', label: 'Admin Team', icon: '👔' },
     { id: 'support', label: 'Support', icon: '💬' },
     { id: 'features', label: 'Feature Requests', icon: '💡' },
@@ -47,7 +47,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return <Suspense fallback={<LoadingFallback />}><UserManagement /></Suspense>;
       case 'businesses':
         return <Suspense fallback={<LoadingFallback />}><BusinessTimeline /></Suspense>;
-      case 'user-activity': // Activity Analytics tab
+      case 'analytics': // Added new case
         return <Suspense fallback={<LoadingFallback />}><UserActivityAnalytics /></Suspense>;
       case 'team':
         return <Suspense fallback={<LoadingFallback />}><AdminTeam /></Suspense>;

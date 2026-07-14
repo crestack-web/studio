@@ -3,6 +3,36 @@
 import { useState } from "react";
 import { initializeFirebase } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { sendLoginAlertEmail } from "@/services/email/security-emails";
+
+// Helper function to get device information
+function getDeviceInfo() {
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  let device = 'Unknown';
+  let browser = 'Unknown';
+
+  // Detect device type
+  if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+    device = 'Mobile';
+  } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+    device = 'Tablet';
+  } else {
+    device = 'Desktop';
+  }
+
+  // Detect browser
+  if (userAgent.includes('Chrome')) {
+    browser = 'Chrome';
+  } else if (userAgent.includes('Firefox')) {
+    browser = 'Firefox';
+  } else if (userAgent.includes('Safari')) {
+    browser = 'Safari';
+  } else if (userAgent.includes('Edge')) {
+    browser = 'Edge';
+  }
+
+  return { device, browser };
+}
 
 // ── App Logo ───────────────────────────────────
 function AppLogo({ size = 50 }: { size?: number }) {
@@ -177,6 +207,22 @@ export default function BusmoLogin() {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         const role = userData?.role || 'Owner';
+
+        // Send login alert email (non-blocking)
+        try {
+          const deviceInfo = getDeviceInfo();
+          await sendLoginAlertEmail({
+            email: user.email || email,
+            name: userData?.fullName || userData?.displayName || 'User',
+            device: deviceInfo.device,
+            browser: deviceInfo.browser,
+            location: 'Unknown',
+            loginTime: new Date().toLocaleString(),
+            ipAddress: 'Unknown',
+          });
+        } catch (emailError) {
+          console.error('Failed to send login alert email:', emailError);
+        }
 
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {

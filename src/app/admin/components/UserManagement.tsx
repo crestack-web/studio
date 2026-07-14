@@ -9,6 +9,8 @@ interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  country?: string;
   businessName?: string;
   businessId?: string;
   plan: string;
@@ -24,10 +26,15 @@ interface User {
   totalCustomers: number;
   totalRevenue: number;
   isActive: boolean;
+  category?: string;
+  businessAnalysis?: any;
+  selectedCategory?: string;
+  selectedFeatures?: string[];
 }
 
 interface UserDetail {
   user: User;
+  userData?: any; // Full user document data
   businessData?: any;
   supportMessages?: any[];
 }
@@ -98,7 +105,9 @@ export default function UserManagement() {
         // Safely extract user properties with fallback values
         const userId = docSnapshot.id;
         const email = data.email || 'N/A';
-        const name = data.name || data.displayName || data.firstName + ' ' + data.lastName || 'Unknown User';
+        const name = data.fullName || data.name || data.displayName || data.firstName + ' ' + data.lastName || 'Unknown User';
+        const phone = data.phone || '';
+        const country = data.country || '';
         const createdAt = data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString();
         const lastActive = data.lastActive ? data.lastActive.toDate().toISOString() : new Date().toISOString();
         
@@ -110,6 +119,9 @@ export default function UserManagement() {
         let plan = data.plan || 'free';
         let businessName = data.businessName || 'Personal Account';
         let businessId = data.businessId || null;
+        let category = data.category || data.selectedCategory || '';
+        let businessAnalysis = data.businessAnalysis || null;
+        let selectedFeatures = data.selectedFeatures || [];
         
         // Initialize metrics with default values
         let totalSales = data.totalSales || 0;
@@ -223,8 +235,10 @@ export default function UserManagement() {
         
         usersList.push({
           id: docSnapshot.id,
-          name: data.name || data.displayName || 'Unknown',
+          name: data.fullName || data.name || data.displayName || 'Unknown',
           email: data.email || '',
+          phone: data.phone || '',
+          country: data.country || '',
           businessName: businessName,
           businessId: data.businessId,
           plan: plan,
@@ -240,6 +254,9 @@ export default function UserManagement() {
           totalCustomers,
           totalRevenue,
           isActive,
+          category: data.category || data.selectedCategory || '',
+          businessAnalysis: data.businessAnalysis || undefined,
+          selectedFeatures: data.selectedFeatures || [],
         });
       }
       
@@ -469,6 +486,12 @@ export default function UserManagement() {
       setLoadingDetail(true);
       const userDetail: UserDetail = { user };
 
+      // Fetch full user document data
+      const userDoc = await getDoc(doc(firestore, 'users', user.id));
+      if (userDoc.exists()) {
+        userDetail.userData = userDoc.data();
+      }
+
       // Fetch business data
       if (user.businessId) {
         const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
@@ -683,6 +706,7 @@ export default function UserManagement() {
                   <div>
                     <div className="font-medium text-gray-900">{user.name}</div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">{user.email}</div>
+                    {user.phone && <div className="text-sm text-gray-500">{user.phone}</div>}
                   </div>
                 </td>
                 <td className="py-3 px-4 text-gray-700 max-w-xs truncate">{user.businessName || 'N/A'}</td>
@@ -815,6 +839,18 @@ export default function UserManagement() {
                       <span className="text-gray-500">Email</span>
                       <span className="font-medium">{selectedUser.user.email}</span>
                     </div>
+                    {selectedUser.user.phone && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Phone</span>
+                        <span className="font-medium">{selectedUser.user.phone}</span>
+                      </div>
+                    )}
+                    {selectedUser.user.country && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Country</span>
+                        <span className="font-medium">{selectedUser.user.country}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-500">Plan</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -833,6 +869,12 @@ export default function UserManagement() {
                         {selectedUser.user.suspended ? 'Suspended' : 'Active'}
                       </span>
                     </div>
+                    {selectedUser.user.category && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Business Type</span>
+                        <span className="font-medium">{selectedUser.user.category}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -859,6 +901,74 @@ export default function UserManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* Signup Information */}
+              {selectedUser.userData && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <Edit size={20} className="text-indigo-600" />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Signup Information</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedUser.userData.fullName && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Full Name</p>
+                        <p className="font-semibold">{selectedUser.userData.fullName}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.phone && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Phone</p>
+                        <p className="font-semibold">{selectedUser.userData.phone}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.country && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Country</p>
+                        <p className="font-semibold">{selectedUser.userData.country}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.category && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Business Category</p>
+                        <p className="font-semibold">{selectedUser.userData.category}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.selectedCategory && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Selected Category</p>
+                        <p className="font-semibold">{selectedUser.userData.selectedCategory}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.businessAnalysis?.businessType && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Business Type</p>
+                        <p className="font-semibold">{selectedUser.userData.businessAnalysis.businessType}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.businessAnalysis?.recommendedCategories && (
+                      <div className="bg-white rounded-lg p-3">
+                        <p className="text-gray-500 text-sm">Recommended Categories</p>
+                        <p className="font-semibold">{Array.isArray(selectedUser.userData.businessAnalysis.recommendedCategories) ? selectedUser.userData.businessAnalysis.recommendedCategories.join(', ') : selectedUser.userData.businessAnalysis.recommendedCategories}</p>
+                      </div>
+                    )}
+                    {selectedUser.userData.selectedFeatures && Array.isArray(selectedUser.userData.selectedFeatures) && selectedUser.userData.selectedFeatures.length > 0 && (
+                      <div className="bg-white rounded-lg p-3 md:col-span-2">
+                        <p className="text-gray-500 text-sm">Selected Features</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {selectedUser.userData.selectedFeatures.map((feature: string, index: number) => (
+                            <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Business Info */}
               {selectedUser.businessData && (
