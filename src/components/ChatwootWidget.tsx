@@ -10,7 +10,19 @@ interface Message {
   timestamp: string;
 }
 
-export default function ChatwootWidget() {
+interface ChatwootWidgetProps {
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    businessName?: string;
+    businessId?: string;
+    subscriptionPlan?: string;
+    workspaceId?: string;
+  };
+}
+
+export default function ChatwootWidget({ user }: ChatwootWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -173,7 +185,7 @@ export default function ChatwootWidget() {
       const result = await response.json();
       
       // Add the message to local state
-      const newMessageObj = {
+      const newMessageObj: Message = {
         id: result.id,
         sender: 'user',
         content: newMessage.trim(),
@@ -184,7 +196,7 @@ export default function ChatwootWidget() {
     } catch (error) {
       console.error('Error sending message:', error);
       // In a real app, show error to user and add message to queue
-      const offlineMessage = {
+      const offlineMessage: Message = {
         id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         sender: 'user',
         content: newMessage.trim(),

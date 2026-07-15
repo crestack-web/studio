@@ -1,6 +1,6 @@
 // src/app/api/admin/support/customers/route.ts
-// Fixing the string with apostrophe
-const initialCustomers: Customer[] = [
+export const GET = async () => {
+  return Response.json([
   {
     id: 'cust_1',
     name: 'Alice Johnson',
@@ -20,4 +20,5 @@ const initialCustomers: Customer[] = [
     lastMessage: "I'm having trouble with the inventory tracking.",
     lastMessageTime: new Date(Date.now() - 900000).toISOString(), // 15 minutes ago
   }
-];
+]);
+};

@@ -4,7 +4,7 @@ import '@/app/globals.css';
 import { CurrencyProvider } from '@/contexts/currency-context';
 import { FirebaseProvider } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
-import { ChatwootWidget } from '@/components/ChatwootWidget';
+import ChatwootWidget from '@/components/ChatwootWidget';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';

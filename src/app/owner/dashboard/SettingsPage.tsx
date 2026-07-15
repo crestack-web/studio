@@ -21,7 +21,7 @@ import { initializeFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { DocumentTemplateManager } from './documentTemplates';
-import { isAdmin } from '@/lib/adminAuth';
+import { checkIsAdmin } from '@/lib/adminAuth';
 import { 
   getAllFeatures, 
   getFeaturesByPlan, 
@@ -400,7 +400,7 @@ export default function SettingsPage() {
           }
 
           // Check if user is admin - only for whitelisted emails
-          const adminCheck = await isAdmin();
+          const adminCheck = await checkIsAdmin();
           console.log('Settings admin check result:', adminCheck, 'for user:', user.email);
           setIsUserAdmin(adminCheck);
         }

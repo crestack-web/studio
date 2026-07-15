@@ -17,7 +17,7 @@ import {
   BusinessCategory,
 } from '@/lib/featureRegistry';
 import { getCategoryBundle, getAllCategoryBundles } from '@/lib/categoryFeatureBundles';
-import { isAdmin } from '@/lib/adminAuth';
+import { checkIsAdmin } from '@/lib/adminAuth';
 import { 
   Shield, 
   CheckCircle2, 
@@ -48,7 +48,7 @@ export default function FeatureDiagnosticsPage() {
 
   const checkAuthorization = async () => {
     try {
-      const authorized = await isAdmin();
+      const authorized = await checkIsAdmin();
       setIsAuthorized(authorized);
       if (authorized) {
         loadUsers();

@@ -318,12 +318,18 @@ export default function Cashflowpage() {
         limit(50)
       );
 
-      let snapshot;
+      // Apply date filter to Firestore query if specified
       if (dateRange && dateFilter !== 'all') {
-        snapshot = await getDocs(transactionsQuery);
-      } else {
-        snapshot = await getDocs(transactionsQuery);
+        transactionsQuery = query(
+          collection(firestore, 'businesses', businessId, 'bankTransactions'),
+          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
+          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
       }
+
+      const snapshot = await getDocs(transactionsQuery);
       
       // Use a Map to deduplicate transactions by ID
       const transactionMap = new Map<string, Transaction>();
@@ -339,14 +345,7 @@ export default function Cashflowpage() {
         const amount = data.amount || 0;
         const isCredit = data.type === 'money_in';
         const date = data.createdAt?.toDate() || new Date();
-        
-        // Apply date filter
-        if (dateRange && dateFilter !== 'all') {
-          if (date < dateRange.startDate || date > dateRange.endDate) {
-            return;
-          }
-        }
-        
+
         transactionMap.set(doc.id, {
           id: doc.id,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -372,21 +371,25 @@ export default function Cashflowpage() {
         orderBy('createdAt', 'desc'),
         limit(50)
       );
-      
+
+      // Apply date filter to Firestore query if specified
+      if (dateRange && dateFilter !== 'all') {
+        salesQuery = query(
+          collection(firestore, 'businesses', businessId, 'sales'),
+          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
+          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        );
+      }
+
       const salesSnapshot = await getDocs(salesQuery);
       
       salesSnapshot.forEach(doc => {
         const data = doc.data();
         const amount = data.totalRevenue || data.totalAmount || 0;
         const date = data.createdAt?.toDate() || new Date();
-        
-        // Apply date filter
-        if (dateRange && dateFilter !== 'all') {
-          if (date < dateRange.startDate || date > dateRange.endDate) {
-            return;
-          }
-        }
-        
+
         // Calculate payment breakdown totals
         const paymentBreakdown = data.paymentBreakdown || [];
         const bankPayment = paymentBreakdown
@@ -437,11 +440,23 @@ export default function Cashflowpage() {
       });
       
       // Fetch expenses and integrate them into cashflow
-      const expensesQuery = query(
+      let expensesQuery = query(
         collection(firestore, 'businesses', businessId, 'expenses'),
         orderBy('createdAt', 'desc'),
         limit(100)
       );
+
+      // Apply date filter to Firestore query if specified
+      if (dateRange && dateFilter !== 'all') {
+        expensesQuery = query(
+          collection(firestore, 'businesses', businessId, 'expenses'),
+          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
+          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
+          orderBy('createdAt', 'desc'),
+          limit(100)
+        );
+      }
+
       const expensesSnapshot = await getDocs(expensesQuery);
       
       // Process expenses with for...of to support async operations
@@ -449,14 +464,7 @@ export default function Cashflowpage() {
         const data = expenseDoc.data();
         const amount = data.amount || 0;
         const date = data.createdAt?.toDate() || new Date();
-        
-        // Apply date filter
-        if (dateRange && dateFilter !== 'all') {
-          if (date < dateRange.startDate || date > dateRange.endDate) {
-            continue;
-          }
-        }
-        
+
         // Determine if this is a bank payment
         const isBankPayment = data.paymentMethod === 'Bank Transfer' || 
                               data.paymentMethod === 'POS / Card';

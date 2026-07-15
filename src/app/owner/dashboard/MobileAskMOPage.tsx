@@ -237,21 +237,16 @@ export function MobileAskMOPage() {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Smart auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // Check if user is near the bottom (within 100px)
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-
-    // Only auto-scroll if user is already near bottom or it's a new message
-    if (isNearBottom || messages.length > 0) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    // Always scroll to bottom for chat interface - this is expected behavior
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
   }, [messages, isTyping, isStreaming]);
 
   // Recording timer

@@ -1,6 +1,6 @@
 import { getDoc, doc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { isAdmin } from './adminAuth';
+import { checkIsAdmin } from './adminAuth';
 import { 
   getProOnlyFeatures, 
   getStandardOrProFeatures, 
@@ -181,7 +181,7 @@ export async function checkFeatureAccess(
 ): Promise<FeatureRestrictionResult> {
   try {
     // Admin users have unlimited access to all features
-    const isUserAdmin = await isAdmin();
+    const isUserAdmin = await checkIsAdmin();
     if (isUserAdmin) {
       return { eligible: true };
     }

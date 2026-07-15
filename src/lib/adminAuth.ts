@@ -133,7 +133,7 @@ export const useAdminAuth = () => {
     return user.permissions.includes(permission);
   };
 
-  // Check if user has admin role
+// Check if user has admin role
   const isAdmin = (): boolean => {
     if (!user) return false;
     return user.role === 'Administrator';
@@ -148,4 +148,15 @@ export const useAdminAuth = () => {
     hasPermission,
     isAdmin
   };
+};
+
+// Export standalone function for direct imports
+export const checkIsAdmin = async (): Promise<boolean> => {
+  // Simulate checking admin status from storage
+  const storedUser = localStorage.getItem('admin_user');
+  if (storedUser) {
+    const parsedUser = JSON.parse(storedUser);
+    return parsedUser.role === 'Administrator';
+  }
+  return false;
 };

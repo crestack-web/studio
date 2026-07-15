@@ -4,10 +4,10 @@ import { NextRequest } from 'next/server';
 // PUT endpoint for admin to respond to a support message or update its status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const messageId = params.id;
+    const { id: messageId } = await params;
     const body = await request.json();
     const { response, status, adminId } = body;
     
@@ -46,10 +46,10 @@ export async function PUT(
 // GET endpoint to retrieve a specific conversation with full history
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     
     // In a real application, this would fetch from a database
     // Mock data for demonstration

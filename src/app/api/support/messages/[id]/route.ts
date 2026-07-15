@@ -4,10 +4,10 @@ import { NextRequest } from 'next/server';
 // GET endpoint to retrieve a specific support message
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const messageId = params.id;
+    const { id: messageId } = await params;
     
     // In a real application, this would fetch from a database
     // Mock data for demonstration
@@ -35,10 +35,10 @@ export async function GET(
 // PUT endpoint to update a support message (e.g., change status, add admin response)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const messageId = params.id;
+    const { id: messageId } = await params;
     const body = await request.json();
     const { status, adminResponse, responseSender } = body;
     
@@ -70,10 +70,10 @@ export async function PUT(
 // DELETE endpoint to remove a support message
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const messageId = params.id;
+    const { id: messageId } = await params;
     
     // In a real application, this would delete from the database
     console.log(`Deleting message ${messageId}`);
