@@ -117,7 +117,7 @@ When suggesting navigation, always use the exact sidebar button names as referen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole } = body;
+    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -189,7 +189,16 @@ export async function POST(request: NextRequest) {
     // When businessId exists, it defaults to loading business data for better user experience.
     // Users value data-loaded responses over generic ones, even with slight performance cost.
     let businessData: any = {};
-    if (businessId && plannedResponse.shouldRetrieveData) {
+    
+    // Use businessSummary from frontend if available (already loaded by useAskMO hook)
+    if (businessSummary) {
+      console.log('📊 [Ask MO API] Using businessSummary from frontend');
+      businessData = {
+        ...businessSummary,
+        // Ensure sales data is properly formatted
+        sales: businessSummary.totalSales !== undefined ? [{ totalRevenue: businessSummary.totalSales, profit: businessSummary.totalProfit }] : [],
+      };
+    } else if (businessId && plannedResponse.shouldRetrieveData) {
       try {
         const db = getAdminDb();
         const dataReqs = plannedResponse.dataRequirements;
@@ -446,13 +455,19 @@ CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks
 ${plannedResponse.systemPrompt}`;
 
     // Add business context to system prompt
-    if (businessSnapshot.openingCapital !== undefined || businessProfile.industry || businessProfile.location) {
+    if (businessSnapshot.openingCapital !== undefined || businessProfile.industry || businessProfile.location || businessData?.totalSales) {
       systemPrompt += `
 
 📊 CURRENT BUSINESS CONTEXT:
 ${businessSnapshot.openingCapital !== undefined ? `- Opening Capital: ₦${businessSnapshot.openingCapital.toLocaleString()}` : ''}
 ${businessSnapshot.cashAvailable !== undefined ? `- Cash Available: ₦${businessSnapshot.cashAvailable.toLocaleString()}` : ''}
 ${businessSnapshot.profit !== undefined ? `- Current Profit: ₦${businessSnapshot.profit.toLocaleString()}` : ''}
+${businessData?.totalSales !== undefined ? `- Total Sales: ₦${businessData.totalSales.toLocaleString()}` : ''}
+${businessData?.todaySales !== undefined ? `- Today's Sales: ₦${businessData.todaySales.toLocaleString()}` : ''}
+${businessData?.totalProfit !== undefined ? `- Total Profit: ₦${businessData.totalProfit.toLocaleString()}` : ''}
+${businessData?.todayProfit !== undefined ? `- Today's Profit: ₦${businessData.todayProfit.toLocaleString()}` : ''}
+${businessData?.lowStockCount !== undefined ? `- Low Stock Items: ${businessData.lowStockCount}` : ''}
+${businessData?.outOfStockCount !== undefined ? `- Out of Stock Items: ${businessData.outOfStockCount}` : ''}
 ${businessProfile.industry ? `- Industry: ${businessProfile.industry}` : ''}
 ${businessProfile.location ? `- Location: ${businessProfile.location}` : ''}
 ${businessProfile.stage ? `- Business Stage: ${businessProfile.stage}` : ''}

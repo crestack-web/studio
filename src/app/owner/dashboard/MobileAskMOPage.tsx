@@ -534,6 +534,7 @@ export function MobileAskMOPage() {
         language: lang,
         languageName: langMeta.name,
         businessCategory: businessCategory,
+        businessSummary: businessSummary,
       };
       
       console.log('📤 [MobileAskMO] Request payload:', {
