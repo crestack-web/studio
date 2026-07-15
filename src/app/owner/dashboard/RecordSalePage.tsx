@@ -1458,11 +1458,11 @@ export function RecordSalePage() {
               </div>
               <div className={styles.paymentTotal}>
                 <span>Total: {formatMoney(paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0))}</span>
-                {paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) !== subtotal && (
+                {paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) !== finalTotal && (
                   <span className={styles.paymentWarning}>
-                    {paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) < subtotal ? 
-                      `Missing ${formatMoney(subtotal - paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0))}` : 
-                      `Over by ${formatMoney(paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) - subtotal)}`
+                    {paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) < finalTotal ? 
+                      `Missing ${formatMoney(finalTotal - paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0))}` : 
+                      `Over by ${formatMoney(paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0) - finalTotal)}`
                     }
                   </span>
                 )}
