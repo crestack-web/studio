@@ -123,16 +123,15 @@ export function MobileAskMOPage() {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-load most recent conversation on mount to persist state across refresh/navigation
-  // DISABLED: Removed for mobile performance - let user start fresh or manually load conversations
-  // useEffect(() => {
-  //   if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
-  //     const mostRecent = conversations[0];
-  //     if (mostRecent.messages && mostRecent.messages.length > 0) {
-  //       console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
-  //       loadConversation(mostRecent.id);
-  //     }
-  //   }
-  // }, [conversations, currentConversationId, messages.length, loadConversation]);
+  useEffect(() => {
+    if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
+      const mostRecent = conversations[0];
+      if (mostRecent.messages && mostRecent.messages.length > 0) {
+        console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
+        loadConversation(mostRecent.id);
+      }
+    }
+  }, [conversations, currentConversationId, messages.length, loadConversation]);
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
