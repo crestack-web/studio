@@ -1,20 +1,56 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import OnboardingLayout from '@/components/app/onboarding-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { useUser, useFirestore, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '@/firebase';
 
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
+
+export default function PlansPage() {
+  return (
+    <main className="min-h-screen">
+      <OnboardingLayout>
+        <Card className="w-full max-w-4xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
+            <CardDescription>All plans start with a 3-day free trial. No credit card needed.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                   <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
+                      <TabsList className="grid grid-cols-2 p-1 h-auto">
+                          <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isSubmitting}>Monthly</TabsTrigger>
+                          <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isSubmitting}>
+                              Yearly
+                              <span className="absolute -top-2 -right-2.5 bg-accent text-accent-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">SAVE 17%</span>
+                          </TabsTrigger>
+                      </TabsList>
+                  </Tabs>
+              </div>
+
+              <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isSubmitting}>
+                   {plans.map((plan) => (
+                      <div key={plan.id}>
+                          <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isSubmitting} />
+                          <PlanCard 
+                              plan={plan}
+                              billingCycle={billingCycle}
+                              isSelected={selectedPlan === plan.id}
+                          />
+                      </div>
+                  ))}
+              </RadioGroup>
+              
+              <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Saving...' : 'Start Free Trial'}
+              </Button>
+          </CardContent>
+        </Card>
+      </OnboardingLayout>
+
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </main>
+  );
+}
 
 const plans = [
     {
@@ -73,14 +109,6 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
             </div>
         </Label>
     )
-}
-
-export default function PlansPage() {
-  return (
-    <FirebaseClientProvider>
-      <PlansPageContent />
-    </FirebaseClientProvider>
-  );
 }
 
 function PlansPageContent() {

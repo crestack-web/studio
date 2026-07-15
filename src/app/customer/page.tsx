@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 interface ChatSession {
   id: string;
@@ -208,6 +209,9 @@ export default function CustomerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
     </div>
   );
 }

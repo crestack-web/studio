@@ -1,67 +1,55 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-*.lcov
-
-# Production builds
-.next/
-out/
-build/
-dist/
-
-# Environment variables (CRITICAL - NEVER COMMIT)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-# Allow functions/.env for Firebase Functions deployment
-!functions/.env
-busmo-whatsapp/.env
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
-
-# IDE
-.vscode/
-.idea/
-*.sublime-workspace
-*.sublime-project
-
-# Firebase
-.firebase/
-firebase-debug.log
-firebase-debug.*.log
-firestore-debug.log
-ui-debug.log
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Vercel
-.vercel
-
-# Misc
-.cache/
-temp/
-tmp/
-
-# WhatsApp bot
-busmo-whatsapp/node_modules/
-busmo-whatsapp/logs/
+// .gitignore
+// Update gitignore to exclude unnecessary files
+/node_modules
+/.next
+/out
+/.env.local
+/.env.development
+/.env.test
+/.env.production
+/npm-debug.log
+/yarn-debug.log
+/yarn-error.log
+/pnpm-debug.log
+/coverage
+/.idea
+/.vscode
+/.DS_Store
+/*.log
+/build
+/dist
+/public/build
+/public/dist
+/exports
+/.vercel
+/.env.*.local
+/.cache
+/temp
+/tmp
+/npmrc
+/yarnrc
+/package-lock.json
+/yarn.lock
+/pnpm-lock.yaml
+/.eslintrc.js
+/.prettierrc.js
+/.babelrc.js
+/.jest
+/coverage
+/e2e
+/cypress
+/playwright
+/.github
+/.gitattributes
+/.gitignore
+/next.config.js
+/tailwind.config.js
+/postcss.config.js
+/.env
+/.env.development.local
+/.env.production.local
+/.env.test.local
+/.env.development
+/.env.production
+/.env.test
+/.env.local

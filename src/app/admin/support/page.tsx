@@ -1,9 +1,9 @@
 // src/app/admin/support/page.tsx
+// Update imports to use SupportChatWidget instead of ChatwootWidget
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useRealtimeService } from '@/lib/realtimeService';
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 export default function AdminSupportPage() {
   const router = useRouter();
@@ -143,7 +143,7 @@ export default function AdminSupportPage() {
   });
 
   return (
-    <div className="flex h-screen">
+    <main className="min-h-screen">
       {/* Sidebar with customers list */}
       <div className="w-1/4 bg-gray-100 p-4">
         <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -390,6 +390,9 @@ export default function AdminSupportPage() {
           </div>
         )}
       </div>
-    </div>
+      
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </main>
   );
 }

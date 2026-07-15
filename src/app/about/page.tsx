@@ -1,7 +1,11 @@
 
+"use client";
+
 import InvestorLayout from '@/components/app/investor-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, Rocket, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 export default function AboutUsPage() {
   return (
@@ -58,6 +62,9 @@ export default function AboutUsPage() {
           </div>
         </section>
       </div>
+      
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
     </InvestorLayout>
   );
 }

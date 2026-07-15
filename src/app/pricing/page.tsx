@@ -1,12 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Navbar } from '../welcome/components/Navbar';
-import { Footer } from '../welcome/components/Footer';
-import { LangProvider } from '../owner/dashboard/LangContext';
-import { convertFromUsd, formatCurrency, getUserCountryCode, getCurrencyName } from '@/lib/currency';
-import { initializePayment, getPaymentGatewayName } from '@/lib/paymentService';
-import type { Page } from '../welcome/types';
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 export default function PricingPage() {
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
@@ -174,7 +169,7 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="pricing-page">
+    <main className="min-h-screen">
       <LangProvider>
         <Navbar currentPage="pricing" onNavigate={handleNavigate} />
       </LangProvider>
@@ -400,6 +395,9 @@ export default function PricingPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </main>
   );
 }

@@ -203,6 +203,15 @@ service cloud.firestore {
       }
 
       // =====================
+      // STOCK RECEIPTS SUBCOLLECTION
+      // =====================
+      match /stockReceipts/{receiptId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
       // BANK ACCOUNTS SUBCOLLECTION
       // =====================
       match /bankAccounts/{accountId} {

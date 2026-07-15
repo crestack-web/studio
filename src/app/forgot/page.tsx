@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { initializeFirebase } from "@/firebase";
 import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
+import { SupportChatWidget } from "@/components/SupportChatWidget";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -95,10 +96,22 @@ export default function ForgotPasswordPage() {
         </Link>
       </div>
     );
+
+    return (
+      <main className="min-h-screen">
+        <div style={{ maxWidth: 400, margin: "60px auto", padding: 32, background: "#fff", borderRadius: 16, boxShadow: "0 2px 16px #e8e8f0" }}>
+          {/* ... existing content ... */}
+          
+          {/* Support chat widget - connects to our admin support section */}
+          <SupportChatWidget />
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: "60px auto", padding: 32, background: "#fff", borderRadius: 16, boxShadow: "0 2px 16px #e8e8f0" }}>
+    <main className="min-h-screen">
+      <div style={{ maxWidth: 400, margin: "60px auto", padding: 32, background: "#fff", borderRadius: 16, boxShadow: "0 2px 16px #e8e8f0" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A1F14", marginBottom: 8 }}>
           Forgot Password?

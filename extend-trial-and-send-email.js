@@ -1,23 +1,37 @@
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, query, where, getDocs, updateDoc, doc, getDoc } = require('firebase/firestore');
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
+const admin = require('firebase-admin');
 const axios = require('axios');
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
+// Initialize Firebase Admin
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const firestore = getFirestore(app);
+console.log('Firebase Admin Config:', {
+  projectId: projectId || 'missing',
+  hasPrivateKey: !!privateKey,
+  clientEmail: clientEmail || 'missing'
+});
+
+if (!admin.apps.length && projectId && privateKey && clientEmail) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      project_id: projectId,
+      privateKey: privateKey,
+      clientEmail: clientEmail,
+    }),
+  });
+  console.log('✅ Firebase Admin initialized');
+} else {
+  console.warn('⚠️ Firebase Admin not initialized - missing credentials');
+}
+
+const firestore = admin.firestore();
 
 // Brevo API configuration
-const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const BREVO_API_KEY = process.env.Brevo_API_key || process.env.BREVO_API_KEY || '';
 const BREVO_API_URL = 'https://api.brevo.com/v3';
 
 if (!BREVO_API_KEY) {
@@ -91,17 +105,15 @@ const SOCIAL_LINKS = `
 async function findUserByEmail(email) {
   console.log(`Searching for user with email: ${email}`);
   
-  const usersRef = collection(firestore, 'users');
-  const q = query(usersRef, where('email', '==', email));
-  const querySnapshot = await getDocs(q);
+  const usersRef = firestore.collection('users');
+  const querySnapshot = await usersRef.where('email', '==', email).get();
   
   if (querySnapshot.empty) {
     console.log('User not found in users collection, checking businesses collection...');
     
     // Also check businesses collection
-    const businessesRef = collection(firestore, 'businesses');
-    const bq = query(businessesRef, where('ownerEmail', '==', email));
-    const businessSnapshot = await getDocs(bq);
+    const businessesRef = firestore.collection('businesses');
+    const businessSnapshot = await businessesRef.where('ownerEmail', '==', email).get();
     
     if (!businessSnapshot.empty) {
       const businessDoc = businessSnapshot.docs[0];
@@ -132,9 +144,9 @@ async function extendTrial(userId, userType) {
   oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
   
   const collectionName = userType === 'business' ? 'businesses' : 'users';
-  const docRef = doc(firestore, collectionName, userId);
+  const docRef = firestore.collection(collectionName).doc(userId);
   
-  await updateDoc(docRef, {
+  await docRef.update({
     trialEndsAt: oneWeekFromNow,
     plan: 'trial',
     trialExtended: true,
@@ -313,7 +325,25 @@ async function main() {
     // Step 1: Find user
     const user = await findUserByEmail(userEmail);
     if (!user) {
-      console.error('User not found:', userEmail);
+      console.warn('User not found in database:', userEmail);
+      console.log('Proceeding to send email anyway with generic information...');
+      
+      // Send email with generic information
+      const genericUserName = 'Valued Customer';
+      const genericBusinessName = 'your business';
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      
+      // Step 3: Send sorry email to user
+      await sendSorryEmail(userEmail, genericUserName, genericBusinessName, oneWeekFromNow);
+      
+      // Step 4: Send copy to admin
+      await sendCopyToAdmin(userEmail, 'Not found in DB', 'Not found in DB', oneWeekFromNow);
+      
+      console.log('=== Trial Extension Process Completed (User not in DB) ===');
+      console.log('Email sent to:', userEmail);
+      console.log('New trial end date:', oneWeekFromNow.toISOString());
+      console.log('NOTE: User record not found in database. Trial not actually extended in DB.');
       return;
     }
     

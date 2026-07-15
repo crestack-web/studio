@@ -1,13 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Navbar } from '../welcome/components/Navbar';
-import { Footer } from '../welcome/components/Footer';
-import { LangProvider } from '../owner/dashboard/LangContext';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
-import styles from './verify.module.css';
-import type { Page } from '../welcome/types';
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 export default function VerifyPage() {
   const [statementId, setStatementId] = useState('');
@@ -69,7 +63,7 @@ export default function VerifyPage() {
   };
 
   return (
-    <div className={styles.verifyPage}>
+    <main className="min-h-screen">
       <LangProvider>
         <Navbar currentPage="verify" onNavigate={handleNavigate} />
       </LangProvider>
@@ -168,6 +162,9 @@ export default function VerifyPage() {
       <LangProvider>
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
-    </div>
+
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </main>
   );
 }

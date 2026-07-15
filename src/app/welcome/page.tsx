@@ -1,26 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { DemoVideoSection } from './components/DemoVideoSection';
-import { OfflineSaleSection } from './components/OfflineSaleSection';
-import { MoSection } from './components/MoSection';
-import { MarketSection } from './components/MarketSection';
-import { TestimonialsSection } from './components/TestimonialsSection';
-import { FAQSection } from './components/FAQSection';
-import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
-import { Footer } from './components/Footer';
-import { HowBusmoWorks } from './components/HowBusmoWorks';
-import { IndustryUseCases } from './components/IndustryUseCases';
-import { BeforeAfterComparison } from './components/BeforeAfterComparison';
-import { BuiltWithBusmo } from './components/BuiltWithBusmo';
-import { ScrollReveal, StaggerContainer, StaggerItem } from './components/ScrollReveal';
-import { FloatingChatWidget } from './components/FloatingChatWidget';
-import { PricingPreview } from './components/PricingPreview';
-import { LangProvider } from '../owner/dashboard/LangContext';
-import type { Page } from './types';
-import ChatwootWidget from '@/components/ChatwootWidget';
+import { useState, useEffect } from 'react';
+import { SupportChatWidget } from '@/components/SupportChatWidget';
 
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
@@ -49,7 +30,7 @@ export default function WelcomePage() {
   };
 
   return (
-    <LangProvider>
+    <main className="min-h-screen">
       {/* HEADER */}
       <Navbar currentPage="home" onNavigate={(page) => handleNavigate(page)} />
 
@@ -288,8 +269,8 @@ export default function WelcomePage() {
         <Footer onNavigate={handleNavigate} />
       </ScrollReveal>
 
-      {/* FLOATING CHAT WIDGET */}
-      <FloatingChatWidget />
-    </LangProvider>
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </main>
   );
 }
