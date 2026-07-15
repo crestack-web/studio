@@ -63,6 +63,8 @@ export function detectIntent(
     /(?:record|add|log)\s+(?:sale|sales):\s*/i,  // Explicit sale prefix
     /(?:sold|just\s+sold)\s+\d+.+for/i,  // "sold 5 items for..."
     /(?:made|did)\s+a\s+sale/i,  // "made a sale"
+    /(?:i\s+)?sold\s+\d+\s+.+\s+at/i,  // "I sold 5 items at..."
+    /(?:i\s+)?sold\s+.+\s+for\s+₦?\d+/i,  // "I sold rice for ₦5000"
   ];
 
   // Enhanced product patterns with more flexible matching
@@ -71,6 +73,8 @@ export function detectIntent(
     /^(?:add|create)\s+\d+\s+(?:new\s+)?(?:products?|items?|inventory)/i,
     /(?:add|create|register)\s+(?:product|item):\s*/i,  // Explicit product prefix
     /(?:new|create)\s+(?:product|item)\s+named/i,  // "create product named..."
+    /(?:add|new)\s+.+\s+at\s+₦?\d+/i,  // "add rice at ₦2000" - this was missing
+    /(?:add|new)\s+.+\s+with\s+₦?\d+/i,  // "add rice with ₦2000 cost"
   ];
 
   // Enhanced expense patterns with more flexible matching
@@ -80,6 +84,8 @@ export function detectIntent(
     /(?:add|record|log)\s+(?:expense|cost):\s*/i,  // Explicit expense prefix
     /(?:paid|spent)\s+₦?\d+/i,  // "paid ₦5000" or "spent 5000"
     /(?:expense|cost)\s+of\s+₦?\d+/i,  // "expense of ₦5000"
+    /(?:add|record)\s+expense:\s+/i,  // "add expense: Rent ₦5000"
+    /(?:record|log)\s+expense:\s+/i,  // "record expense: Utilities ₦10000"
   ];
 
   // Update product patterns
@@ -446,6 +452,8 @@ function parseSaleData(message: string): Record<string, any> {
     /(\d+)\s+(bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?)\s+(?:of\s+)?(.+?)(?:\s+at\s+|\s+@\s+|\s+for\s+)?(?:₦?(\d+(?:,\d+)*))\s+(?:each|per)/gi,
     // Pattern: "2 Coca-Cola ₦500" (quantity, product, price)
     /(\d+)\s+(.+?)\s+(?:₦?(\d+(?:,\d+)*))/gi,
+    // Pattern: "I sold 10 Indomie at ₦200 each" - capture this specific format
+    /(?:i\s+)?sold\s+(\d+)\s+(.+?)\s+at\s+₦?(\d+(?:,\d+)*)\s+(?:each|per)/i,
   ];
 
   for (const pattern of itemPatterns) {
@@ -454,9 +462,16 @@ function parseSaleData(message: string): Record<string, any> {
     pattern.lastIndex = 0;
     while ((match = pattern.exec(message)) !== null) {
       const quantity = parseInt(match[1]) || parseInt(match[2]) || 1;
-      const productName = match[2] || match[3] || match[4] || '';
-      const priceStr = match[3] || match[4] || match[5];
+      let productName = match[2] || match[3] || match[4] || '';
+      const priceStr = match[3] || match[4] || match[5] || match[6];
       const price = priceStr ? parseInt(priceStr.replace(/,/g, '')) : undefined;
+
+      // Clean up product name by removing trailing text like "at" or "each"
+      if (productName) {
+        productName = productName.trim();
+        // Remove common trailing words that shouldn't be part of the product name
+        productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      }
 
       // Skip if product name is too generic (likely a false match)
       if (!productName || productName.trim().toLowerCase().match(/^(and|or|the|a|an|of|for|at|@)$/)) {
@@ -476,10 +491,31 @@ function parseSaleData(message: string): Record<string, any> {
     // Look for quantity-price combinations more broadly
     const quantityMatches = message.match(/\b(\d{1,3})\s+(?:bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?|items?)\s+(.+?)(?:\s+for\s+|\s+at\s+|\s+@\s+)?(?:₦?(\d+(?:,\d+)*))/i);
     if (quantityMatches) {
+      let productName = quantityMatches[2].trim();
+      // Clean up product name
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      
       items.push({
-        productName: quantityMatches[2].trim(),
+        productName: productName,
         quantity: parseInt(quantityMatches[1]),
         price: quantityMatches[3] ? parseInt(quantityMatches[3].replace(/,/g, '')) : undefined,
+      });
+    }
+  }
+
+  // If still no items found, try a simple "sold X for Y" pattern
+  if (items.length === 0) {
+    const simplePattern = /(?:i\s+)?sold\s+(\d+)\s+(.+?)\s+for\s+(?:₦?(\d+(?:,\d+)*))/i;
+    const simpleMatch = message.match(simplePattern);
+    if (simpleMatch) {
+      let productName = simpleMatch[2].trim();
+      // Clean up product name
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      
+      items.push({
+        productName: productName,
+        quantity: parseInt(simpleMatch[1]),
+        price: simpleMatch[3] ? parseInt(simpleMatch[3].replace(/,/g, '')) : undefined,
       });
     }
   }
@@ -533,9 +569,10 @@ function parseProductData(message: string): ProductIntent {
 
   // Extract price with more flexible patterns
   const pricePatterns = [
-    /(?:price|selling\s+price|sell|for|@|at)[:\s]+(?:₦?(\d+(?:,\d+)*))/i,
+    /(?:price|selling\s+price|sell|for|@|at|cost)[:\s]+(?:₦?(\d+(?:,\d+)*))(?:\s+(?:cost|price))?/i,
     /(?:₦?(\d+(?:,\d+)*))\s+(?:per|each|unit)/i,  // "₦500 per unit"
     /at\s+₦?(\d+(?:,\d+)*)\s+(?:each|per)/i,      // "at ₦500 each"
+    /(?:₦?(\d+(?:,\d+)*))\s+(?:sell|selling|price)/i,  // "₦25000 sell"
   ];
   
   for (const pattern of pricePatterns) {
@@ -550,8 +587,9 @@ function parseProductData(message: string): ProductIntent {
 
   // Extract cost with more flexible patterns
   const costPatterns = [
-    /(?:cost|cost\s+price|buying\s+price|buy|purchase\s+price)[:\s]+(?:₦?(\d+(?:,\d+)*))/i,
+    /(?:cost|cost\s+price|buying\s+price|buy|purchase\s+price|cost\s+of)[:\s]+(?:₦?(\d+(?:,\d+)*))/i,
     /cost\s+of\s+₦?(\d+(?:,\d+)*)/i,  // "cost of ₦500"
+    /(?:₦?(\d+(?:,\d+)*))\s+(?:cost|buying|purchase)/i,  // "₦20000 cost"
   ];
   
   for (const pattern of costPatterns) {
@@ -612,6 +650,28 @@ function parseProductData(message: string): ProductIntent {
     }
   }
 
+  // Handle the specific format "Add rice at ₦25000 with ₦20000 cost"
+  if (!result.price && !result.costPrice) {
+    const complexPattern = /(?:add|new)\s+(.+?)\s+at\s+₦?(\d+(?:,\d+)*)\s+with\s+₦?(\d+(?:,\d+)*)\s+cost/i;
+    const complexMatch = message.match(complexPattern);
+    if (complexMatch) {
+      result.name = complexMatch[1].trim();
+      result.price = parseInt(complexMatch[2]);
+      result.costPrice = parseInt(complexMatch[3]);
+      return result; // Early return since we've got everything
+    }
+    
+    // Handle the format "New product: Bread ₦300 sell ₦250 cost"
+    const newProductPattern = /(?:new|add)\s+product:\s*(.+?)\s+₦?(\d+(?:,\d+)*)\s+sell\s+₦?(\d+(?:,\d+)*)\s+cost/i;
+    const newProductMatch = message.match(newProductPattern);
+    if (newProductMatch) {
+      result.name = newProductMatch[1].trim();
+      result.price = parseInt(newProductMatch[2]);
+      result.costPrice = parseInt(newProductMatch[3]);
+      return result; // Early return since we've got everything
+    }
+  }
+
   // What's left after removing structured data is the product name
   // Clean up any remaining artifacts
   result.name = cleanedMessage
@@ -625,6 +685,12 @@ function parseProductData(message: string): ProductIntent {
     const nameMatch = message.match(/(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)\s+(.+?)(?:\s+with|\s+price|\s+cost|\s+stock|$)/i);
     if (nameMatch) {
       result.name = nameMatch[1].trim();
+    } else {
+      // Try to extract the first word after the verb as the product name
+      const generalMatch = message.match(/(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory|the\s+)?\s*(.+?)(?:\s+at\s+|@|₦|naira|\s+with\s+|$)/i);
+      if (generalMatch) {
+        result.name = generalMatch[1].trim();
+      }
     }
   }
 
@@ -639,6 +705,15 @@ function parseExpenseData(message: string): ExpenseIntent {
     category: 'General',
     amount: 0,
   };
+
+  // Handle explicit format: "Add expense: Rent ₦50000" or "Record expense: Utilities ₦10000"
+  const explicitPattern = /(?:add|record)\s+expense:\s*(.+?)\s+₦?(\d+(?:,\d+)*)/i;
+  const explicitMatch = message.match(explicitPattern);
+  if (explicitMatch) {
+    result.category = explicitMatch[1].trim();
+    result.amount = parseInt(explicitMatch[2]);
+    return result; // Early return since we've got the main data
+  }
 
   // Extract amount with more flexible patterns
   const amountPatterns = [
@@ -957,7 +1032,7 @@ function parsePurchaseData(message: string): Record<string, any> {
   }
 
   // Extract items - look for pattern: "10 Coca-Cola", "5 bags rice", etc.
-  const itemPattern = /(\d+)\s+(.+?)(?:\s+(?:for|@|₦)\s+?(?:\d+(?:,\d+)*))?(?:,|$)/gi;
+  const itemPattern = /(\d+)\s+(.+?)(?:\s+(?:for|@|₦)\s+?\d+(?:,\d+)*)?(?:,|$)/gi;
   let match;
   while ((match = itemPattern.exec(cleanedMessage)) !== null) {
     const quantity = parseInt(match[1]);

@@ -4,17 +4,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRealtimeService } from '@/lib/realtimeService';
-import { formatCurrency } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const {
-    dailyActiveUsers,
-    monthlyActiveUsers,
     supportStats,
     subscribeToSupportStats,
     subscribeToDailyActiveUsers,
-    subscribeToMonthlyActiveUsers
+    subscribeToMonthlyActiveUsers,
+    getDailyActiveUsers,
+    getMonthlyActiveUsers
   } = useRealtimeService();
   
   const [dailyUsers, setDailyUsers] = useState(0);

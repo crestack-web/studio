@@ -214,7 +214,7 @@ export default function AdminSupportPage() {
             const unreadCount = getUnreadMessageCount(customer.id);
             const isActive = selectedCustomerId === customer.id;
             const lastMessage = messages
-              .filter(m => m.customerId === customer.id)
+              .filter(m => m.id.startsWith(customer.id))
               .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
             
             return (
@@ -298,7 +298,7 @@ export default function AdminSupportPage() {
             
             <div className="flex-1 p-4 overflow-y-auto">
               {messages
-                .filter(msg => msg.customerId === selectedCustomerId)
+                .filter(msg => msg.id.startsWith(selectedCustomerId))
                 .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
                 .map((msg, index) => {
                   // Group messages by date

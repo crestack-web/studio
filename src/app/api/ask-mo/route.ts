@@ -339,11 +339,14 @@ export async function POST(request: NextRequest) {
     let renderedResponse = null;
 
     if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
+      console.log('🎯 [Ask MO API] Intent detected for execution:', intent.intent, 'with data:', intent.data);
+      
       // Check permissions (inline implementation)
       const hasPermission = userRole === 'owner' || userRole === 'admin' || 
         (userRole === 'staff' && ['record_sale', 'add_product', 'update_product'].includes(intent.intent));
       
       if (!hasPermission) {
+        console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on intent:', intent.intent);
         return NextResponse.json({
           answer: `Sorry, you don't have permission to ${intent.intent.replace('_', ' ')}. Please contact your administrator.`,
           intent,
@@ -358,6 +361,15 @@ export async function POST(request: NextRequest) {
         const userDoc = await db.collection('users').doc(userId).get();
         const userData = userDoc.data();
 
+        console.log('🚀 [Ask MO API] About to execute action with context:', {
+          businessId,
+          userId,
+          userEmail: userData?.email,
+          userName: userData?.name,
+          userRole: userRole || userData?.role,
+          staffId: userData?.staffId,
+        });
+
         actionResult = await executeAction(intent, {
           businessId,
           userId,
@@ -367,11 +379,19 @@ export async function POST(request: NextRequest) {
           staffId: userData?.staffId,
         });
 
+        console.log('✅ [Ask MO API] Action execution result:', actionResult);
+        
         // Render the result
         renderedResponse = renderResponse(actionResult.message || actionResult.data?.message || 'Action completed', actionResult, intent);
         console.log('✅ [Ask MO API] Action executed and rendered');
       } catch (error) {
         console.error('❌ [Ask MO API] Error executing action:', error);
+        // Even if there's an error, we'll continue to let the AI provide a response
+        actionResult = {
+          success: false,
+          message: `Error executing action: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
       }
     }
 

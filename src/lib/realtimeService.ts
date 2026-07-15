@@ -11,6 +11,7 @@ export interface Message {
   sender: 'user' | 'admin';
   content: string;
   timestamp: string;
+  customerId: string;  // Add customerId property
   readByAdmin?: boolean;
 }
 
@@ -59,6 +60,7 @@ export function useRealtimeService() {
         sender: 'admin',
         content,
         timestamp: new Date().toISOString(),
+        customerId,  // Add customerId
         readByAdmin: true
       };
       
@@ -87,6 +89,7 @@ export function useRealtimeService() {
           sender: 'user',
           content: ['Hello!', 'Where are you?', 'Need help with order', 'When will it arrive?'][Math.floor(Math.random() * 4)],
           timestamp: new Date().toISOString(),
+          customerId,  // Add customerId parameter
           readByAdmin: false
         };
         
@@ -105,6 +108,7 @@ export function useRealtimeService() {
         sender: 'user',
         content: 'Hello, I need help with my order',
         timestamp: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+        customerId,  // Add customerId parameter
         readByAdmin: true
       },
       {
@@ -112,6 +116,7 @@ export function useRealtimeService() {
         sender: 'admin',
         content: 'Sure, I can help with that.',
         timestamp: new Date(Date.now() - 86400000 + 1000).toISOString(), // Yesterday + 1s
+        customerId,  // Add customerId parameter
         readByAdmin: true
       }
     ];

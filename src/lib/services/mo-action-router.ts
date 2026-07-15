@@ -55,6 +55,8 @@ export async function executeAction(
   const { intent: intentType, data, requiresConfirmation } = intent;
 
   try {
+    console.log('🔍 [MO Action Router] Executing action:', intentType, 'with data:', data);
+    
     switch (intentType) {
       case 'record_sale':
         return await handleRecordSale(data, context);
@@ -121,6 +123,7 @@ export async function executeAction(
         };
       
       default:
+        console.error('[MO Action Router] Unknown action type:', intentType);
         return {
           success: false,
           action: intentType,
@@ -129,7 +132,7 @@ export async function executeAction(
         };
     }
   } catch (error: any) {
-    console.error('Error executing action:', error);
+    console.error('❌ [MO Action Router] Error executing action:', error);
     return {
       success: false,
       action: intentType,
@@ -146,6 +149,8 @@ async function handleRecordSale(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
+  console.log('💰 [MO Action Router] Handling record sale with data:', data);
+  
   const items = data.items || [];
   
   // Support legacy single-item format
@@ -159,6 +164,7 @@ async function handleRecordSale(
   }
 
   if (items.length === 0) {
+    console.warn('⚠️ [MO Action Router] No sale items provided:', data);
     return {
       success: false,
       action: 'record_sale',
@@ -171,9 +177,11 @@ async function handleRecordSale(
   const productSummaries: any[] = [];
 
   for (const item of items) {
+    console.log('🔍 [MO Action Router] Looking for product:', item.productName);
     const productSearch = await findProductByName(context.businessId, item.productName);
     
     if (!productSearch.found) {
+      console.warn('⚠️ [MO Action Router] Product not found:', item.productName);
       if (productSearch.matches && productSearch.matches.length > 0) {
         return {
           success: false,
@@ -204,6 +212,7 @@ async function handleRecordSale(
 
     const currentStock = product.stock || product.quantity || 0;
     if (currentStock < quantity) {
+      console.warn('⚠️ [MO Action Router] Insufficient stock for:', product.name);
       return {
         success: false,
         action: 'record_sale',
@@ -228,61 +237,74 @@ async function handleRecordSale(
     });
   }
 
-  // Execute sale using existing service
-  const result = await recordSale({
-    businessId: context.businessId,
-    userId: context.userId,
-    items: saleItems,
-    paymentType: data.paymentType || 'cash',
-    source: 'mo_ai',
-    recordedBy: {
-      uid: context.userId,
-      email: context.userEmail || 'mo@busmo.ai',
-      displayName: context.userName || 'MO AI',
-      role: context.userRole || 'AI Assistant',
-      staffId: context.staffId || null,
-    },
-  });
+  try {
+    // Execute sale using existing service
+    const result = await recordSale({
+      businessId: context.businessId,
+      userId: context.userId,
+      items: saleItems,
+      paymentType: data.paymentType || 'cash',
+      source: 'mo_ai',
+      recordedBy: {
+        uid: context.userId,
+        email: context.userEmail || 'mo@busmo.ai',
+        displayName: context.userName || 'MO AI',
+        role: context.userRole || 'AI Assistant',
+        staffId: context.staffId || null,
+      },
+    });
 
-  if (!result.success) {
+    console.log('✅ [MO Action Router] Sale result:', result);
+    
+    if (!result.success) {
+      console.error('❌ [MO Action Router] Failed to record sale:', result.error);
+      return {
+        success: false,
+        action: 'record_sale',
+        message: result.message,
+        error: result.error,
+      };
+    }
+
+    const totalProfit = result.data?.totalProfit || 0;
+    const totalRevenue = result.data?.totalRevenue || 0;
+
+    // Trigger data refresh event for sales
+    triggerActionRefresh('sale_recorded', { 
+      businessId: context.businessId,
+      userId: context.userId,
+      saleId: result.saleId,
+      totalRevenue,
+      items: productSummaries
+    });
+
+    return {
+      success: true,
+      action: 'record_sale',
+      message: 'Sale recorded successfully',
+      data: {
+        saleId: result.saleId,
+        profit: totalProfit,
+        totalRevenue,
+        totalCost: result.data?.totalCost,
+        items: productSummaries.map((product, idx) => ({
+          name: product.name,
+          quantity: product.quantity,
+          price: product.sellingPrice,
+          costPrice: product.costPrice,
+          remainingStock: result.data?.remainingStock[saleItems[idx].productId],
+        })),
+      },
+    };
+  } catch (error: any) {
+    console.error('❌ [MO Action Router] Error in handleRecordSale:', error);
     return {
       success: false,
       action: 'record_sale',
-      message: result.message,
-      error: result.error,
+      message: `Failed to record sale: ${error.message}`,
+      error: error.message,
     };
   }
-
-  const totalProfit = result.data?.totalProfit || 0;
-  const totalRevenue = result.data?.totalRevenue || 0;
-
-  // Trigger data refresh event for sales
-  triggerActionRefresh('sale_recorded', { 
-    businessId: context.businessId,
-    userId: context.userId,
-    saleId: result.saleId,
-    totalRevenue,
-    items: productSummaries
-  });
-
-  return {
-    success: true,
-    action: 'record_sale',
-    message: 'Sale recorded successfully',
-    data: {
-      saleId: result.saleId,
-      profit: totalProfit,
-      totalRevenue,
-      totalCost: result.data?.totalCost,
-      items: productSummaries.map((product, idx) => ({
-        name: product.name,
-        quantity: product.quantity,
-        price: product.sellingPrice,
-        costPrice: product.costPrice,
-        remainingStock: result.data?.remainingStock[saleItems[idx].productId],
-      })),
-    },
-  };
 }
 
 /**
@@ -292,8 +314,11 @@ async function handleAddProduct(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
+  console.log('📦 [MO Action Router] Handling add product with data:', data);
+  
   // Validate required fields with better error messages
   if (!data.name || !data.name.trim()) {
+    console.warn('⚠️ [MO Action Router] Missing product name:', data);
     return {
       success: false,
       action: 'add_product',
@@ -302,6 +327,7 @@ async function handleAddProduct(
   }
 
   if (!data.price || data.price <= 0) {
+    console.warn('⚠️ [MO Action Router] Missing or invalid price:', data.price);
     return {
       success: false,
       action: 'add_product',
@@ -310,6 +336,7 @@ async function handleAddProduct(
   }
 
   if (!data.costPrice || data.costPrice <= 0) {
+    console.warn('⚠️ [MO Action Router] Missing or invalid cost price:', data.costPrice);
     return {
       success: false,
       action: 'add_product',
@@ -317,71 +344,84 @@ async function handleAddProduct(
     };
   }
 
-  const result = await addProduct({
-    businessId: context.businessId,
-    userId: context.userId,
-    name: data.name,
-    category: data.category || 'General',
-    sellPrice: parseFloat(data.price) || parseFloat(data.sellPrice) || 0,
-    costPrice: parseFloat(data.costPrice) || 0,
-    openingStock: parseInt(data.stock) || 0,
-    description: data.description || '',
-    sku: data.sku,
-    lowStockAlert: parseInt(data.lowStockThreshold) || parseInt(data.lowStockAlert) || 5,
-    unit: data.unit || 'piece',
-    hasExpiry: data.hasExpiry || false,
-    expiryDate: data.expiryDate,
-    hasVariants: data.hasVariants || false,
-    variantType: data.variantType,
-    variantValues: data.variantValues,
-    useDefaultDelivery: data.useDefaultDelivery !== false,
-    selectedCountries: data.selectedCountries,
-    deliveryTime: data.deliveryTime,
-    shippingFeeOverride: data.shippingFeeOverride,
-    manualSale: data.manualSale !== false,
-    onlineStore: data.onlineStore || false,
-    imageUrl: data.imageUrl || '',
-    imageData: data.imageData,
-    productType: data.productType || 'product',
-    dishCategory: data.dishCategory,
-    preparationTime: data.preparationTime,
-    ingredientUnit: data.ingredientUnit,
-    supplier: data.supplier,
-    reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : undefined,
-    expiryDateIngredient: data.expiryDateIngredient,
-    branch: data.branch,
-    ingredients: data.ingredients,
-    warehouseLocation: data.warehouseLocation || 'main_store',
-    stockByLocation: data.stockByLocation,
-    businessCategory: data.businessCategory || 'retail',
-  });
+  try {
+    const result = await addProduct({
+      businessId: context.businessId,
+      userId: context.userId,
+      name: data.name,
+      category: data.category || 'General',
+      sellPrice: parseFloat(data.price) || parseFloat(data.sellPrice) || 0,
+      costPrice: parseFloat(data.costPrice) || 0,
+      openingStock: parseInt(data.stock) || 0,
+      description: data.description || '',
+      sku: data.sku,
+      lowStockAlert: parseInt(data.lowStockThreshold) || parseInt(data.lowStockAlert) || 5,
+      unit: data.unit || 'piece',
+      hasExpiry: data.hasExpiry || false,
+      expiryDate: data.expiryDate,
+      hasVariants: data.hasVariants || false,
+      variantType: data.variantType,
+      variantValues: data.variantValues,
+      useDefaultDelivery: data.useDefaultDelivery !== false,
+      selectedCountries: data.selectedCountries,
+      deliveryTime: data.deliveryTime,
+      shippingFeeOverride: data.shippingFeeOverride,
+      manualSale: data.manualSale !== false,
+      onlineStore: data.onlineStore || false,
+      imageUrl: data.imageUrl || '',
+      imageData: data.imageData,
+      productType: data.productType || 'product',
+      dishCategory: data.dishCategory,
+      preparationTime: data.preparationTime,
+      ingredientUnit: data.ingredientUnit,
+      supplier: data.supplier,
+      reorderLevel: data.reorderLevel ? parseInt(data.reorderLevel) : undefined,
+      expiryDateIngredient: data.expiryDateIngredient,
+      branch: data.branch,
+      ingredients: data.ingredients,
+      warehouseLocation: data.warehouseLocation || 'main_store',
+      stockByLocation: data.stockByLocation,
+      businessCategory: data.businessCategory || 'retail',
+    });
 
-  if (!result.success) {
+    console.log('✅ [MO Action Router] Product result:', result);
+    
+    if (!result.success) {
+      console.error('❌ [MO Action Router] Failed to add product:', result.error);
+      return {
+        success: false,
+        action: 'add_product',
+        message: result.message,
+        error: result.error,
+      };
+    }
+
+    // Trigger data refresh event for products
+    triggerActionRefresh('product_added', { 
+      businessId: context.businessId,
+      userId: context.userId,
+      productId: result.productId,
+      productName: data.name
+    });
+
+    return {
+      success: true,
+      action: 'add_product',
+      message: result.message,
+      data: {
+        productId: result.productId,
+        product: result.product,
+      },
+    };
+  } catch (error: any) {
+    console.error('❌ [MO Action Router] Error in handleAddProduct:', error);
     return {
       success: false,
       action: 'add_product',
-      message: result.message,
-      error: result.error,
+      message: `Failed to add product: ${error.message}`,
+      error: error.message,
     };
   }
-
-  // Trigger data refresh event for products
-  triggerActionRefresh('product_added', { 
-    businessId: context.businessId,
-    userId: context.userId,
-    productId: result.productId,
-    productName: data.name
-  });
-
-  return {
-    success: true,
-    action: 'add_product',
-    message: result.message,
-    data: {
-      productId: result.productId,
-      product: result.product,
-    },
-  };
 }
 
 /**
@@ -391,8 +431,11 @@ async function handleAddExpense(
   data: Record<string, any>,
   context: ActionContext
 ): Promise<ActionResult> {
+  console.log('💼 [MO Action Router] Handling add expense with data:', data);
+  
   // Validate required fields with better error messages
   if (!data.amount || data.amount <= 0) {
+    console.warn('⚠️ [MO Action Router] Invalid amount for expense:', data.amount);
     return {
       success: false,
       action: 'add_expense',
@@ -401,6 +444,7 @@ async function handleAddExpense(
   }
 
   if (!data.category) {
+    console.warn('⚠️ [MO Action Router] Missing category for expense:', data);
     return {
       success: false,
       action: 'add_expense',
@@ -408,50 +452,63 @@ async function handleAddExpense(
     };
   }
 
-  const result = await addExpense({
-    businessId: context.businessId,
-    userId: context.userId,
-    category: data.category,
-    amount: parseFloat(data.amount),
-    date: data.date || new Date().toISOString().split('T')[0],
-    paymentMethod: data.paymentMethod || 'Cash',
-    description: data.description || '',
-    linkedProduct: data.linkedProduct,
-    quantityReceived: data.quantityReceived ? parseInt(data.quantityReceived) : undefined,
-    isRecurring: data.isRecurring || false,
-    recurFrequency: data.recurFrequency,
-    recurNextDate: data.recurNextDate,
-    receiptUrl: data.receiptUrl,
-    receiptData: data.receiptData,
-  });
+  try {
+    const result = await addExpense({
+      businessId: context.businessId,
+      userId: context.userId,
+      category: data.category,
+      amount: parseFloat(data.amount),
+      date: data.date || new Date().toISOString().split('T')[0],
+      paymentMethod: data.paymentMethod || 'Cash',
+      description: data.description || '',
+      linkedProduct: data.linkedProduct,
+      quantityReceived: data.quantityReceived ? parseInt(data.quantityReceived) : undefined,
+      isRecurring: data.isRecurring || false,
+      recurFrequency: data.recurFrequency,
+      recurNextDate: data.recurNextDate,
+      receiptUrl: data.receiptUrl,
+      receiptData: data.receiptData,
+    });
 
-  if (!result.success) {
+    console.log('✅ [MO Action Router] Expense result:', result);
+    
+    if (!result.success) {
+      console.error('❌ [MO Action Router] Failed to add expense:', result.error);
+      return {
+        success: false,
+        action: 'add_expense',
+        message: result.message,
+        error: result.error,
+      };
+    }
+
+    // Trigger data refresh event for expenses
+    triggerActionRefresh('expense_added', { 
+      businessId: context.businessId,
+      userId: context.userId,
+      expenseId: result.expenseId,
+      amount: data.amount,
+      category: data.category
+    });
+
+    return {
+      success: true,
+      action: 'add_expense',
+      message: result.message,
+      data: {
+        expenseId: result.expenseId,
+        expense: result.expense,
+      },
+    };
+  } catch (error: any) {
+    console.error('❌ [MO Action Router] Error in handleAddExpense:', error);
     return {
       success: false,
       action: 'add_expense',
-      message: result.message,
-      error: result.error,
+      message: `Failed to add expense: ${error.message}`,
+      error: error.message,
     };
   }
-
-  // Trigger data refresh event for expenses
-  triggerActionRefresh('expense_added', { 
-    businessId: context.businessId,
-    userId: context.userId,
-    expenseId: result.expenseId,
-    amount: data.amount,
-    category: data.category
-  });
-
-  return {
-    success: true,
-    action: 'add_expense',
-    message: result.message,
-    data: {
-      expenseId: result.expenseId,
-      expense: result.expense,
-    },
-  };
 }
 
 /**

@@ -8,7 +8,21 @@ export async function GET(request: NextRequest) {
     // requests or unread messages
     
     // Mock data for demonstration
-    const mockNewCustomers = {
+    interface CustomerData {
+      id: string;
+      name: string;
+      email: string;
+      status: string;
+      lastActive: string;
+      message: string;
+      messageTimestamp: string;
+    }
+    
+    const mockNewCustomers: {
+      count: number;
+      customers: CustomerData[];
+      timestamp: string;
+    } = {
       count: Math.floor(Math.random() * 5), // Random count between 0 and 4
       customers: [],
       timestamp: new Date().toISOString()

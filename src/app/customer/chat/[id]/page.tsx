@@ -32,12 +32,18 @@ const initialMessages: Message[] = [
   }
 ];
 
-export default function CustomerChatPage({ params }: { params: { id: string } }) {
+export default function CustomerChatPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const [chatId, setChatId] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+
+  // Resolve async params
+  useEffect(() => {
+    params.then(({ id }) => setChatId(id));
+  }, [params]);
   
   // Mock customer data - in a real app this would come from authentication
   const customer = {
@@ -99,7 +105,7 @@ export default function CustomerChatPage({ params }: { params: { id: string } })
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Support Chat</h1>
-          <p className="text-gray-600 mt-1">Chat #{params.id}</p>
+          <p className="text-gray-600 mt-1">Chat #{chatId}</p>
         </div>
         <div className="text-right">
           <p className="text-gray-600">Welcome, {customer.name}</p>

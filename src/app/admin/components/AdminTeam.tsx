@@ -98,36 +98,6 @@ export default function AdminTeam() {
         });
       }
 
-      // Also check if whitelist emails in adminAuth.ts are in the collection
-      const { ADMIN_EMAILS } = await import('@/lib/adminAuth');
-      
-      for (const email of ADMIN_EMAILS) {
-        if (!adminList.find(a => a.email.toLowerCase() === email.toLowerCase())) {
-          // Add missing admin from whitelist
-          const adminId = `admin_${email.replace(/[@.]/g, '_')}`;
-          adminList.push({
-            id: adminId,
-            email,
-            name: email.split('@')[0],
-            role: 'super_admin',
-            permissions: {
-              overview: true,
-              users: true,
-              businesses: true,
-              staff: true,
-              support: true,
-              features: true,
-              analytics: true,
-              churn: true,
-              askmo: true,
-              notifications: true,
-            },
-            status: 'active',
-            createdAt: 'N/A',
-          });
-        }
-      }
-
       setAdminUsers(adminList);
     } catch (error) {
       console.error('Error loading admin users:', error);

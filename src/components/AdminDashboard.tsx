@@ -101,7 +101,7 @@ const UserGrowthChart = ({ dailyActiveUsers, monthlyActiveUsers }: UserGrowthCha
   const weeklyData = Array(7).fill(0).map(() => Math.floor(Math.random() * (monthlyActiveUsers / 20)) + dailyActiveUsers);
   
   // Get day names for the chart
-  const dayNames = [];
+  const dayNames: string[] = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
