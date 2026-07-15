@@ -82,6 +82,7 @@ export default function Cashflowpage() {
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isAddingPurchase, setIsAddingPurchase] = useState(false);
 
   // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
@@ -733,10 +734,12 @@ export default function Cashflowpage() {
 
   const handleAddPurchase = async () => {
     if (!businessId || !firestore) return;
+    setIsAddingPurchase(true);
     try {
       const product = products.find(p => p.id === stockAddition.productId);
       if (!product) {
         showToast('❌ Please select a product');
+        setIsAddingPurchase(false);
         return;
       }
 
@@ -751,6 +754,7 @@ export default function Cashflowpage() {
       if (stockAddition.paymentMethod === 'partial') {
         if (stockAddition.paymentAmount <= 0 || stockAddition.paymentAmount >= purchaseAmount) {
           showToast('❌ Partial payment amount must be greater than 0 and less than total');
+          setIsAddingPurchase(false);
           return;
         }
         paidAmount = stockAddition.paymentAmount;
@@ -954,6 +958,8 @@ export default function Cashflowpage() {
     } catch (error: any) {
       console.error('Error recording purchase:', error);
       showToast(`❌ Failed to record purchase: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsAddingPurchase(false);
     }
   };
 
@@ -1587,7 +1593,9 @@ export default function Cashflowpage() {
                     </div>
                     <div className={styles.modalActions}>
                       <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                      <button type="submit" className={styles.modalButtonPrimary}>Record Purchase</button>
+                      <button type="submit" className={styles.modalButtonPrimary} disabled={isAddingPurchase}>
+                        {isAddingPurchase ? 'Recording...' : 'Record Purchase'}
+                      </button>
                     </div>
                   </>
                 )}
