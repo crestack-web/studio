@@ -1,84 +1,151 @@
-// src/lib/adminAuth.ts
 import { useEffect, useState } from 'react';
 
-interface AdminUser {
+// Define admin user type with permissions and lastLogin
+export interface AdminUser {
   id: string;
   name: string;
   email: string;
   role: string;
+  permissions: string[];
+  lastLogin?: string;
 }
 
-interface AdminAuth {
-  user: AdminUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-}
-
-// In a real application, this would connect to an authentication service
-export function useAdminAuth(): AdminAuth {
+// Custom hook for admin authentication
+export const useAdminAuth = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
   // Check authentication status on component mount
   useEffect(() => {
-    // In a real app, this would check a token or session
-    // For demo purposes, we'll just use a timeout
-    setTimeout(() => {
-      // Check if user is already logged in (e.g., from localStorage)
-      const storedUser = localStorage.getItem('adminUser');
-      
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-      
-      setIsLoading(false);
-    }, 500);
+    // In a real application, this would check the actual authentication status
+    // For example, by checking a token or session
+    checkAuthentication();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // In a real application, this would call an authentication API
-    // For demo purposes, we'll just use a mock authentication
-    
-    setIsLoading(true);
-    
-    // Simulate API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Mock successful login
-        if (email === 'admin@example.com' && password === 'password') {
-          const mockUser: AdminUser = {
-            id: 'admin_1',
-            name: 'Admin User',
-            email: 'admin@example.com',
-            role: 'admin'
-          };
-          
-          setUser(mockUser);
-          localStorage.setItem('adminUser', JSON.stringify(mockUser));
-          setIsLoading(false);
-          resolve(true);
-        } else {
-          // Mock failed login
-          setIsLoading(false);
-          resolve(false);
+  // Mock authentication check
+  const checkAuthentication = async () => {
+    try {
+      // In a real application, this would make an API call to verify the session
+      // For example: const response = await fetch('/api/admin/auth/status');
+      // And then check the response
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mock authentication status
+      const mockIsAuthenticated = localStorage.getItem('admin_authenticated') === 'true';
+      
+      setIsAuthenticated(mockIsAuthenticated);
+      
+      if (mockIsAuthenticated) {
+        // Get user data from localStorage
+        const storedUser = localStorage.getItem('admin_user');
+        
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
         }
-      }, 1000);
-    });
+      }
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      setIsAuthenticated(false);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
-    // In a real application, this would invalidate the token/session
-    setUser(null);
-    localStorage.removeItem('adminUser');
+  // Login function
+  const login = async (email: string, password: string) => {
+    try {
+      // In a real application, this would make an API call to login
+      // For example: const response = await fetch('/api/admin/auth/login', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ email, password })
+      // });
+      // 
+      // if (!response.ok) {
+      //   throw new Error('Login failed');
+      // }
+      // 
+      // const data = await response.json();
+      // 
+      // // Set authentication status and user
+      // setIsAuthenticated(true);
+      // setUser(data.user);
+      // 
+      // // Store token or session in localStorage or cookies
+      // localStorage.setItem('admin_token', data.token);
+      
+      // Mock login success
+      setIsAuthenticated(true);
+      
+      const mockUser: AdminUser = {
+        id: 'admin_123',
+        name: 'Busmo Admin',
+        email,
+        role: 'Administrator',
+        permissions: ['read_support', 'write_support', 'read_users', 'write_users'],
+        lastLogin: new Date().toISOString()
+      };
+      
+      setUser(mockUser);
+      
+      // Store mock authentication in localStorage
+      localStorage.setItem('admin_authenticated', 'true');
+      localStorage.setItem('admin_user', JSON.stringify(mockUser));
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsAuthenticated(false);
+      setUser(null);
+      return { success: false, error: 'Invalid email or password' };
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      // In a real application, this would make an API call to logout
+      // For example: await fetch('/api/admin/auth/logout', { method: 'POST' });
+      // 
+      // Remove token or session from localStorage or cookies
+      // localStorage.removeItem('admin_token');
+      
+      // Mock logout
+      setIsAuthenticated(false);
+      setUser(null);
+      
+      // Remove mock authentication from localStorage
+      localStorage.removeItem('admin_authenticated');
+      localStorage.removeItem('admin_user');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Check if user has a specific permission
+  const hasPermission = (permission: string): boolean => {
+    if (!user) return false;
+    return user.permissions.includes(permission);
+  };
+
+  // Check if user has admin role
+  const isAdmin = (): boolean => {
+    if (!user) return false;
+    return user.role === 'Administrator';
   };
 
   return {
+    isAuthenticated,
     user,
-    isAuthenticated: !!user,
     isLoading,
     login,
-    logout
+    logout,
+    hasPermission,
+    isAdmin
   };
-}
+};

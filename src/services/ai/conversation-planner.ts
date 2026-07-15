@@ -286,45 +286,65 @@ export class ConversationPlanner {
 
   /**
    * Step 3: Classify Topic Type (Data vs General Knowledge)
+   * 
+   * IMPORTANT: We use AGGRESSIVE data loading by design.
+   * Users value having their actual business data used in responses over conservative data loading.
+   * Missing business data makes MO responses generic and less valuable.
+   * The performance cost of loading data is worth the improved response quality.
    */
   private classifyTopicType(message: string): TopicType {
     const lowerMessage = message.toLowerCase();
     
-    // Business data indicators
+    // Business data indicators - expanded to catch more business queries
     const businessDataPatterns = [
-      /sales|revenue|profit|income/i,
-      /inventory|stock|products/i,
-      /expenses|costs|spending/i,
-      /customers|clients/i,
-      /staff|employees/i,
+      /sales|revenue|profit|income|money|cash|balance/i,
+      /inventory|stock|products|items|goods/i,
+      /expenses|costs|spending|payments|bills/i,
+      /customers|clients|buyers|purchasers/i,
+      /staff|employees|workers|team/i,
       /today|this week|this month|this year/i,
-      /how many|how much/i,
+      /how many|how much|how is/i,
       /show me|display|list/i,
       /record|log|track/i,
+      /business|company|store|shop/i,
+      /performance|doing|status|overview|summary/i,
+      /restock|reorder|low stock|out of stock/i,
+      /margin|growth|trend/i,
     ];
 
-    // General knowledge indicators
+    // General knowledge indicators - more specific to avoid false positives
     const generalKnowledgePatterns = [
-      /how (do|to|can|should) i/i,
-      /what (is|are|was|were)/i,
-      /why (do|does|did|is|are)/i,
-      /explain/i,
-      /teach/i,
-      /best practices/i,
-      /tips|advice/i,
-      /strategy/i,
+      /how (do|to|can|should) i (start|begin|create|set up)/i,
+      /what (is|are|was|were) (the|a|an) (best|good|proper)/i,
+      /why (do|does|did|is|are) (you|people|companies)/i,
+      /explain (how|what|why)/i,
+      /teach me (how|what|why)/i,
+      /best practices for/i,
+      /tips for|advice on/i,
+      /business strategy (theory|concept|framework)/i,
     ];
 
     const hasBusinessData = businessDataPatterns.some(pattern => pattern.test(message));
     const hasGeneralKnowledge = generalKnowledgePatterns.some(pattern => pattern.test(message));
 
-    if (hasBusinessData && hasGeneralKnowledge) {
-      return 'mixed';
-    } else if (hasBusinessData) {
-      return 'business_data';
-    } else {
+    // Prioritize business data classification
+    if (hasBusinessData) {
+      return hasGeneralKnowledge ? 'mixed' : 'business_data';
+    }
+    
+    // If no clear business data indicators but has general knowledge patterns
+    if (hasGeneralKnowledge) {
       return 'general_knowledge';
     }
+    
+    // Default to business_data if we have a business context
+    // This ensures we load data for ambiguous queries like "how is my business doing?"
+    // INTENTIONAL: Aggressive default - users prefer data-loaded responses over generic ones
+    if (this.context.businessContext?.businessId) {
+      return 'business_data';
+    }
+    
+    return 'general_knowledge';
   }
 
   /**
@@ -423,19 +443,19 @@ export class ConversationPlanner {
       return requirements;
     }
 
-    // Sales data
-    if (/sales|revenue|income|sold|selling/i.test(message)) {
+    // Sales data - expanded patterns
+    if (/sales|revenue|income|sold|selling|money|cash|balance|profit/i.test(message)) {
       requirements.salesData = true;
       requirements.timeRange = this.extractTimeRange(message);
     }
 
-    // Inventory data
-    if (/inventory|stock|products|items|goods/i.test(message)) {
+    // Inventory data - expanded patterns
+    if (/inventory|stock|products|items|goods|restock|reorder/i.test(message)) {
       requirements.inventoryData = true;
     }
 
-    // Expense data
-    if (/expenses|costs|spending|payments|bills/i.test(message)) {
+    // Expense data - expanded patterns
+    if (/expenses|costs|spending|payments|bills|burn|cost/i.test(message)) {
       requirements.expenseData = true;
       requirements.timeRange = this.extractTimeRange(message);
     }
@@ -450,8 +470,17 @@ export class ConversationPlanner {
       requirements.staffData = true;
     }
 
-    // Business metrics (for deep analysis)
-    if (responseDepth === 'deep' || topicType === 'mixed') {
+    // Business metrics - load for all business data queries to provide context
+    if (topicType === 'business_data' || topicType === 'mixed') {
+      requirements.businessMetrics = true;
+      requirements.timeRange = this.extractTimeRange(message) || 'month';
+    }
+
+    // For general business overview queries, load all relevant data
+    if (/how is my business|business doing|overview|summary|status|performance/i.test(message)) {
+      requirements.salesData = true;
+      requirements.inventoryData = true;
+      requirements.expenseData = true;
       requirements.businessMetrics = true;
       requirements.timeRange = this.extractTimeRange(message) || 'month';
     }

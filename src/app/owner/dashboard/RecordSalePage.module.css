@@ -217,6 +217,82 @@
 .totalMain { font-weight: 700; font-size: 0.95rem; color: var(--text-1); }
 .totalProfit { color: var(--green); font-weight: 600; }
 
+/* ── Discount Section ── */
+.discountSection {
+  background: var(--bg-2);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  margin: 8px 0;
+}
+
+.discountRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.discountRow span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.discountSelect {
+  padding: 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-1);
+  background: var(--surface);
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.discountSelect:focus {
+  border-color: var(--purple);
+}
+
+.discountInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.discountInput {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-1);
+  background: var(--surface);
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.discountInput:focus {
+  border-color: var(--purple);
+}
+
+.discountLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
+  min-width: 30px;
+}
+
+.discountAmount {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--red);
+  text-align: right;
+}
+
 /* ── Source Location ── */
 .sourceLocationSection { border-top: 1px solid var(--border-subtle); padding: 10px 0; margin-top: 10px; }
 

@@ -6,16 +6,35 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface Message {
-  id: number;
+  id: string;
   sender: 'user' | 'admin';
   content: string;
   timestamp: string;
-  customerId: string;
+  readByAdmin: boolean;
 }
+
+const initialMessages: Message[] = [
+  {
+    id: 'msg_1',
+    sender: 'user',
+    // Fixed the string with apostrophe by using double quotes inside single quotes
+    content: "Hello, I need help with my order",
+    timestamp: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+    readByAdmin: true
+  },
+  {
+    id: 'msg_2',
+    sender: 'admin',
+    // Fixed the string with apostrophe by using double quotes inside single quotes
+    content: "Sure, I can help you with that. Could you please provide more details about the issue you're facing?",
+    timestamp: new Date(Date.now() - 86400000 + 1000).toISOString(), // Yesterday + 1s
+    readByAdmin: true
+  }
+];
 
 export default function CustomerChatPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -31,29 +50,6 @@ export default function CustomerChatPage({ params }: { params: { id: string } })
   useEffect(() => {
     // In a real app, this would fetch from an API
     setTimeout(() => {
-      setMessages([
-        {
-          id: 1,
-          sender: 'admin',
-          content: 'Hello John! How can we assist you today?',
-          timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          customerId: customer.id
-        },
-        {
-          id: 2,
-          sender: 'user',
-          content: 'Hi, I need help with my account settings.',
-          timestamp: new Date(Date.now() - 3500000).toISOString(), // 58 minutes ago
-          customerId: customer.id
-        },
-        {
-          id: 3,
-          sender: 'admin',
-          content: 'Sure, I can help you with that. Could you please provide more details about the issue you're facing?',
-          timestamp: new Date(Date.now() - 3400000).toISOString(), // 56 minutes ago
-          customerId: customer.id
-        }
-      ]);
       setIsLoading(false);
     }, 1000);
   }, []);
@@ -67,11 +63,11 @@ export default function CustomerChatPage({ params }: { params: { id: string } })
     setTimeout(() => {
       // Add the new message to the chat
       const message: Message = {
-        id: messages.length + 1,
+        id: `msg_${messages.length + 1}`,
         sender: 'user',
         content: newMessage,
         timestamp: new Date().toISOString(),
-        customerId: customer.id
+        readByAdmin: false
       };
       
       setMessages([...messages, message]);
@@ -81,11 +77,11 @@ export default function CustomerChatPage({ params }: { params: { id: string } })
       // Simulate admin response
       setTimeout(() => {
         const adminMessage: Message = {
-          id: messages.length + 2,
+          id: `msg_${messages.length + 2}`,
           sender: 'admin',
           content: 'Thank you for your message. We will get back to you shortly.',
           timestamp: new Date().toISOString(),
-          customerId: customer.id
+          readByAdmin: true
         };
         
         setMessages(prev => [...prev, adminMessage]);

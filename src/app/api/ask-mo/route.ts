@@ -184,7 +184,10 @@ export async function POST(request: NextRequest) {
       hasCapital: businessProfile.openingCapital !== undefined,
     });
 
-    // STEP 3: Load business data selectively based on planner requirements
+    // STEP 3: Load business data based on planner requirements
+    // IMPORTANT: The conversation planner uses AGGRESSIVE data loading by design.
+    // When businessId exists, it defaults to loading business data for better user experience.
+    // Users value data-loaded responses over generic ones, even with slight performance cost.
     let businessData: any = {};
     if (businessId && plannedResponse.shouldRetrieveData) {
       try {
