@@ -223,40 +223,30 @@ export const FloatingChatWidget: React.FC = () => {
   // ─── Chat Functions ────────────────────────────────────────────
   const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
     try {
-      const { firestore } = initializeFirebase();
-      if (!firestore) return;
-
-      if (sender === 'user') {
-        const docRef = await addDoc(collection(firestore, 'supportMessages'), {
-          userId: userId || userEmail,
-          userEmail,
-          businessId: businessId || null,
-          businessName: businessName || null,
+      // Using the new API endpoint that connects to the admin support system
+      const response = await fetch('/api/support/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           message: text,
-          status: 'unread',
+          customerId: userId || userEmail,
+          sender,
+          userEmail,
+          businessId,
           category: 'general',
-          createdAt: serverTimestamp(),
-          replies: [],
-        });
-        setCurrentConversationId(docRef.id);
-      } else if (parentMessageId && currentConversationId) {
-        const docRef = doc(firestore, 'supportMessages', parentMessageId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const replies = data.replies || [];
-          replies.push({
-            message: text,
-            sender: 'admin',
-            createdAt: new Date().toISOString(),
-          });
-          
-          await updateDoc(docRef, {
-            replies,
-            status: 'open',
-          });
-        }
+          status: 'open'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save message');
+      }
+      
+      const savedMessage = await response.json();
+      console.log('Message saved successfully:', savedMessage);
+      
+      if (sender === 'user') {
+        setCurrentConversationId(savedMessage.id);
       }
     } catch (error) {
       console.error('Error saving message:', error);

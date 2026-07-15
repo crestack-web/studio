@@ -79,11 +79,6 @@ export function RecordSalePage() {
   const [customPrice, setCustomPrice] = useState('');
   const [customCost, setCustomCost] = useState('');
 
-  // Discount fields
-  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
-  const [discountValue, setDiscountValue] = useState<number>(0);
-  const [discountAmount, setDiscountAmount] = useState<number>(0);
-
   // Customer linking
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
@@ -107,11 +102,8 @@ export function RecordSalePage() {
 
   // Calculations (must be after all state declarations)
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const discount = discountType === 'percentage' 
-    ? (discountValue > 0 ? (subtotal * discountValue) / 100 : 0)
-    : discountValue;
-  const finalTotal = subtotal - discount;
-  const profit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
+  const finalTotal = subtotal;
+  const profit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0);
 
   // Fetch real products from Firestore
   useEffect(() => {
@@ -423,7 +415,7 @@ export function RecordSalePage() {
       return;
     }
     
-    // Validate payment amounts match final total (after discount)
+    // Validate payment amounts match final total
     const totalPayment = paymentBreakdown.reduce((sum, pb) => sum + pb.amount, 0);
     if (totalPayment !== finalTotal) {
       return showToast(`Payment total (${formatMoney(totalPayment)}) must match sale total (${formatMoney(finalTotal)})`);
@@ -492,9 +484,6 @@ export function RecordSalePage() {
           })),
           totalRevenue: finalTotal,
           subtotal: subtotal,
-          discount: discount,
-          discountType: discountType,
-          discountValue: discountValue,
           totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
           profit: profit,
           paymentBreakdown: paymentBreakdown,
@@ -997,11 +986,8 @@ export function RecordSalePage() {
 
   // Recalculate for render (cart may have changed)
   const renderSubtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const renderDiscount = discountType === 'percentage' 
-    ? (discountValue > 0 ? (renderSubtotal * discountValue) / 100 : 0)
-    : discountValue;
-  const renderFinalTotal = renderSubtotal - renderDiscount;
-  const renderProfit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - renderDiscount;
+  const renderFinalTotal = renderSubtotal;
+  const renderProfit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0);
 
   return (
     <div className={styles.wrapper}>
@@ -1204,43 +1190,6 @@ export function RecordSalePage() {
         <div className={styles.totals}>
           <div className={styles.totalRow}>
             <span>{t('sale.subtotal')}</span><span>{formatMoney(renderSubtotal)}</span>
-          </div>
-          
-          {/* Discount Section */}
-          <div className={styles.discountSection}>
-            <div className={styles.discountRow}>
-              <span>Discount:</span>
-              <select
-                className={styles.discountSelect}
-                value={discountType}
-                onChange={(e) => {
-                  setDiscountType(e.target.value as 'fixed' | 'percentage');
-                  setDiscountValue(0);
-                }}
-              >
-                <option value="fixed">Fixed Amount</option>
-                <option value="percentage">Percentage (%)</option>
-              </select>
-            </div>
-            <div className={styles.discountInputRow}>
-              <input
-                type="number"
-                className={styles.discountInput}
-                value={discountValue}
-                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                min={0}
-                max={discountType === 'percentage' ? 100 : renderSubtotal}
-              />
-              <span className={styles.discountLabel}>
-                {discountType === 'percentage' ? '%' : currencyCode}
-              </span>
-            </div>
-            {renderDiscount > 0 && (
-              <div className={styles.discountAmount}>
-                Discount Amount: -{formatMoney(renderDiscount)}
-              </div>
-            )}
           </div>
 
           <div className={[styles.totalRow, styles.totalMain].join(' ')}>

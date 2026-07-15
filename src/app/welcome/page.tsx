@@ -20,6 +20,7 @@ import { FloatingChatWidget } from './components/FloatingChatWidget';
 import { PricingPreview } from './components/PricingPreview';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import type { Page } from './types';
+import { ChatwootWidget } from '@/components/ChatwootWidget';
 
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);

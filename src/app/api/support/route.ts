@@ -1,7 +1,182 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, getDoc, doc, query, where, orderBy, limit, getDocs, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+/**
+ * Handles incoming support messages from the chat widget
+ * Processes user messages, determines if human agent is requested, and provides appropriate responses
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Parse request body
+    const body = await request.json();
+    const { 
+      message, 
+      userEmail, 
+      userId, 
+      businessId, 
+      businessName, 
+      category = 'general', 
+      conversationHistory = [], 
+      requestHumanAgent = false 
+    } = body;
+
+    // Validate required fields
+    if (!message || !userEmail) {
+      return NextResponse.json({ error: 'Message and email are required' }, { status: 400 });
+    }
+
+    // Initialize Firebase
+    const { firestore } = initializeFirebase();
+    if (!firestore) {
+      return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+    }
+
+    // Get additional user data if userId is provided
+    const userData = await getUserData(firestore, userId, businessId, businessName);
+
+    // Save user message to Firestore
+    const userMessageDoc = await saveUserMessage(
+      firestore, 
+      userId || userEmail, 
+      userEmail, 
+      userData.businessId, 
+      userData.businessName, 
+      message, 
+      category
+    );
+
+    // Handle human agent request
+    if (requestHumanAgent) {
+      return handleHumanAgentRequest(firestore, userMessageDoc);
+    }
+
+    // Generate and save AI response
+    const aiResponse = generateAIResponse(category);
+    await saveAIResponse(firestore, userMessageDoc, aiResponse);
+
+    return NextResponse.json({
+      id: userMessageDoc.id,
+      reply: aiResponse,
+      status: 'bot_responded',
+      isBotResponse: true,
+    });
+  } catch (error) {
+    console.error('Error processing support message:', error);
+    return NextResponse.json({ 
+      error: 'Failed to process support message',
+      reply: "Thanks for your message! Our support team has been notified and will get back to you shortly."
+    }, { status: 500 });
+  }
+}
+
+/**
+ * Fetches additional user data from Firestore if available
+ */
+async function getUserData(firestore: any, userId: string, businessId: string, businessName: string) {
+  let userData = {
+    businessId: businessId || null,
+    businessName: businessName || null,
+  };
+
+  if (userId) {
+    try {
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        userData.businessId = data.businessId || null;
+        userData.businessName = data.businessName || null;
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  }
+  
+  return userData;
+}
+
+/**
+ * Saves the user's message to Firestore
+ */
+async function saveUserMessage(
+  firestore: any, 
+  userId: string, 
+  userEmail: string, 
+  businessId: string | null, 
+  businessName: string | null, 
+  message: string, 
+  category: string
+) {
+  return await addDoc(collection(firestore, 'supportMessages'), {
+    userId,
+    userEmail,
+    businessId,
+    businessName,
+    message,
+    status: 'unread',
+    category,
+    createdAt: serverTimestamp(),
+    replies: [],
+  });
+}
+
+/**
+ * Generates an AI response based on the message category
+ */
+function generateAIResponse(category: string): string {
+  const aiResponses: Record<string, string> = {
+    'general': "Thanks for your message! MO AI here. I've recorded your inquiry and will provide assistance. If you need more specific help, just let me know!",
+    'sales': "I understand you have a question about sales recording. MO AI can help you with that. Try saying 'record a sale of X items' to get started!",
+    'inventory': "Regarding inventory management, MO AI suggests checking your stock levels regularly. You can ask me to show your low-stock items anytime!",
+    'account': "For account-related queries, I recommend checking your dashboard first. If you need further assistance, feel free to ask specific questions!",
+    'technical': "It sounds like you're experiencing a technical issue. I'll help you troubleshoot. Can you please describe the issue in more detail?",
+    'billing': "Concerning billing matters, I recommend checking your subscription plan and payment history first. I can help you understand your current plan and available options."
+  };
+  
+  return aiResponses[category] || aiResponses.general;
+}
+
+/**
+ * Saves the AI's response to Firestore
+ */
+async function saveAIResponse(firestore: any, messageDoc: any, aiResponse: string) {
+  const botMessageRef = doc(firestore, 'supportMessages', messageDoc.id);
+  await updateDoc(botMessageRef, {
+    status: 'bot_responded',
+    'replies': arrayUnion({
+      message: aiResponse,
+      sender: 'mo',
+      createdAt: new Date().toISOString(),
+      type: 'ai_response',
+    }),
+  });
+}
+
+/**
+ * Handles the case when a human agent is requested
+ */
+async function handleHumanAgentRequest(firestore: any, messageDoc: any) {
+  const escalationMessage = "I've requested a human agent. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo.";
+  
+  const botMessageRef = doc(firestore, 'supportMessages', messageDoc.id);
+  await updateDoc(botMessageRef, {
+    status: 'needs_human',
+    'replies': arrayUnion({
+      message: escalationMessage,
+      sender: 'mo',
+      createdAt: new Date().toISOString(),
+      type: 'escalation_notice',
+    }),
+  });
+
+  return NextResponse.json({
+    id: messageDoc.id,
+    reply: escalationMessage,
+    status: 'needs_human',
+    isBotResponse: true,
+  });
+}
 
 // Support-specific AI - separate from business intelligence AI
 async function askSupportAI(message: string, conversationHistory: any[]) {
@@ -155,100 +330,6 @@ If you cannot answer a question or it requires account-specific actions, suggest
   } catch (error) {
     console.error('Error calling support AI:', error);
     return "I'm here to help! Could you tell me more about what you need?";
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { message, userEmail, category, userId, businessId, businessName, conversationHistory = [], requestHumanAgent = false } = body;
-
-    if (!message || !userEmail) {
-      return NextResponse.json({ error: 'Message and email are required' }, { status: 400 });
-    }
-
-    const { firestore } = initializeFirebase();
-
-    if (!firestore) {
-      return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
-    }
-
-    // If userId is provided, fetch additional user data
-    let userData = {
-      businessId: businessId || null,
-      businessName: businessName || null,
-    };
-
-    if (userId) {
-      try {
-        const userDoc = await getDoc(doc(firestore, 'users', userId));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          userData.businessId = data.businessId || null;
-          userData.businessName = data.businessName || null;
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    }
-
-    // Save user message to Firestore
-    const userMessageDoc = await addDoc(collection(firestore, 'supportMessages'), {
-      userId: userId || userEmail,
-      userEmail,
-      businessId: userData.businessId,
-      businessName: userData.businessName,
-      message,
-      status: 'unread',
-      category: category || 'general',
-      createdAt: serverTimestamp(),
-      replies: [],
-    });
-
-    // If user requests human agent, mark as needing human response
-    if (requestHumanAgent) {
-      await updateDoc(userMessageDoc, {
-        status: 'needs_human',
-        'replies': arrayUnion({
-          message: "I've requested a human agent. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo.",
-          sender: 'mo',
-          createdAt: new Date().toISOString(),
-          type: 'escalation_notice',
-        }),
-      });
-
-      return NextResponse.json({
-        id: userMessageDoc.id,
-        reply: "I've requested a human agent. They'll be with you shortly. In the meantime, I can still help with general questions about Busmo. Would you like me to send your previous messages to them?",
-        status: 'needs_human',
-        isBotResponse: true,
-      });
-    }
-
-    // Call Support AI for intelligent response (separate from business intelligence AI)
-    const aiResponse = await askSupportAI(message, conversationHistory);
-
-    // Add MO AI's response as a reply
-    const botMessageRef = doc(firestore, 'supportMessages', userMessageDoc.id);
-    await updateDoc(botMessageRef, {
-      status: 'bot_responded',
-      'replies': arrayUnion({
-        message: aiResponse,
-        sender: 'mo',
-        createdAt: new Date().toISOString(),
-        type: 'ai_response',
-      }),
-    });
-
-    return NextResponse.json({
-      id: userMessageDoc.id,
-      reply: aiResponse,
-      status: 'bot_responded',
-      isBotResponse: true,
-    });
-  } catch (error) {
-    console.error('Support message error:', error);
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }
 
