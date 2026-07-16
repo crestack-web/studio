@@ -185,9 +185,8 @@ export async function POST(request: NextRequest) {
     });
 
     // STEP 3: Load business data based on planner requirements
-    // IMPORTANT: The conversation planner uses AGGRESSIVE data loading by design.
-    // When businessId exists, it defaults to loading business data for better user experience.
-    // Users value data-loaded responses over generic ones, even with slight performance cost.
+    // IMPORTANT: The conversation planner now includes data dependency planning
+    // It checks if we can answer with existing data before requesting more
     let businessData: any = {};
     
     // Use businessSummary from frontend if available (already loaded by useAskMO hook)
@@ -296,6 +295,55 @@ export async function POST(request: NextRequest) {
       console.log('⏭️ [Ask MO API] Skipping data load (not required by planner)');
     }
 
+    // NEW: Check if we can answer with existing data before proceeding
+    if (plannedResponse.canAnswerWithExistingData && businessData.sales && businessData.sales.length > 0) {
+      console.log('✅ [Ask MO API] Can answer with existing data, preparing focused response');
+      
+      // Prepare a focused response based on available data and user query
+      const lowerMessage = message.toLowerCase();
+      
+      // If user asks about sales, focus on sales data
+      if (/analyze.*sales|sales.*performance|how are sales|sales.*doing/i.test(lowerMessage)) {
+        const totalRevenue = businessData.sales.reduce((sum: number, sale: any) => sum + (parseFloat(sale.amount) || 0), 0);
+        const totalOrders = businessData.sales.length;
+        const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        
+        // Calculate profit if available
+        let totalProfit = 0;
+        businessData.sales.forEach((sale: any) => {
+          if (sale.profit) {
+            totalProfit += parseFloat(sale.profit) || 0;
+          }
+        });
+        
+        const grossMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+        
+        // Create a focused response about sales
+        const focusedResponse = {
+          answer: `Here's what I found in your sales data:\n\n` +
+                  `• Revenue: ₦${totalRevenue.toLocaleString()}\n` +
+                  `• Orders: ${totalOrders}\n` +
+                  `• Average Order Value: ₦${avgOrderValue.toLocaleString()}\n` +
+                  (totalProfit > 0 ? `• Profit: ₦${totalProfit.toLocaleString()}\n` : '') +
+                  (grossMargin > 0 ? `• Gross Margin: ${grossMargin.toFixed(1)}%\n` : '') +
+                  `\nObservation: Revenue looks healthy, though I'd need to see more data to identify trends. Which aspect of your sales would you like to explore further?`,
+          intent: { intent: 'sales_analysis', confidence: 0.9 },
+          actionResult: null,
+          rendered: null,
+          planner: {
+            intent: plannedResponse.intent,
+            conversationGoal: plannedResponse.conversationGoal,
+            responseDepth: plannedResponse.responseDepth,
+            topicType: plannedResponse.topicType,
+            topicChanged: plannedResponse.topicChanged,
+          },
+          timestamp: new Date().toISOString()
+        };
+        
+        return NextResponse.json(focusedResponse);
+      }
+    }
+
     // Run Master Processor - orchestrates all MO engines
     const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
     const processingResult = await masterProcessor.process({
@@ -310,7 +358,7 @@ export async function POST(request: NextRequest) {
       languageName,
     });
 
-    console.log('� [Ask MO API] Master Processing completed:', {
+    console.log('🚀 [Ask MO API] Master Processing completed:', {
       processingTime: processingResult.processingTime,
       intent: processingResult.intent.primaryIntent,
       principlesScore: processingResult.principlesScore,
@@ -426,8 +474,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // NEW: Add data dependency planning context to system prompt
+    const dataDependencyContext = `
+DATA DEPENDENCY PLANNING RESULTS:
+- Can Answer With Existing Data: ${plannedResponse.canAnswerWithExistingData}
+- Required Data for Query: [${plannedResponse.requiredDataForQuery.join(', ')}]
+- Available Data for Query: [${plannedResponse.availableDataForQuery.join(', ')}]
+- Should Retrieve Additional Data: ${plannedResponse.shouldRetrieveData}
+
+NEVER ask for information you already have.
+If you can answer the question with existing data, do so immediately.
+Only ask for additional information if it's truly necessary to improve the response.
+`;
+
+    // NEW: Add data relevance engine context to system prompt
+    const sortedRelevance = Object.entries(plannedResponse.topicRelevanceScores)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5); // Top 5 most relevant topics
+
+    const dataRelevanceContext = `
+DATA RELEVANCE RANKINGS:
+The most relevant business information to the user's query is:
+${sortedRelevance.map(([topic, score]) => `${topic}: ${score}%`).join('\n')}
+
+FOCUS your analysis on the highest-ranked items when responding to the user's query.
+`;
+
     // Build system prompt - use planner's generated prompt as base
     let systemPrompt = `${BUSINESS_CONTEXT_PROMPT}
+
+${dataDependencyContext}
+
+${dataRelevanceContext}
 
 🌍 LANGUAGE: Respond in ${languageName} (${language}). Use the same language the user wrote in.
 
@@ -654,6 +732,10 @@ ${processingResult.nextAction}`;
         responseDepth: plannedResponse.responseDepth,
         topicType: plannedResponse.topicType,
         topicChanged: plannedResponse.topicChanged,
+        canAnswerWithExistingData: plannedResponse.canAnswerWithExistingData,
+        requiredDataForQuery: plannedResponse.requiredDataForQuery,
+        availableDataForQuery: plannedResponse.availableDataForQuery,
+        topicRelevanceScores: plannedResponse.topicRelevanceScores,
       },
       timestamp: new Date().toISOString()
     });

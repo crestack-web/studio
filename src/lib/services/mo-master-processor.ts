@@ -39,6 +39,8 @@ export interface ProcessingResult {
   principlesScore: number;
   finalResponse: string;
   processingTime: number;
+  canAnswerWithExistingData: boolean; // NEW: Can answer with existing data
+  relevantDataPoints: string[]; // NEW: Relevant data points
 }
 
 export class MasterProcessor {
@@ -61,7 +63,7 @@ export class MasterProcessor {
     const memoryEngine = getMemoryEngine(this.businessId, this.userId);
     const profileManager = getBusinessProfileManager();
     const calculationEngine = getCalculationEngine();
-    const reasoningEngine = getReasoningEngine();
+    const reasoningEngine = getReasoningEngine(); // Updated to use enhanced reasoning
     const industryEngine = getIndustryIntelligenceEngine();
     const riskEngine = getRiskEngine();
     const planningEngine = getPlanningEngine(this.businessId);
@@ -92,13 +94,14 @@ export class MasterProcessor {
     const extractedEntities = intentEngine.extractEntities(context.message);
     console.log('🔍 [MO Master Processor] Entities extracted:', Object.keys(extractedEntities).length);
     
-    // Step 6: Run reasoning engine
+    // Step 6: Run reasoning engine - UPDATED to pass businessData
     const reasoning = reasoningEngine.reason({
       message: context.message,
       businessProfile,
       businessSnapshot,
       calculations: [],
       conversationHistory: context.conversationHistory,
+      businessData: context.businessData, // NEW: Pass business data for analysis
     });
     console.log('💭 [MO Master Processor] Reasoning completed');
     
@@ -235,6 +238,8 @@ export class MasterProcessor {
       principlesScore: principlesCheck.score,
       finalResponse,
       processingTime,
+      canAnswerWithExistingData: reasoning.canAnswerWithExistingData, // NEW
+      relevantDataPoints: reasoning.relevantDataPoints, // NEW
     };
   }
   
@@ -288,6 +293,15 @@ export class MasterProcessor {
       response += `• Goal: ${data.reasoning.actualGoal}\n`;
       if (data.reasoning?.recommendedAction) {
         response += `• Recommended: ${data.reasoning.recommendedAction}\n`;
+      }
+    }
+    
+    // NEW: Add data availability information
+    if (data.reasoning?.canAnswerWithExistingData !== undefined) {
+      response += `\n📊 DATA AVAILABILITY:\n`;
+      response += `• Can Answer With Existing Data: ${data.reasoning.canAnswerWithExistingData}\n`;
+      if (data.reasoning.relevantDataPoints && data.reasoning.relevantDataPoints.length > 0) {
+        response += `• Relevant Data Points: ${data.reasoning.relevantDataPoints.join(', ')}\n`;
       }
     }
     

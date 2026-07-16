@@ -44,6 +44,10 @@ export interface PlannedResponse {
   topicChanged: boolean;
   shouldRetrieveData: boolean;
   dataRequirements: DataRequirements;
+  requiredDataForQuery: string[]; // NEW: Data specifically required for this query
+  availableDataForQuery: string[]; // NEW: Data already available for this query
+  canAnswerWithExistingData: boolean; // NEW: Can we answer with existing data?
+  topicRelevanceScores: Record<string, number>; // NEW: Relevance scores for different business aspects
   shouldPerformAction: boolean;
   actionType?: string;
   reasoning: string;
@@ -76,6 +80,14 @@ export class ConversationPlanner {
    * Main pipeline entry point - executes all detection steps
    */
   async planResponse(userMessage: string): Promise<PlannedResponse> {
+    // NEW: Data Dependency Analysis - Check what user is asking and what data is available
+    const requiredDataForQuery = this.determineRequiredDataForQuery(userMessage);
+    const availableDataForQuery = this.determineAvailableDataForQuery(requiredDataForQuery, this.context.businessContext);
+    const canAnswerWithExistingData = availableDataForQuery.length >= requiredDataForQuery.length * 0.7; // 70% threshold
+    
+    // NEW: Data Relevance Engine - Rank business information by relevance to user's question
+    const topicRelevanceScores = this.calculateTopicRelevanceScores(userMessage);
+    
     // Step 1: Detect user intent
     const intent = this.detectIntent(userMessage);
     
@@ -94,6 +106,9 @@ export class ConversationPlanner {
     // Step 6: Determine data requirements
     const dataRequirements = this.determineDataRequirements(userMessage, topicType, responseDepth);
     
+    // NEW: Only retrieve data if truly needed and not available
+    const shouldRetrieveData = this.shouldActuallyRetrieveData(dataRequirements, canAnswerWithExistingData, userMessage);
+    
     // Step 7: Decide if action should be performed
     const { shouldPerformAction, actionType } = this.decideAction(userMessage, intent);
     
@@ -105,6 +120,9 @@ export class ConversationPlanner {
       conversationGoal,
       responseDepth,
       shouldPerformAction,
+      canAnswerWithExistingData,
+      requiredDataForQuery,
+      availableDataForQuery,
     });
     
     // Step 9: Generate system prompt for AI
@@ -115,6 +133,10 @@ export class ConversationPlanner {
       topicType,
       dataRequirements,
       shouldPerformAction,
+      canAnswerWithExistingData,
+      requiredDataForQuery,
+      availableDataForQuery,
+      topicRelevanceScores,
     });
 
     return {
@@ -123,18 +145,146 @@ export class ConversationPlanner {
       responseDepth,
       topicType,
       topicChanged,
-      shouldRetrieveData: !!(dataRequirements.salesData || 
-                         dataRequirements.inventoryData || 
-                         dataRequirements.expenseData ||
-                         dataRequirements.customerData ||
-                         dataRequirements.staffData ||
-                         dataRequirements.businessMetrics),
+      shouldRetrieveData,
       dataRequirements,
+      requiredDataForQuery, // NEW
+      availableDataForQuery, // NEW
+      canAnswerWithExistingData, // NEW
+      topicRelevanceScores, // NEW
       shouldPerformAction,
       actionType,
       reasoning,
       systemPrompt,
     };
+  }
+
+  /**
+   * NEW: Determine what specific data is required to answer the user's query
+   */
+  private determineRequiredDataForQuery(message: string): string[] {
+    const lowerMessage = message.toLowerCase();
+    const requiredData: string[] = [];
+
+    // Sales-related queries
+    if (/(analyze|review|check|show me|what are|how are).*sales|revenue|income|profit|money/i.test(lowerMessage)) {
+      requiredData.push('sales_data', 'revenue', 'profit');
+    }
+    
+    // Inventory-related queries
+    if (/(analyze|review|check|show me|what are|how are).*inventory|stock|products|items|goods|restock/i.test(lowerMessage)) {
+      requiredData.push('inventory_data', 'stock_levels');
+    }
+    
+    // Expense-related queries
+    if (/(analyze|review|check|show me|what are|how are).*expenses|costs|spending|bills|overhead/i.test(lowerMessage)) {
+      requiredData.push('expense_data', 'cost_breakdown');
+    }
+    
+    // Customer-related queries
+    if (/(analyze|review|check|show me|what are|how are).*customers|clients|buyers|purchasers/i.test(lowerMessage)) {
+      requiredData.push('customer_data');
+    }
+    
+    // Cash flow queries
+    if (/(analyze|review|check|show me|what are|how are).*cash|balance|reserves|flow|available/i.test(lowerMessage)) {
+      requiredData.push('cash_flow', 'balance');
+    }
+    
+    // If it's a general business question, we might need multiple data types
+    if (/(how is my business|business doing|overview|summary|performance|health)/i.test(lowerMessage)) {
+      requiredData.push('sales_data', 'expense_data', 'inventory_data', 'cash_flow');
+    }
+
+    // Remove duplicates
+    return [...new Set(requiredData)];
+  }
+
+  /**
+   * NEW: Determine what data is already available for the query
+   */
+  private determineAvailableDataForQuery(requiredData: string[], businessContext?: any): string[] {
+    const availableData: string[] = [];
+    
+    // If we have business context, check what data is available
+    if (businessContext && businessContext.businessId) {
+      // For now, we'll return the required data as available if business context exists
+      // In a real implementation, this would check actual Firestore collections
+      availableData.push(...requiredData);
+    }
+    
+    // Add any data that's always available in business profile
+    if (this.context.businessContext) {
+      if (this.context.businessContext.businessId) availableData.push('basic_business_info');
+      if (this.context.businessContext.industry) availableData.push('industry_info');
+    }
+    
+    return [...new Set(availableData)];
+  }
+
+  /**
+   * NEW: Calculate relevance scores for different business aspects
+   */
+  private calculateTopicRelevanceScores(message: string): Record<string, number> {
+    const lowerMessage = message.toLowerCase();
+    const scores: Record<string, number> = {};
+
+    // Calculate relevance scores based on user query
+    scores.sales = this.calculateRelevanceScore(lowerMessage, ['sales', 'revenue', 'income', 'sold', 'selling']);
+    scores.revenue = this.calculateRelevanceScore(lowerMessage, ['revenue', 'income', 'money', 'profit']);
+    scores.profit = this.calculateRelevanceScore(lowerMessage, ['profit', 'earnings', 'margin', 'gain']);
+    scores.orders = this.calculateRelevanceScore(lowerMessage, ['orders', 'transactions', 'sales']);
+    scores.customers = this.calculateRelevanceScore(lowerMessage, ['customers', 'clients', 'buyers']);
+    scores.inventory = this.calculateRelevanceScore(lowerMessage, ['inventory', 'stock', 'products', 'items', 'goods']);
+    scores.cash_flow = this.calculateRelevanceScore(lowerMessage, ['cash', 'balance', 'reserves', 'flow', 'available']);
+    scores.suppliers = this.calculateRelevanceScore(lowerMessage, ['suppliers', 'vendors', 'producers']);
+    scores.expenses = this.calculateRelevanceScore(lowerMessage, ['expenses', 'costs', 'spending', 'bills']);
+
+    return scores;
+  }
+
+  /**
+   * Helper to calculate relevance score
+   */
+  private calculateRelevanceScore(text: string, keywords: string[]): number {
+    let score = 0;
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        score += 10;
+      }
+      // Partial matches
+      if (text.includes(keyword.substring(0, Math.floor(keyword.length * 0.6)))) {
+        score += 5;
+      }
+    }
+    return Math.min(score, 100); // Cap at 100
+  }
+
+  /**
+   * NEW: Decide if we should actually retrieve data based on availability
+   */
+  private shouldActuallyRetrieveData(dataRequirements: DataRequirements, canAnswerWithExistingData: boolean, userMessage: string): boolean {
+    // If we can already answer with existing data, don't retrieve more
+    if (canAnswerWithExistingData) {
+      return false;
+    }
+    
+    // Don't retrieve data if it's not needed for the query
+    const hasDataRequirement = !!(dataRequirements.salesData || 
+                               dataRequirements.inventoryData || 
+                               dataRequirements.expenseData ||
+                               dataRequirements.customerData ||
+                               dataRequirements.staffData ||
+                               dataRequirements.businessMetrics);
+    
+    // Special handling for sales analysis - if user asks "analyze my sales", 
+    // we should check if we already have sales data before asking for industry
+    const lowerMessage = userMessage.toLowerCase();
+    if (/analyze.*sales/.test(lowerMessage) && dataRequirements.salesData) {
+      // If we're analyzing sales, we might not need industry info
+      return dataRequirements.salesData; // Only retrieve sales data if needed
+    }
+    
+    return hasDataRequirement;
   }
 
   /**
@@ -540,6 +690,9 @@ export class ConversationPlanner {
     conversationGoal: ConversationGoal;
     responseDepth: ResponseDepth;
     shouldPerformAction: boolean;
+    canAnswerWithExistingData: boolean;
+    requiredDataForQuery: string[];
+    availableDataForQuery: string[];
   }): string {
     const parts: string[] = [];
 
@@ -549,6 +702,9 @@ export class ConversationPlanner {
     parts.push(`Conversation Goal: ${decisions.conversationGoal}`);
     parts.push(`Response Depth: ${decisions.responseDepth}`);
     parts.push(`Should Perform Action: ${decisions.shouldPerformAction}`);
+    parts.push(`Can Answer With Existing Data: ${decisions.canAnswerWithExistingData}`);
+    parts.push(`Required Data: [${decisions.requiredDataForQuery.join(', ')}]`);
+    parts.push(`Available Data: [${decisions.availableDataForQuery.join(', ')}]`);
 
     return parts.join(' | ');
   }
@@ -563,11 +719,38 @@ export class ConversationPlanner {
     topicType: TopicType;
     dataRequirements: DataRequirements;
     shouldPerformAction: boolean;
+    canAnswerWithExistingData: boolean;
+    requiredDataForQuery: string[];
+    availableDataForQuery: string[];
+    topicRelevanceScores: Record<string, number>;
   }): string {
     const promptParts: string[] = [];
 
     // Base instruction
     promptParts.push('You are MO, an intelligent business assistant for Busmo.');
+
+    // NEW: Data dependency planning instructions
+    promptParts.push(`
+DATA DEPENDENCY PLANNING:
+- What is the user asking? "${decisions.intent}"
+- What data is required to answer this? [${decisions.requiredDataForQuery.join(', ')}]
+- What data is already available? [${decisions.availableDataForQuery.join(', ')}]
+- Can I answer with existing data? ${decisions.canAnswerWithExistingData}
+
+BEFORE asking for more information, analyze the available data first.
+`);
+
+    // NEW: Data relevance engine instructions
+    const sortedRelevance = Object.entries(decisions.topicRelevanceScores)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5); // Top 5 most relevant topics
+      
+    promptParts.push(`
+DATA RELEVANCE ENGINE:
+The most relevant business information to the user's query is ranked by importance:
+${sortedRelevance.map(([topic, score]) => `${topic}: ${score}%`).join('\n')}
+Focus your analysis on the highest-ranked items when responding to the user's query.
+`);
 
     // Response depth instructions
     switch (decisions.responseDepth) {
@@ -663,13 +846,16 @@ RESPONSE DEPTH: DEEP ANALYSIS
       promptParts.push('DATA: Business metrics are available for your analysis.');
     }
 
-    // Final instruction
+    // NEW: Important instructions for preventing generic responses
     promptParts.push(`
 IMPORTANT:
-- Match your response length to the RESPONSE DEPTH specified above
-- Do not overwhelm the user with information they didn't ask for
-- If additional information would be helpful, invite the user to ask for it
-- Always prioritize clarity over completeness
+- Never ask for industry information when analyzing sales if you already have sales data
+- Focus on the specific data relevant to the user's question (see DATA RELEVANCE ENGINE above)
+- Do not repeatedly surface the same warning unless it's directly relevant to the user's request
+- Answer with the available data first, then ask for additional information only if absolutely necessary
+- If the user asks about sales, focus on sales data first, not general business information
+- If the user asks about inventory, focus on inventory data first, not cash flow
+- If the user asks about cash flow, focus on financial data first, not supplier information
 - The quality of your response is measured by how well it solves the user's immediate need
 `);
 

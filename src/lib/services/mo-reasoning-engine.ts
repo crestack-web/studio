@@ -7,6 +7,7 @@ export interface BusinessContext {
   businessSnapshot: any;
   calculations: any[];
   conversationHistory: any[];
+  businessData?: any; // NEW: Include business data for analysis
 }
 
 export interface ReasoningResult {
@@ -18,6 +19,8 @@ export interface ReasoningResult {
   opportunities: string[];
   recommendedAction: string;
   contextSummary: string;
+  canAnswerWithExistingData: boolean; // NEW: Can we answer with existing data?
+  relevantDataPoints: string[]; // NEW: What data is most relevant?
 }
 
 export class ReasoningEngine {
@@ -51,6 +54,11 @@ export class ReasoningEngine {
       return 'operational';
     }
     
+    // NEW: Data analysis
+    if (lowerMessage.includes('analyze') || lowerMessage.includes('review') || lowerMessage.includes('evaluate')) {
+      return 'data_analysis';
+    }
+    
     // Default
     return 'general_inquiry';
   }
@@ -71,6 +79,21 @@ export class ReasoningEngine {
           return 'Improve customer relationships';
         }
         return 'Get business information';
+        
+      case 'data_analysis': // NEW: Handle data analysis intent
+        if (lowerMessage.includes('sales') || lowerMessage.includes('revenue')) {
+          return 'Analyze sales performance';
+        }
+        if (lowerMessage.includes('inventory') || lowerMessage.includes('stock')) {
+          return 'Analyze inventory performance';
+        }
+        if (lowerMessage.includes('expense') || lowerMessage.includes('cost')) {
+          return 'Analyze expense patterns';
+        }
+        if (lowerMessage.includes('profit') || lowerMessage.includes('margin')) {
+          return 'Analyze profitability';
+        }
+        return 'Analyze business performance';
         
       case 'decision_support':
         if (lowerMessage.includes('buy') || lowerMessage.includes('purchase') || lowerMessage.includes('invest')) {
@@ -111,6 +134,90 @@ export class ReasoningEngine {
       default:
         return 'Get general business advice';
     }
+  }
+  
+  // NEW: Check if we can answer with existing data
+  canAnswerWithExistingData(context: BusinessContext): boolean {
+    const lowerMessage = context.message.toLowerCase();
+    const businessData = context.businessData || {};
+    
+    // Check for sales analysis
+    if (/analyze.*sales|sales.*performance|how are sales|sales.*doing/i.test(lowerMessage)) {
+      return !!(businessData.sales && businessData.sales.length > 0);
+    }
+    
+    // Check for inventory analysis
+    if (/analyze.*inventory|inventory.*performance|how is inventory|inventory.*doing/i.test(lowerMessage)) {
+      return !!(businessData.products && businessData.products.length > 0);
+    }
+    
+    // Check for expense analysis
+    if (/analyze.*expense|expense.*performance|how are expenses|expenses.*doing/i.test(lowerMessage)) {
+      return !!(businessData.expenses && businessData.expenses.length > 0);
+    }
+    
+    // General business overview
+    if (/how is my business|business doing|overview|summary|performance/i.test(lowerMessage)) {
+      // Need at least sales OR expenses OR products to provide meaningful info
+      return !!(businessData.sales || businessData.expenses || businessData.products);
+    }
+    
+    // Default to true if we have some business data
+    return !!(context.businessProfile || businessData);
+  }
+  
+  // NEW: Determine what data is most relevant to the user's question
+  determineRelevantDataPoints(message: string, businessData: any = {}): string[] {
+    const lowerMessage = message.toLowerCase();
+    const relevantData: string[] = [];
+    
+    // Sales data relevance
+    if (/(analyze|review|check|show me|what are|how are).*sales|revenue|income|profit|money/i.test(lowerMessage)) {
+      if (businessData.sales && businessData.sales.length > 0) {
+        relevantData.push('sales_data');
+        // Add specific sales metrics
+        if (businessData.totalSales) relevantData.push('total_sales');
+        if (businessData.todaySales) relevantData.push('today_sales');
+        if (businessData.totalProfit) relevantData.push('total_profit');
+      }
+    }
+    
+    // Inventory data relevance
+    if (/(analyze|review|check|show me|what are|how are).*inventory|stock|products|items|goods|restock/i.test(lowerMessage)) {
+      if (businessData.products && businessData.products.length > 0) {
+        relevantData.push('inventory_data');
+        if (businessData.lowStockCount) relevantData.push('low_stock_items');
+        if (businessData.outOfStockCount) relevantData.push('out_of_stock_items');
+      }
+    }
+    
+    // Expense data relevance
+    if (/(analyze|review|check|show me|what are|how are).*expenses|costs|spending|bills|overhead/i.test(lowerMessage)) {
+      if (businessData.expenses && businessData.expenses.length > 0) {
+        relevantData.push('expense_data');
+      }
+    }
+    
+    // Cash flow data relevance
+    if (/(analyze|review|check|show me|what are|how are).*cash|balance|reserves|flow|available/i.test(lowerMessage)) {
+      if (businessData.cashAvailable !== undefined) {
+        relevantData.push('cash_available');
+      }
+    }
+    
+    // Customer data relevance
+    if (/(analyze|review|check|show me|what are|how are).*customers|clients|buyers|purchasers/i.test(lowerMessage)) {
+      if (businessData.customers && businessData.customers.length > 0) {
+        relevantData.push('customer_data');
+      }
+    }
+    
+    // Add general business profile if relevant
+    if (relevantData.length > 0) {
+      relevantData.push('business_profile');
+    }
+    
+    return relevantData;
   }
   
   // Identify missing critical information
@@ -155,6 +262,18 @@ export class ReasoningEngine {
         
       case 'Manage inventory levels':
         needs.push('Reorder point calculation', 'Supplier information', 'Demand forecasting');
+        break;
+        
+      case 'Analyze sales performance': // NEW: Handle sales analysis
+        needs.push('Sales trend analysis', 'Top performing products', 'Customer buying patterns');
+        break;
+        
+      case 'Analyze inventory performance': // NEW: Handle inventory analysis
+        needs.push('Inventory turnover rates', 'Slow moving items', 'Restocking schedule');
+        break;
+        
+      case 'Analyze expense patterns': // NEW: Handle expense analysis
+        needs.push('Expense categorization', 'Cost reduction opportunities', 'Budget tracking');
         break;
         
       case 'Make purchasing/investment decision':
@@ -277,6 +396,12 @@ export class ReasoningEngine {
     
     // Otherwise, provide goal-specific recommendation
     switch (goal) {
+      case 'Analyze sales performance': // NEW: Specific recommendation for sales
+        return 'Review your sales data to identify top performers and trends';
+      case 'Analyze inventory performance': // NEW: Specific recommendation for inventory
+        return 'Analyze inventory turnover and identify slow-moving items';
+      case 'Analyze expense patterns': // NEW: Specific recommendation for expenses
+        return 'Categorize expenses to identify cost reduction opportunities';
       case 'Understand financial performance':
         return 'Review profit and loss statement for insights';
       case 'Manage inventory levels':
@@ -322,6 +447,12 @@ export class ReasoningEngine {
     const recommendedAction = this.generateRecommendedAction(actualGoal, missingInfo, risks);
     const contextSummary = this.generateContextSummary(context);
     
+    // NEW: Determine if we can answer with existing data
+    const canAnswerWithExistingData = this.canAnswerWithExistingData(context);
+    
+    // NEW: Determine relevant data points
+    const relevantDataPoints = this.determineRelevantDataPoints(context.message, context.businessData);
+    
     return {
       userIntent: intent,
       actualGoal,
@@ -331,6 +462,8 @@ export class ReasoningEngine {
       opportunities,
       recommendedAction,
       contextSummary,
+      canAnswerWithExistingData, // NEW
+      relevantDataPoints, // NEW
     };
   }
   
@@ -340,6 +473,8 @@ export class ReasoningEngine {
     response += `- User Intent: ${reasoning.userIntent}\n`;
     response += `- Actual Goal: ${reasoning.actualGoal}\n`;
     response += `- Context: ${reasoning.contextSummary}\n`;
+    response += `- Can Answer With Existing Data: ${reasoning.canAnswerWithExistingData}\n`; // NEW
+    response += `- Relevant Data Points: [${reasoning.relevantDataPoints.join(', ')}]\n`; // NEW
     
     if (reasoning.missingInformation.length > 0) {
       response += `- Missing Information: ${reasoning.missingInformation.join(', ')}\n`;
