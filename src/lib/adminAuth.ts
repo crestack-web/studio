@@ -80,6 +80,21 @@ export const useAdminAuth = () => {
       // // Store token or session in localStorage or cookies
       // localStorage.setItem('admin_token', data.token);
       
+      // Admin email whitelist - only these emails can access admin panel
+      const ADMIN_EMAILS = [
+        'taheeratorganic@gmail.com',
+        'admin@busmo.io',
+        'majnuncode@gmail.com',
+        'sxeedtxheer@gmail.com'
+      ];
+      
+      if (!ADMIN_EMAILS.includes(email)) {
+        return { 
+          success: false, 
+          error: 'Your account doesn\'t have admin access. Please contact support if you believe this is an error.' 
+        };
+      }
+      
       // Mock login success
       setIsAuthenticated(true);
       

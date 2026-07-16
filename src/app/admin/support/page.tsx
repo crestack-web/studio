@@ -3,8 +3,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRealtimeService, Customer } from '@/lib/realtimeService';
-import SupportChatWidget from '@/components/SupportChatWidget';
+import { initializeFirebase } from '@/firebase';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs, doc, updateDoc, arrayUnion, addDoc } from 'firebase/firestore';
+import { Message, Customer } from '@/lib/realtimeService';
 
 export default function AdminSupportPage() {
   const router = useRouter();
@@ -16,75 +17,118 @@ export default function AdminSupportPage() {
   const [selectedTab, setSelectedTab] = useState('all');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const {
-    messages,
-    customers,
-    newCustomerCount,
-    sendMessage,
-    subscribeToMessages,
-    subscribeToCustomers,
-    subscribeToNewCustomers,
-    markNewCustomersAsSeen,
-    getCustomer,
-    markMessagesAsRead,
-    updateMessageStatus,
-    getUnreadMessageCount
-  } = useRealtimeService();
+  // Real data from Firestore
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [newCustomerCount, setNewCustomerCount] = useState(0);
 
   // Check authentication when component mounts
   useEffect(() => {
-    // In a real application, this would check the actual authentication status
     const isAuthenticated = checkAuthentication();
     
     if (!isAuthenticated) {
-      // Redirect to login page
       router.push('/admin/login');
     }
   }, [router]);
 
-  // Subscribe to customers and new customer notifications when component mounts
+  // Load customers from Firestore
   useEffect(() => {
-    // Subscribe to customer list updates
-    const customerUnsubscribe = subscribeToCustomers((updatedCustomers: Customer[]) => {
-      if (updatedCustomers.length > 0 && !selectedCustomerId) {
-        setSelectedCustomerId(updatedCustomers[0].id);
-      }
-    });
-    
-    // Subscribe to new customer notifications
-    const newCustomerUnsubscribe = subscribeToNewCustomers((newCount: number) => {
-      if (newCount > 0) {
-        setShowNotification(true);
-        
-        // Auto-hide notification after 5 seconds
-        setTimeout(() => {
-          setShowNotification(false);
-        }, 5000);
-      }
-    });
-    
-    return () => {
-      customerUnsubscribe();
-      newCustomerUnsubscribe();
-    };
-  }, [subscribeToCustomers, subscribeToNewCustomers, selectedCustomerId]);
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
 
-  // Subscribe to messages for the selected customer
-  useEffect(() => {
-    if (selectedCustomerId) {
-      const messageUnsubscribe = subscribeToMessages(selectedCustomerId, (updatedMessages: any[]) => {
-        // This will trigger a re-render with updated messages
-        // In a real application, this would also mark messages as read by admin
-        
-        // Mark messages as read when customer is selected
-        markMessagesAsRead(selectedCustomerId);
-      });
+    const customersQuery = query(
+      collection(firestore, 'supportMessages'),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(customersQuery, (snapshot) => {
+      const customerMap = new Map<string, Customer>();
       
-      return () => {
-        messageUnsubscribe();
-      };
-    }
-  }, [selectedCustomerId, subscribeToMessages, markMessagesAsRead]);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const customerId = data.userId || data.userEmail;
+        
+        if (!customerMap.has(customerId)) {
+          customerMap.set(customerId, {
+            id: customerId,
+            name: data.userEmail?.split('@')[0] || 'Guest',
+            email: data.userEmail || 'guest@example.com',
+            status: 'Online',
+            priority: data.priority === 'high' ? 'high' : 'medium',
+            lastMessage: data.message,
+            lastMessageTime: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+          });
+        }
+      });
+
+      const customerList = Array.from(customerMap.values());
+      setCustomers(customerList);
+      
+      if (customerList.length > 0 && !selectedCustomerId) {
+        setSelectedCustomerId(customerList[0].id);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [selectedCustomerId]);
+
+  // Subscribe to messages for selected customer
+  useEffect(() => {
+    if (!selectedCustomerId) return;
+
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const messagesQuery = query(
+      collection(firestore, 'supportMessages'),
+      where('userId', '==', selectedCustomerId),
+      orderBy('createdAt', 'asc'),
+      limit(100)
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      const messageList: any[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        messageList.push({
+          id: doc.id,
+          sender: data.sender === 'admin' ? 'admin' : 'user',
+          content: data.message,
+          timestamp: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          customerId: selectedCustomerId,
+        });
+      });
+
+      setMessages(messageList);
+    });
+
+    return () => unsubscribe();
+  }, [selectedCustomerId]);
+
+  // Subscribe to new customer notifications
+  useEffect(() => {
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const newMessagesQuery = query(
+      collection(firestore, 'supportMessages'),
+      where('status', '==', 'unread'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(newMessagesQuery, (snapshot) => {
+      setNewCustomerCount(snapshot.size);
+      
+      if (snapshot.size > 0) {
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 5000);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -97,11 +141,25 @@ export default function AdminSupportPage() {
     setIsSending(true);
     
     try {
-      await sendMessage(newMessage, selectedCustomerId);
+      const { firestore } = initializeFirebase();
+      if (!firestore) throw new Error('Firestore not available');
+
+      // Save admin message to Firestore
+      await addDoc(collection(firestore, 'supportMessages'), {
+        userId: selectedCustomerId,
+        userEmail: selectedCustomerId.includes('@') ? selectedCustomerId : `${selectedCustomerId}@example.com`,
+        message: newMessage,
+        sender: 'admin',
+        status: 'replied',
+        category: 'general',
+        priority: 'medium',
+        createdAt: new Date(),
+        replies: [],
+      });
+
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
-      // In a real app, show error to user
     } finally {
       setIsSending(false);
     }
@@ -110,19 +168,16 @@ export default function AdminSupportPage() {
   // Handle clicking on a customer
   const handleCustomerClick = (customerId: string) => {
     setSelectedCustomerId(customerId);
-    markMessagesAsRead(customerId);
   };
 
   // Mark all new customers as seen when notification is closed
   const handleNotificationClose = () => {
     setShowNotification(false);
-    markNewCustomersAsSeen();
+    setNewCustomerCount(0);
   };
 
   // Mock authentication check
   const checkAuthentication = () => {
-    // In a real application, this would check the actual authentication status
-    // For example, by checking a token or session
     return true; // For demo purposes
   };
 
@@ -137,7 +192,7 @@ export default function AdminSupportPage() {
     } else if (selectedTab === 'online') {
       return matchesSearch && customer.status === 'Online';
     } else if (selectedTab === 'unread') {
-      return matchesSearch && getUnreadMessageCount(customer.id) > 0;
+      return matchesSearch && messages.some(m => m.customerId === customer.id && m.sender === 'user');
     }
     
     return matchesSearch;
@@ -212,10 +267,10 @@ export default function AdminSupportPage() {
         
         <div className="space-y-2">
           {filteredCustomers.map((customer) => {
-            const unreadCount = getUnreadMessageCount(customer.id);
+            const unreadCount = messages.filter(m => m.customerId === customer.id && m.sender === 'user').length;
             const isActive = selectedCustomerId === customer.id;
             const lastMessage = messages
-              .filter(m => m.id.startsWith(customer.id))
+              .filter(m => m.customerId === customer.id)
               .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
             
             return (
@@ -275,31 +330,19 @@ export default function AdminSupportPage() {
             <div className="p-4 border-b">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold">
-                  Chat with {getCustomer(selectedCustomerId)?.name}
+                  Chat with {customers.find(c => c.id === selectedCustomerId)?.name || selectedCustomerId}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm ${getCustomer(selectedCustomerId)?.status === 'Online' ? 'text-green-500' : 'text-gray-500'}`}>
-                    {getCustomer(selectedCustomerId)?.status}
+                  <span className={`text-sm ${customers.find(c => c.id === selectedCustomerId)?.status === 'Online' ? 'text-green-500' : 'text-gray-500'}`}>
+                    {customers.find(c => c.id === selectedCustomerId)?.status}
                   </span>
-                  <button 
-                    onClick={() => updateMessageStatus(selectedCustomerId, 'closed')}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Mark as closed
-                  </button>
-                  <button 
-                    onClick={() => updateMessageStatus(selectedCustomerId, 'resolved')}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Mark as resolved
-                  </button>
                 </div>
               </div>
             </div>
             
             <div className="flex-1 p-4 overflow-y-auto">
               {messages
-                .filter(msg => msg.id.startsWith(selectedCustomerId))
+                .filter(msg => msg.customerId === selectedCustomerId)
                 .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
                 .map((msg, index) => {
                   // Group messages by date
