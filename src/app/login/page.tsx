@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { User, Building } from "lucide-react";
 import { useState, useEffect } from 'react';
-import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function RoleSelectionPage() {
   return (
@@ -94,9 +93,6 @@ export default function RoleSelectionPage() {
           </p>
         </div>
       </div>
-
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { useApp } from './AppContext';
 import { formatCurrency } from '@/lib/currency';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import SupportChatWidget from '@/components/SupportChatWidget';
 import styles from './CapitalPage.module.css';
 import { Button } from './Button';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
@@ -555,9 +554,6 @@ export default function CapitalPage() {
           </Button>
         </div>
       </div>
-
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
     </main>
   );
 }
