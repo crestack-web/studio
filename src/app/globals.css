@@ -464,7 +464,42 @@
   }
 }
 
+@layer base {
+  .chat-widget {
+    @apply fixed bottom-6 right-6 z-50;
+    width: 420px;
+    max-width: calc(100% - 24px);
+  }
+
+  .chat-widget-container {
+    @apply bg-white rounded-2xl shadow-2xl overflow-hidden;
+    width: 100%;
+    height: 600px;
+    max-height: 600px;
+  }
+
+  .chat-header {
+    @apply bg-gradient-to-br from-purple-600 to-purple-700 text-white p-6 relative overflow-hidden;
+  }
+
+  .chat-messages {
+    @apply flex-1 overflow-y-auto bg-gray-50;
+    height: calc(100% - 160px);
+  }
+
+  .chat-input {
+    @apply p-4 bg-white border-t border-gray-200;
+  }
+
+  .chat-button {
+    @apply px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors;
+  }
+}
+
 @layer utilities {
+  .chat-scroll-smooth {
+    scroll-behavior: smooth;
+  }
   .sr-only {
     position: absolute;
     width: 1px;

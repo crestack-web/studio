@@ -1,7 +1,24 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import type { Page } from './types';
+import { FloatingChatWidget } from './components/FloatingChatWidget';
+import { Navbar } from './components/Navbar';
+import { Hero } from './components/Hero';
+import { DemoVideoSection } from './components/DemoVideoSection';
+import { ScrollReveal } from './components/ScrollReveal';
+import { TestimonialsSection } from './components/TestimonialsSection';
+import { OfflineSaleSection } from './components/OfflineSaleSection';
+import { ScrollReveal as StaggerItem } from './components/ScrollReveal';
+import { HowBusmoWorks } from './components/HowBusmoWorks';
+import { IndustryUseCases } from './components/IndustryUseCases';
+import { BuiltWithBusmo } from './components/BuiltWithBusmo';
+import { MoSection } from './components/MoSection';
+import { PricingPreview } from './components/PricingPreview';
+import { BeforeAfterComparison } from './components/BeforeAfterComparison';
+import { FAQSection } from './components/FAQSection';
+import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
+import { Footer } from './components/Footer';
 
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
@@ -270,7 +287,7 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
+      <FloatingChatWidget />
     </main>
   );
 }

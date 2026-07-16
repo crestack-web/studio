@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { User, Building } from "lucide-react";
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function RoleSelectionPage() {
   return (
@@ -37,7 +37,6 @@ export default function RoleSelectionPage() {
               className="flex-1 bg-[#6B3FE7] text-white font-semibold rounded-2xl h-11 flex items-center justify-center text-sm transition hover:bg-[#4B27B0]"
             >
               Log In
-            <span className="ml-2"></span>
             </Link>
             <Link
               href="/welcome/signup"
@@ -98,6 +97,6 @@ export default function RoleSelectionPage() {
 
       {/* Support chat widget - connects to our admin support section */}
       <SupportChatWidget />
-    </main>
+    </div>
   );
 }

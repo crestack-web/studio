@@ -3,7 +3,7 @@
 
 import { ReactNode } from 'react';
 import { AdminDashboard } from '@/components/AdminDashboard';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 interface LayoutProps {
   children: ReactNode;

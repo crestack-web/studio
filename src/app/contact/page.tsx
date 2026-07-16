@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function ContactPage() {
   

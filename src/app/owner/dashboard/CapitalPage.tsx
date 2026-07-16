@@ -1,12 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import { useApp } from './AppContext';
+import { formatCurrency } from '@/lib/currency';
+import { initializeFirebase } from '@/firebase';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import SupportChatWidget from '@/components/SupportChatWidget';
+import styles from './CapitalPage.module.css';
+import { Button } from './Button';
+import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
+
+interface ReadinessStats {
+  dataHistory: number;
+  cashBalance: number;
+  avgMargin: number;
+  requirementsMet: number;
+  totalRequirements: number;
+  platformDedicationScore: number;
+  activeDays: number;
+  recordingConsistency: number;
+}
+
+interface ChecklistItem {
+  id: string;
+  label: string;
+  detail: string;
+  status: string;
+  action?: () => void;
+  actionLabel?: string;
+  title?: string;
+  description?: string;
+  completed?: boolean;
+  priority?: 'high' | 'medium' | 'low';
+}
 
 export default function CapitalPage() {
   const { navigateTo, showToast, user } = useApp();
-  const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
+  const { firestore } = initializeFirebase();
   
   const [loading, setLoading] = useState(true);
   const [fundabilityScore, setFundabilityScore] = useState(0);
@@ -165,23 +195,23 @@ export default function CapitalPage() {
             label: 'Sales History',
             detail: `${sales.length} sales recorded (need 30+)`,
             status: sales.length >= 30 ? 'done' : sales.length >= 15 ? 'pending' : 'todo',
-          },
+          } as ChecklistItem,
           {
             id: 'salesVolume',
             label: 'Sales Volume',
             detail: `${sales.length} total sales (need 50+)`,
             status: sales.length >= 50 ? 'done' : sales.length >= 30 ? 'pending' : 'todo',
-          },
+          } as ChecklistItem,
           {
             id: 'profit',
             label: 'Profit Margin',
             detail: `${Math.round(avgMargin)}% average margin (need 20%+)`,
             status: avgMargin >= 25 ? 'done' : avgMargin >= 20 ? 'pending' : 'todo',
-          },
+          } as ChecklistItem,
           {
             id: 'cashflow',
             label: 'Positive Cash Flow',
-            detail: formatMoney(cashBalance),
+            detail: formatCurrency(cashBalance),
             status: cashBalance > 0 ? 'done' : 'todo',
           },
           {
@@ -235,7 +265,7 @@ export default function CapitalPage() {
     }
 
     loadCapitalData();
-  }, [navigateTo, showToast, formatMoney, user.id, firestore]);
+  }, [navigateTo, showToast, formatCurrency, user.id, firestore]);
 
   if (loading) {
     return (
@@ -324,7 +354,7 @@ export default function CapitalPage() {
                 <path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
               </svg>
             </div>
-            <div className={styles.statValue}>{formatMoney(stats.cashBalance)}</div>
+            <div className={styles.statValue}>{formatCurrency(stats.cashBalance)}</div>
             <div className={styles.statLabel}>Cash Balance</div>
           </div>
           <div className={styles.statBox}>

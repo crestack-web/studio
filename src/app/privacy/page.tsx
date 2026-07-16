@@ -1,10 +1,11 @@
+'use client';
+
 import InvestorLayout from '@/components/app/investor-layout';
 // src/app/privacy/page.tsx
 // Update imports to use SupportChatWidget instead of ChatwootWidget
-'use client';
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function PrivacyPage() {
   return (

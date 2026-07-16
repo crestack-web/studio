@@ -1,58 +1,65 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from '@/hooks/use-toast';
+import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import SupportChatWidget from '@/components/SupportChatWidget';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+export const dynamic = 'force-dynamic';
 
 export default function PlansPage() {
-  return (
-    <main className="min-h-screen">
-      <OnboardingLayout>
-        <Card className="w-full max-w-4xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
-            <CardDescription>All plans start with a 3-day free trial. No credit card needed.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-              <div className="flex justify-center">
-                   <Tabs value={billingCycle} onValueChange={(value) => setBillingCycle(value as 'monthly' | 'yearly')} className="w-auto">
-                      <TabsList className="grid grid-cols-2 p-1 h-auto">
-                          <TabsTrigger value="monthly" className="px-6 py-1.5" disabled={isSubmitting}>Monthly</TabsTrigger>
-                          <TabsTrigger value="yearly" className="px-6 py-1.5 relative" disabled={isSubmitting}>
-                              Yearly
-                              <span className="absolute -top-2 -right-2.5 bg-accent text-accent-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">SAVE 17%</span>
-                          </TabsTrigger>
-                      </TabsList>
-                  </Tabs>
-              </div>
-
-              <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="grid grid-cols-2 gap-4" disabled={isSubmitting}>
-                   {plans.map((plan) => (
-                      <div key={plan.id}>
-                          <RadioGroupItem value={plan.id} id={`${plan.id}-${billingCycle}`} className="peer sr-only" disabled={isSubmitting} />
-                          <PlanCard 
-                              plan={plan}
-                              billingCycle={billingCycle}
-                              isSelected={selectedPlan === plan.id}
-                          />
-                      </div>
-                  ))}
-              </RadioGroup>
-              
-              <Button className="w-full h-14 text-lg" onClick={handleContinue} disabled={isButtonDisabled}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Saving...' : 'Start Free Trial'}
-              </Button>
-          </CardContent>
-        </Card>
-      </OnboardingLayout>
-
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
-    </main>
-  );
+  return <PlansPageContent />;
 }
 
-const plans = [
+function PlansPageContent() {
+  const router = useRouter();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState('standard');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [businessId, setBusinessId] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Initialize Firebase on client side only
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        const { initializeFirebase } = await import('@/firebase');
+        const { firestore, auth } = initializeFirebase();
+        
+        setFirestoreInstance(firestore);
+        setCurrentUser(auth.currentUser);
+        
+        if (auth.currentUser) {
+          const { getDoc } = await import('firebase/firestore');
+          const userDoc = await getDoc(doc(firestore, `users/${auth.currentUser.uid}`));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data?.businessId) {
+              setBusinessId(data.businessId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing Firebase:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initFirebase();
+  }, []);
+
+  const plans = [
     {
         id: 'starter',
         name: 'Starter',
@@ -111,22 +118,6 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
     )
 }
 
-function PlansPageContent() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [selectedPlan, setSelectedPlan] = useState('standard');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const firestore = useFirestore();
-  const { user: authUser } = useUser();
-
-  const userProfileRef = useMemoFirebase(() => {
-      if (!firestore || !authUser) return null;
-      return doc(firestore, `users/${authUser.uid}`);
-  }, [firestore, authUser]);
-  const { data: userProfile } = useDoc<{ businessId?: string }>(userProfileRef);
-  const businessId = userProfile?.businessId;
 
 
     const handleContinue = async () => {
@@ -135,18 +126,18 @@ function PlansPageContent() {
                 variant: 'destructive',
                 title: 'Missing Information',
                 description: 'Please select a plan.',
-            });
+            } as any);
             return;
         }
-        if (!businessId || !firestore || !authUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please log in again.' });
+        if (!businessId || !firestoreInstance || !currentUser) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not find your business details. Please log in again.' } as any);
             return;
         }
         setIsSubmitting(true);
         try {
-            const businessDocRef = doc(firestore, `businesses/${businessId}`);
-            const subscriptionRef = doc(collection(firestore, `users/${authUser.uid}/subscriptions`));
-            const batch = writeBatch(firestore);
+            const businessDocRef = doc(firestoreInstance, `businesses/${businessId}`);
+            const subscriptionRef = doc(collection(firestoreInstance, `users/${currentUser.uid}/subscriptions`));
+            const batch = writeBatch(firestoreInstance);
             batch.update(businessDocRef, {
                 plan: selectedPlan,
                 onboardingCompleted: true,
@@ -170,7 +161,7 @@ function PlansPageContent() {
                 if (err.stack) errorMsg += `\nStack: ${err.stack}`;
             }
             console.error('Error saving plan:', error);
-            toast({ variant: 'destructive', title: 'Save Failed', description: errorMsg });
+            toast({ variant: 'destructive', title: 'Save Failed', description: errorMsg } as any);
             setIsSubmitting(false);
         }
     };
@@ -178,7 +169,7 @@ function PlansPageContent() {
   const isButtonDisabled = isSubmitting;
 
   return (
-    <OnboardingLayout>
+    <div className="min-h-screen bg-background">
       <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
@@ -216,6 +207,9 @@ function PlansPageContent() {
             </Button>
         </CardContent>
       </Card>
-    </OnboardingLayout>
+
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
+    </div>
   );
 }

@@ -1,9 +1,10 @@
 // src/app/admin/support/page.tsx
-// Update imports to use SupportChatWidget instead of ChatwootWidget
 'use client';
 
-import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useRealtimeService, Customer } from '@/lib/realtimeService';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function AdminSupportPage() {
   const router = useRouter();
@@ -44,14 +45,14 @@ export default function AdminSupportPage() {
   // Subscribe to customers and new customer notifications when component mounts
   useEffect(() => {
     // Subscribe to customer list updates
-    const customerUnsubscribe = subscribeToCustomers((updatedCustomers) => {
+    const customerUnsubscribe = subscribeToCustomers((updatedCustomers: Customer[]) => {
       if (updatedCustomers.length > 0 && !selectedCustomerId) {
         setSelectedCustomerId(updatedCustomers[0].id);
       }
     });
     
     // Subscribe to new customer notifications
-    const newCustomerUnsubscribe = subscribeToNewCustomers((newCount) => {
+    const newCustomerUnsubscribe = subscribeToNewCustomers((newCount: number) => {
       if (newCount > 0) {
         setShowNotification(true);
         
@@ -71,7 +72,7 @@ export default function AdminSupportPage() {
   // Subscribe to messages for the selected customer
   useEffect(() => {
     if (selectedCustomerId) {
-      const messageUnsubscribe = subscribeToMessages(selectedCustomerId, (updatedMessages) => {
+      const messageUnsubscribe = subscribeToMessages(selectedCustomerId, (updatedMessages: any[]) => {
         // This will trigger a re-render with updated messages
         // In a real application, this would also mark messages as read by admin
         
@@ -143,7 +144,7 @@ export default function AdminSupportPage() {
   });
 
   return (
-    <main className="min-h-screen">
+    <div className="flex h-screen">
       {/* Sidebar with customers list */}
       <div className="w-1/4 bg-gray-100 p-4">
         <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -390,9 +391,6 @@ export default function AdminSupportPage() {
           </div>
         )}
       </div>
-      
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
-    </main>
+    </div>
   );
 }

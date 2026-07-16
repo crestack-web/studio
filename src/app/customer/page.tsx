@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 interface ChatSession {
   id: string;

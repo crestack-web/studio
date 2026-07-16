@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import { LangProvider } from '../owner/dashboard/LangContext';
+import SupportChatWidget from '@/components/SupportChatWidget';
+import { Navbar } from '../welcome/components/Navbar';
+import { Footer } from '../welcome/components/Footer';
 
 export default function PricingPage() {
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
@@ -12,12 +15,11 @@ export default function PricingPage() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer' | 'ussd'>('card');
 
   useEffect(() => {
-    // Detect user's country on mount
-    const country = getUserCountryCode();
-    setUserCountry(country);
+    // Default to Nigeria for now - can be enhanced later with geo-location
+    setUserCountry('NG');
   }, []);
 
-  const handleNavigate = (page: Page) => {
+  const handleNavigate = (page: string) => {
     if (page === 'signup') window.location.href = '/welcome/signup';
     else if (page === 'login' || page === 'login-form') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';

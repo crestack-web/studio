@@ -18,6 +18,7 @@ export const useAdminAuth = () => {
   
   // Check authentication status on component mount
   useEffect(() => {
+    // Skip Chatwoot initialization since we're using our own support chat
     // In a real application, this would check the actual authentication status
     // For example, by checking a token or session
     checkAuthentication();

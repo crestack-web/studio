@@ -3,7 +3,7 @@
 
 import InvestorLayout from '@/components/app/investor-layout';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 const faqItems = [
     { value: 'item-1', question: "Is Busmo another accounting app?", answer: "No. Busmo is designed for business clarity, not complex accounting. We focus on the key metrics you need to make decisions—daily profit, cash flow, and inventory—without the confusing jargon or features built for accountants." },

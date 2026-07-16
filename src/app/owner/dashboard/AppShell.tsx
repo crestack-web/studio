@@ -14,7 +14,7 @@ import Cashflowpage    from './Cashflowpage';
 import { StatementPage }   from './Statementpage';
 import StaffPage       from './StaffPage';
 import { ReferralsPage }   from './ReferralsPage';
-import { CapitalPage }     from './CapitalPage';
+import CapitalPage from './CapitalPage';
 import InventoryPage       from './InventoryPage';
 import SettingsPage        from './SettingsPage';
 import { BranchesPage }    from './BranchesPage';

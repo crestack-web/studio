@@ -1,9 +1,8 @@
 // src/lib/realtimeService.ts
+// Remove Chatwoot-related code since we're using our own SupportChatWidget
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAdminAuth } from '@/lib/adminAuth';
 
 // Types
 export interface Message {
@@ -32,10 +31,7 @@ export interface SupportStats {
 }
 
 // Hook to use the realtime service
-export function useRealtimeService() {
-  const router = useRouter();
-  const { isAuthenticated, hasPermission } = useAdminAuth();
-  
+export const useRealtimeService = () => {
   // State for messages and customers
   const [messages, setMessages] = useState<Message[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -48,11 +44,6 @@ export function useRealtimeService() {
   
   // Send a message
   const sendMessage = useCallback(async (content: string, customerId: string) => {
-    if (!isAuthenticated || !hasPermission('send_message')) {
-      router.push('/admin/login');
-      return;
-    }
-    
     try {
       // Create a new message object
       const newMessage: Message = {
@@ -72,15 +63,10 @@ export function useRealtimeService() {
       console.error('Error sending message:', error);
       return { success: false, error: 'Failed to send message' };
     }
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Subscribe to messages for a specific customer
   const subscribeToMessages = useCallback((customerId: string, callback: (messages: Message[]) => void) => {
-    if (!isAuthenticated || !hasPermission('read_messages')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate receiving a new message every 30 seconds
     const interval = setInterval(() => {
       if (Math.random() < 0.3) { // 30% chance of new message
@@ -128,15 +114,10 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Subscribe to customer list updates
   const subscribeToCustomers = useCallback((callback: (customers: Customer[]) => void) => {
-    if (!isAuthenticated || !hasPermission('read_customers')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate customer list updates
     const interval = setInterval(() => {
       const updatedCustomers = [...customers];
@@ -200,15 +181,10 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router, customers]);
+  }, []);
 
   // Subscribe to new customer notifications
   const subscribeToNewCustomers = useCallback((callback: (newCustomerCount: number) => void) => {
-    if (!isAuthenticated || !hasPermission('read_new_customers')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate new customers
     const interval = setInterval(() => {
       if (Math.random() < 0.2) { // 20% chance of new customer
@@ -220,17 +196,12 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Mark new customers as seen
   const markNewCustomersAsSeen = useCallback(() => {
-    if (!isAuthenticated || !hasPermission('read_new_customers')) {
-      router.push('/admin/login');
-      return;
-    }
-    
     setNewCustomerCount(0);
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Get customer by ID
   const getCustomer = useCallback((customerId: string): Customer | undefined => {
@@ -239,11 +210,6 @@ export function useRealtimeService() {
 
   // Mark messages as read by admin
   const markMessagesAsRead = useCallback((customerId: string) => {
-    if (!isAuthenticated || !hasPermission('mark_messages_read')) {
-      router.push('/admin/login');
-      return;
-    }
-    
     setMessages(prev => 
       prev.map(message => 
         message.sender === 'user' && message.id.startsWith(customerId) && !message.readByAdmin
@@ -251,37 +217,22 @@ export function useRealtimeService() {
           : message
       )
     );
-  }, [isAuthenticated, hasPermission, router, customers]);
+  }, []);
 
   // Update message status
   const updateMessageStatus = useCallback((customerId: string, status: string) => {
-    if (!isAuthenticated || !hasPermission('update_message_status')) {
-      router.push('/admin/login');
-      return;
-    }
-    
     console.log(`Updating message status for customer ${customerId} to ${status}`);
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Get unread message count for a customer
   const getUnreadMessageCount = useCallback((customerId: string): number => {
-    if (!isAuthenticated || !hasPermission('read_unread_count')) {
-      router.push('/admin/login');
-      return 0;
-    }
-    
     return messages.filter(
       msg => msg.sender === 'user' && !msg.readByAdmin && msg.id.startsWith(customerId)
     ).length;
-  }, [isAuthenticated, hasPermission, router, messages]);
+  }, []);
 
   // Subscribe to support statistics updates
   const subscribeToSupportStats = useCallback((callback: (stats: SupportStats) => void) => {
-    if (!isAuthenticated || !hasPermission('read_support_stats')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate updates every 30 seconds
     const interval = setInterval(() => {
       const updatedStats: SupportStats = {
@@ -308,39 +259,24 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Function to get daily active users
   const getDailyActiveUsers = useCallback((): number => {
-    if (!isAuthenticated || !hasPermission('read_active_users')) {
-      router.push('/admin/login');
-      return 0;
-    }
-    
     // In a real application, this would fetch data from an API
     // For demo purposes, return a random number that changes daily
     return Math.floor(Math.random() * 100) + 50;
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Function to get monthly active users
   const getMonthlyActiveUsers = useCallback((): number => {
-    if (!isAuthenticated || !hasPermission('read_active_users')) {
-      router.push('/admin/login');
-      return 0;
-    }
-    
     // In a real application, this would fetch data from an API
     // For demo purposes, return a random number that changes monthly
     return Math.floor(Math.random() * 2000) + 1500;
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Subscribe to daily active users updates
   const subscribeToDailyActiveUsers = useCallback((callback: (count: number) => void) => {
-    if (!isAuthenticated || !hasPermission('read_active_users')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate updates every 15 seconds
     const interval = setInterval(() => {
       const updatedCount = Math.floor(Math.random() * 100) + 50;
@@ -355,15 +291,10 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Subscribe to monthly active users updates
   const subscribeToMonthlyActiveUsers = useCallback((callback: (count: number) => void) => {
-    if (!isAuthenticated || !hasPermission('read_active_users')) {
-      router.push('/admin/login');
-      return () => {};
-    }
-    
     // Mock implementation - simulate updates every minute
     const interval = setInterval(() => {
       const updatedCount = Math.floor(Math.random() * 2000) + 1500;
@@ -378,7 +309,7 @@ export function useRealtimeService() {
     return () => {
       clearInterval(interval);
     };
-  }, [isAuthenticated, hasPermission, router]);
+  }, []);
 
   // Reset new customer notification when the component unmounts
   useEffect(() => {

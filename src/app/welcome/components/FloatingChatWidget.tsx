@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -169,7 +169,11 @@ export const FloatingChatWidget: React.FC = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [chatwootConversationId, setChatwootConversationId] = useState<number | null>(null);
+  
+  // Help center state
+  const [helpSearch, setHelpSearch] = useState('');
+  const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -223,30 +227,42 @@ export const FloatingChatWidget: React.FC = () => {
   // ─── Chat Functions ────────────────────────────────────────────
   const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
     try {
-      // Using the new API endpoint that connects to the admin support system
-      const response = await fetch('/api/support/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          customerId: userId || userEmail,
-          sender,
-          userEmail,
-          businessId,
-          category: 'general',
-          status: 'open'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save message');
-      }
-      
-      const savedMessage = await response.json();
-      console.log('Message saved successfully:', savedMessage);
-      
+      const { firestore } = initializeFirebase();
+      if (!firestore) return;
+
       if (sender === 'user') {
-        setCurrentConversationId(savedMessage.id);
+        const docRef = await addDoc(collection(firestore, 'supportMessages'), {
+          userId: userId || userEmail,
+          userEmail,
+          businessId: businessId || null,
+          businessName: businessName || null,
+          message: text,
+          sender: 'user',
+          status: 'unread',
+          category: 'general',
+          priority: 'medium',
+          createdAt: new Date(),
+          replies: [],
+        });
+        setCurrentConversationId(docRef.id);
+      } else if (parentMessageId && currentConversationId) {
+        const docRef = doc(firestore, 'supportMessages', parentMessageId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const replies = data.replies || [];
+          replies.push({
+            message: text,
+            sender: 'admin',
+            createdAt: new Date().toISOString(),
+          });
+          
+          await updateDoc(docRef, {
+            replies,
+            status: 'replied',
+          });
+        }
       }
     } catch (error) {
       console.error('Error saving message:', error);
@@ -375,7 +391,7 @@ export const FloatingChatWidget: React.FC = () => {
       setIsSending(false);
       setIsTyping(false);
     } else {
-      // Human agent mode - send message to Chatwoot
+      // Human agent mode
       try {
         if (CHATWOOT_CONFIG.enabled) {
           const chatwootUser: ChatwootUser = {
@@ -387,26 +403,12 @@ export const FloatingChatWidget: React.FC = () => {
           };
           
           await chatwootService.identifyUser(chatwootUser);
-          
-          // Create Chatwoot conversation if not exists
-          if (!chatwootConversationId) {
-            const conversation = await chatwootService.createConversation();
-            if (conversation && conversation.id) {
-              setChatwootConversationId(conversation.id);
-            }
-          }
-          
-          // Send message to Chatwoot
-          if (chatwootConversationId) {
-            await chatwootService.sendMessage(chatwootConversationId, text, 'user');
-          }
-          
           await chatwootService.toggleChat(true);
           
           const supportMsg: SupportMessage = {
             id: `chatwoot-${Date.now()}`,
             sender: 'support',
-            text: "I've sent your message to our support team. They'll respond here shortly.",
+            text: "I've opened a Chatwoot conversation for you. Please check the chat widget in the bottom right corner to continue with our support team.",
             createdAt: new Date().toISOString(),
             status: 'read',
           };
@@ -457,8 +459,9 @@ export const FloatingChatWidget: React.FC = () => {
     }
   };
 
-  const openHelpCenter = () => {
-    window.location.href = '/welcome/help';
+  const handleArticleClick = (article: HelpArticle) => {
+    setSelectedArticle(article);
+    setActiveTab('help');
   };
 
   const openChat = () => {
@@ -484,6 +487,15 @@ export const FloatingChatWidget: React.FC = () => {
     setMessages([]);
   };
 
+  // ─── Help Center Functions ────────────────────────────────────
+  const filteredArticles = HELP_ARTICLES.filter(article => {
+    const matchesSearch = article.title.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                         article.excerpt.toLowerCase().includes(helpSearch.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const categories = ['all', ...Array.from(new Set(HELP_ARTICLES.map(a => a.category)))];
 
   // ─── Online Status Check ───────────────────────────────────────
   useEffect(() => {
@@ -673,7 +685,10 @@ export const FloatingChatWidget: React.FC = () => {
               )}
             </button>
             <button
-              onClick={openHelpCenter}
+              onClick={() => {
+                setActiveTab('help');
+                setIsChatOpen(false);
+              }}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative ${
                 activeTab === 'help' && !isChatOpen
                   ? 'text-purple-600' 
@@ -713,20 +728,31 @@ export const FloatingChatWidget: React.FC = () => {
                   </div>
                 </button>
 
-                {/* Browse Help Center Link */}
-                <button
-                  onClick={openHelpCenter}
-                  className="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
-                >
-                  <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
-                    📚
+
+                {/* Popular Articles */}
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    Popular Articles
+                  </h3>
+                  <div className="space-y-2">
+                    {HELP_ARTICLES.filter(a => a.popular).map((article) => (
+                      <button
+                        key={article.id}
+                        onClick={() => handleArticleClick(article)}
+                        className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
+                      >
+                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
+                          📄
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900 truncate">{article.title}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{article.category}</div>
+                        </div>
+                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm text-gray-900">Browse Help Center</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Search articles, guides, and tutorials</div>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-400 flex-shrink-0 group-hover:text-purple-600 transition-colors" />
-                </button>
+                </div>
 
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 pt-2 pb-4">
@@ -787,20 +813,96 @@ export const FloatingChatWidget: React.FC = () => {
 
             {/* ─── Help Tab ─────────────────────────────────────── */}
             {activeTab === 'help' && !isChatOpen && (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-4xl mb-4">
-                  📚
+              <div className="p-4 space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search for help..."
+                    value={helpSearch}
+                    onChange={(e) => setHelpSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Help Center</h3>
-                <p className="text-sm text-gray-500 max-w-[260px] mb-6">
-                  Browse our comprehensive help center with articles, guides, and tutorials
-                </p>
-                <button
-                  onClick={openHelpCenter}
-                  className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
-                >
-                  Open Help Center
-                </button>
+
+                {/* Categories */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                        selectedCategory === cat
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-500'
+                      }`}
+                    >
+                      {cat === 'all' ? 'All' : cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Articles */}
+                <div className="space-y-2">
+                  {filteredArticles.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-4xl mb-3">🔍</div>
+                      <p className="text-sm text-gray-500">No help articles found</p>
+                    </div>
+                  ) : (
+                    filteredArticles.map((article) => (
+                      <button
+                        key={article.id}
+                        onClick={() => setSelectedArticle(article)}
+                        className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
+                      >
+                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
+                          📄
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900">{article.title}</div>
+                          <div className="text-xs text-gray-500 mt-1 line-clamp-2">{article.excerpt}</div>
+                          <span className="inline-block mt-2 text-[10px] font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                            {article.category}
+                          </span>
+                        </div>
+                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0 mt-1" />
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ─── Article View ─────────────────────────────────── */}
+            {selectedArticle && (
+              <div className="h-full flex flex-col bg-white">
+                <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+                  <button
+                    onClick={() => setSelectedArticle(null)}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight size={20} className="rotate-180" />
+                  </button>
+                  <h3 className="font-semibold text-sm flex-1">{selectedArticle.title}</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-600 leading-relaxed">{selectedArticle.content}</p>
+                    <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                      <p className="text-sm text-purple-900">
+                        <strong>Need more help?</strong> Start a conversation with our support team.
+                      </p>
+                      <button
+                        onClick={openChat}
+                        className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                      >
+                        Contact Support
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

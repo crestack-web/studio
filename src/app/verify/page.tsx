@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
+import type { Page } from '../welcome/types';
+import { initializeFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { LangProvider } from '../owner/dashboard/LangContext';
+import { Navbar } from '../welcome/components/Navbar';
+import { Footer } from '../welcome/components/Footer';
+import styles from './verify.module.css';
 
 export default function VerifyPage() {
   const [statementId, setStatementId] = useState('');

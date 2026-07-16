@@ -5,7 +5,7 @@ import InvestorLayout from '@/components/app/investor-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, Rocket, Eye } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { SupportChatWidget } from '@/components/SupportChatWidget';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function AboutUsPage() {
   return (

@@ -1,4 +1,4 @@
-import { CapitalPage } from '../owner/dashboard/CapitalPage';
+import CapitalPage from '../owner/dashboard/CapitalPage';
 
 export const dynamic = 'force-dynamic';
 

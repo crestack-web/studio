@@ -1,8 +1,8 @@
 // src/components/AdminDashboard.tsx
-'use client';
-
+// Update imports to use SupportChatWidget instead of ChatwootWidget
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 // Types
 interface DashboardData {
@@ -429,6 +429,9 @@ export const AdminDashboard = () => {
       
       {/* Recent activity */}
       <RecentActivity orders={dashboardData.recentOrders} />
+      
+      {/* Support chat widget - connects to our admin support section */}
+      <SupportChatWidget />
     </div>
   );
 };
