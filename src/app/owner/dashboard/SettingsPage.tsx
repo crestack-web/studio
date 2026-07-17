@@ -400,8 +400,21 @@ export default function SettingsPage() {
           }
 
           // Check if user is admin - only for whitelisted emails
-          const adminCheck = await checkIsAdmin();
-          console.log('Settings admin check result:', adminCheck, 'for user:', user.email);
+          const ADMIN_EMAILS = [
+            'taheeratorganic@gmail.com',
+            'admin@busmo.io',
+            'majnuncode@gmail.com',
+            'sxeedtxheer@gmail.com',
+            'ahmedusmus@gmail.com',
+            'majnun@busmo.io'
+          ];
+          
+          // Check both: localStorage admin session OR current user email in whitelist
+          const hasAdminSession = await checkIsAdmin();
+          const isWhitelisted = !!(user.email && ADMIN_EMAILS.includes(user.email));
+          const adminCheck = hasAdminSession || isWhitelisted;
+          
+          console.log('Settings admin check result:', adminCheck, 'for user:', user.email, 'hasSession:', hasAdminSession, 'isWhitelisted:', isWhitelisted);
           setIsUserAdmin(adminCheck);
         }
       } catch (error) {
@@ -427,7 +440,7 @@ export default function SettingsPage() {
     if (c) showToast(`Currency set to ${c.name} (${c.symbol})`);
   };
 
-  const handleSave = () => showToast(`${t('settings.changesSaved')}`);
+  const handleSave = () => showToast(t('settings.changesSaved'));
 
   // Handle inventory deduction mode change
   const handleInventoryDeductionModeChange = async (mode: 'immediate' | 'warehouse') => {
