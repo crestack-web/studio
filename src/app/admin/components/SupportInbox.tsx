@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 
 interface SupportMessage {
   id: string;
@@ -32,18 +32,12 @@ export default function SupportInbox() {
   const [replyText, setReplyText] = useState('');
 
   useEffect(() => {
-    loadMessages();
-  }, [firestore]);
+    const messagesQuery = query(
+      collection(firestore, 'supportMessages'),
+      orderBy('createdAt', 'desc')
+    );
 
-  const loadMessages = async () => {
-    try {
-      setLoading(true);
-      const messagesQuery = query(
-        collection(firestore, 'supportMessages'),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(messagesQuery);
-      
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
       const messagesList: SupportMessage[] = [];
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -62,12 +56,14 @@ export default function SupportInbox() {
       });
       
       setMessages(messagesList);
-    } catch (error) {
-      console.error('Error loading support messages:', error);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error('Error listening to support messages:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [firestore]);
 
   const filteredMessages = messages.filter(msg => {
     if (filter === 'all') return true;
@@ -92,7 +88,6 @@ export default function SupportInbox() {
       });
 
       setReplyText('');
-      loadMessages();
       setSelectedMessage({
         ...selectedMessage,
         replies: updatedReplies,
@@ -107,7 +102,6 @@ export default function SupportInbox() {
       await updateDoc(doc(firestore, 'supportMessages', messageId), {
         status: 'resolved',
       });
-      loadMessages();
       if (selectedMessage?.id === messageId) {
         setSelectedMessage({ ...selectedMessage, status: 'resolved' });
       }
@@ -121,7 +115,6 @@ export default function SupportInbox() {
       await updateDoc(doc(firestore, 'supportMessages', messageId), {
         status: 'unread',
       });
-      loadMessages();
       if (selectedMessage?.id === messageId) {
         setSelectedMessage({ ...selectedMessage, status: 'unread' });
       }

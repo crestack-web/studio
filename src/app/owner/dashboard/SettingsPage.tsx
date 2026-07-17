@@ -400,8 +400,21 @@ export default function SettingsPage() {
           }
 
           // Check if user is admin - only for whitelisted emails
-          const adminCheck = await checkIsAdmin();
-          console.log('Settings admin check result:', adminCheck, 'for user:', user.email);
+          const ADMIN_EMAILS = [
+            'taheeratorganic@gmail.com',
+            'admin@busmo.io',
+            'majnuncode@gmail.com',
+            'sxeedtxheer@gmail.com',
+            'ahmedusmus@gmail.com',
+            'majnun@busmo.io'
+          ];
+          
+          // Check both: localStorage admin session OR current user email in whitelist
+          const hasAdminSession = await checkIsAdmin();
+          const isWhitelisted = !!(user.email && ADMIN_EMAILS.includes(user.email));
+          const adminCheck = hasAdminSession || isWhitelisted;
+          
+          console.log('Settings admin check result:', adminCheck, 'for user:', user.email, 'hasSession:', hasAdminSession, 'isWhitelisted:', isWhitelisted);
           setIsUserAdmin(adminCheck);
         }
       } catch (error) {
@@ -427,7 +440,7 @@ export default function SettingsPage() {
     if (c) showToast(`Currency set to ${c.name} (${c.symbol})`);
   };
 
-  const handleSave = () => showToast(`${t('settings.changesSaved')}`);
+  const handleSave = () => showToast(t('settings.changesSaved'));
 
   // Handle inventory deduction mode change
   const handleInventoryDeductionModeChange = async (mode: 'immediate' | 'warehouse') => {
@@ -746,9 +759,19 @@ export default function SettingsPage() {
           {isUserAdmin && (
             <button
               className={styles.saveBtn}
-              onClick={() => {
-                console.log('Admin button clicked, navigating to /admin');
-                window.location.href = '/admin';
+              onClick={async () => {
+                console.log('Admin button clicked, checking session...');
+                // Check if user already has admin session
+                const hasAdminSession = await checkIsAdmin();
+                if (hasAdminSession) {
+                  // Already authenticated, go directly to admin dashboard
+                  console.log('Admin session found, navigating to /admin');
+                  window.location.href = '/admin';
+                } else {
+                  // No session, go to login page for OTP
+                  console.log('No admin session, navigating to /admin/login');
+                  window.location.href = '/admin/login';
+                }
               }}
               style={{ marginTop: '12px', backgroundColor: '#6B3FE7' }}
             >

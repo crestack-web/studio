@@ -32,21 +32,42 @@ export const useAdminAuth = () => {
       // And then check the response
       
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Mock authentication status
-      const mockIsAuthenticated = localStorage.getItem('admin_authenticated') === 'true';
+      // Check authentication from localStorage
+      const isAuth = localStorage.getItem('admin_authenticated') === 'true';
+      const token = localStorage.getItem('admin_token');
+      const storedUser = localStorage.getItem('admin_user');
       
-      setIsAuthenticated(mockIsAuthenticated);
-      
-      if (mockIsAuthenticated) {
-        // Get user data from localStorage
-        const storedUser = localStorage.getItem('admin_user');
-        
-        if (storedUser) {
+      if (isAuth && token && storedUser) {
+        // Verify token is valid (in production, verify JWT or session)
+        try {
           const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
+          
+          // Verify email is still in whitelist
+          const ADMIN_EMAILS = [
+            'taheeratorganic@gmail.com',
+            'admin@busmo.io',
+            'majnuncode@gmail.com',
+            'sxeedtxheer@gmail.com',
+            'ahmedusmus@gmail.com',
+            'majnun@busmo.io'
+          ];
+          
+          if (ADMIN_EMAILS.includes(parsedUser.email)) {
+            setIsAuthenticated(true);
+            setUser(parsedUser);
+          } else {
+            // Email removed from whitelist, logout
+            await logout();
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+          await logout();
         }
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
       }
     } catch (error) {
       console.error('Error checking authentication:', error);
@@ -58,34 +79,17 @@ export const useAdminAuth = () => {
   };
 
   // Login function
+  // OTP-based login for whitelisted users
   const login = async (email: string, password: string) => {
     try {
-      // In a real application, this would make an API call to login
-      // For example: const response = await fetch('/api/admin/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password })
-      // });
-      // 
-      // if (!response.ok) {
-      //   throw new Error('Login failed');
-      // }
-      // 
-      // const data = await response.json();
-      // 
-      // // Set authentication status and user
-      // setIsAuthenticated(true);
-      // setUser(data.user);
-      // 
-      // // Store token or session in localStorage or cookies
-      // localStorage.setItem('admin_token', data.token);
-      
       // Admin email whitelist - only these emails can access admin panel
       const ADMIN_EMAILS = [
         'taheeratorganic@gmail.com',
         'admin@busmo.io',
         'majnuncode@gmail.com',
-        'sxeedtxheer@gmail.com'
+        'sxeedtxheer@gmail.com',
+        'ahmedusmus@gmail.com',
+        'majnun@busmo.io'
       ];
       
       if (!ADMIN_EMAILS.includes(email)) {
@@ -95,29 +99,15 @@ export const useAdminAuth = () => {
         };
       }
       
-      // Mock login success
-      setIsAuthenticated(true);
-      
-      const mockUser: AdminUser = {
-        id: 'admin_123',
-        name: 'Busmo Admin',
-        email,
-        role: 'Administrator',
-        permissions: ['read_support', 'write_support', 'read_users', 'write_users'],
-        lastLogin: new Date().toISOString()
+      // For whitelisted users, return success and trigger OTP flow
+      // Password is ignored - OTP is required for actual authentication
+      return { 
+        success: true, 
+        requiresOtp: true,
+        message: 'Please check your email for OTP verification'
       };
-      
-      setUser(mockUser);
-      
-      // Store mock authentication in localStorage
-      localStorage.setItem('admin_authenticated', 'true');
-      localStorage.setItem('admin_user', JSON.stringify(mockUser));
-      
-      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      setIsAuthenticated(false);
-      setUser(null);
       return { success: false, error: 'Invalid email or password' };
     }
   };
@@ -149,7 +139,7 @@ export const useAdminAuth = () => {
     return user.permissions.includes(permission);
   };
 
-// Check if user has admin role
+  // Check if current user is admin
   const isAdmin = (): boolean => {
     if (!user) return false;
     return user.role === 'Administrator';
@@ -172,7 +162,26 @@ export const checkIsAdmin = async (): Promise<boolean> => {
   const storedUser = localStorage.getItem('admin_user');
   if (storedUser) {
     const parsedUser = JSON.parse(storedUser);
-    return parsedUser.role === 'Administrator';
+    // Verify both: has admin role AND email is in whitelist
+    if (parsedUser.role === 'Administrator') {
+      const ADMIN_EMAILS = [
+        'taheeratorganic@gmail.com',
+        'admin@busmo.io',
+        'majnuncode@gmail.com',
+        'sxeedtxheer@gmail.com',
+        'ahmedusmus@gmail.com',
+        'majnun@busmo.io'
+      ];
+      return ADMIN_EMAILS.includes(parsedUser.email);
+    }
   }
   return false;
+};
+
+// Require admin access - throws error if not authorized
+export const requireAdmin = async (): Promise<void> => {
+  const hasAdminAccess = await checkIsAdmin();
+  if (!hasAdminAccess) {
+    throw new Error('Admin access required');
+  }
 };

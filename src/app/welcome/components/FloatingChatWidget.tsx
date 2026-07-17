@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
 import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
 import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
 
@@ -223,6 +223,49 @@ export const FloatingChatWidget: React.FC = () => {
       setTimeout(() => chatInputRef.current?.focus(), 100);
     }
   }, [isChatOpen]);
+
+  // Real-time listener for conversation updates (e.g., admin replies)
+  useEffect(() => {
+    if (!currentConversationId) return;
+
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const unsubscribe = onSnapshot(
+      doc(firestore, 'supportMessages', currentConversationId),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const updatedReplies = data.replies || [];
+          
+          // Check if there are new admin replies
+          const latestReply = updatedReplies[updatedReplies.length - 1];
+          if (latestReply && latestReply.sender === 'admin') {
+            setMessages((prev) => {
+              // Check if we already have this reply
+              const exists = prev.some(msg => msg.id === latestReply.createdAt);
+              if (exists) return prev;
+              
+              // Add the new admin reply
+              const adminMsg: SupportMessage = {
+                id: latestReply.createdAt,
+                sender: 'support',
+                text: latestReply.message,
+                createdAt: latestReply.createdAt,
+                status: 'read',
+              };
+              return [...prev, adminMsg];
+            });
+          }
+        }
+      },
+      (error) => {
+        console.error('Error listening to conversation updates:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentConversationId]);
 
   // ─── Chat Functions ────────────────────────────────────────────
   const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
