@@ -1,18 +1,18 @@
 // src/app/admin/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleSendOTP = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!email) {
@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!otp || otp.length !== 6) {
