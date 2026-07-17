@@ -759,9 +759,19 @@ export default function SettingsPage() {
           {isUserAdmin && (
             <button
               className={styles.saveBtn}
-              onClick={() => {
-                console.log('Admin button clicked, navigating to /admin');
-                window.location.href = '/admin';
+              onClick={async () => {
+                console.log('Admin button clicked, checking session...');
+                // Check if user already has admin session
+                const hasAdminSession = await checkIsAdmin();
+                if (hasAdminSession) {
+                  // Already authenticated, go directly to admin dashboard
+                  console.log('Admin session found, navigating to /admin');
+                  window.location.href = '/admin';
+                } else {
+                  // No session, go to login page for OTP
+                  console.log('No admin session, navigating to /admin/login');
+                  window.location.href = '/admin/login';
+                }
               }}
               style={{ marginTop: '12px', backgroundColor: '#6B3FE7' }}
             >
