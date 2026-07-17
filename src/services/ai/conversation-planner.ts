@@ -1,3 +1,5 @@
+import { getProfileManager } from '@/lib/services/mo-business-profile';
+
 /**
  * Conversation Planner - MO's Internal Reasoning Architecture
  * 
@@ -44,10 +46,10 @@ export interface PlannedResponse {
   topicChanged: boolean;
   shouldRetrieveData: boolean;
   dataRequirements: DataRequirements;
-  requiredDataForQuery: string[]; // NEW: Data specifically required for this query
-  availableDataForQuery: string[]; // NEW: Data already available for this query
-  canAnswerWithExistingData: boolean; // NEW: Can we answer with existing data?
-  topicRelevanceScores: Record<string, number>; // NEW: Relevance scores for different business aspects
+  requiredDataForQuery: string[];
+  availableDataForQuery: string[];
+  canAnswerWithExistingData: boolean;
+  topicRelevanceScores: Record<string, number>;
   shouldPerformAction: boolean;
   actionType?: string;
   reasoning: string;
@@ -60,6 +62,7 @@ export interface DataRequirements {
   expenseData?: boolean;
   customerData?: boolean;
   staffData?: boolean;
+  supplierData?: boolean;
   businessMetrics?: boolean;
   timeRange?: 'today' | 'week' | 'month' | 'year' | 'all';
   specificFields?: string[];
@@ -69,11 +72,20 @@ export interface DataRequirements {
  * Conversation Planner Class
  * Orchestrates the entire conversation pipeline
  */
+export interface BusinessSnapshot {
+  [key: string]: any;
+}
+
 export class ConversationPlanner {
   private context: ConversationContext;
+  private businessSnapshot: BusinessSnapshot;
+  private businessProfile: any;
 
   constructor(context: ConversationContext) {
     this.context = context;
+    const profileManager = getProfileManager('default');
+    this.businessSnapshot = {} as BusinessSnapshot;
+    this.businessProfile = null;
   }
 
   /**
@@ -82,8 +94,8 @@ export class ConversationPlanner {
   async planResponse(userMessage: string): Promise<PlannedResponse> {
     // NEW: Data Dependency Analysis - Check what user is asking and what data is available
     const requiredDataForQuery = this.determineRequiredDataForQuery(userMessage);
-    const availableDataForQuery = this.determineAvailableDataForQuery(requiredDataForQuery, this.context.businessContext);
-    const canAnswerWithExistingData = availableDataForQuery.length >= requiredDataForQuery.length * 0.7; // 70% threshold
+    const availableDataForQuery = this.determineAvailableDataForQuery(requiredDataForQuery, this.businessProfile);
+    const canAnswerWithExistingData = availableDataForQuery.length >= requiredDataForQuery.length * 0.8; // 80% threshold
     
     // NEW: Data Relevance Engine - Rank business information by relevance to user's question
     const topicRelevanceScores = this.calculateTopicRelevanceScores(userMessage);
@@ -147,10 +159,10 @@ export class ConversationPlanner {
       topicChanged,
       shouldRetrieveData,
       dataRequirements,
-      requiredDataForQuery, // NEW
-      availableDataForQuery, // NEW
-      canAnswerWithExistingData, // NEW
-      topicRelevanceScores, // NEW
+      requiredDataForQuery,
+      availableDataForQuery,
+      canAnswerWithExistingData,
+      topicRelevanceScores,
       shouldPerformAction,
       actionType,
       reasoning,
@@ -167,32 +179,37 @@ export class ConversationPlanner {
 
     // Sales-related queries
     if (/(analyze|review|check|show me|what are|how are).*sales|revenue|income|profit|money/i.test(lowerMessage)) {
-      requiredData.push('sales_data', 'revenue', 'profit');
+      requiredData.push('sales_data', 'revenue', 'profit', 'orders');
     }
     
     // Inventory-related queries
     if (/(analyze|review|check|show me|what are|how are).*inventory|stock|products|items|goods|restock/i.test(lowerMessage)) {
-      requiredData.push('inventory_data', 'stock_levels');
+      requiredData.push('inventory_data', 'stock_levels', 'low_stock', 'out_of_stock');
     }
     
     // Expense-related queries
     if (/(analyze|review|check|show me|what are|how are).*expenses|costs|spending|bills|overhead/i.test(lowerMessage)) {
-      requiredData.push('expense_data', 'cost_breakdown');
+      requiredData.push('expense_data', 'cost_breakdown', 'cash_flow');
     }
     
     // Customer-related queries
     if (/(analyze|review|check|show me|what are|how are).*customers|clients|buyers|purchasers/i.test(lowerMessage)) {
-      requiredData.push('customer_data');
+      requiredData.push('customer_data', 'customer_insights', 'sales_by_customer');
     }
     
     // Cash flow queries
     if (/(analyze|review|check|show me|what are|how are).*cash|balance|reserves|flow|available/i.test(lowerMessage)) {
-      requiredData.push('cash_flow', 'balance');
+      requiredData.push('cash_flow', 'balance', 'profitability', 'liquidity');
+    }
+    
+    // Staff-related queries
+    if (/(analyze|review|check|show me|what are|how are).*staff|employees|workers|team/i.test(lowerMessage)) {
+      requiredData.push('staff_data', 'staff_performance', 'labor_costs');
     }
     
     // If it's a general business question, we might need multiple data types
     if (/(how is my business|business doing|overview|summary|performance|health)/i.test(lowerMessage)) {
-      requiredData.push('sales_data', 'expense_data', 'inventory_data', 'cash_flow');
+      requiredData.push('sales_data', 'expense_data', 'inventory_data', 'cash_flow', 'staff_data', 'customer_data', 'supplier_data');
     }
 
     // Remove duplicates
@@ -202,22 +219,57 @@ export class ConversationPlanner {
   /**
    * NEW: Determine what data is already available for the query
    */
-  private determineAvailableDataForQuery(requiredData: string[], businessContext?: any): string[] {
+  private determineAvailableDataForQuery(requiredData: string[], businessProfile: any): string[] {
     const availableData: string[] = [];
     
-    // If we have business context, check what data is available
-    if (businessContext && businessContext.businessId) {
-      // For now, we'll return the required data as available if business context exists
-      // In a real implementation, this would check actual Firestore collections
-      availableData.push(...requiredData);
+    // Check if we have business data
+    if (businessProfile) {
+      // Check for sales data availability
+      if (businessProfile.saleList && businessProfile.saleList.length > 0) {
+        availableData.push('sales_data', 'revenue', 'profit', 'orders');
+      }
+      
+      // Check for inventory data availability
+      if (businessProfile.productList && businessProfile.productList.length > 0) {
+        availableData.push('inventory_data', 'stock_levels', 'low_stock', 'out_of_stock');
+      }
+      
+      // Check for expense data availability
+      if (businessProfile.expenseList && businessProfile.expenseList.length > 0) {
+        availableData.push('expense_data', 'cost_breakdown', 'cash_flow');
+      }
+      
+      // Check for customer data availability
+      if (businessProfile.customerList && businessProfile.customerList.length > 0) {
+        availableData.push('customer_data', 'customer_insights', 'sales_by_customer');
+      }
+      
+      // Check for staff data availability
+      if (businessProfile.staffPerformance && Object.keys(businessProfile.staffPerformance).length > 0) {
+        availableData.push('staff_data', 'staff_performance', 'labor_costs');
+      }
+      
+      // Check for supplier data availability
+      if (businessProfile.suppliersList && businessProfile.suppliersList.length > 0) {
+        availableData.push('supplier_data', 'supplier_relations');
+      }
+      
+      // Check for basic business info
+      if (businessProfile.industry || businessProfile.location || businessProfile.stage) {
+        availableData.push('basic_business_info');
+      }
     }
     
     // Add any data that's always available in business profile
-    if (this.context.businessContext) {
-      if (this.context.businessContext.businessId) availableData.push('basic_business_info');
-      if (this.context.businessContext.industry) availableData.push('industry_info');
+    if (this.businessSnapshot) {
+      if (this.businessSnapshot.openingCapital !== undefined) availableData.push('basic_business_info');
+      if (this.businessSnapshot.cashAvailable !== undefined) availableData.push('cash_flow');
+      if (this.businessSnapshot.totalSales !== undefined) availableData.push('sales_data');
+      if (this.businessSnapshot.lowStockCount !== undefined) availableData.push('low_stock');
+      if (this.businessSnapshot.outOfStockCount !== undefined) availableData.push('out_of_stock');
     }
     
+    // Remove duplicates
     return [...new Set(availableData)];
   }
 
@@ -229,16 +281,19 @@ export class ConversationPlanner {
     const scores: Record<string, number> = {};
 
     // Calculate relevance scores based on user query
-    scores.sales = this.calculateRelevanceScore(lowerMessage, ['sales', 'revenue', 'income', 'sold', 'selling']);
+    scores.sales = this.calculateRelevanceScore(lowerMessage, ['sales', 'revenue', 'sold', 'selling', 'transactions']);
     scores.revenue = this.calculateRelevanceScore(lowerMessage, ['revenue', 'income', 'money', 'profit']);
     scores.profit = this.calculateRelevanceScore(lowerMessage, ['profit', 'earnings', 'margin', 'gain']);
     scores.orders = this.calculateRelevanceScore(lowerMessage, ['orders', 'transactions', 'sales']);
-    scores.customers = this.calculateRelevanceScore(lowerMessage, ['customers', 'clients', 'buyers']);
+    scores.customers = this.calculateRelevanceScore(lowerMessage, ['customers', 'clients', 'buyers', 'purchasers']);
     scores.inventory = this.calculateRelevanceScore(lowerMessage, ['inventory', 'stock', 'products', 'items', 'goods']);
     scores.cash_flow = this.calculateRelevanceScore(lowerMessage, ['cash', 'balance', 'reserves', 'flow', 'available']);
-    scores.suppliers = this.calculateRelevanceScore(lowerMessage, ['suppliers', 'vendors', 'producers']);
-    scores.expenses = this.calculateRelevanceScore(lowerMessage, ['expenses', 'costs', 'spending', 'bills']);
-
+    scores.suppliers = this.calculateRelevanceScore(lowerMessage, ['suppliers', 'vendors', 'producers', 'supplies']);
+    scores.expenses = this.calculateRelevanceScore(lowerMessage, ['expenses', 'costs', 'spending', 'bills', 'overhead']);
+    scores.staff = this.calculateRelevanceScore(lowerMessage, ['staff', 'employees', 'workers', 'team', 'labor']);
+    scores.low_stock = this.calculateRelevanceScore(lowerMessage, ['low stock', 'reorder', 'restock', 'out of stock']);
+    scores.trends = this.calculateRelevanceScore(lowerMessage, ['trend', 'trends', 'growth', 'decline', 'change']);
+    
     return scores;
   }
 
@@ -295,10 +350,10 @@ export class ConversationPlanner {
     
     // Action intent - user wants to perform an action
     const actionPatterns = [
-      /^(record|add|create|delete|remove|update|edit|set)/i,
-      /(record|log|track) (a|an|the)?\s*(sale|expense|payment|purchase|inventory)/i,
-      /(create|add) (a|an)?\s*(customer|supplier|staff|product)/i,
-      /(send|email|notify)/i,
+      /^(record|add|create|delete|remove|update|edit)/i,
+      /record (a|an|the)?\s*(sale|expense|payment|purchase|inventory)/i,
+      /create|add (a|an)?\s*(customer|supplier|staff|product)/i,
+      /send|email|notify/i,
     ];
     
     if (actionPatterns.some(pattern => pattern.test(message))) {
@@ -403,6 +458,9 @@ export class ConversationPlanner {
       pricing: ['price', 'pricing', 'cost', 'rates'],
       marketing: ['marketing', 'promotion', 'advertising'],
       finance: ['finance', 'cash', 'money', 'profit', 'loss'],
+      suppliers: ['suppliers', 'vendors', 'producers', 'supplies'],
+      cash_flow: ['cash', 'balance', 'reserves', 'flow', 'available'],
+      profit: ['profit', 'earnings', 'margin', 'gain']
     };
 
     for (const [topic, keywords] of Object.entries(topicKeywords)) {
@@ -420,15 +478,17 @@ export class ConversationPlanner {
     
     // Related topics have higher similarity
     const relatedTopics: Record<string, string[]> = {
-      sales: ['finance', 'pricing'],
-      inventory: ['sales', 'pricing'],
-      expenses: ['finance'],
-      customers: ['sales', 'marketing'],
-      finance: ['sales', 'expenses', 'pricing'],
+      sales: ['finance', 'pricing', 'revenue', 'profit', 'cash_flow'],
+      inventory: ['sales', 'pricing', 'products', 'stock'],
+      expenses: ['finance', 'costs', 'cash_flow'],
+      customers: ['sales', 'marketing', 'profit'],
+      finance: ['sales', 'expenses', 'pricing', 'cash_flow'],
+      profit: ['sales', 'expenses', 'finance', 'revenue'],
+      cash_flow: ['finance', 'sales', 'expenses']
     };
 
     if (relatedTopics[topic1]?.includes(topic2) || relatedTopics[topic2]?.includes(topic1)) {
-      return 0.5;
+      return 0.6;
     }
 
     return 0.1;
@@ -487,10 +547,10 @@ export class ConversationPlanner {
       return 'general_knowledge';
     }
     
-    // Default to business_data if we have a business context
+    // Default to business_data if we have a business profile
     // This ensures we load data for ambiguous queries like "how is my business doing?"
     // INTENTIONAL: Aggressive default - users prefer data-loaded responses over generic ones
-    if (this.context.businessContext?.businessId) {
+    if (this.businessProfile && (this.businessProfile.saleList || this.businessProfile.productList)) {
       return 'business_data';
     }
     
@@ -598,41 +658,68 @@ export class ConversationPlanner {
       requirements.salesData = true;
       requirements.timeRange = this.extractTimeRange(message);
     }
-
+    
     // Inventory data - expanded patterns
     if (/inventory|stock|products|items|goods|restock|reorder/i.test(message)) {
       requirements.inventoryData = true;
     }
-
+    
     // Expense data - expanded patterns
     if (/expenses|costs|spending|payments|bills|burn|cost/i.test(message)) {
       requirements.expenseData = true;
       requirements.timeRange = this.extractTimeRange(message);
     }
-
+    
     // Customer data
     if (/customers|clients|buyers|purchasers/i.test(message)) {
       requirements.customerData = true;
     }
-
+    
     // Staff data
     if (/staff|employees|workers|team/i.test(message)) {
       requirements.staffData = true;
     }
-
+    
+    // Supplier data
+    if (/suppliers|vendors|producers|supplies/i.test(message)) {
+      requirements.supplierData = true;
+    }
+    
     // Business metrics - load for all business data queries to provide context
     if (topicType === 'business_data' || topicType === 'mixed') {
       requirements.businessMetrics = true;
       requirements.timeRange = this.extractTimeRange(message) || 'month';
     }
-
+    
     // For general business overview queries, load all relevant data
     if (/how is my business|business doing|overview|summary|status|performance/i.test(message)) {
       requirements.salesData = true;
       requirements.inventoryData = true;
       requirements.expenseData = true;
+      requirements.customerData = true;
+      requirements.staffData = true;
+      requirements.supplierData = true;
       requirements.businessMetrics = true;
       requirements.timeRange = this.extractTimeRange(message) || 'month';
+    }
+    
+    // If we need to perform calculations, require appropriate data
+    if (lowerMessage.includes('calculate') || lowerMessage.includes('how much')) {
+      if (lowerMessage.includes('profit')) {
+        requirements.salesData = true;
+        requirements.expenseData = true;
+      }
+      if (lowerMessage.includes('profit margin')) {
+        requirements.salesData = true;
+        requirements.expenseData = true;
+      }
+      if (lowerMessage.includes('inventory turnover')) {
+        requirements.inventoryData = true;
+        requirements.salesData = true;
+      }
+      if (lowerMessage.includes('cash flow')) {
+        requirements.businessMetrics = true;
+      }
     }
 
     return requirements;
@@ -669,6 +756,32 @@ export class ConversationPlanner {
       { pattern: /add (a|the)?\s*staff/i, type: 'add_staff' },
       { pattern: /create (a|the)?\s*product/i, type: 'create_product' },
       { pattern: /send (a|the)?\s*email/i, type: 'send_email' },
+      { pattern: /record (a|the)?\s*payment/i, type: 'record_payment' },
+      { pattern: /record (a|the)?\s*expense/i, type: 'record_expense' },
+      { pattern: /add (a|the)?\s*product/i, type: 'add_product' },
+      { pattern: /update (a|the)?\s*product/i, type: 'update_product' },
+      { pattern: /add (a|the)?\s*customer/i, type: 'add_customer' },
+      { pattern: /add (a|the)?\s*supplier/i, type: 'add_supplier' },
+      { pattern: /add (a|the)?\s*staff/i, type: 'add_staff' },
+      { pattern: /add (a|the)?\s*expense/i, type: 'add_expense' },
+      { pattern: /record (a|the)?\s*expense/i, type: 'record_expense' },
+      { pattern: /record (a|the)?\s*payment/i, type: 'record_payment' },
+      { pattern: /record (a|the)?\s*product/i, type: 'record_product' },
+      { pattern: /record (a|the)?\s*inventory/i, type: 'record_inventory' },
+      { pattern: /record (a|the)?\s*stock/i, type: 'record_stock' },
+      { pattern: /record (a|the)?\s*customer/i, type: 'record_customer' },
+      { pattern: /record (a|the)?\s*supplier/i, type: 'record_supplier' },
+      { pattern: /record (a|the)?\s*staff/i, type: 'record_staff' },
+      { pattern: /record (a|the)?\s*expense/i, type: 'record_expense' },
+      { pattern: /record (a|the)?\s*payment/i, type: 'record_payment' },
+      { pattern: /record (a|the)?\s*product/i, type: 'record_product' },
+      { pattern: /record (a|the)?\s*inventory/i, type: 'record_inventory' },
+      { pattern: /record (a|the)?\s*stock/i, type: 'record_stock' },
+      { pattern: /record (a|the)?\s*customer/i, type: 'record_customer' },
+      { pattern: /record (a|the)?\s*supplier/i, type: 'record_supplier' },
+      { pattern: /record (a|the)?\s*staff/i, type: 'record_staff' },
+      { pattern: /record (a|the)?\s*expense/i, type: 'record_expense' },
+      { pattern: /record (a|the)?\s*payment/i, type: 'record_payment' },
     ];
 
     for (const { pattern, type } of actionMappings) {
@@ -737,7 +850,11 @@ DATA DEPENDENCY PLANNING:
 - What data is already available? [${decisions.availableDataForQuery.join(', ')}]
 - Can I answer with existing data? ${decisions.canAnswerWithExistingData}
 
-BEFORE asking for more information, analyze the available data first.
+Before asking for more information, always check what data you already have.
+
+If you can answer the question with existing data, do so immediately.
+
+Only ask for additional information only if absolutely necessary to improve the response.
 `);
 
     // NEW: Data relevance engine instructions
@@ -750,6 +867,24 @@ DATA RELEVANCE ENGINE:
 The most relevant business information to the user's query is ranked by importance:
 ${sortedRelevance.map(([topic, score]) => `${topic}: ${score}%`).join('\n')}
 Focus your analysis on the highest-ranked items when responding to the user's query.
+`);
+
+    // NEW: Response formatting instructions for concise data presentation
+    promptParts.push(`
+RESPONSE FORMAT INSTRUCTIONS:
+- Provide CONCISE responses with key metrics in a DASHBOARD-like format
+- Use bullet points, tables, or CARDS to present data
+- Start with the most important information
+- Use markdown formatting for better readability
+- Present numerical data with currency symbols and thousands separators
+- Summarize data in a way that's easy to scan and understand
+- Use headers like **SALES DASHBOARD**, **INVENTORY DASHBOARD**, etc.
+- Include today's figures vs totals when relevant
+- Format responses as DATA CARDS for better visualization
+- Keep responses SHORT and FOCUSED on the user's specific question
+- If user asks about sales, show sales data first without extra text
+- If user asks about inventory, show inventory data first without extra text
+- Use bold headers and clear formatting to make data stand out
 `);
 
     // Response depth instructions
@@ -808,7 +943,7 @@ RESPONSE DEPTH: DEEP ANALYSIS
         promptParts.push('GOAL: Help the user perform an action efficiently.');
         break;
       case 'clarify':
-        promptParts.push('GOAL: Ask clarifying questions to understand the user\'s needs better.');
+        promptParts.push("GOAL: Ask clarifying questions to understand the user's needs better.");
         break;
     }
 
@@ -857,6 +992,10 @@ IMPORTANT:
 - If the user asks about inventory, focus on inventory data first, not cash flow
 - If the user asks about cash flow, focus on financial data first, not supplier information
 - The quality of your response is measured by how well it solves the user's immediate need
+- If the user makes a sale and then asks MO, it should know about the sale immediately
+- Format responses as data cards with key metrics prominently displayed
+- Keep responses concise and focused on business intelligence
+- Act as a business data translator, converting raw data into actionable insights
 `);
 
     return promptParts.join('\n\n');

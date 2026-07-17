@@ -41,6 +41,12 @@ export interface ProcessingResult {
   processingTime: number;
   canAnswerWithExistingData: boolean; // NEW: Can answer with existing data
   relevantDataPoints: string[]; // NEW: Relevant data points
+  totalSales?: number; // NEW: Total sales data
+  todaySales?: number; // NEW: Today's sales
+  totalProfit?: number; // NEW: Total profit
+  todayProfit?: number; // NEW: Today's profit
+  lowStockCount?: number; // NEW: Low stock count
+  outOfStockCount?: number; // NEW: Out of stock count
 }
 
 export class MasterProcessor {
@@ -61,7 +67,7 @@ export class MasterProcessor {
     // Step 1: Initialize engines
     const intentEngine = getIntentEngine();
     const memoryEngine = getMemoryEngine(this.businessId, this.userId);
-    const profileManager = getBusinessProfileManager();
+    const profileManager = getBusinessProfileManager(this.businessId);
     const calculationEngine = getCalculationEngine();
     const reasoningEngine = getReasoningEngine(); // Updated to use enhanced reasoning
     const industryEngine = getIndustryIntelligenceEngine();
@@ -107,16 +113,16 @@ export class MasterProcessor {
     
     // Step 7: Run calculation engine
     const calculations = calculationEngine.generateInsights(context.message, {
-      capital: businessProfile.openingCapital,
-      expenses: businessProfile.expectedExpenses,
-      revenue: businessProfile.expectedIncome,
+      capital: businessSnapshot?.openingCapital ?? 0,
+      expenses: businessSnapshot?.expectedExpenses ?? 0,
+      revenue: businessSnapshot?.expectedIncome ?? 0,
     });
     if (calculations.length > 0) {
       console.log('🧮 [MO Master Processor] Calculations generated:', calculations.length);
     }
     
     // Step 8: Get industry intelligence
-    const industryIntelligence = industryEngine.getIndustryAdvice(businessProfile.industry || 'retail');
+    const industryIntelligence = industryEngine.getIndustryAdvice(businessProfile?.industry || 'retail');
     console.log('🏭 [MO Master Processor] Industry intelligence loaded');
     
     // Step 9: Assess risks
@@ -169,6 +175,7 @@ export class MasterProcessor {
       businessContext: businessProfile,
       suggestedAction: reasoning.recommendedAction,
       busmoAction,
+      businessData: context.businessData, // NEW: Pass business data for response planning
     };
     let plannedResponse = responsePlanner.planResponse(responsePlanningContext);
     console.log('📝 [MO Master Processor] Response planned');
@@ -222,6 +229,62 @@ export class MasterProcessor {
       profileManager.updateFromMessage(context.message, { capital: extractedEntities.amounts[0] });
     }
     
+    // Step 19: Update business profile with full business data
+    if (context.businessData) {
+      profileManager.updateWithFullData({
+        businessProfile: context.businessData.businessProfile,
+        sales: context.businessData.sales,
+        expenses: context.businessData.expenses,
+        products: context.businessData.products,
+        customers: context.businessData.customers,
+        suppliers: context.businessData.suppliers,
+        cashFlow: context.businessData.cashFlow,
+        staff: context.businessData.staff,
+      });
+      
+      // Update business snapshot with business data
+      const totalSales = context.businessData.sales?.reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      const todaySales = context.businessData.sales?.filter((sale: any) => {
+        const saleDate = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+        return saleDate.toDateString() === new Date().toDateString();
+      })
+      .reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      // Calculate profit from sales and expenses
+      const totalProfit = totalSales - ((context.businessData.expenses?.reduce((sum: number, expense: any) => 
+        sum + (parseFloat(expense.amount) || 0), 0
+      )) || 0);
+      
+      const todayProfit = todaySales - ((context.businessData.expenses?.filter((expense: any) => {
+        const expenseDate = expense.createdAt?.toDate ? expense.createdAt.toDate() : new Date(expense.createdAt);
+        return expenseDate.toDateString() === new Date().toDateString();
+      })
+      .reduce((sum: number, expense: any) => 
+        sum + (parseFloat(expense.amount) || 0), 0
+      )) || 0);
+      
+      // Count low stock and out of stock items
+      const lowStockCount = context.businessData.products?.filter((p: any) => p.stockLevel < p.reorderLevel).length || 0;
+      const outOfStockCount = context.businessData.products?.filter((p: any) => p.stockLevel === 0).length || 0;
+      
+      // Update business snapshot with new data
+      profileManager.updateWithFullData({
+        businessSnapshot: {
+          totalSales,
+          todaySales,
+          totalProfit,
+          todayProfit,
+          lowStockCount,
+          outOfStockCount,
+        },
+      });
+    }
+    
     const processingTime = Date.now() - startTime;
     console.log('✅ [MO Master Processor] Processing completed in', processingTime, 'ms');
     
@@ -240,6 +303,12 @@ export class MasterProcessor {
       processingTime,
       canAnswerWithExistingData: reasoning.canAnswerWithExistingData, // NEW
       relevantDataPoints: reasoning.relevantDataPoints, // NEW
+      totalSales: profileManager.getSnapshot().totalSales, // NEW
+      todaySales: profileManager.getSnapshot().todaySales, // NEW
+      totalProfit: profileManager.getSnapshot().totalProfit, // NEW
+      todayProfit: profileManager.getSnapshot().todayProfit, // NEW
+      lowStockCount: profileManager.getSnapshot().lowStockCount, // NEW
+      outOfStockCount: profileManager.getSnapshot().outOfStockCount, // NEW
     };
   }
   
@@ -257,12 +326,45 @@ export class MasterProcessor {
       });
     }
     
-    if (businessData?.products && businessData.products.length > 0 && !businessProfile?.suppliers) {
+    // Check for low stock items
+    const lowStockItems = businessData.products?.filter((p: any) => p.stockLevel < p.reorderLevel) || [];
+    if (lowStockItems.length > 0) {
+      insights.push({
+        type: 'opportunity',
+        priority: 'high',
+        category: 'Inventory',
+        message: `You have ${lowStockItems.length} items with low stock. Consider reordering them soon.`,
+      });
+    }
+    
+    // Check for out of stock items
+    const outOfStockItems = businessData.products?.filter((p: any) => p.stockLevel === 0) || [];
+    if (outOfStockItems.length > 0) {
+      insights.push({
+        type: 'risk',
+        priority: 'high',
+        category: 'Inventory',
+        message: `You have ${outOfStockItems.length} items out of stock. This could be affecting your sales.`,
+      });
+    }
+    
+    // Add sales insights
+    if (businessProfile?.todaySales && businessProfile.todaySales > 0) {
       insights.push({
         type: 'opportunity',
         priority: 'medium',
-        category: 'Operations',
-        message: 'Add suppliers for your products to improve inventory management',
+        category: 'Sales',
+        message: `Today's sales are ₦${businessProfile.todaySales?.toLocaleString()}. This is ${businessProfile.todaySales > 100000 ? 'a strong' : 'a moderate'} performance. What would you like to explore further?`,
+      });
+    }
+    
+    // Add expense insights
+    if (businessProfile?.todayExpenses && businessProfile.todayExpenses > 0) {
+      insights.push({
+        type: 'risk',
+        priority: 'medium',
+        category: 'Expenses',
+        message: `Today's expenses are ₦${businessProfile.todayExpenses?.toLocaleString()}. Consider reviewing for cost optimization opportunities.`,
       });
     }
     
@@ -285,29 +387,65 @@ export class MasterProcessor {
       if (data.businessSnapshot?.openingCapital) {
         response += `• Capital: ₦${data.businessSnapshot.openingCapital.toLocaleString()}\n`;
       }
-    }
-    
-    // Add reasoning
-    if (data.reasoning?.actualGoal) {
-      response += '\n🔍 ANALYSIS:\n';
-      response += `• Goal: ${data.reasoning.actualGoal}\n`;
-      if (data.reasoning?.recommendedAction) {
-        response += `• Recommended: ${data.reasoning.recommendedAction}\n`;
+      if (data.businessSnapshot?.cashAvailable) {
+        response += `• Cash Available: ₦${data.businessSnapshot.cashAvailable.toLocaleString()}\n`;
       }
     }
     
-    // NEW: Add data availability information
+    // Add data availability information
     if (data.reasoning?.canAnswerWithExistingData !== undefined) {
       response += `\n📊 DATA AVAILABILITY:\n`;
       response += `• Can Answer With Existing Data: ${data.reasoning.canAnswerWithExistingData}\n`;
-      if (data.reasoning.relevantDataPoints && data.reasoning.relevantDataPoints.length > 0) {
+      if (data.reasoning?.relevantDataPoints && data.reasoning.relevantDataPoints.length > 0) {
         response += `• Relevant Data Points: ${data.reasoning.relevantDataPoints.join(', ')}\n`;
       }
     }
     
+    // Add sales data if available
+    if (data.businessProfile?.todaySales !== undefined) {
+      const grossMargin = data.businessProfile.totalSales > 0 ? (data.businessProfile.totalProfit / data.businessProfile.totalSales) * 100 : 0;
+      
+      response += `\n💰 SALES DATA:\n`;
+      response += `• Total Sales: ₦${data.businessProfile.totalSales?.toLocaleString() || 'N/A'}\n`;
+      response += `• Today's Sales: ₦${data.businessProfile.todaySales?.toLocaleString() || 'N/A'}\n`;
+      if (grossMargin > 0) {
+        response += `• Gross Margin: ${grossMargin.toFixed(1)}%\n`;
+      }
+    }
+    
+    // Add inventory data if available
+    if (data.businessProfile?.lowStockCount !== undefined || data.businessProfile?.outOfStockCount !== undefined) {
+      response += `\n📦 INVENTORY DATA:\n`;
+      if (data.businessProfile?.lowStockCount !== undefined && data.businessProfile.lowStockCount > 0) {
+        response += `• Low Stock Items: ${data.businessProfile.lowStockCount}\n`;
+      }
+      if (data.businessProfile?.outOfStockCount !== undefined && data.businessProfile.outOfStockCount > 0) {
+        response += `• Out of Stock Items: ${data.businessProfile.outOfStockCount}\n`;
+      }
+    }
+    
+    // Add expense data if available
+    if (data.businessProfile?.todayExpenses !== undefined) {
+      response += `\n💸 EXPENSE DATA:\n`;
+      response += `• Today's Expenses: ₦${data.businessProfile.todayExpenses?.toLocaleString() || 'N/A'}\n`;
+      if (data.businessProfile?.totalExpenses !== undefined) {
+        response += `• Total Expenses: ₦${data.businessProfile.totalExpenses?.toLocaleString() || 'N/A'}\n`;
+      }
+    }
+    
+    // Add cash flow data if available
+    if (data.businessProfile?.cashFlow && data.businessProfile.cashFlow.length > 0) {
+      const cashAvailable = data.businessProfile.cashFlow.find((cf: any) => cf.type === 'available')?.amount || 0;
+      const cashInHand = data.businessProfile.cashFlow.find((cf: any) => cf.type === 'in_hand')?.amount || 0;
+      
+      response += `\n💵 CASH FLOW DATA:\n`;
+      response += `• Cash Available: ₦${cashAvailable.toLocaleString()}\n`;
+      response += `• Cash In Hand: ₦${cashInHand.toLocaleString()}\n`;
+    }
+    
     // Add calculations
     if (data.calculations && data.calculations.length > 0) {
-      response += '\n🧮 CALCULATIONS:\n';
+      response += `\n🧮 CALCULATIONS:\n`;
       data.calculations.slice(0, 2).forEach((calc: any) => {
         response += `• ${calc.type}: ${calc.result}\n`;
       });
@@ -316,7 +454,7 @@ export class MasterProcessor {
     // Add risks
     const criticalRisks = data.risks?.filter((r: any) => r.severity === 'critical' || r.severity === 'high');
     if (criticalRisks && criticalRisks.length > 0) {
-      response += '\n⚠️ RISKS:\n';
+      response += `\n⚠️ RISKS:\n`;
       criticalRisks.slice(0, 2).forEach((risk: any) => {
         response += `• [${risk.severity.toUpperCase()}] ${risk.description}\n`;
       });
@@ -324,7 +462,7 @@ export class MasterProcessor {
     
     // Add industry intelligence
     if (data.industryIntelligence?.focusAreas) {
-      response += '\n🏭 INDUSTRY FOCUS:\n';
+      response += `\n🏭 INDUSTRY FOCUS:\n`;
       data.industryIntelligence.focusAreas.slice(0, 2).forEach((focus: string) => {
         response += `• ${focus}\n`;
       });
@@ -332,14 +470,14 @@ export class MasterProcessor {
     
     // Add next action
     if (data.nextPriority) {
-      response += '\n🎯 NEXT ACTION:\n';
+      response += `\n🎯 NEXT ACTION:\n`;
       response += `• ${data.nextPriority.title}\n`;
       response += `  ${data.nextPriority.description}\n`;
     }
     
     // Add Busmo action if available
     if (data.busmoAction) {
-      response += '\n🎯 BUSMO ACTION:\n';
+      response += `\n🎯 BUSMO ACTION:\n`;
       response += `• ${data.busmoAction.description}\n`;
       response += `  Confidence: ${(data.busmoAction.confidence * 100).toFixed(0)}%\n`;
     }
@@ -381,4 +519,13 @@ export function clearMasterProcessor(businessId: string, userId: string): void {
   clearMemoryEngine(businessId, userId);
   clearLearningEngine(businessId, userId);
   clearPlanningEngine(businessId);
+}
+
+/**
+ * Factory function to create a conversation planner
+ */
+export function createConversationPlanner(context: any): any {
+  // This would create and return a conversation planner
+  // Implementation details would go here
+  return {};
 }

@@ -20,7 +20,7 @@ export interface ReasoningResult {
   recommendedAction: string;
   contextSummary: string;
   canAnswerWithExistingData: boolean; // NEW: Can we answer with existing data?
-  relevantDataPoints: string[]; // NEW: What data is most relevant?
+  relevantDataPoints: string[]; // NEW: What data is most relevant to the user's question
 }
 
 export class ReasoningEngine {
@@ -49,14 +49,14 @@ export class ReasoningEngine {
       return 'planning';
     }
     
+    // Data analysis
+    if (lowerMessage.includes('analyze') || lowerMessage.includes('review') || lowerMessage.includes('evaluate')) {
+      return 'data_analysis';
+    }
+    
     // Operational
     if (lowerMessage.includes('record') || lowerMessage.includes('add') || lowerMessage.includes('update') || lowerMessage.includes('delete')) {
       return 'operational';
-    }
-    
-    // NEW: Data analysis
-    if (lowerMessage.includes('analyze') || lowerMessage.includes('review') || lowerMessage.includes('evaluate')) {
-      return 'data_analysis';
     }
     
     // Default
@@ -79,21 +79,6 @@ export class ReasoningEngine {
           return 'Improve customer relationships';
         }
         return 'Get business information';
-        
-      case 'data_analysis': // NEW: Handle data analysis intent
-        if (lowerMessage.includes('sales') || lowerMessage.includes('revenue')) {
-          return 'Analyze sales performance';
-        }
-        if (lowerMessage.includes('inventory') || lowerMessage.includes('stock')) {
-          return 'Analyze inventory performance';
-        }
-        if (lowerMessage.includes('expense') || lowerMessage.includes('cost')) {
-          return 'Analyze expense patterns';
-        }
-        if (lowerMessage.includes('profit') || lowerMessage.includes('margin')) {
-          return 'Analyze profitability';
-        }
-        return 'Analyze business performance';
         
       case 'decision_support':
         if (lowerMessage.includes('buy') || lowerMessage.includes('purchase') || lowerMessage.includes('invest')) {
@@ -128,6 +113,21 @@ export class ReasoningEngine {
         }
         return 'Create business plan';
         
+      case 'data_analysis':
+        if (lowerMessage.includes('sales') || lowerMessage.includes('revenue')) {
+          return 'Analyze sales performance';
+        }
+        if (lowerMessage.includes('inventory') || lowerMessage.includes('stock')) {
+          return 'Analyze inventory performance';
+        }
+        if (lowerMessage.includes('expense') || lowerMessage.includes('cost')) {
+          return 'Analyze expense patterns';
+        }
+        if (lowerMessage.includes('profit') || lowerMessage.includes('margin')) {
+          return 'Analyze profitability';
+        }
+        return 'Analyze business performance';
+        
       case 'operational':
         return 'Execute business operation';
         
@@ -158,11 +158,11 @@ export class ReasoningEngine {
     
     // General business overview
     if (/how is my business|business doing|overview|summary|performance/i.test(lowerMessage)) {
-      // Need at least sales OR expenses OR products to provide meaningful info
+      // Need at least sales OR expenses OR products
       return !!(businessData.sales || businessData.expenses || businessData.products);
     }
     
-    // Default to true if we have some business data
+    // Default to true if we have any business data
     return !!(context.businessProfile || businessData);
   }
   
@@ -186,8 +186,10 @@ export class ReasoningEngine {
     if (/(analyze|review|check|show me|what are|how are).*inventory|stock|products|items|goods|restock/i.test(lowerMessage)) {
       if (businessData.products && businessData.products.length > 0) {
         relevantData.push('inventory_data');
+        // Add specific inventory metrics
         if (businessData.lowStockCount) relevantData.push('low_stock_items');
         if (businessData.outOfStockCount) relevantData.push('out_of_stock_items');
+        if (businessData.productList && businessData.productList.length > 0) relevantData.push('product_list');
       }
     }
     
@@ -195,13 +197,21 @@ export class ReasoningEngine {
     if (/(analyze|review|check|show me|what are|how are).*expenses|costs|spending|bills|overhead/i.test(lowerMessage)) {
       if (businessData.expenses && businessData.expenses.length > 0) {
         relevantData.push('expense_data');
+        // Add specific expense metrics
+        if (businessData.totalExpenses) relevantData.push('total_expenses');
+        if (businessData.todayExpenses) relevantData.push('today_expenses');
+        if (businessData.expenseList && businessData.expenseList.length > 0) relevantData.push('expense_list');
       }
     }
     
     // Cash flow data relevance
     if (/(analyze|review|check|show me|what are|how are).*cash|balance|reserves|flow|available/i.test(lowerMessage)) {
-      if (businessData.cashAvailable !== undefined) {
-        relevantData.push('cash_available');
+      if (businessData.cashFlow && businessData.cashFlow.length > 0) {
+        relevantData.push('cash_flow_data');
+        // Add specific cash flow metrics
+        if (businessData.cashAvailable) relevantData.push('cash_available');
+        if (businessData.cashFlow && businessData.cashFlow.length > 0) relevantData.push('cash_flow_details');
+        if (businessData.expenseList && businessData.expenseList.length > 0) relevantData.push('expense_details');
       }
     }
     
@@ -209,10 +219,41 @@ export class ReasoningEngine {
     if (/(analyze|review|check|show me|what are|how are).*customers|clients|buyers|purchasers/i.test(lowerMessage)) {
       if (businessData.customers && businessData.customers.length > 0) {
         relevantData.push('customer_data');
+        // Add specific customer metrics
+        if (businessData.customerList && businessData.customerList.length > 0) relevantData.push('customer_list');
+        if (businessData.customerList?.length > 0) relevantData.push('customer_segments');
       }
     }
     
-    // Add general business profile if relevant
+    // Supplier data relevance
+    if (/(analyze|review|check|show me|what are|how are).*suppliers|vendors|producers|supplies/i.test(lowerMessage)) {
+      if (businessData.suppliers && businessData.suppliers.length > 0) {
+        relevantData.push('supplier_data');
+        // Add specific supplier metrics
+        if (businessData.suppliersList && businessData.suppliersList.length > 0) relevantData.push('supplier_list');
+        if (businessData.suppliersList?.length > 0) relevantData.push('supplier_performance');
+      }
+    }
+    
+    // Staff data relevance
+    if (/(analyze|review|check|show me|what are|how are).*staff|employees|workers|team/i.test(lowerMessage)) {
+      if (businessData.staff && businessData.staff.length > 0) {
+        relevantData.push('staff_data');
+        // Add specific staff metrics
+        if (businessData.staffList && businessData.staffList.length > 0) relevantData.push('staff_performance');
+        if (businessData.staffList?.length > 0) relevantData.push('staff_productivity');
+      }
+    }
+    
+    // General business data relevance
+    if (relevantData.length === 0 && (businessData.sales || businessData.expenses || businessData.products)) {
+      relevantData.push('basic_business_data');
+      if (businessData.sales) relevantData.push('sales_data');
+      if (businessData.expenses) relevantData.push('expense_data');
+      if (businessData.products) relevantData.push('inventory_data');
+    }
+    
+    // Add business profile if relevant
     if (relevantData.length > 0) {
       relevantData.push('business_profile');
     }
@@ -240,11 +281,11 @@ export class ReasoningEngine {
       missing.push('Expense information');
     }
     
-    if (goal.includes('inventory') && !profile.products) {
+    if (goal.includes('inventory') && !profile.productList) {
       missing.push('Product information');
     }
     
-    if (goal.includes('customer') && !profile.customers) {
+    if (goal.includes('customer') && !profile.customerList) {
       missing.push('Customer information');
     }
     
@@ -256,32 +297,32 @@ export class ReasoningEngine {
     const needs: string[] = [];
     
     switch (goal) {
+      case 'Analyze sales performance':
+        needs.push('Sales trend analysis', 'Top performing products', 'Customer buying patterns');
+        break;
+        
+      case 'Analyze inventory performance':
+        needs.push('Inventory turnover analysis', 'Slow-moving items', 'Restocking schedule');
+        break;
+        
+      case 'Analyze expense patterns':
+        needs.push('Expense categorization', 'Cost reduction opportunities', 'Budget tracking');
+        break;
+        
       case 'Understand financial performance':
-        needs.push('Profit trend analysis', 'Expense breakdown', 'Revenue comparison');
+        needs.push('Profit and loss statement', 'Cash flow analysis', 'Financial projections');
         break;
         
       case 'Manage inventory levels':
         needs.push('Reorder point calculation', 'Supplier information', 'Demand forecasting');
         break;
         
-      case 'Analyze sales performance': // NEW: Handle sales analysis
-        needs.push('Sales trend analysis', 'Top performing products', 'Customer buying patterns');
-        break;
-        
-      case 'Analyze inventory performance': // NEW: Handle inventory analysis
-        needs.push('Inventory turnover rates', 'Slow moving items', 'Restocking schedule');
-        break;
-        
-      case 'Analyze expense patterns': // NEW: Handle expense analysis
-        needs.push('Expense categorization', 'Cost reduction opportunities', 'Budget tracking');
-        break;
-        
       case 'Make purchasing/investment decision':
-        needs.push('ROI calculation', 'Cash flow impact', 'Risk assessment');
+        needs.push('ROI calculation', 'Cash flow impact', 'Vendor comparison');
         break;
         
       case 'Start new business initiative':
-        needs.push('Market research', 'Competitor analysis', 'Cost estimation', 'Revenue projection');
+        needs.push('Market validation', 'Competitor analysis', 'Cost estimation', 'Revenue projection');
         break;
         
       case 'Increase sales':
@@ -293,7 +334,7 @@ export class ReasoningEngine {
         break;
         
       case 'Plan business growth':
-        needs.push('Scaling strategy', 'Resource planning', 'Hiring plan');
+        needs.push('Phased growth plan', 'Resource planning', 'Hiring strategy');
         break;
         
       default:
@@ -308,10 +349,11 @@ export class ReasoningEngine {
     const risks: string[] = [];
     const profile = context.businessProfile;
     const snapshot = context.businessSnapshot;
+    const businessData = context.businessData || {};
     
     // Financial risks
     if (snapshot.cashAvailable !== undefined && snapshot.cashAvailable < 50000) {
-      risks.push('Low cash reserves - may struggle with unexpected expenses');
+      risks.push('Low cash reserves - consider building emergency fund');
     }
     
     if (profile.monthlyBurn && profile.openingCapital) {
@@ -322,12 +364,12 @@ export class ReasoningEngine {
     }
     
     // Operational risks
-    if (profile.inventoryShortages && profile.inventoryShortages.length > 0) {
+    if (businessData.inventoryShortages && businessData.inventoryShortages.length > 0) {
       risks.push('Inventory shortages may lead to lost sales');
     }
     
-    if (profile.outstandingInvoices && profile.outstandingInvoices > 100000) {
-      risks.push('High outstanding invoices - cash flow risk');
+    if (businessData.outOfStockItems && businessData.outOfStockItems.length > 0) {
+      risks.push('Out of stock items affecting sales');
     }
     
     // Market risks based on industry
@@ -347,22 +389,23 @@ export class ReasoningEngine {
     const opportunities: string[] = [];
     const profile = context.businessProfile;
     const snapshot = context.businessSnapshot;
+    const businessData = context.businessData || {};
     
     // Financial opportunities
     if (snapshot.profit && snapshot.profit > 0) {
       opportunities.push('Reinvest profits for growth');
     }
     
-    if (profile.cashAvailable && profile.cashAvailable > 200000) {
+    if (snapshot.cashAvailable && snapshot.cashAvailable > 200000) {
       opportunities.push('Capital available for expansion or investment');
     }
     
     // Operational opportunities
-    if (profile.products && profile.products.length > 0) {
+    if (businessData.productList && businessData.productList.length > 0) {
       opportunities.push('Optimize product mix for higher margins');
     }
     
-    if (profile.customers && profile.customers.length > 0) {
+    if (businessData.customerList && businessData.customerList.length > 0) {
       opportunities.push('Leverage customer base for referrals and repeat business');
     }
     
@@ -396,26 +439,36 @@ export class ReasoningEngine {
     
     // Otherwise, provide goal-specific recommendation
     switch (goal) {
-      case 'Analyze sales performance': // NEW: Specific recommendation for sales
-        return 'Review your sales data to identify top performers and trends';
-      case 'Analyze inventory performance': // NEW: Specific recommendation for inventory
+      case 'Analyze sales performance':
+        return 'Review sales data to identify top performers and trends';
+        
+      case 'Analyze inventory performance':
         return 'Analyze inventory turnover and identify slow-moving items';
-      case 'Analyze expense patterns': // NEW: Specific recommendation for expenses
+        
+      case 'Analyze expense patterns':
         return 'Categorize expenses to identify cost reduction opportunities';
+        
       case 'Understand financial performance':
         return 'Review profit and loss statement for insights';
+        
       case 'Manage inventory levels':
-        return 'Analyze inventory turnover and reorder points';
+        return 'Analyze inventory turnover and optimize reorder points';
+        
       case 'Make purchasing/investment decision':
         return 'Calculate ROI and assess cash flow impact';
+        
       case 'Start new business initiative':
         return 'Conduct market validation before full commitment';
+        
       case 'Increase sales':
         return 'Identify and target high-value customer segments';
+        
       case 'Improve cash flow':
         return 'Optimize payment terms and reduce expenses';
+        
       case 'Plan business growth':
         return 'Develop phased growth plan with milestones';
+        
       default:
         return 'Focus on highest-impact activity for current stage';
     }

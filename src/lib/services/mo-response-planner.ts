@@ -2,7 +2,7 @@
 // Constructs responses with Observation, Analysis, Calculation, Risk, Recommendation, Next Step
 
 export interface ResponseSection {
-  type: 'observation' | 'analysis' | 'calculation' | 'risk' | 'recommendation' | 'next_step';
+  type: 'observation' | 'analysis' | 'calculation' | 'risk' | 'recommendation' | 'next_step' | 'data_insight' | 'data_card'; // NEW: Added data card type
   content: string;
   priority: 'high' | 'medium' | 'low';
   data?: any;
@@ -26,6 +26,7 @@ export interface ResponsePlanningContext {
   businessContext: any;
   suggestedAction?: string;
   busmoAction?: any;
+  businessData?: any; // NEW: Include business data for analysis
 }
 
 export class ResponsePlanner {
@@ -34,7 +35,20 @@ export class ResponsePlanner {
   planResponse(context: ResponsePlanningContext): PlannedResponse {
     const sections: ResponseSection[] = [];
     
-    // Always start with observation if relevant
+    // NEW: Generate data card section first if relevant
+    const dataCard = this.generateDataCard(context);
+    if (dataCard) {
+      sections.push(dataCard);
+    }
+    // Otherwise generate data insight section
+    else {
+      const dataInsight = this.generateDataInsight(context);
+      if (dataInsight) {
+        sections.push(dataInsight);
+      }
+    }
+    
+    // Add observation if relevant
     const observation = this.generateObservation(context);
     if (observation) {
       sections.push(observation);
@@ -90,6 +104,225 @@ export class ResponsePlanner {
       tone,
       estimatedLength: this.estimateLength(sections),
       includesAction,
+    };
+  }
+  
+  // NEW: Generate data card section for concise business data presentation
+  private generateDataCard(context: ResponsePlanningContext): ResponseSection | null {
+    const { businessData, reasoning } = context;
+    
+    if (!businessData || !reasoning?.relevantDataPoints) {
+      return null;
+    }
+    
+    const lowerMessage = context.userMessage.toLowerCase();
+    
+    // Sales data card
+    if (reasoning.relevantDataPoints.includes('sales_data') && businessData.sales) {
+      const totalSales = businessData.sales.reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      const todaySales = businessData.sales.filter((sale: any) => {
+        const saleDate = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+        return saleDate.toDateString() === new Date().toDateString();
+      })
+      .reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      // Only create data card if user is asking about sales
+      if (/analyze.*sales|sales.*performance|how are sales|sales.*doing|sales.*today|sales.*overview/i.test(lowerMessage)) {
+        const content = `📊 **SALES DASHBOARD**
+        
+**Today:** ₦${todaySales.toLocaleString()}
+**Total:** ₦${totalSales.toLocaleString()}
+**Orders:** ${businessData.sales.length}
+**Avg Order:** ₦${businessData.sales.length > 0 ? (totalSales / businessData.sales.length).toLocaleString() : '0'}`;
+
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    // Inventory data card
+    if (reasoning.relevantDataPoints.includes('inventory_data') && businessData.products) {
+      if (/analyze.*inventory|inventory.*performance|how is inventory|inventory.*doing|inventory.*overview/i.test(lowerMessage)) {
+        const lowStockCount = businessData.products.filter((p: any) => p.stockLevel < p.reorderLevel).length;
+        const outOfStockCount = businessData.products.filter((p: any) => p.stockLevel === 0).length;
+        
+        const content = `📦 **INVENTORY DASHBOARD**
+        
+**Products:** ${businessData.products.length}
+**Low Stock:** ${lowStockCount}
+**Out of Stock:** ${outOfStockCount}
+**Categories:** ${businessData.products.slice(0, 3).map((p: any) => p.category).filter(Boolean).join(', ') || 'Not categorized'}`;
+        
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    // Expense data card
+    if (reasoning.relevantDataPoints.includes('expense_data') && businessData.expenses) {
+      if (/analyze.*expenses|expenses.*performance|how are expenses|expenses.*doing|expenses.*overview/i.test(lowerMessage)) {
+        const totalExpenses = businessData.expenses.reduce((sum: number, expense: any) => 
+          sum + (parseFloat(expense.amount) || 0), 0
+        );
+        
+        const todayExpenses = businessData.expenses.filter((expense: any) => {
+          const expenseDate = expense.createdAt?.toDate ? expense.createdAt.toDate() : new Date(expense.createdAt);
+          return expenseDate.toDateString() === new Date().toDateString();
+        })
+        .reduce((sum: number, expense: any) => 
+          sum + (parseFloat(expense.amount) || 0), 0
+        );
+        
+        const content = `💸 **EXPENSES DASHBOARD**
+        
+**Today:** ₦${todayExpenses.toLocaleString()}
+**Total:** ₦${totalExpenses.toLocaleString()}
+**Categories:** ${businessData.expenses.slice(0, 2).map((e: any) => e.category).join(', ') || 'Not yet categorized'}`;
+        
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    // Cash flow data card
+    if (reasoning.relevantDataPoints.includes('cash_flow_data') && businessData.cashFlow) {
+      if (/analyze.*cash|cash.*performance|how is cash|cash.*doing|cash.*overview/i.test(lowerMessage)) {
+        const cashAvailable = businessData.cashFlow.find((cf: any) => cf.type === 'available')?.amount || 0;
+        const cashInHand = businessData.cashFlow.find((cf: any) => cf.type === 'in_hand')?.amount || 0;
+        
+        const content = `💵 **CASH FLOW DASHBOARD**
+        
+**Cash Available:** ₦${cashAvailable.toLocaleString()}
+**Cash In Hand:** ₦${cashInHand.toLocaleString()}
+**Transactions:** ${businessData.cashFlow.length}`;
+        
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    // Customer data card
+    if (reasoning.relevantDataPoints.includes('customer_data') && businessData.customers) {
+      if (/analyze.*customers|customers.*performance|how are customers|customers.*doing|customers.*overview/i.test(lowerMessage)) {
+        const customerCount = businessData.customers.length;
+        const activeCustomers = businessData.customers.filter((c: any) => c.active).length;
+        
+        const content = `👥 **CUSTOMERS DASHBOARD**
+        
+**Total:** ${customerCount}
+**Active:** ${activeCustomers}`;
+        
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    // Supplier data card
+    if (reasoning.relevantDataPoints.includes('supplier_data') && businessData.suppliers) {
+      if (/analyze.*suppliers|suppliers.*performance|how are suppliers|suppliers.*doing|suppliers.*overview/i.test(lowerMessage)) {
+        const supplierCount = businessData.suppliers.length;
+        const activeSuppliers = businessData.suppliers.filter((s: any) => s.active).length;
+        
+        const content = `🏭 **SUPPLIERS DASHBOARD**
+        
+**Total:** ${supplierCount}
+**Active:** ${activeSuppliers}`;
+        
+        return {
+          type: 'data_card',
+          content,
+          priority: 'high',
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  // Generate data insight section - NEW
+  private generateDataInsight(context: ResponsePlanningContext): ResponseSection | null {
+    const { businessData, reasoning } = context;
+    
+    if (!businessData || !reasoning?.relevantDataPoints) {
+      return null;
+    }
+    
+    let content = '';
+    
+    // Sales data insight
+    if (reasoning.relevantDataPoints.includes('sales_data') && businessData.sales) {
+      const totalSales = businessData.sales.reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      const todaySales = businessData.sales.filter((sale: any) => {
+        const saleDate = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+        return saleDate.toDateString() === new Date().toDateString();
+      })
+      .reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.amount) || 0), 0
+      );
+      
+      content += `Total sales: ₦${totalSales.toLocaleString()}. Today: ₦${todaySales.toLocaleString()}`;
+    }
+    
+    // Inventory data insight
+    if (reasoning.relevantDataPoints.includes('inventory_data') && businessData.products) {
+      if (content) content += '. ';
+      
+      const lowStockCount = businessData.products.filter((p: any) => p.stockLevel < p.reorderLevel).length;
+      const outOfStockCount = businessData.products.filter((p: any) => p.stockLevel === 0).length;
+      
+      content += `${businessData.products.length} products. Low stock: ${lowStockCount}. Out of stock: ${outOfStockCount}`;
+    }
+    
+    // Expense data insight
+    if (reasoning.relevantDataPoints.includes('expense_data') && businessData.expenses) {
+      if (content) content += '. ';
+      
+      const totalExpenses = businessData.expenses.reduce((sum: number, expense: any) => 
+        sum + (parseFloat(expense.amount) || 0), 0
+      );
+      
+      content += `Total expenses: ₦${totalExpenses.toLocaleString()}`;
+    }
+    
+    // Cash flow data insight
+    if (reasoning.relevantDataPoints.includes('cash_flow_data') && businessData.cashFlow) {
+      if (content) content += '. ';
+      
+      const cashAvailable = businessData.cashFlow.find((cf: any) => cf.type === 'available')?.amount || 0;
+      const cashInHand = businessData.cashFlow.find((cf: any) => cf.type === 'in_hand')?.amount || 0;
+      
+      content += `Cash available: ₦${cashAvailable.toLocaleString()}. In hand: ₦${cashInHand.toLocaleString()}`;
+    }
+    
+    if (!content) return null;
+    
+    return {
+      type: 'data_insight',
+      content,
+      priority: 'high',
     };
   }
   
@@ -306,13 +539,22 @@ export class ResponsePlanner {
   private generateSummary(sections: ResponseSection[], context: ResponsePlanningContext): string {
     if (sections.length === 0) return '';
     
+    const dataCard = sections.find(s => s.type === 'data_card');
+    const dataInsight = sections.find(s => s.type === 'data_insight');
     const observation = sections.find(s => s.type === 'observation');
     const analysis = sections.find(s => s.type === 'analysis');
     const recommendation = sections.find(s => s.type === 'recommendation');
     
     let summary = '';
     
+    if (dataCard) {
+      summary += dataCard.content.split('\n')[0]; // Just the first line for summary
+    } else if (dataInsight) {
+      summary += dataInsight.content;
+    }
+    
     if (observation) {
+      if (summary) summary += '. ';
       summary += observation.content;
     }
     
@@ -345,6 +587,7 @@ export class ResponsePlanner {
         cautious: '⚡ CAUTION: ',
         encouraging: '💡 NOTE: ',
       };
+      
       response += toneIndicator[plannedResponse.tone] || '';
     }
     
@@ -357,10 +600,17 @@ export class ResponsePlanner {
         risk: '⚠️ Risk',
         recommendation: '✅ Recommendation',
         next_step: '🎯 Next Step',
+        data_insight: '📈 Data Insight', // NEW: Data insight header
+        data_card: '', // NEW: Data card doesn't need a header as it's formatted differently
       };
       
-      response += `\n${sectionHeaders[section.type]}:\n`;
-      response += `${section.content}\n`;
+      // Special formatting for data cards
+      if (section.type === 'data_card') {
+        response += `${section.content}\n\n`;
+      } else {
+        response += `\n${sectionHeaders[section.type]}:\n`;
+        response += `${section.content}\n`;
+      }
     });
     
     return response;
@@ -368,11 +618,16 @@ export class ResponsePlanner {
   
   // Format as concise response (for shorter interactions)
   formatConcise(plannedResponse: PlannedResponse): string {
+    const dataCard = plannedResponse.sections.find(s => s.type === 'data_card');
     const recommendation = plannedResponse.sections.find(s => s.type === 'recommendation');
     const nextStep = plannedResponse.sections.find(s => s.type === 'next_step');
     const risk = plannedResponse.sections.find(s => s.type === 'risk');
     
     let response = '';
+    
+    if (dataCard) {
+      response += dataCard.content + '\n\n';
+    }
     
     if (risk && risk.priority === 'high') {
       response += `⚠️ ${risk.content}\n\n`;
@@ -404,6 +659,12 @@ export class ResponsePlanner {
       'excellent idea',
       'happy to help',
       'good luck',
+      'that\'s wonderful',
+      'amazing',
+      'very good',
+      'very well',
+      'very bad',
+      'very poor',
     ];
     
     plannedResponse.sections.forEach(section => {
@@ -425,9 +686,10 @@ export class ResponsePlanner {
     // Check if response moves business forward
     const hasRecommendation = plannedResponse.sections.some(s => s.type === 'recommendation');
     const hasNextStep = plannedResponse.sections.some(s => s.type === 'next_step');
+    const hasDataInsight = plannedResponse.sections.some(s => s.type === 'data_insight' || s.type === 'data_card'); // NEW: Check for data insight or data card
     
-    if (!hasRecommendation && !hasNextStep) {
-      issues.push('Response lacks clear recommendation or next step');
+    if (!hasRecommendation && !hasNextStep && !hasDataInsight) { // NEW: Allow data insight or data card as valid content
+      issues.push('Response lacks clear recommendation, next step, or data insight');
     }
     
     return {
@@ -447,6 +709,10 @@ export class ResponsePlanner {
       'good luck',
       'that\'s wonderful',
       'amazing',
+      'very good',
+      'very well',
+      'very bad',
+      'very poor',
     ];
     
     plannedResponse.sections.forEach(section => {
@@ -465,8 +731,8 @@ export class ResponsePlanner {
     
     // Ensure response has actionable content
     const hasActionable = plannedResponse.sections.some(
-      s => s.type === 'recommendation' || s.type === 'next_step'
-    );
+      s => s.type === 'recommendation' || s.type === 'next_step' || s.type === 'data_insight' || s.type === 'data_card'
+    ); // NEW: Allow data insight or data card as actionable content
     
     if (!hasActionable) {
       plannedResponse.sections.push({
