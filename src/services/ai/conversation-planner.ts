@@ -91,7 +91,17 @@ export class ConversationPlanner {
   /**
    * Main pipeline entry point - executes all detection steps
    */
-  async planResponse(userMessage: string): Promise<PlannedResponse> {
+  async planResponse(userMessage: string, businessData?: any): Promise<PlannedResponse> {
+    // Update business profile from business data if available
+    if (businessData && !this.businessProfile) {
+      this.businessProfile = {
+        businessId: businessData.businessId || businessData.businessDataFromDoc?.businessId,
+        businessName: businessData.businessDataFromDoc?.businessName,
+        industry: businessData.businessDataFromDoc?.industry,
+        ...businessData.businessDataFromDoc
+      };
+    }
+    
     // NEW: Data Dependency Analysis - Check what user is asking and what data is available
     const requiredDataForQuery = this.determineRequiredDataForQuery(userMessage);
     const availableDataForQuery = this.determineAvailableDataForQuery(requiredDataForQuery, this.businessProfile);
