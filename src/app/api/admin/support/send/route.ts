@@ -1,4 +1,4 @@
-// src/app/api/admin/support/send/route.ts
+nd // src/app/api/admin/support/send/route.ts
 import { NextRequest } from 'next/server';
 
 // POST endpoint to send a message

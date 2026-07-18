@@ -575,10 +575,11 @@ Use this reasoning to guide your response. Focus on the user's actual goal and t
     // Add proactive insights to system prompt if available
     if (processingResult.opportunities.length > 0) {
       systemPrompt += `
-
-${processingResult.opportunities.map((o: any) => `[${o.type.toUpperCase()}] ${o.message}`).join('\n')}
-
-Use these insights to provide proactive recommendations. Don't wait for the user to ask about these issues.`;
+          
+${processingResult.opportunities.map((o: any) => `${o.type.toUpperCase()} ${o.message}`).join('\n')}
+          
+Use these insights to provide proactive recommendations. Don't wait for the user to ask about these issues.
+        `.trim();
     }
 
     // Add new business inquiry specific instructions
