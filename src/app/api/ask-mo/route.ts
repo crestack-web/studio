@@ -169,12 +169,41 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const planner = createConversationPlanner(conversationContext);
-
-    // STEP 2: Run Conversation Planner Pipeline
-    console.log('🧠 [Ask MO API] Running conversation planner...');
-    const plannedResponse = await planner.planResponse(message);
-    console.log('🎯 [Ask MO API] Planner decisions:', plannedResponse.reasoning);
+    let plannedResponse;
+    let planner: any = null;
+    try {
+      planner = createConversationPlanner(conversationContext);
+      console.log('🧠 [Ask MO API] Running conversation planner...');
+      plannedResponse = await planner.planResponse(message);
+      console.log('🎯 [Ask MO API] Planner decisions:', plannedResponse.reasoning);
+    } catch (plannerError) {
+      console.error('❌ [Ask MO API] Conversation Planner error:', plannerError);
+      // Continue with default response if planner fails
+      plannedResponse = {
+        intent: 'information' as any,
+        conversationGoal: 'inform' as any,
+        responseDepth: 'guided' as any,
+        topicType: 'business_data' as any,
+        topicChanged: false,
+        shouldRetrieveData: true,
+        dataRequirements: { 
+          salesData: true, 
+          inventoryData: true, 
+          expenseData: true,
+          customerData: true,
+          staffData: true,
+          businessMetrics: true,
+          timeRange: 'month' as any 
+        },
+        requiredDataForQuery: [],
+        availableDataForQuery: [],
+        canAnswerWithExistingData: false,
+        topicRelevanceScores: {},
+        shouldPerformAction: false,
+        reasoning: 'Planner failed, using defaults',
+        systemPrompt: '',
+      };
+    }
 
     console.log('🧠 [Ask MO API] Business Profile:', {
       industry: businessProfile?.industry,
@@ -342,18 +371,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Run Master Processor - orchestrates all MO engines
-    const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
-    const processingResult = await masterProcessor.process({
-      message,
-      businessId: businessId || 'default',
-      userId: userId || 'default',
-      conversationId: conversationHistory.length > 0 ? 'current' : 'new',
-      conversationHistory: effectiveHistory,
-      businessData,
-      userRole,
-      language,
-      languageName,
-    });
+    let processingResult;
+    try {
+      const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
+      processingResult = await masterProcessor.process({
+        message,
+        businessId: businessId || 'default',
+        userId: userId || 'default',
+        conversationId: conversationHistory.length > 0 ? 'current' : 'new',
+        conversationHistory: effectiveHistory,
+        businessData,
+        userRole,
+        language,
+        languageName,
+      });
+    } catch (processorError) {
+      console.error('❌ [Ask MO API] Master Processor error:', processorError);
+      throw new Error(`Master Processor failed: ${processorError instanceof Error ? processorError.message : 'Unknown error'}`);
+    }
 
     console.log('🚀 [Ask MO API] Master Processing completed:', {
       processingTime: processingResult.processingTime,
@@ -465,10 +500,12 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      return NextResponse.json(
-        { error: 'Google Gen AI API key is not configured' },
-        { status: 500 }
-      );
+      // Fallback response if no API key
+      return NextResponse.json({
+        answer: 'I apologize, but the AI service is not properly configured. Please contact support.',
+        error: 'Google Gen AI API key is not configured',
+        timestamp: new Date().toISOString()
+      }, { status: 500 });
     }
 
     // NEW: Add data dependency planning context to system prompt
@@ -486,7 +523,7 @@ Only ask for additional information if it's truly necessary to improve the respo
 
     // NEW: Add data relevance engine context to system prompt
     const sortedRelevance = Object.entries(plannedResponse.topicRelevanceScores)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([,a], [,b]) => (b as number) - (a as number) as number)
       .slice(0, 5); // Top 5 most relevant topics
 
     const dataRelevanceContext = `
@@ -729,6 +766,9 @@ ${processingResult.nextAction}`;
 
   } catch (error) {
     console.error('❌ [Ask MO API] Error:', error);
+    console.error('❌ [Ask MO API] Error type:', typeof error);
+    console.error('❌ [Ask MO API] Error constructor:', error?.constructor?.name);
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : 'No stack trace';
     const errorName = error instanceof Error ? error.name : 'Unknown';
@@ -737,6 +777,7 @@ ${processingResult.nextAction}`;
       name: errorName,
       message: errorMessage,
       stack: errorStack,
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
     });
     
     if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {

@@ -3,7 +3,7 @@
 
 import { getIntentEngine, IntentClassification } from './mo-intent-engine';
 import { getMemoryEngine, clearMemoryEngine } from './mo-memory-engine';
-import { getBusinessProfileManager } from './mo-business-profile';
+import { getBusinessProfileManager, BusinessProfile, getBusinessProfile, BusinessSnapshot, updateBusinessProfile } from './mo-business-profile';
 import { getCalculationEngine } from './mo-calculation-engine';
 import { getReasoningEngine } from './mo-reasoning-engine';
 import { getIndustryIntelligenceEngine } from './mo-industry-intelligence';
@@ -13,7 +13,10 @@ import { getBusmoActionEngine } from './mo-action-engine';
 import { getResponsePlanner, PlannedResponse } from './mo-response-planner';
 import { getLearningEngine, clearLearningEngine } from './mo-learning-engine';
 import { getPrinciplesEnforcer } from './mo-principles-enforcer';
+import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
+// Define the ProcessingContext interface here since it's used in this file
 export interface ProcessingContext {
   message: string;
   businessId: string;
@@ -26,6 +29,7 @@ export interface ProcessingContext {
   languageName?: string;
 }
 
+// Update the ProcessingResult interface to include sales data
 export interface ProcessingResult {
   intent: IntentClassification;
   reasoning: any;
@@ -39,14 +43,89 @@ export interface ProcessingResult {
   principlesScore: number;
   finalResponse: string;
   processingTime: number;
-  canAnswerWithExistingData: boolean; // NEW: Can answer with existing data
-  relevantDataPoints: string[]; // NEW: Relevant data points
-  totalSales?: number; // NEW: Total sales data
-  todaySales?: number; // NEW: Today's sales
-  totalProfit?: number; // NEW: Total profit
-  todayProfit?: number; // NEW: Today's profit
-  lowStockCount?: number; // NEW: Low stock count
-  outOfStockCount?: number; // NEW: Out of stock count
+  canAnswerWithExistingData: boolean;
+  relevantDataPoints: string[];
+  todaySales?: number;
+  todaySalesCount?: number;
+  todayProfit?: number;
+  totalSales?: number;
+  totalProfit?: number;
+  lowStockCount?: number;
+  outOfStockCount?: number;
+  salesData?: any[];
+}
+
+export class BusinessProfileManager {
+  private profile: BusinessProfile | null = null;
+
+  constructor(private businessId: string) {}
+
+  async loadProfile() {
+    this.profile = await getBusinessProfile(this.businessId);
+    return this.profile;
+  }
+
+  getSnapshot(): BusinessSnapshot {
+    if (!this.profile) {
+      return {};
+    }
+    return {
+      openingCapital: 0,
+      expectedExpenses: 0,
+      expectedIncome: 0,
+      totalSales: 0,
+      totalProfit: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      salesData: [],
+      ...this.profile
+    };
+  }
+
+  updateFromMessage(message: string, updates: any) {
+    if (!this.profile) {
+      return;
+    }
+    Object.assign(this.profile, updates);
+    updateBusinessProfile(this.businessId, this.profile);
+  }
+
+  updateWithFullData(data: any) {
+    if (!this.profile) {
+      return;
+    }
+    Object.assign(this.profile, data);
+    updateBusinessProfile(this.businessId, this.profile);
+  }
+
+  // Add method to get today's sales
+  async getTodaysSales(businessId: string): Promise<{ totalSales: number, salesCount: number, profit: number }> {
+    try {
+      const { firestore } = initializeFirebase();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const salesQuery = query(
+        collection(firestore, `businesses/${businessId}/sales`),
+        where('timestamp', '>=', Timestamp.fromDate(today))
+      );
+      
+      const snapshot = await getDocs(salesQuery);
+      if (snapshot.empty) {
+        return { totalSales: 0, salesCount: 0, profit: 0 };
+      }
+      
+      const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const totalSales = sales.reduce((sum, sale: any) => sum + (sale.amount || sale.totalAmount || sale.saleAmount || 0), 0);
+      const salesCount = sales.length;
+      const profit = totalSales * 0.2; // Simplified profit calculation
+      
+      return { totalSales, salesCount, profit };
+    } catch (error) {
+      console.error('Error getting today\'s sales:', error);
+      return { totalSales: 0, salesCount: 0, profit: 0 };
+    }
+  }
 }
 
 export class MasterProcessor {
@@ -82,16 +161,17 @@ export class MasterProcessor {
     const relevantMemory = memoryEngine.getRelevantMemories(context.message, 10);
     console.log('🧠 [MO Master Processor] Retrieved relevant memories:', relevantMemory.length);
     
-    // Step 3: Get business profile
+    // Step 3: Get business profile - load it first
+    await profileManager.loadProfile();
     const businessProfile = profileManager.getProfile();
     const businessSnapshot = profileManager.getSnapshot();
-    console.log('📊 [MO Master Processor] Business profile loaded');
+    console.log('📊 [MO Master Processor] Business profile loaded:', businessProfile ? 'Found' : 'Not found');
     
     // Step 4: Classify intent
     const intent = intentEngine.classifyIntent({
       message: context.message,
       conversationHistory: context.conversationHistory,
-      businessProfile,
+      businessProfile: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       businessData: context.businessData,
     });
     console.log('🎯 [MO Master Processor] Intent classified:', intent.primaryIntent, 'confidence:', intent.confidence);
@@ -103,7 +183,7 @@ export class MasterProcessor {
     // Step 6: Run reasoning engine - UPDATED to pass businessData
     const reasoning = reasoningEngine.reason({
       message: context.message,
-      businessProfile,
+      businessProfile: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       businessSnapshot,
       calculations: [],
       conversationHistory: context.conversationHistory,
@@ -127,7 +207,7 @@ export class MasterProcessor {
     
     // Step 9: Assess risks
     const risks = riskEngine.assessRisks({
-      businessProfile,
+      businessProfile: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       businessData: context.businessData,
       financialData: businessSnapshot,
       operationalData: context.businessData,
@@ -141,7 +221,7 @@ export class MasterProcessor {
     
     // Step 11: Determine next priority action
     const planningContext = {
-      businessProfile,
+      businessProfile: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       businessData: context.businessData,
       currentIntent: intent.primaryIntent,
       risks,
@@ -156,7 +236,7 @@ export class MasterProcessor {
       message: context.message,
       intent: intent.primaryIntent,
       businessData: context.businessData,
-      businessProfile,
+      businessProfile: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       extractedEntities,
     };
     const busmoAction = actionEngine.determineAction(actionContext);
@@ -172,7 +252,7 @@ export class MasterProcessor {
       calculations,
       risks,
       opportunities: proactiveInsights,
-      businessContext: businessProfile,
+      businessContext: businessProfile || { industry: 'general', businessName: 'Unknown Business' },
       suggestedAction: reasoning.recommendedAction,
       busmoAction,
       businessData: context.businessData, // NEW: Pass business data for response planning
@@ -301,14 +381,14 @@ export class MasterProcessor {
       principlesScore: principlesCheck.score,
       finalResponse,
       processingTime,
-      canAnswerWithExistingData: reasoning.canAnswerWithExistingData, // NEW
-      relevantDataPoints: reasoning.relevantDataPoints, // NEW
-      totalSales: profileManager.getSnapshot().totalSales, // NEW
-      todaySales: profileManager.getSnapshot().todaySales, // NEW
-      totalProfit: profileManager.getSnapshot().totalProfit, // NEW
-      todayProfit: profileManager.getSnapshot().todayProfit, // NEW
-      lowStockCount: profileManager.getSnapshot().lowStockCount, // NEW
-      outOfStockCount: profileManager.getSnapshot().outOfStockCount, // NEW
+      canAnswerWithExistingData: reasoning.canAnswerWithExistingData,
+      relevantDataPoints: reasoning.relevantDataPoints,
+      totalSales: profileManager.getSnapshot().totalSales,
+      todaySales: profileManager.getSnapshot().todaySales,
+      totalProfit: profileManager.getSnapshot().totalProfit,
+      todayProfit: profileManager.getSnapshot().todayProfit,
+      lowStockCount: profileManager.getSnapshot().lowStockCount,
+      outOfStockCount: profileManager.getSnapshot().outOfStockCount,
     };
   }
   

@@ -727,7 +727,19 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp || Date.now()),
         }));
         
-        setMessages(messagesWithDates);
+        // Deduplicate messages by ID to prevent React key conflicts
+        const seenIds = new Set<string>();
+        const deduplicatedMessages = messagesWithDates.filter((msg: any) => {
+          if (!msg.id) return false;
+          if (seenIds.has(msg.id)) {
+            console.warn('⚠️ [useAskMO] Duplicate message ID detected:', msg.id);
+            return false;
+          }
+          seenIds.add(msg.id);
+          return true;
+        });
+        
+        setMessages(deduplicatedMessages);
         setCurrentConversationId(conversationId);
         console.log('✅ [useAskMO] Conversation loaded successfully');
       } else {

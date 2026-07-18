@@ -1,14 +1,42 @@
+import { getFirestore, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+
 // Business profile management for MO
-export function getBusinessProfile(businessId: string): Promise<any> {
-  // Placeholder implementation
-  return Promise.resolve(null);
+export async function getBusinessProfile(businessId: string): Promise<any> {
+  try {
+    const { firestore } = initializeFirebase();
+    const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+    
+    if (businessDoc.exists()) {
+      return {
+        businessId: businessDoc.id,
+        ...businessDoc.data(),
+        createdAt: businessDoc.data().createdAt?.toDate(),
+        updatedAt: businessDoc.data().updatedAt?.toDate()
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching business profile:', error);
+    return null;
+  }
 }
 
-export function updateBusinessProfile(businessId: string, profile: any): Promise<void> {
-  // Placeholder implementation
-  return Promise.resolve();
+export async function updateBusinessProfile(businessId: string, profile: any): Promise<void> {
+  try {
+    const { firestore } = initializeFirebase();
+    const businessDoc = doc(firestore, 'businesses', businessId);
+    await updateDoc(businessDoc, {
+      ...profile,
+      updatedAt: Timestamp.now()
+    });
+  } catch (error) {
+    console.error('Error updating business profile:', error);
+  }
 }
 
+// Define the BusinessProfile interface
 export interface BusinessProfile {
   businessId: string;
   businessName: string;

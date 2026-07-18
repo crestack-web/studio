@@ -443,7 +443,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       }
       
       const botMsg: MOMessage = {
-        id: (Date.now() + 1).toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: 'bot',
         content: `I'm having trouble connecting right now. ${errorMessage}. Please try again in a moment.`,
         timestamp: new Date(),
