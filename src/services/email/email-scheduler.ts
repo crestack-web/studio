@@ -1,10 +1,5 @@
-// ═══════════════════════════════════════════
-//  Email Scheduler Service
-// ═══════════════════════════════════════════
-//  Automated email scheduling using node-cron
-// ═══════════════════════════════════════════
-
-import cron from 'node-cron';
+// Add the proper import for cron
+import * as cron from 'node-cron';
 import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { sendDailyBusinessSummaryEmail, sendBusinessInsightsEmail, sendTrialReminderEmail } from './subscription-emails';
