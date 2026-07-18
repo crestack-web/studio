@@ -1,15 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { initializeFirebase } from "@/firebase";
-import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
+import { sendPasswordResetEmail as firebaseSendPasswordResetEmail, Auth } from "firebase/auth";
 
 export default function StaffForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [auth, setAuth] = useState<Auth | null>(null);
+
+  useEffect(() => {
+    // Initialize Firebase once on component mount
+    const { auth: firebaseAuth } = initializeFirebase();
+    setAuth(firebaseAuth);
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +24,9 @@ export default function StaffForgotPasswordPage() {
     setError(null);
 
     try {
-      const { auth } = initializeFirebase();
+      if (!auth) {
+        throw new Error("Firebase not initialized");
+      }
       
       // Send password reset email via Firebase Auth
       await firebaseSendPasswordResetEmail(auth, email, {
