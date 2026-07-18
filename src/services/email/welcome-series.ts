@@ -312,5 +312,17 @@ export async function sendWelcomeEmailSeries(params: WelcomeEmailParams) {
   console.log(`Welcome email series scheduled for ${email}`);
   console.log('Emails will be sent at: Day 0, Day 1, Day 3, Day 5, Day 7');
   
+  // Schedule emails with actual delays
+  emails.forEach((emailSchedule, index) => {
+    setTimeout(async () => {
+      try {
+        await emailSchedule.send();
+        console.log(`✓ Email ${index + 1} sent successfully`);
+      } catch (error) {
+        console.error(`✗ Failed to send email ${index + 1}:`, error);
+      }
+    }, emailSchedule.delay);
+  });
+  
   return { success: true, message: 'Welcome email series scheduled' };
 }

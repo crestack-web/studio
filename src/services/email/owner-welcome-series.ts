@@ -722,15 +722,17 @@ export async function sendOwnerWelcomeEmailSeries(params: OwnerWelcomeEmailParam
   console.log('Business category:', businessCategory || 'default');
   console.log('Emails will be sent at: Day 0, Day 1, Day 3, Day 5, Day 7');
   
-  // Send all emails immediately for testing (in production, these would be scheduled)
-  for (const emailSchedule of emails) {
-    try {
-      await emailSchedule.send();
-      console.log(`✓ Email ${emails.indexOf(emailSchedule) + 1} sent successfully`);
-    } catch (error) {
-      console.error(`✗ Failed to send email ${emails.indexOf(emailSchedule) + 1}:`, error);
-    }
-  }
+  // Schedule emails with actual delays
+  emails.forEach((emailSchedule, index) => {
+    setTimeout(async () => {
+      try {
+        await emailSchedule.send();
+        console.log(`✓ Email ${index + 1} sent successfully`);
+      } catch (error) {
+        console.error(`✗ Failed to send email ${index + 1}:`, error);
+      }
+    }, emailSchedule.delay);
+  });
   
-  return { success: true, message: 'Owner welcome email series completed' };
+  return { success: true, message: 'Owner welcome email series scheduled' };
 }

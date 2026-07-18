@@ -107,6 +107,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       renameConversation,
       updateCredits,
       resetToNewChat,
+      loadBusinessData,
     } = useAskMO({
      userId: user.id,
      userPlan: user.plan,
@@ -330,6 +331,10 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         setCurrentConversationId(newConversationId);
         console.log('✅ Conversation created:', newConversationId);
       }
+      
+      // Load business data on first message for better performance
+      console.log('📊 [InlineAIChat] Loading business data on first message');
+      await loadBusinessData();
     }
 
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -369,6 +374,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           languageName: langMeta.name,
           businessCategory: businessCategory,
           userRole: user.role,
+          businessSummary: businessSummary,
         }),
       });
 
