@@ -17,6 +17,8 @@ interface HelpArticle {
   excerpt: string;
   content: string;
   popular?: boolean;
+  actionLink?: string;
+  actionLabel?: string;
 }
 
 interface HelpCategory {
@@ -36,53 +38,65 @@ const HELP_ARTICLES: HelpArticle[] = [
     content: 'Welcome to Busmo! Start by setting up your business profile in Settings. Add your business details, configure tax settings, and invite your team members. Use the Dashboard to get an overview of your sales, inventory, and financial metrics.',
     popular: true 
   },
-  { 
-    id: '2', 
-    title: 'Recording and managing sales', 
-    category: 'Sales', 
-    excerpt: 'Learn how to record sales, manage transactions, and track revenue.', 
+  {
+    id: '2',
+    title: 'Recording and managing sales',
+    category: 'Sales',
+    excerpt: 'Learn how to record sales, manage transactions, and track revenue.',
     content: 'Navigate to the Sales section to record new transactions. Choose between cash, credit, or mobile money payments. Add items from your product catalog, apply discounts, and print receipts. All sales are automatically reflected in your inventory and financial reports.',
-    popular: true 
+    popular: true,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Record Sale'
   },
-  { 
-    id: '3', 
-    title: 'Adding and managing products', 
-    category: 'Products', 
-    excerpt: 'Create your product catalog with prices, categories, and stock levels.', 
+  {
+    id: '3',
+    title: 'Adding and managing products',
+    category: 'Products',
+    excerpt: 'Create your product catalog with prices, categories, and stock levels.',
     content: 'Go to Products to add your inventory. Set product names, SKUs, prices, cost prices, and minimum stock levels. Organize products into categories for easier management. Enable bulk pricing for wholesale customers and set tax rates per product.',
-    popular: true 
+    popular: true,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Add Product'
   },
-  { 
-    id: '4', 
-    title: 'Inventory management and stock control', 
-    category: 'Inventory', 
-    excerpt: 'Track stock across multiple locations, set reorder points, and manage transfers.', 
+  {
+    id: '4',
+    title: 'Inventory management and stock control',
+    category: 'Inventory',
+    excerpt: 'Track stock across multiple locations, set reorder points, and manage transfers.',
     content: 'Busmo provides powerful inventory management with multi-location support. Track stock levels in real-time, set low-stock alerts, and manage warehouse transfers. Record stock adjustments for damages, losses, or recounts. Generate invoices for stock releases and track returns.',
-    popular: true 
+    popular: true,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Inventory'
   },
-  { 
-    id: '5', 
-    title: 'Understanding profit, revenue, and margins', 
-    category: 'Finance', 
-    excerpt: 'Learn how Busmo calculates your business financial metrics.', 
+  {
+    id: '5',
+    title: 'Understanding profit, revenue, and margins',
+    category: 'Finance',
+    excerpt: 'Learn how Busmo calculates your business financial metrics.',
     content: 'Revenue is total sales before deductions. Profit is revenue minus cost of goods sold and expenses. Busmo automatically calculates profit margins per product and overall business health. View detailed breakdowns in the Reports section.',
-    popular: false 
+    popular: false,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Statement'
   },
-  { 
-    id: '6', 
-    title: 'Payments, bank accounts, and reconciliations', 
-    category: 'Payments', 
-    excerpt: 'Link bank accounts, process payments, and reconcile transactions.', 
+  {
+    id: '6',
+    title: 'Payments, bank accounts, and reconciliations',
+    category: 'Payments',
+    excerpt: 'Link bank accounts, process payments, and reconcile transactions.',
     content: 'Add your bank accounts in Settings to track deposits and withdrawals. Busmo supports multiple payment methods: cash, credit, bank transfer, and mobile money. Use the Reconciliation tool to match payments with deposits and identify discrepancies.',
-    popular: true 
+    popular: true,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Cashflow'
   },
-  { 
-    id: '7', 
-    title: 'Using Business Operations (MO) AI assistant', 
-    category: 'Features', 
-    excerpt: 'Leverage AI to record sales, check inventory, and get business insights.', 
+  {
+    id: '7',
+    title: 'Using Business Operations (MO) AI assistant',
+    category: 'Features',
+    excerpt: 'Leverage AI to record sales, check inventory, and get business insights.',
     content: 'MO AI is your virtual business assistant. Use natural language to record sales, check stock levels, track expenses, and generate reports. MO integrates with all Busmo features and learns your business patterns. Access MO via voice or text from the dashboard.',
-    popular: true 
+    popular: true,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Ask MO'
   },
   { 
     id: '8', 
@@ -92,13 +106,15 @@ const HELP_ARTICLES: HelpArticle[] = [
     content: 'Generate invoices for customer orders with automatic tax calculations. Choose from multiple receipt templates: Thermal, A5, Corporate, or Nigerian Wholesale. Customize templates with your logo, colors, and layout. Send invoices via WhatsApp or email.',
     popular: false 
   },
-  { 
-    id: '9', 
-    title: 'Managing expenses and cash flow', 
-    category: 'Finance', 
-    excerpt: 'Track business expenses, manage cash flow, and monitor financial health.', 
+  {
+    id: '9',
+    title: 'Managing expenses and cash flow',
+    category: 'Finance',
+    excerpt: 'Track business expenses, manage cash flow, and monitor financial health.',
     content: 'Record expenses by category: utilities, salaries, supplies, etc. Tag expenses to specific departments or projects. View cash flow statements showing money in vs money out. Set budget alerts and track spending against targets.',
-    popular: false 
+    popular: false,
+    actionLink: '/owner/dashboard',
+    actionLabel: 'Go to Add Expense'
   },
   { 
     id: '10', 
@@ -249,6 +265,19 @@ export default function HelpCenterPage() {
                   </p>
                 </div>
 
+                {selectedArticle.actionLink && (
+                  <div className="mb-8">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto"
+                      onClick={() => window.location.href = selectedArticle.actionLink!}
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      {selectedArticle.actionLabel || 'Go to Dashboard'}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border-2 border-primary/20">
                   <h3 className="font-semibold text-foreground mb-2">Need more help?</h3>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -382,19 +411,31 @@ export default function HelpCenterPage() {
                     <AccordionContent className="px-6 pb-6">
                       <div className="pt-4 border-t border-border">
                         <p className="text-muted-foreground mb-4">{article.excerpt}</p>
-                        <div className="bg-muted/50 rounded-lg p-4">
+                        <div className="bg-muted/50 rounded-lg p-4 mb-4">
                           <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
                             {article.content}
                           </p>
                         </div>
-                        <Button
-                          variant="link"
-                          className="mt-4 pl-0 text-primary"
-                          onClick={() => setSelectedArticle(article)}
-                        >
-                          View full article
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            variant="link"
+                            className="pl-0 text-primary"
+                            onClick={() => setSelectedArticle(article)}
+                          >
+                            View full article
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                          </Button>
+                          {article.actionLink && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.location.href = article.actionLink!}
+                            >
+                              <ArrowRight className="w-4 h-4 mr-1" />
+                              {article.actionLabel}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
