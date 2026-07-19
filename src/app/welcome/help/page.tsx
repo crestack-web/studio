@@ -4,6 +4,11 @@ import React, { useState } from 'react';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import type { Page } from '../types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Search, ChevronRight, Mail, MessageCircle, Phone, ArrowRight } from 'lucide-react';
 
 interface HelpArticle {
   id: string;
@@ -12,6 +17,14 @@ interface HelpArticle {
   excerpt: string;
   content: string;
   popular?: boolean;
+}
+
+interface HelpCategory {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  articleCount: number;
 }
 
 const HELP_ARTICLES: HelpArticle[] = [
@@ -113,92 +126,60 @@ const HELP_ARTICLES: HelpArticle[] = [
   },
 ];
 
-const CategoryIcon = ({ category }: { category: string }) => {
+// Category icons using Lucide React
+const getCategoryIcon = (category: string) => {
   const iconMap: Record<string, React.ReactNode> = {
-    'Getting Started': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
-      </svg>
-    ),
-    'Sales': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M8 12h8" />
-        <path d="M12 8v8" />
-      </svg>
-    ),
-    'Products': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line x1="12" y1="22.08" x2="12" y2="12" />
-      </svg>
-    ),
-    'Inventory': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3h18v18H3z" />
-        <path d="M3 9h18" />
-        <path d="M9 21V9" />
-      </svg>
-    ),
-    'Finance': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="1" x2="12" y2="23" />
-        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-      </svg>
-    ),
-    'Payments': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-        <line x1="1" y1="10" x2="23" y2="10" />
-      </svg>
-    ),
-    'Features': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-      </svg>
-    ),
-    'Documents': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-        <polyline points="10 9 9 9 8 9" />
-      </svg>
-    ),
-    'Settings': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-    'Customers': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
-    'Suppliers': (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="8.5" cy="7" r="4" />
-        <line x1="20" y1="8" x2="20" y2="14" />
-        <line x1="23" y1="11" x2="17" y2="11" />
-      </svg>
-    ),
+    'Getting Started': <Search className="w-6 h-6" />,
+    'Sales': <ArrowRight className="w-6 h-6" />,
+    'Products': <MessageCircle className="w-6 h-6" />,
+    'Inventory': <Search className="w-6 h-6" />,
+    'Finance': <Phone className="w-6 h-6" />,
+    'Payments': <Phone className="w-6 h-6" />,
+    'Features': <MessageCircle className="w-6 h-6" />,
+    'Documents': <Mail className="w-6 h-6" />,
+    'Settings': <Search className="w-6 h-6" />,
+    'Customers': <MessageCircle className="w-6 h-6" />,
+    'Suppliers': <MessageCircle className="w-6 h-6" />,
+  };
+  return iconMap[category] || <Search className="w-6 h-6" />;
+};
+
+// Generate help categories from articles
+const generateHelpCategories = (): HelpCategory[] => {
+  const categoryMap = new Map<string, number>();
+  HELP_ARTICLES.forEach(article => {
+    categoryMap.set(article.category, (categoryMap.get(article.category) || 0) + 1);
+  });
+
+  const descriptions: Record<string, string> = {
+    'Getting Started': 'Set up your business profile and get started with Busmo',
+    'Sales': 'Record sales, manage transactions, and track revenue',
+    'Products': 'Create your product catalog with prices and stock levels',
+    'Inventory': 'Track stock across locations and manage transfers',
+    'Finance': 'Understand profit, revenue, and financial metrics',
+    'Payments': 'Link bank accounts and process payments',
+    'Features': 'Leverage AI assistant and advanced features',
+    'Documents': 'Create invoices, receipts, and document templates',
+    'Settings': 'Control access levels and configure your account',
+    'Customers': 'Build customer profiles and track credit limits',
+    'Suppliers': 'Manage supplier relationships and purchases',
   };
 
-  return iconMap[category] || null;
+  return Array.from(categoryMap.entries()).map(([name, count]) => ({
+    id: name.toLowerCase().replace(/\s+/g, '-'),
+    name,
+    description: descriptions[name] || '',
+    icon: getCategoryIcon(name),
+    articleCount: count,
+  }));
 };
+
+const HELP_CATEGORIES = generateHelpCategories();
 
 export default function HelpCenterPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Getting Started', 'Sales', 'Products', 'Inventory', 'Finance']));
 
   const handleNavigate = (page: Page | string) => {
     if (page === 'home') {
@@ -224,81 +205,64 @@ export default function HelpCenterPage() {
     const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          article.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          article.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
+    const matchesCategory = !selectedCategory || article.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
-  const categories = Array.from(new Set(HELP_ARTICLES.map(a => a.category)));
-
-  const groupedArticles = filteredArticles.reduce((acc, article) => {
-    if (!acc[article.category]) acc[article.category] = [];
-    acc[article.category].push(article);
-    return acc;
-  }, {} as Record<string, HelpArticle[]>);
-
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  };
 
   if (selectedArticle) {
     return (
       <>
         <Navbar currentPage="help" onNavigate={(page) => handleNavigate(page)} />
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <div className="min-h-screen bg-background">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setSelectedArticle(null)}
-              className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 mb-8 font-medium group"
+              className="mb-8 pl-0 text-primary hover:text-primary/80"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-1 transition-transform">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
               Back to Help Center
-            </button>
+            </Button>
 
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 sm:p-12">
-              <div className="mb-6">
-                <span className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-semibold">
-                  <CategoryIcon category={selectedArticle.category} />
-                  {selectedArticle.category}
-                </span>
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 leading-tight">
-                {selectedArticle.title}
-              </h1>
-
-              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                {selectedArticle.excerpt}
-              </p>
-
-              <div className="prose prose-lg max-w-none">
-                <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-                  {selectedArticle.content}
+            <Card className="border-2 shadow-lg">
+              <CardHeader className="pb-6">
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-semibold">
+                    {getCategoryIcon(selectedArticle.category)}
+                    {selectedArticle.category}
+                  </span>
                 </div>
-              </div>
 
-              <div className="mt-12 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
-                <h3 className="font-semibold text-slate-900 mb-2">Need more help?</h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Can't find what you're looking for? Our support team is here to help.
-                </p>
-                <button
-                  onClick={() => window.location.href = '/welcome/support'}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm"
-                >
-                  Contact Support
-                </button>
-              </div>
-            </div>
+                <CardTitle className="text-3xl sm:text-4xl font-bold text-foreground mb-4 font-headline">
+                  {selectedArticle.title}
+                </CardTitle>
+
+                <CardDescription className="text-lg">
+                  {selectedArticle.excerpt}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <div className="bg-muted/50 rounded-lg p-6 mb-8">
+                  <p className="text-foreground text-base leading-relaxed whitespace-pre-wrap">
+                    {selectedArticle.content}
+                  </p>
+                </div>
+
+                <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border-2 border-primary/20">
+                  <h3 className="font-semibold text-foreground mb-2">Need more help?</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Can't find what you're looking for? Our support team is here to help.
+                  </p>
+                  <Button
+                    onClick={() => window.location.href = '/welcome/support'}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Contact Support
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
         <Footer onNavigate={handleNavigate} />
@@ -309,203 +273,181 @@ export default function HelpCenterPage() {
   return (
     <>
       <Navbar currentPage="help" onNavigate={(page) => handleNavigate(page)} />
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          {/* Header */}
-          <div className="text-center mb-12 sm:mb-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-lg">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+      <div className="min-h-screen bg-background">
+        {/* Hero Section with Search */}
+        <div className="bg-gradient-to-b from-background to-card border-b border-border">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 font-headline">
+                How can we help you?
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Search our knowledge base for answers to common questions about Busmo
+              </p>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
-              Help Center
-            </h1>
-            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Find comprehensive guides, tutorials, and answers to help you get the most out of Busmo
-            </p>
-          </div>
-
-          {/* Search and Filter */}
-          <div className="mb-10 space-y-4">
-            <div className="relative">
-              <svg 
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-              <input
+            
+            <div className="relative max-w-2xl mx-auto">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Input
                 type="text"
-                placeholder="Search for help articles..."
+                placeholder="Search for help topics..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base shadow-sm"
+                className="pl-12 h-14 text-base rounded-lg border-2 border-input shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                aria-label="Search help topics"
               />
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  selectedCategory === 'all'
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-indigo-500 hover:text-indigo-600'
-                }`}
-              >
-                All Articles
-              </button>
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                    selectedCategory === cat
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-indigo-500 hover:text-indigo-600'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
           </div>
+        </div>
 
-          {/* Articles by Category */}
-          {filteredArticles.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          {/* Category Grid */}
+          {!searchQuery && (
+            <>
+              <h2 className="text-2xl font-bold text-foreground mb-6 font-headline">Browse by category</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+                {HELP_CATEGORIES.map((category) => (
+                  <Card
+                    key={category.id}
+                    className="group cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 border-2"
+                    onClick={() => setSelectedCategory(category.name)}
+                  >
+                    <CardHeader>
+                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                        {category.icon}
+                      </div>
+                      <CardTitle className="text-xl">{category.name}</CardTitle>
+                      <CardDescription className="text-base">
+                        {category.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <span>{category.articleCount} articles</span>
+                        <ChevronRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">No articles found</h3>
-              <p className="text-slate-600">Try adjusting your search or filter criteria</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {Object.entries(groupedArticles).map(([category, articles]) => {
-                const isExpanded = expandedCategories.has(category);
-                return (
-                  <div key={category} className="bg-white rounded-xl shadow-sm border-2 border-slate-200 overflow-hidden hover:border-indigo-300 transition-colors">
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-                          <CategoryIcon category={category} />
-                        </div>
-                        <div className="text-left">
-                          <h2 className="text-xl font-bold text-slate-900">{category}</h2>
-                          <p className="text-sm text-slate-500 mt-0.5">
-                            {articles.length} {articles.length === 1 ? 'article' : 'articles'}
-                          </p>
-                        </div>
-                      </div>
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="px-6 pb-6 space-y-3">
-                        {articles.map(article => (
-                          <button
-                            key={article.id}
-                            onClick={() => setSelectedArticle(article)}
-                            className="w-full text-left p-5 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all group bg-white"
-                          >
-                            <div className="flex items-start gap-4">
-                              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 flex-shrink-0 group-hover:scale-110 transition-transform">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                  <polyline points="14 2 14 8 20 8" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">
-                                  {article.title}
-                                </h3>
-                                <p className="text-sm text-slate-600 leading-relaxed">
-                                  {article.excerpt}
-                                </p>
-                                {article.popular && (
-                                  <span className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-semibold">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
-                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                    </svg>
-                                    Popular
-                                  </span>
-                                )}
-                              </div>
-                              <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="text-slate-400 flex-shrink-0 group-hover:text-indigo-600 transition-colors"
-                              >
-                                <polyline points="9 18 15 12 9 6" />
-                              </svg>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            </>
           )}
 
-          {/* Quick Links */}
-          <div className="mt-16 p-8 sm:p-10 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl text-white shadow-xl">
-            <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-3">Still need help?</h2>
-              <p className="text-indigo-100 mb-6 text-lg">
-                Our support team is here to help you with any questions you may have
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <button 
-                  onClick={() => window.location.href = '/welcome/support'}
-                  className="px-8 py-3 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 transition-colors shadow-lg"
+          {/* FAQ Accordion Section */}
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground mb-6 font-headline">
+              {searchQuery ? `Search results for "${searchQuery}"` : 'Frequently asked questions'}
+            </h2>
+            
+            {filteredArticles.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-muted rounded-full mb-4">
+                  <Search className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No results found</h3>
+                <p className="text-muted-foreground mb-4">Try adjusting your search terms</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory(null);
+                  }}
                 >
-                  Contact Support
-                </button>
-                <button 
-                  onClick={() => window.location.href = '/welcome'}
-                  className="px-8 py-3 bg-indigo-500 text-white rounded-lg font-semibold hover:bg-indigo-400 transition-colors border-2 border-indigo-400 shadow-lg"
-                >
-                  Back to Home
-                </button>
+                  Clear search
+                </Button>
               </div>
-            </div>
+            ) : (
+              <Accordion type="multiple" className="space-y-4">
+                {filteredArticles.map((article) => (
+                  <AccordionItem
+                    key={article.id}
+                    value={article.id}
+                    className="border-2 rounded-lg overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-6 py-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center text-primary flex-shrink-0">
+                          {getCategoryIcon(article.category)}
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-semibold text-foreground">{article.title}</span>
+                          {article.popular && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                              Popular
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                      <div className="pt-4 border-t border-border">
+                        <p className="text-muted-foreground mb-4">{article.excerpt}</p>
+                        <div className="bg-muted/50 rounded-lg p-4">
+                          <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+                            {article.content}
+                          </p>
+                        </div>
+                        <Button
+                          variant="link"
+                          className="mt-4 pl-0 text-primary"
+                          onClick={() => setSelectedArticle(article)}
+                        >
+                          View full article
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+          </div>
+
+          {/* Still Need Help Section */}
+          <div className="mt-20 max-w-4xl mx-auto">
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20">
+              <CardContent className="p-8 sm:p-12 text-center">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 font-headline">
+                  Still need help?
+                </h2>
+                <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+                  Can't find what you're looking for? Our support team is here to help you with any questions.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    onClick={() => window.location.href = '/welcome/support'}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Contact Support
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    onClick={() => window.location.href = '/welcome'}
+                  >
+                    Back to Home
+                  </Button>
+                </div>
+                
+                <div className="mt-8 pt-8 border-t border-border/50 flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Live Chat</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span>Email Support</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <span>Phone Support</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
