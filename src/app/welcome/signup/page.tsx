@@ -7,6 +7,7 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } f
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
 import { formatCurrency } from "@/lib/currency";
 import { sendOwnerWelcomeEmailSeries } from "@/services/email/owner-welcome-series";
+import posthog from "posthog-js";
 
 // If you have these components elsewhere, import them here
 // import Field from "./Field";
@@ -1372,6 +1373,18 @@ export default function BusmoOnboarding() {
           // Non-critical: user can still use the app even if emails fail
         });
         
+        if (userId) {
+          posthog.identify(userId, {
+            role: 'owner',
+            business_category: data.selectedCategory,
+          });
+          posthog.capture('signup_completed', {
+            method: data.googleUserId ? 'google' : 'email',
+            business_category: data.selectedCategory,
+            has_referral: Boolean(referralCode),
+          });
+        }
+
         setDone(true);
       }
     }

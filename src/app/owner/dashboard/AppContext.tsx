@@ -1,5 +1,6 @@
 'use client';
 
+import posthog from 'posthog-js';
 import React, {
   createContext,
   useContext,
@@ -179,12 +180,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
               name: displayName,
               email: firebaseUser.email || data.email || '',
               avatarContent: data.photoURL || data.avatarContent || '👤',
-              avatarStyle: { 
-                background: data.photoURL || data.avatarBg || '#6B3FE7', 
-                color: data.avatarColor || '#fff' 
+              avatarStyle: {
+                background: data.photoURL || data.avatarBg || '#6B3FE7',
+                color: data.avatarColor || '#fff'
               },
               photoURL: data.photoURL,
               businessId: data.businessId,
+            });
+            posthog.identify(firebaseUser.uid, {
+              role: data.role || 'Owner',
+              plan: data.plan || 'free',
             });
           } else {
             // Fallback if user doc doesn't exist

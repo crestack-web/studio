@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getPostHogClient } from '@/lib/posthog-server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
 import { executeAction } from '@/lib/services/mo-action-router';
@@ -126,6 +127,22 @@ export async function POST(request: NextRequest) {
       language,
       conversationHistoryLength: conversationHistory.length,
     });
+
+    if (userId) {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: userId,
+        event: 'ai_query_submitted',
+        properties: {
+          has_image: Boolean(image),
+          language,
+          business_category: businessCategory,
+          user_role: userRole,
+          conversation_turn: conversationHistory.length + 1,
+        },
+      });
+      posthog.flush().catch(() => {});
+    }
 
     // Detect if this is a new conversation start (greeting, new topic, etc.)
     const isNewConversation = conversationHistory.length === 0 || 

@@ -1,5 +1,6 @@
 'use client';
 
+import posthog from 'posthog-js';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
@@ -409,6 +410,7 @@ export default function StaffPage() {
       setShowAddModal(false);
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
       setShowCredentialsModal(true);
+      posthog.capture('staff_member_created', { role: newStaff.role });
       showToast('Staff member added successfully!');
       setIsAddingStaff(false);
       

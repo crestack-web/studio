@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import posthog from 'posthog-js';
 import { X, Check } from 'lucide-react';
 
 interface PricingModalProps {
@@ -271,7 +272,13 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
             Continue with Current Plan
           </button>
           <button
-            onClick={() => onUpgrade(selectedPlan)}
+            onClick={() => {
+              posthog.capture('plan_upgrade_clicked', {
+                selected_plan: selectedPlan,
+                current_plan: currentPlan,
+              });
+              onUpgrade(selectedPlan);
+            }}
             style={{
               flex: 1,
               padding: '12px',
