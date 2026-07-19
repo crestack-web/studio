@@ -10,16 +10,19 @@ export async function POST(request: NextRequest) {
     // In a real application, this would save to a database
     console.log(`Message received for customer ${customerId} (${sender}): ${message}`);
     
-    // Return success response
-    return Response.json({ 
-      success: true, 
-      message: 'Message received successfully'
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   } catch (error) {
     console.error('Error sending message:', error);
-    return Response.json({ 
-      success: false, 
-      message: 'Failed to send message'
-    }, { status: 500 });
+    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }

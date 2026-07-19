@@ -187,7 +187,7 @@ export const FloatingChatWidget: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const auth = getAuth();
+    const { auth, firestore } = initializeFirebase();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserEmail(user.email || 'user');
@@ -195,7 +195,6 @@ export const FloatingChatWidget: React.FC = () => {
         setUserName(user.displayName?.split(' ')[0] || 'there');
         
         try {
-          const { firestore } = initializeFirebase();
           if (firestore) {
             const userDoc = await getDoc(doc(firestore, 'users', user.uid));
             if (userDoc.exists()) {
