@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import posthog from "posthog-js";
 import { initializeFirebase } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { sendLoginAlertEmail } from "@/services/email/security-emails";
@@ -226,15 +227,22 @@ export default function BusmoLogin() {
 
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
+          posthog.identify(user.uid, { role, name: userData?.fullName || userData?.displayName });
+          posthog.capture('user_logged_in', { method: 'email', role });
           window.location.href = '/staff/home';
         } else {
+          posthog.identify(user.uid, { role, name: userData?.fullName || userData?.displayName });
+          posthog.capture('user_logged_in', { method: 'email', role });
           window.location.href = '/owner';
         }
       } else {
         // Default to owner dashboard if user doc not found
+        posthog.identify(user.uid);
+        posthog.capture('user_logged_in', { method: 'email', role: 'Owner' });
         window.location.href = '/owner';
       }
     } catch (error: any) {
+      posthog.capture('login_failed', { method: 'email' });
       setError("Invalid email or password.");
     } finally {
       setLoading(false);
@@ -261,15 +269,22 @@ export default function BusmoLogin() {
 
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
+          posthog.identify(user.uid, { role, name: userData?.fullName || userData?.displayName });
+          posthog.capture('user_logged_in', { method: 'google', role });
           window.location.href = '/staff/home';
         } else {
+          posthog.identify(user.uid, { role, name: userData?.fullName || userData?.displayName });
+          posthog.capture('user_logged_in', { method: 'google', role });
           window.location.href = '/owner';
         }
       } else {
         // Default to owner dashboard if user doc not found
+        posthog.identify(user.uid);
+        posthog.capture('user_logged_in', { method: 'google', role: 'Owner' });
         window.location.href = '/owner';
       }
     } catch (error: any) {
+      posthog.capture('login_failed', { method: 'google' });
       setError("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);

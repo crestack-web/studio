@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 const MINIMUM_WITHDRAWAL = 2000; // ₦2,000 minimum
 const COMMISSION_RATE = 0.20; // 20% commission
@@ -72,10 +73,18 @@ export async function POST(request: NextRequest) {
       balance: currentBalance - amount
     });
 
-    return NextResponse.json({ 
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: userId,
+      event: 'referral_withdrawal_initiated',
+      properties: { amount, remaining_balance: currentBalance - amount },
+    });
+    await posthog.flush();
+
+    return NextResponse.json({
       success: true,
       withdrawalId: withdrawalRef.id,
-      message: `Withdrawal request of ₦${amount.toLocaleString()} submitted successfully`
+      message: `Withdrawal request of ₦${amount.toLocaleString()} submitted successfully`,
     });
 
   } catch (error) {
