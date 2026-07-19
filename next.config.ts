@@ -107,8 +107,21 @@ const nextConfig: NextConfig = {
         source: '/api/sendOtpLogin',
         destination: `${firebaseFunctionsBaseUrl}/sendOtpLogin`,
       },
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/array/:path*',
+        destination: 'https://us-assets.i.posthog.com/array/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
+      },
     ];
   },
+  skipTrailingSlashRedirect: true,
   // Enable React strict mode for better development
   reactStrictMode: true,
   images: {

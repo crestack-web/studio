@@ -7,6 +7,7 @@ import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
 import { getMasterProcessor } from '@/lib/services/mo-master-processor';
 import { createConversationPlanner, ConversationContext } from '@/services/ai/conversation-planner';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -744,6 +745,21 @@ ${processingResult.nextAction}`;
     // STEP 4: Update conversation context after response
     planner.updateContext(message, finalAnswer);
     console.log('🔄 [Ask MO API] Conversation context updated');
+
+    if (userId) {
+      const posthog = getPostHogClient();
+      posthog.capture({
+        distinctId: userId,
+        event: 'ai_assistant_queried',
+        properties: {
+          intent: intent.intent,
+          action_executed: !!actionResult,
+          business_id: businessId,
+          language,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({
       answer: finalAnswer,

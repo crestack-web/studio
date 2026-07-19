@@ -2,6 +2,7 @@
 
 import { StepId } from "framer-motion";
 import { useState, useCallback, useEffect } from "react";
+import posthog from "posthog-js";
 import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
@@ -1331,7 +1332,22 @@ export default function BusmoOnboarding() {
 
         // Always allow entry to Busmo, regardless of setup status
         setError(null);
-        
+
+        if (userId) {
+          posthog.identify(userId, {
+            name: data.fullName,
+            businessName: data.businessName,
+            businessCategory: data.selectedCategory,
+            country: data.country,
+          });
+          posthog.capture('user_signed_up', {
+            method: data.googleUserId ? 'google' : 'email',
+            business_category: data.selectedCategory,
+            country: data.country,
+            has_referral: !!referralCode,
+          });
+        }
+
         // Track referral if user was referred
         if (referralCode && userId) {
           try {

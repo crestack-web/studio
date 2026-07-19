@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,9 +63,17 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Referral tracked:', { referrerId, referredId });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Referral tracked successfully' 
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: referredId,
+      event: 'referral_signup_tracked',
+      properties: { referrer_id: referrerId },
+    });
+    await posthog.flush();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Referral tracked successfully',
     });
 
   } catch (error) {
