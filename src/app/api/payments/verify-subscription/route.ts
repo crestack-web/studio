@@ -4,6 +4,7 @@ import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where,
 import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emails';
 import { sendSubscriptionRenewedEmail } from '@/services/email/subscription-lifecycle-emails';
 import { sendReferralConvertedToPaidEmail, sendReferralRewardEarnedEmail } from '@/services/email/referral-emails';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 const COMMISSION_RATE = 0.20; // 20% referral commission
 
@@ -151,8 +152,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: userId,
+      event: 'subscription_verified',
+      properties: {
+        plan,
+        billing,
+        amount: paymentAmount,
+        currency: transaction.currency,
+        is_renewal: Boolean(userData.plan && userData.plan !== 'free'),
+      },
+    });
+    await posthog.shutdown();
+
+    return NextResponse.json({
+      success: true,
       plan: plan,
       billing: billing,
       subscriptionEndDate: subscriptionEndDate.toISOString(),
@@ -238,6 +253,18 @@ async function processReferralCommission(firestore: any, userId: string, plan: s
       amount: commissionAmount,
       plan: plan
     });
+
+    const posthogReferral = getPostHogClient();
+    posthogReferral.capture({
+      distinctId: referrerId,
+      event: 'referral_commission_earned',
+      properties: {
+        commission_amount: commissionAmount,
+        referred_user_plan: plan,
+        commission_rate: COMMISSION_RATE,
+      },
+    });
+    await posthogReferral.shutdown();
 
     // Send referral emails (non-blocking)
     const referrerEmail = referrerData.email;

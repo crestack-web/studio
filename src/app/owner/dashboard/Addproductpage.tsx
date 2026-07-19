@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import posthog from 'posthog-js';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
@@ -525,6 +526,15 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         onProductAdded(newProduct);
       }
 
+      if (!draft) {
+        posthog.capture('product_added', {
+          product_type: form.productType,
+          category: form.category,
+          has_variants: form.hasVariants,
+          has_expiry: form.hasExpiry,
+          online_store_enabled: form.onlineStore,
+        });
+      }
       showToast(draft ? `📝 "${form.name}" saved as draft` : `✅ "${form.name}" added to inventory`);
       
       // Mark form as not dirty since we saved successfully

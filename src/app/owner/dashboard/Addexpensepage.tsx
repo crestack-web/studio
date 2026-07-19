@@ -1,5 +1,6 @@
 'use client';
 
+import posthog from 'posthog-js';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
@@ -322,6 +323,11 @@ export function AddExpensePage() {
         console.error('Failed to send expense email alerts:', emailError);
       }
 
+      posthog.capture('expense_recorded', {
+        category: form.category,
+        payment_method: form.paymentMethod,
+        is_recurring: form.isRecurring,
+      });
       const amt = parseFloat(form.amount).toLocaleString();
       showToast(`✅ Expense of ${currency.symbol}${amt} recorded`);
       

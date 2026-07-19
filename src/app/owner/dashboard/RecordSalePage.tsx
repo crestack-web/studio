@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
@@ -924,6 +925,14 @@ export function RecordSalePage() {
         }
       }
 
+      posthog.capture('sale_completed', {
+        item_count: cart.length,
+        total_amount: finalTotal,
+        currency: currencyCode,
+        payment_methods: paymentBreakdown.map(pb => pb.method),
+        has_discount: discount > 0,
+        recorded_by_role: userRole,
+      });
       showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
       
       // Fetch business data for receipt
@@ -983,6 +992,7 @@ export function RecordSalePage() {
       // Don't navigate away - show receipt first
       // navigateTo('home');
     } catch (error) {
+      posthog.captureException(error);
       console.error('Error saving sale:', error);
       showToast('Failed to save sale. Please try again.');
     } finally {

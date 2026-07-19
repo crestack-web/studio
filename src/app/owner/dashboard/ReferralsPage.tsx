@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { useApp } from './AppContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
@@ -127,9 +128,10 @@ export function ReferralsPage() {
   }, [user.id]);
 
   function copyLink() {
-    navigator.clipboard.writeText(referralLink).then(() =>
-      showToast('📋 Referral link copied! Share it with your friends!')
-    );
+    navigator.clipboard.writeText(referralLink).then(() => {
+      posthog.capture('referral_link_copied');
+      showToast('📋 Referral link copied! Share it with your friends!');
+    });
   }
 
   async function handleWithdraw() {
@@ -161,6 +163,10 @@ export function ReferralsPage() {
       const data = await response.json();
 
       if (response.ok) {
+        posthog.capture('referral_withdrawal_requested', {
+          amount,
+          currency: 'NGN',
+        });
         showToast(`✅ Withdrawal request of ₦${amount.toLocaleString()} submitted!`);
         setShowWithdrawModal(false);
         setWithdrawAmount('');

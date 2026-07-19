@@ -4,6 +4,7 @@ import { useState } from "react";
 import { initializeFirebase } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { sendLoginAlertEmail } from "@/services/email/security-emails";
+import posthog from "posthog-js";
 
 // Helper function to get device information
 function getDeviceInfo() {
@@ -224,6 +225,9 @@ export default function BusmoLogin() {
           console.error('Failed to send login alert email:', emailError);
         }
 
+        posthog.identify(user.uid, { role });
+        posthog.capture('login_completed', { method: 'email', role });
+
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
           window.location.href = '/staff/home';
@@ -231,10 +235,13 @@ export default function BusmoLogin() {
           window.location.href = '/owner';
         }
       } else {
+        posthog.identify(user.uid, {});
+        posthog.capture('login_completed', { method: 'email', role: 'owner' });
         // Default to owner dashboard if user doc not found
         window.location.href = '/owner';
       }
     } catch (error: any) {
+      posthog.captureException(error);
       setError("Invalid email or password.");
     } finally {
       setLoading(false);
@@ -259,6 +266,9 @@ export default function BusmoLogin() {
         const userData = userDoc.data();
         const role = userData?.role || 'Owner';
 
+        posthog.identify(user.uid, { role });
+        posthog.capture('login_completed', { method: 'google', role });
+
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
           window.location.href = '/staff/home';
@@ -266,10 +276,13 @@ export default function BusmoLogin() {
           window.location.href = '/owner';
         }
       } else {
+        posthog.identify(user.uid, {});
+        posthog.capture('login_completed', { method: 'google', role: 'owner' });
         // Default to owner dashboard if user doc not found
         window.location.href = '/owner';
       }
     } catch (error: any) {
+      posthog.captureException(error);
       setError("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
