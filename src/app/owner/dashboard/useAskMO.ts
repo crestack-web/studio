@@ -237,10 +237,11 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       const isRestaurant = await isRestaurantBusiness(businessId);
 
       const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+        collection(firestore, 'businesses', businessId, 'sales')
+        // Removed 30-day filter to get all-time sales
       );
       const salesSnapshot = await getDocs(salesQuery);
+      console.log('📊 [useAskMO] Sales snapshot size:', salesSnapshot.size);
       
       let totalSales = 0;
       let totalProfit = 0;
@@ -262,6 +263,8 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           todayProfit += saleProfit;
         }
       });
+      
+      console.log('📊 [useAskMO] Calculated sales:', { totalSales, totalProfit, todaySales, todayProfit });
 
       const productsQuery = query(
         collection(firestore, 'businesses', businessId, 'products'),
@@ -550,7 +553,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       }
 
       setBusinessSummary(summary);
-      console.log('✅ [useAskMO] Business data loaded successfully');
+      console.log('✅ [useAskMO] Business data loaded successfully:', JSON.stringify(summary, null, 2));
     } catch (error) {
       console.error('❌ [useAskMO] Error loading business data:', error);
     }

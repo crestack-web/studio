@@ -66,6 +66,7 @@ export interface IndustryIntelligence {
 
 export class BusinessProfileManager {
   private profile: BusinessProfile | null = null;
+  private snapshot: BusinessSnapshot = {};
 
   constructor(private businessId: string) {}
 
@@ -79,18 +80,7 @@ export class BusinessProfileManager {
   }
 
   getSnapshot(): BusinessSnapshot {
-    if (!this.profile) {
-      return {};
-    }
-    return {
-      openingCapital: 0,
-      expectedExpenses: 0,
-      expectedIncome: 0,
-      totalSales: 0,
-      totalProfit: 0,
-      lowStockCount: 0,
-      outOfStockCount: 0,
-    };
+    return this.snapshot;
   }
 
   getIndustryIntelligence(): IndustryIntelligence {
@@ -112,12 +102,57 @@ export class BusinessProfileManager {
   }
 
   async updateWithFullData(data: any): Promise<void> {
-    // Placeholder implementation
-    return Promise.resolve();
+    // Update snapshot with actual business data
+    if (data.businessSnapshot) {
+      this.snapshot = {
+        ...this.snapshot,
+        ...data.businessSnapshot,
+      };
+    }
+    
+    if (data.sales) {
+      const totalSales = data.sales.reduce((sum: number, sale: any) => sum + (sale.totalRevenue || sale.amount || 0), 0);
+      const totalProfit = data.sales.reduce((sum: number, sale: any) => sum + (sale.profit || 0), 0);
+      this.snapshot.totalSales = totalSales;
+      this.snapshot.totalProfit = totalProfit;
+    }
+    
+    if (data.products) {
+      const lowStockCount = data.products.filter((p: any) => p.stock > 0 && p.stock <= (p.lowStockThreshold || 10)).length;
+      const outOfStockCount = data.products.filter((p: any) => p.stock === 0).length;
+      this.snapshot.lowStockCount = lowStockCount;
+      this.snapshot.outOfStockCount = outOfStockCount;
+    }
+    
+    if (data.totalSales !== undefined) {
+      this.snapshot.totalSales = data.totalSales;
+    }
+    if (data.totalProfit !== undefined) {
+      this.snapshot.totalProfit = data.totalProfit;
+    }
+    if (data.todaySales !== undefined) {
+      this.snapshot.todaySales = data.todaySales;
+    }
+    if (data.todayProfit !== undefined) {
+      this.snapshot.todayProfit = data.todayProfit;
+    }
+    if (data.lowStockCount !== undefined) {
+      this.snapshot.lowStockCount = data.lowStockCount;
+    }
+    if (data.outOfStockCount !== undefined) {
+      this.snapshot.outOfStockCount = data.outOfStockCount;
+    }
+    if (data.openingCapital !== undefined) {
+      this.snapshot.openingCapital = data.openingCapital;
+    }
+    if (data.cashAvailable !== undefined) {
+      this.snapshot.cashAvailable = data.cashAvailable;
+    }
   }
 
   reset() {
     this.profile = null;
+    this.snapshot = {};
   }
 }
 
