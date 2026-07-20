@@ -7,7 +7,8 @@ const ADMIN_EMAILS = [
   'majnuncode@gmail.com',
   'sxeedtxheer@gmail.com',
   'ahmedusmus@gmail.com',
-  'majnun@busmo.io'
+  'majnun@busmo.io',
+  'victoria@busmo.io'
 ];
 
 interface OTPRequest {

@@ -25,7 +25,8 @@ export default function AdminDashboard() {
           'majnuncode@gmail.com',
           'sxeedtxheer@gmail.com',
           'ahmedusmus@gmail.com',
-          'majnun@busmo.io'
+          'majnun@busmo.io',
+          'victoria@busmo.io'
         ];
         
         // For whitelisted users, allow access even without admin session

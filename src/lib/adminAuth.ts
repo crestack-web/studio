@@ -10,6 +10,29 @@ export interface AdminUser {
   lastLogin?: string;
 }
 
+// Define admin roles and their permissions
+export const ADMIN_ROLES = {
+  SUPER_ADMIN: {
+    name: 'Super Admin',
+    permissions: ['all']
+  },
+  SUPPORT_AGENT: {
+    name: 'Support Agent',
+    permissions: ['support_view', 'support_reply', 'support_status']
+  }
+};
+
+// Map emails to roles
+export const ADMIN_EMAIL_ROLES: Record<string, string> = {
+  'taheeratorganic@gmail.com': 'SUPER_ADMIN',
+  'admin@busmo.io': 'SUPER_ADMIN',
+  'majnuncode@gmail.com': 'SUPER_ADMIN',
+  'sxeedtxheer@gmail.com': 'SUPER_ADMIN',
+  'ahmedusmus@gmail.com': 'SUPER_ADMIN',
+  'majnun@busmo.io': 'SUPER_ADMIN',
+  'victoria@busmo.io': 'SUPPORT_AGENT'
+};
+
 // Custom hook for admin authentication
 export const useAdminAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -51,10 +74,19 @@ export const useAdminAuth = () => {
             'majnuncode@gmail.com',
             'sxeedtxheer@gmail.com',
             'ahmedusmus@gmail.com',
-            'majnun@busmo.io'
+            'majnun@busmo.io',
+            'victoria@busmo.io'
           ];
           
           if (ADMIN_EMAILS.includes(parsedUser.email)) {
+            // Assign role based on email
+            const roleKey = ADMIN_EMAIL_ROLES[parsedUser.email] || 'SUPER_ADMIN';
+            const roleConfig = ADMIN_ROLES[roleKey as keyof typeof ADMIN_ROLES];
+            
+            // Update user with role and permissions
+            parsedUser.role = roleConfig.name;
+            parsedUser.permissions = roleConfig.permissions;
+            
             setIsAuthenticated(true);
             setUser(parsedUser);
           } else {
@@ -89,7 +121,8 @@ export const useAdminAuth = () => {
         'majnuncode@gmail.com',
         'sxeedtxheer@gmail.com',
         'ahmedusmus@gmail.com',
-        'majnun@busmo.io'
+        'majnun@busmo.io',
+        'victoria@busmo.io'
       ];
       
       if (!ADMIN_EMAILS.includes(email)) {
@@ -170,7 +203,8 @@ export const checkIsAdmin = async (): Promise<boolean> => {
         'majnuncode@gmail.com',
         'sxeedtxheer@gmail.com',
         'ahmedusmus@gmail.com',
-        'majnun@busmo.io'
+        'majnun@busmo.io',
+        'victoria@busmo.io'
       ];
       return ADMIN_EMAILS.includes(parsedUser.email);
     }

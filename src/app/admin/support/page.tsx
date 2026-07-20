@@ -4,10 +4,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { initializeFirebase } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, getDocs, doc, updateDoc, arrayUnion, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs, doc, updateDoc, arrayUnion, addDoc, setDoc } from 'firebase/firestore';
 import { Message, Customer } from '@/lib/realtimeService';
+import { useAdminAuth } from '@/lib/adminAuth';
 
 export default function AdminSupportPage() {
+  const { user, hasPermission } = useAdminAuth();
   const router = useRouter();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
@@ -15,6 +17,7 @@ export default function AdminSupportPage() {
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
+  const [isAgentOnline, setIsAgentOnline] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Real data from Firestore
@@ -29,7 +32,12 @@ export default function AdminSupportPage() {
     if (!isAuthenticated) {
       router.push('/admin/login');
     }
-  }, [router]);
+    
+    // Check if user has support permissions
+    if (user && !hasPermission('support_view') && !hasPermission('all')) {
+      router.push('/admin');
+    }
+  }, [router, user, hasPermission]);
 
   // Load customers from Firestore
   useEffect(() => {
@@ -180,6 +188,42 @@ export default function AdminSupportPage() {
   const checkAuthentication = () => {
     return true; // For demo purposes
   };
+
+  // Handle agent online/offline toggle
+  const handleAgentStatusToggle = async () => {
+    const newStatus = !isAgentOnline;
+    setIsAgentOnline(newStatus);
+    
+    try {
+      const { firestore } = initializeFirebase();
+      if (!firestore) return;
+
+      // Save agent status to Firestore
+      const agentStatusRef = doc(firestore, 'agentStatus', 'admin');
+      await setDoc(agentStatusRef, {
+        isOnline: newStatus,
+        lastUpdated: new Date().toISOString(),
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating agent status:', error);
+    }
+  };
+
+  // Load agent status from Firestore on mount
+  useEffect(() => {
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const agentStatusRef = doc(firestore, 'agentStatus', 'admin');
+    const unsubscribe = onSnapshot(agentStatusRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setIsAgentOnline(data.isOnline !== false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Filter customers based on search query and selected tab
   const filteredCustomers = customers.filter(customer => {
@@ -332,7 +376,26 @@ export default function AdminSupportPage() {
                 <h2 className="text-xl font-bold">
                   Chat with {customers.find(c => c.id === selectedCustomerId)?.name || selectedCustomerId}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  {/* Agent Status Toggle */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Agent Status:</span>
+                    <button
+                      onClick={handleAgentStatusToggle}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        isAgentOnline ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          isAgentOnline ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${isAgentOnline ? 'text-green-600' : 'text-gray-500'}`}>
+                      {isAgentOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
                   <span className={`text-sm ${customers.find(c => c.id === selectedCustomerId)?.status === 'Online' ? 'text-green-500' : 'text-gray-500'}`}>
                     {customers.find(c => c.id === selectedCustomerId)?.status}
                   </span>
