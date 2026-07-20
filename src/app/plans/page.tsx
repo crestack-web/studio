@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import SupportChatWidget from '@/components/SupportChatWidget';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -208,8 +207,6 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
         </CardContent>
       </Card>
 
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
     </div>
   );
 }

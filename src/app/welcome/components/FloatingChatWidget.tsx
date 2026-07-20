@@ -4,9 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
-import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
 
 // ─── Types ───────────────────────────────────────────────────────
 interface SupportMessage {
@@ -74,7 +72,7 @@ const TEAM_MEMBERS = [
 ];
 
 // ─── Component ───────────────────────────────────────────────────
-export const FloatingChatWidget: React.FC = () => {
+export const FloatingChatWidget = () => {
   // ─── State ─────────────────────────────────────────────────────
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'messages' | 'help'>('home');
@@ -114,7 +112,8 @@ export const FloatingChatWidget: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const auth = getAuth();
+    // Initialize Firebase first
+    const { auth } = initializeFirebase();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserEmail(user.email || 'user');
@@ -244,23 +243,6 @@ export const FloatingChatWidget: React.FC = () => {
       console.error('Error requesting human agent:', error);
     }
 
-    if (CHATWOOT_CONFIG.enabled) {
-      const chatwootUser: ChatwootUser = {
-        id: userId || userEmail,
-        name: userEmail,
-        email: userEmail,
-        businessId: businessId || undefined,
-        businessName: businessName || undefined,
-      };
-      
-      try {
-        await chatwootService.identifyUser(chatwootUser);
-        await chatwootService.toggleChat(true);
-      } catch (error) {
-        console.error('Error opening Chatwoot:', error);
-      }
-    }
-
     const escalationMsg: SupportMessage = {
       id: `escalation-${Date.now()}`,
       sender: 'support',
@@ -318,28 +300,7 @@ export const FloatingChatWidget: React.FC = () => {
     } else {
       // Human agent mode
       try {
-        if (CHATWOOT_CONFIG.enabled) {
-          const chatwootUser: ChatwootUser = {
-            id: userId || userEmail,
-            name: userEmail,
-            email: userEmail,
-            businessId: businessId || undefined,
-            businessName: businessName || undefined,
-          };
-          
-          await chatwootService.identifyUser(chatwootUser);
-          await chatwootService.toggleChat(true);
-          
-          const supportMsg: SupportMessage = {
-            id: `chatwoot-${Date.now()}`,
-            sender: 'support',
-            text: "I've opened a Chatwoot conversation for you. Please check the chat widget in the bottom right corner to continue with our support team.",
-            createdAt: new Date().toISOString(),
-            status: 'read',
-          };
-          setMessages((prev) => [...prev, supportMsg]);
-        } else {
-          const res = await fetch('/api/support', {
+        const res = await fetch('/api/support', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -367,7 +328,6 @@ export const FloatingChatWidget: React.FC = () => {
           };
 
           setMessages((prev) => [...prev, supportMsg]);
-        }
       } catch (err) {
         const fallback: SupportMessage = {
           id: `support-${Date.now()}`,
@@ -435,6 +395,23 @@ export const FloatingChatWidget: React.FC = () => {
     };
   }, []);
 
+  // Check admin agent status from Firestore
+  useEffect(() => {
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const agentStatusRef = doc(firestore, 'agentStatus', 'admin');
+    const unsubscribe = onSnapshot(agentStatusRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const adminOnline = data.isOnline !== false;
+        setIsOnline(adminOnline && navigator.onLine);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // ─── Render Helpers ───────────────────────────────────────────
   const renderOnlineStatus = () => {
     if (!isOnline) {
@@ -448,10 +425,11 @@ export const FloatingChatWidget: React.FC = () => {
     );
   };
 
-  // ─── Floating Button ──────────────────────────────────────────
-  if (!isOpen) {
-    return (
-      <>
+  // ─── Main Render ────────────────────────────────────────────────
+  return (
+    <>
+      {!isOpen ? (
+        // ─── Floating Button ──────────────────────────────────────
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 group"
@@ -472,28 +450,24 @@ export const FloatingChatWidget: React.FC = () => {
             )}
           </div>
         </button>
-      </>
-    );
-  }
-
-  // ─── Main Widget ──────────────────────────────────────────────
-  return (
-    <>
-      {/* Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] animate-[fadeIn_0.2s_ease-out]"
-        onClick={closeWidget}
-      >
-        {/* Widget Container */}
-        <div 
-          className="fixed bottom-6 right-6 z-[101] bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 animate-[slideUp_0.3s_ease-out]"
-          style={{ 
-            width: isMobile ? 'calc(100% - 24px)' : '420px',
-            height: isMobile ? 'calc(100vh - 84px)' : '600px',
-            maxHeight: isMobile ? 'none' : '600px'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      ) : (
+        // ─── Main Widget ──────────────────────────────────────────────
+        <>
+          {/* Overlay */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] animate-[fadeIn_0.2s_ease-out]"
+            onClick={closeWidget}
+          ></div>
+          {/* Widget Container */}
+          <div 
+            className="fixed bottom-6 right-6 z-[101] bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 animate-[slideUp_0.3s_ease-out]"
+            style={{ 
+              width: isMobile ? 'calc(100% - 24px)' : '420px',
+              height: isMobile ? 'calc(100vh - 84px)' : '600px',
+              maxHeight: isMobile ? 'none' : '600px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* ─── Header ─────────────────────────────────────────── */}
           <div className="relative bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 text-white p-6 overflow-hidden">
             {/* Decorative elements */}
@@ -973,7 +947,8 @@ export const FloatingChatWidget: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+        </>
+      )}
     </>
   );
-};
+}

@@ -14,6 +14,7 @@ import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { collection, doc, query, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { formatCurrency } from '@/lib/currency';
+import posthog from 'posthog-js';
 
 interface AppUser {
     businessId?: string;
@@ -251,6 +252,15 @@ function RecordSalePageContent() {
         });
 
         console.log('✅ [RecordSale] Transaction completed successfully');
+        posthog.capture('sale_recorded', {
+            quantity,
+            total_amount: totalAmount,
+            base_amount: baseAmount,
+            discount_amount: discountAmount,
+            discount_type: discountType,
+            payment_type: paymentType,
+            has_variant: Boolean(selectedVariant),
+        });
         toast({
           title: "Sale Recorded",
           description: `Sold ${quantity} of ${selectedProduct.name}${selectedVariant ? ` (${selectedVariant.name})` : ''}.`,

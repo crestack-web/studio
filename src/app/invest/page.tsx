@@ -48,11 +48,33 @@ export default function InvestPage() {
   });
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Submit to backend
-    console.log('Investor waitlist submission:', formData);
-    setSubmitted(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'investor',
+          ...formData,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Investor waitlist submission saved:', result.id);
+        setSubmitted(true);
+      } else {
+        console.error('❌ Failed to submit:', result.error);
+        alert('Failed to submit. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error submitting waitlist:', error);
+      alert('Failed to submit. Please try again.');
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

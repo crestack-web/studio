@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LangProvider } from '../owner/dashboard/LangContext';
-import SupportChatWidget from '@/components/SupportChatWidget';
+import { FloatingChatWidget } from '../welcome/components/FloatingChatWidget';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
 
@@ -33,18 +33,16 @@ export default function PricingPage() {
   const plans = [
     {
       name: 'Starter',
-      tagline: 'For small retailers & startups',
+      tagline: 'For small retailers',
       monthlyPrice: 5000,
       yearlyPrice: 50000,
       features: [
-        { text: 'Sales & Inventory Tracking', included: true, highlight: true },
+        { text: 'Sales & Inventory', included: true, highlight: true },
         { text: 'Expense Management', included: true, highlight: true },
-        { text: 'Basic Reports (Profit/Loss)', included: true, highlight: true },
-        { text: 'Ask MO AI (10 msgs/day, 2,500 credits)', included: true, highlight: true },
+        { text: 'Basic Reports', included: true, highlight: true },
+        { text: 'Ask MO AI (10 msgs/day)', included: true, highlight: true },
         { text: 'Up to 50 Products', included: true },
-        { text: 'Staff Management (1 staff)', included: true },
-        { text: 'Statement/Transaction History', included: true },
-        { text: 'Business Services Directory', included: true },
+        { text: '1 Staff Member', included: true },
       ],
       cta: 'Start Free Trial',
       popular: false,
@@ -57,22 +55,18 @@ export default function PricingPage() {
       features: [
         { text: 'Everything in Starter', included: true },
         { text: 'Cash Flow Tracking', included: true, highlight: true },
-        { text: 'Money Control & Operations', included: true, highlight: true },
-        { text: 'Credit Tracking (Debtors/Creditors)', included: true, highlight: true },
-        { text: 'Ask MO AI (50 msgs/day, 10,000 credits)', included: true, highlight: true },
+        { text: 'Credit Tracking', included: true, highlight: true },
+        { text: 'Ask MO AI (50 msgs/day)', included: true, highlight: true },
         { text: 'Up to 500 Products', included: true },
-        { text: 'Staff Management (up to 10 staff)', included: true },
-        { text: 'Multi-branch Support (up to 3 branches)', included: true },
-        { text: 'Advanced Analytics & Reports', included: true },
-        { text: 'Supplier Management', included: true },
-        { text: 'Invoice Verification', included: true },
+        { text: 'Up to 10 Staff', included: true },
+        { text: 'Multi-branch (3 locations)', included: true },
       ],
       cta: 'Start Free Trial',
       popular: true,
     },
     {
       name: 'Pro',
-      tagline: 'For established businesses & chains',
+      tagline: 'For established businesses',
       monthlyPrice: 25000,
       yearlyPrice: 250000,
       features: [
@@ -80,13 +74,9 @@ export default function PricingPage() {
         { text: 'Unlimited Products', included: true, highlight: true },
         { text: 'Unlimited Staff', included: true, highlight: true },
         { text: 'Unlimited Branches', included: true, highlight: true },
-        { text: 'Bank Accounts Integration', included: true, highlight: true },
-        { text: 'Bank Reconciliation', included: true, highlight: true },
-        { text: 'Ask MO AI (Unlimited messages & credits)', included: true, highlight: true },
-        { text: 'Audit Trail & Activity Logs', included: true, highlight: true },
-        { text: 'Staff Activity Tracking', included: true, highlight: true },
+        { text: 'Bank Integration', included: true, highlight: true },
+        { text: 'Ask MO AI (Unlimited)', included: true, highlight: true },
         { text: 'Priority Support', included: true },
-        { text: 'Access Capital & Funding', included: true },
       ],
       cta: 'Contact Sales',
       popular: false,
@@ -180,17 +170,10 @@ export default function PricingPage() {
         <div className="max-w">
           {/* Hero */}
           <div className="section-head center">
-            <div className="section-label">Simple, Transparent Pricing</div>
-            <h1 className="section-title">Find the Perfect Plan<br /><em>for Your Business</em></h1>
+            <h1 className="section-title">Simple Pricing<br /><em>for Your Business</em></h1>
             <p className="section-sub">
-              All plans include a 3-day free trial. No credit card required. Cancel anytime.
+              3-day free trial. Cancel anytime.
             </p>
-            <div className="no-free-plan-note">
-              <span className="no-free-plan-emoji">😅</span>
-              <span className="no-free-plan-text">
-                Why no free plan? Well, our servers eat electricity, our developers eat food, and MO the AI? He demands the finest digital snacks. A free plan would leave everyone hungry!
-              </span>
-            </div>
           </div>
 
           {/* Toggle */}
@@ -282,45 +265,6 @@ export default function PricingPage() {
             ))}
           </div>
 
-          {/* FAQ Link */}
-          <div className="pricing-faq">
-            <p>Have questions about which plan is right for you?</p>
-            <button className="faq-link" onClick={() => handleNavigate('home')}>
-              View FAQ →
-            </button>
-          </div>
-
-          {/* Trust Badges */}
-          <div className="pricing-trust">
-            <div className="trust-item">
-              <div className="trust-icon">🔒</div>
-              <div className="trust-text">
-                <strong>Secure Payments</strong>
-                <span>Bank-level encryption</span>
-              </div>
-            </div>
-            <div className="trust-item">
-              <div className="trust-icon">✅</div>
-              <div className="trust-text">
-                <strong>3-Day Free Trial</strong>
-                <span>Full access, no card needed</span>
-              </div>
-            </div>
-            <div className="trust-item">
-              <div className="trust-icon">💳</div>
-              <div className="trust-text">
-                <strong>Cancel Anytime</strong>
-                <span>No hidden fees or contracts</span>
-              </div>
-            </div>
-            <div className="trust-item">
-              <div className="trust-icon">🎧</div>
-              <div className="trust-text">
-                <strong>24/7 Support</strong>
-                <span>We're here to help</span>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
 
@@ -399,7 +343,7 @@ export default function PricingPage() {
       )}
 
       {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
+      <FloatingChatWidget />
     </main>
   );
 }

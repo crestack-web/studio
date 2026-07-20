@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import posthog from 'posthog-js';
 
 
 interface AppUser {
@@ -91,6 +92,10 @@ function RecordExpensePageContent() {
         const expensesColRef = collection(firestore, `businesses/${businessId}/expenses`);
         
         addDocumentNonBlocking(expensesColRef, expenseData);
+        posthog.capture('expense_recorded', {
+            category,
+            amount: expenseData.amount,
+        });
         
         toast({
             title: 'Expense Saved',

@@ -286,7 +286,7 @@ export default function WelcomePage() {
         <Footer onNavigate={handleNavigate} />
       </ScrollReveal>
 
-      {/* Support chat widget - connects to our admin support section */}
+      {/* Floating chat widget */}
       <FloatingChatWidget />
     </main>
   );
