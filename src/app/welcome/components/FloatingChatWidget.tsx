@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
 import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
 
@@ -35,116 +35,43 @@ interface HelpArticle {
   popular?: boolean;
 }
 
+interface QuickAction {
+  id: string;
+  label: string;
+  icon: string;
+  message: string;
+}
 
 // ─── Data ────────────────────────────────────────────────────────
 const HELP_ARTICLES: HelpArticle[] = [
-  { 
-    id: '1', 
-    title: 'Getting started with Busmo', 
-    category: 'Getting Started', 
-    excerpt: 'Set up your business profile, configure settings, and start using Busmo in minutes.', 
-    content: 'Welcome to Busmo! Start by setting up your business profile in Settings. Add your business details, configure tax settings, and invite your team members. Use the Dashboard to get an overview of your sales, inventory, and financial metrics.',
-    popular: true 
-  },
-  { 
-    id: '2', 
-    title: 'Recording and managing sales', 
-    category: 'Sales', 
-    excerpt: 'Learn how to record sales, manage transactions, and track revenue.', 
-    content: 'Navigate to the Sales section to record new transactions. Choose between cash, credit, or mobile money payments. Add items from your product catalog, apply discounts, and print receipts. All sales are automatically reflected in your inventory and financial reports.',
-    popular: true 
-  },
-  { 
-    id: '3', 
-    title: 'Adding and managing products', 
-    category: 'Products', 
-    excerpt: 'Create your product catalog with prices, categories, and stock levels.', 
-    content: 'Go to Products to add your inventory. Set product names, SKUs, prices, cost prices, and minimum stock levels. Organize products into categories for easier management. Enable bulk pricing for wholesale customers and set tax rates per product.',
-    popular: true 
-  },
-  { 
-    id: '4', 
-    title: 'Inventory management and stock control', 
-    category: 'Inventory', 
-    excerpt: 'Track stock across multiple locations, set reorder points, and manage transfers.', 
-    content: 'Busmo provides powerful inventory management with multi-location support. Track stock levels in real-time, set low-stock alerts, and manage warehouse transfers. Record stock adjustments for damages, losses, or recounts. Generate invoices for stock releases and track returns.',
-    popular: true 
-  },
-  { 
-    id: '5', 
-    title: 'Understanding profit, revenue, and margins', 
-    category: 'Finance', 
-    excerpt: 'Learn how Busmo calculates your business financial metrics.', 
-    content: 'Revenue is total sales before deductions. Profit is revenue minus cost of goods sold and expenses. Busmo automatically calculates profit margins per product and overall business health. View detailed breakdowns in the Reports section.',
-    popular: false 
-  },
-  { 
-    id: '6', 
-    title: 'Payments, bank accounts, and reconciliations', 
-    category: 'Payments', 
-    excerpt: 'Link bank accounts, process payments, and reconcile transactions.', 
-    content: 'Add your bank accounts in Settings to track deposits and withdrawals. Busmo supports multiple payment methods: cash, credit, bank transfer, and mobile money. Use the Reconciliation tool to match payments with deposits and identify discrepancies.',
-    popular: true 
-  },
-  { 
-    id: '7', title: 'Using Business Operations (MO) AI assistant', 
-    category: 'Features', 
-    excerpt: 'Leverage AI to record sales, check inventory, and get business insights.', 
-    content: 'MO AI is your virtual business assistant. Use natural language to record sales, check stock levels, track expenses, and generate reports. MO integrates with all Busmo features and learns your business patterns. Access MO via voice or text from the dashboard.',
-    popular: true 
-  },
-  { 
-    id: '8', 
-    title: 'Invoices, receipts, and document templates', 
-    category: 'Documents', 
-    excerpt: 'Create professional invoices and receipts with customizable templates.', 
-    content: 'Generate invoices for customer orders with automatic tax calculations. Choose from multiple receipt templates: Thermal, A5, Corporate, or Nigerian Wholesale. Customize templates with your logo, colors, and layout. Send invoices via WhatsApp or email.',
-    popular: false 
-  },
-  { 
-    id: '9', 
-    title: 'Managing expenses and cash flow', 
-    category: 'Finance', 
-    excerpt: 'Track business expenses, manage cash flow, and monitor financial health.', 
-    content: 'Record expenses by category: utilities, salaries, supplies, etc. Tag expenses to specific departments or projects. View cash flow statements showing money in vs money out. Set budget alerts and track spending against targets.',
-    popular: false 
-  },
-  { 
-    id: '10', 
-    title: 'Staff permissions and role-based access control', 
-    category: 'Settings', 
-    excerpt: 'Control access levels for your team with role-based permissions.', 
-    content: 'Add staff members and assign roles: Admin, Manager, Cashier, or Viewer. Each role has specific permissions for accessing features. Track staff activity and accountability. Monitor sales by staff member and view performance metrics.',
-    popular: false 
-  },
-  { 
-    id: '11', 
-    title: 'Customer management and credit tracking', 
-    category: 'Customers', 
-    excerpt: 'Build customer profiles, track credit limits, and manage relationships.', 
-    content: 'Create customer profiles with contact details and credit limits. Track customer purchase history and payment patterns. Set credit terms and receive alerts for overdue payments. Generate customer statements and sales reports.',
-    popular: false 
-  },
-  { 
-    id: '12', 
-    title: 'Supplier management and purchase orders', 
-    category: 'Suppliers', 
-    excerpt: 'Manage supplier relationships, track purchases, and handle payments.', 
-    content: 'Add suppliers with payment terms and credit limits. Track purchase orders and stock receipts. Record supplier payments and track outstanding balances. Get insights on supplier performance and payment history.',
-    popular: false 
-  },
+  { id: '1', title: 'Getting started with Busmo', category: 'Getting Started', excerpt: 'Learn the basics of setting up your Busmo account.', content: 'Getting started content...', popular: true },
+  { id: '2', title: 'Recording your first sale', category: 'Sales', excerpt: 'Step-by-step guide to recording sales.', content: 'Recording sales content...', popular: true },
+  { id: '3', title: 'Adding products', category: 'Products', excerpt: 'How to add and manage your product inventory.', content: 'Adding products content...', popular: true },
+  { id: '4', title: 'Managing inventory', category: 'Inventory', excerpt: 'Track stock levels and get low stock alerts.', content: 'Managing inventory content...', popular: true },
+  { id: '5', title: 'Understanding profit vs revenue', category: 'Finance', excerpt: 'Learn the difference between profit and revenue.', content: 'Profit vs revenue content...', popular: false },
+  { id: '6', title: 'Connecting your bank account', category: 'Payments', excerpt: 'Link your bank for seamless transactions.', content: 'Bank account content...', popular: true },
+  { id: '7', title: 'Using Busmo AI', category: 'Features', excerpt: 'Harness AI to grow your business.', content: 'Busmo AI content...', popular: true },
+  { id: '8', title: 'Creating invoices', category: 'Documents', excerpt: 'Generate professional invoices for your clients.', content: 'Invoices content...', popular: false },
+  { id: '9', title: 'Managing expenses', category: 'Finance', excerpt: 'Track and categorize your business expenses.', content: 'Expenses content...', popular: false },
+  { id: '10', title: 'Staff permissions', category: 'Settings', excerpt: 'Control access levels for your team.', content: 'Staff permissions content...', popular: false },
 ];
 
-// Quick actions removed - articles now provide comprehensive help
+const QUICK_ACTIONS: QuickAction[] = [
+  { id: '1', label: 'Record a Sale', icon: '💰', message: 'I need help recording a sale' },
+  { id: '2', label: 'Inventory Problem', icon: '📦', message: 'I have an issue with my inventory' },
+  { id: '3', label: 'Expense Question', icon: '💸', message: 'I have a question about expenses' },
+  { id: '4', label: 'Payment Issue', icon: '💳', message: 'I\'m having trouble with a payment' },
+  { id: '5', label: 'Reports', icon: '📊', message: 'I need help with reports' },
+  { id: '6', label: 'Talk to Human', icon: '👤', message: 'I\'d like to speak with a human agent' },
+  { id: '7', label: 'Feature Request', icon: '✨', message: 'I have a feature suggestion' },
+  { id: '8', label: 'Bug Report', icon: '🐛', message: 'I found a bug in the app' },
+];
 
 const TEAM_MEMBERS = [
-  { name: 'Victoria', role: 'Support Lead', online: true, image: 'https://res.cloudinary.com/dzjoqbg2u/image/upload/v1783552286/IMG_1598_otktj7.jpg' },
-  { name: 'Majnun', role: 'Support Agent', online: true, image: 'https://res.cloudinary.com/dzjoqbg2u/image/upload/v1783552377/IMG_1599_dfackv.webp' },
+  { name: 'Sarah', role: 'Support Lead', avatar: '👩‍💼', online: true },
+  { name: 'John', role: 'Support Agent', avatar: '👨‍💼', online: true },
+  { name: 'Emily', role: 'Support Agent', avatar: '👩‍💻', online: false },
 ];
-
-// Bot/agent placeholder for chat view (no image needed)
-const BOT_AVATAR = { name: 'MO', role: 'AI Assistant', online: true };
-const HUMAN_AVATAR = { name: 'Agent', role: 'Support', online: true };
 
 // ─── Component ───────────────────────────────────────────────────
 export const FloatingChatWidget: React.FC = () => {
@@ -187,7 +114,7 @@ export const FloatingChatWidget: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserEmail(user.email || 'user');
@@ -195,6 +122,7 @@ export const FloatingChatWidget: React.FC = () => {
         setUserName(user.displayName?.split(' ')[0] || 'there');
         
         try {
+          const { firestore } = initializeFirebase();
           if (firestore) {
             const userDoc = await getDoc(doc(firestore, 'users', user.uid));
             if (userDoc.exists()) {
@@ -223,49 +151,6 @@ export const FloatingChatWidget: React.FC = () => {
     }
   }, [isChatOpen]);
 
-  // Real-time listener for conversation updates (e.g., admin replies)
-  useEffect(() => {
-    if (!currentConversationId) return;
-
-    const { firestore } = initializeFirebase();
-    if (!firestore) return;
-
-    const unsubscribe = onSnapshot(
-      doc(firestore, 'supportMessages', currentConversationId),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          const updatedReplies = data.replies || [];
-          
-          // Check if there are new admin replies
-          const latestReply = updatedReplies[updatedReplies.length - 1];
-          if (latestReply && latestReply.sender === 'admin') {
-            setMessages((prev) => {
-              // Check if we already have this reply
-              const exists = prev.some(msg => msg.id === latestReply.createdAt);
-              if (exists) return prev;
-              
-              // Add the new admin reply
-              const adminMsg: SupportMessage = {
-                id: latestReply.createdAt,
-                sender: 'support',
-                text: latestReply.message,
-                createdAt: latestReply.createdAt,
-                status: 'read',
-              };
-              return [...prev, adminMsg];
-            });
-          }
-        }
-      },
-      (error) => {
-        console.error('Error listening to conversation updates:', error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [currentConversationId]);
-
   // ─── Chat Functions ────────────────────────────────────────────
   const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
     try {
@@ -279,11 +164,9 @@ export const FloatingChatWidget: React.FC = () => {
           businessId: businessId || null,
           businessName: businessName || null,
           message: text,
-          sender: 'user',
           status: 'unread',
           category: 'general',
-          priority: 'medium',
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
           replies: [],
         });
         setCurrentConversationId(docRef.id);
@@ -302,7 +185,7 @@ export const FloatingChatWidget: React.FC = () => {
           
           await updateDoc(docRef, {
             replies,
-            status: 'replied',
+            status: 'open',
           });
         }
       }
@@ -349,7 +232,7 @@ export const FloatingChatWidget: React.FC = () => {
       if (firestore && currentConversationId) {
         await updateDoc(doc(firestore, 'supportMessages', currentConversationId), {
           status: 'needs_human',
-          replies: arrayUnion({
+          'replies': arrayUnion({
             message: "User requested human agent.",
             sender: 'system',
             createdAt: new Date().toISOString(),
@@ -501,9 +384,10 @@ export const FloatingChatWidget: React.FC = () => {
     }
   };
 
-  const handleArticleClick = (article: HelpArticle) => {
-    setSelectedArticle(article);
-    setActiveTab('help');
+  const handleQuickAction = (action: QuickAction) => {
+    setInput(action.message);
+    setIsChatOpen(true);
+    setActiveTab('home');
   };
 
   const openChat = () => {
@@ -559,32 +443,8 @@ export const FloatingChatWidget: React.FC = () => {
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-        {isBotMode ? 'MO AI Online' : 'Agent Online'}
+        {isBotMode ? 'AI Online' : 'Agent Online'}
       </span>
-    );
-  };
-
-  const renderAvatar = (member: { name: string; role: string; online: boolean; image?: string }, isBot = false) => {
-    if (isBot) {
-      return (
-        <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center text-white text-lg">
-          <Bot size={20} />
-        </div>
-      );
-    }
-    
-    if (member.image) {
-      return (
-        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white">
-          <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
-        </div>
-      );
-    }
-    
-    return (
-      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-        <img src="/busmogo.png" alt={member.name} className="w-full h-full object-cover" />
-      </div>
     );
   };
 
@@ -644,7 +504,7 @@ export const FloatingChatWidget: React.FC = () => {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <img 
-                    src="/email-logo.png" 
+                    src="/busmogo.png" 
                     alt="Busmo" 
                     className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm p-1.5"
                   />
@@ -672,10 +532,10 @@ export const FloatingChatWidget: React.FC = () => {
                 {TEAM_MEMBERS.filter(m => m.online).map((member, idx) => (
                   <div 
                     key={idx} 
-                    className="w-8 h-8 rounded-full overflow-hidden border-2 border-white"
+                    className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white flex items-center justify-center text-sm"
                     title={`${member.name} - ${member.role}`}
                   >
-                    <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                    {member.avatar}
                   </div>
                 ))}
               </div>
@@ -770,6 +630,24 @@ export const FloatingChatWidget: React.FC = () => {
                   </div>
                 </button>
 
+                {/* Quick Actions */}
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    Quick Actions
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_ACTIONS.map((action) => (
+                      <button
+                        key={action.id}
+                        onClick={() => handleQuickAction(action)}
+                        className="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
+                      >
+                        <span className="text-xl group-hover:scale-110 transition-transform">{action.icon}</span>
+                        <span className="text-sm font-medium text-gray-700">{action.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Popular Articles */}
                 <div>
@@ -780,7 +658,10 @@ export const FloatingChatWidget: React.FC = () => {
                     {HELP_ARTICLES.filter(a => a.popular).map((article) => (
                       <button
                         key={article.id}
-                        onClick={() => handleArticleClick(article)}
+                        onClick={() => {
+                          setSelectedArticle(article);
+                          setActiveTab('help');
+                        }}
                         className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
                       >
                         <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -962,7 +843,9 @@ export const FloatingChatWidget: React.FC = () => {
                   >
                     <ChevronRight size={20} className="rotate-180" />
                   </button>
-                  {renderAvatar(isBotMode ? BOT_AVATAR : HUMAN_AVATAR, isBotMode)}
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center text-white text-lg">
+                    {isBotMode ? '🤖' : '👤'}
+                  </div>
                   <div className="flex-1">
                     <div className="font-semibold text-sm text-gray-900">
                       {isBotMode ? 'MO AI Assistant' : 'Human Support Agent'}
@@ -1030,6 +913,20 @@ export const FloatingChatWidget: React.FC = () => {
 
                 {/* Input Area */}
                 <div className="p-3 border-t border-gray-200 bg-white">
+                  {/* Quick action chips */}
+                  {messages.length <= 1 && (
+                    <div className="flex gap-2 overflow-x-auto mb-3 scrollbar-hide pb-1">
+                      {QUICK_ACTIONS.slice(0, 6).map((action) => (
+                        <button
+                          key={action.id}
+                          onClick={() => handleQuickAction(action)}
+                          className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium whitespace-nowrap hover:bg-purple-100 transition-colors"
+                        >
+                          {action.icon} {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   
                   <form
                     onSubmit={(e) => {
