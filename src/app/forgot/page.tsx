@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { initializeFirebase } from "@/firebase";
 import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
-import SupportChatWidget from "@/components/SupportChatWidget";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -95,9 +94,6 @@ export default function ForgotPasswordPage() {
           >
             Back to Login
           </Link>
-          
-          {/* Support chat widget - connects to our admin support section */}
-          <SupportChatWidget />
         </div>
       </main>
     );
@@ -185,9 +181,6 @@ export default function ForgotPasswordPage() {
             ← Back to Login
           </Link>
         </div>
-        
-        {/* Support chat widget - connects to our admin support section */}
-        <SupportChatWidget />
       </div>
     </main>
   );
