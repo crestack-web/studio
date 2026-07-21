@@ -817,15 +817,17 @@ export default function Cashflowpage() {
         }
 
         // If supplier is selected, update supplier balance and create ledger entry
+        let supplierName = 'No Supplier';
         if (stockAddition.supplierId) {
           const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId);
           const supplierDoc = await transaction.get(supplierRef);
-          
+
           if (supplierDoc.exists()) {
             const supplierData = supplierDoc.data();
+            supplierName = supplierData.supplierName || supplierData.name || 'Unknown Supplier';
             const currentBalance = supplierData.currentBalance || 0;
             const newBalance = currentBalance + creditAmount;
-            
+
             transaction.update(supplierRef, {
               currentBalance: newBalance,
               totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
@@ -885,33 +887,36 @@ export default function Cashflowpage() {
                 },
               });
             }
-
-            // Create stock receipt
-            const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
-            transaction.set(receiptRef, {
-              receiptNumber: stockAddition.referenceNumber,
-              supplierId: stockAddition.supplierId,
-              supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
-              items: [{
-                productId: product.id,
-                productName: product.name,
-                quantity: stockAddition.quantity,
-                unitCost: stockAddition.costPrice,
-                totalCost: purchaseAmount,
-              }],
-              totalQuantity: stockAddition.quantity,
-              totalCost: purchaseAmount,
-              paymentMethod,
-              paidAmount,
-              creditAmount,
-              receivedAt: new Date().toISOString(),
-              receivedBy: user?.id || 'system',
-              receivedByName: user?.name || 'System',
-              notes: stockAddition.notes,
-              createdAt: Timestamp.now(),
-            });
           }
-        } else {
+        }
+
+        // Create stock receipt (always create, regardless of supplier)
+        const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
+        transaction.set(receiptRef, {
+          receiptNumber: stockAddition.referenceNumber,
+          supplierId: stockAddition.supplierId || null,
+          supplierName: supplierName,
+          items: [{
+            productId: product.id,
+            productName: product.name,
+            quantity: stockAddition.quantity,
+            unitCost: stockAddition.costPrice,
+            totalCost: purchaseAmount,
+          }],
+          totalQuantity: stockAddition.quantity,
+          totalCost: purchaseAmount,
+          paymentMethod,
+          paidAmount,
+          creditAmount,
+          receivedAt: new Date().toISOString(),
+          receivedBy: user?.id || 'system',
+          receivedByName: user?.name || 'System',
+          notes: stockAddition.notes,
+          createdAt: Timestamp.now(),
+        });
+
+        // If no supplier and bank account used, record as expense transaction
+        if (!stockAddition.supplierId) {
           // No supplier - just record as expense if bank account used
           if (stockAddition.bankAccountId && paidAmount > 0) {
             const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
