@@ -52,6 +52,18 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: '/ingest/static/:path*',
+        destination: `${process.env.NEXT_PUBLIC_POSTHOG_HOST}/static/:path*`,
+      },
+      {
+        source: '/ingest/array/:path*',
+        destination: `${process.env.NEXT_PUBLIC_POSTHOG_HOST}/array/:path*`,
+      },
+      {
+        source: '/ingest/:path*',
+        destination: `${process.env.NEXT_PUBLIC_POSTHOG_HOST}/:path*`,
+      },
+      {
         source: '/api/initializePayment',
         destination: `${firebaseFunctionsBaseUrl}/initializePayment`,
       },
