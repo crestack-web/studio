@@ -81,6 +81,7 @@ const InventoryPage: React.FC = () => {
         
         productsSnapshot.forEach(doc => {
           const data = doc.data();
+          const lastSaleDate = data.lastSaleDate?.toDate ? data.lastSaleDate.toDate() : null;
           productsList.push({
             id: doc.id,
             name: data.name || '',
@@ -91,7 +92,9 @@ const InventoryPage: React.FC = () => {
             costPrice: data.cost || data.costPrice || 0,
             sellingPrice: data.price || 0,
             unitsSold30d: data.unitsSold30d || 0,
-            lastSaleDate: data.lastSaleDate || '',
+            totalSalesCount: data.totalSalesCount || 0,
+            lastSaleDate: lastSaleDate ? lastSaleDate.toLocaleDateString() : '',
+            lastSalePrice: data.lastSalePrice || 0,
             reorderThreshold: data.lowStockThreshold || 10,
             suggestedReorder: 0,
             emoji: data.attributes?.emoji || '',

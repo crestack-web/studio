@@ -4,6 +4,7 @@ import { getFirestore, doc, getDoc, updateDoc, collection, addDoc, query, where,
 import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emails';
 import { sendSubscriptionRenewedEmail } from '@/services/email/subscription-lifecycle-emails';
 import { sendReferralConvertedToPaidEmail, sendReferralRewardEarnedEmail } from '@/services/email/referral-emails';
+import { createPostHogClient } from '@/lib/posthog-server';
 
 const COMMISSION_RATE = 0.20; // 20% referral commission
 
@@ -100,6 +101,19 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ [verify-subscription] Payment logged successfully');
+
+    const posthog = createPostHogClient();
+    posthog.capture({
+      distinctId: userId,
+      event: 'subscription_payment_verified',
+      properties: {
+        plan,
+        billing_cycle: billing,
+        amount: paymentAmount,
+        currency: transaction.currency,
+      },
+    });
+    await posthog.shutdown();
 
     // Process referral commission if user was referred
     try {
