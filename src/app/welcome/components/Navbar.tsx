@@ -14,7 +14,6 @@ const BusmoLogo = () => (
 const NAV_LINKS: { label: string; page: Page }[] = [
   { label: 'Home', page: 'home' },
   { label: 'For Sellers', page: 'seller' },
-  { label: 'Download Busmo', page: 'download' },
   { label: 'Help Center', page: 'help' },
 ];
 

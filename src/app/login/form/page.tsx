@@ -4,6 +4,7 @@ import { useState } from "react";
 import { initializeFirebase } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { sendLoginAlertEmail } from "@/services/email/security-emails";
+import posthog from 'posthog-js';
 
 // Helper function to get device information
 function getDeviceInfo() {
@@ -224,6 +225,12 @@ export default function BusmoLogin() {
           console.error('Failed to send login alert email:', emailError);
         }
 
+        posthog.identify(user.uid, {
+          email: user.email || email,
+          role,
+        });
+        posthog.capture('user_logged_in', { authentication_method: 'password', role });
+
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
           window.location.href = '/staff/home';
@@ -258,6 +265,12 @@ export default function BusmoLogin() {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         const role = userData?.role || 'Owner';
+
+        posthog.identify(user.uid, {
+          email: user.email || undefined,
+          role,
+        });
+        posthog.capture('user_logged_in', { authentication_method: 'google', role });
 
         // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {

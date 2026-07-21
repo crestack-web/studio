@@ -210,26 +210,29 @@ export async function POST(request: NextRequest) {
       location: businessProfile?.location,
     });
 
+    console.log('📊 [Ask MO API] Planner data requirements:', {
+      shouldRetrieveData: plannedResponse.shouldRetrieveData,
+      dataRequirements: plannedResponse.dataRequirements,
+      canAnswerWithExistingData: plannedResponse.canAnswerWithExistingData,
+    });
+
     // STEP 3: Load business data based on planner requirements
     // IMPORTANT: The conversation planner now includes data dependency planning
     // It checks if we can answer with existing data before requesting more
     let businessData: any = {};
     
-    // Use businessSummary from frontend if available (already loaded by useAskMO hook)
-    if (businessSummary) {
-      console.log('📊 [Ask MO API] Using businessSummary from frontend');
-      businessData = {
-        ...businessSummary,
-        // Ensure sales data is properly formatted
-        sales: businessSummary.totalSales !== undefined ? [{ totalRevenue: businessSummary.totalSales, profit: businessSummary.totalProfit }] : [],
-      };
-    } else if (businessId && plannedResponse.shouldRetrieveData) {
+    // Fetch data directly from Firestore like StatementPage does
+    if (businessId && plannedResponse.shouldRetrieveData) {
+      console.log('✅ [Ask MO API] Planner requested data retrieval');
       try {
         const db = getAdminDb();
         const dataReqs = plannedResponse.dataRequirements;
 
+        console.log('📋 [Ask MO API] Data requirements:', JSON.stringify(dataReqs, null, 2));
+
         // Load sales data only if required
         if (dataReqs.salesData) {
+          console.log('🔍 [Ask MO API] Loading sales data...');
           const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
             .orderBy('createdAt', 'desc');
           
@@ -251,6 +254,36 @@ export async function POST(request: NextRequest) {
           const salesSnapshot = await salesQuery.limit(50).get();
           businessData.sales = salesSnapshot.docs.map(doc => doc.data());
           console.log('📊 [Ask MO API] Loaded sales data:', businessData.sales.length, 'records');
+          
+          // Calculate totals like StatementPage does
+          let totalSales = 0;
+          let totalProfit = 0;
+          let todaySales = 0;
+          let todayProfit = 0;
+          const todayDate = new Date();
+          todayDate.setHours(0, 0, 0, 0);
+          
+          businessData.sales.forEach((sale: any) => {
+            const amount = sale.totalRevenue || sale.total || 0;
+            const profit = sale.profit || 0;
+            totalSales += amount;
+            totalProfit += profit;
+            
+            const saleDate = sale.createdAt?.toDate();
+            if (saleDate && saleDate >= todayDate) {
+              todaySales += amount;
+              todayProfit += profit;
+            }
+          });
+          
+          businessData.totalSales = totalSales;
+          businessData.totalProfit = totalProfit;
+          businessData.todaySales = todaySales;
+          businessData.todayProfit = todayProfit;
+          
+          console.log('📊 [Ask MO API] Calculated totals:', { totalSales, totalProfit, todaySales, todayProfit });
+        } else {
+          console.log('⚠️ [Ask MO API] Sales data NOT required by planner');
         }
 
         // Load inventory data only if required
@@ -258,8 +291,49 @@ export async function POST(request: NextRequest) {
           const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
             .where('active', '==', true)
             .get();
-          businessData.products = productsSnapshot.docs.map(doc => doc.data());
-          console.log('📦 [Ask MO API] Loaded inventory data:', businessData.products.length, 'products');
+          
+          const products = productsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          // Load sales to calculate last sale date for each product
+          const salesSnapshot = await db.collection('businesses').doc(businessId).collection('sales')
+            .orderBy('createdAt', 'desc')
+            .limit(500)
+            .get();
+          
+          const sales = salesSnapshot.docs.map(doc => doc.data());
+          
+          // Create a map of product ID to last sale date
+          const productLastSaleDate: Record<string, Date> = {};
+          
+          sales.forEach((sale: any) => {
+            if (sale.products && Array.isArray(sale.products)) {
+              sale.products.forEach((soldProduct: any) => {
+                const productId = soldProduct.productId || soldProduct.id;
+                if (productId && !productLastSaleDate[productId]) {
+                  const saleDate = sale.createdAt?.toDate();
+                  if (saleDate) {
+                    productLastSaleDate[productId] = saleDate;
+                  }
+                }
+              });
+            }
+          });
+          
+          // Enhance product data with last sale date
+          businessData.products = products.map((product: any) => ({
+            name: product.name || product.productName,
+            quantity: product.stock || product.quantity || 0,
+            costPrice: product.costPrice || product.cost || 0,
+            sellingPrice: product.sellingPrice || product.price || 0,
+            lastSaleDate: productLastSaleDate[product.id] ? productLastSaleDate[product.id].toISOString() : null,
+            category: product.category,
+            lowStockThreshold: product.lowStockThreshold || product.reorderLevel || 10,
+          }));
+          
+          console.log('📦 [Ask MO API] Loaded inventory data:', businessData.products.length, 'products with last sale dates');
         }
 
         // Load expense data only if required
@@ -319,6 +393,16 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.log('⏭️ [Ask MO API] Skipping data load (not required by planner)');
+    }
+
+    // Update profile manager with business data so snapshot contains actual metrics
+    if (businessData && Object.keys(businessData).length > 0) {
+      console.log('📊 [Ask MO API] Calling updateWithFullData with:', JSON.stringify(businessData, null, 2));
+      await profileManager.updateWithFullData(businessData);
+      const snapshot = profileManager.getSnapshot();
+      console.log('📊 [Ask MO API] Snapshot after update:', JSON.stringify(snapshot, null, 2));
+    } else {
+      console.log('⚠️ [Ask MO API] No businessData to update profile manager. businessData keys:', Object.keys(businessData));
     }
 
     // NEW: Check if we can answer with existing data before proceeding
@@ -567,19 +651,19 @@ CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks
 ${plannedResponse.systemPrompt}`;
 
     // Add business context to system prompt
-    if (businessSnapshot.openingCapital !== undefined || businessProfile?.industry || businessProfile?.location || businessData?.totalSales) {
+    if (businessSnapshot.openingCapital !== undefined || businessSnapshot.totalSales !== undefined || businessProfile?.industry || businessProfile?.location) {
       systemPrompt += `
 
 📊 CURRENT BUSINESS CONTEXT:
 ${businessSnapshot.openingCapital !== undefined ? `- Opening Capital: ₦${businessSnapshot.openingCapital.toLocaleString()}` : ''}
 ${businessSnapshot.cashAvailable !== undefined ? `- Cash Available: ₦${businessSnapshot.cashAvailable.toLocaleString()}` : ''}
 ${businessSnapshot.profit !== undefined ? `- Current Profit: ₦${businessSnapshot.profit.toLocaleString()}` : ''}
-${businessData?.totalSales !== undefined ? `- Total Sales: ₦${businessData.totalSales.toLocaleString()}` : ''}
-${businessData?.todaySales !== undefined ? `- Today's Sales: ₦${businessData.todaySales.toLocaleString()}` : ''}
-${businessData?.totalProfit !== undefined ? `- Total Profit: ₦${businessData.totalProfit.toLocaleString()}` : ''}
-${businessData?.todayProfit !== undefined ? `- Today's Profit: ₦${businessData.todayProfit.toLocaleString()}` : ''}
-${businessData?.lowStockCount !== undefined ? `- Low Stock Items: ${businessData.lowStockCount}` : ''}
-${businessData?.outOfStockCount !== undefined ? `- Out of Stock Items: ${businessData.outOfStockCount}` : ''}
+${businessSnapshot.totalSales !== undefined ? `- Total Sales: ₦${businessSnapshot.totalSales.toLocaleString()}` : ''}
+${businessSnapshot.todaySales !== undefined ? `- Today's Sales: ₦${businessSnapshot.todaySales.toLocaleString()}` : ''}
+${businessSnapshot.totalProfit !== undefined ? `- Total Profit: ₦${businessSnapshot.totalProfit.toLocaleString()}` : ''}
+${businessSnapshot.todayProfit !== undefined ? `- Today's Profit: ₦${businessSnapshot.todayProfit.toLocaleString()}` : ''}
+${businessSnapshot.lowStockCount !== undefined ? `- Low Stock Items: ${businessSnapshot.lowStockCount}` : ''}
+${businessSnapshot.outOfStockCount !== undefined ? `- Out of Stock Items: ${businessSnapshot.outOfStockCount}` : ''}
 ${businessProfile?.industry ? `- Industry: ${businessProfile.industry}` : ''}
 ${businessProfile?.location ? `- Location: ${businessProfile.location}` : ''}
 ${businessSnapshot.nextRecommendedAction ? `- Recommended Next Action: ${businessSnapshot.nextRecommendedAction}` : ''}

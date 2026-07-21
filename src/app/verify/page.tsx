@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import SupportChatWidget from '@/components/SupportChatWidget';
 import type { Page } from '../welcome/types';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -170,8 +169,6 @@ export default function VerifyPage() {
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
 
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
     </main>
   );
 }

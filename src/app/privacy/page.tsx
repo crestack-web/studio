@@ -5,7 +5,6 @@ import InvestorLayout from '@/components/app/investor-layout';
 // Update imports to use SupportChatWidget instead of ChatwootWidget
 
 import { useState, useEffect } from 'react';
-import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function PrivacyPage() {
   return (
@@ -37,8 +36,6 @@ export default function PrivacyPage() {
         </div>
       </InvestorLayout>
 
-      {/* Support chat widget - connects to our admin support section */}
-      <SupportChatWidget />
     </main>
   );
 }

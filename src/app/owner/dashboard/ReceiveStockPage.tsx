@@ -391,6 +391,20 @@ export function ReceiveStockPage() {
               paymentMethod,
             },
           });
+
+          // Create cash flow entry for stock receipt (money out)
+          const cashFlowRef = doc(collection(firestore, 'businesses', businessId, 'cashFlow'));
+          transaction.set(cashFlowRef, {
+            date: Timestamp.now(),
+            moneyIn: 0,
+            moneyOut: paid,
+            category: 'Stock Purchase',
+            description: `Stock receipt ${receiptNumber} - ${supplierName}`,
+            stockReceiptId: receiptRef.id,
+            supplierId,
+            paymentMethod,
+            createdAt: Timestamp.now(),
+          });
         }
         
         // Update product stock and supplier info

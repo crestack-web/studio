@@ -32,7 +32,9 @@ export interface Product {
   reorderThreshold: number; // alert threshold
   suggestedReorder: number; // how many to order
   unitsSold30d: number;     // units sold in last 30 days
+  totalSalesCount?: number; // total lifetime sales
   lastSaleDate: string;     // ISO date string
+  lastSalePrice?: number;   // price of last sale
   trend: TrendDir;
   movement: StockMovementEntry[];
   imageUrl?: string;        // product image URL

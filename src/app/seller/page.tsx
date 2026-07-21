@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
+import { FloatingChatWidget } from '../welcome/components/FloatingChatWidget';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import { Page } from '../welcome/types';
 
@@ -22,11 +23,33 @@ export default function SellerPage() {
   const [submitted, setSubmitted] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Submit to backend
-    console.log('Seller waitlist submission:', formData);
-    setSubmitted(true);
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'seller',
+          ...formData,
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Seller waitlist submission saved:', result.id);
+        setSubmitted(true);
+      } else {
+        console.error('❌ Failed to submit:', result.error);
+        alert('Failed to submit. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error submitting waitlist:', error);
+      alert('Failed to submit. Please try again.');
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -327,6 +350,7 @@ export default function SellerPage() {
       <LangProvider>
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
+      <FloatingChatWidget />
     </div>
   );
 }

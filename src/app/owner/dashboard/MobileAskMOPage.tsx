@@ -482,7 +482,11 @@ export function MobileAskMOPage() {
       
       // Load business data on first message for better performance
       console.log('📊 [MobileAskMO] Loading business data on first message');
-      loadBusinessData();
+      await loadBusinessData();
+      
+      // Wait a bit more to ensure businessSummary state is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('📊 [MobileAskMO] Current businessSummary:', businessSummary);
     }
 
     await new Promise(resolve => setTimeout(resolve, 1500));

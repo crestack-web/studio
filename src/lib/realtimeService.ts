@@ -11,7 +11,8 @@ export interface Message {
   content: string;
   timestamp: string;
   customerId: string;  // Add customerId property
-  readByAdmin?: boolean;
+  readByAdmin?: boolean; // Keep this property
+  readByUser?: boolean; // Add readByUser for completeness
 }
 
 export interface Customer {
@@ -52,7 +53,8 @@ export const useRealtimeService = () => {
         content,
         timestamp: new Date().toISOString(),
         customerId,  // Add customerId
-        readByAdmin: true
+        readByAdmin: true,
+        readByUser: false
       };
       
       // Update messages in state
@@ -76,7 +78,8 @@ export const useRealtimeService = () => {
           content: ['Hello!', 'Where are you?', 'Need help with order', 'When will it arrive?'][Math.floor(Math.random() * 4)],
           timestamp: new Date().toISOString(),
           customerId,  // Add customerId parameter
-          readByAdmin: false
+          readByAdmin: false,
+          readByUser: true
         };
         
         // Update messages in state
@@ -95,7 +98,8 @@ export const useRealtimeService = () => {
         content: 'Hello, I need help with my order',
         timestamp: new Date(Date.now() - 86400000).toISOString(), // Yesterday
         customerId,  // Add customerId parameter
-        readByAdmin: true
+        readByAdmin: true,
+        readByUser: false
       },
       {
         id: 'msg_2',
@@ -103,7 +107,8 @@ export const useRealtimeService = () => {
         content: 'Sure, I can help with that.',
         timestamp: new Date(Date.now() - 86400000 + 1000).toISOString(), // Yesterday + 1s
         customerId,  // Add customerId parameter
-        readByAdmin: true
+        readByAdmin: true,
+        readByUser: false
       }
     ];
     
@@ -212,8 +217,11 @@ export const useRealtimeService = () => {
   const markMessagesAsRead = useCallback((customerId: string) => {
     setMessages(prev => 
       prev.map(message => 
-        message.sender === 'user' && message.id.startsWith(customerId) && !message.readByAdmin
-          ? { ...message, readByAdmin: true } 
+        message.sender === 'user' && message.customerId === customerId && !message.readByAdmin
+          ? { 
+              ...message, 
+              readByAdmin: true 
+            } 
           : message
       )
     );
@@ -227,7 +235,7 @@ export const useRealtimeService = () => {
   // Get unread message count for a customer
   const getUnreadMessageCount = useCallback((customerId: string): number => {
     return messages.filter(
-      msg => msg.sender === 'user' && !msg.readByAdmin && msg.id.startsWith(customerId)
+      msg => msg.sender === 'user' && !msg.readByAdmin && msg.customerId === customerId
     ).length;
   }, []);
 
@@ -318,6 +326,25 @@ export const useRealtimeService = () => {
     };
   }, []);
 
+  // Add method to get messages by customer
+  const getMessagesByCustomer = useCallback((customerId: string): Message[] => {
+    return messages.filter(msg => msg.customerId === customerId);
+  }, [messages]);
+
+  // Add method to mark messages as read by user
+  const markMessagesAsReadByUser = useCallback((customerId: string) => {
+    setMessages(prev => 
+      prev.map(message => 
+        message.sender === 'admin' && message.customerId === customerId && !message.readByUser
+          ? { 
+              ...message, 
+              readByUser: true 
+            } 
+          : message
+      )
+    );
+  }, []);
+
   // Return the service interface
   return {
     messages,
@@ -334,9 +361,11 @@ export const useRealtimeService = () => {
     markNewCustomersAsSeen,
     getCustomer,
     markMessagesAsRead,
+    markMessagesAsReadByUser,
     updateMessageStatus,
     getUnreadMessageCount,
     getDailyActiveUsers,
-    getMonthlyActiveUsers
+    getMonthlyActiveUsers,
+    getMessagesByCustomer
   };
 }

@@ -512,8 +512,8 @@ export function RecordSalePage() {
             role: userRole,
             staffId: staffId,
           },
-          createdAt: new Date(),
-          recordedAt: new Date(),
+          createdAt: Timestamp.now(),
+          recordedAt: Timestamp.now(),
         };
 
       // Only add customer fields if a customer is actually selected (not empty string)
@@ -525,6 +525,25 @@ export function RecordSalePage() {
 
       // Save sale to Firestore
       const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+
+      // Create cash flow entry for the sale
+      try {
+        await addDoc(collection(firestore, 'businesses', businessId, 'cashFlow'), {
+          date: Timestamp.now(),
+          moneyIn: expectedCash,
+          moneyOut: 0,
+          category: 'Sale',
+          description: `Sale #${saleRef.id.slice(-6)}`,
+          saleId: saleRef.id,
+          paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
+          sourceLocation: sourceLocationName,
+          createdAt: Timestamp.now(),
+        });
+        console.log('✅ Cash flow entry created for sale');
+      } catch (cashFlowError) {
+        console.error('⚠️ Failed to create cash flow entry:', cashFlowError);
+        // Don't fail the sale if cash flow entry fails
+      }
 
       // Record audit trail for sale creation
       try {
@@ -672,6 +691,10 @@ export function RecordSalePage() {
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
               lastSaleLocationName: sourceLocationName,
+              lastSaleDate: Timestamp.now(),
+              unitsSold30d: (data.unitsSold30d || 0) + item.qty,
+              totalSalesCount: (data.totalSalesCount || 0) + item.qty,
+              lastSalePrice: item.price,
             });
           }
         }
@@ -1428,7 +1451,9 @@ export function RecordSalePage() {
                         className={[styles.payMethod, isActive ? styles.payActive : ''].join(' ')}
                         onClick={() => {
                           if (!isActive) {
-                            setPaymentBreakdown(prev => [...prev, { method: pm.id as PaymentMethod, amount: 0 }]);
+                            // Auto-fill with finalTotal if this will be the only payment method
+                            const autoAmount = paymentBreakdown.length === 0 ? finalTotal : 0;
+                            setPaymentBreakdown(prev => [...prev, { method: pm.id as PaymentMethod, amount: autoAmount }]);
                           } else {
                             setPaymentBreakdown(prev => prev.filter(pb => pb.method !== pm.id));
                           }

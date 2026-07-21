@@ -120,7 +120,7 @@ export class ResponsePlanner {
     // Sales data card
     if (reasoning.relevantDataPoints.includes('sales_data') && businessData.sales) {
       const totalSales = businessData.sales.reduce((sum: number, sale: any) => 
-        sum + (parseFloat(sale.amount) || 0), 0
+        sum + (parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0), 0
       );
       
       const todaySales = businessData.sales.filter((sale: any) => {
@@ -128,7 +128,7 @@ export class ResponsePlanner {
         return saleDate.toDateString() === new Date().toDateString();
       })
       .reduce((sum: number, sale: any) => 
-        sum + (parseFloat(sale.amount) || 0), 0
+        sum + (parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0), 0
       );
       
       // Only create data card if user is asking about sales
@@ -272,7 +272,7 @@ export class ResponsePlanner {
     // Sales data insight
     if (reasoning.relevantDataPoints.includes('sales_data') && businessData.sales) {
       const totalSales = businessData.sales.reduce((sum: number, sale: any) => 
-        sum + (parseFloat(sale.amount) || 0), 0
+        sum + (parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0), 0
       );
       
       const todaySales = businessData.sales.filter((sale: any) => {
@@ -280,7 +280,7 @@ export class ResponsePlanner {
         return saleDate.toDateString() === new Date().toDateString();
       })
       .reduce((sum: number, sale: any) => 
-        sum + (parseFloat(sale.amount) || 0), 0
+        sum + (parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0), 0
       );
       
       content += `Total sales: ₦${totalSales.toLocaleString()}. Today: ₦${todaySales.toLocaleString()}`;

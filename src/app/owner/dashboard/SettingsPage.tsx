@@ -406,7 +406,8 @@ export default function SettingsPage() {
             'majnuncode@gmail.com',
             'sxeedtxheer@gmail.com',
             'ahmedusmus@gmail.com',
-            'majnun@busmo.io'
+            'majnun@busmo.io',
+            'victoria@busmo.io'
           ];
           
           // Check both: localStorage admin session OR current user email in whitelist

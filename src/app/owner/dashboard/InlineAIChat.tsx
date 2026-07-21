@@ -335,6 +335,10 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       // Load business data on first message for better performance
       console.log('📊 [InlineAIChat] Loading business data on first message');
       await loadBusinessData();
+      
+      // Wait a bit more to ensure businessSummary state is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('📊 [InlineAIChat] Current businessSummary:', businessSummary);
     }
 
     await new Promise(resolve => setTimeout(resolve, 1500));

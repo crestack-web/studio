@@ -229,6 +229,24 @@ export function AddExpensePage() {
 
       const expenseRef = await addDoc(collection(firestore, 'businesses', businessId, 'expenses'), expenseData);
 
+      // Create cash flow entry for the expense
+      try {
+        await addDoc(collection(firestore, 'businesses', businessId, 'cashFlow'), {
+          date: Timestamp.now(),
+          moneyIn: 0,
+          moneyOut: parseFloat(form.amount),
+          category: form.category,
+          description: `Expense - ${form.category}`,
+          expenseId: expenseRef.id,
+          paymentMethod: form.paymentMethod,
+          createdAt: Timestamp.now(),
+        });
+        console.log('✅ Cash flow entry created for expense');
+      } catch (cashFlowError) {
+        console.error('⚠️ Failed to create cash flow entry:', cashFlowError);
+        // Don't fail the expense if cash flow entry fails
+      }
+
       // Record audit trail for expense creation
       try {
         const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));

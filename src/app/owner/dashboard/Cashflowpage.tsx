@@ -772,9 +772,26 @@ export default function Cashflowpage() {
 
       // Use Firestore transaction for atomic updates
       await runTransaction(firestore, async (transaction) => {
-        // Update product stock
+        // PHASE 1: All reads first
         const productRef = doc(firestore, 'businesses', businessId, 'products', stockAddition.productId);
         const productDoc = await transaction.get(productRef);
+        
+        let accountDoc: any = null;
+        let accountRef: any = null;
+        if (stockAddition.bankAccountId && (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial')) {
+          accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
+          accountDoc = await transaction.get(accountRef);
+        }
+        
+        let supplierDoc: any = null;
+        let supplierRef: any = null;
+        if (stockAddition.supplierId) {
+          supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId);
+          supplierDoc = await transaction.get(supplierRef);
+        }
+
+        // PHASE 2: All writes after reads
+        // Update product stock
         if (productDoc.exists()) {
           const currentStock = productDoc.data().stock || 0;
           transaction.update(productRef, {
@@ -785,69 +802,89 @@ export default function Cashflowpage() {
         // Handle payment based on method
         if (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') {
           // If bank account selected, deduct from bank
-          if (stockAddition.bankAccountId) {
-            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
-            const accountDoc = await transaction.get(accountRef);
-            if (accountDoc.exists()) {
-              const currentBalance = accountDoc.data().currentBalance || 0;
-              if (currentBalance < paidAmount) {
-                throw new Error('Insufficient bank balance');
-              }
-              transaction.update(accountRef, {
-                currentBalance: currentBalance - paidAmount,
-              });
-
-              // Record bank transaction
-              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-              transaction.set(bankTxnRef, {
-                transactionNumber: `TXN-${Date.now()}`,
-                bankAccountId: stockAddition.bankAccountId,
-                accountName: accountDoc.data().accountName,
-                type: 'money_out',
-                category: stockAddition.paymentMethod === 'partial' ? 'Purchase Payment' : 'Purchase',
-                amount: paidAmount,
-                balanceAfter: currentBalance - paidAmount,
-                description: stockAddition.paymentMethod === 'partial' 
-                  ? `Partial payment: ${product.name} - ${stockAddition.quantity} units`
-                  : `Purchase: ${product.name} - ${stockAddition.quantity} units`,
-                createdAt: Timestamp.now(),
-              });
+          if (stockAddition.bankAccountId && accountDoc && accountDoc.exists()) {
+            const currentBalance = accountDoc.data().currentBalance || 0;
+            if (currentBalance < paidAmount) {
+              throw new Error('Insufficient bank balance');
             }
+            transaction.update(accountRef, {
+              currentBalance: currentBalance - paidAmount,
+            });
+
+            // Record bank transaction
+            const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+            transaction.set(bankTxnRef, {
+              transactionNumber: `TXN-${Date.now()}`,
+              bankAccountId: stockAddition.bankAccountId,
+              accountName: accountDoc.data().accountName,
+              type: 'money_out',
+              category: stockAddition.paymentMethod === 'partial' ? 'Purchase Payment' : 'Purchase',
+              amount: paidAmount,
+              balanceAfter: currentBalance - paidAmount,
+              description: stockAddition.paymentMethod === 'partial' 
+                ? `Partial payment: ${product.name} - ${stockAddition.quantity} units`
+                : `Purchase: ${product.name} - ${stockAddition.quantity} units`,
+              createdAt: Timestamp.now(),
+            });
           }
         }
 
         // If supplier is selected, update supplier balance and create ledger entry
         let supplierName = 'No Supplier';
-        if (stockAddition.supplierId) {
-          const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId);
-          const supplierDoc = await transaction.get(supplierRef);
+        if (stockAddition.supplierId && supplierDoc && supplierDoc.exists()) {
+          const supplierData = supplierDoc.data();
+          supplierName = supplierData.supplierName || supplierData.name || 'Unknown Supplier';
+          const currentBalance = supplierData.currentBalance || 0;
+          const newBalance = currentBalance + creditAmount;
 
-          if (supplierDoc.exists()) {
-            const supplierData = supplierDoc.data();
-            supplierName = supplierData.supplierName || supplierData.name || 'Unknown Supplier';
-            const currentBalance = supplierData.currentBalance || 0;
-            const newBalance = currentBalance + creditAmount;
+          transaction.update(supplierRef, {
+            currentBalance: newBalance,
+            totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
+            totalPayments: (supplierData.totalPayments || 0) + paidAmount,
+            purchaseCount: (supplierData.purchaseCount || 0) + 1,
+            paymentCount: paidAmount > 0 ? (supplierData.paymentCount || 0) + 1 : supplierData.paymentCount,
+            lastPurchaseDate: Timestamp.now(),
+            lastPaymentDate: paidAmount > 0 ? Timestamp.now() : supplierData.lastPaymentDate,
+          });
 
-            transaction.update(supplierRef, {
-              currentBalance: newBalance,
-              totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
-              totalPayments: (supplierData.totalPayments || 0) + paidAmount,
-              purchaseCount: (supplierData.purchaseCount || 0) + 1,
-              paymentCount: paidAmount > 0 ? (supplierData.paymentCount || 0) + 1 : supplierData.paymentCount,
-              lastPurchaseDate: Timestamp.now(),
-              lastPaymentDate: paidAmount > 0 ? Timestamp.now() : supplierData.lastPaymentDate,
-            });
+          // Create supplier ledger entry for purchase
+          const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+          transaction.set(ledgerRef, {
+            supplierId: stockAddition.supplierId,
+            businessId: businessId,
+            type: 'purchase',
+            amount: purchaseAmount,
+            balanceAfter: newBalance,
+            description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
+            reference: stockAddition.referenceNumber,
+            date: Timestamp.now(),
+            createdAt: Timestamp.now(),
+            createdBy: user?.id || 'system',
+            createdByName: user?.name || 'System',
+            metadata: {
+              productId: product.id,
+              productName: product.name,
+              quantity: stockAddition.quantity,
+              unitCost: stockAddition.costPrice,
+              paidAmount,
+              creditAmount,
+              paymentMethod,
+              purchaseDate: stockAddition.purchaseDate,
+              notes: stockAddition.notes,
+            },
+          });
 
-            // Create supplier ledger entry for purchase
-            const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
-            transaction.set(ledgerRef, {
+          // If payment was made, create payment ledger entry
+          if (paidAmount > 0) {
+            const paymentLedgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
+            transaction.set(paymentLedgerRef, {
               supplierId: stockAddition.supplierId,
               businessId: businessId,
-              type: 'purchase',
-              amount: purchaseAmount,
+              type: 'payment',
+              amount: paidAmount,
               balanceAfter: newBalance,
-              description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
-              reference: stockAddition.referenceNumber,
+              description: `Payment for purchase: ${product.name}`,
+              reference: `PAY-${Date.now()}`,
               date: Timestamp.now(),
               createdAt: Timestamp.now(),
               createdBy: user?.id || 'system',
@@ -855,38 +892,9 @@ export default function Cashflowpage() {
               metadata: {
                 productId: product.id,
                 productName: product.name,
-                quantity: stockAddition.quantity,
-                unitCost: stockAddition.costPrice,
-                paidAmount,
-                creditAmount,
                 paymentMethod,
-                purchaseDate: stockAddition.purchaseDate,
-                notes: stockAddition.notes,
               },
             });
-
-            // If payment was made, create payment ledger entry
-            if (paidAmount > 0) {
-              const paymentLedgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
-              transaction.set(paymentLedgerRef, {
-                supplierId: stockAddition.supplierId,
-                businessId: businessId,
-                type: 'payment',
-                amount: paidAmount,
-                balanceAfter: newBalance,
-                description: `Payment for purchase: ${product.name}`,
-                reference: `PAY-${Date.now()}`,
-                date: Timestamp.now(),
-                createdAt: Timestamp.now(),
-                createdBy: user?.id || 'system',
-                createdByName: user?.name || 'System',
-                metadata: {
-                  productId: product.id,
-                  productName: product.name,
-                  paymentMethod,
-                },
-              });
-            }
           }
         }
 
@@ -917,25 +925,50 @@ export default function Cashflowpage() {
 
         // If no supplier and bank account used, record as expense transaction
         if (!stockAddition.supplierId) {
+=======
+          }
+
+          // Create stock receipt
+          const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
+          transaction.set(receiptRef, {
+            receiptNumber: stockAddition.referenceNumber,
+            supplierId: stockAddition.supplierId,
+            supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
+            items: [{
+              productId: product.id,
+              productName: product.name,
+              quantity: stockAddition.quantity,
+              unitCost: stockAddition.costPrice,
+              totalCost: purchaseAmount,
+            }],
+            totalQuantity: stockAddition.quantity,
+            totalCost: purchaseAmount,
+            paymentMethod,
+            paidAmount,
+            creditAmount,
+            receivedAt: new Date().toISOString(),
+            receivedBy: user?.id || 'system',
+            receivedByName: user?.name || 'System',
+            notes: stockAddition.notes,
+            createdAt: Timestamp.now(),
+          });
+        } else {
+>>>>>>> da38edd3de17d14fea9bde5bfb315a2d9cd83070
           // No supplier - just record as expense if bank account used
-          if (stockAddition.bankAccountId && paidAmount > 0) {
-            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
-            const accountDoc = await transaction.get(accountRef);
-            if (accountDoc.exists()) {
-              const transactionData = {
-                transactionNumber: `STK-${Date.now()}`,
-                bankAccountId: stockAddition.bankAccountId,
-                accountName: accountDoc.data().accountName,
-                type: 'money_out',
-                category: 'Stock Addition',
-                amount: paidAmount,
-                balanceAfter: accountDoc.data().currentBalance - paidAmount,
-                description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.notes}`,
-                createdAt: Timestamp.now(),
-              };
-              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-              transaction.set(bankTxnRef, transactionData);
-            }
+          if (stockAddition.bankAccountId && paidAmount > 0 && accountDoc && accountDoc.exists()) {
+            const transactionData = {
+              transactionNumber: `STK-${Date.now()}`,
+              bankAccountId: stockAddition.bankAccountId,
+              accountName: accountDoc.data().accountName,
+              type: 'money_out',
+              category: 'Stock Addition',
+              amount: paidAmount,
+              balanceAfter: accountDoc.data().currentBalance - paidAmount,
+              description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.notes}`,
+              createdAt: Timestamp.now(),
+            };
+            const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
+            transaction.set(bankTxnRef, transactionData);
           }
         }
       });

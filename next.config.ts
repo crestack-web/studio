@@ -50,7 +50,8 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
+    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    const rewrites = [
       {
         source: '/api/initializePayment',
         destination: `${firebaseFunctionsBaseUrl}/initializePayment`,
@@ -108,6 +109,26 @@ const nextConfig: NextConfig = {
         destination: `${firebaseFunctionsBaseUrl}/sendOtpLogin`,
       },
     ];
+
+    // Only add PostHog rewrites if NEXT_PUBLIC_POSTHOG_HOST is configured
+    if (posthogHost) {
+      rewrites.push(
+        {
+          source: '/ingest/static/:path*',
+          destination: `${posthogHost}/static/:path*`,
+        },
+        {
+          source: '/ingest/array/:path*',
+          destination: `${posthogHost}/array/:path*`,
+        },
+        {
+          source: '/ingest/:path*',
+          destination: `${posthogHost}/:path*`,
+        }
+      );
+    }
+
+    return rewrites;
   },
   // Enable React strict mode for better development
   reactStrictMode: true,

@@ -6,6 +6,7 @@ import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { formatCurrency, getUserCountryCode, convertFromUsd, getCurrencyName } from '@/lib/currency';
+import posthog from 'posthog-js';
 
 const PLANS = [
   {
@@ -143,6 +144,11 @@ export default function SubscribePage() {
       const amount = billingCycle === 'monthly' ? selectedPlanData.monthlyPrice : selectedPlanData.yearlyPrice;
 
       console.log('Amount:', amount, 'Billing cycle:', billingCycle);
+      posthog.capture('subscription_checkout_started', {
+        plan: selectedPlan,
+        billing_cycle: billingCycle,
+        amount,
+      });
 
       // Call Firebase Function to initialize subscription payment
       // Use production URL for callback to avoid localhost redirects

@@ -16,6 +16,7 @@ const AskMOAnalytics = dynamic(() => import('./AskMOAnalytics'), { ssr: false })
 const NotificationCenter = dynamic(() => import('./NotificationCenter'), { ssr: false });
 const AdminTeam = dynamic(() => import('./AdminTeam'), { ssr: false });
 const UserActivityAnalytics = dynamic(() => import('./UserActivityAnalytics'), { ssr: false }); // Added UserActivityAnalytics
+const WaitlistManagement = dynamic(() => import('./WaitlistManagement'), { ssr: false });
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
@@ -37,6 +38,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { id: 'churn', label: 'Churn Detection', icon: '⚠️' },
     { id: 'askmo', label: 'Ask MO', icon: '🤖' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'waitlist', label: 'Waitlist', icon: '📝' },
   ];
 
   const renderContent = () => {
@@ -64,6 +66,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return <Suspense fallback={<LoadingFallback />}><AskMOAnalytics /></Suspense>;
       case 'notifications':
         return <Suspense fallback={<LoadingFallback />}><NotificationCenter /></Suspense>;
+      case 'waitlist':
+        return <Suspense fallback={<LoadingFallback />}><WaitlistManagement /></Suspense>;
       default:
         return children || <Suspense fallback={<LoadingFallback />}><DashboardOverview /></Suspense>;
     }
