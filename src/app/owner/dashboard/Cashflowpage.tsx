@@ -922,55 +922,6 @@ export default function Cashflowpage() {
           notes: stockAddition.notes,
           createdAt: Timestamp.now(),
         });
-
-        // If no supplier and bank account used, record as expense transaction
-        if (!stockAddition.supplierId) {
-=======
-          }
-
-          // Create stock receipt
-          const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
-          transaction.set(receiptRef, {
-            receiptNumber: stockAddition.referenceNumber,
-            supplierId: stockAddition.supplierId,
-            supplierName: supplierData.supplierName || supplierData.name || 'Unknown Supplier',
-            items: [{
-              productId: product.id,
-              productName: product.name,
-              quantity: stockAddition.quantity,
-              unitCost: stockAddition.costPrice,
-              totalCost: purchaseAmount,
-            }],
-            totalQuantity: stockAddition.quantity,
-            totalCost: purchaseAmount,
-            paymentMethod,
-            paidAmount,
-            creditAmount,
-            receivedAt: new Date().toISOString(),
-            receivedBy: user?.id || 'system',
-            receivedByName: user?.name || 'System',
-            notes: stockAddition.notes,
-            createdAt: Timestamp.now(),
-          });
-        } else {
->>>>>>> da38edd3de17d14fea9bde5bfb315a2d9cd83070
-          // No supplier - just record as expense if bank account used
-          if (stockAddition.bankAccountId && paidAmount > 0 && accountDoc && accountDoc.exists()) {
-            const transactionData = {
-              transactionNumber: `STK-${Date.now()}`,
-              bankAccountId: stockAddition.bankAccountId,
-              accountName: accountDoc.data().accountName,
-              type: 'money_out',
-              category: 'Stock Addition',
-              amount: paidAmount,
-              balanceAfter: accountDoc.data().currentBalance - paidAmount,
-              description: `Stock addition: ${product.name} - ${stockAddition.quantity} units. ${stockAddition.notes}`,
-              createdAt: Timestamp.now(),
-            };
-            const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-            transaction.set(bankTxnRef, transactionData);
-          }
-        }
       });
 
       showToast(`✅ Purchase recorded successfully${creditAmount > 0 ? ` - ${formatMoney(creditAmount)} added to credit` : ''}`);
