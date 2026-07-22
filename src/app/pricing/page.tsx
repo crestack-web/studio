@@ -23,7 +23,7 @@ export default function PricingPage() {
     if (page === 'signup') window.location.href = '/welcome/signup';
     else if (page === 'login' || page === 'login-form') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';
-    else if (page === 'seller') window.location.href = '/seller';
+    else if (page === 'seller') window.location.href = '/sell-welcome';
     else if (page === 'invest' || page === 'invest-signup' || page === 'invest-login' || page === 'investor')
       window.location.href = '/invest';
     else window.location.href = '/welcome';

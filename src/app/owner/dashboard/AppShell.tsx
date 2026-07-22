@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -89,10 +89,18 @@ const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);
 
 export function AppShell() {
   const { activePage } = useApp();
+  const router = typeof window !== 'undefined' ? null : null;
   const isMobileAskMO = activePage === 'mo-mobile';
 
   // Use the page tracking hook to track user activity
   usePageTracking();
+
+  // MO Sell is a standalone dashboard — navigate to /sell/dashboard route
+  useEffect(() => {
+    if (activePage === 'mo-sell') {
+      window.location.href = '/sell/dashboard';
+    }
+  }, [activePage]);
 
   const currentPage = PAGE_MAP[activePage] ?? (
     <div className={styles.placeholder}>

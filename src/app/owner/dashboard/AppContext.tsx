@@ -161,7 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: import('firebase/auth').User | null) => {
       if (firebaseUser) {
         try {
           const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));

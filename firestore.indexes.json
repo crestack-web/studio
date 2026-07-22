@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "store",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "customDomain",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "customDomainStatus",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "sales",
       "queryScope": "COLLECTION",
       "fields": [

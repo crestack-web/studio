@@ -1,59 +1,59 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '');
+/**
+ * Client-side transcription helper.
+ * All actual Gemini API calls happen server-side via POST /api/transcribe
+ * so that Buffer, process.env.GOOGLE_GENAI_API_KEY, etc. are never accessed
+ * in the browser.
+ */
 
 /**
- * Transcribe audio using Google Cloud Speech-to-Text
- * Supports multiple languages and auto-detection
+ * Transcribe an audio Blob by sending it to the server-side API route.
+ * Supports the same languages as before: en, fr, es, de, pt, yo, ha, ig, sw.
  */
 export async function transcribeAudio(audioBlob: Blob, language: string = 'en'): Promise<string> {
-  try {
-    // Convert audio blob to base64
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+  // Convert blob to base64 data URI so we can send it as JSON
+  const base64 = await blobToBase64(audioBlob);
 
-    // Use Gemini 1.5 Pro which supports audio
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const response = await fetch('/api/transcribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      audioBase64: base64,
+      mimeType: audioBlob.type || 'audio/webm',
+      language,
+    }),
+  });
 
-    const prompt = `Transcribe this audio message accurately. 
-    - If the audio is in ${language}, respond in ${language}
-    - Detect the language automatically if unsure
-    - Return ONLY the transcription text, no explanations or additional text
-    - Handle multiple languages if the speaker switches languages
-    - Include punctuation and proper formatting`;
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Audio,
-          mimeType: audioBlob.type || 'audio/webm'
-        }
-      }
-    ]);
-
-    const transcription = result.response.text().trim();
-    return transcription;
-  } catch (error) {
-    console.error('Speech-to-Text error:', error);
-    throw new Error('Failed to transcribe audio');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to transcribe audio');
   }
+
+  const data = await response.json();
+  return data.transcription || '';
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 /**
- * Detect language from audio transcription
+ * Detect language from audio transcription.
  */
 export function detectLanguageFromText(text: string): string {
-  // Simple language detection based on common words/phrases
-  const languagePatterns = {
-    'fr': /\b(le|la|les|un|une|des|et|ou|mais|pour|avec|sur|dans|par|je|tu|il|elle|nous|vous|ils|elles)\b/i,
-    'es': /\b(el|la|los|las|un|una|unos|unas|y|o|pero|por|con|en|de|para|yo|tú|él|ella|nosotros|vosotros|ellos|ellas)\b/i,
-    'de': /\b(der|die|das|ein|eine|einen|und|oder|aber|für|mit|auf|in|von|zu|ich|du|er|sie|wir|ihr|sie)\b/i,
-    'pt': /\b(o|a|os|as|um|uma|uns|umas|e|ou|mas|para|com|em|de|por|eu|tu|ele|ela|nós|vós|eles|elas)\b/i,
-    'yo': /\b(ni|wa|o|a|un|una|ati|awa|kini|tun|fun|lor|pẹlu|lọ|sin|lati|mo|iwọ|oun|a|wa)\b/i,
-    'ha': /\b(na|ta|da|ga|a|in|sun|zu|su|mu|ke|don|wani|yi|ta|shi|ka|na|za|ci|tafi|yi|zai)\b/i,
-    'ig': /\b(na|a|i|o|anyị|ị|ụ|gị|nke|na|n'ụzọ|ka|ma|bụ|ka|ọ bụrụ|n'ime|n'elu|n'okpuru)\b/i,
-    'sw': /\b(na|ya|wa|za|la|ku|wao|vya|kwa|kwa|na|kati|juu|chini|nje|ndani|mimi|wewe|yeye|sisi|ninyi|wao)\b/i,
+  const languagePatterns: Record<string, RegExp> = {
+    fr: /\b(le|la|les|un|une|des|et|ou|mais|pour|avec|sur|dans|par|je|tu|il|elle|nous|vous|ils|elles)\b/i,
+    es: /\b(el|la|los|las|un|una|unos|unas|y|o|pero|por|con|en|de|para|yo|tú|él|ella|nosotros|vosotros|ellos|ellas)\b/i,
+    de: /\b(der|die|das|ein|eine|einen|und|oder|aber|für|mit|auf|in|von|zu|ich|du|er|sie|wir|ihr)\b/i,
+    pt: /\b(o|a|os|as|um|uma|uns|umas|e|ou|mas|para|com|em|de|por|eu|tu|ele|ela|nós|vós|eles|elas)\b/i,
+    yo: /\b(ni|wa|o|a|un|una|ati|awa|kini|tun|fun|lor|pẹlu|lọ|sin|lati|mo|iwọ|oun)\b/i,
+    ha: /\b(na|ta|da|ga|a|in|sun|zu|su|mu|ke|don|wani|yi|shi|ka|za|ci|tafi)\b/i,
+    ig: /\b(na|a|i|o|anyị|ị|ụ|gị|nke|n'ụzọ|ka|ma|bụ|ọ bụrụ|n'ime|n'elu|n'okpuru)\b/i,
+    sw: /\b(na|ya|wa|za|la|ku|wao|vya|kwa|kati|juu|chini|nje|ndani|mimi|wewe|yeye|sisi|ninyi)\b/i,
   };
 
   for (const [lang, pattern] of Object.entries(languagePatterns)) {
@@ -62,23 +62,23 @@ export function detectLanguageFromText(text: string): string {
     }
   }
 
-  return 'en'; // Default to English
+  return 'en';
 }
 
 /**
- * Get language name from code
+ * Get language name from code.
  */
 export function getLanguageName(code: string): string {
   const names: Record<string, string> = {
-    'en': 'English',
-    'fr': 'French',
-    'es': 'Spanish',
-    'de': 'German',
-    'pt': 'Portuguese',
-    'yo': 'Yoruba',
-    'ha': 'Hausa',
-    'ig': 'Igbo',
-    'sw': 'Swahili',
+    en: 'English',
+    fr: 'French',
+    es: 'Spanish',
+    de: 'German',
+    pt: 'Portuguese',
+    yo: 'Yoruba',
+    ha: 'Hausa',
+    ig: 'Igbo',
+    sw: 'Swahili',
   };
   return names[code] || 'English';
 }

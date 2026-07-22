@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════
+   CLASSIC THEME — Trusted, clean e-commerce
+   Familiar layout, high readability, blue CTA
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+[data-theme="classic"] {
+  --sf-font:         'Plus Jakarta Sans', system-ui, sans-serif;
+  --sf-font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sf-bg:           #F8FAFC;
+  --sf-surface:      #FFFFFF;
+  --sf-surface-2:    #F1F5F9;
+  --sf-border:       #E2E8F0;
+  --sf-text-1:       #0F172A;
+  --sf-text-2:       #475569;
+  --sf-text-3:       #94A3B8;
+  --sf-radius:       10px;
+  --sf-radius-sm:    6px;
+  --sf-radius-lg:    14px;
+  --sf-shadow:       0 4px 16px rgba(0,0,0,0.08);
+  --sf-shadow-sm:    0 1px 4px rgba(0,0,0,0.06);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  14px;
+}
+
+[data-theme="classic"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+/* Nav */
+[data-theme="classic"] .sf-nav {
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--sf-border);
+  box-shadow: 0 1px 0 var(--sf-border);
+}
+
+/* Hero */
+[data-theme="classic"] .sf-hero {
+  background: linear-gradient(135deg, var(--sf-primary) 0%, var(--sf-secondary) 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 48px 40px;
+  color: #fff;
+}
+[data-theme="classic"] .sf-hero h1 {
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Product card */
+[data-theme="classic"] .sf-card {
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  overflow: hidden;
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+[data-theme="classic"] .sf-card:hover {
+  box-shadow: var(--sf-shadow);
+  transform: translateY(-3px);
+}
+[data-theme="classic"] .sf-card-img { height: 220px; background: var(--sf-surface-2); }
+[data-theme="classic"] .sf-card-body { padding: 14px; }
+[data-theme="classic"] .sf-card-name { font-weight: 700; font-size: 0.95rem; color: var(--sf-text-1); }
+[data-theme="classic"] .sf-card-price { font-weight: 800; font-size: 1rem; color: var(--sf-primary); }
+[data-theme="classic"] .sf-card-btn {
+  width: 100%; padding: 10px; border-radius: 8px; font-weight: 700;
+  font-size: 0.875rem; background: var(--sf-primary); color: #fff;
+  transition: opacity 0.15s;
+}
+[data-theme="classic"] .sf-card-btn:hover { opacity: 0.9; }
+
+/* Section title */
+[data-theme="classic"] .sf-section-title {
+  font-size: 1.15rem; font-weight: 700; color: var(--sf-text-1);
+  border-left: 3px solid var(--sf-primary); padding-left: 12px;
+}

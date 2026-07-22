@@ -1,0 +1,361 @@
+/* ═══════════════════════════════════════
+   MO Sell — Earnings Page
+═══════════════════════════════════════ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.heading {
+  font-family: var(--sell-font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--sell-text-1);
+  margin-bottom: 4px;
+}
+
+.sub { font-size: 0.875rem; color: var(--sell-text-2); }
+
+/* ── Stats row ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.statCard {
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--sell-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statCardHighlight {
+  border-color: var(--sell-primary);
+  background: var(--sell-primary-lt);
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sell-text-3);
+}
+
+.statValue {
+  font-family: var(--sell-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--sell-text-1);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.statValueGreen   { color: var(--sell-green); }
+.statValueRed     { color: var(--sell-red); }
+.statValuePrimary { color: var(--sell-primary); }
+
+.statSub {
+  font-size: 0.75rem;
+  color: var(--sell-text-3);
+  margin-top: 2px;
+}
+
+/* ── Info banner ── */
+.infoBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  background: var(--sell-amber-bg);
+  border: 1px solid var(--sell-amber);
+  border-radius: var(--sell-radius-sm);
+  font-size: 0.82rem;
+  color: var(--sell-text-1);
+  line-height: 1.5;
+}
+
+.infoBanner svg { flex-shrink: 0; margin-top: 1px; color: var(--sell-amber); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--sell-border);
+  padding-bottom: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sell-text-3);
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color var(--sell-transition), border-color var(--sell-transition);
+  font-family: var(--sell-font-body);
+}
+
+.tab:hover { color: var(--sell-text-1); }
+
+.tabActive {
+  color: var(--sell-primary);
+  border-bottom-color: var(--sell-primary);
+}
+
+.tabBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 100px;
+  background: var(--sell-primary-lt);
+  color: var(--sell-primary);
+}
+
+/* ── Table ── */
+.tableWrap {
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--sell-shadow-sm);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table thead {
+  background: var(--sell-surface-2);
+  border-bottom: 1px solid var(--sell-border);
+}
+
+.table th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sell-text-3);
+  white-space: nowrap;
+}
+
+.thRight { text-align: right; }
+
+.table td {
+  padding: 12px 16px;
+  color: var(--sell-text-1);
+  border-bottom: 1px solid var(--sell-border-subtle);
+  vertical-align: middle;
+}
+
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--sell-surface-2); }
+
+.tdRight    { text-align: right; font-variant-numeric: tabular-nums; }
+.commission { color: var(--sell-red); }
+.netAmount  { color: var(--sell-green); font-weight: 700; }
+.dateCell   { color: var(--sell-text-2); font-size: 0.82rem; white-space: nowrap; }
+
+.orderNum {
+  font-family: monospace;
+  font-size: 0.82rem;
+  background: var(--sell-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--sell-border);
+  color: var(--sell-text-2);
+}
+
+.acctNum {
+  font-family: monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+/* ── Empty state ── */
+.tableEmpty {
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius-lg);
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--sell-text-3);
+  font-size: 0.875rem;
+}
+
+/* ── Empty card (not opted in) ── */
+.emptyCard {
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius-lg);
+  padding: 56px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  box-shadow: var(--sell-shadow-sm);
+}
+
+.emptyIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--sell-green-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sell-green);
+}
+
+.emptyTitle {
+  font-family: var(--sell-font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--sell-text-1);
+}
+
+.emptySub {
+  font-size: 0.875rem;
+  color: var(--sell-text-2);
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+/* ── Buttons ── */
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 22px;
+  border-radius: var(--sell-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  font-family: var(--sell-font-body);
+  background: linear-gradient(135deg, var(--sell-primary), var(--sell-accent));
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(14,165,233,0.25);
+  transition: opacity var(--sell-transition), transform var(--sell-transition);
+}
+.btnPrimary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.btnPrimary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btnPrimary svg { width: 15px; height: 15px; }
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--sell-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--sell-border);
+  background: none;
+  color: var(--sell-text-1);
+  cursor: pointer;
+  font-family: var(--sell-font-body);
+  transition: background var(--sell-transition);
+}
+.btnSecondary:hover { background: var(--sell-bg); }
+
+/* ── Spinner ── */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  color: var(--sell-text-3);
+  font-size: 0.875rem;
+}
+
+.loading .spinner {
+  border-color: var(--sell-border);
+  border-top-color: var(--sell-primary);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Modal ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--sell-overlay);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: sellFadeUp 0.18s ease both;
+}
+
+.modal {
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius-xl);
+  padding: 28px 28px 24px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: var(--sell-shadow-lg);
+}
+
+.modalTitle {
+  font-family: var(--sell-font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--sell-text-1);
+  margin-bottom: 12px;
+}
+
+.modalBody {
+  font-size: 0.875rem;
+  color: var(--sell-text-2);
+  line-height: 1.6;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}

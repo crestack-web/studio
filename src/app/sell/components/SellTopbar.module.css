@@ -1,0 +1,199 @@
+.topbar {
+  height: var(--sell-nav-height);
+  background: var(--sell-surface);
+  border-bottom: 1px solid var(--sell-border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* ── Hamburger (mobile) ── */
+.hamburger {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--sell-text-2);
+  border-radius: var(--sell-radius-sm);
+  flex-shrink: 0;
+}
+
+.hamburger:hover { background: var(--sell-bg); }
+.hamburger svg { width: 20px; height: 20px; }
+
+@media (max-width: 768px) { .hamburger { display: flex; } }
+
+/* ── Title block ── */
+.titleBlock { flex: 1; min-width: 0; }
+
+.title {
+  font-family: var(--sell-font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--sell-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: var(--sell-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* ── Actions ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Store status badge ── */
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.18s;
+}
+
+.statusBadge:hover { opacity: 0.8; }
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badgeActive  { background: var(--sell-green-bg);  color: var(--sell-green); }
+.badgeDraft   { background: var(--sell-amber-bg);  color: var(--sell-amber); }
+.badgePaused  { background: var(--sell-red-bg);    color: var(--sell-red); }
+.badgeNone    { background: var(--sell-surface-2); color: var(--sell-text-3); }
+
+.dotActive  { background: var(--sell-green); }
+.dotDraft   { background: var(--sell-amber); }
+.dotPaused  { background: var(--sell-red); }
+.dotNone    { background: var(--sell-text-3); }
+
+/* ── View store link ── */
+.viewStoreBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--sell-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sell-primary);
+  background: var(--sell-primary-lt);
+  border: none;
+  cursor: pointer;
+  transition: background var(--sell-transition);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.viewStoreBtn:hover { background: var(--sell-primary-glow); }
+.viewStoreBtn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+@media (max-width: 640px) { .viewStoreBtn span { display: none; } }
+
+/* ── Icon buttons ── */
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sell-radius-sm);
+  color: var(--sell-text-2);
+  transition: background var(--sell-transition), color var(--sell-transition);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.iconBtn:hover { background: var(--sell-bg); color: var(--sell-text-1); }
+.iconBtn svg { width: 18px; height: 18px; }
+
+/* ── Notification dot ── */
+.notifDot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sell-primary);
+  border: 2px solid var(--sell-surface);
+}
+
+/* ── Divider ── */
+.divider {
+  width: 1px;
+  height: 22px;
+  background: var(--sell-border);
+  flex-shrink: 0;
+}
+
+/* ── User chip ── */
+.userChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 100px;
+  border: 1px solid var(--sell-border);
+  background: none;
+  cursor: pointer;
+  transition: background var(--sell-transition);
+}
+
+.userChip:hover { background: var(--sell-bg); }
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--sell-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.userName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sell-text-1);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) { .userName { display: none; } }

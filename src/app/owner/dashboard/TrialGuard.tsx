@@ -33,7 +33,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
       if (!user) {
         router.replace('/login');
         return;

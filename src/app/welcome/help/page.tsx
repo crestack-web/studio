@@ -207,7 +207,7 @@ export default function HelpCenterPage() {
     } else if (page === 'pricing') {
       window.location.href = '/pricing';
     } else if (page === 'seller') {
-      window.location.href = '/seller';
+      window.location.href = '/sell-welcome';
     } else if (page === 'invest') {
       window.location.href = '/invest';
     } else if (page === 'download') {

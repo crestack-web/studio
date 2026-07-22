@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Page } from '../types';
 import { useScrolled } from '../hooks/useScrolled';
@@ -31,7 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
     } else if (p === 'pricing') {
       window.location.href = '/pricing';
     } else if (p === 'seller') {
-      window.location.href = '/seller';
+      window.location.href = '/sell-welcome';
     } else if (p === 'invest') {
       window.location.href = '/invest';
     } else if (p === 'verify') {

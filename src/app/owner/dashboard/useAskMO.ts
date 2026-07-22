@@ -496,6 +496,95 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         console.error('Error loading cash flow:', error);
       }
 
+      // ── MO Sell context ───────────────────────────────────────────────────────
+      let moSell: any = null;
+      try {
+        // Load store config
+        const storeConfigSnap = await getDoc(
+          doc(firestore, 'businesses', businessId, 'store', 'config')
+        );
+
+        if (storeConfigSnap.exists()) {
+          const storeData = storeConfigSnap.data();
+          const storeStatus  = storeData.status ?? 'draft';
+          const storeCurrency = storeData.currency ?? 'NGN';
+
+          // Store orders (last 30 days)
+          const ordersQuery = query(
+            collection(firestore, 'businesses', businessId, 'storeOrders'),
+            where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+          );
+          const ordersSnap = await getDocs(ordersQuery);
+
+          let storeRevenue = 0;
+          let storeOrderCount = 0;
+          const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
+
+          ordersSnap.forEach(d => {
+            const o = d.data();
+            if (o.paymentStatus === 'paid') {
+              storeRevenue += o.total ?? 0;
+              storeOrderCount++;
+              (o.lineItems ?? []).forEach((item: any) => {
+                if (!productSales[item.productId]) {
+                  productSales[item.productId] = { name: item.displayName, qty: 0, revenue: 0 };
+                }
+                productSales[item.productId].qty     += item.quantity ?? 0;
+                productSales[item.productId].revenue += item.lineTotal ?? 0;
+              });
+            }
+          });
+
+          // Store analytics (page views, add-to-cart) last 30 days
+          let pageViews = 0;
+          let addToCartEvents = 0;
+          try {
+            const analyticsQuery = query(
+              collection(firestore, 'businesses', businessId, 'storeAnalytics'),
+              where('timestamp', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
+            );
+            const analyticsSnap = await getDocs(analyticsQuery);
+            analyticsSnap.forEach(d => {
+              const ev = d.data();
+              if (ev.eventType === 'page_view')  pageViews++;
+              if (ev.eventType === 'add_to_cart') addToCartEvents++;
+            });
+          } catch { /* analytics collection may not exist yet */ }
+
+          // Conversion rate: orders / page_views (as %)
+          const conversionRate = pageViews > 0
+            ? parseFloat(((storeOrderCount / pageViews) * 100).toFixed(2))
+            : 0;
+
+          // Top 5 products by revenue
+          const topProducts = Object.values(productSales)
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 5);
+
+          // Store product count
+          const storeProductsSnap = await getDocs(
+            query(collection(firestore, 'businesses', businessId, 'storeProducts'),
+                  where('available', '==', true))
+          );
+
+          moSell = {
+            storeStatus,
+            storeName:       storeData.storeName ?? '',
+            storeSlug:       storeData.storeSlug ?? '',
+            currency:        storeCurrency,
+            revenue30d:      storeRevenue,
+            orders30d:       storeOrderCount,
+            pageViews30d:    pageViews,
+            addToCart30d:    addToCartEvents,
+            conversionRate,
+            topProducts,
+            activeProducts:  storeProductsSnap.size,
+          };
+        }
+      } catch (moSellErr) {
+        console.error('[useAskMO] MO Sell context load error:', moSellErr);
+      }
+
       // Build business summary with restaurant-specific data and operations data
       const summary: any = {
         totalSales,
@@ -529,6 +618,8 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         totalMoneyIn,
         totalMoneyOut,
         netCashFlow: totalMoneyIn - totalMoneyOut,
+        // MO Sell online store data
+        ...(moSell ? { moSell } : {}),
       };
 
       // Add restaurant-specific context

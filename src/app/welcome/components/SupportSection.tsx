@@ -56,7 +56,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
   useEffect(() => {
     // Check if user is authenticated
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
       if (user) {
         setUserEmail(user.email || 'user');
         setUserId(user.uid);

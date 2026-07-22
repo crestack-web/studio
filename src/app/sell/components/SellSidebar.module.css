@@ -1,0 +1,332 @@
+/* ─────────────────────────────────────────────
+   MO Sell Sidebar
+   Distinct identity: sky-blue primary, deeper
+   navy background, commerce-focused nav items.
+───────────────────────────────────────────── */
+
+.sidebar {
+  width: var(--sell-sidebar-width);
+  flex-shrink: 0;
+  background: var(--sell-surface);
+  border-right: 1px solid var(--sell-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 20;
+}
+
+/* ── Mobile slide-in ── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    width: var(--sell-sidebar-width) !important;
+    box-shadow: var(--sell-shadow-lg);
+  }
+  .open { transform: translateX(0); }
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--sell-overlay);
+  z-index: 19;
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .overlay { display: block; }
+}
+
+/* ── Logo row ── */
+.top {
+  display: flex;
+  align-items: center;
+  height: 96px;
+  border-bottom: 1px solid var(--sell-border-subtle);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.logoWrap {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+/* Logo fills the header height, clipped — never scaled down */
+.logoImg {
+  width: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: left center;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* ── Store status pill ── */
+.storePill {
+  margin: 10px 12px 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--sell-border);
+  background: var(--sell-surface-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: opacity 0.18s;
+}
+
+
+
+
+.storeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotActive  { background: var(--sell-green); box-shadow: 0 0 0 3px var(--sell-green-bg); }
+.dotDraft   { background: var(--sell-amber); box-shadow: 0 0 0 3px var(--sell-amber-bg); }
+.dotPaused  { background: var(--sell-red);   box-shadow: 0 0 0 3px var(--sell-red-bg); }
+.dotNone    { background: var(--sell-text-3); }
+
+.storeInfo { overflow: hidden; min-width: 0; }
+
+.storeName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sell-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.storeStatus {
+  font-size: 0.7rem;
+  color: var(--sell-text-3);
+  white-space: nowrap;
+}
+
+/* ── Scroll area ── */
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0 8px;
+}
+
+.scroll::-webkit-scrollbar { width: 3px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--sell-border); border-radius: 3px; }
+
+/* ── Section label ── */
+.sectionWrap { padding: 10px 10px 2px; }
+
+.sectionLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--sell-text-3);
+  text-transform: uppercase;
+  padding: 0 6px;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+  display: block;
+}
+
+
+
+
+/* ── Nav list ── */
+.navList { list-style: none; padding: 0 8px; }
+.navItem { position: relative; }
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--sell-radius-sm);
+  font-family: var(--sell-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--sell-text-2);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--sell-transition), color var(--sell-transition);
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+}
+
+.navLink:hover { background: var(--sell-bg); color: var(--sell-text-1); }
+
+.active {
+  background: var(--sell-primary-lt) !important;
+  color: var(--sell-primary) !important;
+  font-weight: 600;
+}
+
+/* ── Nav icon ── */
+.navIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--sell-transition);
+}
+
+.navLink:hover .navIcon { transform: scale(1.06); }
+.navIcon svg { width: 16px; height: 16px; }
+
+/* Icon color variants */
+.iconOverview  { background: var(--sell-primary-lt); color: var(--sell-primary); }
+.iconProducts  { background: var(--sell-teal-bg);    color: var(--sell-teal); }
+.iconCollect   { background: var(--sell-purple-bg);  color: var(--sell-purple); }
+.iconOrders    { background: var(--sell-amber-bg);   color: var(--sell-amber); }
+.iconShipping  { background: var(--sell-orange-bg);  color: var(--sell-orange); }
+.iconAnalytics { background: var(--sell-accent-lt);  color: var(--sell-accent); }
+.iconSettings  { background: var(--sell-surface-2);  color: var(--sell-text-3); }
+.iconTheme     { background: var(--sell-pink-bg);    color: var(--sell-pink); }
+.iconEarnings  { background: var(--sell-green-bg);   color: var(--sell-green); }
+
+/* ── Nav label ── */
+.navLabel {
+  overflow: hidden;
+  transition: max-width 0.2s, opacity 0.18s;
+  max-width: 140px;
+  text-overflow: ellipsis;
+}
+
+
+
+
+/* ── Badge ── */
+.badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 100px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.badgeCount { background: var(--sell-primary); color: #fff; }
+.badgeNew   { background: var(--sell-accent-lt); color: var(--sell-accent); }
+
+
+
+
+
+
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: var(--sell-border-subtle);
+  margin: 6px 16px;
+}
+
+/* ── Back to Busmo button ── */
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: calc(100% - 16px);
+  margin: 6px 8px;
+  padding: 8px 10px;
+  border-radius: var(--sell-radius-sm);
+  font-family: var(--sell-font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--sell-text-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--sell-transition), color var(--sell-transition);
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.backBtn:hover { background: var(--sell-bg); color: var(--sell-text-2); }
+
+.backIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--sell-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.backLabel { transition: max-width 0.2s, opacity 0.18s; max-width: 140px; }
+
+/* ── User footer ── */
+.userArea {
+  padding: 8px 10px;
+  border-top: 1px solid var(--sell-border-subtle);
+  flex-shrink: 0;
+}
+
+.userInner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: var(--sell-radius-sm);
+  cursor: pointer;
+  transition: background var(--sell-transition);
+  overflow: hidden;
+  background: none;
+  border: none;
+  width: 100%;
+}
+
+.userInner:hover { background: var(--sell-bg); }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--sell-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.userInfo {
+  overflow: hidden;
+  transition: max-width 0.2s, opacity 0.18s;
+  max-width: 140px;
+  text-align: left;
+}
+
+
+
+
+.userName { font-size: 0.85rem; font-weight: 600; color: var(--sell-text-1); white-space: nowrap; }
+.userRole  { font-size: 0.72rem; color: var(--sell-text-3); white-space: nowrap; }
