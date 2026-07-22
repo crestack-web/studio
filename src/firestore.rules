@@ -102,6 +102,55 @@ service cloud.firestore {
       match /expenses/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /transactions/{docId} { allow read, write: if isBusinessMember(businessId); }
       match /inventoryAdjustments/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /customers/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /cashFlow/{docId} { allow read, write: if isBusinessMember(businessId); }
+      match /notifications/{docId} { allow read, write: if isBusinessMember(businessId); }
+
+      // ── MO Sell collections ──────────────────────────────────────────────
+
+      // Store config — owner writes, public reads (storefront needs it)
+      match /store/{docId} {
+        allow read: if true;
+        allow write: if isOwner(businessId);
+      }
+
+      // Store products — owner/staff write, public reads available products
+      match /storeProducts/{docId} {
+        allow read: if true;
+        allow create, update: if isBusinessMember(businessId);
+        allow delete: if isOwner(businessId);
+      }
+
+      // Store orders — created by Admin SDK (Integration Bridge); merchant reads/updates
+      match /storeOrders/{docId} {
+        allow read, update: if isBusinessMember(businessId);
+        allow create, delete: if false; // Admin SDK only
+      }
+
+      // Checkout sessions — created by /api/store/checkout/initiate (Admin SDK)
+      // Anyone can read their own session by sessionId (no auth required for storefront)
+      match /checkoutSessions/{docId} {
+        allow read: if true;
+        allow write: if false; // Admin SDK only
+      }
+
+      // Store collections — owner/staff write, public reads
+      match /storeCollections/{docId} {
+        allow read: if true;
+        allow write: if isBusinessMember(businessId);
+      }
+
+      // Shipping zones — owner writes, public reads (checkout needs them)
+      match /storeShippingZones/{docId} {
+        allow read: if true;
+        allow write: if isOwner(businessId);
+      }
+
+      // Analytics events — written by server (API route), merchant reads
+      match /storeAnalytics/{docId} {
+        allow read: if isBusinessMember(businessId);
+        allow write: if false; // server-side only via /api/store/analytics/event
+      }
       match /invitations/{invitationId} { 
         allow read, write: if isSignedIn() && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
       }

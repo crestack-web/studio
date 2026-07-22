@@ -84,6 +84,17 @@ service cloud.firestore {
     }
     
     // =====================
+    // STORE INDEX (slug → businessId mapping for O(1) public lookup)
+    // =====================
+    match /storeIndex/{storeSlug} {
+      // Anyone can read — needed for public storefront routing
+      allow read: if true;
+      // Only authenticated business members can write
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================
     // BUSINESSES COLLECTION (Main business data structure)
     // =====================
     match /businesses/{businessId} {
@@ -95,6 +106,100 @@ service cloud.firestore {
 
       // Allow write if user has access to this business
       allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
+
+      // =====================
+      // MO SELL — STORE CONFIG
+      // =====================
+      match /store/{configDoc} {
+        // Public read for storefront (anyone can fetch store config by slug)
+        allow read: if true;
+        // Only business owner/staff can write
+        allow create, update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — STORE PRODUCTS
+      // =====================
+      match /storeProducts/{productId} {
+        // Public read so storefront can list products
+        allow read: if true;
+        allow create, update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — STORE COLLECTIONS
+      // =====================
+      match /storeCollections/{collectionId} {
+        // Public read for storefront collection pages
+        allow read: if true;
+        allow create, update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — STORE ORDERS
+      // =====================
+      match /storeOrders/{orderId} {
+        // Owner/staff can read all orders
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        // Orders are created by server-side Integration Bridge (Admin SDK), not client
+        allow create: if isAdmin();
+        // Owner/staff can update (e.g. add tracking number, change status)
+        allow update: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — CHECKOUT SESSIONS
+      // =====================
+      match /checkoutSessions/{sessionId} {
+        // Anyone can create a checkout session (unauthenticated customers)
+        allow create: if true;
+        // Public read needed for the /order/pending polling page
+        allow read: if true;
+        // Only server (Admin SDK) updates sessions after payment confirmation
+        allow update: if isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — STORE ANALYTICS
+      // =====================
+      match /storeAnalytics/{eventId} {
+        // Anyone can write analytics events (storefront visitors)
+        allow create: if true;
+        // Only owner/staff/admin can read analytics
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — SHIPPING ZONES
+      // =====================
+      match /storeShippingZones/{zoneId} {
+        // Public read so checkout page can list zones
+        allow read: if true;
+        allow create, update, delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // NOTIFICATIONS SUBCOLLECTION
+      // =====================
+      match /notifications/{notifId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update: if hasBusinessAccess(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // CUSTOMERS SUBCOLLECTION (used by Integration Bridge)
+      // =====================
+      match /customers/{customerId} {
+        allow read: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow create: if hasBusinessAccess(businessId) || isBusinessStaff(businessId) || isStaffViaUserDoc(businessId) || isAdmin();
+        allow update: if hasBusinessAccess(businessId) || isAdmin();
+        allow delete: if hasBusinessAccess(businessId) || isAdmin();
+      }
 
       // =====================
       // PROFILE SUBCOLLECTION

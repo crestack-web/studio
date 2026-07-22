@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════
+   MO Sell — Analytics Page
+═══════════════════════════════════════ */
+
+.page { display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 1200px; }
+.heading { font-family: var(--sell-font-display); font-size: 1.35rem; font-weight: 700; color: var(--sell-text-1); margin-bottom: 4px; }
+.sub { font-size: 0.875rem; color: var(--sell-text-2); }
+
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.filterSelect { padding: 9px 12px; border-radius: var(--sell-radius-sm); border: 1px solid var(--sell-border); background: var(--sell-surface); font-size: 0.85rem; font-family: var(--sell-font-body); color: var(--sell-text-1); outline: none; cursor: pointer; }
+
+/* ── KPI grid ── */
+.kpiGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.kpiCard { background: var(--sell-surface); border: 1px solid var(--sell-border); border-radius: var(--sell-radius-lg); padding: 18px 20px; display: flex; align-items: flex-start; gap: 14px; box-shadow: var(--sell-shadow-sm); }
+.kpiIcon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.kpiIcon svg { width: 18px; height: 18px; }
+.kpiBody { flex: 1; min-width: 0; }
+.kpiLabel { font-size: 0.75rem; color: var(--sell-text-3); font-weight: 600; margin-bottom: 4px; }
+.kpiValue { font-family: var(--sell-font-display); font-size: 1.4rem; font-weight: 700; color: var(--sell-text-1); line-height: 1.1; }
+.kpiSub   { font-size: 0.72rem; color: var(--sell-text-3); margin-top: 4px; }
+.kpiUp    { color: var(--sell-green); font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
+.kpiDown  { color: var(--sell-red);   font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
+
+/* ── Chart card ── */
+.chartCard { background: var(--sell-surface); border: 1px solid var(--sell-border); border-radius: var(--sell-radius-lg); padding: 20px; box-shadow: var(--sell-shadow-sm); }
+.chartTitle { font-family: var(--sell-font-display); font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); margin-bottom: 16px; }
+.chartArea { height: 220px; display: flex; align-items: flex-end; gap: 6px; padding: 0 4px; }
+.chartBarWrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.chartBar { width: 100%; border-radius: 5px 5px 0 0; background: linear-gradient(180deg, var(--sell-primary) 0%, var(--sell-accent) 100%); transition: height 0.5s cubic-bezier(0.34,1.56,0.64,1); min-height: 4px; }
+.chartBarLabel { font-size: 0.65rem; color: var(--sell-text-3); text-align: center; white-space: nowrap; }
+
+/* ── Two-col row ── */
+.twoCol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .twoCol { grid-template-columns: 1fr; } }
+
+/* ── Funnel ── */
+.funnelCard { background: var(--sell-surface); border: 1px solid var(--sell-border); border-radius: var(--sell-radius-lg); padding: 20px; box-shadow: var(--sell-shadow-sm); }
+.funnelTitle { font-family: var(--sell-font-display); font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); margin-bottom: 16px; }
+.funnelStep { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.funnelBar { flex: 1; height: 28px; border-radius: var(--sell-radius-sm); display: flex; align-items: center; padding: 0 10px; font-size: 0.78rem; font-weight: 600; color: #fff; transition: width 0.5s ease; }
+.funnelMeta { font-size: 0.78rem; color: var(--sell-text-3); white-space: nowrap; min-width: 60px; text-align: right; }
+
+/* ── Top products ── */
+.topCard { background: var(--sell-surface); border: 1px solid var(--sell-border); border-radius: var(--sell-radius-lg); overflow: hidden; box-shadow: var(--sell-shadow-sm); }
+.topCardTitle { font-family: var(--sell-font-display); font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); padding: 16px 20px 0; }
+.topTable { width: 100%; border-collapse: collapse; }
+.topTable th { padding: 10px 16px; text-align: left; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sell-text-3); border-bottom: 1px solid var(--sell-border); background: var(--sell-surface-2); }
+.topTable td { padding: 12px 16px; border-bottom: 1px solid var(--sell-border-subtle); font-size: 0.875rem; color: var(--sell-text-1); }
+.topTable tr:last-child td { border-bottom: none; }
+.rank { font-size: 0.78rem; font-weight: 700; color: var(--sell-text-3); width: 28px; }
+.topProductName { font-weight: 600; }
+.topBadge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 100px; background: var(--sell-primary-lt); color: var(--sell-primary); margin-left: 6px; }
+.bar { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--sell-primary), var(--sell-accent)); }
+
+/* ── Store URL card ── */
+.urlCard { background: linear-gradient(135deg, var(--sell-primary-lt) 0%, var(--sell-accent-lt) 100%); border: 1px solid var(--sell-primary-lt); border-radius: var(--sell-radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.urlCardIcon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--sell-primary), var(--sell-accent)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px var(--sell-primary-glow); }
+.urlCardBody { flex: 1; min-width: 0; }
+.urlCardTitle { font-family: var(--sell-font-display); font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); }
+.urlCardUrl   { font-size: 0.82rem; color: var(--sell-primary); font-weight: 600; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.urlCardActions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Buttons ── */
+.btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--sell-radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; font-family: var(--sell-font-body); transition: all var(--sell-transition); white-space: nowrap; text-decoration: none; }
+.btnPrimary   { background: linear-gradient(135deg, var(--sell-primary), var(--sell-accent)); color: #fff; box-shadow: 0 4px 14px var(--sell-primary-glow); }
+.btnPrimary:hover { opacity: 0.9; }
+.btnSecondary { background: var(--sell-surface); color: var(--sell-text-1); border: 1px solid var(--sell-border); }
+.btnSecondary:hover { background: var(--sell-bg); }
+.btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── Empty ── */
+.emptyChart { height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--sell-text-3); font-size: 0.85rem; }
+
+@media (max-width: 640px) { .kpiGrid { grid-template-columns: 1fr 1fr; } }

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { StepId } from "framer-motion";
+// import { StepId } from "framer-motion"; // removed - not exported
 import { useState, useCallback, useEffect } from "react";
 import { initializeFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";

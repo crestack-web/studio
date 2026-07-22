@@ -41,13 +41,7 @@ const nextConfig: NextConfig = {
     GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
   },
   async redirects() {
-    return [
-      {
-        source: '/sell',
-        destination: '/seller',
-        permanent: true,
-      },
-    ];
+    return [];
   },
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -173,6 +167,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'flagcdn.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
         port: '',
         pathname: '/**',
       },

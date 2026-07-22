@@ -21,7 +21,7 @@ export default function VerifyPage() {
     if (page === 'signup') window.location.href = '/welcome/signup';
     else if (page === 'login') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';
-    else if (page === 'seller') window.location.href = '/seller';
+    else if (page === 'seller') window.location.href = '/sell-welcome';
     else if (page === 'invest') window.location.href = '/invest';
     else if (page === 'verify') window.location.href = '/verify';
     else window.location.href = '/welcome';

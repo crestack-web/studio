@@ -476,6 +476,7 @@ export const NAV_SECTIONS: NavSection[] = [
       // My Market removed for this release
       { id: 'capital', label: 'Access Capital', tip: 'Access Capital', iconClass: 'ni-fund' },
       { id: 'referrals', label: 'Referrals', tip: 'Referrals', iconClass: 'ni-gift' },
+      { id: 'mo-sell', label: 'MO Sell', tip: 'MO Sell — Commerce Hub', iconClass: 'ni-ecommerce', badge: 'Beta' },
     ],
     icon: '',
     id: undefined

@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
-import { chatwootService, ChatwootUser } from '@/lib/chatwoot';
-import { CHATWOOT_CONFIG } from '@/lib/chatwoot-config';
 
 interface SupportMessage {
   id: string;
@@ -58,7 +56,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
   useEffect(() => {
     // Check if user is authenticated
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
       if (user) {
         setUserEmail(user.email || 'user');
         setUserId(user.uid);
@@ -176,28 +174,10 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
       console.error('Error requesting human agent:', error);
     }
 
-    // Create Chatwoot conversation if enabled
-    if (CHATWOOT_CONFIG.enabled) {
-      const chatwootUser: ChatwootUser = {
-        id: userId || userEmail,
-        name: userEmail,
-        email: userEmail,
-        businessId: businessId || undefined,
-        businessName: businessName || undefined,
-      };
-      
-      try {
-        await chatwootService.identifyUser(chatwootUser);
-        await chatwootService.toggleChat(true);
-      } catch (error) {
-        console.error('Error opening Chatwoot:', error);
-      }
-    }
-
     const escalationMsg: SupportMessage = {
       id: `escalation-${Date.now()}`,
       sender: 'support',
-      text: "I've connected you with our support team via Chatwoot. A human agent will be with you shortly. In the meantime, I can still help with general questions about Busmo if you need immediate assistance.",
+      text: "I've connected you with our support team. A human agent will be with you shortly. In the meantime, I can still help with general questions about Busmo if you need immediate assistance.",
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, escalationMsg]);
@@ -248,30 +228,9 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
       setMessages((prev) => [...prev, botMsg]);
       setIsSending(false);
     } else {
-      // Human agent mode - integrate with Chatwoot
+      // Human agent mode - fallback support
       try {
-        if (CHATWOOT_CONFIG.enabled) {
-          // Send message to Chatwoot
-          const chatwootUser: ChatwootUser = {
-            id: userId || userEmail,
-            name: userEmail,
-            email: userEmail,
-            businessId: businessId || undefined,
-            businessName: businessName || undefined,
-          };
-          
-          await chatwootService.identifyUser(chatwootUser);
-          await chatwootService.toggleChat(true);
-          
-          const supportMsg: SupportMessage = {
-            id: `chatwoot-${Date.now()}`,
-            sender: 'support',
-            text: "I've opened a Chatwoot conversation for you. Please check the chat widget in the bottom right corner to continue with our support team.",
-            createdAt: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, supportMsg]);
-        } else {
-          // Fallback to old behavior if Chatwoot not enabled
+          // Fallback to old behavior
           const res = await fetch('/api/support', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -299,7 +258,6 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
           };
 
           setMessages((prev) => [...prev, supportMsg]);
-        }
       } catch (err) {
         const fallback: SupportMessage = {
           id: `support-${Date.now()}`,

@@ -125,6 +125,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [dynamicSuggestions, setDynamicSuggestions] = useState(BASE_SUGGESTIONS);
@@ -202,6 +203,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     setImagePreview(null);
     setAudioBlob(null);
     setAudioUrl(null);
+    setAudioBase64(null);
     setIsTyping(false);
     setIsStreaming(false);
     setLoadingText('');
@@ -224,21 +226,52 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     }
   };
 
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+
+      // Bug #2 fix: detect supported MIME type (matches MobileAskMOPage logic)
+      let mimeType = 'audio/webm';
+      const supportedTypes = [
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/mp4',
+        'audio/wav',
+      ];
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       const chunks: BlobPart[] = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {
         chunks.push(e.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
+        try {
+          const base64 = await blobToBase64(blob);
+          setAudioBase64(base64);
+        } catch (err) {
+          console.error('Failed to convert audio to base64:', err);
+        }
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -262,14 +295,27 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     stopRecording();
     setAudioBlob(null);
     setAudioUrl(null);
+    setAudioBase64(null);
     setRecordingTime(0);
   };
 
   const transcribeAudio = async (blob: Blob): Promise<string> => {
     try {
-      const { transcribeAudio: transcribe } = await import('@/services/ai/speech-to-text-service');
-      const transcription = await transcribe(blob, lang);
-      return transcription;
+      const base64 = audioBase64 || await blobToBase64(blob);
+      const detectedMimeType = blob.type || 'audio/webm';
+
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioBase64: base64, mimeType: detectedMimeType, language: lang }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Transcription API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.transcription || '🎤 Voice message (transcription failed)';
     } catch (error) {
       console.error('Transcription error:', error);
       return '🎤 Voice message (transcription failed)';
@@ -313,10 +359,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    // Reset textarea height after programmatic clear
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     setSelectedImage(null);
     setImagePreview(null);
     setAudioBlob(null);
     setAudioUrl(null);
+    setAudioBase64(null);
     setRecordingTime(0);
     setIsTyping(true);
     setIsStreaming(true);
@@ -544,11 +595,34 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
             </div>
           </div>
         </div>
-        {onClose && (
-          <button className={styles.closeBtn} onClick={onClose}>
-            ✕
+        {/* Bug #11 fix: render New Chat and History buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            className={styles.newChatBtn}
+            onClick={handleNewChat}
+            title="New chat"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
           </button>
-        )}
+          <button
+            className={`${styles.closeBtn} ${styles.historyBtn}`}
+            onClick={() => setShowHistory(true)}
+            title="Conversation history"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </button>
+          {onClose && (
+            <button className={styles.closeBtn} onClick={onClose}>
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       <CreditPurchaseModal 
@@ -559,7 +633,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {messages.length === 0 && (
+        {/* Bug #12 fix: show welcome screen when no active conversation, regardless of conversation history */}
+        {messages.length === 0 && currentConversationId === null && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>
@@ -824,6 +899,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               onClick={() => {
                 setAudioBlob(null);
                 setAudioUrl(null);
+                setAudioBase64(null);
               }}
             >
               ✕
@@ -850,7 +926,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
             style={{ display: 'none' }}
           />
           <button
-            className={styles.micBtn}
+            className={`${styles.micBtn}${isRecording ? ` ${styles.recording}` : ''}`}
             onClick={isRecording ? stopRecording : startRecording}
             title={isRecording ? 'Stop recording' : 'Start voice input'}
           >
@@ -867,6 +943,18 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               </svg>
             )}
           </button>
+          {isRecording && (
+            <span className={styles.recordingTime}>{formatRecordingTime(recordingTime)}</span>
+          )}
+          {isRecording && (
+            <button
+              className={styles.cancelRecordingBtn}
+              onClick={cancelRecording}
+              title="Cancel recording"
+            >
+              ✕
+            </button>
+          )}
           <textarea
             ref={textareaRef}
             className={styles.textInput}
@@ -892,6 +980,47 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           </button>
         </div>
       </div>
+      {showHistory && (
+        <>
+          <div className={styles.historyBackdrop} onClick={() => setShowHistory(false)} />
+          <div className={styles.historyPanel}>
+            <div className={styles.historyHeader}>
+              <h3 className={styles.historyTitle}>Conversation History</h3>
+              <button className={styles.closeHistoryBtn} onClick={() => setShowHistory(false)}>✕</button>
+            </div>
+            <div className={styles.historySearch}>
+              <input
+                className={styles.historySearchInput}
+                placeholder="Search conversations..."
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+              />
+            </div>
+            <div className={styles.historyList}>
+              {filteredConversations.length === 0 && (
+                <div className={styles.historyEmpty}>No conversations yet</div>
+              )}
+              {filteredConversations.map(conv => (
+                <div
+                  key={conv.id}
+                  className={`${styles.historyItem}${conv.id === currentConversationId ? ` ${styles.historyItemActive}` : ''}`}
+                  onClick={() => {
+                    loadConversation(conv.id);
+                    setShowHistory(false);
+                  }}
+                >
+                  <div className={styles.historyItemHeader}>
+                    <span className={styles.historyItemTitle}>{conv.title || 'Untitled conversation'}</span>
+                  </div>
+                  <div className={styles.historyItemMeta}>
+                    <span>{conv.updatedAt ? new Date(conv.updatedAt).toLocaleDateString() : ''}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

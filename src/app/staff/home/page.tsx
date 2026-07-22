@@ -18,7 +18,7 @@ export default function StaffHomePage() {
   useEffect(() => {
     const { auth, firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
       if (!user) {
         router.push('/login/staff');
         return;

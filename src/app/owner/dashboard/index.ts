@@ -18,6 +18,7 @@ export type PageId =
   | 'referrals'
   | 'mo'
   | 'mo-mobile'
+  | 'mo-sell'
   | 'services'
   | 'staff'
   | 'add-product'
