@@ -22,53 +22,9 @@ import { getAuth, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { DocumentTemplateManager } from './documentTemplates';
 import { checkIsAdmin } from '@/lib/adminAuth';
-import { 
-  getAllFeatures, 
-  getFeaturesByPlan, 
-  checkFeatureAccess, 
-  Plan, 
-  BusinessCategory,
-  Feature as RegistryFeature,
-  getRecommendedFeatures,
-} from '@/lib/featureRegistry';
-import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Monitor, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package, CheckCircle2, XCircle, Layers, TrendingUp, Truck, ShoppingCart, ChefHat, Wrench, ShoppingBag, Mail, Briefcase, Gift, Sparkles, ClipboardList, AlertTriangle, UserCircle, Activity, UserCheck, UserCheck2, Landmark, RefreshCw, Upload, FileCheck, Menu } from 'lucide-react';
+import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Monitor, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package } from 'lucide-react';
 import styles from './SettingsPage.module.css';
 
-// ── Icon Mapping ─────────────────────────────────────────────────────
-const ICON_MAP: Record<string, React.ReactNode> = {
-  'inventory-tracking': <Package size={20} />,
-  'warehouse-management': <Layers size={20} />,
-  'stock-transfers': <ArrowRight size={20} />,
-  'sales-recording': <ShoppingCart size={20} />,
-  'multi-payment': <DollarSign size={20} />,
-  'reports-analytics': <LayoutDashboard size={20} />,
-  'cashflow-tracking': <TrendingUp size={20} />,
-  'statement-history': <FileText size={20} />,
-  'ask-mo-ai-assistant': <Zap size={20} />,
-  'supplier-management': <Truck size={20} />,
-  'multi-branch-support': <Building size={20} />,
-  'expense-management': <FileText size={20} />,
-  'credit-tracking': <UserCheck size={20} />,
-  'money-control': <ShieldAlert size={20} />,
-  'bank-accounts': <Landmark size={20} />,
-  'bank-reconciliation': <RefreshCw size={20} />,
-  'bank-statement-import': <Upload size={20} />,
-  'staff-management': <User size={20} />,
-  'staff-activity-tracking': <Activity size={20} />,
-  'staff-accountability': <UserCheck2 size={20} />,
-  'payroll-management': <DollarSign size={20} />,
-  'menu-management': <Menu size={20} />,
-  'ingredient-tracking': <ChefHat size={20} />,
-  'production-tracking': <Wrench size={20} />,
-  'ecommerce-storefront': <ShoppingBag size={20} />,
-  'email-campaigns': <Mail size={20} />,
-  'audit-trail': <ClipboardList size={20} />,
-  'expiry-alerts': <AlertTriangle size={20} />,
-  'customer-management': <UserCircle size={20} />,
-  'access-capital': <Briefcase size={20} />,
-  'referrals': <Gift size={20} />,
-  'business-services': <Sparkles size={20} />,
-};
 
 // ── Toggle ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, id }: {
@@ -131,7 +87,6 @@ export default function SettingsPage() {
     receipt: true,
     notifications: true,
     privacy: true,
-    features: true,
   });
 
   const sections = [
@@ -144,7 +99,6 @@ export default function SettingsPage() {
     { id: 'receipt', label: 'Receipt', icon: <FileText size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
     { id: 'privacy', label: 'Privacy', icon: <Lock size={18} /> },
-    { id: 'features', label: 'Features', icon: <Package size={18} /> },
   ];
 
   // Handle logout
@@ -251,111 +205,6 @@ export default function SettingsPage() {
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
 
-  // ── Feature Preferences ───────────────────────────────────
-  const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
-  const [isSavingFeatures, setIsSavingFeatures] = useState(false);
-  const [availableFeatures, setAvailableFeatures] = useState<RegistryFeature[]>([]);
-
-  // Load feature preferences from Firestore using registry
-  useEffect(() => {
-    const loadFeaturePreferences = async () => {
-      try {
-        const { firestore } = initializeFirebase();
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-        
-        if (currentUser) {
-          const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const prefs = data.featurePreferences || {};
-            const userPlan = (data.plan || 'starter') as Plan;
-            const businessCategory = (data.category || data.businessType || 'other') as BusinessCategory;
-            const selectedFeatures = data.selectedFeatures || [];
-            
-            // Get features available for user's plan
-            const planFeatures = getFeaturesByPlan(userPlan);
-            
-            // Filter by business category - only show features that are relevant
-            const categoryFeatures = planFeatures.filter(feature => {
-              // If feature has no category restrictions at all, it's a general feature - show it
-              if (!feature.requiredCategories && !feature.excludedCategories) return true;
-              
-              // If feature is explicitly excluded for this category, don't show it
-              if (feature.excludedCategories?.includes(businessCategory)) return false;
-              
-              // If feature requires specific categories, only show if user's category is in the list
-              if (feature.requiredCategories && !feature.requiredCategories.includes(businessCategory)) return false;
-              
-              // If feature has excluded categories but user's category is not excluded, show it
-              // This means the feature is available for this category
-              return true;
-            });
-            
-            setAvailableFeatures(categoryFeatures);
-            
-            // Initialize preferences based on selected features from onboarding
-            const initialPrefs: Record<string, boolean> = {};
-            const enabledFeaturesSet = new Set(selectedFeatures);
-            
-            categoryFeatures.forEach(feature => {
-              if (feature.isOptional) {
-                // For optional features, check if user selected them during onboarding
-                initialPrefs[feature.id] = enabledFeaturesSet.has(feature.id) || (prefs[feature.id] !== undefined ? prefs[feature.id] : false);
-              } else {
-                // For essential features, always enabled
-                initialPrefs[feature.id] = true;
-              }
-            });
-            
-            setFeaturePreferences(initialPrefs);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load feature preferences:', error);
-      }
-    };
-
-    loadFeaturePreferences();
-  }, [subscription.plan, biz.category]);
-
-  // Save feature preferences to Firestore
-  const handleFeatureToggle = async (featureId: string, enabled: boolean) => {
-    setFeaturePreferences(prev => ({ ...prev, [featureId]: enabled }));
-    
-    try {
-      setIsSavingFeatures(true);
-      const { firestore } = initializeFirebase();
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      
-      if (currentUser) {
-        await updateDoc(doc(firestore, 'users', currentUser.uid), {
-          featurePreferences: {
-            ...featurePreferences,
-            [featureId]: enabled,
-          }
-        });
-        showToast(`Feature ${enabled ? 'enabled' : 'disabled'}`);
-      }
-    } catch (error) {
-      console.error('Failed to save feature preferences:', error);
-      showToast('Failed to update feature preferences');
-    } finally {
-      setIsSavingFeatures(false);
-    }
-  };
-
-  // Check if feature is locked (requires upgrade)
-  const isFeatureLocked = (feature: RegistryFeature): boolean => {
-    const userPlan = (subscription.plan || 'starter') as Plan;
-    return !feature.requiredPlans.includes(userPlan);
-  };
-
-  // Get required plan for locked feature
-  const getRequiredPlan = (feature: RegistryFeature): Plan => {
-    return feature.requiredPlans[0];
-  };
 
   // Load business profile and subscription from Firestore
   useEffect(() => {
@@ -977,93 +826,6 @@ export default function SettingsPage() {
       </Section>
       )}
 
-      {/* ════════════════════════════════════════
-          SECTION 7 · FEATURES
-      ════════════════════════════════════════ */}
-      {activeSection === 'features' && sectionVisibility.features && (
-        <Section title="Features">
-          <p className={styles.rowDesc}>
-            Manage which features are enabled for your business. Features available depend on your subscription plan.
-          </p>
-          
-          {/* Current Plan Badge */}
-          <div className={styles.planBadge} style={{ marginBottom: '24px', display: 'inline-block' }}>
-            Current Plan: <strong>{subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}</strong>
-          </div>
-
-          {/* Features Grid */}
-          <div className={styles.featuresGrid}>
-            {availableFeatures.map((feature: RegistryFeature) => {
-              const isLocked = isFeatureLocked(feature);
-              const isEnabled = featurePreferences[feature.id];
-              const icon = ICON_MAP[feature.id] || <Package size={20} />;
-              
-              return (
-                <div
-                  key={feature.id}
-                  className={`${styles.featureCard} ${isLocked ? styles.featureCardUnavailable : ''}`}
-                >
-                  <div className={styles.featureCardHeader}>
-                    <div className={styles.featureIcon}>{icon}</div>
-                    <div className={styles.featureStatus}>
-                      {isLocked ? (
-                        <Lock size={20} className={styles.featureLocked} />
-                      ) : isEnabled ? (
-                        <CheckCircle2 size={20} className={styles.featureEnabled} />
-                      ) : (
-                        <XCircle size={20} className={styles.featureDisabled} />
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className={styles.featureCardContent}>
-                    <h3 className={styles.featureName}>{feature.name}</h3>
-                    <p className={styles.featureDescription}>{feature.description}</p>
-                    
-                    <div className={styles.featurePlanInfo}>
-                      {isLocked ? (
-                        <span className={styles.featureUpgrade}>
-                          Requires {getRequiredPlan(feature).charAt(0).toUpperCase() + getRequiredPlan(feature).slice(1)} plan or higher
-                        </span>
-                      ) : (
-                        <span className={styles.featureAvailable}>
-                          Available in your plan
-                        </span>
-                      )}
-                    </div>
-                    
-                    {!isLocked && (
-                      <button
-                        className={`${styles.featureToggle} ${isEnabled ? styles.featureToggleOn : ''}`}
-                        onClick={() => handleFeatureToggle(feature.id, !isEnabled)}
-                        disabled={isSavingFeatures}
-                      >
-                        {isEnabled ? 'Enabled' : 'Disabled'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Upgrade CTA */}
-          {subscription.plan === 'starter' && (
-            <div className={styles.featureUpgradeCTA}>
-              <h3 className={styles.featureUpgradeTitle}>Upgrade to unlock more features</h3>
-              <p className={styles.featureUpgradeDesc}>
-                Get access to Expense Tracking, Supplier Management, Ask MO AI, and more with Pro or Enterprise plans.
-              </p>
-              <button
-                className={styles.featureUpgradeBtn}
-                onClick={() => showToast('Contact sales to upgrade your plan')}
-              >
-                View Plans
-              </button>
-            </div>
-          )}
-        </Section>
-      )}
 
       {/* Footer */}
       <div className={styles.footer}>
