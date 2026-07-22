@@ -66,9 +66,9 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 const TEAM_MEMBERS = [
-  { name: 'Sarah', role: 'Support Lead', avatar: '👩‍💼', online: true },
-  { name: 'John', role: 'Support Agent', avatar: '👨‍💼', online: true },
-  { name: 'Emily', role: 'Support Agent', avatar: '👩‍💻', online: false },
+  { name: 'Sarah', role: 'Support Lead', online: true },
+  { name: 'John', role: 'Support Agent', online: true },
+  { name: 'Emily', role: 'Support Agent', online: false },
 ];
 
 // ─── Component ───────────────────────────────────────────────────
@@ -509,7 +509,7 @@ export const FloatingChatWidget = () => {
                     className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white flex items-center justify-center text-sm"
                     title={`${member.name} - ${member.role}`}
                   >
-                    {member.avatar}
+                    <User size={14} />
                   </div>
                 ))}
               </div>
@@ -603,53 +603,6 @@ export const FloatingChatWidget = () => {
                     <ChevronRight size={20} className="text-white/60 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </button>
-
-                {/* Quick Actions */}
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                    Quick Actions
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {QUICK_ACTIONS.map((action) => (
-                      <button
-                        key={action.id}
-                        onClick={() => handleQuickAction(action)}
-                        className="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
-                      >
-                        <span className="text-xl group-hover:scale-110 transition-transform">{action.icon}</span>
-                        <span className="text-sm font-medium text-gray-700">{action.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Popular Articles */}
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                    Popular Articles
-                  </h3>
-                  <div className="space-y-2">
-                    {HELP_ARTICLES.filter(a => a.popular).map((article) => (
-                      <button
-                        key={article.id}
-                        onClick={() => {
-                          setSelectedArticle(article);
-                          setActiveTab('help');
-                        }}
-                        className="w-full flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition-all text-left group"
-                      >
-                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 flex-shrink-0 group-hover:scale-110 transition-transform">
-                          📄
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-900 truncate">{article.title}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">{article.category}</div>
-                        </div>
-                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 {/* Status indicator */}
                 <div className="flex items-center justify-center gap-2 pt-2 pb-4">
