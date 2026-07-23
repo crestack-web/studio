@@ -589,7 +589,8 @@ export function MobileAskMOPage() {
       if (currentConversationId) {
         console.log('💾 [MobileAskMO] Saving bot message to conversation');
         // Explicitly construct full messages array including user and bot messages
-        const updatedMessages = [...messagesRef.current, userMsg, { ...botMsg, content: fullContent }];
+        // Use the current messages state to ensure we have the latest user message
+        const updatedMessages = [...messages, { ...botMsg, content: fullContent }];
         await saveMessages(currentConversationId, updatedMessages);
       }
 
@@ -634,7 +635,7 @@ export function MobileAskMOPage() {
         
         // Save the updated message with sale card to conversation
         if (currentConversationId) {
-          const updatedMessagesWithCard = [...messagesRef.current, userMsg, botMsgWithCard];
+          const updatedMessagesWithCard = [...messages, botMsgWithCard];
           await saveMessages(currentConversationId, updatedMessagesWithCard);
         }
       }
