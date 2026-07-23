@@ -278,6 +278,7 @@ export function StoreSetupWizard({ onClose }: Props) {
   const [suggestions, setSuggestions]     = useState<WizardSuggestions | null>(null);
   const [saving, setSaving]               = useState(false);
   const [history, setHistory]             = useState<GeminiHistory>([]);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [wizardLogoFile, setWizardLogoFile] = useState<File | null>(null);
   const [wizardLogoPreview, setWizardLogoPreview] = useState<string | null>(null);
   const [wizardLogoUrl, setWizardLogoUrl] = useState<string | null>(null);
@@ -548,26 +549,63 @@ export function StoreSetupWizard({ onClose }: Props) {
           </div>
         </div>
 
-        {/* RIGHT: Preview */}
-        {suggestions ? (
-          <PreviewPanel
-            suggestions={suggestions}
-            setSuggestions={setSuggestions}
-            onRegenerate={handleRegenerate}
-            logoPreview={wizardLogoPreview}
-          />
-        ) : (
-          <div className={styles.preview}>
-            <div className={styles.previewEmpty}>
-              <div className={styles.previewEmptyIcon}>✨</div>
-              <p className={styles.previewEmptyTitle}>Your store preview</p>
-              <p className={styles.previewEmptySub}>
-                Tell MO what you sell and your store will appear here automatically.
-              </p>
+        {/* RIGHT: Preview - hidden on mobile */}
+        <div className={styles.previewPanelDesktop}>
+          {suggestions ? (
+            <PreviewPanel
+              suggestions={suggestions}
+              setSuggestions={setSuggestions}
+              onRegenerate={handleRegenerate}
+              logoPreview={wizardLogoPreview}
+            />
+          ) : (
+            <div className={styles.preview}>
+              <div className={styles.previewEmpty}>
+                <div className={styles.previewEmptyIcon}>✨</div>
+                <p className={styles.previewEmptyTitle}>Your store preview</p>
+                <p className={styles.previewEmptySub}>
+                  Tell MO what you sell and your store will appear here automatically.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Mobile preview button - shown on mobile only */}
+        {suggestions && (
+          <button
+            className={styles.mobilePreviewBtn}
+            onClick={() => setShowMobilePreview(true)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+            Preview
+          </button>
         )}
       </div>
+
+      {/* Mobile preview modal */}
+      {showMobilePreview && suggestions && (
+        <div className={styles.mobileModalOverlay} onClick={() => setShowMobilePreview(false)}>
+          <div className={styles.mobileModalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.mobileModalHeader}>
+              <span className={styles.mobileModalTitle}>Store Preview</span>
+              <button className={styles.mobileModalClose} onClick={() => setShowMobilePreview(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className={styles.phoneFrame}>
+              <div className={styles.phoneBezel}>
+                <div className={styles.phoneNotch} />
+                <div className={styles.phoneScreen}>
+                  <MiniStorefront s={suggestions} logoPreview={wizardLogoPreview} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom bar ── */}
       <div className={styles.bottomBar}>

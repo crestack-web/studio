@@ -114,6 +114,57 @@ img { max-width: 100%; height: auto; display: block; }
 [data-theme="market"] .sf-nav-logo { color: #fff; }
 
 .sf-nav-spacer { flex: 1; }
+
+/* Desktop navigation links - hide on mobile */
+.sf-nav-desktop-only { display: flex; }
+@media (max-width: 768px) {
+  .sf-nav-desktop-only { display: none !important; }
+}
+
+/* Mobile menu button - show on mobile only */
+.sf-nav-mobile-only { display: none; }
+@media (max-width: 768px) {
+  .sf-nav-mobile-only { display: flex; align-items: center; justify-content: center; }
+}
+
+.sf-nav-menu {
+  padding: 8px;
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius-sm);
+  color: var(--sf-text-1);
+  transition: background 0.15s;
+}
+.sf-nav-menu:hover { background: var(--sf-bg); }
+
+/* Mobile menu dropdown */
+.sf-nav-mobile-menu {
+  position: absolute;
+  top: calc(var(--sf-nav-h) + 4px);
+  right: 16px;
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius-sm);
+  padding: 8px 0;
+  min-width: 180px;
+  z-index: 50;
+  box-shadow: var(--sf-shadow);
+}
+
+.sf-nav-mobile-link {
+  display: block;
+  padding: 10px 16px;
+  color: var(--sf-text-1);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+.sf-nav-mobile-link:hover {
+  background: var(--sf-bg);
+  color: var(--sf-primary);
+}
+
+/* Cart button */
 .sf-nav-cart {
   position: relative; display: flex; align-items: center; gap: 7px;
   padding: 8px 14px; border-radius: var(--sf-radius-sm);
@@ -123,6 +174,13 @@ img { max-width: 100%; height: auto; display: block; }
 .sf-nav-cart:hover { opacity: 0.9; }
 [data-theme="luxe"] .sf-nav-cart { background: transparent; border: 1px solid var(--sf-gold); color: var(--sf-gold); }
 [data-theme="market"] .sf-nav-cart { background: #fff; color: var(--sf-primary); }
+
+/* Hide cart text on mobile, show icon only */
+.sf-nav-cart-text { display: inline; }
+@media (max-width: 768px) {
+  .sf-nav-cart-text { display: none; }
+  .sf-nav-cart { padding: 8px; }
+}
 
 .sf-cart-badge {
   position: absolute; top: -6px; right: -6px;

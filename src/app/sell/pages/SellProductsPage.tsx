@@ -442,8 +442,10 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       const colRef = collection(firestore, 'businesses', businessId, 'storeProducts');
       if (product) {
         await updateDoc(doc(colRef, product.id), payload);
+        showToast('Product updated successfully', 'success');
       } else {
         await addDoc(colRef, { ...payload, productId: '', createdAt: serverTimestamp() });
+        showToast('Product added successfully', 'success');
       }
       onSaved();
     } catch (err) {

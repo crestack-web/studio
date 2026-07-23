@@ -17,6 +17,7 @@ interface Props {
 export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Props) {
   const { totalItems, toggleCart } = useCart();
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!businessId) return;
@@ -42,9 +43,9 @@ export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Pro
         {storeName}
       </Link>
 
-      {/* Collections nav links */}
+      {/* Collections nav links - desktop only */}
       {collections.length > 0 && (
-        <div className="sf-nav-links" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <div className="sf-nav-links sf-nav-desktop-only" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {collections.map(col => (
             <Link
               key={col.id}
@@ -65,16 +66,47 @@ export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Pro
 
       <div className="sf-nav-spacer" />
 
+      {/* Mobile menu button */}
+      <button 
+        className="sf-nav-menu sf-nav-mobile-only" 
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label="Toggle menu"
+        aria-expanded={mobileMenuOpen}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      {/* Cart button */}
       <button className="sf-nav-cart" onClick={toggleCart} aria-label="Open cart">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
           <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
           <path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.74l1.38-9.26H6"/>
         </svg>
-        Cart
+        <span className="sf-nav-cart-text">Cart</span>
         {totalItems > 0 && (
           <span className="sf-cart-badge">{totalItems}</span>
         )}
       </button>
+
+      {/* Mobile menu dropdown */}
+      {mobileMenuOpen && collections.length > 0 && (
+        <div className="sf-nav-mobile-menu">
+          {collections.map(col => (
+            <Link
+              key={col.id}
+              href={`/store/${storeSlug}/collections/${col.id}`}
+              onClick={() => setMobileMenuOpen(false)}
+              className="sf-nav-mobile-link"
+            >
+              {col.title}
+            </Link>
+          ))}
+        </div>
+      )}
     </nav>
   );
 }

@@ -86,7 +86,148 @@
 
 @media (max-width: 900px) {
   .body { grid-template-columns: 1fr; }
-  .preview { display: none; }
+  .previewPanelDesktop { display: none; }
+}
+
+.previewPanelDesktop {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Mobile preview button - shown on mobile only */
+.mobilePreviewBtn {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, var(--sell-primary), var(--sell-accent));
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(14,165,233,0.35);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+@media (min-width: 901px) {
+  .mobilePreviewBtn { display: none !important; }
+}
+
+@media (max-width: 900px) {
+  .mobilePreviewBtn { display: flex; }
+}
+
+.mobilePreviewBtn:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+/* Mobile modal overlay */
+.mobileModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+}
+
+.mobileModalContent {
+  background: var(--sell-surface);
+  border-radius: 16px;
+  padding: 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.mobileModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--sell-border);
+  flex-shrink: 0;
+}
+
+.mobileModalTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--sell-text-1);
+}
+
+.mobileModalClose {
+  background: none;
+  border: none;
+  color: var(--sell-text-2);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.mobileModalClose:hover {
+  background: var(--sell-bg);
+  color: var(--sell-text-1);
+}
+
+/* Phone frame */
+.phoneFrame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.phoneBezel {
+  width: 320px;
+  height: 650px;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow: 
+    0 25px 50px rgba(0,0,0,0.5),
+    0 0 0 2px rgba(255,255,255,0.1),
+    inset 0 0 0 1px rgba(255,255,255,0.05);
+  position: relative;
+}
+
+.phoneNotch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 28px;
+  background: #1a1a1a;
+  border-radius: 0 0 16px 16px;
+  z-index: 10;
+}
+
+.phoneScreen {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-radius: 28px;
+  overflow: hidden;
+  position: relative;
 }
 
 /* ═══════════ LEFT: CHAT PANEL ═══════════ */
