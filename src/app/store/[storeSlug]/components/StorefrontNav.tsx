@@ -40,7 +40,6 @@ export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Pro
               fontWeight: 800, fontSize: '1rem',
             }}>{storeName.charAt(0).toUpperCase()}</span>
         }
-        {storeName}
       </Link>
 
       {/* Collections nav links - desktop only */}

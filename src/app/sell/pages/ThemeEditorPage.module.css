@@ -576,8 +576,8 @@
 }
 
 .phoneBezel {
-  width: 320px;
-  height: 650px;
+  width: 375px;
+  height: 750px;
   background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
   border-radius: 40px;
   padding: 12px;
@@ -605,8 +605,18 @@
   height: 100%;
   background: #fff;
   border-radius: 28px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
+}
+
+.phoneScreen::-webkit-scrollbar {
+  width: 4px;
+}
+
+.phoneScreen::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
 }
 
 /* ── Mobile modal ── */
@@ -840,16 +850,22 @@
 }
 
 .phoneMockupContainer .phoneFrame {
-  transform: scale(0.9);
+  transform: scale(0.85);
+}
+
+@media (max-width: 768px) {
+  .phoneMockupContainer .phoneFrame {
+    transform: scale(0.75);
+  }
 }
 
 @media (max-width: 480px) {
   .phoneMockupContainer .phoneFrame {
-    transform: scale(0.7);
+    transform: scale(0.6);
   }
   
   .phoneMockupContainer .phoneBezel {
-    width: 280px;
-    height: 580px;
+    width: 320px;
+    height: 640px;
   }
 }
