@@ -155,7 +155,7 @@ export default function SubscribePage() {
       const callbackUrl = 'https://busmo.web.app/subscribe/success';
       console.log('🔗 [Subscribe] Callback URL:', callbackUrl);
       
-      const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {
+      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
