@@ -273,6 +273,25 @@ export function ThemeEditorPage() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [products,  setProducts]  = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = typeof window !== 'undefined' ? navigator.userAgent : '';
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+                           (typeof window !== 'undefined' && window.innerWidth < 768);
+      setIsMobile(isMobileDevice);
+      if (isMobileDevice) {
+        setDevice('mobile');
+      }
+    };
+    checkMobile();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }
+  }, []);
 
   // Undo/redo stacks
   const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
@@ -391,6 +410,29 @@ export function ThemeEditorPage() {
   const logoUrl   = (storeConfig as any)?.logoUrl   ?? null;
   const activeSection = sections.find(s => s.id === activeId) ?? null;
 
+  const handlePreview = useCallback(() => {
+    if (isMobile) {
+      // Store preview data in sessionStorage for the new page
+      const previewData = {
+        theme,
+        storeName,
+        tagline,
+        primaryColor: primary,
+        secondaryColor: secondary,
+        logoUrl,
+        sections,
+        storeSlug: (storeConfig as any)?.storeSlug,
+        products,
+        collections,
+      };
+      sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
+      // Open new page for mobile preview
+      window.open('/sell/mobile-preview', '_blank');
+    } else {
+      setShowPreviewModal(true);
+    }
+  }, [isMobile, theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections]);
+
   // Preview width by device
   const previewWidth = device === 'mobile' ? 375 : device === 'tablet' ? 768 : 1000;
   const previewScale = device === 'mobile' ? 0.72 : device === 'tablet' ? 0.55 : 0.42;
@@ -428,8 +470,8 @@ export function ThemeEditorPage() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 014-4h12"/></svg>
               </button>
               <div className={styles.dividerV} />
-              {/* Device switcher */}
-              {(['desktop','tablet','mobile'] as const).map(d => (
+              {/* Device switcher - hide on mobile since only mobile preview is available */}
+              {!isMobile && (['desktop','tablet','mobile'] as const).map(d => (
                 <button 
                   key={d} 
                   className={[styles.iconBtn, device === d ? styles.iconBtnActive : ''].join(' ')} 
@@ -446,7 +488,7 @@ export function ThemeEditorPage() {
         </div>
         <div className={styles.topbarRight}>
           {view === 'editor' && (
-            <button className={styles.previewBtn} onClick={() => setShowPreviewModal(true)}>
+            <button className={styles.previewBtn} onClick={handlePreview}>
               Preview
             </button>
           )}
@@ -522,6 +564,8 @@ export function ThemeEditorPage() {
                 width: previewWidth * previewScale,
                 position: 'relative',
                 flexShrink: 0,
+                minWidth: 0,
+                maxWidth: '100%',
               }}>
                 <div className={styles.previewInner} style={{
                   width: previewWidth,
@@ -529,6 +573,7 @@ export function ThemeEditorPage() {
                   transformOrigin: 'top left',
                   position: 'absolute',
                   top: 0, left: 0,
+                  minWidth: 0,
                 }}>
                   <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
                     <StorefrontCanvas
@@ -551,6 +596,7 @@ export function ThemeEditorPage() {
                   width: previewWidth * previewScale,
                   visibility: 'hidden',
                   pointerEvents: 'none',
+                  minWidth: 0,
                 }}>
                   <StorefrontCanvas
                     theme={theme}

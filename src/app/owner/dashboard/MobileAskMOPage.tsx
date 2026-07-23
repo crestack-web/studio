@@ -534,7 +534,7 @@ export function MobileAskMOPage() {
         businessId: user.businessId || user.id,
         userId: user.id,
         conversationHistory: currentConversationId ? messages.slice(-10).map(m => ({ role: m.role, content: m.content })) : [],
-        userPlan: user.plan || 'starter',
+        userPlan: user.plan || planLimit === -1 ? 'pro' : planLimit === 50 ? 'standard' : 'starter',
         language: lang,
         languageName: langMeta.name,
         businessCategory: businessCategory,

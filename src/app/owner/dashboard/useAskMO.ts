@@ -263,6 +263,25 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           todayProfit += saleProfit;
         }
       });
+
+      // Calculate top selling products
+      const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+      salesSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.products && Array.isArray(data.products)) {
+          data.products.forEach((item: any) => {
+            const productName = item.name || item.productName || 'Unknown Product';
+            const quantity = item.quantity || 0;
+            const revenue = item.total || (item.price * quantity) || 0;
+            
+            if (!productSales[productName]) {
+              productSales[productName] = { name: productName, quantity: 0, revenue: 0 };
+            }
+            productSales[productName].quantity += quantity;
+            productSales[productName].revenue += revenue;
+          });
+        }
+      });
       
       console.log('📊 [useAskMO] Calculated sales:', { totalSales, totalProfit, todaySales, todayProfit });
 
@@ -277,17 +296,41 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       let dishesCount = 0;
       let ingredientsCount = 0;
       let ingredientsNeedingReorder = 0;
+      let outOfStockProducts: Array<{ name: string; quantity: number; sku?: string }> = [];
+      let lowStockProducts: Array<{ name: string; quantity: number; threshold: number; sku?: string }> = [];
+      let productMargins: Array<{ name: string; margin: number; marginPercentage: number; sellingPrice: number; costPrice: number }> = [];
       
       productsSnapshot.forEach(doc => {
         const data = doc.data();
         const stock = data.stock || 0;
         const threshold = data.lowStockThreshold || 10;
         const costPrice = data.costPrice || 0;
+        const sellingPrice = data.sellingPrice || data.price || 0;
+        const productName = data.displayName || data.name || 'Unknown Product';
+        const sku = data.sku || data.productCode;
         
-        if (stock === 0) outOfStockCount++;
-        else if (stock <= threshold) lowStockCount++;
+        if (stock === 0) {
+          outOfStockCount++;
+          outOfStockProducts.push({ name: productName, quantity: stock, sku });
+        } else if (stock <= threshold) {
+          lowStockCount++;
+          lowStockProducts.push({ name: productName, quantity: stock, threshold, sku });
+        }
         
         totalInventoryValue += stock * costPrice;
+
+        // Calculate product margin
+        if (sellingPrice > 0) {
+          const margin = sellingPrice - costPrice;
+          const marginPercentage = (margin / sellingPrice) * 100;
+          productMargins.push({
+            name: productName,
+            margin,
+            marginPercentage,
+            sellingPrice,
+            costPrice,
+          });
+        }
 
         // Restaurant-specific tracking
         if (isRestaurant) {
@@ -307,9 +350,20 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       );
       const expensesSnapshot = await getDocs(expensesQuery);
       let totalExpenses = 0;
+      const expenseCategories: Record<string, { amount: number; count: number }> = {};
+      
       expensesSnapshot.forEach(doc => {
         const data = doc.data();
-        totalExpenses += data.amount || 0;
+        const amount = data.amount || 0;
+        totalExpenses += amount;
+        
+        // Categorize expenses by category field or description
+        const category = data.category || data.type || 'Other';
+        if (!expenseCategories[category]) {
+          expenseCategories[category] = { amount: 0, count: 0 };
+        }
+        expenseCategories[category].amount += amount;
+        expenseCategories[category].count += 1;
       });
 
       let pendingCollections = 0;
@@ -593,9 +647,27 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         todayProfit,
         lowStockCount,
         outOfStockCount,
+        outOfStockProducts, // Include product names and quantities
+        lowStockProducts, // Include product names and quantities
         totalInventoryValue,
         totalExpenses,
         pendingCollections,
+        // Phase 1: Expense categories breakdown
+        expenseCategories: Object.entries(expenseCategories)
+          .map(([category, data]) => ({ category, amount: data.amount, count: data.count }))
+          .sort((a, b) => b.amount - a.amount),
+        // Phase 1: Financial health metrics
+        profitMargin: totalSales > 0 ? ((totalProfit / totalSales) * 100) : 0,
+        averageTransactionValue: salesSnapshot.size > 0 ? (totalSales / salesSnapshot.size) : 0,
+        // Phase 1: Top selling products
+        topSellingProducts: Object.values(productSales)
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 10)
+          .map(p => ({ name: p.name, quantity: p.quantity, revenue: p.revenue })),
+        // Phase 1: Product margins (sorted by margin percentage)
+        productMargins: productMargins
+          .sort((a, b) => b.marginPercentage - a.marginPercentage)
+          .slice(0, 10),
         // Operations data
         suppliersCount,
         totalSpentOnSuppliers,

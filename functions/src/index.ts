@@ -180,6 +180,9 @@ async function getBusinessContext(businessId: string) {
       outOfStockCount: 0,
       totalExpenses: 0,
       staffCount: 0,
+      // Phase 1: Financial health metrics
+      profitMargin: 0,
+      averageTransactionValue: 0,
     };
 
     // Fetch business profile
@@ -216,6 +219,10 @@ async function getBusinessContext(businessId: string) {
         context.todayProfit += profit;
       }
     });
+
+    // Phase 1: Calculate financial health metrics
+    context.profitMargin = context.totalSales > 0 ? ((context.totalProfit / context.totalSales) * 100) : 0;
+    context.averageTransactionValue = salesSnapshot.size > 0 ? (context.totalSales / salesSnapshot.size) : 0;
 
     // Fetch products
     const productsSnapshot = await db.collection('businesses').doc(businessId).collection('products')
@@ -335,11 +342,60 @@ Use this context to:
 • Today's Sales: ₦${(businessContext.todaySales || 0).toLocaleString()}
 • Total Profit: ₦${(businessContext.totalProfit || 0).toLocaleString()}
 • Today's Profit: ₦${(businessContext.todayProfit || 0).toLocaleString()}
+• Profit Margin: ${(businessContext.profitMargin || 0).toFixed(1)}%
+• Average Transaction: ₦${(businessContext.averageTransactionValue || 0).toLocaleString()}
+${businessContext.topSellingProducts && businessContext.topSellingProducts.length > 0 
+  ? `• Top Selling Products:\n${businessContext.topSellingProducts.slice(0, 5).map((p: any) => `  - ${p.name}: ${p.quantity} sold, ₦${p.revenue.toLocaleString()}`).join('\n')}` 
+  : ''}
 
-📦 INVENTORY STATUS:
+🎯 YOUR AVAILABLE FEATURES (Plan: ${(businessContext.userPlan || 'starter').toUpperCase()}):
+${businessContext.availableFeatures && businessContext.availableFeatures.length > 0 
+  ? businessContext.availableFeatures.map((f: any) => `• ${f.name}: ${f.description}${f.pageName ? ` - Navigate to "${f.pageName}" in the sidebar` : ''}`).join('\n')
+  : '• Basic inventory and sales tracking'}
+
+When users ask about features, capabilities, or what they can do:
+1. List their available features with brief descriptions
+2. Explain how each feature helps their business
+3. Provide navigation guidance (which sidebar button to click)
+4. Suggest features based on their business context
+5. If they ask about a feature not in their plan, explain it and mention upgrade requirements
+6. When explaining how to use a feature, provide step-by-step guidance:
+   - What the feature does
+   - How to access it (navigation)
+   - Basic setup or configuration needed
+   - Common workflows or use cases
+   - Tips for getting the most value from it
+
+�📊 CONTEXTUAL FEATURE SUGGESTIONS:
+Based on business data, proactively suggest relevant features:
+${businessContext.outOfStockCount > 0 ? '- Inventory Management: You have ' + businessContext.outOfStockCount + ' out of stock items. Use Inventory Tracking to monitor stock levels and set up low stock alerts.' : ''}
+${businessContext.totalExpenses > 0 ? '- Expense Tracking: Track and categorize your expenses to understand where your money is going.' : ''}
+${businessContext.staffCount > 1 ? '- Staff Management: With ' + businessContext.staffCount + ' staff members, use Staff Management to track performance and permissions.' : ''}
+${businessContext.businessCategory === 'restaurant' || businessContext.businessCategory === 'cafe' ? '- Restaurant Features: Use Menu Management and Ingredient Tracking to optimize your restaurant operations.' : ''}
+${businessContext.businessCategory === 'retail' || businessContext.businessCategory === 'grocery' ? '- Retail Features: Use Reports & Analytics to understand your sales patterns and customer behavior.' : ''}
+
+⬆️ UPGRADE OPPORTUNITIES:
+When users ask about features not available on their current plan:
+- Starter Plan: Basic inventory, sales recording, staff management, Ask MO AI
+- Standard Plan: Adds cash flow tracking, supplier management, multi-branch, credit tracking, money control, expense categories
+- Pro Plan: Adds warehouse management, stock transfers, bank accounts/reconciliation, e-commerce storefront, email campaigns, production tracking, payroll, audit trail
+
+If a user asks about a Pro-only feature:
+1. Explain what the feature does
+2. Mention it's available on the Pro plan
+3. Explain the benefits of upgrading
+4. Suggest they can upgrade from the Settings page
+
+�📦 INVENTORY STATUS:
 • Total Products: ${businessContext.totalProducts || 0}
 • ⚠️ OUT OF STOCK: ${businessContext.outOfStockCount || 0} products
+${businessContext.outOfStockProducts && businessContext.outOfStockProducts.length > 0 
+  ? businessContext.outOfStockProducts.map((p: any) => `  - ${p.name}${p.sku ? ` (${p.sku})` : ''}: ${p.quantity} units`).join('\n') 
+  : ''}
 • 🔴 LOW STOCK: ${businessContext.lowStockCount || 0} products
+${businessContext.lowStockProducts && businessContext.lowStockProducts.length > 0 
+  ? businessContext.lowStockProducts.map((p: any) => `  - ${p.name}${p.sku ? ` (${p.sku})` : ''}: ${p.quantity} units (threshold: ${p.threshold})`).join('\n') 
+  : ''}
 
 💵 EXPENSES:
 • Total Expenses (30 days): ₦${(businessContext.totalExpenses || 0).toLocaleString()}

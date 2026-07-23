@@ -222,6 +222,11 @@ export class ConversationPlanner {
       requiredData.push('sales_data', 'expense_data', 'inventory_data', 'cash_flow', 'staff_data', 'customer_data', 'supplier_data');
     }
 
+    // Feature-related queries (Phase 1: Feature Guidance)
+    if (/(what features|what can i do|what's included|what's available|what tools|help me get started|how do i use|show me features|my plan|what do i have access)/i.test(lowerMessage)) {
+      requiredData.push('feature_list', 'user_plan', 'business_category');
+    }
+
     // Remove duplicates
     return [...new Set(requiredData)];
   }

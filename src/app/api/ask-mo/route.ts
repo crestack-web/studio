@@ -7,6 +7,7 @@ import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
 import { getMasterProcessor } from '@/lib/services/mo-master-processor';
 import { createConversationPlanner, ConversationContext } from '@/services/ai/conversation-planner';
+import { getFeaturesByPlan, getFeaturesByBusinessCategory, type Plan, type BusinessCategory } from '@/lib/featureRegistry';
 
 // Define the actual page names for navigation guidance
 const PAGE_NAMES = {
@@ -117,7 +118,7 @@ When suggesting navigation, always use the exact sidebar button names as referen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary } = body;
+    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary, userPlan = 'starter' } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -288,6 +289,10 @@ export async function POST(request: NextRequest) {
           businessData.todaySales = todaySales;
           businessData.todayProfit = todayProfit;
           
+          // Phase 1: Financial health metrics
+          businessData.profitMargin = totalSales > 0 ? ((totalProfit / totalSales) * 100) : 0;
+          businessData.averageTransactionValue = businessData.sales.length > 0 ? (totalSales / businessData.sales.length) : 0;
+          
           console.log('📊 [Ask MO API] Calculated totals:', { totalSales, totalProfit, todaySales, todayProfit });
           
           // Log field mapping sample for debugging
@@ -351,9 +356,87 @@ export async function POST(request: NextRequest) {
             lastSaleDate: productLastSaleDate[product.id] ? productLastSaleDate[product.id].toISOString() : null,
             category: product.category,
             lowStockThreshold: product.lowStockThreshold || product.reorderLevel || 10,
+            sku: product.sku || product.productCode,
           }));
           
+          // Calculate out of stock and low stock products with names
+          const outOfStockProducts = products
+            .filter((p: any) => (p.stock || p.quantity || 0) === 0)
+            .map((p: any) => ({
+              name: p.name || p.productName || 'Unknown Product',
+              quantity: p.stock || p.quantity || 0,
+              sku: p.sku || p.productCode,
+            }));
+          
+          const lowStockProducts = products
+            .filter((p: any) => {
+              const stock = p.stock || p.quantity || 0;
+              const threshold = p.lowStockThreshold || p.reorderLevel || 10;
+              return stock > 0 && stock <= threshold;
+            })
+            .map((p: any) => ({
+              name: p.name || p.productName || 'Unknown Product',
+              quantity: p.stock || p.quantity || 0,
+              threshold: p.lowStockThreshold || p.reorderLevel || 10,
+              sku: p.sku || p.productCode,
+            }));
+          
+          businessData.outOfStockProducts = outOfStockProducts;
+          businessData.lowStockProducts = lowStockProducts;
+          businessData.outOfStockCount = outOfStockProducts.length;
+          businessData.lowStockCount = lowStockProducts.length;
+          
+          // Phase 1: Calculate top selling products
+          const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+          sales.forEach((sale: any) => {
+            if (sale.products && Array.isArray(sale.products)) {
+              sale.products.forEach((item: any) => {
+                const productName = item.name || item.productName || 'Unknown Product';
+                const quantity = item.quantity || 0;
+                const revenue = item.total || (item.price * quantity) || 0;
+                
+                if (!productSales[productName]) {
+                  productSales[productName] = { name: productName, quantity: 0, revenue: 0 };
+                }
+                productSales[productName].quantity += quantity;
+                productSales[productName].revenue += revenue;
+              });
+            }
+          });
+          
+          const topSellingProducts = Object.values(productSales)
+            .sort((a: any, b: any) => b.revenue - a.revenue)
+            .slice(0, 10)
+            .map((p: any) => ({ name: p.name, quantity: p.quantity, revenue: p.revenue }));
+          
+          businessData.topSellingProducts = topSellingProducts;
+          console.log('📦 [Ask MO API] Top selling products calculated:', topSellingProducts.length);
+          
           console.log('📦 [Ask MO API] Loaded inventory data:', businessData.products.length, 'products with last sale dates');
+          console.log('📦 [Ask MO API] Out of stock products:', outOfStockProducts.length);
+          console.log('📦 [Ask MO API] Low stock products:', lowStockProducts.length);
+          
+          // Phase 1: Calculate product margins
+          const productMargins = products
+            .filter((p: any) => (p.sellingPrice || p.price || 0) > 0)
+            .map((p: any) => {
+              const sellingPrice = p.sellingPrice || p.price || 0;
+              const costPrice = p.costPrice || p.cost || 0;
+              const margin = sellingPrice - costPrice;
+              const marginPercentage = (margin / sellingPrice) * 100;
+              return {
+                name: p.name || p.productName || 'Unknown Product',
+                margin,
+                marginPercentage,
+                sellingPrice,
+                costPrice,
+              };
+            })
+            .sort((a: any, b: any) => b.marginPercentage - a.marginPercentage)
+            .slice(0, 10);
+          
+          businessData.productMargins = productMargins;
+          console.log('📦 [Ask MO API] Product margins calculated:', productMargins.length);
         }
 
         // Load expense data only if required
@@ -383,7 +466,25 @@ export async function POST(request: NextRequest) {
           
           const expensesSnapshot = await expensesQuery.limit(500).get();
           businessData.expenses = expensesSnapshot.docs.map(doc => doc.data());
+          
+          // Phase 1: Calculate expense categories breakdown
+          const expenseCategories: Record<string, { amount: number; count: number }> = {};
+          businessData.expenses.forEach((expense: any) => {
+            const amount = expense.amount || 0;
+            const category = expense.category || expense.type || 'Other';
+            if (!expenseCategories[category]) {
+              expenseCategories[category] = { amount: 0, count: 0 };
+            }
+            expenseCategories[category].amount += amount;
+            expenseCategories[category].count += 1;
+          });
+          
+          businessData.expenseCategories = Object.entries(expenseCategories)
+            .map(([category, data]) => ({ category, amount: data.amount, count: data.count }))
+            .sort((a: any, b: any) => b.amount - a.amount);
+          
           console.log('💰 [Ask MO API] Loaded expense data:', businessData.expenses.length, 'records');
+          console.log('💰 [Ask MO API] Expense categories calculated:', businessData.expenseCategories.length);
         }
 
         // Load customer data only if required
@@ -429,6 +530,33 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('⚠️ [Ask MO API] No businessData to update profile manager. businessData keys:', Object.keys(businessData));
     }
+
+    // Phase 2: Load available features based on user's plan and business category
+    const normalizedPlan = (userPlan as Plan) || 'starter';
+    const normalizedCategory = (businessCategory as BusinessCategory) || 'retail';
+    const planFeatures = getFeaturesByPlan(normalizedPlan);
+    const categoryFeatures = getFeaturesByBusinessCategory(normalizedCategory);
+    
+    // Filter features that are available for both plan and category
+    const availableFeatures = planFeatures.filter(f => 
+      categoryFeatures.some(cf => cf.id === f.id)
+    );
+    
+    // Format features for AI context
+    const featureContext = availableFeatures.map(f => ({
+      id: f.id,
+      name: f.name,
+      description: f.description,
+      category: f.category,
+      pageId: f.pageId,
+      pageName: f.pageId ? PAGE_NAMES[f.pageId as keyof typeof PAGE_NAMES] : undefined,
+    }));
+    
+    businessData.availableFeatures = featureContext;
+    businessData.userPlan = normalizedPlan;
+    businessData.businessCategory = normalizedCategory;
+    
+    console.log('🎯 [Ask MO API] Available features loaded:', featureContext.length, 'features for plan:', normalizedPlan);
 
     // REMOVED: Early return for sales analysis to ensure comprehensive data processing
     // The profile manager needs to be updated and full AI processing should run
