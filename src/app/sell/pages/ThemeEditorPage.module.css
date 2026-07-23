@@ -545,6 +545,84 @@
   position: relative;
 }
 
+/* ── Mobile modal ── */
+.mobileModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.mobileModalContent {
+  background: var(--sell-surface);
+  border-radius: 16px;
+  padding: 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.mobileModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--sell-border);
+  flex-shrink: 0;
+}
+
+.mobileModalTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--sell-text-1);
+}
+
+.mobileModalClose {
+  background: none;
+  border: none;
+  color: var(--sell-text-2);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.mobileModalClose:hover {
+  background: var(--sell-bg);
+  color: var(--sell-text-1);
+}
+
+.hideOnMobile {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .hideOnMobile {
+    display: none;
+  }
+}
+
+.previewModalBody {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 20px;
+  background: var(--sell-bg);
+}
+
 /* RIGHT */
 .rightPanel {
   background: var(--sell-surface); display: flex; flex-direction: column; overflow: hidden;
