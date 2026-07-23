@@ -106,6 +106,8 @@
   .themeCardName { font-size: 0.65rem; padding: 4px 3px 5px; }
   .previewPane { padding: 14px; }
   .previewPaneInner { width: 100%; max-width: 100%; }
+  .themePill { display: none; }
+  .liveBadge { display: none; }
 }
 
 /* ── Left panel ── */

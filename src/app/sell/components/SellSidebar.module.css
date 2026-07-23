@@ -59,12 +59,13 @@
   overflow: hidden;
   display: flex;
   align-items: center;
+  padding-left: 12px;
 }
 
 /* Logo fills the header height, clipped — never scaled down */
 .logoImg {
   width: auto;
-  height: 100%;
+  height: 110%;
   object-fit: cover;
   object-position: left center;
   display: block;
