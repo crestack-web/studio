@@ -389,12 +389,22 @@ export function ThemeEditorPage() {
     setApplying(true);
     try {
       const { firestore } = initializeFirebase();
+      const slug = (storeConfig as any)?.storeSlug;
+      
       await setDoc(
         doc(firestore, 'businesses', user.businessId, 'store', 'config'),
-        { ...(storeConfig as any), theme, primaryColor: primary, secondaryColor: secondary, sections: sections.map(s => ({ ...s })), updatedAt: serverTimestamp() },
+        { 
+          ...(storeConfig as any), 
+          theme, 
+          primaryColor: primary, 
+          secondaryColor: secondary, 
+          sections: sections.map(s => ({ ...s })), 
+          storeSlug: slug, // Explicitly include storeSlug to ensure it's preserved
+          updatedAt: serverTimestamp() 
+        },
         { merge: true }
       );
-      const slug = (storeConfig as any)?.storeSlug;
+      
       if (slug) await setDoc(doc(firestore, 'storeIndex', slug), { businessId: user.businessId, storeName: (storeConfig as any).storeName, updatedAt: serverTimestamp() });
       await refreshStoreConfig();
       setDirty(false);
