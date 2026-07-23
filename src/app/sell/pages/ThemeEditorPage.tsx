@@ -269,8 +269,6 @@ export function ThemeEditorPage() {
   const [dirty,     setDirty]     = useState(false);
   const [view,      setView]      = useState<'marketplace' | 'editor'>('marketplace');
   const [device,    setDevice]    = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [showMobileModal, setShowMobileModal] = useState(false);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [products,  setProducts]  = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -438,14 +436,13 @@ export function ThemeEditorPage() {
       sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
       // Open new page for mobile preview
       window.open('/sell/mobile-preview', '_blank');
-    } else {
-      setShowPreviewModal(true);
     }
   }, [isMobile, theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections]);
 
-  // Preview width by device
-  const previewWidth = device === 'mobile' ? 375 : device === 'tablet' ? 768 : 1000;
-  const previewScale = device === 'mobile' ? 0.72 : device === 'tablet' ? 0.55 : 0.42;
+  // Preview width by device - increased sizes for better visibility
+  // Desktop fills center panel, mobile/tablet use fixed widths
+  const previewWidth = device === 'mobile' ? 375 : device === 'tablet' ? 900 : 1200;
+  const previewScale = device === 'mobile' ? 0.85 : device === 'tablet' ? 0.65 : 1;
 
   return (
     <div className={styles.root}>
@@ -485,7 +482,7 @@ export function ThemeEditorPage() {
                 <button 
                   key={d} 
                   className={[styles.iconBtn, device === d ? styles.iconBtnActive : ''].join(' ')} 
-                  onClick={() => { setDevice(d); setShowPreviewModal(true); }} 
+                  onClick={() => setDevice(d)} 
                   title={d.charAt(0).toUpperCase() + d.slice(1)}
                 >
                   {d === 'desktop' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>}
@@ -570,21 +567,9 @@ export function ThemeEditorPage() {
           {/* CENTER: live preview - hidden on mobile, shown in modal */}
           <div className={`${styles.centerPanel} ${styles.hideOnMobile}`}>
             <div className={styles.previewOuter}>
-              <div style={{
-                width: previewWidth * previewScale,
-                position: 'relative',
-                flexShrink: 0,
-                minWidth: 0,
-                maxWidth: '100%',
-              }}>
-                <div className={styles.previewInner} style={{
-                  width: previewWidth,
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: 'top left',
-                  position: 'absolute',
-                  top: 0, left: 0,
-                  minWidth: 0,
-                }}>
+              {device === 'desktop' ? (
+                // Desktop: fill center panel without scaling
+                <div className={styles.desktopPreview}>
                   <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
                     <StorefrontCanvas
                       theme={theme}
@@ -601,28 +586,62 @@ export function ThemeEditorPage() {
                     />
                   </CartProvider>
                 </div>
-                {/* Invisible spacer that matches the scaled height so parent scrolls correctly */}
+              ) : (
+                // Mobile/Tablet: use scaling
                 <div style={{
                   width: previewWidth * previewScale,
-                  visibility: 'hidden',
-                  pointerEvents: 'none',
+                  position: 'relative',
+                  flexShrink: 0,
                   minWidth: 0,
+                  maxWidth: '100%',
                 }}>
-                  <StorefrontCanvas
-                    theme={theme}
-                    storeName={storeName}
-                    tagline={tagline}
-                    primaryColor={primary}
-                    secondaryColor={secondary}
-                    logoUrl={logoUrl}
-                    sections={sections}
-                    width={previewWidth * previewScale}
-                    storeSlug={(storeConfig as any)?.storeSlug}
-                    products={products}
-                    collections={collections}
-                  />
+                  <div className={styles.previewInner} style={{
+                    width: previewWidth,
+                    transform: `scale(${previewScale})`,
+                    transformOrigin: 'top left',
+                    position: 'absolute',
+                    top: 0, left: 0,
+                    minWidth: 0,
+                  }}>
+                    <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
+                      <StorefrontCanvas
+                        theme={theme}
+                        storeName={storeName}
+                        tagline={tagline}
+                        primaryColor={primary}
+                        secondaryColor={secondary}
+                        logoUrl={logoUrl}
+                        sections={sections}
+                        width={previewWidth}
+                        storeSlug={(storeConfig as any)?.storeSlug}
+                        products={products}
+                        collections={collections}
+                      />
+                    </CartProvider>
+                  </div>
+                  {/* Invisible spacer that matches the scaled height so parent scrolls correctly */}
+                  <div style={{
+                    width: previewWidth * previewScale,
+                    visibility: 'hidden',
+                    pointerEvents: 'none',
+                    minWidth: 0,
+                  }}>
+                    <StorefrontCanvas
+                      theme={theme}
+                      storeName={storeName}
+                      tagline={tagline}
+                      primaryColor={primary}
+                      secondaryColor={secondary}
+                      logoUrl={logoUrl}
+                      sections={sections}
+                      width={previewWidth * previewScale}
+                      storeSlug={(storeConfig as any)?.storeSlug}
+                      products={products}
+                      collections={collections}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -662,68 +681,6 @@ export function ThemeEditorPage() {
             )}
           </div>
 
-        </div>
-      )}
-
-      {/* Preview modal for mobile viewport */}
-      {showPreviewModal && (
-        <div className={styles.mobileModalOverlay} onClick={() => setShowPreviewModal(false)}>
-          <div className={styles.mobileModalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.mobileModalHeader}>
-              <span className={styles.mobileModalTitle}>Preview ({device.charAt(0).toUpperCase() + device.slice(1)})</span>
-              <button className={styles.mobileModalClose} onClick={() => setShowPreviewModal(false)}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div className={styles.previewModalBody}>
-              {device === 'mobile' ? (
-                <div className={styles.phoneFrame}>
-                  <div className={styles.phoneBezel}>
-                    <div className={styles.phoneNotch} />
-                    <div className={styles.phoneScreen}>
-                      <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
-                        <StorefrontCanvas
-                          theme={theme}
-                          storeName={storeName}
-                          tagline={tagline}
-                          primaryColor={primary}
-                          secondaryColor={secondary}
-                          logoUrl={logoUrl}
-                          sections={sections}
-                          width={375}
-                          storeSlug={(storeConfig as any)?.storeSlug}
-                          products={products}
-                          collections={collections}
-                        />
-                      </CartProvider>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  width: previewWidth,
-                  height: '100%',
-                  overflow: 'auto',
-                }}>
-                  <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
-                    <StorefrontCanvas
-                      theme={theme}
-                      storeName={storeName}
-                      tagline={tagline}
-                      primaryColor={primary}
-                      secondaryColor={secondary}
-                      logoUrl={logoUrl}
-                      sections={sections}
-                      width={previewWidth}
-                      storeSlug={(storeConfig as any)?.storeSlug}
-                      products={products}
-                      collections={collections}
-                    />
-                  </CartProvider>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
