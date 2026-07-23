@@ -11,10 +11,13 @@ import styles from './SellProductsPage.module.css';
 
 type ProductType = 'physical' | 'digital' | 'service';
 
+type DigitalSubtype = 'ebook' | 'course' | 'template' | 'ticket';
+
 interface StoreProduct {
   id: string;
   productId: string;
   productType: ProductType;
+  digitalSubtype: DigitalSubtype | null;
   displayName: string;
   description: string;
   price: number;
@@ -28,10 +31,30 @@ interface StoreProduct {
   available: boolean;
   featured: boolean;
   digitalFileUrl: string | null;
+  digitalFileName: string | null;
   deliveryNote: string | null;
   lowStockThreshold: number;
   createdAt: Date;
   updatedAt: Date;
+  // Ebook specific
+  pageCount: number | null;
+  author: string | null;
+  isbn: string | null;
+  // Course specific
+  courseDuration: string | null;
+  lessonCount: number | null;
+  accessDuration: string | null;
+  difficultyLevel: string | null;
+  // Template specific
+  fileFormat: string | null;
+  compatibleSoftware: string | null;
+  licenseType: string | null;
+  // Ticket specific
+  eventDate: string | null;
+  eventTime: string | null;
+  venue: string | null;
+  ticketType: string | null;
+  capacity: number | null;
 }
 
 interface InventoryProduct {
@@ -46,6 +69,7 @@ interface InventoryProduct {
 
 type FormData = {
   productType: ProductType;
+  digitalSubtype: DigitalSubtype;
   displayName: string;
   description: string;
   price: string;
@@ -58,16 +82,40 @@ type FormData = {
   available: boolean;
   featured: boolean;
   digitalFileUrl: string;
+  digitalFileName: string;
   deliveryNote: string;
   imageUrl: string;
+  // Ebook specific
+  pageCount: string;
+  author: string;
+  isbn: string;
+  // Course specific
+  courseDuration: string;
+  lessonCount: string;
+  accessDuration: string;
+  difficultyLevel: string;
+  // Template specific
+  fileFormat: string;
+  compatibleSoftware: string;
+  licenseType: string;
+  // Ticket specific
+  eventDate: string;
+  eventTime: string;
+  venue: string;
+  ticketType: string;
+  capacity: string;
 };
 
 const EMPTY_FORM: FormData = {
-  productType: 'physical', displayName: '', description: '',
+  productType: 'physical', digitalSubtype: 'ebook', displayName: '', description: '',
   price: '', compareAtPrice: '', category: '', tags: '',
   stock: '', sku: '', lowStockThreshold: '5',
   available: true, featured: false,
-  digitalFileUrl: '', deliveryNote: '', imageUrl: '',
+  digitalFileUrl: '', digitalFileName: '', deliveryNote: '', imageUrl: '',
+  pageCount: '', author: '', isbn: '',
+  courseDuration: '', lessonCount: '', accessDuration: 'lifetime', difficultyLevel: '',
+  fileFormat: '', compatibleSoftware: '', licenseType: '',
+  eventDate: '', eventTime: '', venue: '', ticketType: 'general', capacity: '',
 };
 
 const CATEGORIES = [
@@ -164,13 +212,15 @@ interface SlideOverProps {
   businessId: string;
   currency: string;
   storeSlug: string;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-function ProductSlideOver({ product, onClose, onSaved, businessId, currency, storeSlug }: SlideOverProps) {
+function ProductSlideOver({ product, onClose, onSaved, businessId, currency, storeSlug, showToast }: SlideOverProps) {
   const [form, setForm] = useState<FormData>(() => {
     if (!product) return { ...EMPTY_FORM };
     return {
       productType: product.productType,
+      digitalSubtype: product.digitalSubtype ?? 'ebook',
       displayName: product.displayName,
       description: product.description,
       price: String(product.price),
@@ -183,8 +233,28 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       available: product.available,
       featured: product.featured,
       digitalFileUrl: product.digitalFileUrl ?? '',
+      digitalFileName: product.digitalFileName ?? '',
       deliveryNote: product.deliveryNote ?? '',
       imageUrl: product.images[0] ?? '',
+      // Ebook specific
+      pageCount: product.pageCount ? String(product.pageCount) : '',
+      author: product.author ?? '',
+      isbn: product.isbn ?? '',
+      // Course specific
+      courseDuration: product.courseDuration ?? '',
+      lessonCount: product.lessonCount ? String(product.lessonCount) : '',
+      accessDuration: product.accessDuration ?? 'lifetime',
+      difficultyLevel: product.difficultyLevel ?? '',
+      // Template specific
+      fileFormat: product.fileFormat ?? '',
+      compatibleSoftware: product.compatibleSoftware ?? '',
+      licenseType: product.licenseType ?? '',
+      // Ticket specific
+      eventDate: product.eventDate ?? '',
+      eventTime: product.eventTime ?? '',
+      venue: product.venue ?? '',
+      ticketType: product.ticketType ?? 'general',
+      capacity: product.capacity ? String(product.capacity) : '',
     };
   });
 
@@ -194,7 +264,10 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
   const [imagePreview, setImagePreview] = useState(form.imageUrl);
   const [showImport, setShowImport] = useState(false);
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
+  const [digitalFile, setDigitalFile] = useState<File | null>(null);
+  const [uploadingDigital, setUploadingDigital] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const digitalFileInputRef = useRef<HTMLInputElement>(null);
 
   const set = useCallback(<K extends keyof FormData>(k: K, v: FormData[K]) => {
     setForm(prev => ({ ...prev, [k]: v }));
@@ -236,6 +309,13 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
     reader.readAsDataURL(file);
   };
 
+  const handleDigitalFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDigitalFile(file);
+    set('digitalFileName', file.name);
+  };
+
   const handleImportSelect = (p: InventoryProduct) => {
     set('displayName', p.name);
     set('price', String(p.price));
@@ -266,21 +346,43 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
   }, [form.displayName, form.category, businessId, set]);
 
   const handleSave = useCallback(async () => {
-    if (!form.displayName.trim()) return;
-    if (!form.price || parseFloat(form.price) <= 0) return;
+    if (!form.displayName.trim()) {
+      showToast('Please enter a product name', 'error');
+      return;
+    }
+    if (!form.price || parseFloat(form.price) <= 0) {
+      showToast('Please enter a valid price', 'error');
+      return;
+    }
+    if (form.productType === 'digital' && !form.digitalFileUrl && !digitalFile) {
+      showToast('Please upload a file or provide a download URL for digital products', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      const { firestore } = initializeFirebase();
+      const { firestore, storage } = initializeFirebase();
       let finalImageUrl = form.imageUrl;
+      let finalDigitalFileUrl = form.digitalFileUrl;
+      let finalDigitalFileName = form.digitalFileName;
 
+      // Upload product image
       if (imageFile) {
-        const { storage } = initializeFirebase();
         const imgRef = storageRef(storage, `storeProducts/${businessId}/${Date.now()}_${imageFile.name}`);
         await uploadBytes(imgRef, imageFile);
         finalImageUrl = await getDownloadURL(imgRef);
       }
 
-      const payload = {
+      // Upload digital file if provided
+      if (digitalFile) {
+        setUploadingDigital(true);
+        const digitalRef = storageRef(storage, `digitalProducts/${businessId}/${Date.now()}_${digitalFile.name}`);
+        await uploadBytes(digitalRef, digitalFile);
+        finalDigitalFileUrl = await getDownloadURL(digitalRef);
+        finalDigitalFileName = digitalFile.name;
+        setUploadingDigital(false);
+      }
+
+      const payload: any = {
         productType: form.productType,
         displayName: form.displayName.trim(),
         description: form.description.trim(),
@@ -294,11 +396,48 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         sku: form.sku.trim() || null,
         available: form.available,
         featured: form.featured,
-        digitalFileUrl: form.productType === 'digital' ? form.digitalFileUrl.trim() || null : null,
+        digitalFileUrl: form.productType === 'digital' ? finalDigitalFileUrl || null : null,
+        digitalFileName: form.productType === 'digital' ? finalDigitalFileName || null : null,
         deliveryNote: form.productType === 'service' ? form.deliveryNote.trim() || null : null,
         lowStockThreshold: parseInt(form.lowStockThreshold) || 5,
         updatedAt: serverTimestamp(),
       };
+
+      // Add digital subtype and specific fields
+      if (form.productType === 'digital') {
+        payload.digitalSubtype = form.digitalSubtype;
+        
+        // Ebook specific
+        if (form.digitalSubtype === 'ebook') {
+          payload.pageCount = form.pageCount ? parseInt(form.pageCount) : null;
+          payload.author = form.author.trim() || null;
+          payload.isbn = form.isbn.trim() || null;
+        }
+        
+        // Course specific
+        if (form.digitalSubtype === 'course') {
+          payload.courseDuration = form.courseDuration.trim() || null;
+          payload.lessonCount = form.lessonCount ? parseInt(form.lessonCount) : null;
+          payload.accessDuration = form.accessDuration || null;
+          payload.difficultyLevel = form.difficultyLevel.trim() || null;
+        }
+        
+        // Template specific
+        if (form.digitalSubtype === 'template') {
+          payload.fileFormat = form.fileFormat.trim() || null;
+          payload.compatibleSoftware = form.compatibleSoftware.trim() || null;
+          payload.licenseType = form.licenseType.trim() || null;
+        }
+        
+        // Ticket specific
+        if (form.digitalSubtype === 'ticket') {
+          payload.eventDate = form.eventDate || null;
+          payload.eventTime = form.eventTime || null;
+          payload.venue = form.venue.trim() || null;
+          payload.ticketType = form.ticketType || null;
+          payload.capacity = form.capacity ? parseInt(form.capacity) : null;
+        }
+      }
 
       const colRef = collection(firestore, 'businesses', businessId, 'storeProducts');
       if (product) {
@@ -309,10 +448,12 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       onSaved();
     } catch (err) {
       console.error('[ProductSlideOver] Save error:', err);
+      showToast('Failed to save product. Please try again.', 'error');
     } finally {
       setSaving(false);
+      setUploadingDigital(false);
     }
-  }, [form, imageFile, product, businessId, onSaved]);
+  }, [form, imageFile, digitalFile, product, businessId, onSaved, showToast]);
 
   return (
     <>
@@ -499,11 +640,177 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
           {form.productType === 'digital' && (
             <div className={styles.formSection}>
               <p className={styles.formSectionLabel}>Digital product</p>
+              
+              {/* Digital subtype selector */}
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Download URL</label>
-                <input className={styles.formInput} placeholder="https://…" value={form.digitalFileUrl} onChange={e => set('digitalFileUrl', e.target.value)} />
-                <p className={styles.formHint}>Customers receive this link after purchase</p>
+                <label className={styles.formLabel}>Digital product type</label>
+                <select className={styles.formSelect} value={form.digitalSubtype} onChange={e => set('digitalSubtype', e.target.value as DigitalSubtype)}>
+                  <option value="ebook">📚 E-book / PDF</option>
+                  <option value="course">🎓 Online Course</option>
+                  <option value="template">📄 Template</option>
+                  <option value="ticket">🎫 Event Ticket</option>
+                </select>
               </div>
+
+              {/* File upload or URL */}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Digital file</label>
+                {form.digitalFileUrl || digitalFile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1, padding: '8px 12px', background: 'var(--sell-bg)', borderRadius: 'var(--sell-radius-sm)', border: '1px solid var(--sell-border)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-1)' }}>
+                        {digitalFile ? digitalFile.name : form.digitalFileName || 'File uploaded'}
+                      </span>
+                    </div>
+                    <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => { setDigitalFile(null); set('digitalFileUrl', ''); set('digitalFileName', ''); }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.imageUploadArea} onClick={() => digitalFileInputRef.current?.click()} style={{ padding: '16px' }}>
+                      <label className={styles.imageUploadLabel}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span>Upload file</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--sell-text-3)' }}>PDF, ZIP, MP4, etc. · max 50MB</span>
+                      </label>
+                    </div>
+                    <input ref={digitalFileInputRef} type="file" accept=".pdf,.zip,.mp4,.doc,.docx,.ppt,.pptx" style={{ display: 'none' }} onChange={handleDigitalFileChange} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-3)' }}>or</span>
+                      <input className={styles.formInput} placeholder="Paste download URL" value={form.digitalFileUrl} onChange={e => set('digitalFileUrl', e.target.value)} style={{ flex: 1 }} />
+                    </div>
+                  </>
+                )}
+                {uploadingDigital && (
+                  <p className={styles.formHint} style={{ color: 'var(--sell-primary)' }}>Uploading file...</p>
+                )}
+              </div>
+
+              {/* Ebook specific fields */}
+              {form.digitalSubtype === 'ebook' && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Author</label>
+                      <input className={styles.formInput} placeholder="Author name" value={form.author} onChange={e => set('author', e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Page count</label>
+                      <input className={styles.formInput} type="number" min="0" placeholder="e.g. 150" value={form.pageCount} onChange={e => set('pageCount', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>ISBN (optional)</label>
+                    <input className={styles.formInput} placeholder="978-0-123456-78-9" value={form.isbn} onChange={e => set('isbn', e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              {/* Course specific fields */}
+              {form.digitalSubtype === 'course' && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Course duration</label>
+                      <input className={styles.formInput} placeholder="e.g. 4 hours, 2 weeks" value={form.courseDuration} onChange={e => set('courseDuration', e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Number of lessons</label>
+                      <input className={styles.formInput} type="number" min="0" placeholder="e.g. 12" value={form.lessonCount} onChange={e => set('lessonCount', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Access duration</label>
+                      <select className={styles.formSelect} value={form.accessDuration} onChange={e => set('accessDuration', e.target.value)}>
+                        <option value="lifetime">Lifetime access</option>
+                        <option value="30days">30 days</option>
+                        <option value="60days">60 days</option>
+                        <option value="90days">90 days</option>
+                        <option value="1year">1 year</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Difficulty level</label>
+                      <select className={styles.formSelect} value={form.difficultyLevel} onChange={e => set('difficultyLevel', e.target.value)}>
+                        <option value="">Select level</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Template specific fields */}
+              {form.digitalSubtype === 'template' && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>File format</label>
+                      <select className={styles.formSelect} value={form.fileFormat} onChange={e => set('fileFormat', e.target.value)}>
+                        <option value="">Select format</option>
+                        <option value="pdf">PDF</option>
+                        <option value="docx">Word (DOCX)</option>
+                        <option value="xlsx">Excel (XLSX)</option>
+                        <option value="pptx">PowerPoint (PPTX)</option>
+                        <option value="zip">ZIP Archive</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Compatible software</label>
+                      <input className={styles.formInput} placeholder="e.g. Microsoft Word, Canva" value={form.compatibleSoftware} onChange={e => set('compatibleSoftware', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>License type</label>
+                    <select className={styles.formSelect} value={form.licenseType} onChange={e => set('licenseType', e.target.value)}>
+                      <option value="">Select license</option>
+                      <option value="personal">Personal use</option>
+                      <option value="commercial">Commercial use</option>
+                      <option value="resell">Resell rights</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Ticket specific fields */}
+              {form.digitalSubtype === 'ticket' && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Event date</label>
+                      <input className={styles.formInput} type="date" value={form.eventDate} onChange={e => set('eventDate', e.target.value)} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Event time</label>
+                      <input className={styles.formInput} type="time" value={form.eventTime} onChange={e => set('eventTime', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Venue / Location</label>
+                    <input className={styles.formInput} placeholder="e.g. Lagos Convention Center" value={form.venue} onChange={e => set('venue', e.target.value)} />
+                  </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Ticket type</label>
+                      <select className={styles.formSelect} value={form.ticketType} onChange={e => set('ticketType', e.target.value)}>
+                        <option value="general">General Admission</option>
+                        <option value="vip">VIP</option>
+                        <option value="early_bird">Early Bird</option>
+                        <option value="student">Student</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Capacity</label>
+                      <input className={styles.formInput} type="number" min="0" placeholder="e.g. 500" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -985,6 +1292,7 @@ export function SellProductsPage() {
           businessId={user.businessId}
           currency={currency}
           storeSlug={storeConfig?.storeSlug ?? ''}
+          showToast={showToast}
         />
       )}
 
