@@ -55,10 +55,10 @@
 /* ── Store URL card ── */
 .urlCard { background: linear-gradient(135deg, var(--sell-primary-lt) 0%, var(--sell-accent-lt) 100%); border: 1px solid var(--sell-primary-lt); border-radius: var(--sell-radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .urlCardIcon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--sell-primary), var(--sell-accent)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px var(--sell-primary-glow); }
-.urlCardBody { flex: 1; min-width: 0; }
+.urlCardBody { flex: 1; min-width: 0; min-width: 200px; }
 .urlCardTitle { font-family: var(--sell-font-display); font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); }
 .urlCardUrl   { font-size: 0.82rem; color: var(--sell-primary); font-weight: 600; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.urlCardActions { display: flex; gap: 8px; flex-shrink: 0; }
+.urlCardActions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
 
 /* ── Buttons ── */
 .btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--sell-radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; font-family: var(--sell-font-body); transition: all var(--sell-transition); white-space: nowrap; text-decoration: none; }
@@ -71,4 +71,10 @@
 /* ── Empty ── */
 .emptyChart { height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--sell-text-3); font-size: 0.85rem; }
 
-@media (max-width: 640px) { .kpiGrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { 
+  .kpiGrid { grid-template-columns: 1fr 1fr; }
+  .urlCard { padding: 14px 16px; }
+  .urlCardBody { min-width: 150px; }
+  .urlCardActions { width: 100%; justify-content: stretch; }
+  .btn { flex: 1; justify-content: center; }
+}

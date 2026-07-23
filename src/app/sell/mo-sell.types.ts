@@ -13,17 +13,20 @@ export interface DomainPurchaseRecord {
   registrationStatus: 'pending' | 'active' | 'failed';
 }
 
-export type StorefrontTheme = 'classic' | 'luxe' | 'market' | 'studio' | 'bold' | 'minimal';
+export type StorefrontTheme = 'luxe' | 'glow' | 'market' | 'creator' | 'link';
 
 // ─── Theme Section Editor ─────────────────────────────────────────────────────
 
 export type StoreSectionType =
   | 'header'
-  | 'hero'
-  | 'collections'
-  | 'featured'
-  | 'products'
   | 'announcement'
+  | 'hero'
+  | 'featured'
+  | 'collections'
+  | 'about'
+  | 'testimonials'
+  | 'instagram'
+  | 'newsletter'
   | 'footer';
 
 export interface HeroSectionSettings {
@@ -70,6 +73,7 @@ export interface HeaderSectionSettings {
   showSearch?: boolean;
   showCartCount?: boolean;
   sticky?: boolean;
+  navLinks?: { label: string; url: string }[];
 }
 
 export interface FooterSectionSettings {
@@ -87,6 +91,30 @@ export interface FooterSectionSettings {
   };
 }
 
+export interface AboutSectionSettings {
+  heading?: string;
+  body?: string;
+  imageUrl?: string | null;
+  imagePosition?: 'left' | 'right';
+}
+
+export interface TestimonialsSectionSettings {
+  heading?: string;
+  testimonials?: { name: string; text: string; rating?: number }[];
+}
+
+export interface InstagramSectionSettings {
+  heading?: string;
+  handle?: string;
+}
+
+export interface NewsletterSectionSettings {
+  heading?: string;
+  subheading?: string;
+  buttonLabel?: string;
+  placeholder?: string;
+}
+
 export type SectionSettings =
   | HeroSectionSettings
   | CollectionsSectionSettings
@@ -94,7 +122,11 @@ export type SectionSettings =
   | ProductsSectionSettings
   | AnnouncementSectionSettings
   | HeaderSectionSettings
-  | FooterSectionSettings;
+  | FooterSectionSettings
+  | AboutSectionSettings
+  | TestimonialsSectionSettings
+  | InstagramSectionSettings
+  | NewsletterSectionSettings;
 
 export interface StoreSection {
   id: string;
@@ -105,12 +137,16 @@ export interface StoreSection {
 }
 
 export const DEFAULT_SECTIONS: StoreSection[] = [
-  { id: 'header',       type: 'header',      enabled: true,  order: 0, settings: { showSearch: false, showCartCount: true, sticky: true } },
-  { id: 'hero',         type: 'hero',        enabled: true,  order: 1, settings: { ctaLabel: 'Shop Now', ctaUrl: '#products', textAlign: 'left', showTagline: true } },
-  { id: 'collections',  type: 'collections', enabled: true,  order: 2, settings: { heading: 'Collections', layout: 'strip', maxItems: 6, showCoverImages: true } },
-  { id: 'featured',     type: 'featured',    enabled: true,  order: 3, settings: { heading: '⭐ Featured', maxItems: 4, columns: 4 } },
-  { id: 'products',     type: 'products',    enabled: true,  order: 4, settings: { heading: 'All Products', columns: 3, showFilters: false, defaultSort: 'newest' } },
-  { id: 'footer',       type: 'footer',      enabled: true,  order: 5, settings: { showPoweredBy: true } },
+  { id: 'header',       type: 'header',       enabled: true,  order: 0,  settings: { showSearch: false, showCartCount: true, sticky: true } },
+  { id: 'announcement', type: 'announcement', enabled: false, order: 1,  settings: { text: 'Free delivery on orders over ₦20,000', backgroundColor: '#0F172A', textColor: '#fff' } },
+  { id: 'hero',         type: 'hero',         enabled: true,  order: 2,  settings: { ctaLabel: 'Shop Now', ctaUrl: '#products', textAlign: 'left', showTagline: true } },
+  { id: 'featured',     type: 'featured',     enabled: true,  order: 3,  settings: { heading: 'Shop Bestsellers', maxItems: 4, columns: 4 } },
+  { id: 'collections',  type: 'collections',  enabled: true,  order: 4,  settings: { heading: 'Collections', layout: 'strip', maxItems: 6, showCoverImages: true } },
+  { id: 'about',        type: 'about',        enabled: false, order: 5,  settings: { heading: 'Our Story', body: 'Tell customers about your brand and what makes you special.', imagePosition: 'right' } },
+  { id: 'testimonials', type: 'testimonials', enabled: false, order: 6,  settings: { heading: 'What our customers say', testimonials: [] } },
+  { id: 'instagram',    type: 'instagram',    enabled: false, order: 7,  settings: { heading: 'Follow us on Instagram', handle: '' } },
+  { id: 'newsletter',   type: 'newsletter',   enabled: false, order: 8,  settings: { heading: 'Join our community', subheading: 'Get the latest updates, offers and more.', buttonLabel: 'Subscribe', placeholder: 'Enter your email' } },
+  { id: 'footer',       type: 'footer',       enabled: true,  order: 9,  settings: { showPoweredBy: true, showLogo: true } },
 ];
 
 export interface StoreConfig {

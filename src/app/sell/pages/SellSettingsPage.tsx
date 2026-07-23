@@ -7,7 +7,7 @@ import { initializeFirebase } from '@/firebase';
 import { useSell } from '../context/SellContext';
 import { THEMES } from '@/app/store/themes/registry';
 import type { StorefrontTheme } from '@/app/sell/mo-sell.types';
-import { ThemeThumbnail } from '../components/ThemeThumbnail';
+import { StorefrontCanvas } from '../components/StorefrontCanvas';
 import styles from './SellSettingsPage.module.css';
 
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'GHS', 'KES', 'ZAR'];
@@ -36,7 +36,7 @@ export function SellSettingsPage() {
   const [logoUrl, setLogoUrl]               = useState<string | null>(null);
   const [imageFile, setImageFile]           = useState<File | null>(null);
   const [imagePreview, setImagePreview]     = useState<string | null>(null);
-  const [theme, setTheme]                   = useState<StorefrontTheme>('classic');
+  const [theme, setTheme]                   = useState<StorefrontTheme>('luxe');
   const [saving, setSaving]                 = useState(false);
   const [verifying, setVerifying]           = useState(false);
   const [dirty, setDirty]                   = useState(false);
@@ -60,7 +60,7 @@ export function SellSettingsPage() {
     setCustomDomain(storeConfig.customDomain ?? '');
     setLogoUrl(storeConfig.logoUrl ?? null);
     setImagePreview(storeConfig.logoUrl ?? null);
-    setTheme((storeConfig as any).theme ?? 'classic');
+    setTheme((storeConfig as any).theme ?? 'luxe');
   }, [storeConfig]);
 
   const mark = () => setDirty(true);
@@ -419,7 +419,12 @@ export function SellSettingsPage() {
                   }}
                 >
                   {/* Faithful storefront thumbnail */}
-                  <ThemeThumbnail theme={t} />
+                  <StorefrontCanvas
+                    theme={t.id}
+                    width={160}
+                    primaryColor={t.previewAccent}
+                    secondaryColor={t.previewBg === '#0A0A0A' || t.previewBg === '#0F172A' ? '#444' : '#6366F1'}
+                  />
 
                   {/* Theme label */}
                   <div style={{ padding: '8px 12px 10px', background: 'var(--sell-surface)', borderTop: '1px solid var(--sell-border)' }}>

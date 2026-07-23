@@ -328,6 +328,7 @@
   justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 4px 12px var(--sell-primary-glow);
+  overflow: hidden;
 }
 
 .promptBody { flex: 1; min-width: 0; }
@@ -372,4 +373,10 @@
   .headerActions { display: none; }
   .actionsGrid { gap: 8px; }
   .actionTile { min-width: 76px; padding: 12px 12px; }
+  
+  /* Fix overflow issues */
+  .overview { padding: 0 4px; }
+  .promptCard { flex-wrap: wrap; padding: 14px 16px; }
+  .setupCard { padding: 16px 18px; }
+  .setupSteps { grid-template-columns: 1fr; }
 }

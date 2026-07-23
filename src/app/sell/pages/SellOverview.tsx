@@ -42,9 +42,8 @@ function MOPromptCard({ title, body, cta, onCta }: PromptCardProps) {
   return (
     <div className={styles.promptCard}>
       <div className={styles.promptMoAvatar}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
-        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784636144/mo_sell_chat_ucbw3x.png" alt="Mo" width={34} height={34} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} />
       </div>
       <div className={styles.promptBody}>
         <p className={styles.promptTitle}>{title}</p>

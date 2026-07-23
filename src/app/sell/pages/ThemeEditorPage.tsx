@@ -1,275 +1,302 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useSell } from '../context/SellContext';
 import { THEMES } from '@/app/store/themes/registry';
-import { ThemeThumbnail } from '../components/ThemeThumbnail';
+import { StorefrontCanvas } from '../components/StorefrontCanvas';
 import type {
   StorefrontTheme, StoreSection, StoreSectionType,
   HeroSectionSettings, CollectionsSectionSettings,
-  FeaturedSectionSettings, ProductsSectionSettings,
-  AnnouncementSectionSettings, HeaderSectionSettings,
-  FooterSectionSettings,
+  FeaturedSectionSettings, AnnouncementSectionSettings,
+  HeaderSectionSettings, FooterSectionSettings,
+  AboutSectionSettings, TestimonialsSectionSettings,
+  InstagramSectionSettings, NewsletterSectionSettings,
 } from '@/app/sell/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
 import styles from './ThemeEditorPage.module.css';
 
-// ── Section icons ─────────────────────────────────────────────────────────────
+// ─── Section icons & meta ─────────────────────────────────────────────────────
 
 const SectionIcons: Record<StoreSectionType, React.ReactNode> = {
   header:       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="5" rx="1"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/></svg>,
   announcement: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 17H2a3 3 0 000 6h20v-6z"/><path d="M22 11V3L7 11h15z"/></svg>,
   hero:         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="13" rx="2"/><polyline points="3 20 7 16 11 19 15 14 21 20"/></svg>,
+  featured:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
   collections:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-  featured:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-  products:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
+  about:        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>,
+  testimonials: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+  instagram:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>,
+  newsletter:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
   footer:       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="12" x2="21" y2="12"/><rect x="3" y="16" width="18" height="5" rx="1"/></svg>,
 };
 
 const SECTION_META: Record<StoreSectionType, { label: string; movable: boolean }> = {
-  header:       { label: 'Header',        movable: false },
-  announcement: { label: 'Announcement',  movable: true  },
-  hero:         { label: 'Hero Banner',   movable: false },
-  collections:  { label: 'Collections',  movable: true  },
-  featured:     { label: 'Featured',     movable: true  },
-  products:     { label: 'All Products', movable: true  },
-  footer:       { label: 'Footer',       movable: false },
+  header:       { label: 'Header',           movable: false },
+  announcement: { label: 'Announcement bar', movable: true  },
+  hero:         { label: 'Hero / Banner',    movable: false },
+  featured:     { label: 'Featured Products',movable: true  },
+  collections:  { label: 'Collections',     movable: true  },
+  about:        { label: 'About / Story',    movable: true  },
+  testimonials: { label: 'Testimonials',    movable: true  },
+  instagram:    { label: 'Instagram Feed',  movable: true  },
+  newsletter:   { label: 'Newsletter',      movable: true  },
+  footer:       { label: 'Footer',          movable: false },
 };
 
-// ── Field helpers ─────────────────────────────────────────────────────────────
+// ─── Field helpers ────────────────────────────────────────────────────────────
 
-function TextField({ label, value, onChange, placeholder, hint }: {
+function SGroup({ label }: { label: string }) {
+  return <p className={styles.sGroup}>{label}</p>;
+}
+
+function TF({ label, value, onChange, placeholder, hint }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; hint?: string;
 }) {
   return (
     <div className={styles.field}>
-      <label className={styles.fieldLabel}>{label}</label>
-      <input className={styles.fieldInput} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
-      {hint && <p className={styles.fieldHint}>{hint}</p>}
+      <label className={styles.fLabel}>{label}</label>
+      <input className={styles.fInput} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+      {hint && <p className={styles.fHint}>{hint}</p>}
     </div>
   );
 }
 
-function ToggleField({ label, value, onChange, hint }: {
+function Toggle({ label, value, onChange, hint }: {
   label: string; value: boolean; onChange: (v: boolean) => void; hint?: string;
 }) {
   return (
-    <div className={styles.fieldRow}>
-      <div>
-        <span className={styles.fieldLabel}>{label}</span>
-        {hint && <p className={styles.fieldHint}>{hint}</p>}
+    <div className={styles.fRow}>
+      <div style={{ flex: 1 }}>
+        <span className={styles.fLabel}>{label}</span>
+        {hint && <p className={styles.fHint}>{hint}</p>}
       </div>
-      <button
-        className={[styles.toggle, value ? styles.toggleOn : ''].join(' ')}
-        onClick={() => onChange(!value)}
-        aria-pressed={value}
-        type="button"
-      >
+      <button className={[styles.toggle, value ? styles.toggleOn : ''].join(' ')} onClick={() => onChange(!value)} type="button" aria-pressed={value}>
         <span className={styles.toggleThumb} />
       </button>
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+function SF({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
 }) {
   return (
     <div className={styles.field}>
-      <label className={styles.fieldLabel}>{label}</label>
-      <select className={styles.fieldSelect} value={value} onChange={e => onChange(e.target.value)}>
+      <label className={styles.fLabel}>{label}</label>
+      <select className={styles.fSelect} value={value} onChange={e => onChange(e.target.value)}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
   );
 }
 
-function NumberField({ label, value, onChange, min, max }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
-}) {
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className={styles.field}>
-      <label className={styles.fieldLabel}>{label}</label>
-      <input
-        className={styles.fieldInput}
-        type="number" value={value} min={min} max={max}
-        onChange={e => onChange(Number(e.target.value))}
-        style={{ width: 80 }}
-      />
+      <label className={styles.fLabel}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input type="color" value={value} onChange={e => onChange(e.target.value)}
+          style={{ width: 32, height: 32, borderRadius: 7, border: '1.5px solid var(--sell-border)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }} />
+        <input className={styles.fInput} value={value} onChange={e => onChange(e.target.value)} style={{ width: 90 }} />
+      </div>
     </div>
   );
 }
 
-// ── Section settings panels ───────────────────────────────────────────────────
+// ─── Section settings panels ──────────────────────────────────────────────────
 
-function HeroSettings({ s, update }: { s: HeroSectionSettings; update: (p: Partial<HeroSectionSettings>) => void }) {
+function HeroSettings({ s, upd }: { s: HeroSectionSettings; upd: (p: Partial<HeroSectionSettings>) => void }) {
   return (<>
-    <TextField label="Heading" value={s.heading ?? ''} onChange={v => update({ heading: v })} placeholder="Leave empty to use store name" />
-    <TextField label="Subheading" value={s.subheading ?? ''} onChange={v => update({ subheading: v })} placeholder="Leave empty to use tagline" />
-    <ToggleField label="Show subheading" value={s.showTagline !== false} onChange={v => update({ showTagline: v })} />
-    <TextField label="CTA button label" value={s.ctaLabel ?? 'Shop Now'} onChange={v => update({ ctaLabel: v })} />
-    <TextField label="CTA button URL" value={s.ctaUrl ?? '#products'} onChange={v => update({ ctaUrl: v })} />
-    <SelectField label="Text alignment" value={s.textAlign ?? 'left'} onChange={v => update({ textAlign: v as 'left'|'center'|'right' })}
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? ''} onChange={v => upd({ heading: v })} placeholder="Defaults to store name" />
+    <TF label="Subheading" value={s.subheading ?? ''} onChange={v => upd({ subheading: v })} placeholder="Defaults to tagline" />
+    <Toggle label="Show subheading" value={s.showTagline !== false} onChange={v => upd({ showTagline: v })} />
+    <TF label="Button text" value={s.ctaLabel ?? 'Shop Now'} onChange={v => upd({ ctaLabel: v })} />
+    <TF label="Button link" value={s.ctaUrl ?? '#products'} onChange={v => upd({ ctaUrl: v })} />
+    <SGroup label="STYLE" />
+    <SF label="Text alignment" value={s.textAlign ?? 'left'} onChange={v => upd({ textAlign: v as 'left'|'center'|'right' })}
       options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} />
-    <TextField label="Background image URL" value={s.backgroundImage ?? ''} onChange={v => update({ backgroundImage: v || null })}
-      placeholder="https://…" hint="Optional — overrides the theme gradient" />
+    <TF label="Background image URL" value={s.backgroundImage ?? ''} onChange={v => upd({ backgroundImage: v || null })} placeholder="https://…" hint="Overrides theme gradient" />
   </>);
 }
 
-function CollectionsSettings({ s, update }: { s: CollectionsSectionSettings; update: (p: Partial<CollectionsSectionSettings>) => void }) {
+function AnnouncementSettings({ s, upd }: { s: AnnouncementSectionSettings; upd: (p: Partial<AnnouncementSectionSettings>) => void }) {
   return (<>
-    <TextField label="Section heading" value={s.heading ?? 'Collections'} onChange={v => update({ heading: v })} />
-    <SelectField label="Layout" value={s.layout ?? 'strip'} onChange={v => update({ layout: v as 'strip'|'grid' })}
-      options={[{ value: 'strip', label: 'Horizontal strip' }, { value: 'grid', label: 'Grid' }]} />
-    <NumberField label="Max shown" value={s.maxItems ?? 8} onChange={v => update({ maxItems: v })} min={1} max={20} />
-    <ToggleField label="Show cover images" value={s.showCoverImages !== false} onChange={v => update({ showCoverImages: v })} />
+    <SGroup label="CONTENT" />
+    <TF label="Text" value={s.text ?? ''} onChange={v => upd({ text: v })} placeholder="Free delivery on orders over ₦20,000" />
+    <TF label="Link label" value={s.linkLabel ?? ''} onChange={v => upd({ linkLabel: v })} placeholder="Shop now" />
+    <TF label="Link URL" value={s.linkUrl ?? ''} onChange={v => upd({ linkUrl: v })} placeholder="/collections/all" />
+    <SGroup label="STYLE" />
+    <ColorField label="Background" value={s.backgroundColor ?? '#0F172A'} onChange={v => upd({ backgroundColor: v })} />
   </>);
 }
 
-function FeaturedSettings({ s, update }: { s: FeaturedSectionSettings; update: (p: Partial<FeaturedSectionSettings>) => void }) {
+function FeaturedSettings({ s, upd }: { s: FeaturedSectionSettings; upd: (p: Partial<FeaturedSectionSettings>) => void }) {
   return (<>
-    <TextField label="Section heading" value={s.heading ?? '⭐ Featured'} onChange={v => update({ heading: v })} />
-    <NumberField label="Max products" value={s.maxItems ?? 8} onChange={v => update({ maxItems: v })} min={1} max={20} />
-    <SelectField label="Columns" value={String(s.columns ?? 4)} onChange={v => update({ columns: Number(v) as 2|3|4 })}
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'Shop Bestsellers'} onChange={v => upd({ heading: v })} />
+    <SGroup label="LAYOUT" />
+    <SF label="Columns" value={String(s.columns ?? 4)} onChange={v => upd({ columns: Number(v) as 2|3|4 })}
       options={[{ value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4' }]} />
-  </>);
-}
-
-function ProductsSettings({ s, update }: { s: ProductsSectionSettings; update: (p: Partial<ProductsSectionSettings>) => void }) {
-  return (<>
-    <TextField label="Section heading" value={s.heading ?? 'All Products'} onChange={v => update({ heading: v })} />
-    <SelectField label="Columns" value={String(s.columns ?? 3)} onChange={v => update({ columns: Number(v) as 2|3|4 })}
-      options={[{ value: '2', label: '2' }, { value: '3', label: '3' }, { value: '4', label: '4' }]} />
-    <SelectField label="Default sort" value={s.defaultSort ?? 'newest'} onChange={v => update({ defaultSort: v as 'newest'|'price_asc'|'price_desc' })}
-      options={[{ value: 'newest', label: 'Newest first' }, { value: 'price_asc', label: 'Price: low → high' }, { value: 'price_desc', label: 'Price: high → low' }]} />
-  </>);
-}
-
-function AnnouncementSettings({ s, update }: { s: AnnouncementSectionSettings; update: (p: Partial<AnnouncementSectionSettings>) => void }) {
-  return (<>
-    <TextField label="Announcement text" value={s.text ?? ''} onChange={v => update({ text: v })}
-      placeholder="Free delivery on orders over ₦10,000" />
-    <TextField label="Link label" value={s.linkLabel ?? ''} onChange={v => update({ linkLabel: v })} placeholder="Learn more" />
-    <TextField label="Link URL" value={s.linkUrl ?? ''} onChange={v => update({ linkUrl: v })} placeholder="https://…" />
     <div className={styles.field}>
-      <label className={styles.fieldLabel}>Background color</label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input type="color" value={s.backgroundColor ?? '#0EA5E9'} onChange={e => update({ backgroundColor: e.target.value })}
-          style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--sell-border)', cursor: 'pointer', padding: 2 }} />
-        <input className={styles.fieldInput} value={s.backgroundColor ?? '#0EA5E9'}
-          onChange={e => update({ backgroundColor: e.target.value })} style={{ width: 100 }} />
-      </div>
+      <label className={styles.fLabel}>Max products shown</label>
+      <input className={styles.fInput} type="number" value={s.maxItems ?? 4} min={1} max={12} onChange={e => upd({ maxItems: Number(e.target.value) })} style={{ width: 70 }} />
     </div>
   </>);
 }
 
-function HeaderSettings({ s, update }: { s: HeaderSectionSettings; update: (p: Partial<HeaderSectionSettings>) => void }) {
+function CollectionsSettings({ s, upd }: { s: CollectionsSectionSettings; upd: (p: Partial<CollectionsSectionSettings>) => void }) {
   return (<>
-    <ToggleField label="Sticky header" value={s.sticky !== false} onChange={v => update({ sticky: v })}
-      hint="Stays at the top when scrolling" />
-    <ToggleField label="Show cart count" value={s.showCartCount !== false} onChange={v => update({ showCartCount: v })} />
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'Collections'} onChange={v => upd({ heading: v })} />
+    <SGroup label="LAYOUT" />
+    <SF label="Layout" value={s.layout ?? 'strip'} onChange={v => upd({ layout: v as 'strip'|'grid' })}
+      options={[{ value: 'strip', label: 'Horizontal strip' }, { value: 'grid', label: 'Grid' }]} />
+    <div className={styles.field}>
+      <label className={styles.fLabel}>Max collections</label>
+      <input className={styles.fInput} type="number" value={s.maxItems ?? 6} min={1} max={20} onChange={e => upd({ maxItems: Number(e.target.value) })} style={{ width: 70 }} />
+    </div>
+    <Toggle label="Show cover images" value={s.showCoverImages !== false} onChange={v => upd({ showCoverImages: v })} />
   </>);
 }
 
-function FooterSettings({ s, update }: { s: FooterSectionSettings; update: (p: Partial<FooterSectionSettings>) => void }) {
+function AboutSettings({ s, upd }: { s: AboutSectionSettings; upd: (p: Partial<AboutSectionSettings>) => void }) {
+  return (<>
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'Our Story'} onChange={v => upd({ heading: v })} />
+    <div className={styles.field}>
+      <label className={styles.fLabel}>Body text</label>
+      <textarea className={styles.fInput} value={s.body ?? ''} onChange={e => upd({ body: e.target.value })} rows={4} placeholder="Tell customers about your brand..." style={{ resize: 'vertical' }} />
+    </div>
+    <TF label="Image URL" value={s.imageUrl ?? ''} onChange={v => upd({ imageUrl: v || null })} placeholder="https://…" />
+    <SF label="Image position" value={s.imagePosition ?? 'right'} onChange={v => upd({ imagePosition: v as 'left'|'right' })}
+      options={[{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }]} />
+  </>);
+}
+
+function TestimonialsSettings({ s, upd }: { s: TestimonialsSectionSettings; upd: (p: Partial<TestimonialsSectionSettings>) => void }) {
+  return (<>
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'What our customers say'} onChange={v => upd({ heading: v })} />
+    <p className={styles.fHint} style={{ padding: '8px 0' }}>Manage testimonials in your store settings once live.</p>
+  </>);
+}
+
+function InstagramSettings({ s, upd }: { s: InstagramSectionSettings; upd: (p: Partial<InstagramSectionSettings>) => void }) {
+  return (<>
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'Follow us on Instagram'} onChange={v => upd({ heading: v })} />
+    <TF label="Instagram handle" value={s.handle ?? ''} onChange={v => upd({ handle: v })} placeholder="@yourstore" />
+  </>);
+}
+
+function NewsletterSettings({ s, upd }: { s: NewsletterSectionSettings; upd: (p: Partial<NewsletterSectionSettings>) => void }) {
+  return (<>
+    <SGroup label="CONTENT" />
+    <TF label="Heading" value={s.heading ?? 'Join our community'} onChange={v => upd({ heading: v })} />
+    <TF label="Subheading" value={s.subheading ?? ''} onChange={v => upd({ subheading: v })} placeholder="Get the latest updates and offers." />
+    <TF label="Button text" value={s.buttonLabel ?? 'Subscribe'} onChange={v => upd({ buttonLabel: v })} />
+    <TF label="Input placeholder" value={s.placeholder ?? 'Enter your email'} onChange={v => upd({ placeholder: v })} />
+  </>);
+}
+
+function HeaderSettings({ s, upd }: { s: HeaderSectionSettings; upd: (p: Partial<HeaderSectionSettings>) => void }) {
+  return (<>
+    <SGroup label="BEHAVIOR" />
+    <Toggle label="Sticky header" value={s.sticky !== false} onChange={v => upd({ sticky: v })} hint="Stays fixed when scrolling" />
+    <Toggle label="Show cart count" value={s.showCartCount !== false} onChange={v => upd({ showCartCount: v })} />
+  </>);
+}
+
+function FooterSettings({ s, upd }: { s: FooterSectionSettings; upd: (p: Partial<FooterSectionSettings>) => void }) {
   const socials = s.socials ?? {};
-  const setSocial = (key: string, value: string) =>
-    update({ socials: { ...socials, [key]: value || undefined } });
+  const setSocial = (key: string, val: string) => upd({ socials: { ...socials, [key]: val || undefined } });
   return (<>
-    <ToggleField label="Show store logo" value={s.showLogo !== false} onChange={v => update({ showLogo: v })} />
-    <ToggleField label="Show 'Powered by Busmo'" value={s.showPoweredBy !== false} onChange={v => update({ showPoweredBy: v })} />
-    <TextField label="Custom footer text" value={s.customText ?? ''} onChange={v => update({ customText: v })}
-      placeholder="© 2025 Your Brand." />
-    <div className={styles.field} style={{ marginTop: 4 }}>
-      <p className={styles.fieldLabel} style={{ marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sell-text-3)' }}>Social links</p>
-      {(['instagram','twitter','facebook','tiktok','whatsapp','youtube'] as const).map(key => (
-        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{ width: 28, height: 28, flexShrink: 0, background: 'var(--sell-surface-2)', border: '1px solid var(--sell-border)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: 'var(--sell-text-2)', textTransform: 'capitalize' }}>
-            {key.slice(0, 2).toUpperCase()}
-          </span>
-          <input className={styles.fieldInput} value={(socials as Record<string,string>)[key] ?? ''}
-            onChange={e => setSocial(key, e.target.value)}
-            placeholder={`https://${key}.com/yourstore`} style={{ fontSize: '0.8rem' }} />
-        </div>
-      ))}
-    </div>
+    <SGroup label="CONTENT" />
+    <Toggle label="Show store logo" value={s.showLogo !== false} onChange={v => upd({ showLogo: v })} />
+    <Toggle label="Powered by Busmo" value={s.showPoweredBy !== false} onChange={v => upd({ showPoweredBy: v })} />
+    <TF label="Custom copyright text" value={s.customText ?? ''} onChange={v => upd({ customText: v })} placeholder="© 2025 Your Brand." />
+    <SGroup label="SOCIAL LINKS" />
+    {(['instagram','twitter','tiktok','facebook','whatsapp','youtube'] as const).map(k => (
+      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
+        <span className={styles.socialKey}>{k.slice(0,2).toUpperCase()}</span>
+        <input className={styles.fInput} value={(socials as Record<string,string>)[k] ?? ''} onChange={e => setSocial(k, e.target.value)} placeholder={`https://${k}.com/…`} style={{ fontSize: '0.78rem' }} />
+      </div>
+    ))}
   </>);
 }
 
-// ── Live preview ──────────────────────────────────────────────────────────────
+// ─── Marketplace card ──────────────────────────────────────────────────────────
 
-function LivePreview({ theme: themeId, sections, storeName, primary, secondary }: {
-  theme: StorefrontTheme; sections: StoreSection[];
-  storeName: string; primary: string; secondary: string;
+function ThemeCard({ themeId, isActive, storeName, tagline, primary, secondary, logoUrl, onSelect }: {
+  themeId: StorefrontTheme; isActive: boolean; storeName: string; tagline: string;
+  primary: string; secondary: string; logoUrl?: string | null; onSelect: () => void;
 }) {
-  const t = THEMES.find(x => x.id === themeId) ?? THEMES[0];
-  const merged = { ...t, previewAccent: primary };
-  const heroSection = sections.find(s => s.type === 'hero' && s.enabled);
-  const heroSettings = heroSection?.settings as HeroSectionSettings | undefined;
-  const heading = heroSettings?.heading || storeName || 'Your Store';
-
-  const isDark = themeId === 'luxe' || themeId === 'bold';
-  const panelBg = isDark ? '#111' : '#f1f5f9';
-  const textCol = isDark ? '#888' : '#94A3B8';
-  const borderCol = isDark ? '#222' : '#e2e8f0';
-
+  const t = THEMES.find(x => x.id === themeId)!;
   return (
-    <div>
-      {/* Browser chrome */}
-      <div style={{ height: 30, background: 'var(--sell-surface-2)', borderRadius: '10px 10px 0 0', border: '1px solid var(--sell-border)', borderBottom: 'none', display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['#FF5F57','#FFBD2E','#28CA41'].map(c => <span key={c} style={{ width: 8, height: 8, borderRadius: '50%', background: c, display: 'block' }} />)}
-        </div>
-        <div style={{ flex: 1, background: 'var(--sell-bg)', borderRadius: 5, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, color: 'var(--sell-text-3)', overflow: 'hidden', padding: '0 6px', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          busmo.io/store/{heading.toLowerCase().replace(/\s+/g,'-').slice(0,22)}
-        </div>
+    <div className={[styles.mCard, isActive ? styles.mCardActive : ''].join(' ')} onClick={onSelect}>
+      <div className={styles.mPreview}>
+        <StorefrontCanvas theme={themeId} storeName={storeName} tagline={tagline} primaryColor={primary} secondaryColor={secondary} logoUrl={logoUrl} width={280} />
       </div>
-
-      {/* Theme thumbnail */}
-      <div style={{ border: '1px solid var(--sell-border)', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-        <ThemeThumbnail theme={merged} width={280} />
-      </div>
-
-      {/* Active sections list */}
-      <div style={{ marginTop: 14 }}>
-        <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sell-text-3)', marginBottom: 8 }}>
-          Active sections
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {sections.map(s => (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: s.enabled ? 'var(--sell-surface)' : 'transparent', border: `1px solid ${s.enabled ? 'var(--sell-border)' : 'transparent'}`, opacity: s.enabled ? 1 : 0.4 }}>
-              <span style={{ width: 14, height: 14, color: s.enabled ? 'var(--sell-primary)' : 'var(--sell-text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {SectionIcons[s.type]}
-              </span>
-              <span style={{ fontSize: '0.78rem', fontWeight: s.enabled ? 600 : 400, color: s.enabled ? 'var(--sell-text-1)' : 'var(--sell-text-3)', flex: 1 }}>
-                {SECTION_META[s.type].label}
-              </span>
-              {!s.enabled && <span style={{ fontSize: '0.65rem', color: 'var(--sell-text-3)' }}>hidden</span>}
-            </div>
-          ))}
+      <div className={styles.mMeta}>
+        <div>
+          <p className={styles.mName}>{t.name}</p>
+          <p className={styles.mSub}>{t.bestFor.join(', ')}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {t.badge && <span className={styles.mBadge} style={{ color: t.badge.color, background: t.badge.bg }}>{t.badge.label}</span>}
+          {isActive && <span className={styles.mActive}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Active</span>}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export function ThemeEditorPage() {
   const { user, storeConfig, refreshStoreConfig, showToast } = useSell();
 
   const [sections,  setSections]  = useState<StoreSection[]>([]);
-  const [theme,     setTheme]     = useState<StorefrontTheme>('classic');
-  const [primary,   setPrimary]   = useState('#0EA5E9');
-  const [secondary, setSecondary] = useState('#6366F1');
+  const [theme,     setTheme]     = useState<StorefrontTheme>('luxe');
+  const [primary,   setPrimary]   = useState('#C9A84C');
+  const [secondary, setSecondary] = useState('#8B7355');
   const [activeId,  setActiveId]  = useState<string | null>(null);
   const [applying,  setApplying]  = useState(false);
   const [dirty,     setDirty]     = useState(false);
+  const [view,      setView]      = useState<'marketplace' | 'editor'>('marketplace');
+  const [device,    setDevice]    = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
-  // Seed state from storeConfig on load
+  // Undo/redo stacks
+  const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
+  const redoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
+
+  const snapshot = useCallback(() => ({ sections: sections.map(s => ({ ...s, settings: { ...s.settings } })), theme, primary, secondary }), [sections, theme, primary, secondary]);
+
+  const pushUndo = useCallback(() => {
+    undoStack.current = [...undoStack.current.slice(-20), snapshot()];
+    redoStack.current = [];
+  }, [snapshot]);
+
+  const undo = useCallback(() => {
+    const prev = undoStack.current.pop();
+    if (!prev) return;
+    redoStack.current.push(snapshot());
+    setSections(prev.sections); setTheme(prev.theme); setPrimary(prev.primary); setSecondary(prev.secondary);
+    setDirty(true);
+  }, [snapshot]);
+
+  const redo = useCallback(() => {
+    const next = redoStack.current.pop();
+    if (!next) return;
+    undoStack.current.push(snapshot());
+    setSections(next.sections); setTheme(next.theme); setPrimary(next.primary); setSecondary(next.secondary);
+    setDirty(true);
+  }, [snapshot]);
+
+  // Seed from storeConfig
   useEffect(() => {
     if (!storeConfig) return;
     const saved = (storeConfig as any).sections as StoreSection[] | undefined;
@@ -278,37 +305,41 @@ export function ThemeEditorPage() {
       return s ? { ...def, ...s, settings: { ...def.settings, ...s.settings } } : { ...def };
     }).sort((a, b) => a.order - b.order);
     setSections(merged);
-    setTheme((storeConfig as any).theme ?? 'classic');
-    setPrimary((storeConfig as any).primaryColor ?? '#0EA5E9');
-    setSecondary((storeConfig as any).secondaryColor ?? '#6366F1');
+    const t = (storeConfig as any).theme ?? 'luxe';
+    setTheme(t);
+    setPrimary((storeConfig as any).primaryColor ?? '#C9A84C');
+    setSecondary((storeConfig as any).secondaryColor ?? '#8B7355');
     setDirty(false);
+    undoStack.current = []; redoStack.current = [];
   }, [storeConfig]);
 
   const mark = useCallback(() => setDirty(true), []);
 
   const moveSection = useCallback((id: string, dir: -1 | 1) => {
+    pushUndo();
     setSections(prev => {
       const arr = [...prev];
       const idx = arr.findIndex(s => s.id === id);
-      const target = idx + dir;
-      if (target < 0 || target >= arr.length) return prev;
-      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      const t = idx + dir;
+      if (t < 0 || t >= arr.length) return prev;
+      [arr[idx], arr[t]] = [arr[t], arr[idx]];
       return arr.map((s, i) => ({ ...s, order: i }));
     });
     mark();
-  }, [mark]);
+  }, [pushUndo, mark]);
 
   const toggleSection = useCallback((id: string) => {
+    pushUndo();
     setSections(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s));
     mark();
-  }, [mark]);
+  }, [pushUndo, mark]);
 
   const updateSettings = useCallback((id: string, patch: Record<string, unknown>) => {
+    pushUndo();
     setSections(prev => prev.map(s => s.id === id ? { ...s, settings: { ...s.settings, ...patch } } : s));
     mark();
-  }, [mark]);
+  }, [pushUndo, mark]);
 
-  // Apply to store — writes theme + sections to Firestore
   const handleApply = useCallback(async () => {
     if (!user?.businessId || !storeConfig) return;
     setApplying(true);
@@ -316,184 +347,231 @@ export function ThemeEditorPage() {
       const { firestore } = initializeFirebase();
       await setDoc(
         doc(firestore, 'businesses', user.businessId, 'store', 'config'),
-        {
-          ...(storeConfig as any),
-          theme,
-          primaryColor:   primary,
-          secondaryColor: secondary,
-          sections: sections.map(s => ({ ...s })),
-          updatedAt: serverTimestamp(),
-        },
+        { ...(storeConfig as any), theme, primaryColor: primary, secondaryColor: secondary, sections: sections.map(s => ({ ...s })), updatedAt: serverTimestamp() },
         { merge: true }
       );
-      // Keep storeIndex in sync
       const slug = (storeConfig as any)?.storeSlug;
-      if (slug) {
-        await setDoc(doc(firestore, 'storeIndex', slug), {
-          businessId: user.businessId,
-          storeName: (storeConfig as any).storeName,
-          updatedAt: serverTimestamp(),
-        });
-      }
+      if (slug) await setDoc(doc(firestore, 'storeIndex', slug), { businessId: user.businessId, storeName: (storeConfig as any).storeName, updatedAt: serverTimestamp() });
       await refreshStoreConfig();
       setDirty(false);
-      showToast('Theme applied to your store!', 'success');
+      showToast('Theme published to your store!', 'success');
     } catch (err) {
-      console.error('[ThemeEditor] Apply error:', err);
-      showToast('Failed to apply. Please try again.', 'error');
-    } finally {
-      setApplying(false);
-    }
+      console.error('[ThemeEditor]', err);
+      showToast('Failed to publish. Try again.', 'error');
+    } finally { setApplying(false); }
   }, [user, storeConfig, theme, primary, secondary, sections, refreshStoreConfig, showToast]);
 
-  const activeSection = sections.find(s => s.id === activeId) ?? null;
   const storeName = (storeConfig as any)?.storeName ?? 'Your Store';
+  const tagline   = (storeConfig as any)?.tagline   ?? 'Shop our latest collection';
+  const logoUrl   = (storeConfig as any)?.logoUrl   ?? null;
+  const activeSection = sections.find(s => s.id === activeId) ?? null;
+
+  // Preview width by device
+  const previewWidth = device === 'mobile' ? 375 : device === 'tablet' ? 768 : 1000;
+  const previewScale = device === 'mobile' ? 0.72 : device === 'tablet' ? 0.55 : 0.42;
 
   return (
     <div className={styles.root}>
+
       {/* ── Topbar ── */}
       <div className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          <span className={styles.topbarTitle}>Customize</span>
-          {storeConfig?.storeSlug && (
-            <a href={`/store/${storeConfig.storeSlug}`} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-              View live store
+          {view === 'editor' && (
+            <button className={styles.backBtn} onClick={() => { setActiveId(null); setView('marketplace'); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Themes
+            </button>
+          )}
+          <span className={styles.topbarTitle}>{view === 'marketplace' ? 'Choose a theme' : 'Customize'}</span>
+          {view === 'editor' && (
+            <span className={styles.themePill}>{THEMES.find(t => t.id === theme)?.name ?? theme}</span>
+          )}
+          {view === 'editor' && storeConfig?.storeSlug && (
+            <a href={`/store/${storeConfig.storeSlug}`} target="_blank" rel="noopener noreferrer" className={styles.liveBadge}>
+              <span className={styles.liveDot} />Live
             </a>
           )}
         </div>
-        <div className={styles.topbarRight}>
-          {dirty && <span className={styles.unsavedDot} title="Unsaved changes" />}
-          <button className={styles.btnSave} onClick={handleApply} disabled={applying || !dirty}>
-            {applying ? <><span className={styles.spinner} />Applying…</> : <>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              Apply to store
-            </>}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <div className={styles.body}>
-
-        {/* LEFT: section controls */}
-        <div className={styles.panel}>
-          {activeSection ? (
-            <div className={styles.drillIn}>
-              <button className={styles.backBtn} onClick={() => setActiveId(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                All sections
+        <div className={styles.topbarCenter}>
+          {view === 'editor' && (
+            <>
+              {/* Undo/Redo */}
+              <button className={styles.iconBtn} onClick={undo} title="Undo" disabled={undoStack.current.length === 0}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
               </button>
-              <div className={styles.sectionHeader}>
-                <span className={styles.sectionIcon}>{SectionIcons[activeSection.type]}</span>
-                <span className={styles.sectionTitle}>{SECTION_META[activeSection.type].label}</span>
-              </div>
-              <div className={styles.settingsBody}>
-                {activeSection.type === 'hero'         && <HeroSettings         s={activeSection.settings as HeroSectionSettings}         update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'collections'  && <CollectionsSettings  s={activeSection.settings as CollectionsSectionSettings}  update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'featured'     && <FeaturedSettings     s={activeSection.settings as FeaturedSectionSettings}     update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'products'     && <ProductsSettings     s={activeSection.settings as ProductsSectionSettings}     update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'announcement' && <AnnouncementSettings s={activeSection.settings as AnnouncementSectionSettings} update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'header'       && <HeaderSettings       s={activeSection.settings as HeaderSectionSettings}       update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-                {activeSection.type === 'footer'       && <FooterSettings       s={activeSection.settings as FooterSectionSettings}       update={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
-              </div>
-            </div>
-          ) : (
-            <div className={styles.sectionList}>
-
-              {/* Theme + Colors */}
-              <div className={styles.panelSection}>
-                <p className={styles.panelLabel}>Theme</p>
-                <div className={styles.themeGrid}>
-                  {THEMES.map(t => (
-                    <button key={t.id} className={[styles.themeCard, theme === t.id ? styles.themeCardActive : ''].join(' ')}
-                      onClick={() => { setTheme(t.id); mark(); }} type="button" title={t.description}>
-                      <ThemeThumbnail theme={t} width={84} />
-                      <span className={styles.themeCardName}>{t.name}</span>
-                      {theme === t.id && (
-                        <span className={styles.themeCardCheck}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sell-border-subtle)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.78rem', color: 'var(--sell-text-2)', cursor: 'pointer' }}>
-                    <input type="color" value={primary} onChange={e => { setPrimary(e.target.value); mark(); }}
-                      style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid var(--sell-border)', cursor: 'pointer', padding: 2 }} />
-                    Primary color
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.78rem', color: 'var(--sell-text-2)', cursor: 'pointer' }}>
-                    <input type="color" value={secondary} onChange={e => { setSecondary(e.target.value); mark(); }}
-                      style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid var(--sell-border)', cursor: 'pointer', padding: 2 }} />
-                    Accent color
-                  </label>
-                </div>
-              </div>
-
-              {/* Sections list */}
-              <div className={styles.panelSection}>
-                <p className={styles.panelLabel}>Sections</p>
-                {sections.map((section, idx) => {
-                  const meta = SECTION_META[section.type];
-                  return (
-                    <div key={section.id} className={[styles.sectionRow, !section.enabled ? styles.sectionRowDisabled : ''].join(' ')}>
-                      {meta.movable ? (
-                        <div className={styles.moveButtons}>
-                          <button className={styles.moveBtn} onClick={() => moveSection(section.id, -1)} disabled={idx === 0}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-                          </button>
-                          <button className={styles.moveBtn} onClick={() => moveSection(section.id, 1)} disabled={idx === sections.length - 1}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                          </button>
-                        </div>
-                      ) : <div className={styles.moveButtons} />}
-                      <button className={styles.sectionRowBtn} onClick={() => setActiveId(section.id)}>
-                        <span className={styles.sectionRowIcon}>{SectionIcons[section.type]}</span>
-                        <span className={styles.sectionRowLabel}>{meta.label}</span>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.4 }}><polyline points="9 18 15 12 9 6"/></svg>
-                      </button>
-                      <button className={[styles.eyeBtn, section.enabled ? styles.eyeBtnOn : ''].join(' ')} onClick={() => toggleSection(section.id)} type="button">
-                        {section.enabled
-                          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                        }
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-            </div>
+              <button className={styles.iconBtn} onClick={redo} title="Redo" disabled={redoStack.current.length === 0}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 014-4h12"/></svg>
+              </button>
+              <div className={styles.dividerV} />
+              {/* Device switcher */}
+              {(['desktop','tablet','mobile'] as const).map(d => (
+                <button key={d} className={[styles.iconBtn, device === d ? styles.iconBtnActive : ''].join(' ')} onClick={() => setDevice(d)} title={d.charAt(0).toUpperCase() + d.slice(1)}>
+                  {d === 'desktop' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>}
+                  {d === 'tablet'  && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>}
+                  {d === 'mobile'  && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>}
+                </button>
+              ))}
+            </>
           )}
         </div>
+        <div className={styles.topbarRight}>
+          {view === 'editor' && (
+            <button className={styles.previewBtn} onClick={() => window.open(`/store/${(storeConfig as any)?.storeSlug}`, '_blank')}>
+              Preview
+            </button>
+          )}
+          {view === 'editor' && dirty && <span className={styles.unsavedDot} />}
+          {view === 'editor' && (
+            <button className={styles.publishBtn} onClick={handleApply} disabled={applying || !dirty}>
+              {applying ? <><span className={styles.spinner} />Publishing…</> : 'Publish'}
+            </button>
+          )}
+        </div>
+      </div>
 
-        {/* RIGHT: live preview */}
-        <div className={styles.previewPane}>
-          <div className={styles.previewPaneInner}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <p className={styles.panelLabel} style={{ margin: 0 }}>Live preview</p>
-              <span style={{ fontSize: '0.72rem', color: 'var(--sell-text-3)' }}>
-                Click "Apply to store" to publish
-              </span>
-            </div>
-            <LivePreview
-              theme={theme}
-              sections={sections}
-              storeName={storeName}
-              primary={primary}
-              secondary={secondary}
-            />
+      {/* ── MARKETPLACE ── */}
+      {view === 'marketplace' && (
+        <div className={styles.marketplace}>
+          <div className={styles.marketColors}>
+            <span className={styles.marketColorsLabel}>Preview with your colors:</span>
+            <label className={styles.cLabel}><input type="color" value={primary} onChange={e => setPrimary(e.target.value)} className={styles.cPicker} />Primary</label>
+            <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => setSecondary(e.target.value)} className={styles.cPicker} />Accent</label>
+          </div>
+          <div className={styles.themeGrid}>
+            {THEMES.map(t => (
+              <ThemeCard key={t.id} themeId={t.id} isActive={theme === t.id}
+                storeName={storeName} tagline={tagline} primary={primary} secondary={secondary} logoUrl={logoUrl}
+                onSelect={() => { setTheme(t.id); pushUndo(); mark(); setView('editor'); }} />
+            ))}
           </div>
         </div>
+      )}
 
-      </div>
+      {/* ── 3-PANEL EDITOR ── */}
+      {view === 'editor' && (
+        <div className={styles.editorBody}>
+
+          {/* LEFT: sections */}
+          <div className={styles.leftPanel}>
+            <div className={styles.sectionsList}>
+              {sections.map((sec, idx) => {
+                const meta = SECTION_META[sec.type];
+                return (
+                  <div key={sec.id} className={[styles.secRow, !sec.enabled ? styles.secRowOff : '', activeId === sec.id ? styles.secRowActive : ''].join(' ')}>
+                    {meta.movable ? (
+                      <div className={styles.moveBtns}>
+                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, -1)} disabled={idx === 0}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>
+                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, 1)} disabled={idx === sections.length - 1}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>
+                      </div>
+                    ) : <div className={styles.moveBtns} />}
+                    <button className={styles.secBtn} onClick={() => setActiveId(activeId === sec.id ? null : sec.id)}>
+                      <span className={styles.secIcon}>{SectionIcons[sec.type]}</span>
+                      <span className={styles.secLabel}>{meta.label}</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.3 }}><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <button className={[styles.eyeBtn, sec.enabled ? styles.eyeOn : ''].join(' ')} onClick={() => toggleSection(sec.id)} type="button">
+                      {sec.enabled
+                        ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      }
+                    </button>
+                  </div>
+                );
+              })}
+              <button className={styles.addSectionBtn}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add section
+              </button>
+            </div>
+          </div>
+
+          {/* CENTER: live preview */}
+          <div className={styles.centerPanel}>
+            <div className={styles.previewOuter}>
+              {/* The wrapper constrains layout height to the scaled size */}
+              <div style={{
+                width: previewWidth * previewScale,
+                position: 'relative',
+                flexShrink: 0,
+              }}>
+                <div className={styles.previewInner} style={{
+                  width: previewWidth,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  top: 0, left: 0,
+                }}>
+                  <StorefrontCanvas
+                    theme={theme}
+                    storeName={storeName}
+                    tagline={tagline}
+                    primaryColor={primary}
+                    secondaryColor={secondary}
+                    logoUrl={logoUrl}
+                    sections={sections}
+                    width={previewWidth}
+                  />
+                </div>
+                {/* Invisible spacer that matches the scaled height so parent scrolls correctly */}
+                <div style={{
+                  width: previewWidth * previewScale,
+                  visibility: 'hidden',
+                  pointerEvents: 'none',
+                }}>
+                  <StorefrontCanvas
+                    theme={theme}
+                    storeName={storeName}
+                    tagline={tagline}
+                    primaryColor={primary}
+                    secondaryColor={secondary}
+                    logoUrl={logoUrl}
+                    sections={sections}
+                    width={previewWidth * previewScale}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: settings */}
+          <div className={styles.rightPanel}>
+            {activeSection ? (
+              <>
+                <div className={styles.rHeader}>
+                  <span className={styles.rIcon}>{SectionIcons[activeSection.type]}</span>
+                  <span className={styles.rTitle}>{SECTION_META[activeSection.type].label}</span>
+                  <button className={styles.iconBtn} style={{ marginLeft: 'auto' }} onClick={() => setActiveId(null)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div className={styles.rBody}>
+                  {activeSection.type === 'hero'         && <HeroSettings         s={activeSection.settings as HeroSectionSettings}         upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'announcement' && <AnnouncementSettings s={activeSection.settings as AnnouncementSectionSettings} upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'featured'     && <FeaturedSettings     s={activeSection.settings as FeaturedSectionSettings}     upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'collections'  && <CollectionsSettings  s={activeSection.settings as CollectionsSectionSettings}  upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'about'        && <AboutSettings        s={activeSection.settings as AboutSectionSettings}        upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'testimonials' && <TestimonialsSettings s={activeSection.settings as TestimonialsSectionSettings} upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'instagram'    && <InstagramSettings    s={activeSection.settings as InstagramSectionSettings}    upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'newsletter'   && <NewsletterSettings   s={activeSection.settings as NewsletterSectionSettings}   upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'header'       && <HeaderSettings       s={activeSection.settings as HeaderSectionSettings}       upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                  {activeSection.type === 'footer'       && <FooterSettings       s={activeSection.settings as FooterSectionSettings}       upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}
+                </div>
+              </>
+            ) : (
+              <div className={styles.rEmpty}>
+                <div className={styles.rEmptyColors}>
+                  <p className={styles.rEmptyTitle}>Brand Colors</p>
+                  <label className={styles.cLabel}><input type="color" value={primary} onChange={e => { pushUndo(); setPrimary(e.target.value); mark(); }} className={styles.cPicker} />Primary</label>
+                  <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => { pushUndo(); setSecondary(e.target.value); mark(); }} className={styles.cPicker} />Accent</label>
+                </div>
+                <p className={styles.rEmptyHint}>Click any section on the left to edit its settings.</p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }

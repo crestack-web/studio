@@ -7,6 +7,7 @@ import { initializeFirebase } from '@/firebase';
 import { doc, setDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { useSell } from '../context/SellContext';
 import { suggestTheme } from '@/app/store/themes/registry';
+import { StorefrontCanvas } from './StorefrontCanvas';
 import styles from './StoreSetupWizard.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -114,215 +115,17 @@ interface MiniStorefrontProps {
 }
 
 function MiniStorefront({ s, logoPreview }: MiniStorefrontProps) {
-  const theme = s.theme || suggestTheme(s.businessCategory);
-  const primary   = s.primaryColor;
-  const secondary = s.secondaryColor;
-
-  // Theme-specific palette overrides (mirrors ThemedHero + storefront.css themes)
-  const palette: Record<string, { bg: string; surface: string; text1: string; text2: string; border: string; ctaBg: string; ctaColor: string; heroBg: string }> = {
-    classic: {
-      bg: '#F8FAFC', surface: '#fff', text1: '#0F172A', text2: '#475569',
-      border: '#E2E8F0', ctaBg: 'rgba(255,255,255,0.22)', ctaColor: '#fff',
-      heroBg: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
-    },
-    luxe: {
-      bg: '#0A0A0A', surface: '#111', text1: '#F5F0E8', text2: '#A89878',
-      border: '#2A2A2A', ctaBg: 'transparent', ctaColor: '#C9A84C',
-      heroBg: '#0A0A0A',
-    },
-    market: {
-      bg: '#FFF7ED', surface: '#fff', text1: '#1C0A00', text2: '#92400E',
-      border: '#FDE8D0', ctaBg: '#fff', ctaColor: '#EA580C',
-      heroBg: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
-    },
-    studio: {
-      bg: '#FAFAFA', surface: '#fff', text1: '#18181B', text2: '#71717A',
-      border: '#E4E4E7', ctaBg: 'transparent', ctaColor: '#18181B',
-      heroBg: '#FAFAFA',
-    },
-    bold: {
-      bg: '#09090B', surface: '#111', text1: '#FAFAFA', text2: '#A1A1AA',
-      border: '#27272A', ctaBg: '#22C55E', ctaColor: '#09090B',
-      heroBg: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
-    },
-    minimal: {
-      bg: '#F8F8F5', surface: '#fff', text1: '#1A1A18', text2: '#71717A',
-      border: '#E5E5E0', ctaBg: '#1A1A18', ctaColor: '#F8F8F5',
-      heroBg: '#F8F8F5',
-    },
-  };
-  const p = palette[theme] ?? palette.classic;
-
-  // Hero text color — light themes with light hero need dark text
-  const heroTextColor = ['studio', 'minimal'].includes(theme) ? p.text1 : '#fff';
-  const heroTextShadow = ['studio', 'minimal'].includes(theme) ? 'none' : '0 2px 8px rgba(0,0,0,0.28)';
-
-  // CTA label per theme
-  const ctaLabel: Record<string, string> = {
-    classic: 'Shop Now →', luxe: 'Explore Collection', market: 'Shop Now →',
-    studio: 'View Collection', bold: 'Shop Now →', minimal: 'Shop the Collection',
-  };
-  const ctaBorder = theme === 'luxe' ? '1px solid #C9A84C' : theme === 'studio' ? `1px solid ${p.text1}` : 'none';
-
+  const theme = (s.theme || suggestTheme(s.businessCategory)) as import('@/app/sell/mo-sell.types').StorefrontTheme;
   return (
-    <div style={{
-      background: p.bg,
-      borderRadius: 10,
-      overflow: 'hidden',
-      border: `1px solid ${p.border}`,
-      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-      fontSize: 13,
-      color: p.text1,
-      transition: 'all 0.35s ease',
-    }}>
-      {/* ── Mini Nav ── */}
-      <div style={{
-        height: 40,
-        background: p.surface,
-        borderBottom: `1px solid ${p.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 14px',
-        gap: 10,
-      }}>
-        {logoPreview ? (
-          <img src={logoPreview} alt="logo" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover' }} />
-        ) : (
-          <div style={{
-            width: 22, height: 22, borderRadius: 5, flexShrink: 0,
-            background: `linear-gradient(135deg, ${primary}, ${secondary})`,
-          }} />
-        )}
-        <span style={{ fontWeight: 700, fontSize: 12, color: p.text1, letterSpacing: '-0.01em', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {s.storeName || 'Your Store'}
-        </span>
-        <div style={{
-          padding: '4px 10px', borderRadius: 6,
-          background: primary, color: '#fff',
-          fontSize: 10, fontWeight: 700,
-        }}>
-          Cart
-        </div>
-      </div>
-
-      {/* ── Mini Hero ── */}
-      <div style={{
-        background: p.heroBg,
-        padding: '22px 18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 7,
-        transition: 'background 0.4s ease',
-        position: 'relative',
-      }}>
-        {theme === 'luxe' && (
-          <p style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#C9A84C', fontWeight: 500 }}>
-            Welcome
-          </p>
-        )}
-        {theme === 'market' && (
-          <p style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: heroTextColor, opacity: 0.85 }}>
-            🛍️ Fresh arrivals daily
-          </p>
-        )}
-        {theme === 'minimal' && (
-          <p style={{ fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#71717A', fontWeight: 500 }}>
-            Curated Collection
-          </p>
-        )}
-        <h1 style={{
-          fontSize: 18,
-          fontWeight: 800,
-          color: heroTextColor,
-          textShadow: heroTextShadow,
-          letterSpacing: '-0.02em',
-          lineHeight: 1.2,
-          margin: 0,
-          transition: 'color 0.3s',
-        }}>
-          {theme === 'classic' ? `Welcome to ${s.storeName || 'Your Store'}` : (s.storeName || 'Your Store')}
-        </h1>
-        {s.tagline && (
-          <p style={{ fontSize: 11, color: heroTextColor, opacity: 0.85, margin: 0, lineHeight: 1.4, maxWidth: 280, transition: 'opacity 0.3s' }}>
-            {s.tagline}
-          </p>
-        )}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center',
-          marginTop: 6, padding: '5px 14px',
-          background: p.ctaBg,
-          color: p.ctaColor,
-          border: ctaBorder,
-          borderRadius: theme === 'market' ? 100 : 6,
-          fontWeight: 700, fontSize: 10,
-          width: 'fit-content',
-          backdropFilter: theme === 'classic' ? 'blur(4px)' : undefined,
-        }}>
-          {ctaLabel[theme] ?? 'Shop Now →'}
-        </div>
-      </div>
-
-      {/* ── Mini Collections strip ── */}
-      {s.collectionNames.length > 0 && (
-        <div style={{ padding: '14px 14px 4px', background: p.bg }}>
-          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: p.text2, marginBottom: 8 }}>
-            Collections
-          </p>
-          <div style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 10 }}>
-            {s.collectionNames.map((name, i) => (
-              <div key={i} style={{
-                flexShrink: 0,
-                borderRadius: 8,
-                overflow: 'hidden',
-                border: `1px solid ${p.border}`,
-                background: p.surface,
-                minWidth: 70,
-              }}>
-                <div style={{
-                  height: 38,
-                  background: `linear-gradient(135deg, ${primary}55, ${secondary}55)`,
-                }} />
-                <div style={{ padding: '5px 8px' }}>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 9, color: p.text1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {name}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Mini product grid placeholder ── */}
-      <div style={{ padding: '10px 14px 14px', background: p.bg }}>
-        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: p.text2, marginBottom: 8 }}>
-          All Products
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7 }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{ borderRadius: 8, overflow: 'hidden', background: p.surface, border: `1px solid ${p.border}` }}>
-              <div style={{ height: 50, background: `${p.border}` }} />
-              <div style={{ padding: '5px 7px' }}>
-                <div style={{ height: 7, borderRadius: 3, background: p.border, marginBottom: 4 }} />
-                <div style={{ height: 7, width: '60%', borderRadius: 3, background: primary + '40' }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Mini footer ── */}
-      <div style={{
-        borderTop: `1px solid ${p.border}`,
-        padding: '8px 14px',
-        background: p.surface,
-        textAlign: 'center',
-        fontSize: 9,
-        color: p.text2,
-      }}>
-        © {new Date().getFullYear()} {s.storeName || 'Your Store'} · Powered by Busmo
-      </div>
-    </div>
+    <StorefrontCanvas
+      theme={theme}
+      storeName={s.storeName || 'Your Store'}
+      tagline={s.tagline || ''}
+      primaryColor={s.primaryColor}
+      secondaryColor={s.secondaryColor}
+      logoUrl={logoPreview}
+      width={320}
+    />
   );
 }
 

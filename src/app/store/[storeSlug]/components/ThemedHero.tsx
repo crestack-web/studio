@@ -19,61 +19,29 @@ export function ThemedHero({
   storeName, tagline, theme, primaryColor, secondaryColor,
   ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage,
 }: Props) {
-
-  const bgOverride = backgroundImage
+  const bgStyle = backgroundImage
     ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : {};
 
-  // Bold theme — oversized type, accent on last word, green CTA
-  if (theme === 'bold') {
-    const words = storeName.trim().split(' ');
-    const last  = words.pop();
-    return (
-      <section className="sf-hero" style={{ '--sf-primary': primaryColor, '--sf-secondary': secondaryColor, ...bgOverride } as unknown as React.CSSProperties}>
-        <h1>
-          {words.length > 0 && <>{words.join(' ')} </>}
-          <span>{last}</span>
-        </h1>
-        {tagline && <p>{tagline}</p>}
-        <a href={ctaUrl} className="sf-hero-cta" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          marginTop: 24, padding: '12px 28px',
-          background: 'var(--sf-green)', color: '#09090B',
-          borderRadius: 'var(--sf-radius-sm)',
-          fontWeight: 700, fontSize: '0.82rem',
-          letterSpacing: '-0.01em', textTransform: 'uppercase',
-          textDecoration: 'none',
-        }}>
-          {ctaLabel}
-        </a>
-      </section>
-    );
-  }
-
-  // Luxe theme — dark, editorial, gold
+  // ── Luxe ──────────────────────────────────────────────────────────────────
   if (theme === 'luxe') {
     return (
-      <section className="sf-hero" style={bgOverride}>
-        <p style={{ fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--sf-gold)', marginBottom: 16, fontWeight: 500 }}>
-          Welcome
+      <section className="sf-hero" style={{ background: '#111111', ...bgStyle }}>
+        <p style={{ fontSize: '0.65rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 12, fontWeight: 500 }}>
+          New Collection
         </p>
-        <h1>{storeName}</h1>
-        {tagline && <p>{tagline}</p>}
+        <h1 style={{ fontFamily: '"Playfair Display", Georgia, serif', fontStyle: 'italic', fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 400, letterSpacing: '0.04em', color: '#F5F0E8', lineHeight: 1.15 }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#A89878', maxWidth: 440, fontSize: '1rem', marginTop: 8 }}>{tagline}</p>}
         <a href={ctaUrl} style={{
-          display: 'inline-block', marginTop: 28,
-          padding: '12px 32px',
-          border: '1px solid var(--sf-gold)', color: 'var(--sf-gold)',
-          fontSize: '0.7rem', letterSpacing: '0.14em', textTransform: 'uppercase',
+          display: 'inline-block', marginTop: 28, padding: '12px 36px',
+          border: '1px solid #C9A84C', color: '#C9A84C',
+          fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase',
           textDecoration: 'none', transition: 'all 0.2s',
         }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'var(--sf-gold)';
-            (e.currentTarget as HTMLAnchorElement).style.color = '#0A0A0A';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
-            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--sf-gold)';
-          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#C9A84C'; (e.currentTarget as HTMLAnchorElement).style.color = '#0A0A0A'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.color = '#C9A84C'; }}
         >
           {ctaLabel}
         </a>
@@ -81,95 +49,148 @@ export function ThemedHero({
     );
   }
 
-    // Market theme — energetic, price-forward
-  if (theme === 'market') {
+  // ── Glow ──────────────────────────────────────────────────────────────────
+  if (theme === 'glow') {
     return (
-      <section className="sf-hero" style={{ '--sf-primary': primaryColor, '--sf-secondary': secondaryColor, ...bgOverride } as unknown as React.CSSProperties}>
-        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.85, marginBottom: 6 }}>
-          🛍️ Fresh arrivals daily
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor}18 0%, ${secondaryColor}0d 100%)`,
+        ...bgStyle,
+      }}>
+        <p style={{ fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primaryColor, marginBottom: 10, fontWeight: 700, opacity: 0.8 }}>
+          Beauty · Wellness
         </p>
-        <h1>{storeName}</h1>
-        {tagline && <p>{tagline}</p>}
+        <h1 style={{ color: '#2D1B12', fontFamily: '"DM Sans","Plus Jakarta Sans",sans-serif', fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', fontWeight: 800, lineHeight: 1.15 }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#7A5545', maxWidth: 460, fontSize: '1.05rem', marginTop: 8, lineHeight: 1.6 }}>{tagline}</p>}
         <a href={ctaUrl} style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          marginTop: 20, padding: '12px 28px',
-          background: '#fff', color: 'var(--sf-orange)',
-          borderRadius: 100, fontWeight: 800, fontSize: '0.88rem',
-          textDecoration: 'none',
-        }}>
-          {ctaLabel}
-        </a>
-      </section>
-    );
-  }
-
-  // Studio theme — sparse, photography-first
-  if (theme === 'studio') {
-    return (
-      <section className="sf-hero" style={bgOverride}>
-        <h1>{storeName}</h1>
-        {tagline && <p>{tagline}</p>}
-        <a href={ctaUrl} style={{
-          display: 'inline-block', marginTop: 28,
-          padding: '11px 28px',
-          border: '1px solid var(--sf-text-1)', color: 'var(--sf-text-1)',
-          fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase',
-          textDecoration: 'none', transition: 'all 0.2s',
+          marginTop: 24, padding: '13px 32px',
+          background: primaryColor, color: '#fff',
+          borderRadius: 100, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s',
         }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'var(--sf-text-1)';
-            (e.currentTarget as HTMLAnchorElement).style.color = '#fff';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
-            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--sf-text-1)';
-          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.88'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
         >
-          {ctaLabel}
+          {ctaLabel} →
         </a>
       </section>
     );
   }
 
-  // Minimal theme — quiet, wellness feel
-  if (theme === 'minimal') {
+  // ── Market ─────────────────────────────────────────────────────────────────
+  if (theme === 'market') {
     return (
-      <section className="sf-hero" style={bgOverride}>
-        <p style={{ fontSize: '0.62rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--sf-sage)', marginBottom: 16, fontWeight: 500 }}>
-          Curated Collection
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+        ...bgStyle,
+      } as React.CSSProperties}>
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', marginBottom: 8 }}>
+          🛍️ Fresh arrivals daily
         </p>
-        <h1>{storeName}</h1>
-        {tagline && <p>{tagline}</p>}
+        <h1 style={{ color: '#fff', fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', fontWeight: 800, lineHeight: 1.15 }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: 'rgba(255,255,255,0.88)', maxWidth: 460, fontSize: '1.05rem', marginTop: 8, lineHeight: 1.6 }}>{tagline}</p>}
         <a href={ctaUrl} style={{
-          display: 'inline-block', marginTop: 28,
-          padding: '11px 32px',
-          background: 'var(--sf-text-1)', color: 'var(--sf-surface)',
-          fontSize: '0.68rem', letterSpacing: '0.12em', textTransform: 'uppercase',
-          textDecoration: 'none', borderRadius: 'var(--sf-radius-sm)',
-          transition: 'background 0.2s',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          marginTop: 22, padding: '13px 32px',
+          background: '#fff', color: primaryColor,
+          borderRadius: 100, fontWeight: 800, fontSize: '0.92rem',
+          textDecoration: 'none', transition: 'box-shadow 0.18s',
         }}>
-          {ctaLabel}
+          {ctaLabel} →
         </a>
       </section>
     );
   }
 
-  // Classic (default) — gradient banner
-  return (
-    <section className="sf-hero" style={{ '--sf-primary': primaryColor, '--sf-secondary': secondaryColor, ...bgOverride } as unknown as React.CSSProperties}>
-      <h1>Welcome to {storeName}</h1>
-      <p>{tagline ?? 'Discover our collection and shop with confidence. Fast delivery, easy returns.'}</p>
-      <a href={ctaUrl} style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8,
-        marginTop: 20, padding: '12px 28px',
-        background: 'rgba(255,255,255,0.2)', color: '#fff',
-        border: '1px solid rgba(255,255,255,0.4)',
-        borderRadius: 'var(--sf-radius)', fontWeight: 700,
-        fontSize: '0.9rem', textDecoration: 'none',
-        backdropFilter: 'blur(4px)', transition: 'background 0.2s',
+  // ── Creator ────────────────────────────────────────────────────────────────
+  if (theme === 'creator') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor}25 0%, ${secondaryColor}18 100%)`,
+        ...bgStyle,
       }}>
-        {ctaLabel}
-      </a>
+        <p style={{ fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primaryColor, marginBottom: 10, fontWeight: 700 }}>
+          Build once. Sell forever.
+        </p>
+        <h1 style={{
+          color: '#F8FAFC', fontFamily: '"Sora","Inter",sans-serif',
+          fontSize: 'clamp(2rem, 5vw, 3.2rem)', fontWeight: 800,
+          lineHeight: 1.12, letterSpacing: '-0.03em',
+        }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#94A3B8', maxWidth: 480, fontSize: '1.1rem', marginTop: 10, lineHeight: 1.65 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          marginTop: 26, padding: '13px 32px',
+          background: primaryColor, color: '#fff',
+          borderRadius: 6, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s',
+          fontFamily: '"Sora","Inter",sans-serif',
+        }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.88'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
+        >
+          Browse Products →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Link theme — centered bio card (Stan Store / Linktree style) ──────────
+  if (theme === 'link') {
+    return (
+      <section style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        padding: '48px 20px 32px', textAlign: 'center', gap: 12,
+        background: 'var(--sf-bg)',
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width: 88, height: 88, borderRadius: '50%',
+          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+          border: '3px solid transparent',
+          backgroundClip: 'padding-box',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '2rem', fontWeight: 700, color: '#fff',
+          flexShrink: 0, overflow: 'hidden',
+        }}>
+          {storeName.charAt(0).toUpperCase()}
+        </div>
+        {/* Name */}
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--sf-text-1)', margin: 0, letterSpacing: '-0.02em' }}>
+          {storeName}
+        </h1>
+        {/* Bio / tagline */}
+        {tagline && (
+          <p style={{ fontSize: '0.95rem', color: 'var(--sf-text-2)', margin: 0, maxWidth: 420, lineHeight: 1.6 }}>
+            {tagline}
+          </p>
+        )}
+        {/* CTA */}
+        <a href={ctaUrl} style={{
+          marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '11px 28px', borderRadius: 100,
+          background: primaryColor, color: '#fff',
+          fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
+          transition: 'opacity 0.18s',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Fallback (luxe) ────────────────────────────────────────────────────────
+  return (
+    <section className="sf-hero" style={{ background: '#111111', ...bgStyle }}>
+      <h1 style={{ color: '#F5F0E8', fontFamily: '"Playfair Display",Georgia,serif', fontStyle: 'italic' }}>{storeName}</h1>
+      {tagline && <p style={{ color: '#A89878' }}>{tagline}</p>}
+      <a href={ctaUrl} style={{ display: 'inline-block', marginTop: 24, padding: '12px 32px', border: '1px solid #C9A84C', color: '#C9A84C', textDecoration: 'none', fontSize: '0.8rem' }}>{ctaLabel}</a>
     </section>
   );
 }

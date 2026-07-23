@@ -114,7 +114,7 @@ export const FloatingChatWidget = () => {
   useEffect(() => {
     // Initialize Firebase first
     const { auth } = initializeFirebase();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
         setUserEmail(user.email || 'user');
         setUserId(user.uid);

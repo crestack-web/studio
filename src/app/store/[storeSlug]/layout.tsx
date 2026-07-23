@@ -93,9 +93,9 @@ export default async function StorefrontLayout({
     notFound();
   }
 
-  const theme: StorefrontTheme = config.theme ?? 'classic';
-  const primary   = config.primaryColor   ?? '#0EA5E9';
-  const secondary = config.secondaryColor ?? '#6366F1';
+  const theme: StorefrontTheme = config.theme ?? 'luxe';
+  const primary   = config.primaryColor   ?? '#C9A84C';
+  const secondary = config.secondaryColor ?? '#8B7355';
 
   // Resolve footer section settings
   const savedSections: StoreSection[] = config.sections ?? [];

@@ -39,7 +39,7 @@ VERY END of your message in EXACTLY this format. No other JSON anywhere in the m
     "tagline": "One sentence — what makes this store worth buying from",
     "collectionNames": ["Name 1", "Name 2", "Name 3"],
     "storePolicy": "Short friendly returns/exchange policy (2–3 sentences)",
-    "theme": "one of: classic|luxe|market|studio|bold|minimal",
+    "theme": "one of: luxe|glow|market|creator",
     "faq": [
       { "q": "Question?", "a": "Answer." },
       { "q": "Question?", "a": "Answer." }
@@ -49,12 +49,10 @@ VERY END of your message in EXACTLY this format. No other JSON anywhere in the m
 \`\`\`
 
 THEME SELECTION GUIDE — choose the best match for the business:
-- luxe: fashion, beauty, jewellery, premium/luxury brands
-- market: food, grocery, everyday goods, market traders
-- studio: art, handmade crafts, photography, lifestyle
-- bold: tech, electronics, gaming, streetwear, youth brands
-- minimal: wellness, skincare, home decor, candles, organic
-- classic: everything else — general retail, services, wholesale
+- luxe: fashion, clothing, accessories, jewellery, premium/luxury brands
+- glow: beauty, cosmetics, skincare, wellness, spa, candles, organic
+- market: food, grocery, home, lifestyle, general retail, everyday goods
+- creator: digital products, courses, services, software, ebooks, tech
 
 RULES:
 - storeName: brand-first (e.g. "Lumē Beauty" not "Beauty Store")
