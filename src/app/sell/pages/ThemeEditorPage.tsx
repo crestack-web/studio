@@ -524,7 +524,7 @@ export function ThemeEditorPage() {
                   position: 'absolute',
                   top: 0, left: 0,
                 }}>
-                  <CartProvider>
+                  <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
                     <StorefrontCanvas
                       theme={theme}
                       storeName={storeName}
