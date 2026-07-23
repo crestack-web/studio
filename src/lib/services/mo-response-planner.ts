@@ -131,12 +131,27 @@ export class ResponsePlanner {
         sum + (parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0), 0
       );
       
+      // Calculate profit if available
+      const totalProfit = businessData.sales.reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.profit) || 0), 0
+      );
+      
+      const todayProfit = businessData.sales.filter((sale: any) => {
+        const saleDate = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+        return saleDate.toDateString() === new Date().toDateString();
+      })
+      .reduce((sum: number, sale: any) => 
+        sum + (parseFloat(sale.profit) || 0), 0
+      );
+      
       // Only create data card if user is asking about sales
       if (/analyze.*sales|sales.*performance|how are sales|sales.*doing|sales.*today|sales.*overview/i.test(lowerMessage)) {
         const content = `📊 **SALES DASHBOARD**
         
 **Today:** ₦${todaySales.toLocaleString()}
 **Total:** ₦${totalSales.toLocaleString()}
+**Profit:** ₦${totalProfit.toLocaleString()}
+**Today's Profit:** ₦${todayProfit.toLocaleString()}
 **Orders:** ${businessData.sales.length}
 **Avg Order:** ₦${businessData.sales.length > 0 ? (totalSales / businessData.sales.length).toLocaleString() : '0'}`;
 

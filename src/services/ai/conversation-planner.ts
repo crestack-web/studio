@@ -326,13 +326,9 @@ export class ConversationPlanner {
 
   /**
    * NEW: Decide if we should actually retrieve data based on availability
+   * FIXED: Always fetch fresh data when businessId exists to ensure accuracy
    */
   private shouldActuallyRetrieveData(dataRequirements: DataRequirements, canAnswerWithExistingData: boolean, userMessage: string): boolean {
-    // If we can already answer with existing data, don't retrieve more
-    if (canAnswerWithExistingData) {
-      return false;
-    }
-    
     // Don't retrieve data if it's not needed for the query
     const hasDataRequirement = !!(dataRequirements.salesData || 
                                dataRequirements.inventoryData || 
@@ -341,15 +337,14 @@ export class ConversationPlanner {
                                dataRequirements.staffData ||
                                dataRequirements.businessMetrics);
     
-    // Special handling for sales analysis - if user asks "analyze my sales", 
-    // we should check if we already have sales data before asking for industry
-    const lowerMessage = userMessage.toLowerCase();
-    if (/analyze.*sales/.test(lowerMessage) && dataRequirements.salesData) {
-      // If we're analyzing sales, we might not need industry info
-      return dataRequirements.salesData; // Only retrieve sales data if needed
+    // FIXED: Always retrieve fresh data when requirements exist
+    // The canAnswerWithExistingData check is removed because cached data may be stale
+    // Users prefer accurate, fresh data over cached potentially incorrect data
+    if (hasDataRequirement) {
+      return true;
     }
     
-    return hasDataRequirement;
+    return false;
   }
 
   /**

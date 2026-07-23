@@ -102,28 +102,63 @@ export class BusinessProfileManager {
   }
 
   async updateWithFullData(data: any): Promise<void> {
+    console.log('📊 [Profile Manager] updateWithFullData called with keys:', Object.keys(data));
+    
     // Update snapshot with actual business data
     if (data.businessSnapshot) {
       this.snapshot = {
         ...this.snapshot,
         ...data.businessSnapshot,
       };
+      console.log('📊 [Profile Manager] Updated with businessSnapshot');
     }
     
-    if (data.sales) {
-      const totalSales = data.sales.reduce((sum: number, sale: any) => sum + (sale.totalRevenue || sale.amount || 0), 0);
-      const totalProfit = data.sales.reduce((sum: number, sale: any) => sum + (sale.profit || 0), 0);
+    // Process sales data with robust field mapping
+    if (data.sales && Array.isArray(data.sales)) {
+      const totalSales = data.sales.reduce((sum: number, sale: any) => {
+        const amount = parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0;
+        return sum + amount;
+      }, 0);
+      
+      const totalProfit = data.sales.reduce((sum: number, sale: any) => {
+        const profit = parseFloat(sale.profit) || 0;
+        return sum + profit;
+      }, 0);
+      
       this.snapshot.totalSales = totalSales;
       this.snapshot.totalProfit = totalProfit;
+      console.log('📊 [Profile Manager] Calculated sales totals:', { totalSales, totalProfit, recordCount: data.sales.length });
     }
     
-    if (data.products) {
-      const lowStockCount = data.products.filter((p: any) => p.stock > 0 && p.stock <= (p.lowStockThreshold || 10)).length;
-      const outOfStockCount = data.products.filter((p: any) => p.stock === 0).length;
+    // Process products data with robust field mapping
+    if (data.products && Array.isArray(data.products)) {
+      const lowStockCount = data.products.filter((p: any) => {
+        const stock = parseFloat(p.stock) || parseFloat(p.quantity) || 0;
+        const threshold = parseFloat(p.lowStockThreshold) || parseFloat(p.reorderLevel) || 10;
+        return stock > 0 && stock <= threshold;
+      }).length;
+      
+      const outOfStockCount = data.products.filter((p: any) => {
+        const stock = parseFloat(p.stock) || parseFloat(p.quantity) || 0;
+        return stock === 0;
+      }).length;
+      
       this.snapshot.lowStockCount = lowStockCount;
       this.snapshot.outOfStockCount = outOfStockCount;
+      console.log('📊 [Profile Manager] Calculated inventory counts:', { lowStockCount, outOfStockCount, productCount: data.products.length });
     }
     
+    // Process expense data with robust field mapping
+    if (data.expenses && Array.isArray(data.expenses)) {
+      const totalExpenses = data.expenses.reduce((sum: number, expense: any) => {
+        const amount = parseFloat(expense.amount) || parseFloat(expense.total) || 0;
+        return sum + amount;
+      }, 0);
+      this.snapshot.totalExpenses = totalExpenses;
+      console.log('📊 [Profile Manager] Calculated total expenses:', { totalExpenses, recordCount: data.expenses.length });
+    }
+    
+    // Update pre-calculated values if provided
     if (data.totalSales !== undefined) {
       this.snapshot.totalSales = data.totalSales;
     }
@@ -148,6 +183,8 @@ export class BusinessProfileManager {
     if (data.cashAvailable !== undefined) {
       this.snapshot.cashAvailable = data.cashAvailable;
     }
+    
+    console.log('📊 [Profile Manager] Final snapshot keys:', Object.keys(this.snapshot));
   }
 
   reset() {

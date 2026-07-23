@@ -236,22 +236,28 @@ export async function POST(request: NextRequest) {
           const salesQuery = db.collection('businesses').doc(businessId).collection('sales')
             .orderBy('createdAt', 'desc');
           
-          // Apply time range filter
+          // Apply time range filter only if explicitly requested by user
+          // Default to 'all' to include all historical data
           if (dataReqs.timeRange === 'today') {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             salesQuery.where('createdAt', '>=', today);
+            console.log('📅 [Ask MO API] Applying today filter');
           } else if (dataReqs.timeRange === 'week') {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             salesQuery.where('createdAt', '>=', weekAgo);
+            console.log('📅 [Ask MO API] Applying week filter');
           } else if (dataReqs.timeRange === 'month') {
             const monthAgo = new Date();
             monthAgo.setMonth(monthAgo.getMonth() - 1);
             salesQuery.where('createdAt', '>=', monthAgo);
+            console.log('📅 [Ask MO API] Applying month filter');
+          } else {
+            console.log('📅 [Ask MO API] Loading all-time sales data (no time filter)');
           }
           
-          const salesSnapshot = await salesQuery.limit(50).get();
+          const salesSnapshot = await salesQuery.limit(500).get();
           businessData.sales = salesSnapshot.docs.map(doc => doc.data());
           console.log('📊 [Ask MO API] Loaded sales data:', businessData.sales.length, 'records');
           
@@ -264,8 +270,9 @@ export async function POST(request: NextRequest) {
           todayDate.setHours(0, 0, 0, 0);
           
           businessData.sales.forEach((sale: any) => {
-            const amount = sale.totalRevenue || sale.total || 0;
-            const profit = sale.profit || 0;
+            // Standardize field mapping - handle all possible field name variations
+            const amount = parseFloat(sale.totalRevenue) || parseFloat(sale.total) || parseFloat(sale.amount) || 0;
+            const profit = parseFloat(sale.profit) || 0;
             totalSales += amount;
             totalProfit += profit;
             
@@ -282,6 +289,19 @@ export async function POST(request: NextRequest) {
           businessData.todayProfit = todayProfit;
           
           console.log('📊 [Ask MO API] Calculated totals:', { totalSales, totalProfit, todaySales, todayProfit });
+          
+          // Log field mapping sample for debugging
+          if (businessData.sales.length > 0) {
+            const sampleSale = businessData.sales[0];
+            console.log('🔍 [Ask MO API] Sample sale fields:', Object.keys(sampleSale));
+            console.log('🔍 [Ask MO API] Sample sale values:', {
+              totalRevenue: sampleSale.totalRevenue,
+              total: sampleSale.total,
+              amount: sampleSale.amount,
+              profit: sampleSale.profit,
+              createdAt: sampleSale.createdAt
+            });
+          }
         } else {
           console.log('⚠️ [Ask MO API] Sales data NOT required by planner');
         }
@@ -341,22 +361,27 @@ export async function POST(request: NextRequest) {
           const expensesQuery = db.collection('businesses').doc(businessId).collection('expenses')
             .orderBy('createdAt', 'desc');
           
-          // Apply time range filter
+          // Apply time range filter only if explicitly requested by user
           if (dataReqs.timeRange === 'today') {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             expensesQuery.where('createdAt', '>=', today);
+            console.log('📅 [Ask MO API] Applying today filter to expenses');
           } else if (dataReqs.timeRange === 'week') {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             expensesQuery.where('createdAt', '>=', weekAgo);
+            console.log('📅 [Ask MO API] Applying week filter to expenses');
           } else if (dataReqs.timeRange === 'month') {
             const monthAgo = new Date();
             monthAgo.setMonth(monthAgo.getMonth() - 1);
             expensesQuery.where('createdAt', '>=', monthAgo);
+            console.log('📅 [Ask MO API] Applying month filter to expenses');
+          } else {
+            console.log('📅 [Ask MO API] Loading all-time expense data (no time filter)');
           }
           
-          const expensesSnapshot = await expensesQuery.limit(50).get();
+          const expensesSnapshot = await expensesQuery.limit(500).get();
           businessData.expenses = expensesSnapshot.docs.map(doc => doc.data());
           console.log('💰 [Ask MO API] Loaded expense data:', businessData.expenses.length, 'records');
         }
@@ -405,54 +430,9 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ [Ask MO API] No businessData to update profile manager. businessData keys:', Object.keys(businessData));
     }
 
-    // NEW: Check if we can answer with existing data before proceeding
-    if (plannedResponse.canAnswerWithExistingData && businessData.sales && businessData.sales.length > 0) {
-      console.log('✅ [Ask MO API] Can answer with existing data, preparing focused response');
-      
-      // Prepare a focused response based on available data and user query
-      const lowerMessage = message.toLowerCase();
-      
-      // If user asks about sales, focus on sales data
-      if (/analyze.*sales|sales.*performance|how are sales|sales.*doing/i.test(lowerMessage)) {
-        const totalRevenue = businessData.sales.reduce((sum: number, sale: any) => sum + (parseFloat(sale.amount) || 0), 0);
-        const totalOrders = businessData.sales.length;
-        const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-        
-        // Calculate profit if available
-        let totalProfit = 0;
-        businessData.sales.forEach((sale: any) => {
-          if (sale.profit) {
-            totalProfit += parseFloat(sale.profit) || 0;
-          }
-        });
-        
-        const grossMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-        
-        // Create a focused response about sales
-        const focusedResponse = {
-          answer: `Here's what I found in your sales data:\n\n` +
-                  `• Revenue: ₦${totalRevenue.toLocaleString()}\n` +
-                  `• Orders: ${totalOrders}\n` +
-                  `• Average Order Value: ₦${avgOrderValue.toLocaleString()}\n` +
-                  (totalProfit > 0 ? `• Profit: ₦${totalProfit.toLocaleString()}\n` : '') +
-                  (grossMargin > 0 ? `• Gross Margin: ${grossMargin.toFixed(1)}%\n` : '') +
-                  `\nObservation: Revenue looks healthy, though I'd need to see more data to identify trends. Which aspect of your sales would you like to explore further?`,
-          intent: { intent: 'sales_analysis', confidence: 0.9 },
-          actionResult: null,
-          rendered: null,
-          planner: {
-            intent: plannedResponse.intent,
-            conversationGoal: plannedResponse.conversationGoal,
-            responseDepth: plannedResponse.responseDepth,
-            topicType: plannedResponse.topicType,
-            topicChanged: plannedResponse.topicChanged,
-          },
-          timestamp: new Date().toISOString()
-        };
-        
-        return NextResponse.json(focusedResponse);
-      }
-    }
+    // REMOVED: Early return for sales analysis to ensure comprehensive data processing
+    // The profile manager needs to be updated and full AI processing should run
+    // This ensures consistent data handling and better responses
 
     // Run Master Processor - orchestrates all MO engines
     let processingResult;
