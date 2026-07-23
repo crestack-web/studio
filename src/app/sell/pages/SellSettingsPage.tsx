@@ -378,66 +378,41 @@ export function SellSettingsPage() {
         </div>
       </div>
 
-      {/* ── Theme Switcher ─────────────────────────────────────────────── */}
+      {/* ── Theme Display ─────────────────────────────────────────────── */}
       <div className={styles.card}>
         <div className={styles.cardHeader}>
           <div>
             <p className={styles.cardTitle}>Storefront theme</p>
-            <p className={styles.cardSub}>Choose the visual style for your public store</p>
+            <p className={styles.cardSub}>Current visual style for your public store</p>
           </div>
-          <span style={{
-            fontSize: '0.75rem', fontWeight: 600, padding: '4px 10px',
-            borderRadius: 100, background: 'var(--sell-primary-lt)',
-            color: 'var(--sell-primary)',
-          }}>
-            {THEMES.find(t => t.id === theme)?.name ?? 'Classic'}
-          </span>
         </div>
         <div className={styles.cardBody}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-            gap: 12,
-          }}>
-            {THEMES.map(t => {
-              const isActive = theme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => { setTheme(t.id); mark(); }}
-                  style={{
-                    border: isActive ? '2px solid var(--sell-primary)' : '2px solid var(--sell-border)',
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    background: 'none',
-                    padding: 0,
-                    textAlign: 'left',
-                    transition: 'border-color 0.18s, box-shadow 0.18s',
-                    boxShadow: isActive ? '0 0 0 3px var(--sell-primary-glow)' : 'none',
-                  }}
-                >
-                  {/* Faithful storefront thumbnail */}
-                  <StorefrontCanvas
-                    theme={t.id}
-                    width={160}
-                    primaryColor={t.previewAccent}
-                    secondaryColor={t.previewBg === '#0A0A0A' || t.previewBg === '#0F172A' ? '#444' : '#6366F1'}
-                  />
-
-                  {/* Theme label */}
-                  <div style={{ padding: '8px 12px 10px', background: 'var(--sell-surface)', borderTop: '1px solid var(--sell-border)' }}>
-                    <p style={{ fontSize: '0.82rem', fontWeight: 700, color: isActive ? 'var(--sell-primary)' : 'var(--sell-text-1)', marginBottom: 2 }}>
-                      {t.name}
-                    </p>
-                    <p style={{ fontSize: '0.68rem', color: 'var(--sell-text-3)', lineHeight: 1.4 }}>
-                      {t.description.split('.')[0]}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
+          <div className={styles.themeDisplay}>
+            <div className={styles.themeThumbnailSmall}>
+              <StorefrontCanvas 
+                theme={THEMES.find(t => t.id === theme)?.id ?? 'luxe'} 
+                width={60}
+                storeName={storeName}
+                tagline="Shop our latest collection"
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                logoUrl={logoUrl}
+              />
+            </div>
+            <div className={styles.themeInfo}>
+              <p className={styles.themeName}>{THEMES.find(t => t.id === theme)?.name ?? 'Classic'}</p>
+              <p className={styles.themeDesc}>{THEMES.find(t => t.id === theme)?.description ?? 'Clean and professional'}</p>
+            </div>
+            <button
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              onClick={() => navigateTo('theme-editor')}
+              style={{ marginLeft: 'auto' }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Customize
+            </button>
           </div>
         </div>
       </div>

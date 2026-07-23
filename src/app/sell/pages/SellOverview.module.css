@@ -368,7 +368,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .statsGrid { grid-template-columns: 1fr 1fr; }
+  .statsGrid { grid-template-columns: 1fr; }
   .heading { font-size: 1.2rem; }
   .headerActions { display: none; }
   .actionsGrid { gap: 8px; }

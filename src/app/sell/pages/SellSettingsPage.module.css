@@ -98,4 +98,24 @@
 .toggleThumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.22s; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
 .toggle input:checked ~ .toggleThumb { transform: translateX(16px); }
 
-@media (max-width: 640px) { .formRow { grid-template-columns: 1fr; } .colorsRow { flex-direction: column; } }
+/* ── Theme Display ── */
+.themeDisplay { display: flex; align-items: center; gap: 16px; }
+.themeThumbnailSmall { flex-shrink: 0; }
+.themeInfo { flex: 1; }
+.themeName { font-size: 0.95rem; font-weight: 700; color: var(--sell-text-1); margin-bottom: 2px; }
+.themeDesc { font-size: 0.78rem; color: var(--sell-text-3); }
+
+@media (max-width: 640px) {
+  .formRow { grid-template-columns: 1fr; }
+  .colorsRow { flex-direction: column; }
+  .statusCard { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .statusCardIcon { width: 36px; height: 36px; }
+  .statusCardActions { width: 100%; }
+  .statusCardActions .btn { flex: 1; justify-content: center; }
+  .cardHeader { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .logoRow { flex-direction: column; align-items: flex-start; }
+  .logoActions { width: 100%; }
+  .logoActions .btn { width: 100%; justify-content: center; }
+  .themeDisplay { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .themeDisplay .btn { width: 100%; justify-content: center; }
+}

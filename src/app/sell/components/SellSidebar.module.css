@@ -47,7 +47,7 @@
 .top {
   display: flex;
   align-items: center;
-  height: 96px;
+  height: var(--sell-nav-height);
   border-bottom: 1px solid var(--sell-border-subtle);
   flex-shrink: 0;
   overflow: hidden;

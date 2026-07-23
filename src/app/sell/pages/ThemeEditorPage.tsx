@@ -6,6 +6,7 @@ import { initializeFirebase } from '@/firebase';
 import { useSell } from '../context/SellContext';
 import { THEMES } from '@/app/store/themes/registry';
 import { StorefrontCanvas } from '../components/StorefrontCanvas';
+import { CartProvider } from '@/app/store/[storeSlug]/context/CartContext';
 import type {
   StorefrontTheme, StoreSection, StoreSectionType,
   HeroSectionSettings, CollectionsSectionSettings,
@@ -268,6 +269,8 @@ export function ThemeEditorPage() {
   const [dirty,     setDirty]     = useState(false);
   const [view,      setView]      = useState<'marketplace' | 'editor'>('marketplace');
   const [device,    setDevice]    = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [products,  setProducts]  = useState<any[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
 
   // Undo/redo stacks
   const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
@@ -312,6 +315,26 @@ export function ThemeEditorPage() {
     setDirty(false);
     undoStack.current = []; redoStack.current = [];
   }, [storeConfig]);
+
+  // Fetch real products for preview
+  useEffect(() => {
+    if (!user?.businessId) return;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    fetch(`${baseUrl}/api/store/products?businessId=${user.businessId}&available=true`)
+      .then(r => r.ok ? r.json() : { products: [] })
+      .then(d => setProducts(d.products ?? []))
+      .catch(() => setProducts([]));
+  }, [user?.businessId]);
+
+  // Fetch real collections for preview
+  useEffect(() => {
+    if (!user?.businessId) return;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    fetch(`${baseUrl}/api/store/collections?businessId=${user.businessId}`)
+      .then(r => r.ok ? r.json() : { collections: [] })
+      .then(d => setCollections(d.collections ?? []))
+      .catch(() => setCollections([]));
+  }, [user?.businessId]);
 
   const mark = useCallback(() => setDirty(true), []);
 
@@ -501,16 +524,21 @@ export function ThemeEditorPage() {
                   position: 'absolute',
                   top: 0, left: 0,
                 }}>
-                  <StorefrontCanvas
-                    theme={theme}
-                    storeName={storeName}
-                    tagline={tagline}
-                    primaryColor={primary}
-                    secondaryColor={secondary}
-                    logoUrl={logoUrl}
-                    sections={sections}
-                    width={previewWidth}
-                  />
+                  <CartProvider>
+                    <StorefrontCanvas
+                      theme={theme}
+                      storeName={storeName}
+                      tagline={tagline}
+                      primaryColor={primary}
+                      secondaryColor={secondary}
+                      logoUrl={logoUrl}
+                      sections={sections}
+                      width={previewWidth}
+                      storeSlug={(storeConfig as any)?.storeSlug}
+                      products={products}
+                      collections={collections}
+                    />
+                  </CartProvider>
                 </div>
                 {/* Invisible spacer that matches the scaled height so parent scrolls correctly */}
                 <div style={{
@@ -527,6 +555,9 @@ export function ThemeEditorPage() {
                     logoUrl={logoUrl}
                     sections={sections}
                     width={previewWidth * previewScale}
+                    storeSlug={(storeConfig as any)?.storeSlug}
+                    products={products}
+                    collections={collections}
                   />
                 </div>
               </div>

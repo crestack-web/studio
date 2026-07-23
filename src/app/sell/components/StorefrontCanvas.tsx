@@ -34,6 +34,9 @@ export interface StorefrontCanvasProps {
   sections?: StoreSection[];
   /** Width in px — the canvas fills this width, height is natural */
   width?: number;
+  storeSlug?: string;
+  products?: any[];
+  collections?: any[];
 }
 
 // ─── CSS variable injection per theme ─────────────────────────────────────────
@@ -141,8 +144,8 @@ const MOCK: Record<StorefrontTheme, {
 
 // ─── Section components ────────────────────────────────────────────────────────
 
-function SfNav({ theme, storeName, logoUrl, primary }: {
-  theme: StorefrontTheme; storeName: string; logoUrl?: string | null; primary: string;
+function SfNav({ theme, storeName, logoUrl, primary, storeSlug }: {
+  theme: StorefrontTheme; storeName: string; logoUrl?: string | null; primary: string; storeSlug?: string;
 }) {
   const isLuxe = theme === 'luxe';
   const isMarket = theme === 'market';
@@ -175,9 +178,16 @@ function SfNav({ theme, storeName, logoUrl, primary }: {
         color: isLuxe ? '#C9A84C' : isMarket ? primary : '#fff',
         fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 6,
+        position: 'relative',
       }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
         Cart
+        <span style={{
+          position: 'absolute', top: '-4px', right: '-4px',
+          background: 'var(--sf-secondary)', color: '#fff',
+          fontSize: '0.6rem', fontWeight: 700, minWidth: '16px', height: '16px',
+          borderRadius: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px',
+        }}>0</span>
       </div>
     </nav>
   );
@@ -232,14 +242,26 @@ function SfHero({ theme, storeName, tagline, settings, primary, secondary }: {
   );
 }
 
-function SfFeatured({ theme, settings, primary }: {
-  theme: StorefrontTheme; settings: FeaturedSectionSettings; primary: string;
+function SfFeatured({ theme, settings, primary, products, storeSlug }: {
+  theme: StorefrontTheme; settings: FeaturedSectionSettings; primary: string; products: any[]; storeSlug?: string;
 }) {
   const mock = MOCK[theme];
   const heading = settings.heading || (theme === 'luxe' ? 'New Arrivals' : theme === 'glow' ? 'Bestsellers' : theme === 'creator' ? 'Digital Products' : 'Top Deals');
   const cols = settings.columns ?? 4;
-  const products = mock.products.slice(0, Math.min(settings.maxItems ?? 4, mock.products.length));
+  // Use real products if available, otherwise fall back to mock
+  const displayProducts = products.length > 0 
+    ? products.slice(0, Math.min(settings.maxItems ?? 4, products.length))
+    : mock.products.slice(0, Math.min(settings.maxItems ?? 4, mock.products.length));
   const isLuxe = theme === 'luxe';
+
+  const handleProductClick = (productId: string) => {
+    if (storeSlug) {
+      // In preview with real data, navigate to product page
+      window.open(`/store/${storeSlug}/product/${productId}`, '_blank');
+    } else {
+      console.log('Product clicked - preview mode');
+    }
+  };
 
   return (
     <section style={{ padding: '40px 32px', background: 'var(--sf-bg)' }}>
@@ -247,18 +269,28 @@ function SfFeatured({ theme, settings, primary }: {
         {heading}
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols},1fr)`, gap: 12 }}>
-        {products.map((p, i) => (
-          <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }}>
-            <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              {p.tag && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>{p.tag}</span>}
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        {displayProducts.map((p, i) => {
+          const isReal = products.length > 0;
+          const name = isReal ? p.displayName : p.name;
+          const price = isReal ? `₦${p.price.toLocaleString()}` : p.price;
+          const tag = isReal ? (p.compareAtPrice && p.compareAtPrice > p.price ? 'Sale' : null) : p.tag;
+          const productId = isReal ? p.id : null;
+          
+          return (
+            <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }} onClick={() => productId && handleProductClick(productId)}>
+              <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: isReal && p.images[0] 
+                ? `url(${p.images[0]}) center/cover` 
+                : `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                {tag && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>{tag}</span>}
+                {!isReal && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sf-text-1)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: primary, margin: 0 }}>{price}</p>
+              </div>
             </div>
-            <div style={{ padding: '10px 12px' }}>
-              <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sf-text-1)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-              <p style={{ fontSize: '0.82rem', fontWeight: 700, color: primary, margin: 0 }}>{p.price}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -550,6 +582,9 @@ export function StorefrontCanvas({
   logoUrl,
   sections,
   width = 1000,
+  storeSlug,
+  products = [],
+  collections = [],
 }: StorefrontCanvasProps) {
   // Fall back to theme defaults if no colors provided
   const defaultColors: Record<StorefrontTheme, [string, string]> = {
@@ -595,7 +630,7 @@ export function StorefrontCanvas({
 
         switch (section.type) {
           case 'header':
-            return <SfNav key={section.id} theme={theme} storeName={storeName} logoUrl={logoUrl} primary={primary} />;
+            return <SfNav key={section.id} theme={theme} storeName={storeName} logoUrl={logoUrl} primary={primary} storeSlug={storeSlug} />;
 
           case 'announcement':
             return <SfAnnouncement key={section.id} settings={s as unknown as AnnouncementSectionSettings} />;
@@ -604,7 +639,7 @@ export function StorefrontCanvas({
             return <SfHero key={section.id} theme={theme} storeName={storeName} tagline={tagline} settings={s as HeroSectionSettings} primary={primary} secondary={secondary} />;
 
           case 'featured':
-            return <SfFeatured key={section.id} theme={theme} settings={s as FeaturedSectionSettings} primary={primary} />;
+            return <SfFeatured key={section.id} theme={theme} settings={s as FeaturedSectionSettings} primary={primary} products={products} storeSlug={storeSlug} />;
 
           case 'collections':
             return <SfCollections key={section.id} theme={theme} settings={s as CollectionsSectionSettings} primary={primary} secondary={secondary} />;
