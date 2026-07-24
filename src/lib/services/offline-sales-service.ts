@@ -20,7 +20,7 @@ export interface OfflineSale {
     costPrice: number;
     emoji?: string;
   }>;
-  paymentType: 'cash' | 'transfer' | 'pos' | 'credit' | 'split';
+  paymentType: 'cash' | 'transfer' | 'card' | 'pos' | 'credit' | 'split';
   totalRevenue: number;
   totalCost: number;
   totalProfit: number;
@@ -116,11 +116,13 @@ class OfflineSalesService {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const objectStore = transaction.objectStore(STORE_NAME);
-      const index = objectStore.index('synced');
-      const request = index.getAll(false);
+      const request = objectStore.getAll();
 
       request.onsuccess = () => {
         let sales = request.result;
+        
+        // Filter by synced status (only unsynced sales)
+        sales = sales.filter((sale: OfflineSale) => !sale.synced);
         
         // Filter by businessId if provided
         if (businessId) {
