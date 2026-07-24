@@ -192,11 +192,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F4F4F8] to-[#E8E8F0]">
-        <div className="text-center">
-          <BusmoLogoLoadingSpinner size={120} />
-          <h2 className="text-xl font-semibold text-[#0A0A0F] mb-2 mt-4">Loading Dashboard</h2>
-          <p className="text-[#555568]">Please wait while we check your trial status...</p>
-        </div>
+        <BusmoLogoLoadingSpinner size={200} />
       </div>
     );
   }
