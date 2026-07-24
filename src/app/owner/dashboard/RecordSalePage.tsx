@@ -14,6 +14,7 @@ import { BrevoService } from '@/services/email/brevo-service';
 import { sendFirstSaleCelebrationEmail } from '@/services/email/business-activity-emails';
 import { ReceiptGenerator } from './ReceiptGenerator';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
+import { getOfflineSalesService } from '@/lib/services/offline-sales-service';
 import styles from './RecordSalePage.module.css';
 
 // ═══════════════════════════════════════════
@@ -37,11 +38,133 @@ export function RecordSalePage() {
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingSalesCount, setPendingSalesCount] = useState(0);
 
   // Prevent hydration mismatch
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log('🌐 [RecordSalePage] User is back online');
+      // Trigger sync when coming back online
+      syncOfflineSales();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('📴 [RecordSalePage] User is offline');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [businessId]);
+
+  // Update pending sales count
+  useEffect(() => {
+    const updatePendingCount = async () => {
+      if (!businessId) return;
+      try {
+        const offlineService = getOfflineSalesService();
+        const count = await offlineService.getPendingSalesCount(businessId);
+        setPendingSalesCount(count);
+      } catch (error) {
+        console.error('Error getting pending sales count:', error);
+      }
+    };
+
+    updatePendingCount();
+
+    // Update count periodically when offline
+    const interval = setInterval(() => {
+      if (!isOnline) {
+        updatePendingCount();
+      }
+    }, 5000); // Check every 5 seconds when offline
+
+    return () => clearInterval(interval);
+  }, [businessId, isOnline]);
+
+  // Sync offline sales when coming back online
+  const syncOfflineSales = async () => {
+    if (!businessId || !isOnline) return;
+
+    try {
+      const offlineService = getOfflineSalesService();
+      const pendingSales = await offlineService.getPendingSales(businessId);
+
+      if (pendingSales.length === 0) {
+        console.log('✅ [RecordSalePage] No pending sales to sync');
+        return;
+      }
+
+      console.log(`🔄 [RecordSalePage] Syncing ${pendingSales.length} offline sales`);
+
+      for (const offlineSale of pendingSales) {
+        try {
+          const { auth, firestore } = initializeFirebase();
+          const user = auth.currentUser;
+
+          if (!user || !firestore) {
+            console.error('❌ [RecordSalePage] Not authenticated for sync');
+            continue;
+          }
+
+          // Create sale document in Firestore
+          const saleData = {
+            products: offlineSale.items,
+            totalRevenue: offlineSale.totalRevenue,
+            totalCost: offlineSale.totalCost,
+            profit: offlineSale.totalProfit,
+            paymentBreakdown: [{ method: offlineSale.paymentType, amount: offlineSale.totalRevenue }],
+            paymentMethod: offlineSale.paymentType,
+            expectedCash: offlineSale.paymentType === 'cash' ? offlineSale.totalRevenue : 0,
+            expectedBank: offlineSale.paymentType !== 'cash' ? offlineSale.totalRevenue : 0,
+            note: `Recorded offline at ${new Date(offlineSale.createdAt).toLocaleString()}`,
+            businessId: offlineSale.businessId,
+            sourceLocation: 'main_store',
+            sourceLocationName: 'Main Store',
+            recordedBy: offlineSale.recordedBy,
+            createdAt: Timestamp.now(),
+            recordedAt: Timestamp.now(),
+          };
+
+          const saleRef = await addDoc(collection(firestore, 'businesses', offlineSale.businessId, 'sales'), saleData);
+
+          console.log(`✅ [RecordSalePage] Synced sale ${offlineSale.id} as ${saleRef.id}`);
+
+          // Mark as synced
+          await offlineService.markAsSynced(offlineSale.id);
+
+          // Delete from offline storage after successful sync
+          await offlineService.deleteSale(offlineSale.id);
+
+          showToast(`Synced offline sale: ${formatMoney(offlineSale.totalRevenue)}`);
+        } catch (error) {
+          console.error(`❌ [RecordSalePage] Failed to sync sale ${offlineSale.id}:`, error);
+          await offlineService.updateSyncAttempt(offlineSale.id, error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+
+      // Refresh products after sync to update stock
+      refreshProducts();
+      
+      // Update pending sales count
+      const remainingCount = await offlineService.getPendingSalesCount(businessId);
+      setPendingSalesCount(remainingCount);
+    } catch (error) {
+      console.error('❌ [RecordSalePage] Error syncing offline sales:', error);
+    }
+  };
 
   // Add effect to listen for data refresh events triggered by MO
   useEffect(() => {
@@ -461,6 +584,74 @@ export function RecordSalePage() {
       const userRole = userData?.role || 'Owner';
       const staffId = userData?.staffId || null;
       const staffName = userData?.displayName || user.displayName || 'Unknown';
+
+      // Check if offline - store sale locally
+      if (!isOnline) {
+        console.log('📴 [RecordSalePage] User is offline, storing sale locally');
+        
+        const offlineService = getOfflineSalesService();
+        const offlineSaleId = await offlineService.storeOfflineSale({
+          businessId,
+          userId: user.uid,
+          items: cart.map(item => ({
+            productId: item.id.toString(),
+            name: item.name,
+            quantity: item.qty,
+            price: item.price,
+            costPrice: item.costPrice,
+            emoji: item.emoji,
+          })),
+          paymentType: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'cash',
+          totalRevenue: finalTotal,
+          totalCost: cart.reduce((s, i) => s + i.costPrice * i.qty, 0),
+          totalProfit: profit,
+          recordedBy: {
+            uid: user.uid,
+            email: user.email || '',
+            displayName: staffName,
+            role: userRole,
+            staffId: staffId,
+          },
+        });
+
+        console.log(`✅ [RecordSalePage] Sale stored offline with ID: ${offlineSaleId}`);
+        showToast(`Sale saved offline (${formatMoney(finalTotal)}). Will sync when you're back online.`);
+        
+        // Update pending sales count
+        setPendingSalesCount(prev => prev + 1);
+        
+        // Clear cart and reset form
+        setCart([]);
+        setPaymentBreakdown([]);
+        setNote('');
+        setDiscountValue(0);
+        setIsProcessingSale(false);
+        
+        // Show receipt for offline sale
+        const receiptData = {
+          saleId: offlineSaleId,
+          items: cart.map(item => ({
+            name: item.name,
+            quantity: item.qty,
+            price: item.price,
+            total: item.price * item.qty,
+          })),
+          subtotal: subtotal,
+          discount: discount,
+          total: finalTotal,
+          paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
+          paymentBreakdown: paymentBreakdown,
+          businessName: 'Offline Sale',
+          date: new Date().toISOString(),
+          recordedBy: staffName,
+          note: 'Recorded offline - will sync when online',
+        };
+        
+        setCurrentReceipt(receiptData);
+        setShowReceipt(true);
+        
+        return;
+      }
 
     // Get source location name
     const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
@@ -1032,7 +1223,28 @@ export function RecordSalePage() {
           <h2 className={styles.pageTitle}>{t('sale.title')}</h2>
           <p className={styles.pageDesc}>{t('sale.subtitle')}</p>
         </div>
-        <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {pendingSalesCount > 0 && (
+            <div style={{
+              background: isOnline ? 'var(--orange-bg)' : 'var(--red-bg)',
+              color: isOnline ? 'var(--orange)' : 'var(--red)',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+              {pendingSalesCount} pending sale{pendingSalesCount !== 1 ? 's' : ''}
+              {isOnline ? ' (syncing...)' : ' (offline)'}
+            </div>
+          )}
+          <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
+        </div>
       </div>
 
       <div className={styles.layout}>
