@@ -277,6 +277,46 @@ export type TranslationDict = {
   'welcome.ctaButton':string; 'welcome.faqTitle':string; 'welcome.liveOpp':string;
   'welcome.platformFeatures':string; 'welcome.offlineFirst':string; 'welcome.verified':string;
   'welcome.open':string; 'welcome.roi':string;
+  // Toast Messages
+  'toast.loggedOutSuccess':string; 'toast.loggedOutFailed':string;
+  'toast.fillRequiredFields':string; 'toast.staffAddedSuccess':string;
+  'toast.staffCreateFailed':string; 'toast.staffRemoveFailed':string;
+  'toast.staffBanFailed':string; 'toast.targetsUpdated':string;
+  'toast.targetsUpdateFailed':string; 'toast.permissionsUpdated':string;
+  'toast.permissionsUpdateFailed':string; 'toast.credentialsCopied':string;
+  'toast.credentialsDownloaded':string; 'toast.credentialsImageFailed':string;
+  'toast.featureComingSoon':string; 'toast.inventoryModeSaved':string;
+  'toast.inventoryModeFailed':string; 'toast.subscriptionCancelled':string;
+  'toast.subscriptionCancelFailed':string; 'toast.receiptSupermarket':string;
+  'toast.receiptInvoice':string; 'toast.receiptFailed':string;
+  'toast.invoiceReleaseFailed':string; 'toast.warehouseLoadFailed':string;
+  'toast.businessNotAvailable':string; 'toast.invalidTransfer':string;
+  'toast.stockTransferred':string; 'toast.invalidAdjustment':string;
+  'toast.stockRequestFailed':string; 'toast.returnFailed':string;
+  'toast.invalidWarehouse':string; 'toast.warehouseCreated':string;
+  'toast.warehouseCreateFailed':string; 'toast.warehouseDeleted':string;
+  'toast.warehouseDeleteFailed':string; 'toast.ingredientsRefreshFailed':string;
+  'toast.enterProductName':string; 'toast.enterSellingPrice':string;
+  'toast.enterCostPrice':string; 'toast.databaseNotConnected':string;
+  'toast.businessIdNotFound':string; 'toast.storageNotAvailable':string;
+  'toast.uploadPermissionDenied':string; 'toast.uploadCancelled':string;
+  'toast.uploadFailed':string; 'toast.uploadImageFailed':string;
+  'toast.productSaveFailed':string; 'toast.suppliersLoadFailed':string;
+  'toast.supplierDetailsFailed':string; 'toast.supplierCreated':string;
+  'toast.supplierCreateFailed':string; 'toast.supplierUpdated':string;
+  'toast.supplierUpdateFailed':string; 'toast.supplierDeleted':string;
+  'toast.supplierDeleteFailed':string; 'toast.statementLoadFailed':string;
+  'toast.accountabilityLoadFailed':string; 'toast.customerUpdated':string;
+  'toast.customerAdded':string; 'toast.customerSaveFailed':string;
+  'toast.customerDeleted':string; 'toast.customerDeleteFailed':string;
+  'toast.salaryInvalid':string; 'toast.salarySaved':string;
+  'toast.salarySaveFailed':string; 'toast.plLoadFailed':string;
+  'toast.reportExported':string; 'toast.productsLoadFailed':string;
+  'toast.systemNotReady':string; 'toast.creditCustomerRequired':string;
+  'toast.authRequired':string; 'toast.creditDueDateRequired':string;
+  'toast.creditSaleRecorded':string; 'toast.saleSaveFailed':string;
+  'toast.staffRemoved':string; 'toast.receiptThemeSaved':string;
+  'toast.receiptThemeFailed':string; 'toast.proFeatureRequired':string;
 };
 
 // ════════════════════════════════════════════════════════
@@ -570,6 +610,46 @@ const en: TranslationDict = {
   'welcome.verified':'Verified',
   'welcome.open':'Open',
   'welcome.roi':'{roi} ROI',
+  // Toast Messages
+  'toast.loggedOutSuccess':'Logged out successfully','toast.loggedOutFailed':'Failed to logout',
+  'toast.fillRequiredFields':'Please fill in required fields','toast.staffAddedSuccess':'Staff member added successfully!',
+  'toast.staffCreateFailed':'Failed to create staff member. Please try again.','toast.staffRemoveFailed':'Failed to remove staff member',
+  'toast.staffBanFailed':'Failed to ban staff member','toast.targetsUpdated':'Targets updated successfully',
+  'toast.targetsUpdateFailed':'Failed to update targets','toast.permissionsUpdated':'Permissions updated successfully',
+  'toast.permissionsUpdateFailed':'Failed to update permissions','toast.credentialsCopied':'Credentials copied to clipboard',
+  'toast.credentialsDownloaded':'Credentials image downloaded','toast.credentialsImageFailed':'Failed to generate credentials image',
+  'toast.featureComingSoon':'Feature coming soon','toast.inventoryModeSaved':'Inventory deduction mode saved',
+  'toast.inventoryModeFailed':'Failed to save inventory deduction mode','toast.subscriptionCancelled':'Subscription cancellation requested. You will retain access until the end of your billing period.',
+  'toast.subscriptionCancelFailed':'Failed to cancel subscription. Please contact support.','toast.receiptSupermarket':'Receipt set to Supermarket style',
+  'toast.receiptInvoice':'Receipt set to Sale Invoice','toast.receiptFailed':'Failed to save receipt type',
+  'toast.invoiceReleaseFailed':'Failed to release invoice','toast.warehouseLoadFailed':'Failed to load warehouse data',
+  'toast.businessNotAvailable':'Business information not available','toast.invalidTransfer':'Invalid transfer quantity',
+  'toast.stockTransferred':'Stock transferred successfully','toast.invalidAdjustment':'Invalid adjustment quantity',
+  'toast.stockRequestFailed':'Failed to process stock request','toast.returnFailed':'Failed to process return',
+  'toast.invalidWarehouse':'Invalid warehouse name','toast.warehouseCreated':'Warehouse created successfully',
+  'toast.warehouseCreateFailed':'Failed to create warehouse','toast.warehouseDeleted':'Warehouse deleted successfully',
+  'toast.warehouseDeleteFailed':'Failed to delete warehouse','toast.ingredientsRefreshFailed':'Error refreshing ingredients. Please try again.',
+  'toast.enterProductName':'Please enter a product name','toast.enterSellingPrice':'Please enter a valid selling price',
+  'toast.enterCostPrice':'Please enter a valid cost price','toast.databaseNotConnected':'Database not connected',
+  'toast.businessIdNotFound':'Business ID not found. Please ensure you are associated with a business.','toast.storageNotAvailable':'Storage not available. Please check your connection.',
+  'toast.uploadPermissionDenied':'Permission denied. You may not have access to upload images.','toast.uploadCancelled':'Upload was cancelled.',
+  'toast.uploadFailed':'Upload failed. Please check your internet connection.','toast.uploadImageFailed':'Failed to upload image: ',
+  'toast.productSaveFailed':'Error saving product: ','toast.suppliersLoadFailed':'Failed to load suppliers',
+  'toast.supplierDetailsFailed':'Failed to load supplier details','toast.supplierCreated':'Supplier created successfully',
+  'toast.supplierCreateFailed':'Failed to create supplier','toast.supplierUpdated':'Supplier updated successfully',
+  'toast.supplierUpdateFailed':'Failed to update supplier','toast.supplierDeleted':'Supplier deleted successfully',
+  'toast.supplierDeleteFailed':'Failed to delete supplier','toast.statementLoadFailed':'Failed to load statement data',
+  'toast.accountabilityLoadFailed':'Failed to load accountability data','toast.customerUpdated':'Customer updated successfully',
+  'toast.customerAdded':'Customer added successfully','toast.customerSaveFailed':'Failed to save customer',
+  'toast.customerDeleted':'Customer deleted successfully','toast.customerDeleteFailed':'Failed to delete customer',
+  'toast.salaryInvalid':'Please enter a valid salary amount','toast.salarySaved':'Salary configuration saved successfully',
+  'toast.salarySaveFailed':'Failed to save salary configuration','toast.plLoadFailed':'Failed to load P&L data',
+  'toast.reportExported':'Report exported successfully','toast.productsLoadFailed':'Failed to load products',
+  'toast.systemNotReady':'System not ready. Please refresh the page.','toast.creditCustomerRequired':'Please select an existing customer or enter a new customer name for credit payment',
+  'toast.authRequired':'Authentication required','toast.creditDueDateRequired':'Please specify a due date for credit sales',
+  'toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Failed to save sale. Please try again.',
+  'toast.staffRemoved':'Staff member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully',
+  'toast.receiptThemeFailed':'Failed to save theme','toast.proFeatureRequired':'This feature requires a Pro plan or higher',
 };
 
 // ════════════════════════════════════════════════════════

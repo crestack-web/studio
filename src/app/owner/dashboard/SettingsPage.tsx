@@ -106,12 +106,12 @@ export default function SettingsPage() {
     try {
       const auth = getAuth();
       await signOut(auth);
-      showToast('Logged out successfully');
+      showToast(t('toast.loggedOutSuccess'));
       // Redirect to login page
       window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
-      showToast('Failed to logout');
+      showToast(t('toast.loggedOutFailed'));
     }
   };
 
@@ -305,7 +305,7 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to save inventory deduction mode:', error);
-      showToast('Failed to save inventory deduction mode');
+      showToast(t('toast.inventoryModeFailed'));
     }
   };
 
@@ -327,12 +327,12 @@ export default function SettingsPage() {
           subscriptionStatus: 'cancelled',
           cancellationRequestedAt: new Date(),
         });
-        showToast('Subscription cancellation requested. You will retain access until the end of your billing period.');
+        showToast(t('toast.subscriptionCancelled'));
         setSubscription(prev => ({ ...prev, status: 'cancelled' }));
       }
     } catch (error) {
       console.error('Failed to cancel subscription:', error);
-      showToast('Failed to cancel subscription. Please contact support.');
+      showToast(t('toast.subscriptionCancelFailed'));
     } finally {
       setIsCancellingSubscription(false);
     }
@@ -718,11 +718,11 @@ export default function SettingsPage() {
                       await updateDoc(doc(firestore, 'businesses', user.businessId), {
                         receiptType: 'supermarket',
                       });
-                      showToast('Receipt set to Supermarket style');
+                      showToast(t('toast.receiptSupermarket'));
                     }
                   } catch (error) {
                     console.error('Failed to save receipt type:', error);
-                    showToast('Failed to save receipt type');
+                    showToast(t('toast.receiptFailed'));
                   }
                 }}
               />
@@ -742,11 +742,11 @@ export default function SettingsPage() {
                       await updateDoc(doc(firestore, 'businesses', user.businessId), {
                         receiptType: 'invoice',
                       });
-                      showToast('Receipt set to Sale Invoice');
+                      showToast(t('toast.receiptInvoice'));
                     }
                   } catch (error) {
                     console.error('Failed to save receipt type:', error);
-                    showToast('Failed to save receipt type');
+                    showToast(t('toast.receiptFailed'));
                   }
                 }}
               />
@@ -817,7 +817,7 @@ export default function SettingsPage() {
           </div>
           <button
             className={styles.dangerBtn}
-            onClick={() => showToast('Please contact support to delete your account.')}
+            onClick={() => showToast(t('toast.featureComingSoon'))}
           >
             <ShieldAlert size={16} style={{ marginRight: '8px' }} />
             {t('settings.deleteData')}

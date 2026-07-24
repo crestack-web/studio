@@ -270,7 +270,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       console.log('✅ [AddProductPage] Ingredients refreshed successfully');
     } catch (error) {
       console.error('❌ [AddProductPage] Error refreshing ingredients:', error);
-      showToast('Error refreshing ingredients. Please try again.');
+      showToast(t('toast.ingredientsRefreshFailed'));
     }
   };
 
@@ -378,31 +378,31 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
 
   async function handleSave(draft = false) {
     if (!form.name.trim()) {
-      showToast('⚠️ Please enter a product name');
+      showToast(t('toast.enterProductName'));
       return;
     }
     
     // Only require selling price for non-ingredient products
     if (form.productType !== 'ingredient' && (!form.sellPrice || parseFloat(form.sellPrice) <= 0)) {
-      showToast('⚠️ Please enter a valid selling price');
+      showToast(t('toast.enterSellingPrice'));
       return;
     }
 
     // Cost price is required for all products including ingredients
     if (!form.costPrice || parseFloat(form.costPrice) <= 0) {
-      showToast('⚠️ Please enter a valid cost price');
+      showToast(t('toast.enterCostPrice'));
       return;
     }
 
     // Get fresh Firestore instance
     const { firestore: freshFirestore } = initializeFirebase();
     if (!freshFirestore) {
-      showToast('⚠️ Database not connected');
+      showToast(t('toast.databaseNotConnected'));
       return;
     }
 
     if (!businessId) {
-      showToast('⚠️ Business ID not found. Please ensure you are associated with a business.');
+      showToast(t('toast.businessIdNotFound'));
       return;
     }
 
@@ -418,7 +418,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         const { storage } = initializeFirebase();
         if (!storage) {
           console.error('❌ Firebase Storage not initialized');
-          showToast('❌ Storage not available. Please check your connection.');
+          showToast(t('toast.storageNotAvailable'));
           return;
         }
         
@@ -442,13 +442,13 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           // Provide user-friendly error messages based on error type
           const errorCode = (uploadError as any).code;
           if (errorCode === 'storage/unauthorized') {
-            showToast('❌ Permission denied. You may not have access to upload images.');
+            showToast(t('toast.uploadPermissionDenied'));
           } else if (errorCode === 'storage/canceled') {
-            showToast('❌ Upload was cancelled.');
+            showToast(t('toast.uploadCancelled'));
           } else if (errorCode === 'storage/unknown') {
-            showToast('❌ Upload failed. Please check your internet connection.');
+            showToast(t('toast.uploadFailed'));
           } else {
-            showToast('❌ Failed to upload image: ' + (uploadError as any).message);
+            showToast(t('toast.uploadImageFailed') + (uploadError as any).message);
           }
           return;
         }
@@ -540,7 +540,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         code: (error as any).code,
         stack: (error as any).stack,
       });
-      showToast('🔥 Error saving product: ' + (error as any).message);
+      showToast(t('toast.productSaveFailed') + (error as any).message);
     } finally {
       setIsLoading(false);
     }

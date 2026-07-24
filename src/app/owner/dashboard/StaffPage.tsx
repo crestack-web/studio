@@ -320,7 +320,7 @@ export default function StaffPage() {
 
   const handleAddStaff = async () => {
     if (!newStaffName.trim() || !newStaffRole.trim() || !newStaffEmail.trim()) {
-      showToast('Please fill in required fields');
+      showToast(t('toast.fillRequiredFields'));
       return;
     }
 
@@ -409,7 +409,7 @@ export default function StaffPage() {
       setShowAddModal(false);
       setNewStaffCredentials({ staffId, password, name: newStaff.name, email: newStaffEmail.trim() });
       setShowCredentialsModal(true);
-      showToast('Staff member added successfully!');
+      showToast(t('toast.staffAddedSuccess'));
       setIsAddingStaff(false);
       
       // Send staff invitation email using Brevo
@@ -449,7 +449,7 @@ export default function StaffPage() {
       }));
     } catch (error: any) {
       console.error('Error creating staff member:', error);
-      showToast('Failed to create staff member. Please try again.');
+      showToast(t('toast.staffCreateFailed'));
       setIsAddingStaff(false);
     }
   };
@@ -514,7 +514,7 @@ export default function StaffPage() {
       setIsRemovingStaff(false);
     } catch (error) {
       console.error('Error removing staff:', error);
-      showToast('Failed to remove staff member');
+      showToast(t('toast.staffRemoveFailed'));
       setIsRemovingStaff(false);
     }
   };
@@ -549,7 +549,7 @@ export default function StaffPage() {
         setIsBanningStaff(false);
       } catch (error) {
         console.error('Error banning staff:', error);
-        showToast('Failed to ban staff member');
+        showToast(t('toast.staffBanFailed'));
         setIsBanningStaff(false);
       }
     }
@@ -610,11 +610,11 @@ export default function StaffPage() {
 
       setShowTargetModal(false);
       setTargetStaff(null);
-      showToast('Targets updated successfully');
+      showToast(t('toast.targetsUpdated'));
       setIsSavingTargets(false);
     } catch (error) {
       console.error('Error updating targets:', error);
-      showToast('Failed to update targets');
+      showToast(t('toast.targetsUpdateFailed'));
       setIsSavingTargets(false);
     }
   };
@@ -669,11 +669,11 @@ export default function StaffPage() {
 
       setShowEditModal(false);
       setEditingStaff(null);
-      showToast('Permissions updated successfully');
+      showToast(t('toast.permissionsUpdated'));
       setIsSavingPermissions(false);
     } catch (error) {
       console.error('Error updating permissions:', error);
-      showToast('Failed to update permissions');
+      showToast(t('toast.permissionsUpdateFailed'));
       setIsSavingPermissions(false);
     }
   };
@@ -728,7 +728,7 @@ export default function StaffPage() {
     if (!newStaffCredentials) return;
     const credentials = `Staff Login Credentials\n\nName: ${newStaffCredentials.name}\nEmail: ${newStaffCredentials.email}\nStaff ID: ${newStaffCredentials.staffId}\nPassword: ${newStaffCredentials.password}`;
     navigator.clipboard.writeText(credentials);
-    showToast('Credentials copied to clipboard');
+    showToast(t('toast.credentialsCopied'));
   };
 
   const downloadCredentialsAsImage = async () => {
@@ -751,12 +751,12 @@ export default function StaffPage() {
           link.download = `${newStaffCredentials.name.replace(/\s+/g, '_')}_credentials.png`;
           link.click();
           URL.revokeObjectURL(url);
-          showToast('Credentials image downloaded');
+          showToast(t('toast.credentialsDownloaded'));
         }
       });
     } catch (error) {
       console.error('Error generating credentials image:', error);
-      showToast('Failed to generate credentials image');
+      showToast(t('toast.credentialsImageFailed'));
     }
   };
 
@@ -998,10 +998,10 @@ export default function StaffPage() {
               >
                 + Configure Salary
               </Button>
-              <Button variant="subtle" size="sm" onClick={() => showToast('Payroll history coming soon')}>
+              <Button variant="subtle" size="sm" onClick={() => showToast(t('toast.featureComingSoon'))}>
                 Payroll History
               </Button>
-              <Button variant="subtle" size="sm" onClick={() => showToast('Export feature coming soon')}>
+              <Button variant="subtle" size="sm" onClick={() => showToast(t('toast.featureComingSoon'))}>
                 Export
               </Button>
             </div>

@@ -189,7 +189,7 @@ export default function SuppliersPage() {
       setSuppliers(suppliersList);
     } catch (error) {
       console.error('Error loading suppliers:', error);
-      showToast('❌ Failed to load suppliers');
+      showToast(t('toast.suppliersLoadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +201,7 @@ export default function SuppliersPage() {
     
     try {
       if (!user?.businessId) {
-        showToast('⚠️ Business ID not found');
+        showToast(t('toast.businessIdNotFound'));
         setIsLoadingDetails(false);
         return;
       }
@@ -277,7 +277,7 @@ export default function SuppliersPage() {
       setSupplierProducts(productsList);
     } catch (error) {
       console.error('Error loading supplier details:', error);
-      showToast('❌ Failed to load supplier details');
+      showToast(t('toast.supplierDetailsFailed'));
     } finally {
       setIsLoadingDetails(false);
     }
@@ -292,7 +292,7 @@ export default function SuppliersPage() {
   const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user?.businessId || !firestore) {
-      showToast('⚠️ Business ID not found');
+      showToast(t('toast.businessIdNotFound'));
       return;
     }
 
@@ -338,12 +338,12 @@ export default function SuppliersPage() {
       };
 
       await addDoc(suppliersRef, newSupplier);
-      showToast('✅ Supplier created successfully');
+      showToast(t('toast.supplierCreated'));
       setShowAddSupplierModal(false);
       loadSuppliers();
     } catch (error) {
       console.error('Error creating supplier:', error);
-      showToast('❌ Failed to create supplier');
+      showToast(t('toast.supplierCreateFailed'));
     } finally {
       setIsCreatingSupplier(false);
     }

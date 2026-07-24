@@ -311,7 +311,7 @@ export function WarehousePage() {
       loadProducts();
     } catch (error) {
       console.error('Error releasing invoice:', error);
-      showToast('❌ Failed to release invoice');
+      showToast(t('toast.invoiceReleaseFailed'));
     }
   };
 
@@ -381,7 +381,7 @@ export function WarehousePage() {
       await loadTransferHistory();
     } catch (error) {
       console.error('Error loading products:', error);
-      showToast('❌ Failed to load warehouse data');
+      showToast(t('toast.warehouseLoadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -502,12 +502,12 @@ export function WarehousePage() {
 
   const handleTransfer = async (product: Product, target: string, quantity: number) => {
     if (!businessId || !firestore) {
-      showToast('❌ Business information not available');
+      showToast(t('toast.businessNotAvailable'));
       return;
     }
 
     if (quantity <= 0 || quantity > product.stock) {
-      showToast('❌ Invalid transfer quantity');
+      showToast(t('toast.invalidTransfer'));
       return;
     }
 
@@ -554,7 +554,7 @@ export function WarehousePage() {
         });
       });
 
-      showToast('✅ Stock transferred successfully');
+      showToast(t('toast.stockTransferred'));
       await loadProducts();
       setSelectedLocation('all');
     } catch (error: any) {
@@ -565,12 +565,12 @@ export function WarehousePage() {
 
   const handleAdjustment = async (product: Product, quantity: number, reason: 'damaged' | 'lost' | 'expired' | 'recount', notes: string) => {
     if (!businessId || !firestore) {
-      showToast('❌ Business information not available');
+      showToast(t('toast.businessNotAvailable'));
       return;
     }
 
     if (quantity <= 0 || quantity > product.stock) {
-      showToast('❌ Invalid adjustment quantity');
+      showToast(t('toast.invalidAdjustment'));
       return;
     }
 
@@ -632,7 +632,7 @@ export function WarehousePage() {
 
   const handleStockRequest = async (requestId: string, approved: boolean) => {
     if (!businessId || !firestore) {
-      showToast('❌ Business information not available');
+      showToast(t('toast.businessNotAvailable'));
       return;
     }
 
@@ -652,13 +652,13 @@ export function WarehousePage() {
       setRequestNotes('');
     } catch (error) {
       console.error('Error processing stock request:', error);
-      showToast('❌ Failed to process stock request');
+      showToast(t('toast.stockRequestFailed'));
     }
   };
 
   const handleReturn = async (returnId: string, approved: boolean) => {
     if (!businessId || !firestore) {
-      showToast('❌ Business information not available');
+      showToast(t('toast.businessNotAvailable'));
       return;
     }
 
@@ -717,7 +717,7 @@ export function WarehousePage() {
       setReturnNotes('');
     } catch (error) {
       console.error('Error processing return:', error);
-      showToast('❌ Failed to process return');
+      showToast(t('toast.returnFailed'));
     }
   };
 
@@ -1451,7 +1451,7 @@ export function WarehousePage() {
                       .replace(/^_+|_+$/g, '');
 
                     if (!slug) {
-                      showToast('❌ Invalid warehouse name');
+                      showToast(t('toast.invalidWarehouse'));
                       return;
                     }
 
@@ -1476,10 +1476,10 @@ export function WarehousePage() {
                       await loadStockLocations();
                       setShowAddModal(false);
                       setNewLocationName('');
-                      showToast('✅ Warehouse created successfully');
+                      showToast(t('toast.warehouseCreated'));
                     } catch (error) {
                       console.error('❌ [WarehousePage] Error creating warehouse:', error);
-                      showToast('❌ Failed to create warehouse');
+                      showToast(t('toast.warehouseCreateFailed'));
                     } finally {
                       setIsCreatingWarehouse(false);
                     }
@@ -1523,10 +1523,10 @@ export function WarehousePage() {
 
                       await loadProducts();
                       setLocationToDelete(null);
-                      showToast('✅ Warehouse deleted successfully');
+                      showToast(t('toast.warehouseDeleted'));
                     } catch (error) {
                       console.error('Error deleting warehouse:', error);
-                      showToast('❌ Failed to delete warehouse');
+                      showToast(t('toast.warehouseDeleteFailed'));
                     }
                   }}
                 >
