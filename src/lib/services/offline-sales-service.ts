@@ -20,7 +20,7 @@ export interface OfflineSale {
     costPrice: number;
     emoji?: string;
   }>;
-  paymentType: 'cash' | 'transfer' | 'pos' | 'credit';
+  paymentType: 'cash' | 'transfer' | 'pos' | 'credit' | 'split';
   totalRevenue: number;
   totalCost: number;
   totalProfit: number;
