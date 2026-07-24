@@ -7,9 +7,6 @@ const API_CACHE = 'busmo-api-v1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/dashboard-logo.svg',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
   '/email-logo.svg',
   '/email-logo.png',
   '/busmogo.png',
@@ -20,7 +17,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        return cache.addAll(STATIC_ASSETS);
+        return cache.addAll(STATIC_ASSETS.map(url => {
+          return new Request(url, { cache: 'reload' });
+        })).catch(err => {
+          console.log('Failed to cache some static assets:', err);
+          // Continue even if some assets fail to cache
+          return Promise.resolve();
+        });
       })
       .then(() => self.skipWaiting())
   );
