@@ -3,7 +3,7 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -36,25 +36,10 @@ export function initializeFirebase(): { firebaseApp: FirebaseApp; auth: Auth; fi
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
-  const firestore = getFirestore(firebaseApp);
-  
-  // Enable offline persistence for Firestore
-  if (typeof window !== 'undefined') {
-    enableIndexedDbPersistence(firestore).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.log('Firestore persistence already enabled in another tab');
-      } else if (err.code === 'unimplemented') {
-        console.log('Firestore persistence not supported in this browser');
-      } else {
-        console.error('Error enabling Firestore persistence:', err);
-      }
-    });
-  }
-
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore,
+    firestore: getFirestore(firebaseApp),
     storage: getStorage(firebaseApp)
   };
 }

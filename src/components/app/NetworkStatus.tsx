@@ -7,8 +7,11 @@ export function NetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
   const [showNotification, setShowNotification] = useState(false);
   const [status, setStatus] = useState<'online' | 'offline'>('online');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
+    
     const handleOnline = () => {
       if (!isOnline) {
         setStatus('online');
@@ -26,7 +29,9 @@ export function NetworkStatus() {
     };
 
     // Check initial state
-    setIsOnline(navigator.onLine);
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);

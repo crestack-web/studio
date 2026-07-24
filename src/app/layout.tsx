@@ -37,8 +37,6 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen">
         <PwaRegister />
-        <NetworkStatus />
-        <NetworkStatusStyles />
         {children}
       </body>
     </html>
