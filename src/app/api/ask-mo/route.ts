@@ -623,13 +623,13 @@ export async function POST(request: NextRequest) {
       console.log('🎯 [Ask MO API] Intent detected for execution:', intent.intent, 'with data:', intent.data);
       
       // Check permissions (inline implementation)
-      const hasPermission = userRole === 'owner' || userRole === 'admin' || 
-        (userRole === 'staff' && ['record_sale', 'add_product', 'update_product'].includes(intent.intent));
+      // Ask MO is only available to owners and admins
+      const hasPermission = userRole === 'owner' || userRole === 'admin';
       
       if (!hasPermission) {
         console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on intent:', intent.intent);
         return NextResponse.json({
-          answer: `Sorry, you don't have permission to ${intent.intent.replace('_', ' ')}. Please contact your administrator.`,
+          answer: `Sorry, Ask MO is only available to business owners and administrators.`,
           intent,
           permissionDenied: true,
           timestamp: new Date().toISOString()
@@ -1015,13 +1015,26 @@ ${processingResult.nextAction}`;
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, businessId, userId } = body;
+    const { action, businessId, userId, userRole } = body;
 
     if (!action || !businessId || !userId) {
       return NextResponse.json(
         { error: 'Missing required fields: action, businessId, userId' },
         { status: 400 }
       );
+    }
+
+    // Check permissions (inline implementation)
+    // Ask MO is only available to owners and admins
+    const hasPermission = userRole === 'owner' || userRole === 'admin';
+    
+    if (!hasPermission) {
+      console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on action:', action.action);
+      return NextResponse.json({
+        success: false,
+        message: `Sorry, Ask MO is only available to business owners and administrators.`,
+        permissionDenied: true,
+      });
     }
 
     console.log('🎯 [Ask MO API] Executing action:', action.action);

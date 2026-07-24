@@ -440,6 +440,7 @@ export function HomePage() {
         language: lang,
         languageName: langMeta?.englishName || 'English',
         businessCategory: businessCategory,
+        userRole: user?.role,
       }),
     })
     .then(res => res.json())

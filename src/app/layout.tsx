@@ -5,6 +5,7 @@
 import { ReactNode } from 'react';
 import Script from 'next/script';
 import './globals.css';
+import { PwaRegister } from '@/components/app/pwa-register';
 
 export default function RootLayout({
   children,
@@ -34,6 +35,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen">
+        <PwaRegister />
         {children}
       </body>
     </html>

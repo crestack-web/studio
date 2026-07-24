@@ -51,6 +51,7 @@ export default function CapitalPage() {
     recordingConsistency: 0,
   });
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [currency, setCurrency] = useState('NGN');
 
   useEffect(() => {
     async function loadCapitalData() {
@@ -73,6 +74,13 @@ export default function CapitalPage() {
 
         const userData = userDoc.data();
         const businessId = userData.businessId || user.id;
+
+        // Fetch business config to get currency
+        const businessConfigDoc = await getDoc(doc(firestore, 'businesses', businessId, 'store', 'config'));
+        if (businessConfigDoc.exists()) {
+          const businessConfig = businessConfigDoc.data();
+          setCurrency(businessConfig.currency || 'NGN');
+        }
 
         // Fetch business data
         const [salesSnapshot, expensesSnapshot] = await Promise.all([
@@ -210,7 +218,7 @@ export default function CapitalPage() {
           {
             id: 'cashflow',
             label: 'Positive Cash Flow',
-            detail: formatCurrency(cashBalance),
+            detail: formatCurrency(cashBalance, currency),
             status: cashBalance > 0 ? 'done' : 'todo',
           },
           {
@@ -353,7 +361,7 @@ export default function CapitalPage() {
                 <path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
               </svg>
             </div>
-            <div className={styles.statValue}>{formatCurrency(stats.cashBalance)}</div>
+            <div className={styles.statValue}>{formatCurrency(stats.cashBalance, currency)}</div>
             <div className={styles.statLabel}>Cash Balance</div>
           </div>
           <div className={styles.statBox}>

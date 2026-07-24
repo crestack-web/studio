@@ -152,6 +152,7 @@ export function MobileAskMOPage() {
             action: pendingAction,
             businessId: user.businessId || user.id,
             userId: user.id,
+            userRole: user.role,
           }),
         });
 
@@ -539,6 +540,7 @@ export function MobileAskMOPage() {
         languageName: langMeta.name,
         businessCategory: businessCategory,
         businessSummary: businessSummary,
+        userRole: user.role,
       };
       
       console.log('📤 [MobileAskMO] Request payload:', {
