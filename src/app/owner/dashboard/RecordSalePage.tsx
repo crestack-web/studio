@@ -647,7 +647,7 @@ export function RecordSalePage() {
           note: 'Recorded offline - will sync when online',
         };
         
-        setCurrentReceipt(receiptData);
+        setLastSaleData(receiptData);
         setShowReceipt(true);
         
         return;
