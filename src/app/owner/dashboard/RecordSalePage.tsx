@@ -1032,28 +1032,7 @@ export function RecordSalePage() {
           <h2 className={styles.pageTitle}>{t('sale.title')}</h2>
           <p className={styles.pageDesc}>{t('sale.subtitle')}</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {pendingSalesCount > 0 && (
-            <div style={{
-              background: isOnline ? 'var(--orange-bg)' : 'var(--red-bg)',
-              color: isOnline ? 'var(--orange)' : 'var(--red)',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-              </svg>
-              {pendingSalesCount} pending sale{pendingSalesCount !== 1 ? 's' : ''}
-              {isOnline ? ' (syncing...)' : ' (offline)'}
-            </div>
-          )}
-          <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
-        </div>
+        <Button variant="subtle" onClick={() => navigateTo('home')}>← {t('common.back')}</Button>
       </div>
 
       <div className={styles.layout}>
