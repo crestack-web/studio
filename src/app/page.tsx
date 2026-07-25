@@ -20,6 +20,7 @@ import { FAQSection } from './welcome/components/FAQSection';
 import { BusinessCategoriesSlider } from './welcome/components/BusinessCategoriesSlider';
 import { Footer } from './welcome/components/Footer';
 import { AnnouncementBar } from './welcome/components/AnnouncementBar';
+import './welcome/styles/globals.css';
 
 export default function Home() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
