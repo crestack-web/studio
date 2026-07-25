@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
+import { useTranslation } from './LangContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
@@ -49,6 +50,7 @@ let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null
 export default function SuppliersPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
+  const { t } = useTranslation();
   const { firestore } = React.useMemo(() => {
     if (!firestoreInstance) {
       const initialized = initializeFirebase();
