@@ -9,6 +9,7 @@ declare module '@google/generative-ai' {
 
   export interface GenerativeModel {
     generateContent(input: string | { contents: unknown[] } | unknown[]): Promise<GenerateContentResult>;
+    generateContentStream(input: string | { contents: unknown[] } | unknown[]): Promise<GenerateContentStreamResult>;
     startChat(options?: { history?: unknown[] }): ChatSession;
   }
 
@@ -16,6 +17,10 @@ declare module '@google/generative-ai' {
     response: {
       text(): string;
     };
+  }
+
+  export interface GenerateContentStreamResult {
+    stream: AsyncIterable<{ text(): string }>;
   }
 
   export interface ChatSession {

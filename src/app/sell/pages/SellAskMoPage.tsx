@@ -123,7 +123,7 @@ export function SellAskMoPage() {
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Something went wrong';
         setMessages(prev => [
-          prev,
+          ...prev,
           {
             id: nextMsgId(),
             role: 'bot',
@@ -365,22 +365,22 @@ export function SellAskMoPage() {
                               ₦{Number(msg.newProduct.price).toLocaleString()}
                             </span>
                           </div>
-                          {msg.newProduct.category && (
+                          {msg.newProduct.category ? (
                             <div className={styles.actionCardRow}>
                               <span className={styles.actionCardLabel}>Category</span>
                               <span className={styles.actionCardValue}>
                                 {String(msg.newProduct.category)}
                               </span>
                             </div>
-                          )}
-                          {msg.newProduct.digitalFileUrl && (
+                          ) : null}
+                          {msg.newProduct.digitalFileUrl ? (
                             <div className={styles.actionCardRow}>
                               <span className={styles.actionCardLabel}>PDF</span>
                               <span className={styles.actionCardValue} style={{ color: '#16a34a' }}>
                                 ✓ Generated
                               </span>
                             </div>
-                          )}
+                          ) : null}
                         </div>
                         <div className={styles.actionCardFooter}>
                           {msg.productCreated ? (
@@ -504,7 +504,7 @@ function formatLabel(key: string): string {
     .replace(/_/g, ' ');
 }
 
-function formatValue(key: string, value: unknown): string {
+function formatValue(key: string, value: unknown): React.ReactNode {
   if (key === 'primaryColor' || key === 'secondaryColor') {
     const hex = String(value);
     return (
