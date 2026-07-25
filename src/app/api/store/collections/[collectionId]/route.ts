@@ -30,8 +30,7 @@ export async function GET(
     return NextResponse.json({ id: snap.id, ...snap.data() }, {
       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
     });
-  } catch (err) {
-    console.error('[collections/[id]] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

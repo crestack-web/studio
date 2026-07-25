@@ -6,8 +6,8 @@ import { SellSidebar } from './SellSidebar';
 import { SellTopbar } from './SellTopbar';
 import styles from './SellShell.module.css';
 
-import { SellOverview }           from '../pages/SellOverview';
 import { StoreSetupWizard }       from './StoreSetupWizard';
+import { SellOverview }           from '../pages/SellOverview';
 import { SellProductsPage }       from '../pages/SellProductsPage';
 import { SellCollectionsPage }    from '../pages/SellCollectionsPage';
 import { SellOrdersPage }         from '../pages/SellOrdersPage';
@@ -17,18 +17,25 @@ import { SellAnalyticsPage }      from '../pages/SellAnalyticsPage';
 import { ThemeEditorPage }        from '../pages/ThemeEditorPage';
 import { SellEarningsPage }       from '../pages/SellEarningsPage';
 
-const PAGE_MAP: Record<string, React.ReactNode> = {
-  overview:       <SellOverview />,
-  products:       <SellProductsPage />,
-  collections:    <SellCollectionsPage />,
-  orders:         <SellOrdersPage />,
-  shipping:       <SellShippingPage />,
-  analytics:      <SellAnalyticsPage />,
-  earnings:       <SellEarningsPage />,
-  settings:       <SellSettingsPage />,
-  'theme-editor': <ThemeEditorPage />,
-  'setup-wizard': null,
-};
+function renderPage(page: string): React.ReactNode {
+  switch (page) {
+    case 'overview':       return <SellOverview />;
+    case 'products':       return <SellProductsPage />;
+    case 'collections':    return <SellCollectionsPage />;
+    case 'orders':         return <SellOrdersPage />;
+    case 'shipping':       return <SellShippingPage />;
+    case 'analytics':      return <SellAnalyticsPage />;
+    case 'earnings':       return <SellEarningsPage />;
+    case 'settings':       return <SellSettingsPage />;
+    case 'theme-editor':   return <ThemeEditorPage />;
+    default: return (
+      <div className={styles.placeholder}>
+        <h2>Coming Soon</h2>
+        <p>This section is under construction.</p>
+      </div>
+    );
+  }
+}
 
 const FULL_BLEED_PAGES = new Set(['theme-editor']);
 
@@ -49,13 +56,6 @@ export function SellShell() {
     }
   }
 
-  const currentPage = PAGE_MAP[activePage] ?? (
-    <div className={styles.placeholder}>
-      <h2>Coming Soon</h2>
-      <p>This section is under construction.</p>
-    </div>
-  );
-
   const isFullBleed = FULL_BLEED_PAGES.has(activePage);
 
   return (
@@ -71,7 +71,9 @@ export function SellShell() {
 
         <div className={isFullBleed ? styles.pageAreaFullBleed : styles.pageArea}>
           <div className={isFullBleed ? styles.pageFullBleed : styles.page}>
-            {currentPage}
+            {activePage === 'setup-wizard'
+              ? null
+              : renderPage(activePage)}
           </div>
         </div>
       </div>

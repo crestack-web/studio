@@ -14,7 +14,7 @@ function fmt(n: number) {
 
 function buildHtml(body: NewOrderBody): string {
   const { orderNumber, customerName, total, storeName } = body;
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://busmo.io'}/sell`;
+  const dashboardUrl = `${process.env.PUBLIC_APP_URL ?? 'https://busmo.io'}/sell`;
 
   return `<!DOCTYPE html>
 <html lang="en">

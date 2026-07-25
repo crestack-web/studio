@@ -27,32 +27,26 @@ export async function GET(
     let data: FirebaseFirestore.DocumentData | null = null;
     let businessId = '';
 
-    console.log('[store/config] Looking up storeSlug:', storeSlug);
-
     // ── Strategy 1: storeIndex lookup (O(1), always reliable) ────────────────
     // Written by SellSettingsPage and StoreSetupWizard on every save.
     // Path: storeIndex/{storeSlug} → { businessId }
     try {
       const idxDoc = await db.collection('storeIndex').doc(storeSlug).get();
-      console.log('[store/config] storeIndex doc exists:', idxDoc.exists);
       if (idxDoc.exists) {
         const bId = idxDoc.data()?.businessId as string | undefined;
-        console.log('[store/config] Found businessId from storeIndex:', bId);
         if (bId) {
           const configSnap = await db
             .collection('businesses').doc(bId)
             .collection('store').doc('config')
             .get();
-          console.log('[store/config] Config doc exists:', configSnap.exists);
           if (configSnap.exists) {
             data = configSnap.data()!;
             businessId = bId;
-            console.log('[store/config] Config data loaded, storeSlug in config:', data.storeSlug);
           }
         }
       }
-    } catch (e) {
-      console.warn('[store/config] storeIndex lookup failed:', e);
+    } catch {
+      // storeIndex lookup failed, fall through to collectionGroup
     }
 
     // ── Strategy 2: collectionGroup query (fallback) ──────────────────────────
@@ -62,21 +56,17 @@ export async function GET(
           .where('storeSlug', '==', storeSlug)
           .limit(1)
           .get();
-        console.log('[store/config] collectionGroup query results:', snap.empty ? 'empty' : 'found');
         if (!snap.empty) {
           const doc = snap.docs[0];
           data = doc.data();
-          // Path: businesses/{businessId}/store/config
           businessId = doc.ref.path.split('/')[1];
-          console.log('[store/config] Found via collectionGroup, businessId:', businessId);
         }
-      } catch (e) {
-        console.warn('[store/config] collectionGroup query failed (index may be building):', e);
-      }
+    } catch {
+      // collectionGroup query failed (index may be building)
+    }
     }
 
     if (!data) {
-      console.error('[store/config] Store not found for slug:', storeSlug);
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
@@ -106,8 +96,7 @@ export async function GET(
     return NextResponse.json(publicConfig, {
       headers: { 'Cache-Control': 'no-store' },
     });
-  } catch (err) {
-    console.error('[store/config] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

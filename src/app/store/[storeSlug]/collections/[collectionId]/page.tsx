@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { ProductGrid } from '../../components/ProductGrid';
 import type { ProductCardData } from '../../components/ProductCard';
 
-const BASE = () => process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const BASE = () => process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 async function getStoreConfig(storeSlug: string) {
   try {

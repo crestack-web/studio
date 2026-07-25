@@ -32,7 +32,6 @@ export async function GET(req: NextRequest) {
 
     const doc = snap.docs[0];
     const data = doc.data();
-    // Path: businesses/{businessId}/store/config
     const businessId = doc.ref.path.split('/')[1];
 
     return NextResponse.json(
@@ -43,8 +42,7 @@ export async function GET(req: NextRequest) {
         },
       }
     );
-  } catch (err) {
-    console.error('[domain/lookup] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

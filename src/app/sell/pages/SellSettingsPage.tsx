@@ -185,11 +185,15 @@ export function SellSettingsPage() {
     if (!user?.businessId) return;
     try {
       const { firestore } = initializeFirebase();
+      const slug = storeConfig?.storeSlug;
       await setDoc(doc(firestore, 'businesses', user.businessId, 'store', 'config'), { status, updatedAt: serverTimestamp() }, { merge: true });
+      if (slug && status === 'active') {
+        await setDoc(doc(firestore, 'storeIndex', slug), { businessId: user.businessId, storeName: storeConfig?.storeName ?? '', updatedAt: serverTimestamp() });
+      }
       await refreshStoreConfig();
       showToast(status === 'active' ? 'Store is now live!' : status === 'paused' ? 'Store paused' : 'Store set to draft', 'success');
     } catch { showToast('Failed to update store status', 'error'); }
-  }, [user?.businessId, refreshStoreConfig, showToast]);
+  }, [user?.businessId, storeConfig, refreshStoreConfig, showToast]);
 
   const status    = (storeConfig as any)?.status ?? 'draft';
   const domStatus = (storeConfig as any)?.customDomainStatus ?? 'pending';

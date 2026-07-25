@@ -30,7 +30,7 @@ async function sendOrderConfirmationEmail(params: {
 }): Promise<void> {
   // Uses the existing sendgrid pattern in src/services/email/
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/email/order-confirmation`, {
+    await fetch(`${process.env.PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/email/order-confirmation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -48,7 +48,7 @@ async function sendNewOrderEmail(params: {
   storeName: string;
 }): Promise<void> {
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/email/new-order`, {
+    await fetch(`${process.env.PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/email/new-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -144,12 +144,23 @@ export async function processConfirmedOrder(
   });
 
   // ── Write 2: Decrement stock (physical products only) ──────────────────────
+  // Validate stock before decrementing to prevent overselling
   const physicalItems = session.lineItems.filter(item => item.productType === 'physical');
   for (const item of physicalItems) {
     if (!item.productId) continue;
+    const productSnap = await db
+      .collection('businesses').doc(businessId)
+      .collection('storeProducts').doc(item.productId)
+      .get();
+    if (productSnap.exists) {
+      const currentStock = productSnap.data()?.stock ?? 0;
+      if (currentStock < item.quantity) {
+        throw new Error(`Insufficient stock for "${item.displayName}": requested ${item.quantity}, available ${currentStock}`);
+      }
+    }
     const productRef = db
       .collection('businesses').doc(businessId)
-      .collection('products').doc(item.productId);
+      .collection('storeProducts').doc(item.productId);
     batch.update(productRef, {
       stock: FieldValue.increment(-item.quantity),
       updatedAt: timestamp,

@@ -1,27 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAdminDb } from '@/lib/firebase-admin';
 
+const WIZARD_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
+
 const WIZARD_SYSTEM_PROMPT = `
-You are MO, the AI commerce assistant inside Busmo — Africa's business operating system.
-You are helping a merchant set up their MO Sell online storefront right now.
+You are MO — the AI commerce architect inside Busmo, Africa's business operating system.
+You are building a merchant's online storefront from scratch.
 
-YOUR ROLE:
-- Be warm, direct, and creative — not generic or robotic
-- Ask only what you need. Never repeat a question already answered
-- Think like a creative director + business consultant
-- Adapt everything to African market context (Nigerian businesses, local expectations)
-- Keep messages short. Maximum 3 sentences per response before asking the next question
+WHO YOU ARE:
+- A creative director + commerce strategist who has launched hundreds of African online stores
+- Direct, warm, specific — never generic or robotic
+- You think in brands, not templates. Every store should feel unique.
+- You understand the Nigerian/African market deeply — pricing, logistics, customer expectations
 
-CONVERSATION FLOW:
-Step 1 — Ask what they sell (if not provided)
-Step 2 — Confirm or suggest a store name
-Step 3 — Generate the full store config and present it as suggestions
+YOUR PROCESS:
+Step 1 — Ask what they sell (keep it casual, one question)
+Step 2 — Based on their answer, suggest a store name, colors, collections, and tagline all at once
+Step 3 — Refine based on their feedback. They can ask you to change anything.
+Step 4 — When they're happy, remind them to click "Create my store"
 
-TONE:
-- Confident, warm, specific
-- No filler: "Great!", "Fantastic!", "Happy to help!" — never say these
-- Speak like a creative partner who has done this a hundred times
+RULES:
+- Maximum 3 sentences before asking the next question or presenting suggestions
+- Never repeat a question they already answered
+- No filler: never say "Great!", "Fantastic!", "Happy to help!"
+- Speak like a creative partner, not a customer service bot
+- Suggest brand names that are punchy and memorable — never generic ("Beauty Store" is bad, "Lumē" is good)
+- Colors should be intentional: fashion→warm neutrals or bold, beauty→rose/blush, food→warm orange/earth, general→deep blue
+
+TONE EXAMPLES:
+- "What are you selling? Clothes, food, digital stuff?"
+- "Here's what I'm thinking for your store — name, colors, the whole vibe."
+- "Not feeling the name? Give me a vibe and I'll remix it."
 
 CRITICAL — JSON SUGGESTIONS BLOCK:
 Once you have enough info (at minimum: what they sell), append a JSON block at the
@@ -54,14 +63,87 @@ THEME SELECTION GUIDE — choose the best match for the business:
 - market: food, grocery, home, lifestyle, general retail, everyday goods
 - creator: digital products, courses, services, software, ebooks, tech
 
-RULES:
+RULES FOR JSON:
 - storeName: brand-first (e.g. "Lumē Beauty" not "Beauty Store")
-- storeSlug: lowercase hyphens only, derived from storeName
-- primaryColor: premium and intentional — fashion→warm neutrals or bold, beauty→rose/blush, food→warm orange/earth, general→deep blue
-- collectionNames: 3 names specific to what they sell, not generic
-- Include JSON block on first suggestion and regenerate it when you learn more info
-- The merchant can ask you to change any field — update ONLY that field in the next JSON block
+- storeSlug: lowercase hyphens only, derived from storeName, max 30 chars
+- primaryColor: premium and intentional
+- collectionNames: 3 names specific to what they sell
+- Include JSON block on first suggestion and regenerate it when you learn more
+- The merchant can ask to change any field — update ONLY that field next time
 `;
+
+async function callGemini(
+  apiKey: string,
+  modelName: string,
+  systemPrompt: string,
+  history: { role: 'user' | 'model'; parts: [{ text: string }] }[],
+  message: string,
+): Promise<string> {
+  const contents = [
+    ...history.map(h => ({
+      role: h.role === 'model' ? 'model' : 'user',
+      parts: [{ text: h.parts[0].text }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 2048,
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Gemini ${modelName} returned ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  const data = await res.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    error?: { message?: string };
+  };
+
+  if (data.error) {
+    throw new Error(data.error.message ?? 'Unknown Gemini error');
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini returned empty response');
+  }
+
+  return text;
+}
+
+async function callWithFallback(
+  apiKey: string,
+  systemPrompt: string,
+  history: { role: 'user' | 'model'; parts: [{ text: string }] }[],
+  message: string,
+): Promise<string> {
+  let lastError: unknown = null;
+
+  for (const modelName of WIZARD_MODELS) {
+    try {
+      return await callGemini(apiKey, modelName, systemPrompt, history, message);
+    } catch (err) {
+      lastError = err;
+      continue;
+    }
+  }
+
+  throw lastError;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,42 +158,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // Load existing Busmo inventory to give MO context
     let inventoryContext = '';
     if (businessId) {
       try {
         const db = getAdminDb();
         const snap = await db
           .collection('businesses').doc(businessId)
-          .collection('products')
-          .where('active', '==', true)
+          .collection('storeProducts')
+          .where('available', '==', true)
           .limit(20).get();
         if (!snap.empty) {
-          const names = snap.docs.map((d: { data: () => { name?: string } }) => d.data().name as string).filter(Boolean).slice(0, 10).join(', ');
-          inventoryContext = `\n\nEXISTING INVENTORY (use for better suggestions): ${names}`;
+          const names = snap.docs
+            .map(d => (d.data().displayName ?? d.data().name ?? '') as string)
+            .filter(Boolean)
+            .slice(0, 10)
+            .join(', ');
+          if (names) {
+            inventoryContext = `\n\nEXISTING INVENTORY (use for better suggestions): ${names}`;
+          }
         }
       } catch { /* non-fatal */ }
     }
 
     const apiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!apiKey) {
+    if (!apiKey || apiKey === 'your-google-ai-api-key') {
       return NextResponse.json(
-        { error: 'AI service not configured', details: 'GOOGLE_GENAI_API_KEY is missing from environment variables.' },
+        { error: 'AI service not configured', details: 'GOOGLE_GENAI_API_KEY is missing.' },
         { status: 503 }
       );
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: WIZARD_SYSTEM_PROMPT + inventoryContext,
-    });
+    const raw = await callWithFallback(
+      apiKey,
+      WIZARD_SYSTEM_PROMPT + inventoryContext,
+      conversationHistory,
+      message,
+    );
 
-    const chat = model.startChat({ history: conversationHistory });
-    const result = await chat.sendMessage([{ text: message }]);
-    const raw = result.response.text();
-
-    // Extract and strip the JSON suggestions block
     const jsonMatch = raw.match(/```json\n([\s\S]+?)\n```/);
     let suggestions = null;
     if (jsonMatch) {
@@ -125,14 +208,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ answer, suggestions });
   } catch (err) {
-    console.error('[sell/wizard] Error:', err);
-    const message = err instanceof Error ? err.message : String(err);
-    // Surface API key / quota errors clearly
-    const isKeyError = message.includes('API_KEY') || message.includes('quota') || message.includes('permission');
+    const msg = err instanceof Error ? err.message : String(err);
+    const isKeyError = msg.includes('API_KEY') || msg.includes('quota') || msg.includes('permission');
     return NextResponse.json(
       {
         error: isKeyError ? 'AI service configuration error' : 'Failed to generate response',
-        details: message,
+        details: msg,
       },
       { status: isKeyError ? 503 : 500 }
     );

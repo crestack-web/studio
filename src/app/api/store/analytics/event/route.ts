@@ -41,9 +41,8 @@ export async function POST(req: NextRequest) {
         productId: productId ?? null,
         timestamp: FieldValue.serverTimestamp(),
       });
-  } catch (err) {
+  } catch {
     // Silent — analytics failures must never surface to customers
-    console.error('[analytics/event] Write failed:', err);
   }
 
   return new NextResponse(null, { status: 204 });

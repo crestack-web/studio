@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
   const secret    = process.env.PAYSTACK_SECRET_KEY;
 
   if (!secret) {
-    console.error('[webhook/paystack] PAYSTACK_SECRET_KEY not set');
     return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
   }
 
@@ -35,12 +34,11 @@ export async function POST(req: NextRequest) {
       .digest('hex');
 
     if (expected !== signature) {
-      console.warn('[webhook/paystack] Invalid signature — request rejected');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
   }
 
-  let event: { event: string; data: Record<string, any> };
+  let event: { event: string; data: Record<string, unknown> };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -52,9 +50,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  const txn       = event.data;
-  const reference = txn?.reference as string | undefined;
-  const metadata  = txn?.metadata as Record<string, any> | undefined;
+  const txn       = event.data as Record<string, unknown> & {
+    reference?: string;
+    status?: string;
+    amount?: number;
+    currency?: string;
+    metadata?: Record<string, unknown>;
+  };
+  const reference = txn?.reference;
+  const metadata  = txn?.metadata;
 
   if (!reference) {
     return NextResponse.json({ error: 'Missing reference' }, { status: 400 });
@@ -66,8 +70,6 @@ export async function POST(req: NextRequest) {
   const businessId = metadata?.businessId as string | undefined;
 
   if (!sessionId || !businessId) {
-    // Not a store order (could be a subscription payment) — ignore
-    console.log('[webhook/paystack] No sessionId/businessId in metadata — skipping', { reference });
     return NextResponse.json({ received: true });
   }
 
@@ -81,7 +83,6 @@ export async function POST(req: NextRequest) {
     const sessionSnap = await sessionRef.get();
 
     if (!sessionSnap.exists) {
-      console.warn('[webhook/paystack] Session not found', { sessionId, businessId });
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
@@ -89,29 +90,22 @@ export async function POST(req: NextRequest) {
 
     // 5. Idempotency — already processed by client polling
     if (session.status === 'completed') {
-      console.log('[webhook/paystack] Session already completed — idempotent skip', { sessionId });
       return NextResponse.json({ received: true });
     }
 
     // 6. Validate payment status from event
     if (txn.status !== 'success') {
-      console.warn('[webhook/paystack] Payment not successful', { status: txn.status, reference });
       return NextResponse.json({ received: true });
     }
 
     // 7. Validate amount (kobo)
     const expectedKobo = Math.round(session.total * 100);
     if (txn.amount !== expectedKobo) {
-      console.error('[webhook/paystack] Amount mismatch', {
-        expected: expectedKobo,
-        received: txn.amount,
-        sessionId,
-      });
       return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
     }
 
     // 8. Check session hasn't expired
-    const expiresAt = (session.expiresAt as any)?.toDate?.() ?? new Date(0);
+    const expiresAt = (session.expiresAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(0);
     if (new Date() > expiresAt) {
       await sessionRef.update({ status: 'expired', updatedAt: FieldValue.serverTimestamp() });
       return NextResponse.json({ error: 'Session expired' }, { status: 410 });
@@ -122,11 +116,11 @@ export async function POST(req: NextRequest) {
       businessId,
       sessionId,
       paystackData: {
-        reference: txn.reference,
-        status:    txn.status,
-        amount:    txn.amount,
-        currency:  txn.currency,
-        metadata:  txn.metadata ?? {},
+        reference: txn.reference ?? '',
+        status:    txn.status ?? '',
+        amount:    txn.amount ?? 0,
+        currency:  txn.currency ?? '',
+        metadata:  (txn.metadata ?? {}) as Record<string, unknown>,
       },
     });
 
@@ -136,13 +130,10 @@ export async function POST(req: NextRequest) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    console.log('[webhook/paystack] Order processed successfully via webhook', { sessionId, businessId, reference });
     return NextResponse.json({ received: true });
 
-  } catch (err) {
-    console.error('[webhook/paystack] Error processing order:', err);
+  } catch {
     // Return 200 so Paystack doesn't retry indefinitely for Integration Bridge errors
-    // The session is already marked payment_confirmed_integration_pending by the bridge
     return NextResponse.json({ received: true, note: 'integration_pending' });
   }
 }

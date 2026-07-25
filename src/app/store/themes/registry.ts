@@ -76,7 +76,7 @@ export function getTheme(id?: string): ThemeMeta {
 
 export function suggestTheme(category: string): StorefrontTheme {
   const c = category.toLowerCase();
-  if (['fashion', 'beauty', 'jewellery', 'luxury', 'clothing', 'accessories'].some(k => c.includes(k))) return 'luxe';
+  if (['fashion', 'jewellery', 'luxury', 'clothing', 'accessories'].some(k => c.includes(k))) return 'luxe';
   if (['beauty', 'cosmetics', 'skincare', 'glow', 'makeup', 'wellness', 'spa', 'candle'].some(k => c.includes(k))) return 'glow';
   if (['digital', 'creator', 'course', 'service', 'software', 'ebook'].some(k => c.includes(k))) return 'creator';
   if (['link', 'coach', 'consult', 'freelance', 'booking', 'bio'].some(k => c.includes(k))) return 'link';

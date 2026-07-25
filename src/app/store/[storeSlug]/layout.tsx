@@ -18,7 +18,7 @@ import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
 
 async function getStoreConfig(storeSlug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     const res = await fetch(`${baseUrl}/api/store/config/${storeSlug}`, {
       cache: 'no-store',
     });
@@ -137,6 +137,8 @@ export default async function StorefrontLayout({
     },
   };
 
+  const isLink = theme === 'link';
+
   return (
     <html lang="en" data-theme={theme}>
       <head>
@@ -150,18 +152,20 @@ export default async function StorefrontLayout({
       </head>
       <body>
         <CartProvider storeSlug={storeSlug}>
-          <StorefrontNav
-            storeName={config.storeName}
-            logoUrl={config.logoUrl}
-            storeSlug={storeSlug}
-            currency={config.currency}
-            businessId={config.businessId}
-          />
+          {!isLink && (
+            <StorefrontNav
+              storeName={config.storeName}
+              logoUrl={config.logoUrl}
+              storeSlug={storeSlug}
+              currency={config.currency}
+              businessId={config.businessId}
+            />
+          )}
           <main>
             {children}
           </main>
 
-          {showFooter && (
+          {!isLink && showFooter && (
             <footer className="sf-footer">
               {/* Logo */}
               {footerSettings.showLogo !== false && config.logoUrl && (
@@ -209,7 +213,7 @@ export default async function StorefrontLayout({
             </footer>
           )}
 
-          <CartDrawer storeSlug={storeSlug} currency={config.currency} />
+          {!isLink && <CartDrawer storeSlug={storeSlug} currency={config.currency} />}
         </CartProvider>
       </body>
     </html>

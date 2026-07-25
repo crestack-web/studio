@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payment service not configured' }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://busmo.io';
+    const baseUrl = process.env.PUBLIC_APP_URL ?? 'https://busmo.io';
     const reference = `mosell_${sessionId}_${Date.now()}`;
 
     const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -119,7 +119,6 @@ export async function POST(req: NextRequest) {
     };
 
     if (!paystackData.status || !paystackData.data) {
-      console.error('[checkout/initiate] Paystack error:', paystackData.message);
       return NextResponse.json(
         { error: paystackData.message ?? 'Payment initialization failed' },
         { status: 502 }
@@ -137,8 +136,7 @@ export async function POST(req: NextRequest) {
       paystackUrl: paystackData.data.authorization_url,
       sessionId,
     });
-  } catch (err) {
-    console.error('[checkout/initiate] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

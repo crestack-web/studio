@@ -14,6 +14,7 @@
 import React from 'react';
 import type {
   StorefrontTheme, StoreSection,
+  StorefrontProduct, StoreCollection,
   HeroSectionSettings, FeaturedSectionSettings,
   CollectionsSectionSettings, AnnouncementSectionSettings,
   AboutSectionSettings, TestimonialsSectionSettings,
@@ -35,8 +36,8 @@ export interface StorefrontCanvasProps {
   /** Width in px — the canvas fills this width, height is natural */
   width?: number;
   storeSlug?: string;
-  products?: any[];
-  collections?: any[];
+  products?: StorefrontProduct[];
+  collections?: StoreCollection[];
 }
 
 // ─── CSS variable injection per theme ─────────────────────────────────────────
@@ -243,20 +244,17 @@ function SfHero({ theme, storeName, tagline, settings, primary, secondary }: {
 }
 
 function SfFeatured({ theme, settings, primary, products, storeSlug }: {
-  theme: StorefrontTheme; settings: FeaturedSectionSettings; primary: string; products: any[]; storeSlug?: string;
+  theme: StorefrontTheme; settings: FeaturedSectionSettings; primary: string; products: StorefrontProduct[]; storeSlug?: string;
 }) {
   const mock = MOCK[theme];
   const heading = settings.heading || (theme === 'luxe' ? 'New Arrivals' : theme === 'glow' ? 'Bestsellers' : theme === 'creator' ? 'Digital Products' : 'Top Deals');
   const cols = settings.columns ?? 4;
-  // Use real products if available, otherwise fall back to mock
-  const displayProducts = products.length > 0 
-    ? products.slice(0, Math.min(settings.maxItems ?? 4, products.length))
-    : mock.products.slice(0, Math.min(settings.maxItems ?? 4, mock.products.length));
   const isLuxe = theme === 'luxe';
+  const hasReal = products.length > 0;
+  const maxItems = settings.maxItems ?? 4;
 
   const handleProductClick = (productId: string) => {
     if (storeSlug) {
-      // In preview with real data, navigate to product page
       window.open(`/store/${storeSlug}/product/${productId}`, '_blank');
     } else {
       console.log('Product clicked - preview mode');
@@ -269,28 +267,32 @@ function SfFeatured({ theme, settings, primary, products, storeSlug }: {
         {heading}
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols},1fr)`, gap: 12 }}>
-        {displayProducts.map((p, i) => {
-          const isReal = products.length > 0;
-          const name = isReal ? p.displayName : p.name;
-          const price = isReal ? `₦${p.price.toLocaleString()}` : p.price;
-          const tag = isReal ? (p.compareAtPrice && p.compareAtPrice > p.price ? 'Sale' : null) : p.tag;
-          const productId = isReal ? p.id : null;
-          
-          return (
-            <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }} onClick={() => productId && handleProductClick(productId)}>
-              <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: isReal && p.images[0] 
-                ? `url(${p.images[0]}) center/cover` 
-                : `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                {tag && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>{tag}</span>}
-                {!isReal && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
+        {hasReal
+          ? products.slice(0, maxItems).map((p, i) => (
+            <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }} onClick={() => handleProductClick(p.productId)}>
+              <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: p.images?.[0] ? `url(${p.images[0]}) center/cover` : `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                {p.compareAtPrice && p.compareAtPrice > p.price && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>Sale</span>}
+                {!p.images?.[0] && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
               </div>
               <div style={{ padding: '10px 12px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sf-text-1)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
-                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: primary, margin: 0 }}>{price}</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sf-text-1)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.displayName}</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: primary, margin: 0 }}>₦{p.price.toLocaleString()}</p>
               </div>
             </div>
-          );
-        })}
+          ))
+          : mock.products.slice(0, maxItems).map((p, i) => (
+            <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }}>
+              <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                {p.tag && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>{p.tag}</span>}
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sf-text-1)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: primary, margin: 0 }}>{p.price}</p>
+              </div>
+            </div>
+          ))
+        }
       </div>
     </section>
   );
@@ -600,16 +602,32 @@ export function StorefrontCanvas({
 
   // Merge saved sections with defaults
   const saved = sections ?? [];
-  const merged = [
-    ...saved,
-    ...([] as typeof saved),
-  ];
-  // Use saved sections if provided, otherwise DEFAULT_SECTIONS
   const activeSections = (saved.length > 0 ? saved : DEFAULT_SECTIONS)
     .slice()
     .sort((a, b) => a.order - b.order);
 
   const themeVars = getThemeCssVars(theme, primary, secondary);
+  const isLink = theme === 'link';
+
+  // Link theme uses a completely different layout (centered profile page)
+  if (isLink) {
+    const linkMock = MOCK.link;
+    const linkProducts = products.length > 0
+      ? products.slice(0, 6).map(p => ({ name: p.displayName, price: `₦${p.price.toLocaleString()}`, tag: p.compareAtPrice && p.compareAtPrice > p.price ? 'Sale' : undefined }))
+      : linkMock.products;
+    return (
+      <div style={{
+        width, background: 'var(--sf-bg)', fontFamily: 'var(--sf-font)',
+        color: 'var(--sf-text-1)', display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none', ...themeVars,
+      }}>
+        <SfLinkProfile storeName={storeName} tagline={tagline} logoUrl={logoUrl} primary={primary} secondary={secondary} />
+        <SfLinkProducts products={linkProducts} primary={primary} secondary={secondary} />
+        <SfLinkTestimonials testimonials={linkMock.testimonials} primary={primary} />
+        <SfLinkFooter storeName={storeName} primary={primary} />
+      </div>
+    );
+  }
 
   return (
     <div style={{

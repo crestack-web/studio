@@ -61,6 +61,13 @@ export interface StoreConfig {
   payoutAccountName?: string | null;
   theme?: string;
   tagline?: string | null;
+  sections?: Array<{
+    id: string;
+    type: string;
+    enabled: boolean;
+    order: number;
+    settings: Record<string, unknown>;
+  }>;
 }
 
 export interface SellToast {

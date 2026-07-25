@@ -25,7 +25,7 @@ interface Order {
 
 async function getStoreConfig(storeSlug: string) {
   try {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const base = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     const res = await fetch(`${base}/api/store/config/${storeSlug}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return res.json();

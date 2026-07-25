@@ -9,6 +9,7 @@ import { StorefrontCanvas } from '../components/StorefrontCanvas';
 import { CartProvider } from '@/app/store/[storeSlug]/context/CartContext';
 import type {
   StorefrontTheme, StoreSection, StoreSectionType,
+  StorefrontProduct, StoreCollection,
   HeroSectionSettings, CollectionsSectionSettings,
   FeaturedSectionSettings, AnnouncementSectionSettings,
   HeaderSectionSettings, FooterSectionSettings,
@@ -120,6 +121,11 @@ function HeroSettings({ s, upd }: { s: HeroSectionSettings; upd: (p: Partial<Her
     <SF label="Text alignment" value={s.textAlign ?? 'left'} onChange={v => upd({ textAlign: v as 'left'|'center'|'right' })}
       options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} />
     <TF label="Background image URL" value={s.backgroundImage ?? ''} onChange={v => upd({ backgroundImage: v || null })} placeholder="https://…" hint="Overrides theme gradient" />
+    <div className={styles.field}>
+      <label className={styles.fLabel}>Overlay opacity</label>
+      <input className={styles.fInput} type="range" min={0} max={1} step={0.05} value={s.overlayOpacity ?? 0.4} onChange={e => upd({ overlayOpacity: Number(e.target.value) })} />
+      <p className={styles.fHint}>Darkness of the overlay on background images (0 = none, 1 = black)</p>
+    </div>
   </>);
 }
 
@@ -131,6 +137,8 @@ function AnnouncementSettings({ s, upd }: { s: AnnouncementSectionSettings; upd:
     <TF label="Link URL" value={s.linkUrl ?? ''} onChange={v => upd({ linkUrl: v })} placeholder="/collections/all" />
     <SGroup label="STYLE" />
     <ColorField label="Background" value={s.backgroundColor ?? '#0F172A'} onChange={v => upd({ backgroundColor: v })} />
+    <ColorField label="Text color" value={s.textColor ?? '#FFFFFF'} onChange={v => upd({ textColor: v })} />
+    <Toggle label="Dismissible" value={s.dismissible ?? false} onChange={v => upd({ dismissible: v })} hint="Let visitors close the announcement bar" />
   </>);
 }
 
@@ -204,21 +212,60 @@ function NewsletterSettings({ s, upd }: { s: NewsletterSectionSettings; upd: (p:
 }
 
 function HeaderSettings({ s, upd }: { s: HeaderSectionSettings; upd: (p: Partial<HeaderSectionSettings>) => void }) {
+  const navLinks = s.navLinks ?? [];
   return (<>
     <SGroup label="BEHAVIOR" />
     <Toggle label="Sticky header" value={s.sticky !== false} onChange={v => upd({ sticky: v })} hint="Stays fixed when scrolling" />
+    <Toggle label="Show search icon" value={s.showSearch ?? false} onChange={v => upd({ showSearch: v })} />
     <Toggle label="Show cart count" value={s.showCartCount !== false} onChange={v => upd({ showCartCount: v })} />
+    <SGroup label="NAV LINKS" />
+    {navLinks.map((link, i) => (
+      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <input className={styles.fInput} value={link.label} onChange={e => {
+          const updated = [...navLinks]; updated[i] = { ...updated[i], label: e.target.value }; upd({ navLinks: updated });
+        }} placeholder="Label" style={{ flex: 1, fontSize: '0.78rem' }} />
+        <input className={styles.fInput} value={link.url} onChange={e => {
+          const updated = [...navLinks]; updated[i] = { ...updated[i], url: e.target.value }; upd({ navLinks: updated });
+        }} placeholder="/…" style={{ flex: 1, fontSize: '0.78rem' }} />
+        <button className={styles.iconBtn} onClick={() => upd({ navLinks: navLinks.filter((_, j) => j !== i) })} aria-label="Remove nav link" style={{ flexShrink: 0 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    ))}
+    <button className={styles.iconBtn} onClick={() => upd({ navLinks: [...navLinks, { label: '', url: '' }] })} style={{ width: 'auto', gap: 5, padding: '6px 10px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--sell-primary)' }} aria-label="Add nav link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add link
+    </button>
   </>);
 }
 
 function FooterSettings({ s, upd }: { s: FooterSectionSettings; upd: (p: Partial<FooterSectionSettings>) => void }) {
   const socials = s.socials ?? {};
+  const links = s.links ?? [];
   const setSocial = (key: string, val: string) => upd({ socials: { ...socials, [key]: val || undefined } });
   return (<>
     <SGroup label="CONTENT" />
     <Toggle label="Show store logo" value={s.showLogo !== false} onChange={v => upd({ showLogo: v })} />
     <Toggle label="Powered by Busmo" value={s.showPoweredBy !== false} onChange={v => upd({ showPoweredBy: v })} />
     <TF label="Custom copyright text" value={s.customText ?? ''} onChange={v => upd({ customText: v })} placeholder="© 2025 Your Brand." />
+    <SGroup label="FOOTER LINKS" />
+    {links.map((link, i) => (
+      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <input className={styles.fInput} value={link.label} onChange={e => {
+          const updated = [...links]; updated[i] = { ...updated[i], label: e.target.value }; upd({ links: updated });
+        }} placeholder="Label" style={{ flex: 1, fontSize: '0.78rem' }} />
+        <input className={styles.fInput} value={link.url} onChange={e => {
+          const updated = [...links]; updated[i] = { ...updated[i], url: e.target.value }; upd({ links: updated });
+        }} placeholder="/…" style={{ flex: 1, fontSize: '0.78rem' }} />
+        <button className={styles.iconBtn} onClick={() => upd({ links: links.filter((_, j) => j !== i) })} aria-label="Remove footer link" style={{ flexShrink: 0 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    ))}
+    <button className={styles.iconBtn} onClick={() => upd({ links: [...links, { label: '', url: '' }] })} style={{ width: 'auto', gap: 5, padding: '6px 10px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--sell-primary)' }} aria-label="Add footer link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add link
+    </button>
     <SGroup label="SOCIAL LINKS" />
     {(['instagram','twitter','tiktok','facebook','whatsapp','youtube'] as const).map(k => (
       <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
@@ -269,8 +316,8 @@ export function ThemeEditorPage() {
   const [dirty,     setDirty]     = useState(false);
   const [view,      setView]      = useState<'marketplace' | 'editor'>('marketplace');
   const [device,    setDevice]    = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [products,  setProducts]  = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [products,  setProducts]  = useState<StorefrontProduct[]>([]);
+  const [collections, setCollections] = useState<StoreCollection[]>([]);
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile device
@@ -321,16 +368,16 @@ export function ThemeEditorPage() {
   // Seed from storeConfig
   useEffect(() => {
     if (!storeConfig) return;
-    const saved = (storeConfig as any).sections as StoreSection[] | undefined;
+    const saved = storeConfig.sections as StoreSection[] | undefined;
     const merged = DEFAULT_SECTIONS.map(def => {
       const s = saved?.find(x => x.id === def.id);
       return s ? { ...def, ...s, settings: { ...def.settings, ...s.settings } } : { ...def };
     }).sort((a, b) => a.order - b.order);
     setSections(merged);
-    const t = (storeConfig as any).theme ?? 'luxe';
+    const t = (storeConfig.theme ?? 'luxe') as StorefrontTheme;
     setTheme(t);
-    setPrimary((storeConfig as any).primaryColor ?? '#C9A84C');
-    setSecondary((storeConfig as any).secondaryColor ?? '#8B7355');
+    setPrimary(storeConfig.primaryColor ?? '#C9A84C');
+    setSecondary(storeConfig.secondaryColor ?? '#8B7355');
     setDirty(false);
     undoStack.current = []; redoStack.current = [];
   }, [storeConfig]);
@@ -338,7 +385,7 @@ export function ThemeEditorPage() {
   // Fetch real products for preview
   useEffect(() => {
     if (!user?.businessId) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     fetch(`${baseUrl}/api/store/products?businessId=${user.businessId}&available=true`)
       .then(r => r.ok ? r.json() : { products: [] })
       .then(d => setProducts(d.products ?? []))
@@ -348,7 +395,7 @@ export function ThemeEditorPage() {
   // Fetch real collections for preview
   useEffect(() => {
     if (!user?.businessId) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const baseUrl = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     fetch(`${baseUrl}/api/store/collections?businessId=${user.businessId}`)
       .then(r => r.ok ? r.json() : { collections: [] })
       .then(d => setCollections(d.collections ?? []))
@@ -356,6 +403,33 @@ export function ThemeEditorPage() {
   }, [user?.businessId]);
 
   const mark = useCallback(() => setDirty(true), []);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (mod && e.key === 'z' && e.shiftKey)  { e.preventDefault(); redo(); }
+      if (mod && e.key === 'y')                 { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
+
+  // Debounced undo snapshot for text inputs
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pushUndoDebounced = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { pushUndo(); }, 500);
+  }, [pushUndo]);
 
   const moveSection = useCallback((id: string, dir: -1 | 1) => {
     pushUndo();
@@ -377,33 +451,33 @@ export function ThemeEditorPage() {
   }, [pushUndo, mark]);
 
   const updateSettings = useCallback((id: string, patch: Record<string, unknown>) => {
-    pushUndo();
+    pushUndoDebounced();
     setSections(prev => prev.map(s => s.id === id ? { ...s, settings: { ...s.settings, ...patch } } : s));
     mark();
-  }, [pushUndo, mark]);
+  }, [pushUndoDebounced, mark]);
 
   const handleApply = useCallback(async () => {
     if (!user?.businessId || !storeConfig) return;
     setApplying(true);
     try {
       const { firestore } = initializeFirebase();
-      const slug = (storeConfig as any)?.storeSlug;
+      const slug = storeConfig.storeSlug;
       
       await setDoc(
         doc(firestore, 'businesses', user.businessId, 'store', 'config'),
         { 
-          ...(storeConfig as any), 
+          ...storeConfig, 
           theme, 
           primaryColor: primary, 
           secondaryColor: secondary, 
           sections: sections.map(s => ({ ...s })), 
-          storeSlug: slug, // Explicitly include storeSlug to ensure it's preserved
+          storeSlug: slug,
           updatedAt: serverTimestamp() 
         },
         { merge: true }
       );
       
-      if (slug) await setDoc(doc(firestore, 'storeIndex', slug), { businessId: user.businessId, storeName: (storeConfig as any).storeName, updatedAt: serverTimestamp() });
+      if (slug) await setDoc(doc(firestore, 'storeIndex', slug), { businessId: user.businessId, storeName: storeConfig.storeName, updatedAt: serverTimestamp() });
       await refreshStoreConfig();
       setDirty(false);
       showToast('Theme published to your store!', 'success');
@@ -413,14 +487,13 @@ export function ThemeEditorPage() {
     } finally { setApplying(false); }
   }, [user, storeConfig, theme, primary, secondary, sections, refreshStoreConfig, showToast]);
 
-  const storeName = (storeConfig as any)?.storeName ?? 'Your Store';
-  const tagline   = (storeConfig as any)?.tagline   ?? 'Shop our latest collection';
-  const logoUrl   = (storeConfig as any)?.logoUrl   ?? null;
+  const storeName = storeConfig?.storeName ?? 'Your Store';
+  const tagline   = storeConfig?.tagline   ?? 'Shop our latest collection';
+  const logoUrl   = storeConfig?.logoUrl   ?? null;
   const activeSection = sections.find(s => s.id === activeId) ?? null;
 
   const handlePreview = useCallback(() => {
     if (isMobile) {
-      // Store preview data in sessionStorage for the new page
       const previewData = {
         theme,
         storeName,
@@ -429,12 +502,11 @@ export function ThemeEditorPage() {
         secondaryColor: secondary,
         logoUrl,
         sections,
-        storeSlug: (storeConfig as any)?.storeSlug,
+        storeSlug: storeConfig?.storeSlug,
         products,
         collections,
       };
       sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
-      // Open new page for mobile preview
       window.open('/sell/mobile-preview', '_blank');
     }
   }, [isMobile, theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections]);
@@ -470,10 +542,10 @@ export function ThemeEditorPage() {
           {view === 'editor' && (
             <>
               {/* Undo/Redo */}
-              <button className={styles.iconBtn} onClick={undo} title="Undo" disabled={undoStack.current.length === 0}>
+              <button className={styles.iconBtn} onClick={undo} title="Undo (Ctrl+Z)" disabled={undoStack.current.length === 0} aria-label="Undo">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
               </button>
-              <button className={styles.iconBtn} onClick={redo} title="Redo" disabled={redoStack.current.length === 0}>
+              <button className={styles.iconBtn} onClick={redo} title="Redo (Ctrl+Shift+Z)" disabled={redoStack.current.length === 0} aria-label="Redo">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 014-4h12"/></svg>
               </button>
               <div className={styles.dividerV} />
@@ -484,6 +556,8 @@ export function ThemeEditorPage() {
                   className={[styles.iconBtn, device === d ? styles.iconBtnActive : ''].join(' ')} 
                   onClick={() => setDevice(d)} 
                   title={d.charAt(0).toUpperCase() + d.slice(1)}
+                  aria-label={`Preview in ${d} mode`}
+                  aria-pressed={device === d}
                 >
                   {d === 'desktop' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>}
                   {d === 'tablet'  && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>}
@@ -513,8 +587,8 @@ export function ThemeEditorPage() {
         <div className={styles.marketplace}>
           <div className={styles.marketColors}>
             <span className={styles.marketColorsLabel}>Preview with your colors:</span>
-            <label className={styles.cLabel}><input type="color" value={primary} onChange={e => setPrimary(e.target.value)} className={styles.cPicker} />Primary</label>
-            <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => setSecondary(e.target.value)} className={styles.cPicker} />Accent</label>
+            <label className={styles.cLabel}><input type="color" value={primary} onChange={e => setPrimary(e.target.value)} className={styles.cPicker} aria-label="Primary color" />Primary</label>
+            <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => setSecondary(e.target.value)} className={styles.cPicker} aria-label="Accent color" />Accent</label>
           </div>
           <div className={styles.themeGrid}>
             {THEMES.map(t => (
@@ -539,8 +613,8 @@ export function ThemeEditorPage() {
                   <div key={sec.id} className={[styles.secRow, !sec.enabled ? styles.secRowOff : '', activeId === sec.id ? styles.secRowActive : ''].join(' ')}>
                     {meta.movable ? (
                       <div className={styles.moveBtns}>
-                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, -1)} disabled={idx === 0}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>
-                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, 1)} disabled={idx === sections.length - 1}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>
+                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, -1)} disabled={idx === 0} aria-label={`Move ${meta.label} up`}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>
+                        <button className={styles.moveBtn} onClick={() => moveSection(sec.id, 1)} disabled={idx === sections.length - 1} aria-label={`Move ${meta.label} down`}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>
                       </div>
                     ) : <div className={styles.moveBtns} />}
                     <button className={styles.secBtn} onClick={() => setActiveId(activeId === sec.id ? null : sec.id)}>
@@ -548,7 +622,7 @@ export function ThemeEditorPage() {
                       <span className={styles.secLabel}>{meta.label}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', opacity: 0.3 }}><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
-                    <button className={[styles.eyeBtn, sec.enabled ? styles.eyeOn : ''].join(' ')} onClick={() => toggleSection(sec.id)} type="button">
+                    <button className={[styles.eyeBtn, sec.enabled ? styles.eyeOn : ''].join(' ')} onClick={() => toggleSection(sec.id)} type="button" aria-label={sec.enabled ? `Hide ${meta.label}` : `Show ${meta.label}`} aria-pressed={sec.enabled}>
                       {sec.enabled
                         ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -557,10 +631,6 @@ export function ThemeEditorPage() {
                   </div>
                 );
               })}
-              <button className={styles.addSectionBtn}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add section
-              </button>
             </div>
           </div>
 
@@ -570,7 +640,7 @@ export function ThemeEditorPage() {
               {device === 'desktop' ? (
                 // Desktop: fill center panel without scaling
                 <div className={styles.desktopPreview}>
-                  <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
+                  <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
                     <StorefrontCanvas
                       theme={theme}
                       storeName={storeName}
@@ -580,7 +650,7 @@ export function ThemeEditorPage() {
                       logoUrl={logoUrl}
                       sections={sections}
                       width={previewWidth}
-                      storeSlug={(storeConfig as any)?.storeSlug}
+                      storeSlug={storeConfig?.storeSlug ?? ''}
                       products={products}
                       collections={collections}
                     />
@@ -603,7 +673,7 @@ export function ThemeEditorPage() {
                     top: 0, left: 0,
                     minWidth: 0,
                   }}>
-                    <CartProvider storeSlug={(storeConfig as any)?.storeSlug}>
+                    <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
                       <StorefrontCanvas
                         theme={theme}
                         storeName={storeName}
@@ -613,7 +683,7 @@ export function ThemeEditorPage() {
                         logoUrl={logoUrl}
                         sections={sections}
                         width={previewWidth}
-                        storeSlug={(storeConfig as any)?.storeSlug}
+                        storeSlug={storeConfig?.storeSlug ?? ''}
                         products={products}
                         collections={collections}
                       />
@@ -635,7 +705,7 @@ export function ThemeEditorPage() {
                       logoUrl={logoUrl}
                       sections={sections}
                       width={previewWidth * previewScale}
-                      storeSlug={(storeConfig as any)?.storeSlug}
+                      storeSlug={storeConfig?.storeSlug}
                       products={products}
                       collections={collections}
                     />
@@ -652,7 +722,7 @@ export function ThemeEditorPage() {
                 <div className={styles.rHeader}>
                   <span className={styles.rIcon}>{SectionIcons[activeSection.type]}</span>
                   <span className={styles.rTitle}>{SECTION_META[activeSection.type].label}</span>
-                  <button className={styles.iconBtn} style={{ marginLeft: 'auto' }} onClick={() => setActiveId(null)}>
+                  <button className={styles.iconBtn} style={{ marginLeft: 'auto' }} onClick={() => setActiveId(null)} aria-label="Close settings panel">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
@@ -673,8 +743,8 @@ export function ThemeEditorPage() {
               <div className={styles.rEmpty}>
                 <div className={styles.rEmptyColors}>
                   <p className={styles.rEmptyTitle}>Brand Colors</p>
-                  <label className={styles.cLabel}><input type="color" value={primary} onChange={e => { pushUndo(); setPrimary(e.target.value); mark(); }} className={styles.cPicker} />Primary</label>
-                  <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => { pushUndo(); setSecondary(e.target.value); mark(); }} className={styles.cPicker} />Accent</label>
+                  <label className={styles.cLabel}><input type="color" value={primary} onChange={e => { pushUndo(); setPrimary(e.target.value); mark(); }} className={styles.cPicker} aria-label="Primary color" />Primary</label>
+                  <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => { pushUndo(); setSecondary(e.target.value); mark(); }} className={styles.cPicker} aria-label="Accent color" />Accent</label>
                 </div>
                 <p className={styles.rEmptyHint}>Click any section on the left to edit its settings.</p>
               </div>

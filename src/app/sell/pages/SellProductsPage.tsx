@@ -285,7 +285,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
     try {
       const { firestore } = initializeFirebase();
       const snap = await getDocs(
-        collection(firestore, 'businesses', businessId, 'products')
+        collection(firestore, 'businesses', businessId, 'storeProducts')
       );
       const items = snap.docs.map(d => ({
         id: d.id,
@@ -382,7 +382,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         setUploadingDigital(false);
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         productType: form.productType,
         displayName: form.displayName.trim(),
         description: form.description.trim(),
@@ -444,7 +444,8 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         await updateDoc(doc(colRef, product.id), payload);
         showToast('Product updated successfully', 'success');
       } else {
-        await addDoc(colRef, { ...payload, productId: '', createdAt: serverTimestamp() });
+        const newDocRef = await addDoc(colRef, { ...payload, createdAt: serverTimestamp() });
+        await updateDoc(newDocRef, { productId: newDocRef.id });
         showToast('Product added successfully', 'success');
       }
       onSaved();
@@ -1070,8 +1071,7 @@ export function SellProductsPage() {
     setSlideOver(null);
     await loadProducts();
     refreshQuickStats();
-    showToast('Product saved', 'success');
-  }, [loadProducts, refreshQuickStats, showToast]);
+  }, [loadProducts, refreshQuickStats]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 

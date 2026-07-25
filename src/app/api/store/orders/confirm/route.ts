@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check session hasn't expired
-    const expiresAt = (session.expiresAt as any)?.toDate?.() ?? new Date(0);
+    const expiresAt = (session.expiresAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(0);
     if (new Date() > expiresAt) {
       await sessionRef.update({ status: 'expired', updatedAt: FieldValue.serverTimestamp() });
       return NextResponse.json({ error: 'Checkout session expired' }, { status: 410 });
@@ -115,9 +115,6 @@ export async function POST(req: NextRequest) {
     // 4. Validate amount (kobo)
     const expectedKobo = Math.round(session.total * 100);
     if (txn.amount !== expectedKobo) {
-      console.error('[orders/confirm] Amount mismatch', {
-        expected: expectedKobo, received: txn.amount, sessionId,
-      });
       return NextResponse.json(
         { error: 'Payment amount does not match order total' },
         { status: 400 }
@@ -138,9 +135,7 @@ export async function POST(req: NextRequest) {
           metadata:  txn.metadata,
         },
       });
-    } catch (bridgeErr) {
-      console.error('[orders/confirm] Integration Bridge failed:', bridgeErr);
-      // Session already marked payment_confirmed_integration_pending by the bridge
+    } catch {
       return NextResponse.json(
         { error: 'integration_failed', sessionId },
         { status: 202 }
@@ -154,8 +149,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ orderId: bridgeResult.orderId });
-  } catch (err) {
-    console.error('[orders/confirm] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

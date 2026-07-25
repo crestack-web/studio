@@ -12,7 +12,7 @@ import type {
 } from '@/app/sell/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
 
-const BASE = () => process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const BASE = () => process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 async function getStoreConfig(storeSlug: string) {
   try {

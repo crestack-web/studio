@@ -78,8 +78,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ verified, resolvedTo: resolved });
-  } catch (err) {
-    console.error('[domain/verify] Error:', err);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ import { ProductDetailClient } from './ProductDetailClient';
 
 async function getStoreConfig(storeSlug: string) {
   try {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const base = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     const res = await fetch(`${base}/api/store/config/${storeSlug}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return res.json();
@@ -16,7 +16,7 @@ async function getStoreConfig(storeSlug: string) {
 
 async function getProduct(businessId: string, productId: string) {
   try {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const base = process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
     const res = await fetch(
       `${base}/api/store/products?businessId=${businessId}`,
       { cache: 'no-store' }
@@ -66,7 +66,7 @@ export default async function ProductDetailPage({
   if (!product || !product.available) notFound();
 
   // Fire page_view analytics (fire-and-forget)
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/store/analytics/event`, {
+  fetch(`${process.env.PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/store/analytics/event`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
