@@ -1,4 +1,7 @@
 import type { StorefrontTheme } from '@/app/sell/mo-sell.types';
+import type { ThemeComponents, ThemeProductCardProps, ThemeCollectionCardProps, ThemeHeroProps, ThemeProductPageProps } from './types';
+
+// ─── Theme metadata (for sell dashboard UI) ─────────────────────────────────
 
 export interface ThemeMeta {
   id: StorefrontTheme;
@@ -82,4 +85,59 @@ export function suggestTheme(category: string): StorefrontTheme {
   if (['link', 'coach', 'consult', 'freelance', 'booking', 'bio'].some(k => c.includes(k))) return 'link';
   if (['food', 'grocery', 'market', 'home', 'lifestyle', 'general'].some(k => c.includes(k))) return 'market';
   return 'luxe';
+}
+
+// ─── Lazy-load theme components ─────────────────────────────────────────────
+
+const themeLoader: Record<string, () => Promise<ThemeComponents>> = {
+  luxe: () => import('./luxe').then(m => ({
+    ProductCard: m.LuxeProductCard,
+    CollectionCard: m.LuxeCollectionCard,
+    Hero: m.LuxeHero,
+    ProductPage: m.LuxeProductPage,
+    cssClass: 'theme-luxe',
+  })),
+  market: () => import('./market').then(m => ({
+    ProductCard: m.MarketProductCard,
+    CollectionCard: m.MarketCollectionCard,
+    Hero: m.MarketHero,
+    ProductPage: m.MarketProductPage,
+    cssClass: 'theme-market',
+  })),
+  creator: () => import('./creator').then(m => ({
+    ProductCard: m.CreatorProductCard,
+    CollectionCard: m.CreatorCollectionCard,
+    Hero: m.CreatorHero,
+    ProductPage: m.CreatorProductPage,
+    cssClass: 'theme-creator',
+  })),
+  glow: () => import('./glow').then(m => ({
+    ProductCard: m.GlowProductCard,
+    CollectionCard: m.GlowCollectionCard,
+    Hero: m.GlowHero,
+    ProductPage: m.GlowProductPage,
+    cssClass: 'theme-glow',
+  })),
+};
+
+export type ThemeId = keyof typeof themeLoader;
+
+export async function getThemeComponents(themeId: string): Promise<ThemeComponents> {
+  const loader = themeLoader[themeId];
+  if (!loader) {
+    return themeLoader.luxe();
+  }
+  return loader();
+}
+
+export async function getThemeComponentsServer(themeId: string): Promise<ThemeComponents> {
+  const loader = themeLoader[themeId];
+  if (!loader) {
+    return themeLoader.luxe();
+  }
+  return loader();
+}
+
+export function isLinkTheme(themeId: string): boolean {
+  return themeId === 'link';
 }

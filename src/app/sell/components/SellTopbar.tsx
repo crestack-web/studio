@@ -13,6 +13,7 @@ const PAGE_LABELS: Record<string, string> = {
   analytics:   'Analytics',
   settings:    'Store Settings',
   'setup-wizard': 'Store Setup',
+  'ask-mo':    'Ask Mo',
 };
 
 export function SellTopbar() {

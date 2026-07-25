@@ -25,7 +25,8 @@ export type SellPageId =
   | 'earnings'
   | 'settings'
   | 'theme-editor'
-  | 'setup-wizard';
+  | 'setup-wizard'
+  | 'ask-mo';
 
 export type SellTheme = 'light' | 'dark';
 

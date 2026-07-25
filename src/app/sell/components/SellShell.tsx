@@ -16,6 +16,7 @@ import { SellSettingsPage }       from '../pages/SellSettingsPage';
 import { SellAnalyticsPage }      from '../pages/SellAnalyticsPage';
 import { ThemeEditorPage }        from '../pages/ThemeEditorPage';
 import { SellEarningsPage }       from '../pages/SellEarningsPage';
+import { SellAskMoPage }          from '../pages/SellAskMoPage';
 
 function renderPage(page: string): React.ReactNode {
   switch (page) {
@@ -28,6 +29,7 @@ function renderPage(page: string): React.ReactNode {
     case 'earnings':       return <SellEarningsPage />;
     case 'settings':       return <SellSettingsPage />;
     case 'theme-editor':   return <ThemeEditorPage />;
+    case 'ask-mo':         return <SellAskMoPage />;
     default: return (
       <div className={styles.placeholder}>
         <h2>Coming Soon</h2>

@@ -1,0 +1,449 @@
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+}
+
+/* ─── Chat Container ─────────────────────────────────────────────────────── */
+
+.chatContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── Messages Area ──────────────────────────────────────────────────────── */
+
+.messagesArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.messagesArea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messagesArea::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+
+/* ─── Welcome State ──────────────────────────────────────────────────────── */
+
+.welcomeState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.moAvatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.welcomeTitle {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--sell-text, #1a1a1a);
+}
+
+.welcomeSubtitle {
+  font-size: 14px;
+  color: var(--sell-text-muted, #6b7280);
+  margin: 0 0 28px;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* ─── Suggestion Chips ───────────────────────────────────────────────────── */
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 520px;
+}
+
+.suggestionChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--sell-border, #e5e7eb);
+  background: var(--sell-card, #ffffff);
+  color: var(--sell-text, #1a1a1a);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.suggestionChip:hover {
+  border-color: var(--sell-accent, #6366f1);
+  background: color-mix(in srgb, var(--sell-accent, #6366f1) 5%, transparent);
+  color: var(--sell-accent, #6366f1);
+}
+
+.suggestionIcon {
+  font-size: 15px;
+}
+
+/* ─── Message Bubbles ────────────────────────────────────────────────────── */
+
+.messageRow {
+  display: flex;
+  gap: 10px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.messageRow.user {
+  flex-direction: row-reverse;
+}
+
+.messageBubble {
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 85%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.messageRow.bot .messageBubble {
+  background: var(--sell-card, #ffffff);
+  color: var(--sell-text, #1a1a1a);
+  border: 1px solid var(--sell-border, #e5e7eb);
+  border-bottom-left-radius: 4px;
+}
+
+.messageRow.user .messageBubble {
+  background: var(--sell-accent, #6366f1);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.botAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  margin-top: 2px;
+}
+
+/* ─── Action Cards ───────────────────────────────────────────────────────── */
+
+.actionCard {
+  margin-top: 10px;
+  border: 1px solid var(--sell-border, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.actionCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--sell-bg-alt, #f9fafb);
+  border-bottom: 1px solid var(--sell-border, #e5e7eb);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sell-text, #1a1a1a);
+}
+
+.actionCardIcon {
+  font-size: 16px;
+}
+
+.actionCardBody {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--sell-text-muted, #6b7280);
+  line-height: 1.5;
+}
+
+.actionCardRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sell-border-subtle, #f3f4f6);
+}
+
+.actionCardRow:last-child {
+  border-bottom: none;
+}
+
+.actionCardLabel {
+  color: var(--sell-text-muted, #6b7280);
+}
+
+.actionCardValue {
+  font-weight: 600;
+  color: var(--sell-text, #1a1a1a);
+}
+
+.actionCardFooter {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--sell-border, #e5e7eb);
+}
+
+.confirmBtn {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirmBtnPrimary {
+  background: var(--sell-accent, #6366f1);
+  color: #ffffff;
+}
+
+.confirmBtnPrimary:hover {
+  opacity: 0.9;
+}
+
+.confirmBtnSecondary {
+  background: var(--sell-bg-alt, #f3f4f6);
+  color: var(--sell-text, #1a1a1a);
+  border: 1px solid var(--sell-border, #e5e7eb);
+}
+
+.confirmBtnSecondary:hover {
+  background: var(--sell-border, #e5e7eb);
+}
+
+.confirmBtnDanger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.confirmBtnDanger:hover {
+  background: #fee2e2;
+}
+
+/* ─── Success Card ───────────────────────────────────────────────────────── */
+
+.successCard {
+  margin-top: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.successIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.successText {
+  font-size: 13px;
+  color: #166534;
+  line-height: 1.5;
+}
+
+.successText strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+/* ─── Typing Indicator ───────────────────────────────────────────────────── */
+
+.typingIndicator {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.typingDots {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--sell-card, #ffffff);
+  border: 1px solid var(--sell-border, #e5e7eb);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+.typingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sell-text-muted, #9ca3af);
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typingDot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typingDot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ─── Input Area ─────────────────────────────────────────────────────────── */
+
+.inputArea {
+  padding: 16px 24px;
+  border-top: 1px solid var(--sell-border, #e5e7eb);
+  background: var(--sell-bg, #ffffff);
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.inputField {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--sell-border, #e5e7eb);
+  background: var(--sell-bg-alt, #f9fafb);
+  color: var(--sell-text, #1a1a1a);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  min-height: 44px;
+  max-height: 120px;
+  transition: border-color 0.15s ease;
+}
+
+.inputField:focus {
+  border-color: var(--sell-accent, #6366f1);
+}
+
+.inputField::placeholder {
+  color: var(--sell-text-muted, #9ca3af);
+}
+
+.sendBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: var(--sell-accent, #6366f1);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.sendBtn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.sendBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sendBtnIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── New Chat Button ────────────────────────────────────────────────────── */
+
+.newChatBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--sell-border, #e5e7eb);
+  background: var(--sell-card, #ffffff);
+  color: var(--sell-text-muted, #6b7280);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.newChatBtn:hover {
+  border-color: var(--sell-accent, #6366f1);
+  color: var(--sell-accent, #6366f1);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .messagesArea {
+    padding: 16px;
+  }
+
+  .inputArea {
+    padding: 12px 16px;
+  }
+
+  .messageBubble {
+    max-width: 90%;
+  }
+
+  .welcomeTitle {
+    font-size: 18px;
+  }
+
+  .suggestions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .suggestionChip {
+    justify-content: center;
+  }
+}

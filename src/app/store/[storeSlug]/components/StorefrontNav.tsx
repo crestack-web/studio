@@ -34,12 +34,13 @@ export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Pro
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={logoUrl} alt={storeName} />
           : <span style={{
-              width: 36, height: 36, borderRadius: 8,
+              width: 44, height: 44, borderRadius: 8,
               background: 'var(--sf-primary)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: '1rem',
+              fontWeight: 800, fontSize: '1.1rem',
             }}>{storeName.charAt(0).toUpperCase()}</span>
         }
+        <span>{storeName}</span>
       </Link>
 
       {/* Collections nav links - desktop only */}

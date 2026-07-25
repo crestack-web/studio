@@ -120,16 +120,14 @@ export function ProductCard({ product, storeSlug, currency }: Props) {
         </div>
 
         {/* CTA */}
-        <div style={{ padding: '0 var(--card-pad, 14px) var(--card-pad, 14px)' }}>
-          <button
-            className="sf-card-btn"
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            aria-label={isOutOfStock ? 'Out of stock' : `Add ${product.displayName} to cart`}
-          >
-            {isOutOfStock ? 'Out of stock' : '+ Add to cart'}
-          </button>
-        </div>
+        <button
+          className="sf-card-btn"
+          onClick={handleAddToCart}
+          disabled={isOutOfStock}
+          aria-label={isOutOfStock ? 'Out of stock' : `Add ${product.displayName} to cart`}
+        >
+          {isOutOfStock ? 'Out of stock' : '+ Add to cart'}
+        </button>
       </div>
     </Link>
   );

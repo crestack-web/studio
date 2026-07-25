@@ -5,8 +5,10 @@
 
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
 let db: ReturnType<typeof getFirestore> | null = null;
+let storage: ReturnType<typeof getStorage> | null = null;
 let adminInitialized = false;
 
 // Load environment variables explicitly
@@ -51,6 +53,7 @@ try {
   
   if (adminInitialized) {
     db = getFirestore();
+    storage = getStorage();
     console.log('✅ Firestore initialized');
   }
 } catch (error) {
@@ -62,6 +65,13 @@ export function getAdminDb() {
     throw new Error('Firebase Admin not initialized. Check environment variables: NEXT_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_ADMIN_PRIVATE_KEY, FIREBASE_ADMIN_CLIENT_EMAIL');
   }
   return db;
+}
+
+export function getAdminStorage() {
+  if (!storage) {
+    throw new Error('Firebase Admin Storage not initialized. Check environment variables.');
+  }
+  return storage;
 }
 
 export function getAdminAuth() {

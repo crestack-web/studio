@@ -21,16 +21,12 @@ export function ProductGrid({ products, storeSlug, currency, emptyMessage = 'No 
     );
   }
 
-  const minWidth = columns ? `${Math.floor(100 / columns) - 2}%` : '220px';
-
   return (
-    <div className="sf-product-grid" style={{
+    <div className="sf-product-grid" style={columns ? {
       display: 'grid',
-      gridTemplateColumns: columns
-        ? `repeat(${columns}, 1fr)`
-        : `repeat(auto-fill, minmax(${minWidth}, 1fr))`,
-      gap: 16,
-    }}>
+      gridTemplateColumns: `repeat(${columns}, 1fr)`,
+      gap: 24,
+    } : undefined}>
       {products.map(p => (
         <ProductCard key={p.id} product={p} storeSlug={storeSlug} currency={currency} />
       ))}

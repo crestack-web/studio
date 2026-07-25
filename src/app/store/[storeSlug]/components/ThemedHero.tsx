@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function ThemedHero({
-  storeName, tagline, theme, primaryColor, secondaryColor,
+  storeName, tagline, logoUrl, theme, primaryColor, secondaryColor,
   ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage,
 }: Props) {
   const bgStyle = backgroundImage
@@ -27,6 +27,14 @@ export function ThemedHero({
   if (theme === 'luxe') {
     return (
       <section className="sf-hero" style={{ background: '#111111', ...bgStyle }}>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={storeName}
+            style={{ width: 56, height: 56, borderRadius: 4, objectFit: 'cover', marginBottom: 16 }}
+          />
+        )}
         <p style={{ fontSize: '0.65rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: '#C9A84C', marginBottom: 12, fontWeight: 500 }}>
           New Collection
         </p>
@@ -56,6 +64,14 @@ export function ThemedHero({
         background: `linear-gradient(135deg, ${primaryColor}18 0%, ${secondaryColor}0d 100%)`,
         ...bgStyle,
       }}>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={storeName}
+            style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', marginBottom: 14, border: `3px solid ${primaryColor}40` }}
+          />
+        )}
         <p style={{ fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primaryColor, marginBottom: 10, fontWeight: 700, opacity: 0.8 }}>
           Beauty · Wellness
         </p>
@@ -86,6 +102,14 @@ export function ThemedHero({
         background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
         ...bgStyle,
       } as React.CSSProperties}>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={storeName}
+            style={{ width: 52, height: 52, borderRadius: 12, objectFit: 'cover', marginBottom: 14 }}
+          />
+        )}
         <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', marginBottom: 8 }}>
           🛍️ Fresh arrivals daily
         </p>
@@ -113,6 +137,14 @@ export function ThemedHero({
         background: `linear-gradient(135deg, ${primaryColor}25 0%, ${secondaryColor}18 100%)`,
         ...bgStyle,
       }}>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={storeName}
+            style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', marginBottom: 14 }}
+          />
+        )}
         <p style={{ fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primaryColor, marginBottom: 10, fontWeight: 700 }}>
           Build once. Sell forever.
         </p>
@@ -149,18 +181,27 @@ export function ThemedHero({
         padding: '48px 20px 32px', textAlign: 'center', gap: 12,
         background: 'var(--sf-bg)',
       }}>
-        {/* Avatar */}
-        <div style={{
-          width: 88, height: 88, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-          border: '3px solid transparent',
-          backgroundClip: 'padding-box',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '2rem', fontWeight: 700, color: '#fff',
-          flexShrink: 0, overflow: 'hidden',
-        }}>
-          {storeName.charAt(0).toUpperCase()}
-        </div>
+        {/* Avatar / Logo */}
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={storeName}
+            style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--sf-border)' }}
+          />
+        ) : (
+          <div style={{
+            width: 88, height: 88, borderRadius: '50%',
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            border: '3px solid transparent',
+            backgroundClip: 'padding-box',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '2rem', fontWeight: 700, color: '#fff',
+            flexShrink: 0, overflow: 'hidden',
+          }}>
+            {storeName.charAt(0).toUpperCase()}
+          </div>
+        )}
         {/* Name */}
         <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--sf-text-1)', margin: 0, letterSpacing: '-0.02em' }}>
           {storeName}

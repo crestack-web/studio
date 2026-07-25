@@ -1,8 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { ProductGrid } from './components/ProductGrid';
-import { ThemedHero } from './components/ThemedHero';
-import type { ProductCardData } from './components/ProductCard';
+import { getThemeComponentsServer, type ThemeId } from '../themes/registry';
+import type { ProductCardData } from '../themes/types';
 import type {
   StorefrontTheme, StoreSection,
   HeroSectionSettings, CollectionsSectionSettings,
@@ -38,9 +37,37 @@ async function getCollections(businessId: string) {
     const res = await fetch(`${BASE()}/api/store/collections?businessId=${businessId}`, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.collections ?? []) as { id: string; title: string; coverImageUrl: string | null; description: string }[];
+    return (data.collections ?? []) as { id: string; title: string; coverImageUrl: string | null; description: string; productCount?: number }[];
   } catch { return []; }
 }
+
+// ─── Theme-aware Product Grid ───────────────────────────────────────────────
+
+function ThemeProductGrid({ products, storeSlug, currency, columns, emptyMessage, ProductCard }: {
+  products: ProductCardData[];
+  storeSlug: string;
+  currency: string;
+  columns: number;
+  emptyMessage?: string;
+  ProductCard: React.ComponentType<{ product: ProductCardData; storeSlug: string; currency: string }>;
+}) {
+  if (products.length === 0) {
+    return (
+      <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3AF', fontSize: '0.9rem' }}>
+        {emptyMessage || 'No products yet.'}
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 24 }}>
+      {products.map(p => (
+        <ProductCard key={p.id} product={p} storeSlug={storeSlug} currency={currency} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default async function StorefrontHomePage({
   params,
@@ -52,6 +79,7 @@ export default async function StorefrontHomePage({
   if (!config) notFound();
 
   const theme: StorefrontTheme = config.theme ?? 'luxe';
+  const components = await getThemeComponentsServer(theme as ThemeId);
 
   // Merge saved sections with defaults
   const savedSections: StoreSection[] = config.sections ?? [];
@@ -76,6 +104,10 @@ export default async function StorefrontHomePage({
     body: JSON.stringify({ eventType: 'page_view', storeSlug, businessId: config.businessId, pageType: 'home' }),
   }).catch(() => {});
 
+  const Hero = components.Hero;
+  const ProductCard = components.ProductCard;
+  const CollectionCard = components.CollectionCard;
+
   return (
     <div id="products">
       {sections.map(section => {
@@ -98,11 +130,10 @@ export default async function StorefrontHomePage({
           case 'hero': {
             const hs = s as HeroSectionSettings;
             return (
-              <ThemedHero key={section.id}
+              <Hero key={section.id}
                 storeName={hs.heading || config.storeName}
                 tagline={hs.showTagline !== false ? (hs.subheading || config.tagline || null) : null}
                 logoUrl={config.logoUrl ?? null}
-                theme={theme}
                 primaryColor={config.primaryColor ?? '#C9A84C'}
                 secondaryColor={config.secondaryColor ?? '#8B7355'}
                 ctaLabel={hs.ctaLabel || 'Shop Now'}
@@ -118,7 +149,13 @@ export default async function StorefrontHomePage({
             return (
               <div key={section.id} className="sf-page sf-section">
                 <p className="sf-section-title">{fs.heading || 'Shop Bestsellers'}</p>
-                <ProductGrid products={(featured as ProductCardData[]).slice(0, fs.maxItems ?? 8)} storeSlug={storeSlug} currency={config.currency} columns={fs.columns ?? 4} />
+                <ThemeProductGrid
+                  products={(featured as ProductCardData[]).slice(0, fs.maxItems ?? 8)}
+                  storeSlug={storeSlug}
+                  currency={config.currency}
+                  columns={fs.columns ?? 4}
+                  ProductCard={ProductCard}
+                />
               </div>
             );
           }
@@ -130,12 +167,9 @@ export default async function StorefrontHomePage({
             return (
               <div key={section.id} className="sf-page sf-section">
                 <p className="sf-section-title">{cs.heading || 'Collections'}</p>
-                <div style={{ display: cs.layout === 'grid' ? 'grid' : 'flex', gridTemplateColumns: cs.layout === 'grid' ? 'repeat(auto-fill,minmax(160px,1fr))' : undefined, gap: 12, overflowX: cs.layout !== 'grid' ? 'auto' : undefined, paddingBottom: 8 }}>
-                  {visible.map(col => (
-                    <a key={col.id} href={`/store/${storeSlug}/collections/${col.id}`} style={{ flexShrink: 0, borderRadius: 'var(--sf-radius)', overflow: 'hidden', border: '1px solid var(--sf-border)', textDecoration: 'none', background: 'var(--sf-surface)', display: 'flex', flexDirection: 'column', minWidth: 130 }}>
-                      <div style={{ height: 80, background: col.coverImageUrl ? `url(${col.coverImageUrl}) center/cover` : `linear-gradient(135deg,var(--sf-primary),var(--sf-secondary))` }} />
-                      <div style={{ padding: '8px 12px' }}><p style={{ margin: 0, fontWeight: 700, fontSize: 12, color: 'var(--sf-text-1)' }}>{col.title}</p></div>
-                    </a>
+                <div className="sf-collection-grid">
+                  {visible.map((col, i) => (
+                    <CollectionCard key={col.id} collection={col} storeSlug={storeSlug} index={i} />
                   ))}
                 </div>
               </div>
@@ -221,7 +255,14 @@ export default async function StorefrontHomePage({
               {allProducts.length} item{allProducts.length !== 1 ? 's' : ''}
             </span>
           </p>
-          <ProductGrid products={allProducts} storeSlug={storeSlug} currency={config.currency} columns={3} emptyMessage="No products yet. Check back soon!" />
+          <ThemeProductGrid
+            products={allProducts}
+            storeSlug={storeSlug}
+            currency={config.currency}
+            columns={3}
+            emptyMessage="No products yet. Check back soon!"
+            ProductCard={ProductCard}
+          />
         </div>
       )}
     </div>

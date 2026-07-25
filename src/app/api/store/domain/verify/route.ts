@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import dns from 'dns/promises';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const dns = require('dns').promises as { resolveCname(hostname: string): Promise<string[]> };
 
 /**
  * POST /api/store/domain/verify
