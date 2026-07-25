@@ -9,6 +9,13 @@ const STORIES = [
     videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.mp4",
     thumbnail: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.jpg",
     quote: "Building my business with Busmo has transformed how I manage operations."
+  },
+  {
+    name: "Ibrahim Shu'aibu",
+    business: "OD of Gwanki Plastic Ltd",
+    videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.mp4",
+    thumbnail: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.jpg",
+    quote: "Busmo has helped streamline our plastic manufacturing operations and inventory management."
   }
 ];
 
