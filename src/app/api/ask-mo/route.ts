@@ -617,6 +617,9 @@ export async function POST(request: NextRequest) {
     let actionResult = null;
     let renderedResponse = null;
 
+    // Intents that require client-side confirmation before executing
+    const INTENTS_NEEDING_CONFIRMATION = ['record_sale', 'add_expense', 'add_product', 'record_payment', 'record_purchase', 'adjust_inventory'];
+
     if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
       console.log('🎯 [Ask MO API] Intent detected for execution:', intent.intent, 'with data:', intent.data);
       
@@ -630,6 +633,23 @@ export async function POST(request: NextRequest) {
           answer: permCheck.reason || `Sorry, you don't have permission for this action.`,
           intent,
           permissionDenied: true,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // For intents needing confirmation, return pending action without executing
+      if (INTENTS_NEEDING_CONFIRMATION.includes(intent.intent)) {
+        console.log('⏳ [Ask MO API] Intent needs confirmation, returning pending action:', intent.intent);
+        renderedResponse = renderResponse(
+          `Please confirm: ${intent.data?.productName || intent.data?.category || intent.intent}`,
+          { success: true, action: intent.intent, message: 'Awaiting confirmation' },
+          intent
+        );
+        return NextResponse.json({
+          answer: renderedResponse.content,
+          rendered: renderedResponse,
+          pendingAction: { action: intent.intent, data: intent.data },
+          intent,
           timestamp: new Date().toISOString()
         });
       }

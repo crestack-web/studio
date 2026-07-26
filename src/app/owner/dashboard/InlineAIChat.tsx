@@ -133,6 +133,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [showHistory, setShowHistory] = useState(false);
   const [loadingText, setLoadingText] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesRef = useRef<MOMessage[]>([]);
@@ -471,6 +473,11 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         }
       }
 
+      // If API returned a pending action (needs confirmation), set it
+      if (data.pendingAction) {
+        setPendingAction(data.pendingAction);
+      }
+
       setMessages(prev => [...prev, botMsg]);
 
       const estimatedTokens = Math.ceil((botMsg.content.length / 4) * 0.7);
@@ -521,6 +528,64 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
+
+  // Execute pending action (sale/expense/product confirmation)
+  const executePendingAction = useCallback(async () => {
+    if (!pendingAction || isExecutingAction) return;
+    setIsExecutingAction(true);
+    try {
+      const response = await fetch('/api/ask-mo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: pendingAction,
+          businessId: user.businessId || user.id,
+          userId: user.id,
+          userRole: user.role,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        showToast(`Action completed: ${result.message}`);
+        const successMsg: MOMessage = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'bot',
+          content: `✅ ${result.message || 'Action completed successfully.'}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, successMsg]);
+      } else {
+        showToast(`Failed: ${result.message}`);
+        const errorMsg: MOMessage = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'bot',
+          content: `❌ ${result.message || 'Action failed.'}`,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
+    } catch (error) {
+      console.error('Error executing action:', error);
+      showToast('Failed to execute action');
+    } finally {
+      setPendingAction(null);
+      setIsExecutingAction(false);
+      if (currentConversationId) {
+        await saveConversation();
+      }
+    }
+  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation, setMessages]);
+
+  const cancelPendingAction = useCallback(() => {
+    const cancelMsg: MOMessage = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      role: 'bot',
+      content: 'Action cancelled.',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, cancelMsg]);
+    setPendingAction(null);
+  }, [setMessages]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -722,6 +787,40 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     totalProfit={m.saleCard.totalProfit}
                     timestamp={m.saleCard.timestamp}
                   />
+                  {pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={executePendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        onClick={cancelPendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--bg-2)',
+                          color: 'var(--text-1)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {m.productCard && (
@@ -742,6 +841,40 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                       {m.productCard.sku && <>• SKU: {m.productCard.sku}</>}
                     </p>
                   </div>
+                  {pendingAction && pendingAction.action === 'add_product' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={executePendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        onClick={cancelPendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--bg-2)',
+                          color: 'var(--text-1)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {m.expenseCard && (
@@ -760,6 +893,40 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                       Date: {m.expenseCard.date}
                     </p>
                   </div>
+                  {pendingAction && pendingAction.action === 'add_expense' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={executePendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--green)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✓ Confirm
+                      </button>
+                      <button
+                        onClick={cancelPendingAction}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          background: 'var(--bg-2)',
+                          color: 'var(--text-1)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {formatContent(m.content)}

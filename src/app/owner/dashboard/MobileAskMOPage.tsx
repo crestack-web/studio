@@ -206,7 +206,6 @@ export function MobileAskMOPage() {
         } else {
           showToast(`Failed to record sale: ${result.message}`);
           
-          // Add error message to chat
           const errorMsg: MOMessage = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
@@ -217,10 +216,47 @@ export function MobileAskMOPage() {
           setMessages(prev => [...prev, errorMsg]);
           setPendingAction(null);
           
-          // Save conversation even on error
           if (currentConversationId) {
             await saveConversation();
           }
+        }
+      } else {
+        // Generic handler for add_expense, add_product, etc.
+        const response = await fetch('/api/ask-mo', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: pendingAction,
+            businessId: user.businessId || user.id,
+            userId: user.id,
+            userRole: user.role,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast(`Action completed: ${result.message}`);
+          const successMsg: MOMessage = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            role: 'bot',
+            content: `✅ ${result.message || 'Action completed successfully.'}`,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, successMsg]);
+        } else {
+          showToast(`Failed: ${result.message}`);
+          const errorMsg: MOMessage = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            role: 'bot',
+            content: `❌ ${result.message || 'Action failed.'}`,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, errorMsg]);
+        }
+        setPendingAction(null);
+        if (currentConversationId) {
+          await saveConversation();
         }
       }
     } catch (error) {
@@ -235,7 +271,7 @@ export function MobileAskMOPage() {
     } finally {
       setIsExecutingAction(false);
     }
-  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation]);
+  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation, setMessages]);
 
   // Check for pre-filled question from other pages
   useEffect(() => {
@@ -616,6 +652,11 @@ export function MobileAskMOPage() {
         }
       }
 
+      // If API returned a pending action (needs confirmation), set it
+      if (data.pendingAction) {
+        setPendingAction(data.pendingAction);
+      }
+
       // Update the final message
       setMessages(prev => 
         prev.map(msg => 
@@ -705,7 +746,7 @@ export function MobileAskMOPage() {
     const cancelMsg: MOMessage = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: 'bot',
-      content: 'Sale recording cancelled.',
+      content: 'Action cancelled.',
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, cancelMsg]);
@@ -715,7 +756,7 @@ export function MobileAskMOPage() {
     if (currentConversationId) {
       await saveConversation();
     }
-  }, [currentConversationId, saveConversation]);
+  }, [currentConversationId, saveConversation, setMessages]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1026,6 +1067,62 @@ export function MobileAskMOPage() {
                           cursor: 'pointer',
                         }}
                       >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Product Added Confirmation */}
+              {m.role === 'bot' && m.productCard && (
+                <div style={{
+                  marginTop: '12px',
+                  background: 'var(--primary-light, rgba(99,102,241,0.1))',
+                  border: '1px solid var(--primary, #6366F1)',
+                  borderRadius: '8px',
+                  padding: '16px',
+                }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary, #6366F1)', fontSize: '0.95rem' }}>✅ Product Added</h4>
+                  <p style={{ margin: '4px 0', fontWeight: 600 }}>{m.productCard.name}</p>
+                  <p style={{ margin: '4px 0', fontSize: '0.85rem', color: 'var(--text-2, #666)' }}>
+                    Stock: {m.productCard.stock} units<br/>
+                    Selling: ₦{m.productCard.price.toLocaleString()}<br/>
+                    Cost: ₦{m.productCard.cost.toLocaleString()}
+                    {m.productCard.sku && <><br/>SKU: {m.productCard.sku}</>}
+                  </p>
+                  {pendingAction && pendingAction.action === 'add_product' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                        ✓ Confirm
+                      </button>
+                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2)', color: 'var(--text-1)', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Expense Recorded Confirmation */}
+              {m.role === 'bot' && m.expenseCard && (
+                <div style={{
+                  marginTop: '12px',
+                  background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid var(--amber, #F59E0B)',
+                  borderRadius: '8px',
+                  padding: '16px',
+                }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--amber, #F59E0B)', fontSize: '0.95rem' }}>✅ Expense Recorded</h4>
+                  <p style={{ margin: '4px 0', fontWeight: 600 }}>{m.expenseCard.category}</p>
+                  <p style={{ margin: '4px 0', fontSize: '0.85rem', color: 'var(--text-2, #666)' }}>
+                    Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>
+                    Date: {m.expenseCard.date}
+                  </p>
+                  {pendingAction && pendingAction.action === 'add_expense' && !isExecutingAction && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                        ✓ Confirm
+                      </button>
+                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2)', color: 'var(--text-1)', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
                     </div>

@@ -65,8 +65,8 @@
 /* Logo fills the header height, clipped — never scaled down */
 .logoImg {
   width: auto;
-  height: 110%;
-  object-fit: cover;
+  height: 55%;
+  object-fit: contain;
   object-position: left center;
   display: block;
   flex-shrink: 0;

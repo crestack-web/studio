@@ -14,8 +14,10 @@ interface ChatMessage {
   text: string;
   storeUpdate?: Record<string, unknown> | null;
   newProduct?: Record<string, unknown> | null;
+  editProduct?: Record<string, unknown> | null;
   applied?: boolean;
   productCreated?: boolean;
+  showPreview?: boolean;
 }
 
 interface Conversation {
@@ -147,6 +149,15 @@ export function SellAskMoPage() {
     const t = setTimeout(() => saveActive(messages, conversationHistory), 500);
     return () => clearTimeout(t);
   }, [messages, conversationHistory, saveActive]);
+
+  // Save immediately on unmount so navigating away doesn't lose messages
+  useEffect(() => {
+    return () => {
+      if (messagesRef.current.length > 0) {
+        saveActive(messagesRef.current, historyRef.current);
+      }
+    };
+  }, [saveActive]);
 
   // ── Load conversation history list ─────────────────────────────────────
 
@@ -291,9 +302,28 @@ export function SellAskMoPage() {
           text: data.answer,
           storeUpdate: data.storeUpdate ?? null,
           newProduct: data.newProduct ?? null,
+          editProduct: data.editProduct ?? null,
+          showPreview: !!(data.newProduct || data.editProduct),
         };
 
-        setMessages(prev => [...prev, botMsg]);
+        // If an editProduct was returned, find the original message and update its newProduct
+        if (data.editProduct && data.editProduct.id) {
+          setMessages(prev => {
+            const updated = [...prev];
+            // Find the last bot message with a matching newProduct and update it
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].newProduct && (updated[i].newProduct as any).id === data.editProduct.id) {
+                updated[i] = { ...updated[i], newProduct: data.editProduct, showPreview: true };
+                break;
+              }
+            }
+            // Add the new bot message with the edit confirmation
+            updated.push(botMsg);
+            return updated;
+          });
+        } else {
+          setMessages(prev => [...prev, botMsg]);
+        }
         setConversationHistory(prev => [
           ...prev,
           userHistoryEntry,
@@ -465,22 +495,79 @@ export function SellAskMoPage() {
                       <div className={styles.actionCard}>
                         <div className={styles.actionCardHeader}>
                           <span className={styles.actionCardIcon}>📦</span>
-                          New Product
+                          {msg.editProduct ? 'Updated Product' : 'New Product'}
                         </div>
                         <div className={styles.actionCardBody}>
                           <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>Name</span><span className={styles.actionCardValue}>{String(msg.newProduct.displayName)}</span></div>
-                          <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>Type</span><span className={styles.actionCardValue}>{String(msg.newProduct.productType)} / {String(msg.newProduct.digitalSubtype)}</span></div>
+                          <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>Type</span><span className={styles.actionCardValue}>{String(msg.newProduct.digitalSubtype || msg.newProduct.productType)}</span></div>
                           <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>Price</span><span className={styles.actionCardValue}>₦{Number(msg.newProduct.price).toLocaleString()}</span></div>
                           {msg.newProduct.category ? <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>Category</span><span className={styles.actionCardValue}>{String(msg.newProduct.category)}</span></div> : null}
-                          {msg.newProduct.digitalFileUrl ? <div className={styles.actionCardRow}><span className={styles.actionCardLabel}>PDF</span><span className={styles.actionCardValue} style={{ color: '#16a34a' }}>✓ Generated</span></div> : null}
+                          {msg.newProduct.description ? (
+                            <div style={{ padding: '8px 0', fontSize: '12px', color: 'var(--sell-text-muted, #6b7280)', lineHeight: 1.5 }}>
+                              {String(msg.newProduct.description)}
+                            </div>
+                          ) : null}
+
+                          {/* Chapter list */}
+                          {(msg.newProduct as any).pdfContent?.chapters && (
+                            <div style={{ marginTop: 8 }}>
+                              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--sell-text, #1a1a1a)', marginBottom: 6 }}>
+                                📄 {((msg.newProduct as any).pdfContent.chapters as any[]).length} Chapters
+                              </p>
+                              {((msg.newProduct as any).pdfContent.chapters as any[]).map((ch: any, i: number) => (
+                                <div key={i} style={{ padding: '4px 0', fontSize: 11, color: 'var(--sell-text-muted, #6b7280)', display: 'flex', gap: 6 }}>
+                                  <span style={{ color: 'var(--sell-accent, #6366f1)', fontWeight: 600, minWidth: 20 }}>{String(i + 1).padStart(2, '0')}</span>
+                                  <span>{ch.heading}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* PDF Preview Embed */}
+                          {msg.newProduct.digitalFileUrl && (
+                            <div style={{ marginTop: 12, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sell-border, #e5e7eb)' }}>
+                              <iframe
+                                src={`${msg.newProduct.digitalFileUrl}#toolbar=0&navpanes=0`}
+                                style={{ width: '100%', height: 320, border: 'none' }}
+                                title={`${msg.newProduct.displayName} preview`}
+                              />
+                            </div>
+                          )}
+
+                          {/* Word count estimate */}
+                          {(msg.newProduct as any).pdfContent?.chapters && (
+                            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--sell-accent, #6366f1)', fontWeight: 500 }}>
+                              ✍️ ~{((msg.newProduct as any).pdfContent.chapters as any[]).reduce((sum: number, ch: any) => sum + (ch.body?.split(/\s+/).length || 0), 0).toLocaleString()} words of content
+                            </div>
+                          )}
                         </div>
                         <div className={styles.actionCardFooter}>
                           {msg.productCreated ? (
-                            <span className={styles.appliedLabel}>✓ Product created — check your Products page</span>
+                            <span className={styles.appliedLabel}>✓ Product live in your store</span>
                           ) : (
                             <>
-                              <button className={`${styles.confirmBtn} ${styles.confirmBtnPrimary}`} onClick={() => markProductCreated(msg.id)}>Product Created</button>
-                              <button className={`${styles.confirmBtn} ${styles.confirmBtnSecondary}`} onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, newProduct: null } : m))}>Dismiss</button>
+                              <button
+                                className={`${styles.confirmBtn} ${styles.confirmBtnPrimary}`}
+                                onClick={() => markProductCreated(msg.id)}
+                              >
+                                ✓ Looks Good
+                              </button>
+                              <button
+                                className={`${styles.confirmBtn} ${styles.confirmBtnSecondary}`}
+                                onClick={() => {
+                                  const name = String(msg.newProduct?.displayName || 'the product');
+                                  setInput(`I want to tweak ${name} — `);
+                                  inputRef.current?.focus();
+                                }}
+                              >
+                                ✏️ Tweak
+                              </button>
+                              <button
+                                className={`${styles.confirmBtn} ${styles.confirmBtnSecondary}`}
+                                onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, newProduct: null } : m))}
+                              >
+                                Dismiss
+                              </button>
                             </>
                           )}
                         </div>
@@ -536,36 +623,40 @@ export function SellAskMoPage() {
       </div>
 
       {/* ── History Panel (after chat so z-index wins) ── */}
-      {historyOpen && <div className={styles.historyBackdrop} onClick={() => setHistoryOpen(false)} />}
-      <div className={`${styles.historyPanel} ${historyOpen ? styles.historyPanelOpen : ''}`}>
-        <div className={styles.historyHeader}>
-          <span className={styles.historyTitle}>Chat History</span>
-          <button className={styles.historyClose} onClick={() => setHistoryOpen(false)} aria-label="Close history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className={styles.historyList}>
-          {historyLoading && <p className={styles.historyEmpty}>Loading...</p>}
-          {!historyLoading && conversations.length === 0 && (
-            <p className={styles.historyEmpty}>No past conversations yet.</p>
-          )}
-          {conversations.map(c => (
-            <div key={c.id} className={styles.historyItem} onClick={() => loadConversation(c.id)}>
-              <div className={styles.historyItemContent}>
-                <p className={styles.historyItemPreview}>{c.preview}</p>
-                <p className={styles.historyItemMeta}>{c.messageCount} messages · {timeAgo(c.updatedAt)}</p>
-              </div>
-              <button
-                className={styles.historyItemDelete}
-                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                aria-label="Delete conversation"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      {historyOpen && (
+        <>
+          <div className={styles.historyBackdrop} onClick={() => setHistoryOpen(false)} />
+          <div className={`${styles.historyPanel} ${styles.historyPanelOpen}`}>
+            <div className={styles.historyHeader}>
+              <span className={styles.historyTitle}>Chat History</span>
+              <button className={styles.historyClose} onClick={() => setHistoryOpen(false)} aria-label="Close history">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className={styles.historyList}>
+              {historyLoading && <p className={styles.historyEmpty}>Loading...</p>}
+              {!historyLoading && conversations.length === 0 && (
+                <p className={styles.historyEmpty}>No past conversations yet.</p>
+              )}
+              {conversations.map(c => (
+                <div key={c.id} className={styles.historyItem} onClick={() => loadConversation(c.id)}>
+                  <div className={styles.historyItemContent}>
+                    <p className={styles.historyItemPreview}>{c.preview}</p>
+                    <p className={styles.historyItemMeta}>{c.messageCount} messages · {timeAgo(c.updatedAt)}</p>
+                  </div>
+                  <button
+                    className={styles.historyItemDelete}
+                    onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                    aria-label="Delete conversation"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
