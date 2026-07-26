@@ -12,9 +12,10 @@ interface Props {
   storeSlug: string;
   currency: string;
   businessId: string;
+  hideStoreNameWithLogo?: boolean;
 }
 
-export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Props) {
+export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId, hideStoreNameWithLogo }: Props) {
   const { totalItems, toggleCart } = useCart();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -40,7 +41,7 @@ export function StorefrontNav({ storeName, logoUrl, storeSlug, businessId }: Pro
               fontWeight: 800, fontSize: '1.1rem',
             }}>{storeName.charAt(0).toUpperCase()}</span>
         }
-        <span>{storeName}</span>
+        {!(hideStoreNameWithLogo && logoUrl) && <span>{storeName}</span>}
       </Link>
 
       {/* Collections nav links - desktop only */}

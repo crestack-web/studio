@@ -5,7 +5,7 @@ import type { ThemeHeroProps } from '../types';
 
 export function CreatorHero({
   storeName, tagline, logoUrl, primaryColor = '#7C3AED', secondaryColor = '#EC4899',
-  ctaLabel = '✨ Shop Now', ctaUrl = '#products', backgroundImage,
+  ctaLabel = '✨ Shop Now', ctaUrl = '#products', backgroundImage, textAlign = 'left', buttonStyle,
 }: ThemeHeroProps) {
   return (
     <section style={{
@@ -39,7 +39,7 @@ export function CreatorHero({
         pointerEvents: 'none',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 640 }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start', textAlign }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -89,10 +89,10 @@ export function CreatorHero({
             padding: '16px 48px',
             background: '#FFFFFF',
             color: primaryColor,
-            borderRadius: 50,
+            borderRadius: buttonStyle === 'pill' ? 50 : buttonStyle === 'square' ? 4 : 12,
             fontSize: '0.85rem', fontWeight: 800,
             letterSpacing: '0.04em',
-            textDecoration: 'none',
+            textDecoration: 'none', width: 'fit-content',
             boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
             transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
           }}

@@ -59,7 +59,11 @@ function ThemeProductGrid({ products, storeSlug, currency, columns, emptyMessage
     );
   }
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 24 }}>
+    <div className="sf-product-grid" style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${columns}, 1fr)`,
+      gap: 24,
+    }}>
       {products.map(p => (
         <ProductCard key={p.id} product={p} storeSlug={storeSlug} currency={currency} />
       ))}
@@ -139,6 +143,8 @@ export default async function StorefrontHomePage({
                 ctaLabel={hs.ctaLabel || 'Shop Now'}
                 ctaUrl={hs.ctaUrl || '#products'}
                 backgroundImage={hs.backgroundImage ?? null}
+                textAlign={hs.textAlign ?? 'left'}
+                buttonStyle={config.buttonStyle ?? 'pill'}
               />
             );
           }

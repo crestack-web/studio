@@ -24,9 +24,11 @@ try {
       clientEmail: clientEmail,
     };
     
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
     if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
+        ...(storageBucket ? { storageBucket } : {}),
       });
       adminInitialized = true;
     }

@@ -14,7 +14,7 @@ const COLORS = {
   dustyRose: '#C9929B',
 };
 
-export function GlowHero({ storeName, tagline, logoUrl, ctaLabel = 'Explore Collection', ctaUrl = '#products', backgroundImage }: ThemeHeroProps) {
+export function GlowHero({ storeName, tagline, logoUrl, ctaLabel = 'Explore Collection', ctaUrl = '#products', backgroundImage, textAlign = 'left', buttonStyle }: ThemeHeroProps) {
   const bgStyle = backgroundImage
     ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover' as const, backgroundPosition: 'center' as const }
     : {};
@@ -52,7 +52,7 @@ export function GlowHero({ storeName, tagline, logoUrl, ctaLabel = 'Explore Coll
         pointerEvents: 'none',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 640 }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start', textAlign }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt={storeName}
@@ -88,10 +88,10 @@ export function GlowHero({ storeName, tagline, logoUrl, ctaLabel = 'Explore Coll
         <a href={ctaUrl} style={{
           display: 'inline-block', marginTop: 40, padding: '15px 44px',
           background: `linear-gradient(135deg, ${COLORS.roseGold}, ${COLORS.dustyRose})`,
-          borderRadius: 50,
+          borderRadius: buttonStyle === 'pill' ? 50 : buttonStyle === 'square' ? 0 : 12,
           color: COLORS.warmWhite,
           fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase',
-          textDecoration: 'none', fontWeight: 600,
+          textDecoration: 'none', fontWeight: 600, width: 'fit-content',
           transition: 'all 0.35s ease',
           boxShadow: '0 6px 24px rgba(183,110,121,0.25)',
         }}

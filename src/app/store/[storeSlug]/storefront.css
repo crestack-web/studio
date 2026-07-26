@@ -180,7 +180,7 @@ img { max-width: 100%; height: auto; display: block; }
   gap: 24px;
 }
 @media (max-width: 640px) {
-  .sf-product-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .sf-product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px; }
   .sf-card-img { height: 180px; }
   .sf-card-body { padding: 10px; }
   .sf-card-name { font-size: 0.88rem; }
@@ -360,6 +360,7 @@ img { max-width: 100%; height: auto; display: block; }
 .sf-hero {
   padding: 60px max(24px, calc((100vw - 1200px) / 2 + 24px));
   margin-bottom: 48px; display: flex; flex-direction: column; gap: 14px;
+  align-items: flex-start;
 }
 [data-theme="luxe"] .sf-hero { padding-left: max(40px, calc((100vw - 1200px) / 2 + 40px)); }
 
@@ -426,6 +427,42 @@ img { max-width: 100%; height: auto; display: block; }
 .sf-instagram-cell { aspect-ratio: 1/1; background: var(--sf-surface); border: 1px solid var(--sf-border); border-radius: var(--sf-radius-sm); overflow: hidden; }
 .sf-instagram-cell img { width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 640px) { .sf-instagram-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* ═══════════════════════════════════════════
+   CONTAINER QUERIES — for sell dashboard mobile preview
+   The phone mockup renders the canvas at 375px inside a scroll container
+   with container-type: inline-size. These rules mirror the @media queries
+   so mobile styles fire inside the preview.
+═══════════════════════════════════════════ */
+
+@container (max-width: 768px) {
+  .sf-nav { padding: 0 16px !important; }
+  .sf-nav-desktop-only { display: none !important; }
+  .sf-nav-mobile-only { display: flex !important; align-items: center; justify-content: center; }
+  .sf-nav-cart-text { display: none; }
+  .sf-nav-cart { padding: 8px !important; }
+  .sf-about { grid-template-columns: 1fr !important; }
+}
+
+@container (max-width: 640px) {
+  .sf-product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px; }
+  .sf-card-img { height: 180px; }
+  .sf-card-body { padding: 10px; }
+  .sf-card-name { font-size: 0.88rem; }
+  .sf-card-price { font-size: 0.92rem; }
+  .sf-card-btn { padding: 10px; font-size: 0.8rem; }
+  .sf-collection-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .sf-collection-card-img { height: 120px; }
+  .sf-instagram-grid { grid-template-columns: repeat(3, 1fr); }
+  .sf-hero { padding: 40px 20px !important; }
+  .sf-page { padding: 24px 12px 60px; }
+  .sf-section { margin-bottom: 32px; }
+  .sf-footer { padding: 28px 16px !important; }
+  .sf-testimonials-grid { grid-template-columns: 1fr; }
+  .sf-newsletter { padding: 32px 16px; }
+  .sf-newsletter-form { flex-direction: column; }
+  .sf-newsletter-input { min-width: 0; width: 100%; }
+}
 
 /* ═══════════════════════════════════════════
    GLOW THEME — Warm, beauty-focused

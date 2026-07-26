@@ -3,7 +3,7 @@
 import React from 'react';
 import type { ThemeHeroProps } from '../types';
 
-export function MarketHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage }: ThemeHeroProps) {
+export function MarketHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage, textAlign = 'left', buttonStyle }: ThemeHeroProps) {
   const bgStyle = backgroundImage
     ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover' as const, backgroundPosition: 'center' as const }
     : {};
@@ -57,8 +57,8 @@ export function MarketHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now',
         <a href={ctaUrl} style={{
           display: 'inline-block', marginTop: 12, padding: '14px 40px',
           background: '#FFFFFF', color: '#EA580C',
-          borderRadius: 999, textDecoration: 'none',
-          fontSize: '0.9rem', fontWeight: 800,
+          borderRadius: buttonStyle === 'pill' ? 999 : buttonStyle === 'square' ? 0 : 12, textDecoration: 'none',
+          fontSize: '0.9rem', fontWeight: 800, width: 'fit-content',
           letterSpacing: '0.02em', textTransform: 'uppercase',
           boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
           transition: 'all 0.2s',

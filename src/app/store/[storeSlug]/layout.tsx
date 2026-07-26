@@ -11,7 +11,7 @@ import '../../../app/store/themes/minimal.css';
 import { CartProvider } from './context/CartContext';
 import { StorefrontNav } from './components/StorefrontNav';
 import { CartDrawer } from './components/CartDrawer';
-import type { StorefrontTheme, StoreSection, FooterSectionSettings } from '@/app/sell/mo-sell.types';
+import type { StorefrontTheme, StoreSection, FooterSectionSettings, HeaderSectionSettings } from '@/app/sell/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
 
 // ─── Fetch store config ───────────────────────────────────────────────────────
@@ -96,9 +96,20 @@ export default async function StorefrontLayout({
   const theme: StorefrontTheme = config.theme ?? 'luxe';
   const primary   = config.primaryColor   ?? '#C9A84C';
   const secondary = config.secondaryColor ?? '#8B7355';
+  const fontFamily = config.fontFamily ?? null;
+  const bodyTextColor = config.bodyTextColor ?? null;
+
+  const savedSections: StoreSection[] = config.sections ?? [];
+
+  // Resolve header section settings for hideStoreNameWithLogo
+  const headerDef = DEFAULT_SECTIONS.find(s => s.id === 'header')!;
+  const headerSaved = savedSections.find(s => s.id === 'header');
+  const headerSettings = {
+    ...headerDef.settings as HeaderSectionSettings,
+    ...(headerSaved?.settings as HeaderSectionSettings ?? {}),
+  };
 
   // Resolve footer section settings
-  const savedSections: StoreSection[] = config.sections ?? [];
   const footerDef = DEFAULT_SECTIONS.find(s => s.id === 'footer')!;
   const footerSaved = savedSections.find(s => s.id === 'footer');
   const footerSettings: FooterSectionSettings = {
@@ -142,11 +153,20 @@ export default async function StorefrontLayout({
   return (
     <html lang="en" data-theme={theme}>
       <head>
+        {/* Google Font loading for custom store font */}
+        {fontFamily && (
+          <link
+            href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;500;600;700;800&display=swap`}
+            rel="stylesheet"
+          />
+        )}
         {/* Per-store color tokens — applied on top of theme defaults */}
         <style>{`
           [data-theme="${theme}"] {
             --sf-primary:   ${primary};
             --sf-secondary: ${secondary};
+            ${fontFamily ? `--sf-font: '${fontFamily}', system-ui, sans-serif;` : ''}
+            ${bodyTextColor ? `--sf-text-1: ${bodyTextColor};` : ''}
           }
         `}</style>
       </head>
@@ -159,6 +179,7 @@ export default async function StorefrontLayout({
               storeSlug={storeSlug}
               currency={config.currency}
               businessId={config.businessId}
+              hideStoreNameWithLogo={headerSettings.hideStoreNameWithLogo}
             />
           )}
           <main>

@@ -118,6 +118,13 @@ const themeLoader: Record<string, () => Promise<ThemeComponents>> = {
     ProductPage: m.GlowProductPage,
     cssClass: 'theme-glow',
   })),
+  link: () => import('./link').then(m => ({
+    ProductCard: m.LinkProductCard,
+    CollectionCard: m.LinkCollectionCard,
+    Hero: m.LinkHero,
+    ProductPage: m.LinkProductPage,
+    cssClass: 'theme-link',
+  })),
 };
 
 export type ThemeId = keyof typeof themeLoader;

@@ -38,6 +38,10 @@ export interface StorefrontCanvasProps {
   storeSlug?: string;
   products?: StorefrontProduct[];
   collections?: StoreCollection[];
+  fontFamily?: string | null;
+  buttonStyle?: 'pill' | 'square' | 'rounded';
+  bodyTextColor?: string | null;
+  hideStoreNameWithLogo?: boolean;
 }
 
 // ─── CSS variable injection per theme ─────────────────────────────────────────
@@ -145,8 +149,9 @@ const MOCK: Record<StorefrontTheme, {
 
 // ─── Section components ────────────────────────────────────────────────────────
 
-function SfNav({ theme, storeName, logoUrl, primary, storeSlug }: {
+function SfNav({ theme, storeName, logoUrl, primary, storeSlug, hideStoreNameWithLogo }: {
   theme: StorefrontTheme; storeName: string; logoUrl?: string | null; primary: string; storeSlug?: string;
+  hideStoreNameWithLogo?: boolean;
 }) {
   const isLuxe = theme === 'luxe';
   const isMarket = theme === 'market';
@@ -158,15 +163,23 @@ function SfNav({ theme, storeName, logoUrl, primary, storeSlug }: {
       padding: '0 28px', gap: 24, height: 'var(--sf-nav-h)',
       position: 'sticky', top: 0, zIndex: 20, flexShrink: 0,
     }}>
-      {logoUrl
-        ? <img src={logoUrl} alt={storeName} style={{ height: 32, width: 'auto', maxWidth: 120, objectFit: 'contain', borderRadius: 'var(--sf-radius-sm)' }} />
-        : <span style={{
-            fontFamily: isLuxe ? '"Playfair Display",Georgia,serif' : 'var(--sf-font)',
-            fontStyle: isLuxe ? 'italic' : 'normal', fontWeight: isLuxe ? 400 : 800,
-            fontSize: isLuxe ? '1.1rem' : '1rem', letterSpacing: isLuxe ? '0.12em' : '-0.01em',
-            color: isMarket ? '#fff' : 'var(--sf-text-1)',
-          }}>{storeName}</span>
-      }
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {logoUrl
+          ? <img src={logoUrl} alt={storeName} style={{ height: 32, width: 'auto', maxWidth: 120, objectFit: 'contain', borderRadius: 'var(--sf-radius-sm)' }} />
+          : <span style={{
+              width: 36, height: 36, borderRadius: 8,
+              background: isMarket ? '#fff' : primary, color: isMarket ? primary : '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 800, fontSize: '1rem', flexShrink: 0,
+            }}>{storeName.charAt(0).toUpperCase()}</span>
+        }
+        {!(hideStoreNameWithLogo && logoUrl) && <span style={{
+          fontFamily: isLuxe ? '"Playfair Display",Georgia,serif' : 'var(--sf-font)',
+          fontStyle: isLuxe ? 'italic' : 'normal', fontWeight: isLuxe ? 400 : 800,
+          fontSize: isLuxe ? '1.1rem' : '1rem', letterSpacing: isLuxe ? '0.12em' : '-0.01em',
+          color: isMarket ? '#fff' : 'var(--sf-text-1)',
+        }}>{storeName}</span>}
+      </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
         {['Shop', 'Collections', 'About', 'Contact'].map(l => (
           <span key={l} style={{ fontSize: '0.8rem', fontWeight: 500, color: isMarket ? 'rgba(255,255,255,0.85)' : 'var(--sf-text-2)', cursor: 'pointer' }}>{l}</span>
@@ -194,23 +207,33 @@ function SfNav({ theme, storeName, logoUrl, primary, storeSlug }: {
   );
 }
 
-function SfHero({ theme, storeName, tagline, settings, primary, secondary }: {
+function SfHero({ theme, storeName, tagline, settings, primary, secondary, buttonStyle }: {
   theme: StorefrontTheme; storeName: string; tagline: string;
   settings: HeroSectionSettings; primary: string; secondary: string;
+  buttonStyle?: 'pill' | 'square' | 'rounded';
 }) {
   const heading = settings.heading || storeName;
   const sub = settings.showTagline !== false ? (settings.subheading || tagline) : '';
   const cta = settings.ctaLabel || 'Shop Now';
   const bgImg = settings.backgroundImage;
+  const textAlign = settings.textAlign ?? 'left';
   const heroBg = bgImg ? `url(${bgImg}) center/cover` :
     theme === 'luxe'   ? '#111111' :
     theme === 'glow'   ? `linear-gradient(135deg,${primary}1a 0%,${secondary}0d 100%)` :
     theme === 'market' ? `linear-gradient(135deg,${primary} 0%,${secondary} 100%)` :
                          `linear-gradient(135deg,${primary}28 0%,${secondary}18 100%)`;
   const isLuxe = theme === 'luxe'; const isMarket = theme === 'market'; const isCreator = theme === 'creator';
+  const alignMap = { left: 'flex-start' as const, center: 'center' as const, right: 'flex-end' as const };
+  const align = alignMap[textAlign] ?? 'flex-start';
+
+  let radius: number;
+  if (buttonStyle === 'pill') radius = 100;
+  else if (buttonStyle === 'square') radius = 0;
+  else if (buttonStyle === 'rounded') radius = 8;
+  else radius = isMarket ? 100 : isLuxe ? 0 : 'var(--sf-radius-sm)' as unknown as number;
 
   return (
-    <section style={{ background: heroBg, padding: isLuxe ? '72px 48px' : '60px 32px', display: 'flex', flexDirection: 'column', gap: 16, minHeight: 340, justifyContent: 'center' }}>
+    <section style={{ background: heroBg, padding: isLuxe ? '72px 48px' : '60px 32px', display: 'flex', flexDirection: 'column', gap: 16, minHeight: 340, justifyContent: 'center', alignItems: align, textAlign }}>
       {isLuxe    && <p style={{ fontSize: '0.6rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: '#C9A84C', fontWeight: 500, margin: 0 }}>New Collection</p>}
       {isMarket  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)', margin: 0 }}>🛍️ Fresh arrivals daily</p>}
       {isCreator && <p style={{ fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primary, fontWeight: 700, margin: 0 }}>Build once. Sell forever.</p>}
@@ -234,7 +257,7 @@ function SfHero({ theme, storeName, tagline, settings, primary, secondary }: {
         background: isLuxe ? 'transparent' : isMarket ? '#fff' : primary,
         color: isLuxe ? '#C9A84C' : isMarket ? primary : '#fff',
         border: isLuxe ? '1px solid #C9A84C' : 'none',
-        borderRadius: isMarket ? 100 : isLuxe ? 0 : 'var(--sf-radius-sm)',
+        borderRadius: radius,
         fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', cursor: 'pointer',
         letterSpacing: isLuxe ? '0.14em' : 0, textTransform: isLuxe ? 'uppercase' : 'none',
         width: 'fit-content',
@@ -587,6 +610,10 @@ export function StorefrontCanvas({
   storeSlug,
   products = [],
   collections = [],
+  fontFamily,
+  buttonStyle = 'pill',
+  bodyTextColor,
+  hideStoreNameWithLogo,
 }: StorefrontCanvasProps) {
   // Fall back to theme defaults if no colors provided
   const defaultColors: Record<StorefrontTheme, [string, string]> = {
@@ -609,6 +636,11 @@ export function StorefrontCanvas({
   const themeVars = getThemeCssVars(theme, primary, secondary);
   const isLink = theme === 'link';
 
+  // Apply custom font and text color overrides
+  const customVars: Record<string, string> = {};
+  if (fontFamily) customVars['--sf-font'] = `'${fontFamily}', system-ui, sans-serif`;
+  if (bodyTextColor) customVars['--sf-text-1'] = bodyTextColor;
+
   // Link theme uses a completely different layout (centered profile page)
   if (isLink) {
     const linkMock = MOCK.link;
@@ -619,7 +651,7 @@ export function StorefrontCanvas({
       <div style={{
         width, background: 'var(--sf-bg)', fontFamily: 'var(--sf-font)',
         color: 'var(--sf-text-1)', display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none', ...themeVars,
+        overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none', ...themeVars, ...customVars,
       }}>
         <SfLinkProfile storeName={storeName} tagline={tagline} logoUrl={logoUrl} primary={primary} secondary={secondary} />
         <SfLinkProducts products={linkProducts} primary={primary} secondary={secondary} />
@@ -641,6 +673,7 @@ export function StorefrontCanvas({
       userSelect: 'none',
       WebkitUserSelect: 'none',
       ...themeVars,
+      ...customVars,
     }}>
       {activeSections.map(section => {
         if (!section.enabled) return null;
@@ -648,13 +681,13 @@ export function StorefrontCanvas({
 
         switch (section.type) {
           case 'header':
-            return <SfNav key={section.id} theme={theme} storeName={storeName} logoUrl={logoUrl} primary={primary} storeSlug={storeSlug} />;
+            return <SfNav key={section.id} theme={theme} storeName={storeName} logoUrl={logoUrl} primary={primary} storeSlug={storeSlug} hideStoreNameWithLogo={hideStoreNameWithLogo} />;
 
           case 'announcement':
             return <SfAnnouncement key={section.id} settings={s as unknown as AnnouncementSectionSettings} />;
 
           case 'hero':
-            return <SfHero key={section.id} theme={theme} storeName={storeName} tagline={tagline} settings={s as HeroSectionSettings} primary={primary} secondary={secondary} />;
+            return <SfHero key={section.id} theme={theme} storeName={storeName} tagline={tagline} settings={s as HeroSectionSettings} primary={primary} secondary={secondary} buttonStyle={buttonStyle} />;
 
           case 'featured':
             return <SfFeatured key={section.id} theme={theme} settings={s as FeaturedSectionSettings} primary={primary} products={products} storeSlug={storeSlug} />;

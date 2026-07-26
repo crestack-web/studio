@@ -73,6 +73,7 @@ export interface HeaderSectionSettings {
   showSearch?: boolean;
   showCartCount?: boolean;
   sticky?: boolean;
+  hideStoreNameWithLogo?: boolean;
   navLinks?: { label: string; url: string }[];
 }
 
@@ -164,6 +165,12 @@ export interface StoreConfig {
   tagline?: string | null;
   storePolicy?: string | null;
   sections?: StoreSection[];
+  /** Custom font family (Google Font name) */
+  fontFamily?: string | null;
+  /** Button style: pill, square, rounded */
+  buttonStyle?: 'pill' | 'square' | 'rounded';
+  /** Custom body text color override */
+  bodyTextColor?: string | null;
   /** Busmo collects payments on behalf of merchant, charges 5% commission */
   managedPayments?: boolean;
   /** Merchant bank account for payouts (only stored when managedPayments = true) */

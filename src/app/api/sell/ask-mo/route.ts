@@ -295,14 +295,19 @@ function parseActionBlocks(raw: string): {
   if (storeMatch) {
     try {
       storeUpdate = JSON.parse(storeMatch[1]);
-    } catch { /* malformed */ }
+    } catch (parseErr) {
+      console.error('[AskMo] Malformed store_update JSON:', parseErr instanceof Error ? parseErr.message : parseErr);
+    }
   }
 
   const productMatch = raw.match(/```new_product\n([\s\S]+?)\n```/);
   if (productMatch) {
     try {
       newProduct = JSON.parse(productMatch[1]);
-    } catch { /* malformed */ }
+    } catch (parseErr) {
+      console.error('[AskMo] Malformed new_product JSON:', parseErr instanceof Error ? parseErr.message : parseErr);
+      console.error('[AskMo] Raw product block:', productMatch[1].slice(0, 500));
+    }
   }
 
   const answer = raw
@@ -412,31 +417,36 @@ CURRENT STORE CONFIG:
 
         // Generate PDF if pdfContent is provided
         if (pdfContent?.chapters?.length) {
-          const pdfBytes = await generatePdf(
-            pdfContent.title,
-            pdfContent.subtitle ?? null,
-            pdfContent.chapters,
-            pdfContent.author ?? (storeConfig?.storeName as string) ?? 'Busmo Merchant',
-          );
+          try {
+            const pdfBytes = await generatePdf(
+              pdfContent.title,
+              pdfContent.subtitle ?? null,
+              pdfContent.chapters,
+              pdfContent.author ?? (storeConfig?.storeName as string) ?? 'Busmo Merchant',
+            );
 
-          const timestamp = Date.now();
-          const safeName = (pdfContent.title || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40);
-          digitalFileName = `${safeName}.pdf`;
-          const storagePath = `digitalProducts/${businessId}/${timestamp}_${digitalFileName}`;
+            const timestamp = Date.now();
+            const safeName = (pdfContent.title || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40);
+            digitalFileName = `${safeName}.pdf`;
+            const storagePath = `digitalProducts/${businessId}/${timestamp}_${digitalFileName}`;
 
-          const bucket = storage.bucket();
-          const file = bucket.file(storagePath);
-          await file.save(pdfBytes, {
-            contentType: 'application/pdf',
-            metadata: { contentType: 'application/pdf' },
-          });
+            const bucket = storage.bucket();
+            const file = bucket.file(storagePath);
+            await file.save(pdfBytes, {
+              contentType: 'application/pdf',
+              metadata: { contentType: 'application/pdf' },
+            });
 
-          // Get a signed download URL (works even with uniform bucket-level access)
-          const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
-          });
-          digitalFileUrl = signedUrl;
+            // Get a signed download URL
+            const [signedUrl] = await file.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+            });
+            digitalFileUrl = signedUrl;
+          } catch (pdfErr) {
+            console.error('[AskMo] PDF generation/upload failed:', pdfErr instanceof Error ? pdfErr.message : pdfErr);
+            // Product will still be created without the PDF file
+          }
         }
 
         // Build product payload

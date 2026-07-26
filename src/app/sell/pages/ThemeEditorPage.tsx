@@ -110,6 +110,15 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 // ─── Section settings panels ──────────────────────────────────────────────────
 
 function HeroSettings({ s, upd }: { s: HeroSectionSettings; upd: (p: Partial<HeroSectionSettings>) => void }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const handleHeroImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { return; }
+    const reader = new FileReader();
+    reader.onloadend = () => upd({ backgroundImage: reader.result as string });
+    reader.readAsDataURL(file);
+  };
   return (<>
     <SGroup label="CONTENT" />
     <TF label="Heading" value={s.heading ?? ''} onChange={v => upd({ heading: v })} placeholder="Defaults to store name" />
@@ -120,7 +129,18 @@ function HeroSettings({ s, upd }: { s: HeroSectionSettings; upd: (p: Partial<Her
     <SGroup label="STYLE" />
     <SF label="Text alignment" value={s.textAlign ?? 'left'} onChange={v => upd({ textAlign: v as 'left'|'center'|'right' })}
       options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} />
-    <TF label="Background image URL" value={s.backgroundImage ?? ''} onChange={v => upd({ backgroundImage: v || null })} placeholder="https://…" hint="Overrides theme gradient" />
+    <div className={styles.field}>
+      <label className={styles.fLabel}>Background image</label>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input className={styles.fInput} value={s.backgroundImage ?? ''} onChange={v => upd({ backgroundImage: (v.target as HTMLInputElement).value || null })} placeholder="https://…" style={{ flex: 1 }} />
+        <button className={styles.iconBtn} onClick={() => fileInputRef.current?.click()} style={{ flexShrink: 0, padding: '6px 10px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--sell-primary)', width: 'auto', gap: 5 }} type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload
+        </button>
+      </div>
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleHeroImageUpload} />
+      <p className={styles.fHint}>Paste a URL or upload an image (max 5MB)</p>
+    </div>
     <div className={styles.field}>
       <label className={styles.fLabel}>Overlay opacity</label>
       <input className={styles.fInput} type="range" min={0} max={1} step={0.05} value={s.overlayOpacity ?? 0.4} onChange={e => upd({ overlayOpacity: Number(e.target.value) })} />
@@ -218,6 +238,7 @@ function HeaderSettings({ s, upd }: { s: HeaderSectionSettings; upd: (p: Partial
     <Toggle label="Sticky header" value={s.sticky !== false} onChange={v => upd({ sticky: v })} hint="Stays fixed when scrolling" />
     <Toggle label="Show search icon" value={s.showSearch ?? false} onChange={v => upd({ showSearch: v })} />
     <Toggle label="Show cart count" value={s.showCartCount !== false} onChange={v => upd({ showCartCount: v })} />
+    <Toggle label="Hide store name when logo exists" value={s.hideStoreNameWithLogo ?? false} onChange={v => upd({ hideStoreNameWithLogo: v })} hint="Show only the logo in the header" />
     <SGroup label="NAV LINKS" />
     {navLinks.map((link, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
@@ -310,6 +331,9 @@ export function ThemeEditorPage() {
   const [products,  setProducts]  = useState<StorefrontProduct[]>([]);
   const [collections, setCollections] = useState<StoreCollection[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [fontFamily, setFontFamily] = useState<string>('');
+  const [buttonStyle, setButtonStyle] = useState<'pill' | 'square' | 'rounded'>('pill');
+  const [bodyTextColor, setBodyTextColor] = useState<string>('');
 
   // Detect mobile device
   useEffect(() => {
@@ -330,10 +354,10 @@ export function ThemeEditorPage() {
   }, []);
 
   // Undo/redo stacks
-  const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
-  const redoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string }[]>([]);
+  const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string }[]>([]);
+  const redoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string }[]>([]);
 
-  const snapshot = useCallback(() => ({ sections: sections.map(s => ({ ...s, settings: { ...s.settings } })), theme, primary, secondary }), [sections, theme, primary, secondary]);
+  const snapshot = useCallback(() => ({ sections: sections.map(s => ({ ...s, settings: { ...s.settings } })), theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor }), [sections, theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor]);
 
   const pushUndo = useCallback(() => {
     undoStack.current = [...undoStack.current.slice(-20), snapshot()];
@@ -345,6 +369,7 @@ export function ThemeEditorPage() {
     if (!prev) return;
     redoStack.current.push(snapshot());
     setSections(prev.sections); setTheme(prev.theme); setPrimary(prev.primary); setSecondary(prev.secondary);
+    setFontFamily(prev.fontFamily); setButtonStyle(prev.buttonStyle); setBodyTextColor(prev.bodyTextColor);
     setDirty(true);
   }, [snapshot]);
 
@@ -353,6 +378,7 @@ export function ThemeEditorPage() {
     if (!next) return;
     undoStack.current.push(snapshot());
     setSections(next.sections); setTheme(next.theme); setPrimary(next.primary); setSecondary(next.secondary);
+    setFontFamily(next.fontFamily); setButtonStyle(next.buttonStyle); setBodyTextColor(next.bodyTextColor);
     setDirty(true);
   }, [snapshot]);
 
@@ -369,6 +395,9 @@ export function ThemeEditorPage() {
     setTheme(t);
     setPrimary(storeConfig.primaryColor ?? '#C9A84C');
     setSecondary(storeConfig.secondaryColor ?? '#8B7355');
+    setFontFamily((storeConfig as any).fontFamily ?? '');
+    setButtonStyle((storeConfig as any).buttonStyle ?? 'pill');
+    setBodyTextColor((storeConfig as any).bodyTextColor ?? '');
     setDirty(false);
     undoStack.current = []; redoStack.current = [];
   }, [storeConfig]);
@@ -461,6 +490,9 @@ export function ThemeEditorPage() {
           theme, 
           primaryColor: primary, 
           secondaryColor: secondary, 
+          fontFamily: fontFamily || null,
+          buttonStyle,
+          bodyTextColor: bodyTextColor || null,
           sections: sections.map(s => ({ ...s })), 
           storeSlug: slug,
           updatedAt: serverTimestamp() 
@@ -476,12 +508,14 @@ export function ThemeEditorPage() {
       console.error('[ThemeEditor]', err);
       showToast('Failed to publish. Try again.', 'error');
     } finally { setApplying(false); }
-  }, [user, storeConfig, theme, primary, secondary, sections, refreshStoreConfig, showToast]);
+  }, [user, storeConfig, theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor, sections, refreshStoreConfig, showToast]);
 
   const storeName = storeConfig?.storeName ?? 'Your Store';
   const tagline   = storeConfig?.tagline   ?? 'Shop our latest collection';
   const logoUrl   = storeConfig?.logoUrl   ?? null;
   const activeSection = sections.find(s => s.id === activeId) ?? null;
+  const headerSection = sections.find(s => s.id === 'header');
+  const hideStoreNameWithLogo = headerSection ? (headerSection.settings as HeaderSectionSettings).hideStoreNameWithLogo : false;
 
   const handlePreview = useCallback(() => {
     if (isMobile) {
@@ -688,6 +722,10 @@ export function ThemeEditorPage() {
                               storeSlug={storeConfig?.storeSlug ?? ''}
                               products={products}
                               collections={collections}
+                              fontFamily={fontFamily || null}
+                              buttonStyle={buttonStyle}
+                              bodyTextColor={bodyTextColor || null}
+                              hideStoreNameWithLogo={hideStoreNameWithLogo}
                             />
                           </CartProvider>
                         </div>
@@ -717,6 +755,10 @@ export function ThemeEditorPage() {
                               storeSlug={storeConfig?.storeSlug ?? ''}
                               products={products}
                               collections={collections}
+                              fontFamily={fontFamily || null}
+                              buttonStyle={buttonStyle}
+                              bodyTextColor={bodyTextColor || null}
+                              hideStoreNameWithLogo={hideStoreNameWithLogo}
                             />
                           </CartProvider>
                         </div>
@@ -751,6 +793,10 @@ export function ThemeEditorPage() {
                               storeSlug={storeConfig?.storeSlug ?? ''}
                               products={products}
                               collections={collections}
+                              fontFamily={fontFamily || null}
+                              buttonStyle={buttonStyle}
+                              bodyTextColor={bodyTextColor || null}
+                              hideStoreNameWithLogo={hideStoreNameWithLogo}
                             />
                           </CartProvider>
                         </div>
@@ -799,6 +845,45 @@ export function ThemeEditorPage() {
                   <p className={styles.rEmptyTitle}>Brand Colors</p>
                   <label className={styles.cLabel}><input type="color" value={primary} onChange={e => { pushUndo(); setPrimary(e.target.value); mark(); }} className={styles.cPicker} aria-label="Primary color" />Primary</label>
                   <label className={styles.cLabel}><input type="color" value={secondary} onChange={e => { pushUndo(); setSecondary(e.target.value); mark(); }} className={styles.cPicker} aria-label="Accent color" />Accent</label>
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <p className={styles.rEmptyTitle}>Store Design</p>
+                  <div className={styles.field}>
+                    <label className={styles.fLabel}>Font family</label>
+                    <select className={styles.fSelect} value={fontFamily} onChange={e => { pushUndo(); setFontFamily(e.target.value); mark(); }}>
+                      <option value="">Theme default</option>
+                      <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                      <option value="DM Sans">DM Sans</option>
+                      <option value="Playfair Display">Playfair Display</option>
+                      <option value="Sora">Sora</option>
+                      <option value="Inter">Inter</option>
+                      <option value="Poppins">Poppins</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Raleway">Raleway</option>
+                      <option value="Cormorant Garamond">Cormorant Garamond</option>
+                      <option value="Lora">Lora</option>
+                      <option value="Space Grotesk">Space Grotesk</option>
+                      <option value="Outfit">Outfit</option>
+                      <option value="Manrope">Manrope</option>
+                    </select>
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.fLabel}>Button style</label>
+                    <select className={styles.fSelect} value={buttonStyle} onChange={e => { pushUndo(); setButtonStyle(e.target.value as 'pill' | 'square' | 'rounded'); mark(); }}>
+                      <option value="pill">Pill (rounded full)</option>
+                      <option value="rounded">Rounded</option>
+                      <option value="square">Square</option>
+                    </select>
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.fLabel}>Text color override</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="color" value={bodyTextColor || '#1a1a1a'} onChange={e => { pushUndo(); setBodyTextColor(e.target.value); mark(); }}
+                        style={{ width: 32, height: 32, borderRadius: 7, border: '1.5px solid var(--sell-border)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }} />
+                      <input className={styles.fInput} value={bodyTextColor} onChange={e => { pushUndo(); setBodyTextColor(e.target.value); mark(); }} placeholder="Theme default" style={{ width: 90 }} />
+                    </div>
+                    <p className={styles.fHint}>Overrides the main text color across the store</p>
+                  </div>
                 </div>
                 <p className={styles.rEmptyHint}>Click any section on the left to edit its settings.</p>
               </div>

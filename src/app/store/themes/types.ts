@@ -47,6 +47,8 @@ export interface ThemeHeroProps {
   ctaUrl?: string;
   backgroundImage?: string | null;
   businessCategory?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  buttonStyle?: 'pill' | 'square' | 'rounded';
 }
 
 export interface ThemeProductPageProps {

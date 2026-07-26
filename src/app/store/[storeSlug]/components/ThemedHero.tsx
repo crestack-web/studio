@@ -13,20 +13,39 @@ interface Props {
   ctaLabel?: string;
   ctaUrl?: string;
   backgroundImage?: string | null;
+  textAlign?: 'left' | 'center' | 'right';
+  buttonStyle?: 'pill' | 'square' | 'rounded';
+}
+
+function btnRadius(style?: 'pill' | 'square' | 'rounded', theme?: string): number {
+  if (style === 'pill') return 100;
+  if (style === 'square') return 0;
+  if (style === 'rounded') return 8;
+  // default per theme
+  if (theme === 'glow') return 100;
+  if (theme === 'market') return 100;
+  if (theme === 'creator') return 6;
+  return 0;
 }
 
 export function ThemedHero({
   storeName, tagline, logoUrl, theme, primaryColor, secondaryColor,
   ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage,
+  textAlign = 'left', buttonStyle,
 }: Props) {
   const bgStyle = backgroundImage
     ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : {};
 
+  const alignMap = { left: 'flex-start' as const, center: 'center' as const, right: 'flex-end' as const };
+  const align = alignMap[textAlign] ?? 'flex-start';
+  const textAl = textAlign;
+  const radius = btnRadius(buttonStyle, theme);
+
   // ── Luxe ──────────────────────────────────────────────────────────────────
   if (theme === 'luxe') {
     return (
-      <section className="sf-hero" style={{ background: '#111111', ...bgStyle }}>
+      <section className="sf-hero" style={{ background: '#111111', ...bgStyle, alignItems: align, textAlign: textAl }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -46,7 +65,7 @@ export function ThemedHero({
           display: 'inline-block', marginTop: 28, padding: '12px 36px',
           border: '1px solid #C9A84C', color: '#C9A84C',
           fontSize: '0.68rem', letterSpacing: '0.16em', textTransform: 'uppercase',
-          textDecoration: 'none', transition: 'all 0.2s',
+          textDecoration: 'none', transition: 'all 0.2s', borderRadius: radius, width: 'fit-content',
         }}
           onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = '#C9A84C'; (e.currentTarget as HTMLAnchorElement).style.color = '#0A0A0A'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; (e.currentTarget as HTMLAnchorElement).style.color = '#C9A84C'; }}
@@ -62,7 +81,7 @@ export function ThemedHero({
     return (
       <section className="sf-hero" style={{
         background: `linear-gradient(135deg, ${primaryColor}18 0%, ${secondaryColor}0d 100%)`,
-        ...bgStyle,
+        ...bgStyle, alignItems: align, textAlign: textAl,
       }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -83,8 +102,8 @@ export function ThemedHero({
           display: 'inline-flex', alignItems: 'center', gap: 8,
           marginTop: 24, padding: '13px 32px',
           background: primaryColor, color: '#fff',
-          borderRadius: 100, fontWeight: 700, fontSize: '0.9rem',
-          textDecoration: 'none', transition: 'opacity 0.18s',
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', width: 'fit-content',
         }}
           onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.88'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
@@ -100,7 +119,7 @@ export function ThemedHero({
     return (
       <section className="sf-hero" style={{
         background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-        ...bgStyle,
+        ...bgStyle, alignItems: align, textAlign: textAl,
       } as React.CSSProperties}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -121,8 +140,8 @@ export function ThemedHero({
           display: 'inline-flex', alignItems: 'center', gap: 8,
           marginTop: 22, padding: '13px 32px',
           background: '#fff', color: primaryColor,
-          borderRadius: 100, fontWeight: 800, fontSize: '0.92rem',
-          textDecoration: 'none', transition: 'box-shadow 0.18s',
+          borderRadius: radius, fontWeight: 800, fontSize: '0.92rem',
+          textDecoration: 'none', transition: 'box-shadow 0.18s', width: 'fit-content',
         }}>
           {ctaLabel} →
         </a>
@@ -135,7 +154,7 @@ export function ThemedHero({
     return (
       <section className="sf-hero" style={{
         background: `linear-gradient(135deg, ${primaryColor}25 0%, ${secondaryColor}18 100%)`,
-        ...bgStyle,
+        ...bgStyle, alignItems: align, textAlign: textAl,
       }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -160,9 +179,9 @@ export function ThemedHero({
           display: 'inline-flex', alignItems: 'center', gap: 8,
           marginTop: 26, padding: '13px 32px',
           background: primaryColor, color: '#fff',
-          borderRadius: 6, fontWeight: 700, fontSize: '0.9rem',
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
           textDecoration: 'none', transition: 'opacity 0.18s',
-          fontFamily: '"Sora","Inter",sans-serif',
+          fontFamily: '"Sora","Inter",sans-serif', width: 'fit-content',
         }}
           onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.88'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
@@ -215,10 +234,10 @@ export function ThemedHero({
         {/* CTA */}
         <a href={ctaUrl} style={{
           marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '11px 28px', borderRadius: 100,
+          padding: '11px 28px', borderRadius: radius,
           background: primaryColor, color: '#fff',
           fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
-          transition: 'opacity 0.18s',
+          transition: 'opacity 0.18s', width: 'fit-content',
         }}>
           {ctaLabel} →
         </a>
@@ -228,10 +247,10 @@ export function ThemedHero({
 
   // ── Fallback (luxe) ────────────────────────────────────────────────────────
   return (
-    <section className="sf-hero" style={{ background: '#111111', ...bgStyle }}>
+    <section className="sf-hero" style={{ background: '#111111', ...bgStyle, alignItems: align, textAlign: textAl }}>
       <h1 style={{ color: '#F5F0E8', fontFamily: '"Playfair Display",Georgia,serif', fontStyle: 'italic' }}>{storeName}</h1>
       {tagline && <p style={{ color: '#A89878' }}>{tagline}</p>}
-      <a href={ctaUrl} style={{ display: 'inline-block', marginTop: 24, padding: '12px 32px', border: '1px solid #C9A84C', color: '#C9A84C', textDecoration: 'none', fontSize: '0.8rem' }}>{ctaLabel}</a>
+      <a href={ctaUrl} style={{ display: 'inline-block', marginTop: 24, padding: '12px 32px', border: '1px solid #C9A84C', color: '#C9A84C', textDecoration: 'none', fontSize: '0.8rem', borderRadius: radius, width: 'fit-content' }}>{ctaLabel}</a>
     </section>
   );
 }

@@ -366,38 +366,6 @@ export function SellAskMoPage() {
 
   return (
     <div className={styles.page}>
-      {/* ── History Panel ── */}
-      {historyOpen && <div className={styles.historyBackdrop} onClick={() => setHistoryOpen(false)} />}
-      <div className={`${styles.historyPanel} ${historyOpen ? styles.historyPanelOpen : ''}`}>
-        <div className={styles.historyHeader}>
-          <span className={styles.historyTitle}>Chat History</span>
-          <button className={styles.historyClose} onClick={() => setHistoryOpen(false)} aria-label="Close history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div className={styles.historyList}>
-          {historyLoading && <p className={styles.historyEmpty}>Loading...</p>}
-          {!historyLoading && conversations.length === 0 && (
-            <p className={styles.historyEmpty}>No past conversations yet.</p>
-          )}
-          {conversations.map(c => (
-            <div key={c.id} className={styles.historyItem} onClick={() => loadConversation(c.id)}>
-              <div className={styles.historyItemContent}>
-                <p className={styles.historyItemPreview}>{c.preview}</p>
-                <p className={styles.historyItemMeta}>{c.messageCount} messages · {timeAgo(c.updatedAt)}</p>
-              </div>
-              <button
-                className={styles.historyItemDelete}
-                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                aria-label="Delete conversation"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── Main Chat ── */}
       <div className={styles.chatContainer}>
         {/* ── Chat Header ── */}
@@ -564,6 +532,38 @@ export function SellAskMoPage() {
             </button>
           </div>
           <p className={styles.inputHint}>MO can update your store and create products. Always review changes before publishing.</p>
+        </div>
+      </div>
+
+      {/* ── History Panel (after chat so z-index wins) ── */}
+      {historyOpen && <div className={styles.historyBackdrop} onClick={() => setHistoryOpen(false)} />}
+      <div className={`${styles.historyPanel} ${historyOpen ? styles.historyPanelOpen : ''}`}>
+        <div className={styles.historyHeader}>
+          <span className={styles.historyTitle}>Chat History</span>
+          <button className={styles.historyClose} onClick={() => setHistoryOpen(false)} aria-label="Close history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div className={styles.historyList}>
+          {historyLoading && <p className={styles.historyEmpty}>Loading...</p>}
+          {!historyLoading && conversations.length === 0 && (
+            <p className={styles.historyEmpty}>No past conversations yet.</p>
+          )}
+          {conversations.map(c => (
+            <div key={c.id} className={styles.historyItem} onClick={() => loadConversation(c.id)}>
+              <div className={styles.historyItemContent}>
+                <p className={styles.historyItemPreview}>{c.preview}</p>
+                <p className={styles.historyItemMeta}>{c.messageCount} messages · {timeAgo(c.updatedAt)}</p>
+              </div>
+              <button
+                className={styles.historyItemDelete}
+                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                aria-label="Delete conversation"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>

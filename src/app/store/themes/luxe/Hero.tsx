@@ -3,7 +3,7 @@
 import React from 'react';
 import type { ThemeHeroProps } from '../types';
 
-export function LuxeHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage }: ThemeHeroProps) {
+export function LuxeHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', ctaUrl = '#products', backgroundImage, textAlign = 'left', buttonStyle }: ThemeHeroProps) {
   const bgStyle = backgroundImage
     ? { backgroundImage: `url(${backgroundImage})`, backgroundSize: 'cover' as const, backgroundPosition: 'center' as const }
     : {};
@@ -20,7 +20,7 @@ export function LuxeHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', c
         pointerEvents: 'none',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 680 }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 680, display: 'flex', flexDirection: 'column', alignItems: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start', textAlign }}>
         {logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt={storeName}
@@ -52,7 +52,8 @@ export function LuxeHero({ storeName, tagline, logoUrl, ctaLabel = 'Shop Now', c
           display: 'inline-block', marginTop: 36, padding: '14px 42px',
           border: '1px solid #C9A84C', color: '#C9A84C',
           fontSize: '0.66rem', letterSpacing: '0.16em', textTransform: 'uppercase',
-          textDecoration: 'none', fontWeight: 500, transition: 'all 0.3s',
+          textDecoration: 'none', fontWeight: 500, transition: 'all 0.3s', width: 'fit-content',
+          borderRadius: buttonStyle === 'pill' ? 100 : buttonStyle === 'square' ? 0 : 8,
         }}
           onMouseEnter={e => { e.currentTarget.style.background = '#C9A84C'; e.currentTarget.style.color = '#0A0A0A'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#C9A84C'; }}
