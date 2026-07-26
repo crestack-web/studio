@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc, getCountFromServer, where, getFirestore } from 'firebase/firestore';
 
@@ -32,78 +32,49 @@ export default function UserActivityAnalytics() {
       setLoading(true);
       setError(null);
 
-      // Get all users
+      // Get all users with parallel subcollection queries
       const usersSnapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
-      const activitiesList: UserActivity[] = [];
 
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const userId = userDoc.id;
-        
-        // Get user's business name
-        let businessName = 'Personal Account';
-        if (userData.businessId) {
-          try {
-            const businessDoc = await getDoc(doc(firestore, 'businesses', userData.businessId));
-            if (businessDoc.exists()) {
-              businessName = businessDoc.data().name || businessDoc.data().businessName || 'Personal Account';
-            }
-          } catch (businessError) {
-            console.error('Error fetching business data:', businessError);
-          }
-        }
-
-        // Get user's page visits
-        let pageVisits: PageVisit[] = [];
-        let totalVisits = 0;
-        let lastVisited = 'Never';
-
-        try {
-          const pageVisitsSnapshot = await getDocs(collection(firestore, `users/${userId}/pageVisits`));
+      const activityResults = await Promise.all(
+        usersSnapshot.docs.map(async (userDoc) => {
+          const userData = userDoc.data();
+          const userId = userDoc.id;
           
-          pageVisits = pageVisitsSnapshot.docs.map(visitsDoc => {
+          let businessName = 'Personal Account';
+          let pageVisits: PageVisit[] = [];
+          let totalVisits = 0;
+          let lastVisited = 'Never';
+
+          const [businessDoc, pageVisitsSnap] = await Promise.all([
+            userData.businessId ? getDoc(doc(firestore, 'businesses', userData.businessId)).catch(() => null) : Promise.resolve(null),
+            getDocs(collection(firestore, `users/${userId}/pageVisits`)).catch(() => ({ docs: [] })),
+          ]);
+
+          if (businessDoc?.exists()) {
+            businessName = businessDoc.data().name || businessDoc.data().businessName || 'Personal Account';
+          }
+
+          pageVisits = pageVisitsSnap.docs.map(visitsDoc => {
             const visitData = visitsDoc.data();
             return {
               page: visitData.page || 'Unknown',
               visitCount: visitData.visitCount || 0,
               lastVisited: visitData.lastVisited ? visitData.lastVisited.toDate().toISOString() : new Date().toISOString(),
-              timeSpent: 60, // Placeholder for now - would need actual time tracking
+              timeSpent: 60,
             };
           });
-
-          // Sort page visits by visit count descending
           pageVisits.sort((a, b) => b.visitCount - a.visitCount);
-          
-          // Calculate total visits
           totalVisits = pageVisits.reduce((sum, page) => sum + page.visitCount, 0);
-          
-          // Find last visited date
           if (pageVisits.length > 0) {
-            const latestVisit = new Date(Math.max(...pageVisits.map(page => new Date(page.lastVisited).getTime())));
-            lastVisited = latestVisit.toLocaleDateString();
+            lastVisited = new Date(Math.max(...pageVisits.map(page => new Date(page.lastVisited).getTime()))).toLocaleDateString();
           }
-        } catch (visitsError) {
-          console.error('Error fetching page visits for user:', userId, visitsError);
-          // If there's an error fetching page visits, we'll still show the user with empty visits
-          pageVisits = [];
-          totalVisits = 0;
-          lastVisited = 'Never';
-        }
 
-        activitiesList.push({
-          userId,
-          email: userData.email || 'Unknown',
-          businessName,
-          pageVisits,
-          totalVisits,
-          lastVisited,
-        });
-      }
+          return { userId, email: userData.email || 'Unknown', businessName, pageVisits, totalVisits, lastVisited };
+        })
+      );
 
-      // Sort by total visits descending
-      activitiesList.sort((a, b) => b.totalVisits - a.totalVisits);
-      
-      setActivities(activitiesList);
+      activityResults.sort((a, b) => b.totalVisits - a.totalVisits);
+      setActivities(activityResults);
     } catch (error) {
       console.error('Error loading user activity:', error);
       setError('Failed to load user activity data. Please refresh the page.');
@@ -134,10 +105,10 @@ export default function UserActivityAnalytics() {
     return allPageVisits.sort((a, b) => b.visitCount - a.visitCount).slice(0, 5);
   };
 
-  const filteredActivities = activities.filter(activity => 
+  const filteredActivities = useMemo(() => activities.filter(activity => 
     activity.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     activity.businessName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ), [activities, searchTerm]);
 
   const topPages = getTopPages();
 

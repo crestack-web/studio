@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, where, updateDoc, doc, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, updateDoc, doc, onSnapshot, limit, where, getDocs } from 'firebase/firestore';
 
 interface SupportMessage {
   id: string;
@@ -15,11 +15,14 @@ interface SupportMessage {
   category: string;
   createdAt: string;
   replies: SupportReply[];
+  assignedTo?: string;
+  assignedToName?: string;
 }
 
 interface SupportReply {
   message: string;
-  sender: 'admin' | 'user';
+  sender: 'admin' | 'user' | 'mo' | 'system';
+  senderName?: string;
   createdAt: string;
 }
 
@@ -27,14 +30,31 @@ export default function SupportInbox() {
   const { firestore } = initializeFirebase();
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'open' | 'unread' | 'resolved' | 'needs_human'>('all');
+  const [filter, setFilter] = useState<'all' | 'open' | 'unread' | 'resolved' | 'needs_human' | 'mine'>('all');
   const [selectedMessage, setSelectedMessage] = useState<SupportMessage | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [isSupportAdmin, setIsSupportAdmin] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('admin_user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setAdminName(parsed.name || parsed.email || 'Admin');
+        setAdminEmail(parsed.email || '');
+        setIsSupportAdmin(parsed.role === 'Support Admin');
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     const messagesQuery = query(
       collection(firestore, 'supportMessages'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
@@ -51,7 +71,14 @@ export default function SupportInbox() {
           status: data.status || 'open',
           category: data.category || 'general',
           createdAt: data.createdAt?.toDate().toLocaleString() || 'N/A',
-          replies: data.replies || [],
+          replies: (data.replies || []).map((r: any) => ({
+            message: r.message,
+            sender: r.sender,
+            senderName: r.senderName || (r.sender === 'admin' ? 'Admin' : 'User'),
+            createdAt: r.createdAt,
+          })),
+          assignedTo: data.assignedTo,
+          assignedToName: data.assignedToName,
         });
       });
       
@@ -65,18 +92,49 @@ export default function SupportInbox() {
     return () => unsubscribe();
   }, [firestore]);
 
-  const filteredMessages = messages.filter(msg => {
-    if (filter === 'all') return true;
-    return msg.status === filter;
-  });
+  const filteredMessages = useMemo(() => {
+    let result = messages;
+    if (filter === 'mine') {
+      result = messages.filter(msg => msg.assignedTo === adminEmail);
+    } else if (filter !== 'all') {
+      result = messages.filter(msg => msg.status === filter);
+    }
+    return result;
+  }, [messages, filter, adminEmail]);
 
-  const handleReply = async () => {
-    if (!selectedMessage || !replyText.trim()) return;
+  const stats = useMemo(() => ({
+    total: messages.length,
+    unread: messages.filter(m => m.status === 'unread').length,
+    needsHuman: messages.filter(m => m.status === 'needs_human').length,
+    open: messages.filter(m => m.status === 'open').length,
+    resolved: messages.filter(m => m.status === 'resolved').length,
+    mine: messages.filter(m => m.assignedTo === adminEmail).length,
+  }), [messages, adminEmail]);
+
+  const handleAssign = async (messageId: string) => {
+    try {
+      await updateDoc(doc(firestore, 'supportMessages', messageId), {
+        assignedTo: adminEmail,
+        assignedToName: adminName,
+        status: 'open',
+      });
+      if (selectedMessage?.id === messageId) {
+        setSelectedMessage({ ...selectedMessage!, assignedTo: adminEmail, assignedToName: adminName, status: 'open' });
+      }
+    } catch (error) {
+      console.error('Error assigning message:', error);
+    }
+  };
+
+  const handleReply = useCallback(async () => {
+    if (!selectedMessage || !replyText.trim() || sending) return;
+    setSending(true);
 
     try {
       const newReply: SupportReply = {
         message: replyText,
         sender: 'admin',
+        senderName: adminName,
         createdAt: new Date().toISOString(),
       };
 
@@ -85,17 +143,23 @@ export default function SupportInbox() {
       await updateDoc(doc(firestore, 'supportMessages', selectedMessage.id), {
         replies: updatedReplies,
         status: 'open',
+        assignedTo: selectedMessage.assignedTo || adminEmail,
+        assignedToName: selectedMessage.assignedToName || adminName,
       });
 
       setReplyText('');
       setSelectedMessage({
         ...selectedMessage,
         replies: updatedReplies,
+        assignedTo: selectedMessage.assignedTo || adminEmail,
+        assignedToName: selectedMessage.assignedToName || adminName,
       });
     } catch (error) {
       console.error('Error sending reply:', error);
+    } finally {
+      setSending(false);
     }
-  };
+  }, [selectedMessage, replyText, sending, adminName, adminEmail, firestore]);
 
   const handleMarkResolved = async (messageId: string) => {
     try {
@@ -133,35 +197,47 @@ export default function SupportInbox() {
 
   return (
     <div className="overflow-x-auto">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Support Inbox</h2>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        <h2 className="text-2xl font-bold text-gray-900">Support Inbox</h2>
+        {adminName && (
+          <span className="text-sm text-gray-500">
+            Logged in as <span className="font-medium text-gray-700">{adminName}</span>
+            {isSupportAdmin && <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">Support Admin</span>}
+          </span>
+        )}
+      </div>
       
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 min-w-[300px]">
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-          <p className="text-2xl font-bold text-blue-700">{messages.length}</p>
-          <p className="text-sm text-blue-600">Total</p>
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6 min-w-[300px]">
+        <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
+          <p className="text-xl font-bold text-blue-700">{stats.total}</p>
+          <p className="text-xs text-blue-600">Total</p>
         </div>
-        <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-          <p className="text-2xl font-bold text-yellow-700">{messages.filter(m => m.status === 'unread').length}</p>
-          <p className="text-sm text-yellow-600">Unread</p>
+        <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-200">
+          <p className="text-xl font-bold text-yellow-700">{stats.unread}</p>
+          <p className="text-xs text-yellow-600">Unread</p>
         </div>
-        <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-          <p className="text-2xl font-bold text-red-700">{messages.filter(m => m.status === 'needs_human').length}</p>
-          <p className="text-sm text-red-600">Needs Human</p>
+        <div className="bg-red-50 rounded-xl p-3 border border-red-200">
+          <p className="text-xl font-bold text-red-700">{stats.needsHuman}</p>
+          <p className="text-xs text-red-600">Needs Human</p>
         </div>
-        <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-          <p className="text-2xl font-bold text-green-700">{messages.filter(m => m.status === 'open').length}</p>
-          <p className="text-sm text-green-600">Open</p>
+        <div className="bg-green-50 rounded-xl p-3 border border-green-200">
+          <p className="text-xl font-bold text-green-700">{stats.open}</p>
+          <p className="text-xs text-green-600">Open</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <p className="text-2xl font-bold text-gray-700">{messages.filter(m => m.status === 'resolved').length}</p>
-          <p className="text-sm text-gray-600">Resolved</p>
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+          <p className="text-xl font-bold text-gray-700">{stats.resolved}</p>
+          <p className="text-xs text-gray-600">Resolved</p>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-3 border border-purple-200">
+          <p className="text-xl font-bold text-purple-700">{stats.mine}</p>
+          <p className="text-xs text-purple-600">My Chats</p>
         </div>
       </div>
 
       {/* Filter */}
       <div className="flex gap-2 mb-6 flex-wrap min-w-[300px]">
-        {(['all', 'unread', 'needs_human', 'open', 'resolved'] as const).map((status) => (
+        {(['all', 'unread', 'needs_human', 'open', 'mine', 'resolved'] as const).map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -171,7 +247,7 @@ export default function SupportInbox() {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            {status === 'needs_human' ? 'Needs Human' : status.charAt(0).toUpperCase() + status.slice(1)}
+            {status === 'needs_human' ? 'Needs Human' : status === 'mine' ? 'My Chats' : status.charAt(0).toUpperCase() + status.slice(1)}
           </button>
         ))}
       </div>
@@ -193,8 +269,19 @@ export default function SupportInbox() {
                   <p className="text-gray-600">{selectedMessage.businessName}</p>
                 )}
                 <p className="text-sm text-gray-500">{selectedMessage.createdAt}</p>
+                {selectedMessage.assignedToName && (
+                  <p className="text-sm text-purple-600 mt-1">Assigned to: {selectedMessage.assignedToName}</p>
+                )}
               </div>
               <div className="flex gap-2 flex-wrap">
+                {(!selectedMessage.assignedTo || selectedMessage.assignedTo !== adminEmail) && (
+                  <button
+                    onClick={() => handleAssign(selectedMessage.id)}
+                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200"
+                  >
+                    Assign to Me
+                  </button>
+                )}
                 <button
                   onClick={() => handleMarkUnread(selectedMessage.id)}
                   className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200"
@@ -217,7 +304,7 @@ export default function SupportInbox() {
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
                     U
                   </div>
-                  <span className="text-sm font-medium text-gray-700">User</span>
+                  <span className="text-sm font-medium text-gray-700">{selectedMessage.userEmail}</span>
                 </div>
                 <p className="text-gray-900">{selectedMessage.message}</p>
                 <p className="text-xs text-gray-500 mt-2">{selectedMessage.createdAt}</p>
@@ -229,6 +316,8 @@ export default function SupportInbox() {
                   className={`rounded-lg p-4 border ${
                     reply.sender === 'admin'
                       ? 'bg-purple-50 border-purple-200'
+                      : reply.sender === 'mo'
+                      ? 'bg-indigo-50 border-indigo-200'
                       : 'bg-gray-50 border-gray-200'
                   }`}
                 >
@@ -236,18 +325,22 @@ export default function SupportInbox() {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${
                       reply.sender === 'admin'
                         ? 'bg-purple-600 text-white'
+                        : reply.sender === 'mo'
+                        ? 'bg-indigo-600 text-white'
                         : 'bg-blue-100 text-blue-600'
                     }`}>
-                      {reply.sender === 'admin' ? 'A' : 'U'}
+                      {reply.sender === 'admin' ? 'A' : reply.sender === 'mo' ? 'M' : 'U'}
                     </div>
                     <span className="text-sm font-medium text-gray-700">
-                      {reply.sender === 'admin' ? 'Admin (You)' : 'User'}
+                      {reply.sender === 'admin'
+                        ? reply.senderName || 'Admin'
+                        : reply.sender === 'mo'
+                        ? 'MO AI'
+                        : selectedMessage.userEmail}
                     </span>
                   </div>
                   <p className="text-gray-900">{reply.message}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {reply.createdAt}
-                  </p>
+                  <p className="text-xs text-gray-500 mt-2">{reply.createdAt}</p>
                 </div>
               ))}
             </div>
@@ -257,17 +350,22 @@ export default function SupportInbox() {
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Type your reply..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    handleReply();
+                  }
+                }}
+                placeholder="Type your reply... (Ctrl+Enter to send)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                 rows={4}
               />
               <div className="flex justify-end mt-4">
                 <button
                   onClick={handleReply}
-                  disabled={!replyText.trim()}
+                  disabled={!replyText.trim() || sending}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Reply
+                  {sending ? 'Sending...' : 'Send Reply'}
                 </button>
               </div>
             </div>
@@ -296,15 +394,28 @@ export default function SupportInbox() {
                     }`}>
                       {message.status === 'needs_human' ? 'Needs Human' : message.status}
                     </span>
+                    {message.assignedToName && (
+                      <span className="text-xs text-purple-600 whitespace-nowrap">→ {message.assignedToName}</span>
+                    )}
                   </div>
                   <p className="text-gray-600 line-clamp-2">{message.message}</p>
                   <p className="text-sm text-gray-500 mt-2">{message.createdAt}</p>
                 </div>
-                {message.replies.length > 0 && (
-                  <div className="ml-4 text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
-                    {message.replies.length} {message.replies.length === 1 ? 'reply' : 'replies'}
-                  </div>
-                )}
+                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  {message.replies.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      {message.replies.length} {message.replies.length === 1 ? 'reply' : 'replies'}
+                    </span>
+                  )}
+                  {!message.assignedTo && message.status !== 'resolved' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleAssign(message.id); }}
+                      className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200"
+                    >
+                      Assign to Me
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

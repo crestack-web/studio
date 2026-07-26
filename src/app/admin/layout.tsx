@@ -2,7 +2,6 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { AdminDashboard } from '@/components/AdminDashboard';
 
 interface LayoutProps {
   children: ReactNode;

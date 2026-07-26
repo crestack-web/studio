@@ -7,14 +7,13 @@ import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { initializeFirebase } from '@/firebase';
 import { useBranch } from '@/context/BranchContext';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import styles from './InlineAIChat.module.css';
 import { useAskMO } from './useAskMO';
 
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus, Trash2, Pencil } from 'lucide-react';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
-import { ActionConfirmationModal } from '@/components/ActionConfirmationModal';
 
 // Dynamic suggestions based on business data
 const BASE_SUGGESTIONS = [
@@ -153,8 +152,8 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     // Check if user is near the bottom (within 100px)
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
 
-    // Only auto-scroll if user is already near bottom or it's a new message
-    if (isNearBottom || messages.length > 0) {
+    // Only auto-scroll if user is already near bottom
+    if (isNearBottom) {
       container.scrollTo({
         top: container.scrollHeight,
         behavior: 'smooth'
@@ -325,11 +324,14 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const send = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg && !selectedImage && !audioBlob) return;
+    if (isSending) return;
 
     if (creditsRemaining !== -1 && creditsRemaining <= 0) {
       showToast('You have run out of MO Credits. Please purchase more credits to continue.');
       return;
     }
+
+    setIsSending(true);
 
     let finalMessage = msg;
     let finalImageUrl = imagePreview || undefined;
@@ -518,7 +520,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setLoadingText('');
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {

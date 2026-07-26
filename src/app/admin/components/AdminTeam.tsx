@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, query } from 'firebase/firestore';
 import { Eye, Edit, Ban, Check, X, Users, Plus, Shield, Search, Trash2 } from 'lucide-react';
@@ -9,7 +9,7 @@ interface AdminUser {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'super_admin';
+  role: 'admin' | 'super_admin' | 'support_admin';
   permissions: {
     overview: boolean;
     users: boolean;
@@ -40,7 +40,7 @@ export default function AdminTeam() {
   // Add admin form state
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminRole, setNewAdminRole] = useState<'admin' | 'super_admin'>('admin');
+  const [newAdminRole, setNewAdminRole] = useState<'admin' | 'super_admin' | 'support_admin'>('admin');
   const [newAdminPermissions, setNewAdminPermissions] = useState<AdminUser['permissions']>({
     overview: true,
     users: true,
@@ -68,7 +68,7 @@ export default function AdminTeam() {
     askmo: false,
     notifications: false,
   });
-  const [editingRole, setEditingRole] = useState<'admin' | 'super_admin'>('admin');
+  const [editingRole, setEditingRole] = useState<'admin' | 'super_admin' | 'support_admin'>('admin');
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
 
   useEffect(() => {
@@ -280,7 +280,7 @@ export default function AdminTeam() {
     { key: 'notifications' as const, label: 'Notifications', icon: '🔔' },
   ];
 
-  const filteredAdmins = adminUsers.filter(admin => {
+  const filteredAdmins = useMemo(() => adminUsers.filter(admin => {
     const matchesSearch = 
       admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       admin.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -289,7 +289,7 @@ export default function AdminTeam() {
     const isNotRemoved = admin.status !== 'removed';
     
     return matchesSearch && matchesRole && isNotRemoved;
-  });
+  }), [adminUsers, searchTerm, filterRole]);
 
   if (loading) {
     return (
@@ -383,7 +383,7 @@ export default function AdminTeam() {
                       ? 'bg-purple-100 text-purple-800' 
                       : 'bg-blue-100 text-blue-800'
                   }`}>
-                    {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                    {admin.role === 'super_admin' ? 'Super Admin' : admin.role === 'support_admin' ? 'Support Admin' : 'Admin'}
                   </span>
                 </td>
                 <td className="py-3 px-4">
@@ -487,12 +487,13 @@ export default function AdminTeam() {
                     <span className="text-gray-500 text-sm">Role</span>
                     <select
                       value={editingRole}
-                      onChange={(e) => setEditingRole(e.target.value as 'admin' | 'super_admin')}
+                      onChange={(e) => setEditingRole(e.target.value as 'admin' | 'super_admin' | 'support_admin')}
                       disabled={selectedAdmin.role === 'super_admin'}
                       className="mt-1 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
                     >
                       <option value="admin">Admin</option>
                       <option value="super_admin">Super Admin</option>
+                      <option value="support_admin">Support Admin</option>
                     </select>
                   </div>
                   <div>
@@ -635,18 +636,45 @@ export default function AdminTeam() {
                 </label>
                 <select
                   value={newAdminRole}
-                  onChange={(e) => setNewAdminRole(e.target.value as 'admin' | 'super_admin')}
+                  onChange={(e) => {
+                    const role = e.target.value as 'admin' | 'super_admin' | 'support_admin';
+                    setNewAdminRole(role);
+                    if (role === 'support_admin') {
+                      setNewAdminPermissions({
+                        overview: false, users: false, businesses: false, staff: false,
+                        support: true, features: false, analytics: false, churn: false,
+                        askmo: false, notifications: false,
+                      });
+                    } else if (role === 'super_admin') {
+                      setNewAdminPermissions({
+                        overview: true, users: true, businesses: true, staff: true,
+                        support: true, features: true, analytics: true, churn: true,
+                        askmo: true, notifications: true,
+                      });
+                    } else {
+                      setNewAdminPermissions({
+                        overview: true, users: true, businesses: true, staff: true,
+                        support: true, features: true, analytics: true, churn: true,
+                        askmo: true, notifications: true,
+                      });
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="admin">Admin</option>
                   <option value="super_admin">Super Admin</option>
+                  <option value="support_admin">Support Admin</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Super admins have full access to all features. Regular admins can have custom permissions.
+                  {newAdminRole === 'support_admin'
+                    ? 'Support admins can only access the support inbox to respond to user messages.'
+                    : newAdminRole === 'super_admin'
+                    ? 'Super admins have full access to all features.'
+                    : 'Regular admins can have custom permissions.'}
                 </p>
               </div>
 
-              {newAdminRole === 'admin' && (
+              {(newAdminRole === 'admin' || newAdminRole === 'support_admin') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-4">
                     Permissions

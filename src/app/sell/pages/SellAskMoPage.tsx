@@ -199,7 +199,7 @@ export function SellAskMoPage() {
           });
         }
 
-        const snap = await doc(getConvCollection(user.businessId), convId).get();
+        const snap = await getDoc(doc(getConvCollection(user.businessId), convId));
         if (snap.exists()) {
           const data = snap.data();
           setMessages(data.messages ?? []);

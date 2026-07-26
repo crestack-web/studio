@@ -84,7 +84,26 @@ export class BusinessProfileManager {
   }
 
   getIndustryIntelligence(): IndustryIntelligence {
-    return {};
+    const industry = this.profile?.industry;
+    if (!industry) return {};
+
+    const intelligenceMap: Record<string, string> = {
+      retail: 'Fast-moving inventory, dead stock tracking, reorder points, margin optimization, seasonal trends',
+      restaurant: 'Food cost percentage, wastage tracking, recipe costing, menu engineering, peak hour analysis',
+      wholesale: 'Bulk pricing tiers, distribution logistics, credit management, volume discounts, warehouse efficiency',
+      service: 'Service utilization rates, appointment scheduling, labor costs, customer retention, service bundling',
+      manufacturing: 'Production cost per unit, yield tracking, capacity utilization, downtime analysis, raw material sourcing',
+      ecommerce: 'Conversion rates, cart abandonment, shipping costs, return rates, digital marketing ROI',
+      agriculture: 'Seasonal cycles, input costs, yield optimization, harvest timing, storage and preservation',
+      recycling: 'Material grades, collection networks, processing yields, buyer pricing, quality sorting',
+      construction: 'Project costing, material wastage, labor productivity, milestone tracking, subcontractor management',
+    };
+
+    const key = industry.toLowerCase();
+    return {
+      tips: intelligenceMap[key] || 'General business intelligence: cash flow management, inventory optimization, customer retention',
+      industry,
+    };
   }
 
   async saveProfile(profile: Partial<BusinessProfile>) {
@@ -102,7 +121,6 @@ export class BusinessProfileManager {
   }
 
   async updateWithFullData(data: any): Promise<void> {
-    console.log('📊 [Profile Manager] updateWithFullData called with keys:', Object.keys(data));
     
     // Update snapshot with actual business data
     if (data.businessSnapshot) {
@@ -110,7 +128,6 @@ export class BusinessProfileManager {
         ...this.snapshot,
         ...data.businessSnapshot,
       };
-      console.log('📊 [Profile Manager] Updated with businessSnapshot');
     }
     
     // Process sales data with robust field mapping
@@ -127,7 +144,6 @@ export class BusinessProfileManager {
       
       this.snapshot.totalSales = totalSales;
       this.snapshot.totalProfit = totalProfit;
-      console.log('📊 [Profile Manager] Calculated sales totals:', { totalSales, totalProfit, recordCount: data.sales.length });
     }
     
     // Process products data with robust field mapping
@@ -145,7 +161,6 @@ export class BusinessProfileManager {
       
       this.snapshot.lowStockCount = lowStockCount;
       this.snapshot.outOfStockCount = outOfStockCount;
-      console.log('📊 [Profile Manager] Calculated inventory counts:', { lowStockCount, outOfStockCount, productCount: data.products.length });
     }
     
     // Process expense data with robust field mapping
@@ -155,7 +170,6 @@ export class BusinessProfileManager {
         return sum + amount;
       }, 0);
       this.snapshot.totalExpenses = totalExpenses;
-      console.log('📊 [Profile Manager] Calculated total expenses:', { totalExpenses, recordCount: data.expenses.length });
     }
     
     // Update pre-calculated values if provided
@@ -183,8 +197,6 @@ export class BusinessProfileManager {
     if (data.cashAvailable !== undefined) {
       this.snapshot.cashAvailable = data.cashAvailable;
     }
-    
-    console.log('📊 [Profile Manager] Final snapshot keys:', Object.keys(this.snapshot));
   }
 
   reset() {
@@ -193,8 +205,16 @@ export class BusinessProfileManager {
   }
 }
 
+// Singleton cache: one manager per businessId so reset() actually clears the right instance
+const profileManagerCache = new Map<string, BusinessProfileManager>();
+
 export function getProfileManager(businessId: string): BusinessProfileManager {
-  return new BusinessProfileManager(businessId);
+  let manager = profileManagerCache.get(businessId);
+  if (!manager) {
+    manager = new BusinessProfileManager(businessId);
+    profileManagerCache.set(businessId, manager);
+  }
+  return manager;
 }
 
 export const getBusinessProfileManager = getProfileManager;

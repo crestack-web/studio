@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 
@@ -37,69 +37,46 @@ export default function ChurnDetection() {
         limit(100)
       );
       const snapshot = await getDocs(businessesQuery);
-      
-      const atRiskList: AtRiskBusiness[] = [];
       const now = new Date();
       
-      for (const businessDoc of snapshot.docs) {
-        const businessData = businessDoc.data();
-        const businessId = businessDoc.id;
-        
-        // Get owner info
-        let ownerEmail = 'Unknown';
-        if (businessData.ownerId) {
-          const ownerDoc = await getDoc(doc(firestore, 'users', businessData.ownerId));
-          if (ownerDoc.exists()) {
-            ownerEmail = ownerDoc.data().email || 'Unknown';
+      // Parallelize per-business queries
+      const churnResults = await Promise.all(
+        snapshot.docs.map(async (businessDoc) => {
+          const businessData = businessDoc.data();
+          const businessId = businessDoc.id;
+          
+          const [ownerDoc, productsSnap, salesSnap] = await Promise.all([
+            businessData.ownerId ? getDoc(doc(firestore, 'users', businessData.ownerId)).catch(() => null) : Promise.resolve(null),
+            getDocs(query(collection(firestore, 'businesses', businessId, 'products'), limit(1))),
+            getDocs(query(collection(firestore, 'businesses', businessId, 'sales'), limit(1))),
+          ]);
+
+          let ownerEmail = 'Unknown';
+          if (ownerDoc?.exists()) ownerEmail = ownerDoc.data().email || 'Unknown';
+
+          const hasProducts = !productsSnap.empty;
+          const hasSales = !salesSnap.empty;
+          const lastActive = businessData.lastActive?.toDate() || businessData.createdAt?.toDate() || new Date();
+          const daysInactive = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+
+          let riskLevel: 'high' | 'medium' | 'low' = 'low';
+          let riskReason = '';
+
+          if (!hasProducts) {
+            riskLevel = 'high'; riskReason = 'Signed up but never added products';
+          } else if (hasProducts && !hasSales) {
+            riskLevel = 'high'; riskReason = 'Added products but never recorded sales';
+          } else if (daysInactive >= 30) {
+            riskLevel = 'high'; riskReason = `Inactive for ${daysInactive} days`;
+          } else if (daysInactive >= 7) {
+            riskLevel = 'medium'; riskReason = `Inactive for ${daysInactive} days`;
+          } else if (daysInactive >= 3) {
+            riskLevel = 'low'; riskReason = `Inactive for ${daysInactive} days`;
           }
-        }
 
-        // Check if business has products
-        const productsQuery = query(
-          collection(firestore, 'businesses', businessId, 'products'),
-          limit(1)
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        const hasProducts = !productsSnapshot.empty;
-        const totalProducts = productsSnapshot.size;
+          if (!riskReason) return null;
 
-        // Check if business has sales
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          limit(1)
-        );
-        const salesSnapshot = await getDocs(salesQuery);
-        const hasSales = !salesSnapshot.empty;
-        const totalSales = salesSnapshot.size;
-
-        // Calculate days inactive
-        const lastActive = businessData.lastActive?.toDate() || businessData.createdAt?.toDate() || new Date();
-        const daysInactive = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
-
-        // Determine risk level and reason
-        let riskLevel: 'high' | 'medium' | 'low' = 'low';
-        let riskReason = '';
-
-        if (!hasProducts) {
-          riskLevel = 'high';
-          riskReason = 'Signed up but never added products';
-        } else if (hasProducts && !hasSales) {
-          riskLevel = 'high';
-          riskReason = 'Added products but never recorded sales';
-        } else if (daysInactive >= 30) {
-          riskLevel = 'high';
-          riskReason = `Inactive for ${daysInactive} days`;
-        } else if (daysInactive >= 7) {
-          riskLevel = 'medium';
-          riskReason = `Inactive for ${daysInactive} days`;
-        } else if (daysInactive >= 3) {
-          riskLevel = 'low';
-          riskReason = `Inactive for ${daysInactive} days`;
-        }
-
-        // Only include businesses with some risk
-        if (riskReason) {
-          atRiskList.push({
+          return {
             businessId,
             businessName: businessData.name || 'Unknown Business',
             ownerEmail,
@@ -109,11 +86,13 @@ export default function ChurnDetection() {
             daysInactive,
             hasProducts,
             hasSales,
-            totalProducts,
-            totalSales,
-          });
-        }
-      }
+            totalProducts: productsSnap.size,
+            totalSales: salesSnap.size,
+          };
+        })
+      );
+
+      const atRiskList = churnResults.filter((r): r is NonNullable<typeof r> => r !== null);
       
       // Sort by risk level (high first) and days inactive
       atRiskList.sort((a, b) => {
@@ -132,10 +111,10 @@ export default function ChurnDetection() {
     }
   };
 
-  const filteredBusinesses = atRiskBusinesses.filter(business => {
+  const filteredBusinesses = useMemo(() => atRiskBusinesses.filter(business => {
     if (filter === 'all') return true;
     return business.riskLevel === filter;
-  });
+  }), [atRiskBusinesses, filter]);
 
   const riskLevelColors = {
     high: 'bg-red-50 text-red-700 border-red-200',

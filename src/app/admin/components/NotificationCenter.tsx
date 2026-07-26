@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, orderBy, where, updateDoc, doc, Timestamp, limit } from 'firebase/firestore';
 
@@ -88,11 +88,11 @@ export default function NotificationCenter() {
     }
   };
 
-  const filteredNotifications = notifications.filter(notif => {
+  const filteredNotifications = useMemo(() => notifications.filter(notif => {
     const matchesReadStatus = filter === 'all' || (filter === 'unread' && !notif.read) || (filter === 'read' && notif.read);
     const matchesType = typeFilter === 'all' || notif.type === typeFilter;
     return matchesReadStatus && matchesType;
-  });
+  }), [notifications, filter, typeFilter]);
 
   const typeIcons = {
     new_signup: '👤',

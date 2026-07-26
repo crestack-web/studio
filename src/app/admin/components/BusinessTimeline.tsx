@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, orderBy, limit, doc, getDoc, getCountFromServer } from 'firebase/firestore';
 
@@ -67,176 +67,82 @@ export default function BusinessTimeline() {
         const businessData = businessDoc.data();
         const businessId = businessDoc.id;
         
-        // Get owner info
+        // Parallelize all subcollection queries for this business
+        const [ownerDoc, productsSnap, salesSnap, expensesSnap, staffSnap, askMoSnap, prodCount, salesCount, expCount, staffCount, suppCount, custCount] = await Promise.all([
+          businessData.ownerId ? getDoc(doc(firestore, 'users', businessData.ownerId)).catch(() => null) : Promise.resolve(null),
+          getDocs(query(collection(firestore, 'businesses', businessId, 'products'), orderBy('createdAt', 'asc'), limit(1))),
+          getDocs(query(collection(firestore, 'businesses', businessId, 'sales'), orderBy('createdAt', 'asc'), limit(1))),
+          getDocs(query(collection(firestore, 'businesses', businessId, 'expenses'), orderBy('createdAt', 'asc'), limit(1))),
+          getDocs(query(collection(firestore, 'businesses', businessId, 'staff'), orderBy('createdAt', 'asc'), limit(1))),
+          getDocs(query(collection(firestore, 'businesses', businessId, 'askMoConversations'), orderBy('createdAt', 'asc'), limit(1))).catch(() => ({ empty: true, docs: [] })),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'products')),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'sales')),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'expenses')),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'staff')),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'suppliers')),
+          getCountFromServer(collection(firestore, 'businesses', businessId, 'customers')),
+        ]);
+
         let ownerEmail = 'Unknown';
-        if (businessData.ownerId) {
-          const ownerDoc = await getDoc(doc(firestore, 'users', businessData.ownerId));
-          if (ownerDoc.exists()) {
-            ownerEmail = ownerDoc.data().email || 'Unknown';
-          }
+        if (ownerDoc?.exists()) {
+          ownerEmail = ownerDoc.data().email || 'Unknown';
         }
 
-        // Build timeline
         const timeline: TimelineEvent[] = [];
         
-        // Account created
         if (businessData.createdAt) {
-          timeline.push({
-            event: 'Account Created',
-            date: businessData.createdAt.toDate().toLocaleDateString(),
-            description: 'Business account was created',
-            icon: '✅',
-            color: 'green',
-          });
+          timeline.push({ event: 'Account Created', date: businessData.createdAt.toDate().toLocaleDateString(), description: 'Business account was created', icon: '✅', color: 'green' });
         }
 
-        // First product added
-        const productsQuery = query(
-          collection(firestore, 'businesses', businessId, 'products'),
-          orderBy('createdAt', 'asc'),
-          limit(1)
-        );
-        const productsSnapshot = await getDocs(productsQuery);
-        if (!productsSnapshot.empty) {
-          const firstProduct = productsSnapshot.docs[0].data();
-          timeline.push({
-            event: 'First Product Added',
-            date: firstProduct.createdAt?.toDate().toLocaleDateString() || 'N/A',
-            description: `Added product: ${firstProduct.name || 'Unknown'}`,
-            icon: '📦',
-            color: 'blue',
-          });
+        if (!productsSnap.empty) {
+          const firstProduct = productsSnap.docs[0].data();
+          timeline.push({ event: 'First Product Added', date: firstProduct.createdAt?.toDate().toLocaleDateString() || 'N/A', description: `Added product: ${firstProduct.name || 'Unknown'}`, icon: '📦', color: 'blue' });
         }
 
-        // First sale recorded
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          orderBy('createdAt', 'asc'),
-          limit(1)
-        );
-        const salesSnapshot = await getDocs(salesQuery);
-        if (!salesSnapshot.empty) {
-          const firstSale = salesSnapshot.docs[0].data();
-          timeline.push({
-            event: 'First Sale Recorded',
-            date: firstSale.createdAt?.toDate().toLocaleDateString() || 'N/A',
-            description: `Recorded first sale of ${firstSale.amount || 0}`,
-            icon: '💰',
-            color: 'green',
-          });
+        if (!salesSnap.empty) {
+          const firstSale = salesSnap.docs[0].data();
+          timeline.push({ event: 'First Sale Recorded', date: firstSale.createdAt?.toDate().toLocaleDateString() || 'N/A', description: `Recorded first sale of ${firstSale.amount || 0}`, icon: '💰', color: 'green' });
         }
 
-        // First expense recorded
-        const expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          orderBy('createdAt', 'asc'),
-          limit(1)
-        );
-        const expensesSnapshot = await getDocs(expensesQuery);
-        if (!expensesSnapshot.empty) {
-          const firstExpense = expensesSnapshot.docs[0].data();
-          timeline.push({
-            event: 'First Expense Recorded',
-            date: firstExpense.createdAt?.toDate().toLocaleDateString() || 'N/A',
-            description: `Recorded first expense of ${firstExpense.amount || 0}`,
-            icon: '💸',
-            color: 'red',
-          });
+        if (!expensesSnap.empty) {
+          const firstExpense = expensesSnap.docs[0].data();
+          timeline.push({ event: 'First Expense Recorded', date: firstExpense.createdAt?.toDate().toLocaleDateString() || 'N/A', description: `Recorded first expense of ${firstExpense.amount || 0}`, icon: '💸', color: 'red' });
         }
 
-        // Staff invited
-        const staffQuery = query(
-          collection(firestore, 'businesses', businessId, 'staff'),
-          orderBy('createdAt', 'asc'),
-          limit(1)
-        );
-        const staffSnapshot = await getDocs(staffQuery);
-        if (!staffSnapshot.empty) {
-          const firstStaff = staffSnapshot.docs[0].data();
-          timeline.push({
-            event: 'Staff Invited',
-            date: firstStaff.createdAt?.toDate().toLocaleDateString() || 'N/A',
-            description: `Invited first staff member`,
-            icon: '👥',
-            color: 'purple',
-          });
+        if (!staffSnap.empty) {
+          const firstStaff = staffSnap.docs[0].data();
+          timeline.push({ event: 'Staff Invited', date: firstStaff.createdAt?.toDate().toLocaleDateString() || 'N/A', description: `Invited first staff member`, icon: '👥', color: 'purple' });
         }
 
-        // Ask MO used
-        const askMoQuery = query(
-          collection(firestore, 'businesses', businessId, 'askMoConversations'),
-          orderBy('createdAt', 'asc'),
-          limit(1)
-        );
-        const askMoSnapshot = await getDocs(askMoQuery);
-        if (!askMoSnapshot.empty) {
-          const firstAskMo = askMoSnapshot.docs[0].data();
-          timeline.push({
-            event: 'Ask MO Used',
-            date: firstAskMo.createdAt?.toDate().toLocaleDateString() || 'N/A',
-            description: `First Ask MO conversation`,
-            icon: '🤖',
-            color: 'indigo',
-          });
+        if (askMoSnap && !askMoSnap.empty) {
+          const firstAskMo = askMoSnap.docs[0].data();
+          timeline.push({ event: 'Ask MO Used', date: firstAskMo.createdAt?.toDate().toLocaleDateString() || 'N/A', description: `First Ask MO conversation`, icon: '🤖', color: 'indigo' });
         }
 
-        // Subscription activated
         if (businessData.subscriptionActivatedAt) {
-          timeline.push({
-            event: 'Subscription Activated',
-            date: businessData.subscriptionActivatedAt.toDate().toLocaleDateString(),
-            description: `Activated ${businessData.plan || 'unknown'} plan`,
-            icon: '💎',
-            color: 'yellow',
-          });
+          timeline.push({ event: 'Subscription Activated', date: businessData.subscriptionActivatedAt.toDate().toLocaleDateString(), description: `Activated ${businessData.plan || 'unknown'} plan`, icon: '💎', color: 'yellow' });
         }
 
-        // Last activity
         if (businessData.lastActive) {
-          timeline.push({
-            event: 'Last Activity',
-            date: businessData.lastActive.toDate().toLocaleDateString(),
-            description: 'Most recent activity',
-            icon: '🕒',
-            color: 'gray',
-          });
+          timeline.push({ event: 'Last Activity', date: businessData.lastActive.toDate().toLocaleDateString(), description: 'Most recent activity', icon: '🕒', color: 'gray' });
         }
 
-        // Calculate business stats
-        const totalProducts = await getCountFromServer(collection(firestore, 'businesses', businessId, 'products'));
-        const totalSales = await getCountFromServer(collection(firestore, 'businesses', businessId, 'sales'));
-        const totalExpenses = await getCountFromServer(collection(firestore, 'businesses', businessId, 'expenses'));
-        const totalStaff = await getCountFromServer(collection(firestore, 'businesses', businessId, 'staff'));
-        const totalSuppliers = await getCountFromServer(collection(firestore, 'businesses', businessId, 'suppliers'));
-        const totalCustomers = await getCountFromServer(collection(firestore, 'businesses', businessId, 'customers'));
-        
-        // Calculate total revenue
-        let totalRevenue = 0;
-        const salesSnapshotAll = await getDocs(collection(firestore, 'businesses', businessId, 'sales'));
-        salesSnapshotAll.forEach(saleDoc => {
-          const saleData = saleDoc.data();
-          if (saleData.amount) {
-            totalRevenue += parseFloat(saleData.amount) || 0;
-          }
-        });
-
-        // Sort timeline by date
         timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         timelinesList.push({
           businessId,
           businessName: businessData.name || 'Unknown Business',
-          businessCategory: businessData.category || businessData.selectedCategory || 'Unknown Category', // Added business category
+          businessCategory: businessData.category || businessData.selectedCategory || 'Unknown Category',
           ownerEmail,
           timeline,
           stats: {
-            totalProducts: totalProducts.data().count,
-            totalSales: totalSales.data().count,
-            totalExpenses: totalExpenses.data().count,
-            totalStaff: totalStaff.data().count,
-            totalSuppliers: totalSuppliers.data().count,
-            totalCustomers: totalCustomers.data().count,
-            totalRevenue,
+            totalProducts: prodCount.data().count,
+            totalSales: salesCount.data().count,
+            totalExpenses: expCount.data().count,
+            totalStaff: staffCount.data().count,
+            totalSuppliers: suppCount.data().count,
+            totalCustomers: custCount.data().count,
+            totalRevenue: 0,
             plan: businessData.plan || 'trial',
             currency: businessData.currency || 'NGN',
             lastActive: businessData.lastActive ? businessData.lastActive.toDate().toLocaleDateString() : 'Never',
@@ -257,11 +163,11 @@ export default function BusinessTimeline() {
     loadBusinessTimelines();
   }, [loadBusinessTimelines]);
 
-  const filteredTimelines = timelines.filter(business => 
+  const filteredTimelines = useMemo(() => timelines.filter(business => 
     business.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     business.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
     business.businessCategory.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ), [timelines, searchTerm]);
 
   if (loading) {
     return (

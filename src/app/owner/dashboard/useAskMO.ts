@@ -1003,6 +1003,13 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     setCurrentConversationId(null);
   }, []);
 
+  // Force-refresh business data (clears cached summary so next load fetches fresh data)
+  const refreshBusinessData = useCallback(async () => {
+    setBusinessSummary(null);
+    // The next call to loadBusinessData will fetch fresh data
+    await loadBusinessData();
+  }, [loadBusinessData]);
+
   return {
     messages,
     setMessages,
@@ -1025,5 +1032,6 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     updateCredits,
     resetToNewChat,
     loadBusinessData,
+    refreshBusinessData,
   };
 }

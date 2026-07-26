@@ -412,6 +412,41 @@ export const FloatingChatWidget = () => {
     return () => unsubscribe();
   }, []);
 
+  // Real-time listener for admin replies on current conversation
+  useEffect(() => {
+    if (!currentConversationId) return;
+    const { firestore } = initializeFirebase();
+    if (!firestore) return;
+
+    const unsub = onSnapshot(doc(firestore, 'supportMessages', currentConversationId), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const firestoreReplies = data.replies || [];
+
+      setMessages((prev) => {
+        const localAdminReplies = prev.filter(
+          (m) => m.sender === 'support' && m.id !== 'welcome'
+        );
+        const firestoreAsSupport = firestoreReplies
+          .filter((r: any) => r.sender === 'admin')
+          .map((r: any, i: number) => ({
+            id: `admin-reply-${i}`,
+            sender: 'support' as const,
+            text: r.message,
+            createdAt: r.createdAt,
+            status: 'read' as const,
+          }));
+
+        const welcomeAndUser = prev.filter(
+          (m) => m.id === 'welcome' || m.sender === 'user'
+        );
+        return [...welcomeAndUser, ...firestoreAsSupport];
+      });
+    });
+
+    return () => unsub();
+  }, [currentConversationId]);
+
   // ─── Render Helpers ───────────────────────────────────────────
   const renderOnlineStatus = () => {
     if (!isOnline) {
@@ -477,11 +512,11 @@ export const FloatingChatWidget = () => {
             <div className="relative flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <img 
-                    src="/busmogo.png" 
-                    alt="Busmo" 
-                    className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm p-1.5"
-                  />
+<img 
+  src="/email-logo.png" 
+  alt="Busmo" 
+  className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm p-1.5"
+/>
                   {isOnline && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-purple-700 rounded-full" />
                   )}

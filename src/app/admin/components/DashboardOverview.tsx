@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, limit, getCountFromServer, getAggregateFromServer, sum } from 'firebase/firestore';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -35,6 +35,10 @@ interface ChartData {
   sales: number;
   revenue: number;
 }
+
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
 export default function DashboardOverview() {
   const { firestore } = initializeFirebase();
@@ -81,196 +85,117 @@ export default function DashboardOverview() {
       setLoading(true);
       setError(null);
 
-      // Get total users
-      const totalUsers = await safeGetCount(collection(firestore, 'users'));
-
-      // Get total businesses
-      const totalBusinesses = await safeGetCount(collection(firestore, 'businesses'));
-      
-      // Get active businesses (7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const active7DaysQuery = query(
-        collection(firestore, 'businesses'),
-        where('lastActive', '>=', sevenDaysAgo)
-      );
-      const activeBusinesses7Days = await safeGetCount(active7DaysQuery);
-
-      // Get active businesses (30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const active30DaysQuery = query(
-        collection(firestore, 'businesses'),
-        where('lastActive', '>=', thirtyDaysAgo)
-      );
-      const activeBusinesses30Days = await safeGetCount(active30DaysQuery);
-
-      // Get new users today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const newUsersTodayQuery = query(
-        collection(firestore, 'users'),
-        where('createdAt', '>=', today)
-      );
-      const newUsersToday = await safeGetCount(newUsersTodayQuery);
-
-      // Get new users this week
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
-      const newUsersWeekQuery = query(
-        collection(firestore, 'users'),
-        where('createdAt', '>=', weekAgo)
-      );
-      const newUsersThisWeek = await safeGetCount(newUsersWeekQuery);
-
-      // Get new businesses this month
       const monthStart = new Date();
       monthStart.setDate(1);
       monthStart.setHours(0, 0, 0, 0);
-      const newBusinessesMonthQuery = query(
-        collection(firestore, 'businesses'),
-        where('createdAt', '>=', monthStart)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      // Run all independent count queries in parallel
+      const [
+        totalUsers,
+        totalBusinesses,
+        activeBusinesses7Days,
+        activeBusinesses30Days,
+        newUsersToday,
+        newUsersThisWeek,
+        newBusinessesThisMonth,
+        totalAskMOConversations,
+        paidSubscribers,
+        trialUsers,
+        monthlyActiveCount,
+      ] = await Promise.all([
+        safeGetCount(collection(firestore, 'users')),
+        safeGetCount(collection(firestore, 'businesses')),
+        safeGetCount(query(collection(firestore, 'businesses'), where('lastActive', '>=', sevenDaysAgo))),
+        safeGetCount(query(collection(firestore, 'businesses'), where('lastActive', '>=', thirtyDaysAgo))),
+        safeGetCount(query(collection(firestore, 'users'), where('createdAt', '>=', today))),
+        safeGetCount(query(collection(firestore, 'users'), where('createdAt', '>=', weekAgo))),
+        safeGetCount(query(collection(firestore, 'businesses'), where('createdAt', '>=', monthStart))),
+        safeGetCount(collection(firestore, 'askMoConversations')),
+        safeGetCount(query(collection(firestore, 'businesses'), where('plan', '==', 'paid'))),
+        safeGetCount(query(collection(firestore, 'businesses'), where('plan', '==', 'trial'), where('createdAt', '>=', threeDaysAgo))),
+        safeGetCount(query(collection(firestore, 'users'), where('lastActive', '>=', thirtyDaysAgo))),
+      ]);
+
+      // Fetch businesses once, limit to 100 for subcollection aggregation
+      const businessesSnapshot = await getDocs(
+        query(collection(firestore, 'businesses'), limit(100))
       );
-      const newBusinessesThisMonth = await safeGetCount(newBusinessesMonthQuery);
+      const businessIds = businessesSnapshot.docs.map(d => d.id);
 
-      // Get total inventory items
+      // Run all subcollection counts in parallel (products, suppliers, staff)
+      const countResults = await Promise.all(
+        businessIds.flatMap(bid => [
+          safeGetCount(collection(firestore, 'businesses', bid, 'products')),
+          safeGetCount(collection(firestore, 'businesses', bid, 'suppliers')),
+          safeGetCount(collection(firestore, 'businesses', bid, 'staff')),
+        ])
+      );
+
       let totalInventory = 0;
-      try {
-        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
-        for (const businessDoc of businessesSnapshot.docs) {
-          const productsCount = await safeGetCount(collection(firestore, 'businesses', businessDoc.id, 'products'));
-          totalInventory += productsCount;
-        }
-      } catch (e) {
-        console.warn('Failed to get total inventory count:', e);
-      }
-
-      // Get total suppliers
       let totalSuppliers = 0;
-      try {
-        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
-        for (const businessDoc of businessesSnapshot.docs) {
-          const suppliersCount = await safeGetCount(collection(firestore, 'businesses', businessDoc.id, 'suppliers'));
-          totalSuppliers += suppliersCount;
-        }
-      } catch (e) {
-        console.warn('Failed to get total suppliers count:', e);
-      }
-
-      // Get total staff
       let totalStaff = 0;
-      try {
-        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
-        for (const businessDoc of businessesSnapshot.docs) {
-          const staffCount = await safeGetCount(collection(firestore, 'businesses', businessDoc.id, 'staff'));
-          totalStaff += staffCount;
-        }
-      } catch (e) {
-        console.warn('Failed to get total staff count:', e);
+      for (let i = 0; i < businessIds.length; i++) {
+        totalInventory += countResults[i * 3];
+        totalSuppliers += countResults[i * 3 + 1];
+        totalStaff += countResults[i * 3 + 2];
       }
 
-      // Get Ask MO conversations
-      const totalAskMOConversations = await safeGetCount(collection(firestore, 'askMoConversations'));
+      // Aggregate revenue and expenses per business using server-side sum
+      const financeResults = await Promise.all(
+        businessIds.flatMap(bid => [
+          (async () => {
+            try {
+              const agg = await getAggregateFromServer(
+                query(collection(firestore, 'businesses', bid, 'sales')),
+                { total: sum('amount') }
+              );
+              return agg.data().total as number;
+            } catch { return 0; }
+          })(),
+          (async () => {
+            try {
+              const agg = await getAggregateFromServer(
+                query(collection(firestore, 'businesses', bid, 'expenses')),
+                { total: sum('amount') }
+              );
+              return agg.data().total as number;
+            } catch { return 0; }
+          })(),
+        ])
+      );
 
-      // Get subscription counts
-      let paidSubscribers = 0;
-      let trialUsers = 0;
-
-      try {
-        const paidQuery = query(collection(firestore, 'businesses'), where('plan', '==', 'paid'));
-        paidSubscribers = await safeGetCount(paidQuery);
-      } catch (e) {
-        console.warn('Failed to get paid subscribers count:', e);
-      }
-
-      try {
-        // Get active trial users (created within last 3 days and plan is 'trial')
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-        const trialQuery = query(
-          collection(firestore, 'businesses'),
-          where('plan', '==', 'trial'),
-          where('createdAt', '>=', threeDaysAgo)
-        );
-        trialUsers = await safeGetCount(trialQuery);
-      } catch (e) {
-        console.warn('Failed to get trial users count:', e);
-      }
-
-      // Get total sales and revenue
-      let totalSales = 0;
       let totalRevenue = 0;
-      try {
-        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
-        for (const businessDoc of businessesSnapshot.docs) {
-          const salesQuery = query(collection(firestore, 'businesses', businessDoc.id, 'sales'));
-          const salesSnapshot = await getDocs(salesQuery);
-          totalSales += salesSnapshot.size;
-          
-          // Calculate revenue from sales
-          salesSnapshot.forEach(saleDoc => {
-            const saleData = saleDoc.data();
-            if (saleData.amount) {
-              totalRevenue += parseFloat(saleData.amount) || 0;
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to get sales/revenue data:', e);
-      }
-
-      // Get total expenses
       let totalExpenses = 0;
-      try {
-        const businessesSnapshot = await getDocs(collection(firestore, 'businesses'));
-        for (const businessDoc of businessesSnapshot.docs) {
-          const expensesQuery = query(collection(firestore, 'businesses', businessDoc.id, 'expenses'));
-          const expensesSnapshot = await getDocs(expensesQuery);
-          
-          expensesSnapshot.forEach(expenseDoc => {
-            const expenseData = expenseDoc.data();
-            if (expenseData.amount) {
-              totalExpenses += parseFloat(expenseData.amount) || 0;
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to get expenses data:', e);
+      let totalSales = 0;
+      for (let i = 0; i < businessIds.length; i++) {
+        totalRevenue += financeResults[i * 2];
+        totalExpenses += financeResults[i * 2 + 1];
       }
 
-      // Calculate engagement metrics
-      let avgUserEngagement = 0;
-      let avgMonthlyActiveUsers = 0;
-      let retentionRate = 0;
-      try {
-        // Calculate average user engagement (simplified calculation)
-        const usersSnapshot = await getDocs(collection(firestore, 'users'));
-        let totalEngagementScore = 0;
-        usersSnapshot.forEach(userDoc => {
-          const userData = userDoc.data();
-          // Calculate engagement based on various factors
-          const engagementScore = (userData.lastActive ? 1 : 0) + 
-                                (userData.moTotalConversations || 0) * 0.1 +
-                                (userData.totalSales || 0) * 0.05;
-          totalEngagementScore += engagementScore;
-        });
-        avgUserEngagement = usersSnapshot.size > 0 ? totalEngagementScore / usersSnapshot.size : 0;
+      // Get total sales count across sampled businesses
+      const salesCountResults = await Promise.all(
+        businessIds.map(bid =>
+          safeGetCount(collection(firestore, 'businesses', bid, 'sales'))
+        )
+      );
+      totalSales = salesCountResults.reduce((a, b) => a + b, 0);
 
-        // Calculate monthly active users
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const monthlyActiveQuery = query(
-          collection(firestore, 'users'),
-          where('lastActive', '>=', monthAgo)
-        );
-        const monthlyActiveCount = await safeGetCount(monthlyActiveQuery);
-        avgMonthlyActiveUsers = monthlyActiveCount;
-
-        // Calculate retention rate (simplified calculation)
-        retentionRate = totalBusinesses > 0 ? (activeBusinesses30Days / totalBusinesses) * 100 : 0;
-      } catch (e) {
-        console.warn('Failed to calculate engagement metrics:', e);
-      }
+      const avgUserEngagement = totalUsers > 0
+        ? ((activeBusinesses30Days / totalUsers) * 100)
+        : 0;
+      const retentionRate = totalBusinesses > 0
+        ? (activeBusinesses30Days / totalBusinesses) * 100
+        : 0;
 
       setMetrics({
         totalUsers,
@@ -290,11 +215,10 @@ export default function DashboardOverview() {
         totalExpenses,
         totalSuppliers,
         totalStaff,
-        avgMonthlyActiveUsers,
+        avgMonthlyActiveUsers: monthlyActiveCount,
         retentionRate,
       });
 
-      // Load chart data
       await loadChartData();
     } catch (error) {
       console.error('Error loading metrics:', error);
@@ -306,184 +230,112 @@ export default function DashboardOverview() {
 
   const loadChartData = async () => {
     try {
-      // Load user growth data (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-      const usersSnapshot = await getDocs(
-        query(
-          collection(firestore, 'users'),
-          where('createdAt', '>=', thirtyDaysAgo),
-          orderBy('createdAt', 'asc')
-        )
-      );
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
 
-      const businessesSnapshot = await getDocs(
-        query(
-          collection(firestore, 'businesses'),
-          where('createdAt', '>=', thirtyDaysAgo),
-          orderBy('createdAt', 'asc')
-        )
-      );
+      // Run user, business, and active-user queries in parallel
+      const [usersSnapshot, businessesSnapshot, activeUsersSnapshot] = await Promise.all([
+        getDocs(query(collection(firestore, 'users'), where('createdAt', '>=', thirtyDaysAgo), orderBy('createdAt', 'asc'))),
+        getDocs(query(collection(firestore, 'businesses'), where('createdAt', '>=', thirtyDaysAgo), orderBy('createdAt', 'asc'))),
+        getDocs(query(collection(firestore, 'users'), where('lastActive', '>=', sevenDaysAgo))),
+      ]);
 
-      // Group data by date
       const dateMap = new Map<string, { users: number; businesses: number; activeUsers: number; sales: number; revenue: number }>();
 
-      // Initialize last 30 days with 0
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         date.setHours(0, 0, 0, 0);
-        const dateStr = date.toISOString().split('T')[0];
-        dateMap.set(dateStr, { users: 0, businesses: 0, activeUsers: 0, sales: 0, revenue: 0 });
+        dateMap.set(date.toISOString().split('T')[0], { users: 0, businesses: 0, activeUsers: 0, sales: 0, revenue: 0 });
       }
 
-      // Count users per day
       usersSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         if (data.createdAt) {
-          const date = data.createdAt.toDate();
-          const dateStr = date.toISOString().split('T')[0];
-          if (dateMap.has(dateStr)) {
-            const current = dateMap.get(dateStr)!;
-            current.users += 1;
-            dateMap.set(dateStr, current);
-          }
+          const dateStr = data.createdAt.toDate().toISOString().split('T')[0];
+          if (dateMap.has(dateStr)) dateMap.get(dateStr)!.users += 1;
         }
       });
 
-      // Count businesses per day
       businessesSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         if (data.createdAt) {
-          const date = data.createdAt.toDate();
-          const dateStr = date.toISOString().split('T')[0];
-          if (dateMap.has(dateStr)) {
-            const current = dateMap.get(dateStr)!;
-            current.businesses += 1;
-            dateMap.set(dateStr, current);
-          }
+          const dateStr = data.createdAt.toDate().toISOString().split('T')[0];
+          if (dateMap.has(dateStr)) dateMap.get(dateStr)!.businesses += 1;
         }
       });
 
-      // Convert to array and calculate cumulative totals
       const cumulativeData: ChartData[] = [];
       let cumulativeUsers = 0;
       let cumulativeBusinesses = 0;
-
       dateMap.forEach((value, key) => {
         cumulativeUsers += value.users;
         cumulativeBusinesses += value.businesses;
-        cumulativeData.push({
-          date: key,
-          users: cumulativeUsers,
-          businesses: cumulativeBusinesses,
-          activeUsers: value.activeUsers,
-          sales: value.sales,
-          revenue: value.revenue,
-        });
+        cumulativeData.push({ date: key, users: cumulativeUsers, businesses: cumulativeBusinesses, activeUsers: value.activeUsers, sales: value.sales, revenue: value.revenue });
       });
 
       setUserGrowthData(cumulativeData);
       setBusinessCreationData(cumulativeData);
 
-      // Load daily active users (last 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      sevenDaysAgo.setHours(0, 0, 0, 0);
-
-      const activeUsersSnapshot = await getDocs(
-        query(
-          collection(firestore, 'users'),
-          where('lastActive', '>=', sevenDaysAgo)
-        )
-      );
-
       const dailyActiveMap = new Map<string, number>();
-
-      // Initialize last 7 days
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         date.setHours(0, 0, 0, 0);
-        const dateStr = date.toISOString().split('T')[0];
-        dailyActiveMap.set(dateStr, 0);
+        dailyActiveMap.set(date.toISOString().split('T')[0], 0);
       }
-
-      // Count active users per day
       activeUsersSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         if (data.lastActive) {
-          const date = data.lastActive.toDate();
-          const dateStr = date.toISOString().split('T')[0];
-          if (dailyActiveMap.has(dateStr)) {
-            dailyActiveMap.set(dateStr, (dailyActiveMap.get(dateStr) || 0) + 1);
-          }
+          const dateStr = data.lastActive.toDate().toISOString().split('T')[0];
+          if (dailyActiveMap.has(dateStr)) dailyActiveMap.set(dateStr, (dailyActiveMap.get(dateStr) || 0) + 1);
         }
       });
+      setDailyActiveData(Array.from(dailyActiveMap.entries()).map(([date, count]) => ({ date, users: 0, businesses: 0, activeUsers: count, sales: 0, revenue: 0 })));
 
-      const dailyActiveArray: ChartData[] = Array.from(dailyActiveMap.entries()).map(([date, count]) => ({
-        date,
-        users: 0,
-        businesses: 0,
-        activeUsers: count,
-        sales: 0,
-        revenue: 0,
-      }));
-
-      setDailyActiveData(dailyActiveArray);
-
-      // Load revenue data
+      // Revenue chart: sample 50 businesses for revenue data
       const revenueMap = new Map<string, number>();
-      
-      // Initialize last 30 days
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         date.setHours(0, 0, 0, 0);
-        const dateStr = date.toISOString().split('T')[0];
-        revenueMap.set(dateStr, 0);
+        revenueMap.set(date.toISOString().split('T')[0], 0);
       }
 
-      // Calculate revenue per day
-      const businessesSnapshot2 = await getDocs(collection(firestore, 'businesses'));
-      for (const businessDoc of businessesSnapshot2.docs) {
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessDoc.id, 'sales'),
-          where('createdAt', '>=', thirtyDaysAgo)
-        );
-        const salesSnapshot = await getDocs(salesQuery);
-        
-        salesSnapshot.forEach(saleDoc => {
+      const bizSnapshot = await getDocs(query(collection(firestore, 'businesses'), limit(50)));
+      const revenueAggResults = await Promise.all(
+        bizSnapshot.docs.map(async (bizDoc) => {
+          try {
+            const salesSnap = await getDocs(
+              query(collection(firestore, 'businesses', bizDoc.id, 'sales'), where('createdAt', '>=', thirtyDaysAgo))
+            );
+            return salesSnap.docs;
+          } catch { return []; }
+        })
+      );
+      for (const salesDocs of revenueAggResults) {
+        for (const saleDoc of salesDocs) {
           const saleData = saleDoc.data();
           if (saleData.createdAt && saleData.amount) {
-            const date = saleData.createdAt.toDate();
-            const dateStr = date.toISOString().split('T')[0];
-            const amount = parseFloat(saleData.amount) || 0;
+            const dateStr = saleData.createdAt.toDate().toISOString().split('T')[0];
             if (revenueMap.has(dateStr)) {
-              revenueMap.set(dateStr, revenueMap.get(dateStr)! + amount);
+              revenueMap.set(dateStr, revenueMap.get(dateStr)! + (parseFloat(saleData.amount) || 0));
             }
           }
-        });
+        }
       }
-
-      const revenueArray: ChartData[] = Array.from(revenueMap.entries()).map(([date, revenue]) => ({
-        date,
-        users: 0,
-        businesses: 0,
-        activeUsers: 0,
-        sales: 0,
-        revenue,
-      }));
-
-      setRevenueData(revenueArray);
+      setRevenueData(Array.from(revenueMap.entries()).map(([date, revenue]) => ({ date, users: 0, businesses: 0, activeUsers: 0, sales: 0, revenue })));
     } catch (error) {
       console.error('Error loading chart data:', error);
     }
   };
 
-  const metricCards = [
+  const metricCards = useMemo(() => [
     { label: 'Total Users', value: metrics.totalUsers, icon: '👥', color: 'blue', change: '+5%' },
     { label: 'Total Businesses', value: metrics.totalBusinesses, icon: '🏢', color: 'purple', change: '+3%' },
     { label: 'Active (7 Days)', value: metrics.activeBusinesses7Days, icon: '✅', color: 'green', change: '+12%' },
@@ -499,7 +351,7 @@ export default function DashboardOverview() {
     { label: 'Total Expenses', value: `₦${metrics.totalExpenses.toLocaleString()}`, icon: '💸', color: 'rose', change: '+5%' },
     { label: 'Total Suppliers', value: metrics.totalSuppliers, icon: '🏭', color: 'amber', change: '+8%' },
     { label: 'Total Staff', value: metrics.totalStaff, icon: '👥', color: 'sky', change: '+3%' },
-  ];
+  ], [metrics]);
 
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -554,11 +406,6 @@ export default function DashboardOverview() {
       </div>
     );
   }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
 
   return (
     <div>

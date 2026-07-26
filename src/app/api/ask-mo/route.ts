@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
-import { executeAction } from '@/lib/services/mo-action-router';
+import { executeAction, validatePermission } from '@/lib/services/mo-action-router';
 import { renderResponse } from '@/lib/services/mo-response-renderer';
 import { getBusinessProfileManager, BusinessSnapshot } from '@/lib/services/mo-business-profile';
 import { getMasterProcessor } from '@/lib/services/mo-master-processor';
@@ -128,9 +128,10 @@ export async function POST(request: NextRequest) {
       conversationHistoryLength: conversationHistory.length,
     });
 
-    // Detect if this is a new conversation start (greeting, new topic, etc.)
-    const isNewConversation = conversationHistory.length === 0 || 
-      /^(hi|hello|hey|good morning|good afternoon|good evening|mo|hey mo|start new|new chat|fresh start)/i.test(message.trim());
+    // Detect if this is a new conversation start — only when no history is provided
+    // (the frontend sends empty history on first message or explicit "New Chat")
+    // Do NOT strip history on greetings mid-conversation (e.g. "Hey Mo, what's my profit?")
+    const isNewConversation = conversationHistory.length === 0;
 
     // If it's a new conversation, clear conversation history to prevent context bleeding
     const effectiveHistory = isNewConversation ? [] : conversationHistory;
@@ -523,10 +524,7 @@ export async function POST(request: NextRequest) {
 
     // Update profile manager with business data so snapshot contains actual metrics
     if (businessData && Object.keys(businessData).length > 0) {
-      console.log('📊 [Ask MO API] Calling updateWithFullData with:', JSON.stringify(businessData, null, 2));
       await profileManager.updateWithFullData(businessData);
-      const snapshot = profileManager.getSnapshot();
-      console.log('📊 [Ask MO API] Snapshot after update:', JSON.stringify(snapshot, null, 2));
     } else {
       console.log('⚠️ [Ask MO API] No businessData to update profile manager. businessData keys:', Object.keys(businessData));
     }
@@ -622,14 +620,14 @@ export async function POST(request: NextRequest) {
     if (intent.intent !== 'unknown' && intent.intent !== 'ask_question') {
       console.log('🎯 [Ask MO API] Intent detected for execution:', intent.intent, 'with data:', intent.data);
       
-      // Check permissions (inline implementation)
-      // Ask MO is only available to owners and admins
-      const hasPermission = userRole === 'owner' || userRole === 'admin';
+      // Check permissions using the centralized validator
+      // (allows staff to record sales, blocks other actions for non-owners)
+      const permCheck = validatePermission(intent.intent, userRole, userPlan);
       
-      if (!hasPermission) {
-        console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on intent:', intent.intent);
+      if (!permCheck.allowed) {
+        console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on intent:', intent.intent, 'reason:', permCheck.reason);
         return NextResponse.json({
-          answer: `Sorry, Ask MO is only available to business owners and administrators.`,
+          answer: permCheck.reason || `Sorry, you don't have permission for this action.`,
           intent,
           permissionDenied: true,
           timestamp: new Date().toISOString()
@@ -930,8 +928,9 @@ ${processingResult.nextAction}`;
 
     console.log('✅ [Ask MO API] Response generated');
 
-    // If action was executed, use the rendered response instead of raw AI text
-    const finalAnswer = renderedResponse ? renderedResponse.content : text;
+    // Use the AI's conversational response as the primary answer
+    // The rendered card/alerts/suggestions are attached separately in the response
+    const finalAnswer = text;
 
     // STEP 4: Update conversation context after response
     planner.updateContext(message, finalAnswer);
@@ -1024,15 +1023,14 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check permissions (inline implementation)
-    // Ask MO is only available to owners and admins
-    const hasPermission = userRole === 'owner' || userRole === 'admin';
+    // Check permissions using the centralized validator
+    const permCheck = validatePermission(action.action, userRole);
     
-    if (!hasPermission) {
-      console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on action:', action.action);
+    if (!permCheck.allowed) {
+      console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on action:', action.action, 'reason:', permCheck.reason);
       return NextResponse.json({
         success: false,
-        message: `Sorry, Ask MO is only available to business owners and administrators.`,
+        message: permCheck.reason || `Sorry, you don't have permission for this action.`,
         permissionDenied: true,
       });
     }

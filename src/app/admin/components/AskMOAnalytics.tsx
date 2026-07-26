@@ -37,8 +37,8 @@ export default function AskMOAnalytics() {
       setLoading(true);
       setError(null);
       
-      // Get total conversations from user conversations
-      const usersSnapshot = await getDocs(collection(firestore, 'users'));
+      // Get total conversations from user conversations (limit to 100 users, 10 convos each)
+      const usersSnapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
       let totalConversations = 0;
       let totalCreditsConsumed = 0;
       let totalConversationsStarted = 0;
@@ -62,9 +62,24 @@ export default function AskMOAnalytics() {
       const hourlyActivity: { [key: number]: number } = {};
       const topics: { [key: string]: number } = {};
 
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        
+      // Parallelize per-user conversation fetches (max 10 per user)
+      const userConvoResults = await Promise.all(
+        usersSnapshot.docs.map(async (userDoc) => {
+          const userData = userDoc.data();
+          try {
+            const convSnap = await getDocs(query(
+              collection(firestore, 'users', userDoc.id, 'mo_conversations'),
+              orderBy('createdAt', 'desc'),
+              limit(10)
+            ));
+            return { userData, convDocs: convSnap.docs };
+          } catch {
+            return { userData, convDocs: [] };
+          }
+        })
+      );
+
+      for (const { userData, convDocs } of userConvoResults) {
         // Aggregate user-level metrics
         totalCreditsConsumed += userData?.moCreditsConsumed || 0;
         totalConversationsStarted += userData?.moTotalConversations || 0;
@@ -75,90 +90,55 @@ export default function AskMOAnalytics() {
           conversationTimeCount++;
         }
 
-        // Get user's conversations for detailed analysis
-        const conversationsQuery = query(
-          collection(firestore, 'users', userDoc.id, 'mo_conversations'),
-          orderBy('createdAt', 'desc'),
-          limit(50)
-        );
-        const conversationsSnapshot = await getDocs(conversationsQuery);
-        
-        totalConversations += conversationsSnapshot.size;
+        totalConversations += convDocs.length;
 
-        conversationsSnapshot.forEach(doc => {
+        for (const doc of convDocs) {
           const data = doc.data();
           const messages = data.messages || [];
           totalMessages += messages.length;
 
-          // Track successful conversations
-          if (!data.hasFailedResponse) {
-            totalSuccessfulConversations++;
-          }
-
-          // Check for failed responses
-          if (data.hasFailedResponse) {
-            failedResponses++;
-          }
-
-          // Check for slow responses (response time > 5 seconds)
-          if (data.responseTime && data.responseTime > 5000) {
-            slowResponses++;
-          }
-
-          // Track response time
+          if (!data.hasFailedResponse) totalSuccessfulConversations++;
+          if (data.hasFailedResponse) failedResponses++;
+          if (data.responseTime && data.responseTime > 5000) slowResponses++;
           if (data.responseTime) {
             totalResponseTime += data.responseTime;
             responseTimeCount++;
           }
 
-          // User satisfaction
           if (data.userRating !== undefined) {
-            if (data.userRating >= 4) {
-              positiveFeedbackCount++;
-            } else {
-              negativeFeedbackCount++;
-            }
+            if (data.userRating >= 4) positiveFeedbackCount++;
+            else negativeFeedbackCount++;
             satisfactionSum += data.userRating;
             satisfactionCount++;
           }
 
-          // Session duration
           if (data.duration) {
             totalSessionDuration += data.duration;
             sessionCount++;
           }
 
-          // Track most common questions
           if (messages.length > 0 && messages[0].role === 'user') {
             const question = messages[0].content?.toLowerCase().substring(0, 100) || '';
-            if (question) {
-              questionCounts[question] = (questionCounts[question] || 0) + 1;
-            }
+            if (question) questionCounts[question] = (questionCounts[question] || 0) + 1;
           }
 
-          // Track by business
           if (data.businessId) {
             if (!businessCounts[data.businessId]) {
-              businessCounts[data.businessId] = {
-                name: data.businessName || 'Unknown Business',
-                count: 0,
-              };
+              businessCounts[data.businessId] = { name: data.businessName || 'Unknown Business', count: 0 };
             }
             businessCounts[data.businessId].count++;
           }
 
-          // Track hourly activity
           if (data.createdAt) {
             const hour = data.createdAt.toDate().getHours();
             hourlyActivity[hour] = (hourlyActivity[hour] || 0) + 1;
           }
 
-          // Track common topics (extracted from conversation titles or first messages)
           if (data.topic || data.title) {
             const topic = (data.topic || data.title).toLowerCase();
             topics[topic] = (topics[topic] || 0) + 1;
           }
-        });
+        }
       }
 
       // Calculate averages

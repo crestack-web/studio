@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { initializeFirebase } from '@/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 // Define admin user type with permissions and lastLogin
 export interface AdminUser {
@@ -18,6 +20,10 @@ export const ADMIN_ROLES = {
   },
   SUPPORT_AGENT: {
     name: 'Support Agent',
+    permissions: ['support_view', 'support_reply', 'support_status']
+  },
+  SUPPORT_ADMIN: {
+    name: 'Support Admin',
     permissions: ['support_view', 'support_reply', 'support_status']
   }
 };
@@ -89,6 +95,10 @@ export const useAdminAuth = () => {
             
             setIsAuthenticated(true);
             setUser(parsedUser);
+          } else if (parsedUser.role === 'Support Admin') {
+            // Support admin added via AdminTeam — already has correct role/permissions
+            setIsAuthenticated(true);
+            setUser(parsedUser);
           } else {
             // Email removed from whitelist, logout
             await logout();
@@ -125,7 +135,35 @@ export const useAdminAuth = () => {
         'victoria@busmo.io'
       ];
       
-      if (!ADMIN_EMAILS.includes(email)) {
+      // Check if email is in the hardcoded super admin whitelist
+      const isSuperAdmin = ADMIN_EMAILS.includes(email);
+      
+      // If not in whitelist, check Firestore adminUsers for support_admin
+      if (!isSuperAdmin) {
+        try {
+          const { firestore } = initializeFirebase();
+          const adminUsersRef = collection(firestore, 'adminUsers');
+          const q = query(adminUsersRef, where('email', '==', email), where('status', '==', 'active'));
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const adminDoc = snapshot.docs[0];
+            const adminData = adminDoc.data();
+            if (adminData.role === 'support_admin') {
+              // Support admin found in Firestore — allow login
+              return { 
+                success: true, 
+                requiresOtp: true,
+                message: 'Please check your email for OTP verification'
+              };
+            }
+          }
+        } catch (firestoreError) {
+          console.warn('Firestore check failed, falling back to whitelist only:', firestoreError);
+        }
+      }
+      
+      if (!isSuperAdmin) {
         return { 
           success: false, 
           error: 'Your account doesn\'t have admin access. Please contact support if you believe this is an error.' 
@@ -191,22 +229,26 @@ export const useAdminAuth = () => {
 
 // Export standalone function for direct imports
 export const checkIsAdmin = async (): Promise<boolean> => {
-  // Simulate checking admin status from storage
   const storedUser = localStorage.getItem('admin_user');
   if (storedUser) {
     const parsedUser = JSON.parse(storedUser);
-    // Verify both: has admin role AND email is in whitelist
-    if (parsedUser.role === 'Administrator') {
-      const ADMIN_EMAILS = [
-        'taheeratorganic@gmail.com',
-        'admin@busmo.io',
-        'majnuncode@gmail.com',
-        'sxeedtxheer@gmail.com',
-        'ahmedusmus@gmail.com',
-        'majnun@busmo.io',
-        'victoria@busmo.io'
-      ];
-      return ADMIN_EMAILS.includes(parsedUser.email);
+    // Accept super admin (from whitelist) or support admin (from AdminTeam)
+    if (parsedUser.role === 'Administrator' || parsedUser.role === 'Support Admin') {
+      // For super admins, verify email is still in whitelist
+      if (parsedUser.role === 'Administrator') {
+        const ADMIN_EMAILS = [
+          'taheeratorganic@gmail.com',
+          'admin@busmo.io',
+          'majnuncode@gmail.com',
+          'sxeedtxheer@gmail.com',
+          'ahmedusmus@gmail.com',
+          'majnun@busmo.io',
+          'victoria@busmo.io'
+        ];
+        return ADMIN_EMAILS.includes(parsedUser.email);
+      }
+      // Support admins are already validated via Firestore in AdminTeam
+      return true;
     }
   }
   return false;

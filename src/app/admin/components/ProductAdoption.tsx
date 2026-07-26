@@ -46,22 +46,33 @@ export default function ProductAdoption() {
       const totalBusinessesSnapshot = await getCountFromServer(collection(firestore, 'businesses'));
       const totalBusinesses = totalBusinessesSnapshot.data().count;
 
-      // Get page visit data to determine actual feature usage
+      // Get page visit data to determine actual feature usage (parallelized)
       const usersSnapshot = await getDocs(query(collection(firestore, 'users'), limit(100)));
-      const pageVisitsMap: Record<string, PageVisit[]> = {};
       
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const pageVisitsSnapshot = await getDocs(collection(firestore, `users/${userId}/pageVisits`));
-        
-        pageVisitsMap[userId] = pageVisitsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            page: data.page || 'unknown',
-            visitCount: data.visitCount || 0,
-            lastVisited: data.lastVisited ? data.lastVisited.toDate().toISOString() : new Date().toISOString()
-          };
-        });
+      const pageVisitResults = await Promise.all(
+        usersSnapshot.docs.map(async (userDoc) => {
+          try {
+            const snap = await getDocs(collection(firestore, `users/${userDoc.id}/pageVisits`));
+            return {
+              userId: userDoc.id,
+              visits: snap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                  page: data.page || 'unknown',
+                  visitCount: data.visitCount || 0,
+                  lastVisited: data.lastVisited ? data.lastVisited.toDate().toISOString() : new Date().toISOString()
+                };
+              })
+            };
+          } catch {
+            return { userId: userDoc.id, visits: [] };
+          }
+        })
+      );
+
+      const pageVisitsMap: Record<string, PageVisit[]> = {};
+      for (const { userId, visits } of pageVisitResults) {
+        pageVisitsMap[userId] = visits;
       }
       
       // Aggregate page visit data by feature

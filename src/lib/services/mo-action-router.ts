@@ -151,7 +151,7 @@ async function handleRecordSale(
 ): Promise<ActionResult> {
   console.log('💰 [MO Action Router] Handling record sale with data:', data);
   
-  const items = data.items || [];
+  const items = [...(data.items || [])];
   
   // Support legacy single-item format
   if (!items.length && data.productName) {
@@ -180,7 +180,7 @@ async function handleRecordSale(
     console.log('🔍 [MO Action Router] Looking for product:', item.productName);
     const productSearch = await findProductByName(context.businessId, item.productName);
     
-    if (!productSearch.found) {
+    if (!productSearch.found || !productSearch.product) {
       console.warn('⚠️ [MO Action Router] Product not found:', item.productName);
       if (productSearch.matches && productSearch.matches.length > 0) {
         return {
@@ -209,6 +209,15 @@ async function handleRecordSale(
     const quantity = parseInt(item.quantity) || 1;
     const costPrice = product.cost || product.costPrice || 0;
     const sellingPrice = product.price || parseFloat(item.price) || costPrice;
+
+    // Guard against NaN from undefined/invalid prices
+    if (!sellingPrice || isNaN(sellingPrice)) {
+      return {
+        success: false,
+        action: 'record_sale',
+        message: `Could not determine the selling price for "${product.name}". Please specify the price, e.g., "Sold ${quantity} ${product.name} at ₦500 each".`,
+      };
+    }
 
     const currentStock = product.stock || product.quantity || 0;
     if (currentStock < quantity) {
@@ -1110,84 +1119,3 @@ const PAGE_NAMES = {
   ask_mo: "Ask MO",
   settings: "Settings"
 };
-
-function generateNavigationSuggestions(intent: string, result: any): string[] {
-  const suggestions = [];
-  
-  switch(intent) {
-    case 'record_sale':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.sales} page to review this transaction`,
-        `Visit the ${PAGE_NAMES.products} page to see updated inventory`,
-        `Review the ${PAGE_NAMES.dashboard} for updated metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for sales trends`
-      );
-      break;
-    case 'add_expense':
-      suggestions.push(
-        `Visit the ${PAGE_NAMES.expenses} page to see all expenses`,
-        `Check the ${PAGE_NAMES.dashboard} for updated financial metrics`,
-        `Review the ${PAGE_NAMES.reports} page for expense analysis`,
-        `Look at the ${PAGE_NAMES.analytics} section for cost breakdown`
-      );
-      break;
-    case 'add_product':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.products} page to see your new item`,
-        `Visit the ${PAGE_NAMES.inventory} page to manage stock levels`,
-        `Review the ${PAGE_NAMES.dashboard} for product metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for product performance`
-      );
-      break;
-    case 'update_product':
-      suggestions.push(
-        `Visit the ${PAGE_NAMES.products} page to see the updated item`,
-        `Check the ${PAGE_NAMES.inventory} page for stock adjustments`,
-        `Review the ${PAGE_NAMES.dashboard} for updated metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for impact analysis`
-      );
-      break;
-    case 'record_stock_movement':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.inventory} page for updated stock levels`,
-        `Visit the ${PAGE_NAMES.products} page to see affected items`,
-        `Review the ${PAGE_NAMES.dashboard} for inventory metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for stock movements`
-      );
-      break;
-    case 'add_customer':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.customers} page to see the new client`,
-        `Review the ${PAGE_NAMES.dashboard} for customer metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for customer analytics`,
-        `Visit the ${PAGE_NAMES.sales} page to track future transactions`
-      );
-      break;
-    case 'add_supplier':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.suppliers} page to see the new vendor`,
-        `Review the ${PAGE_NAMES.dashboard} for supplier metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for procurement analytics`,
-        `Visit the ${PAGE_NAMES.expenses} page to track future payments`
-      );
-      break;
-    case 'add_staff':
-      suggestions.push(
-        `Check the ${PAGE_NAMES.staff} page to see the new employee`,
-        `Review the ${PAGE_NAMES.dashboard} for team metrics`,
-        `Look at the ${PAGE_NAMES.reports} page for staff analytics`,
-        `Visit the ${PAGE_NAMES.settings} page for role management`
-      );
-      break;
-    default:
-      suggestions.push(
-        `Visit the ${PAGE_NAMES.dashboard} for business overview`,
-        `Check the ${PAGE_NAMES.reports} for analytics`,
-        `Manage ${PAGE_NAMES.products} for inventory`,
-        `Track ${PAGE_NAMES.sales} for revenue`,
-        `Monitor ${PAGE_NAMES.expenses} for costs`
-      );
-  }
-  
-  return suggestions;
-}

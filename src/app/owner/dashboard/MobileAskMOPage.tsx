@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { initializeFirebase } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings, Trash2 } from 'lucide-react';
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
@@ -30,6 +30,22 @@ interface MOMessage {
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+  };
+  productCard?: {
+    type: 'product';
+    name: string;
+    price: number;
+    cost: number;
+    stock: number;
+    sku?: string;
+    message: string;
+  };
+  expenseCard?: {
+    type: 'expense';
+    category: string;
+    amount: number;
+    date: string;
+    message: string;
   };
 }
 
@@ -163,7 +179,7 @@ export function MobileAskMOPage() {
           
           // Add success message to chat
           const successMsg: MOMessage = {
-            id: (Date.now()).toString(),
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
             content: `✅ Sale recorded successfully!\n\n${result.message}\n\nProduct: ${saleData.productName}\nQuantity: ${saleData.quantity}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
             timestamp: new Date(),
@@ -192,7 +208,7 @@ export function MobileAskMOPage() {
           
           // Add error message to chat
           const errorMsg: MOMessage = {
-            id: (Date.now()).toString(),
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
             content: `❌ Failed to record sale: ${result.message}`,
             timestamp: new Date(),
@@ -446,7 +462,7 @@ export function MobileAskMOPage() {
     }
 
     const userMsg: MOMessage = {
-      id: (Date.now()).toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: 'user',
       content: finalMessage,
       timestamp: new Date(),
@@ -498,7 +514,7 @@ export function MobileAskMOPage() {
       // Note: Messages are now saved to conversation document, not individual mo_messages collection
 
       // Create a placeholder bot message for streaming
-      const botMsgId = (Date.now() + 1).toString();
+      const botMsgId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const botMsg: MOMessage = {
         id: botMsgId,
         role: 'bot',
@@ -578,11 +594,33 @@ export function MobileAskMOPage() {
         responseLength: fullContent.length 
       });
 
+      const rendered = data.rendered;
+
+      const updatedBotMsg: MOMessage = {
+        ...botMsg,
+        content: fullContent,
+        metrics: rendered?.metrics,
+        quickActions: rendered?.quickActions,
+        followUpSuggestions: rendered?.suggestions,
+        alerts: rendered?.alerts,
+      };
+
+      // Attach structured cards from rendered response
+      if (rendered?.card) {
+        if (rendered.card.type === 'sale') {
+          updatedBotMsg.saleCard = rendered.card;
+        } else if (rendered.card.type === 'product') {
+          updatedBotMsg.productCard = rendered.card;
+        } else if (rendered.card.type === 'expense') {
+          updatedBotMsg.expenseCard = rendered.card;
+        }
+      }
+
       // Update the final message
       setMessages(prev => 
         prev.map(msg => 
           msg.id === botMsgId 
-            ? { ...msg, content: fullContent }
+            ? updatedBotMsg
             : msg
         )
       );
@@ -590,9 +628,7 @@ export function MobileAskMOPage() {
       // Save bot message to conversation immediately
       if (currentConversationId) {
         console.log('💾 [MobileAskMO] Saving bot message to conversation');
-        // Explicitly construct full messages array including user and bot messages
-        // Use the current messages state to ensure we have the latest user message
-        const updatedMessages = [...messages, { ...botMsg, content: fullContent }];
+        const updatedMessages = [...messages, updatedBotMsg];
         await saveMessages(currentConversationId, updatedMessages);
       }
 
@@ -605,41 +641,6 @@ export function MobileAskMOPage() {
         await updateCredits(creditsConsumed);
       } else {
         console.log('⚠️ [MobileAskMO] Not consuming credits - invalid or empty response');
-      }
-
-      // Check if there's a pending action (sale confirmation)
-      if (data.action && data.action.action === 'record_sale') {
-        console.log('🎯 [MobileAskMO] Sale action detected, showing confirmation card');
-        // Update the bot message with saleCard data so the UI can render the confirmation card
-        const saleData = data.action.data;
-        const botMsgWithCard: MOMessage = {
-          ...botMsg,
-          content: `I found the product in your inventory. Please confirm the sale details below:`,
-          saleCard: {
-            items: [{
-              name: saleData.productName,
-              quantity: saleData.quantity || 1,
-              price: saleData.price || 0,
-              costPrice: saleData.costPrice || 0,
-            }],
-            totalRevenue: (saleData.price || 0) * (saleData.quantity || 1),
-            totalProfit: ((saleData.price || 0) - (saleData.costPrice || 0)) * (saleData.quantity || 1),
-            timestamp: new Date(),
-          },
-        };
-        setMessages(prev => prev.map(msg => 
-          msg.id === botMsgId 
-            ? botMsgWithCard
-            : msg
-        ));
-        // Set pending action for confirmation
-        setPendingAction(data.action);
-        
-        // Save the updated message with sale card to conversation
-        if (currentConversationId) {
-          const updatedMessagesWithCard = [...messages, botMsgWithCard];
-          await saveMessages(currentConversationId, updatedMessagesWithCard);
-        }
       }
 
       const totalTime = Date.now() - requestStartTime;
@@ -698,11 +699,11 @@ export function MobileAskMOPage() {
       setLoadingText('');
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef, creditsRemaining, businessSummary, loadBusinessData, isSending, isTranscribing]);
 
   const cancelPendingAction = useCallback(async () => {
     const cancelMsg: MOMessage = {
-      id: (Date.now()).toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: 'bot',
       content: 'Sale recording cancelled.',
       timestamp: new Date(),
@@ -1245,7 +1246,7 @@ export function MobileAskMOPage() {
           <button
             className={styles.sendBtn}
             onClick={() => send()}
-            disabled={!input.trim() && !selectedImage && !audioBlob}
+            disabled={isSending || isTranscribing || (!input.trim() && !selectedImage && !audioBlob)}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <line x1="22" y1="2" x2="11" y2="13"/>

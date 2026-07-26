@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, orderBy, where, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, where, addDoc, updateDoc, doc, Timestamp, limit } from 'firebase/firestore';
 
 interface FeatureRequest {
   id: string;
@@ -33,7 +33,8 @@ export default function FeatureRequests() {
       setLoading(true);
       const requestsQuery = query(
         collection(firestore, 'featureRequests'),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(100)
       );
       const snapshot = await getDocs(requestsQuery);
       
@@ -76,11 +77,11 @@ export default function FeatureRequests() {
     }
   };
 
-  const filteredRequests = requests.filter(req => {
+  const filteredRequests = useMemo(() => requests.filter(req => {
     const matchesStatus = filter === 'all' || req.status === filter;
     const matchesCategory = categoryFilter === 'all' || req.category === categoryFilter;
     return matchesStatus && matchesCategory;
-  });
+  }), [requests, filter, categoryFilter]);
 
   const statusColors = {
     new: 'bg-blue-100 text-blue-800',

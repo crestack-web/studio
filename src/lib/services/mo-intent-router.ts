@@ -58,7 +58,6 @@ export function detectIntent(
   const salePatterns = [
     /^(?:record|log|add|make)\s+(?:a\s+)?(?:sale|sales|transaction)/i,
     /^(?:sold|sell)\s+/i,
-    /(\d+)\s*(?:bags?|pcs?|pieces?|units?|kg|liters?|bottles?|cans?|boxes?|packs?|cartons?)/i,
     /^(?:customer\s+bought|buyer\s+purchased)/i,
     /(?:record|add|log)\s+(?:sale|sales):\s*/i,  // Explicit sale prefix
     /(?:sold|just\s+sold)\s+\d+.+for/i,  // "sold 5 items for..."
@@ -1290,113 +1289,6 @@ export function validateIntent(
   }
 
   return intent;
-}
-
-function generateFollowUpSuggestions(intent: IntentData, actionResult?: any): string[] {
-  const suggestions = [];
-  
-  // Generate appropriate follow-up suggestions based on intent
-  switch(intent.intent) {
-    case 'ask_question':
-      suggestions.push(
-        `Check your ${PAGE_NAMES.dashboard} for an overview of business metrics`,
-        `Look at ${PAGE_NAMES.reports} for detailed analytics`,
-        `Visit ${PAGE_NAMES.products} to manage inventory`,
-        `Go to ${PAGE_NAMES.expenses} to review spending`
-      );
-      break;
-    case 'record_sale':
-      suggestions.push(
-        `Check ${PAGE_NAMES.sales} page to review transactions`,
-        `Visit ${PAGE_NAMES.products} to see updated inventory`,
-        `Review ${PAGE_NAMES.dashboard} for updated metrics`,
-        `Look at ${PAGE_NAMES.reports} for sales trends`
-      );
-      break;
-    case 'add_expense':
-      suggestions.push(
-        `Visit ${PAGE_NAMES.expenses} page to review all expenses`,
-        `Check ${PAGE_NAMES.dashboard} for updated financial metrics`,
-        `Review ${PAGE_NAMES.reports} for expense trends`,
-        `Look at ${PAGE_NAMES.analytics} for cost breakdown`
-      );
-      break;
-    case 'add_product':
-      suggestions.push(
-        `Check ${PAGE_NAMES.products} page to see all items`,
-        `Visit ${PAGE_NAMES.inventory} for stock management`,
-        `Review ${PAGE_NAMES.dashboard} for product metrics`,
-        `Look at ${PAGE_NAMES.reports} for product performance`
-      );
-      break;
-    case 'view_sales':
-      suggestions.push(
-        `Visit ${PAGE_NAMES.sales} page for transaction history`,
-        `Check ${PAGE_NAMES.reports} for sales analytics`,
-        `Review ${PAGE_NAMES.dashboard} for sales metrics`,
-        `Look at ${PAGE_NAMES.products} to see best sellers`
-      );
-      break;
-    case 'view_inventory':
-      suggestions.push(
-        `Check ${PAGE_NAMES.products} page for detailed product info`,
-        `Visit ${PAGE_NAMES.inventory} for stock management`,
-        `Review ${PAGE_NAMES.dashboard} for inventory metrics`,
-        `Look at ${PAGE_NAMES.reports} for inventory trends`
-      );
-      break;
-    case 'view_expenses':
-      suggestions.push(
-        `Visit ${PAGE_NAMES.expenses} page for detailed expense tracking`,
-        `Check ${PAGE_NAMES.reports} for expense analytics`,
-        `Review ${PAGE_NAMES.dashboard} for financial metrics`,
-        `Look at ${PAGE_NAMES.analytics} for cost breakdown`
-      );
-      break;
-    case 'view_customers':
-      suggestions.push(
-        `Check ${PAGE_NAMES.customers} page for client details`,
-        `Review ${PAGE_NAMES.dashboard} for customer metrics`,
-        `Look at ${PAGE_NAMES.reports} for customer analytics`,
-        `Visit ${PAGE_NAMES.sales} to see customer transactions`
-      );
-      break;
-    case 'view_suppliers':
-      suggestions.push(
-        `Check ${PAGE_NAMES.suppliers} page for vendor details`,
-        `Review ${PAGE_NAMES.dashboard} for supplier metrics`,
-        `Look at ${PAGE_NAMES.reports} for procurement analytics`,
-        `Visit ${PAGE_NAMES.expenses} to see supplier payments`
-      );
-      break;
-    case 'view_staff':
-      suggestions.push(
-        `Check ${PAGE_NAMES.staff} page for employee details`,
-        `Review ${PAGE_NAMES.dashboard} for staff metrics`,
-        `Look at ${PAGE_NAMES.reports} for staff performance`,
-        `Visit ${PAGE_NAMES.settings} for staff management`
-      );
-      break;
-    case 'view_reports':
-      suggestions.push(
-        `Check ${PAGE_NAMES.reports} page for all analytics`,
-        `Review ${PAGE_NAMES.dashboard} for key metrics`,
-        `Look at ${PAGE_NAMES.analytics} for detailed insights`,
-        `Visit ${PAGE_NAMES.sales} for transaction reports`
-      );
-      break;
-    default:
-      suggestions.push(
-        `Visit ${PAGE_NAMES.dashboard} for business overview`,
-        `Check ${PAGE_NAMES.reports} for analytics`,
-        `Manage ${PAGE_NAMES.products} for inventory`,
-        `Track ${PAGE_NAMES.sales} for revenue`,
-        `Monitor ${PAGE_NAMES.expenses} for costs`
-      );
-  }
-  
-  // Limit to 3 suggestions max
-  return suggestions.slice(0, 3);
 }
 
 // Define the actual page names for navigation guidance

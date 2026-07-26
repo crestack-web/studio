@@ -177,6 +177,7 @@ export async function recordSale(params: RecordSaleParams): Promise<RecordSaleRe
     );
 
     // Use transaction to ensure atomicity
+    let saleId = '';
     await db.runTransaction(async (transaction) => {
       // Update inventory for each product
       for (const item of items) {
@@ -210,9 +211,11 @@ export async function recordSale(params: RecordSaleParams): Promise<RecordSaleRe
         }
       }
 
-      // Create sale document
+      // Create sale document — pre-generate the ID so we can return it
       const salesCollectionRef = db.collection('businesses').doc(businessId).collection('sales');
-      const newSaleRef = transaction.create(salesCollectionRef.doc(), {
+      const newSaleRef = salesCollectionRef.doc();
+      saleId = newSaleRef.id;
+      transaction.create(newSaleRef, {
         products: items.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -249,7 +252,7 @@ export async function recordSale(params: RecordSaleParams): Promise<RecordSaleRe
 
     return {
       success: true,
-      saleId: 'generated-in-transaction',
+      saleId,
       message: `Sale recorded successfully`,
       data: {
         items,
