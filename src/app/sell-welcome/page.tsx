@@ -34,7 +34,7 @@ function TopNav() {
     }}>
       <a href="/welcome" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="Mo-sell" style={{ height: 108, width: 'auto', objectFit: 'contain' }} />
+        <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="MO Sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
       </a>
       <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
         <a href="/welcome" style={{ color: C.text2, fontSize: 14, fontWeight: 500, textDecoration: 'none', fontFamily: FONT_BODY, padding: '8px 14px' }}>
@@ -512,14 +512,8 @@ export default function SellWelcomePage() {
         }}>
           <div className="sw-footer">
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-                <rect width="40" height="40" rx="10" fill="url(#fg)"/>
-                <defs><linearGradient id="fg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#0EA5E9"/><stop offset="1" stopColor="#6366F1"/>
-                </linearGradient></defs>
-                <path d="M11 14h18l-2 14H13L11 14z" fill="none" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
-                <path d="M16 14v-2a4 4 0 018 0v2" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="MO Sell" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
               <span style={{ fontFamily:FONT_DISPLAY, fontWeight:700, fontSize:14, color:C.text2 }}>MO Sell by Busmo</span>
             </div>
             <p style={{ fontSize:12, color:C.text3 }}>© {new Date().getFullYear()} Busmo · Built for African commerce</p>

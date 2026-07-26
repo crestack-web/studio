@@ -52,14 +52,26 @@ interface ExpenseCard {
 }
 
 /**
- * Render MO response with enhanced feedback for text command issues
+ * Combined response type — includes both Message fields and RenderedResponse fields
+ * so the API consumer gets card, alerts, suggestions in one object.
+ */
+export interface CombinedResponse extends Message {
+  card?: SaleCard | ProductCard | ExpenseCard;
+  alerts?: Array<{ type: 'success' | 'warning' | 'error' | 'info'; message: string }>;
+  suggestions?: string[];
+}
+
+/**
+ * Render MO response with enhanced feedback for text command issues.
+ * When a successful action is executed, also calls the specialised renderer
+ * to produce card / alerts / suggestions for the UI.
  */
 export function renderResponse(
   message: string,
   actionResult?: ActionResult,
   intent?: { intent: string; data: Record<string, any> }
-): Message {
-  const baseMessage: Message = {
+): CombinedResponse {
+  const baseMessage: CombinedResponse = {
     id: Date.now().toString(),
     content: message,
     sender: 'mo',
@@ -88,6 +100,26 @@ export function renderResponse(
       }
     } else {
       baseMessage.type = 'action';
+
+      // For successful actions, call the specialised renderer to produce
+      // card, alerts, and suggestions for the frontend UI.
+      const intentType = intent?.intent || actionResult.action;
+      let rendered: RenderedResponse | undefined;
+
+      if (intentType === 'record_sale') {
+        rendered = renderSaleResponse(actionResult);
+      } else if (intentType === 'add_product') {
+        rendered = renderProductResponse(actionResult);
+      } else if (intentType === 'add_expense') {
+        rendered = renderExpenseResponse(actionResult);
+      }
+
+      if (rendered) {
+        baseMessage.content = rendered.text;
+        baseMessage.card = rendered.card;
+        baseMessage.alerts = rendered.alerts;
+        baseMessage.suggestions = rendered.suggestions;
+      }
     }
   }
 

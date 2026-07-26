@@ -16,15 +16,6 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
 
-console.log('🔍 Firebase Admin Environment Check:', {
-  hasProjectId: !!projectId,
-  hasPrivateKey: !!privateKey,
-  hasClientEmail: !!clientEmail,
-  projectId: projectId || 'missing',
-  clientEmail: clientEmail || 'missing',
-  privateKeyLength: privateKey?.length || 0
-});
-
 try {
   if (!admin.apps.length) {
     const serviceAccount = {
@@ -38,26 +29,17 @@ try {
         credential: admin.credential.cert(serviceAccount),
       });
       adminInitialized = true;
-      console.log('✅ Firebase Admin initialized');
-    } else {
-      console.warn('⚠️ Firebase Admin credentials missing:', {
-        hasProjectId: !!serviceAccount.projectId,
-        hasPrivateKey: !!serviceAccount.privateKey,
-        hasClientEmail: !!serviceAccount.clientEmail,
-      });
     }
   } else {
     adminInitialized = true;
-    console.log('✅ Firebase Admin already initialized');
   }
   
   if (adminInitialized) {
     db = getFirestore();
     storage = getStorage();
-    console.log('✅ Firestore initialized');
   }
 } catch (error) {
-  console.error('❌ Firebase Admin initialization error:', error);
+  console.error('Firebase Admin initialization error:', error);
 }
 
 export function getAdminDb() {

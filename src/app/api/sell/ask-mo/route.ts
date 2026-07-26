@@ -431,9 +431,12 @@ CURRENT STORE CONFIG:
             metadata: { contentType: 'application/pdf' },
           });
 
-          // Make public and get URL
-          await file.makePublic();
-          digitalFileUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+          // Get a signed download URL (works even with uniform bucket-level access)
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+          });
+          digitalFileUrl = signedUrl;
         }
 
         // Build product payload

@@ -283,21 +283,12 @@ function ThemeCard({ themeId, isActive, storeName, tagline, primary, secondary, 
   primary: string; secondary: string; logoUrl?: string | null; onSelect: () => void;
 }) {
   const t = THEMES.find(x => x.id === themeId)!;
+  const isDark = themeId === 'luxe' || themeId === 'creator' || themeId === 'link';
   return (
-    <div className={[styles.mCard, isActive ? styles.mCardActive : ''].join(' ')} onClick={onSelect}>
-      <div className={styles.mPreview}>
-        <StorefrontCanvas theme={themeId} storeName={storeName} tagline={tagline} primaryColor={primary} secondaryColor={secondary} logoUrl={logoUrl} width={280} />
-      </div>
-      <div className={styles.mMeta}>
-        <div>
-          <p className={styles.mName}>{t.name}</p>
-          <p className={styles.mSub}>{t.bestFor.join(', ')}</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {t.badge && <span className={styles.mBadge} style={{ color: t.badge.color, background: t.badge.bg }}>{t.badge.label}</span>}
-          {isActive && <span className={styles.mActive}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Active</span>}
-        </div>
-      </div>
+    <div className={[styles.mCard, isActive ? styles.mCardActive : ''].join(' ')} onClick={onSelect}
+      style={{ background: t.previewBg }}>
+      {isActive && <span className={styles.mActive}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>}
+      <p className={styles.mName} style={{ color: isDark ? '#fff' : '#1a1a1a' }}>{t.name}</p>
     </div>
   );
 }
@@ -511,10 +502,30 @@ export function ThemeEditorPage() {
     }
   }, [isMobile, theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections]);
 
-  // Preview width by device - increased sizes for better visibility
-  // Desktop fills center panel, mobile/tablet use fixed widths
-  const previewWidth = device === 'mobile' ? 375 : device === 'tablet' ? 900 : 1200;
-  const previewScale = device === 'mobile' ? 0.85 : device === 'tablet' ? 0.65 : 1;
+  // Device frame dimensions & dynamic scaling
+  const previewOuterRef = useRef<HTMLDivElement>(null);
+  const [panelSize, setPanelSize] = useState({ w: 900, h: 700 });
+
+  useEffect(() => {
+    const el = previewOuterRef.current;
+    if (!el) return;
+    const update = () => setPanelSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const DEVICE_FRAMES = {
+    desktop: { outerW: 1240, outerH: 800, screenW: 1200, screenH: 700 },
+    tablet:  { outerW: 800,  outerH: 600, screenW: 768,  screenH: 540 },
+    mobile:  { outerW: 400,  outerH: 750, screenW: 375,  screenH: 660 },
+  } as const;
+
+  const frame = DEVICE_FRAMES[device];
+  const availW = panelSize.w - 48;
+  const availH = panelSize.h - 80;
+  const deviceScale = Math.min(1, availW / frame.outerW, availH / frame.outerH);
 
   return (
     <div className={styles.root}>
@@ -634,84 +645,127 @@ export function ThemeEditorPage() {
             </div>
           </div>
 
-          {/* CENTER: live preview - hidden on mobile, shown in modal */}
+          {/* CENTER: live preview - device frames */}
           <div className={`${styles.centerPanel} ${styles.hideOnMobile}`}>
-            <div className={styles.previewOuter}>
-              {device === 'desktop' ? (
-                // Desktop: fill center panel without scaling
-                <div className={styles.desktopPreview}>
-                  <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
-                    <StorefrontCanvas
-                      theme={theme}
-                      storeName={storeName}
-                      tagline={tagline}
-                      primaryColor={primary}
-                      secondaryColor={secondary}
-                      logoUrl={logoUrl}
-                      sections={sections}
-                      width={previewWidth}
-                      storeSlug={storeConfig?.storeSlug ?? ''}
-                      products={products}
-                      collections={collections}
-                    />
-                  </CartProvider>
-                </div>
-              ) : (
-                // Mobile/Tablet: use scaling
-                <div style={{
-                  width: previewWidth * previewScale,
-                  position: 'relative',
-                  flexShrink: 0,
-                  minWidth: 0,
-                  maxWidth: '100%',
+            <div className={styles.previewOuter} ref={previewOuterRef}>
+              <div className={styles.deviceScaleWrap} style={{
+                width: frame.outerW * deviceScale,
+                height: frame.outerH * deviceScale,
+              }}>
+                <div className={styles.deviceFrameInner} style={{
+                  width: frame.outerW,
+                  transform: `scale(${deviceScale})`,
                 }}>
-                  <div className={styles.previewInner} style={{
-                    width: previewWidth,
-                    transform: `scale(${previewScale})`,
-                    transformOrigin: 'top left',
-                    position: 'absolute',
-                    top: 0, left: 0,
-                    minWidth: 0,
-                  }}>
-                    <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
-                      <StorefrontCanvas
-                        theme={theme}
-                        storeName={storeName}
-                        tagline={tagline}
-                        primaryColor={primary}
-                        secondaryColor={secondary}
-                        logoUrl={logoUrl}
-                        sections={sections}
-                        width={previewWidth}
-                        storeSlug={storeConfig?.storeSlug ?? ''}
-                        products={products}
-                        collections={collections}
-                      />
-                    </CartProvider>
-                  </div>
-                  {/* Invisible spacer that matches the scaled height so parent scrolls correctly */}
-                  <div style={{
-                    width: previewWidth * previewScale,
-                    visibility: 'hidden',
-                    pointerEvents: 'none',
-                    minWidth: 0,
-                  }}>
-                    <StorefrontCanvas
-                      theme={theme}
-                      storeName={storeName}
-                      tagline={tagline}
-                      primaryColor={primary}
-                      secondaryColor={secondary}
-                      logoUrl={logoUrl}
-                      sections={sections}
-                      width={previewWidth * previewScale}
-                      storeSlug={storeConfig?.storeSlug}
-                      products={products}
-                      collections={collections}
-                    />
-                  </div>
+
+                  {/* ── Desktop: Laptop mockup ── */}
+                  {device === 'desktop' && (
+                    <div className={styles.laptopFrame}>
+                      <div className={styles.laptopChrome}>
+                        <div className={styles.laptopDots}>
+                          <span /><span /><span />
+                        </div>
+                        <div className={styles.laptopAddress}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                          {storeConfig?.storeSlug || 'your-store'}.busmo.app
+                        </div>
+                        <div className={styles.laptopActions}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                      </div>
+                      <div className={styles.laptopScreen}>
+                        <div className={styles.screenScroll}>
+                          <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
+                            <StorefrontCanvas
+                              theme={theme}
+                              storeName={storeName}
+                              tagline={tagline}
+                              primaryColor={primary}
+                              secondaryColor={secondary}
+                              logoUrl={logoUrl}
+                              sections={sections}
+                              width={frame.screenW}
+                              storeSlug={storeConfig?.storeSlug ?? ''}
+                              products={products}
+                              collections={collections}
+                            />
+                          </CartProvider>
+                        </div>
+                      </div>
+                      <div className={styles.laptopBase}>
+                        <div className={styles.laptopNotch} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Tablet: iPad mockup ── */}
+                  {device === 'tablet' && (
+                    <div className={styles.tabletFrame}>
+                      <div className={styles.tabletCamera} />
+                      <div className={styles.tabletScreen}>
+                        <div className={styles.screenScroll}>
+                          <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
+                            <StorefrontCanvas
+                              theme={theme}
+                              storeName={storeName}
+                              tagline={tagline}
+                              primaryColor={primary}
+                              secondaryColor={secondary}
+                              logoUrl={logoUrl}
+                              sections={sections}
+                              width={frame.screenW}
+                              storeSlug={storeConfig?.storeSlug ?? ''}
+                              products={products}
+                              collections={collections}
+                            />
+                          </CartProvider>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Mobile: iPhone mockup ── */}
+                  {device === 'mobile' && (
+                    <div className={styles.phoneFrame}>
+                      <div className={styles.phoneStatusBar}>
+                        <span className={styles.phoneTime}>9:41</span>
+                        <div className={styles.phoneNotch} />
+                        <div className={styles.phoneIcons}>
+                          <svg width="14" height="10" viewBox="0 0 16 10" fill="currentColor"><rect x="0" y="5" width="3" height="5" rx="0.5" opacity="0.4"/><rect x="4.5" y="3" width="3" height="7" rx="0.5" opacity="0.6"/><rect x="9" y="1" width="3" height="9" rx="0.5" opacity="0.8"/><rect x="13" y="0" width="3" height="10" rx="0.5"/></svg>
+                          <svg width="14" height="10" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 8.5a8 8 0 0114 0" strokeLinecap="round"/><path d="M4 6a5 5 0 018 0" strokeLinecap="round"/><path d="M7 3.5a2 2 0 013 0" strokeLinecap="round"/><circle cx="8.5" cy="9" r="1" fill="currentColor" stroke="none"/></svg>
+                          <svg width="20" height="10" viewBox="0 0 26 12" fill="currentColor"><rect x="0" y="1" width="22" height="10" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.2"/><rect x="2" y="3" width="16" height="6" rx="1" opacity="0.8"/><path d="M23 4.5v3a1.5 1.5 0 000-3z" opacity="0.4"/></svg>
+                        </div>
+                      </div>
+                      <div className={styles.phoneScreen}>
+                        <div className={styles.screenScroll}>
+                          <CartProvider storeSlug={storeConfig?.storeSlug ?? ''}>
+                            <StorefrontCanvas
+                              theme={theme}
+                              storeName={storeName}
+                              tagline={tagline}
+                              primaryColor={primary}
+                              secondaryColor={secondary}
+                              logoUrl={logoUrl}
+                              sections={sections}
+                              width={frame.screenW}
+                              storeSlug={storeConfig?.storeSlug ?? ''}
+                              products={products}
+                              collections={collections}
+                            />
+                          </CartProvider>
+                        </div>
+                      </div>
+                      <div className={styles.phoneHomeBar} />
+                    </div>
+                  )}
+
                 </div>
-              )}
+              </div>
+            </div>
+            {/* Device label */}
+            <div className={styles.deviceLabel}>
+              {device === 'desktop' ? 'Desktop — 1200px' : device === 'tablet' ? 'Tablet — 768px' : 'Mobile — 375px'}
+              <span className={styles.deviceScaleBadge}>{Math.round(deviceScale * 100)}%</span>
             </div>
           </div>
 

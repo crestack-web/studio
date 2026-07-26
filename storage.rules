@@ -42,6 +42,33 @@ service firebase.storage {
     }
     
     // =====================
+    // STORE PRODUCTS (sell dashboard uploads)
+    // =====================
+    match /storeProducts/{businessId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // =====================
+    // DIGITAL PRODUCTS
+    // =====================
+    match /digitalProducts/{businessId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 100 * 1024 * 1024;
+    }
+
+    // =====================
+    // STORE LOGOS
+    // =====================
+    match /stores/{businessId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // =====================
     // MERCHANT PRODUCT IMAGES (legacy)
     // =====================
     match /merchants/{merchantId}/products/{productId}/{allPaths=**} {
