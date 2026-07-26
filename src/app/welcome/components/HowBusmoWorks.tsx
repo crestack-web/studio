@@ -7,31 +7,31 @@ const STEPS = [
     number: 1,
     title: "Record Sales",
     description: "Add sales in seconds — even offline. Track what you sold, quantity, and profit per product.",
-    icon: "🛒"
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2411_zblrqq.png"
   },
   {
     number: 2,
     title: "Record Expenses",
     description: "Log daily expenses and inventory costs. See how they affect your profit in real time.",
-    icon: "💸"
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2414_ggelsf.png"
   },
   {
     number: 3,
     title: "Track Inventory",
     description: "Add products with cost and quantity. Get alerts before you run out of your best sellers.",
-    icon: "📦"
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009549/IMG_2412_gixq0q.png"
   },
   {
     number: 4,
     title: "See Profit Automatically",
     description: "Your profit is calculated automatically. No more guessing or manual calculations.",
-    icon: "📈"
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009549/IMG_2410_uos5yq.png"
   },
   {
     number: 5,
     title: "Ask MO Anything",
     description: "Ask questions like 'How much profit did I make today?' and get instant answers.",
-    icon: "🤖"
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2413_esqkdh.png"
   }
 ];
 
@@ -52,7 +52,9 @@ export const HowBusmoWorks: React.FC = () => (
         {STEPS.map((step, index) => (
           <div key={index} className="step-item">
             <div className="step-number">{step.number}</div>
-            <div className="step-icon">{step.icon}</div>
+            <div className="step-icon">
+              <img src={step.icon} alt={step.title} className="step-icon-image" />
+            </div>
             <div className="step-content">
               <h3 className="step-title">{step.title}</h3>
               <p className="step-description">{step.description}</p>
