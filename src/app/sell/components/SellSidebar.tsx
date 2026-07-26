@@ -177,7 +177,7 @@ export function SellSidebar() {
           <div className={styles.logoWrap}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784793259/side_bar_logo_yyu8hb.png"
+              src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png"
               alt="Mo-sell"
               className={styles.logoImg}
             />

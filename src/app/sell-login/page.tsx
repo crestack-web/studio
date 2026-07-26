@@ -167,7 +167,7 @@ export default function SellLoginPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="MO Sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+                <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png" alt="MO Sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
               </div>
               <h1 style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, color: C.text1, letterSpacing: '-0.025em', lineHeight: 1.2, margin: 0 }}>
                 Sign in to your store

@@ -34,7 +34,7 @@ function TopNav() {
     }}>
       <a href="/welcome" style={{ display:'flex', alignItems:'center', gap:10, textDecoration:'none' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="MO Sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+        <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png" alt="MO Sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
       </a>
       <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
         <a href="/welcome" style={{ color: C.text2, fontSize: 14, fontWeight: 500, textDecoration: 'none', fontFamily: FONT_BODY, padding: '8px 14px' }}>
@@ -513,7 +513,7 @@ export default function SellWelcomePage() {
           <div className="sw-footer">
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="MO Sell" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+              <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png" alt="MO Sell" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
               <span style={{ fontFamily:FONT_DISPLAY, fontWeight:700, fontSize:14, color:C.text2 }}>MO Sell by Busmo</span>
             </div>
             <p style={{ fontSize:12, color:C.text3 }}>© {new Date().getFullYear()} Busmo · Built for African commerce</p>

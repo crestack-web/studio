@@ -11,7 +11,7 @@ export default function SellLoading() {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png"
+        src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png"
         alt="MO Sell"
         style={{
           height: 48,

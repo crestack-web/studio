@@ -303,7 +303,7 @@ export function SellLoginPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1784635544/mo_sell_2_li0pby.png" alt="Mo-sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+              <img src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png" alt="Mo-sell" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
             </div>
             <h1
               style={{
