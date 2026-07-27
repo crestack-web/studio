@@ -108,13 +108,14 @@ export function SellAuthGuard({ children }: Props) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 8px 24px rgba(14,165,233,0.30)',
           animation: 'sellPulse 1.4s ease-in-out infinite',
+          overflow: 'hidden',
         }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-            stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <path d="M16 10a4 4 0 01-8 0" />
-          </svg>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785078071/mosell_gpzl2q.png"
+            alt="MO Sell"
+            style={{ width: 36, height: 36, objectFit: 'contain' }}
+          />
         </div>
         <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#3D5A7A' }}>
           Loading MO Sell…
