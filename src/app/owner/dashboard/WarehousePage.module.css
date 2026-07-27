@@ -84,38 +84,21 @@
 
 .totalStat {
   padding: 24px;
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(124, 58, 237, 0.03) 100%);
-  border: 1.5px solid var(--border);
-  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
   min-width: 0;
 }
 
-.totalStat::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--purple), #8b5cf6, #a78bfa);
-  opacity: 0.8;
-  transition: opacity 0.3s;
-}
-
 .totalStat:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.15);
-  border-color: var(--purple);
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(124, 58, 237, 0.08) 100%);
-}
-
-.totalStat:hover::before {
-  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-hover);
 }
 
 .totalStatLabel {
@@ -141,10 +124,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: linear-gradient(135deg, var(--text-1) 0%, var(--purple) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .locationsGrid {
@@ -155,28 +134,27 @@
 }
 
 .locationCard {
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(124, 58, 237, 0.02) 100%);
-  border: 1.5px solid var(--border);
-  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   padding: 24px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   position: relative;
   overflow: hidden;
 }
 
 .locationCard:hover {
-  border-color: var(--purple);
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.15);
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(124, 58, 237, 0.08) 100%);
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .locationCard.active {
-  border-color: var(--purple);
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 2px var(--border-hover);
 }
 
 .locationHeader {
@@ -188,7 +166,7 @@
 
 .locationIcon {
   font-size: 32px;
-  color: var(--purple);
+  color: var(--text-2);
 }
 
 .locationName {
@@ -224,11 +202,11 @@
 }
 
 .productsSection {
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(124, 58, 237, 0.01) 100%);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 32px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .productsHeader {
@@ -285,13 +263,13 @@
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 12px;
   padding: 16px;
-  background: linear-gradient(135deg, var(--bg) 0%, rgba(124, 58, 237, 0.05) 100%);
-  border-radius: 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-3);
+  font-weight: 600;
+  color: var(--text-2);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
 }
 
 .tableRow {
@@ -305,9 +283,9 @@
 }
 
 .tableRow:hover {
-  background: linear-gradient(135deg, var(--bg) 0%, rgba(124, 58, 237, 0.05) 100%);
-  border-color: var(--purple);
-  transform: translateX(4px);
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateX(2px);
 }
 
 .tableRow:last-child {
@@ -360,7 +338,8 @@
 }
 
 .totalStock {
-  color: var(--purple);
+  color: var(--text-1);
+  font-weight: 600;
 }
 
 .valueText {
@@ -707,10 +686,10 @@
 .historySection {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 12px;
   padding: 28px;
   margin-top: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .historyTitle {
@@ -734,16 +713,16 @@
   gap: 16px;
   padding: 16px;
   background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .historyItem:hover {
-  border-color: var(--purple);
-  transform: translateX(4px);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.1);
+  border-color: var(--border-hover);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .historyIcon {
@@ -951,14 +930,14 @@
 .invoiceCard {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .invoiceCard:hover {
-  border-color: var(--purple);
-  box-shadow: 0 4px 12px rgba(107, 63, 231, 0.1);
+  border-color: var(--border-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .invoiceHeader {
@@ -996,7 +975,7 @@
 .invoiceAmount {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--purple);
+  color: var(--text-1);
 }
 
 .invoiceDetails {
@@ -1192,13 +1171,13 @@
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: all 0.2s;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .lowStockItem:hover {
   border-color: var(--border-hover);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .lowStockInfo {
@@ -1239,9 +1218,8 @@
 }
 
 .quickActionBtn:hover:not(:disabled) {
-  background: var(--purple);
-  color: white;
-  border-color: var(--purple);
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
 }
 
 .quickActionBtn:disabled {
