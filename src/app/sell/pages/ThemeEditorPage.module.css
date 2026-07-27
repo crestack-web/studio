@@ -419,6 +419,14 @@
   .rightPanel { display: none; }
 }
 
+/* Mobile back button - hidden on desktop */
+.mobileBackBtn { display: none; }
+
+/* Mobile preview icon button */
+.mobilePreviewIcon {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .editorBody { grid-template-columns: 1fr; }
   .centerPanel { display: none; }
@@ -434,6 +442,33 @@
   .marketColorsLabel { font-size: 0.72rem; flex: 1; }
   .cLabel { font-size: 0.72rem; gap: 5px; }
   .cPicker { width: 22px; height: 22px; }
+
+  /* Show right panel as full-width overlay on mobile when section is selected */
+  .rightPanel {
+    position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+    z-index: 100; display: none; flex-direction: column;
+    background: var(--sell-surface); border-top: 1px solid var(--sell-border);
+  }
+  .rightPanel.mobileOpen { display: flex; }
+
+  /* Mobile back button in right panel header */
+  .mobileBackBtn {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: none; border: none; cursor: pointer; color: var(--sell-text-2);
+    font-size: 0.8rem; font-weight: 600; font-family: var(--sell-font-body);
+    border-radius: 6px; flex-shrink: 0;
+  }
+  .mobileBackBtn:hover { background: var(--sell-bg); color: var(--sell-text-1); }
+
+  /* Mobile preview icon button */
+  .mobilePreviewIcon {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 8px; border: none;
+    background: var(--sell-primary-lt); color: var(--sell-primary);
+    cursor: pointer; flex-shrink: 0;
+    transition: background var(--sell-transition), transform 0.15s;
+  }
+  .mobilePreviewIcon:hover { background: var(--sell-primary); color: #fff; transform: scale(1.05); }
 }
 
 @media (max-width: 480px) {

@@ -72,6 +72,16 @@
   flex-shrink: 0;
 }
 
+.appName {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--sell-text-1);
+  margin-left: 6px;
+  white-space: nowrap;
+  font-family: var(--sell-font-display);
+}
+
 /* ── Store status pill ── */
 .storePill {
   margin: 10px 12px 6px;

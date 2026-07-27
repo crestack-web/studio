@@ -18,6 +18,10 @@ interface MobilePreviewPageProps {
   storeSlug: string;
   products: any[];
   collections: any[];
+  fontFamily?: string | null;
+  buttonStyle?: 'pill' | 'square' | 'rounded';
+  bodyTextColor?: string | null;
+  hideStoreNameWithLogo?: boolean;
 }
 
 export function MobilePreviewPage() {
@@ -45,7 +49,7 @@ export function MobilePreviewPage() {
     );
   }
 
-  const { theme, storeName, tagline, primaryColor, secondaryColor, logoUrl, sections, storeSlug, products, collections } = previewData;
+  const { theme, storeName, tagline, primaryColor, secondaryColor, logoUrl, sections, storeSlug, products, collections, fontFamily, buttonStyle, bodyTextColor, hideStoreNameWithLogo } = previewData;
 
   return (
     <div className={styles.mobilePreviewPage}>
@@ -80,6 +84,10 @@ export function MobilePreviewPage() {
                   storeSlug={storeSlug}
                   products={products}
                   collections={collections}
+                  fontFamily={fontFamily ?? null}
+                  buttonStyle={buttonStyle}
+                  bodyTextColor={bodyTextColor ?? null}
+                  hideStoreNameWithLogo={hideStoreNameWithLogo}
                 />
               </CartProvider>
             </div>

@@ -57,13 +57,20 @@ export function detectIntent(
   // Enhanced sale patterns with more flexible matching
   const salePatterns = [
     /^(?:record|log|add|make)\s+(?:a\s+)?(?:sale|sales|transaction)/i,
-    /^(?:sold|sell)\s+/i,
+    /^(?:sold|sell|just\s+sold|just\s+sell)\s+/i,
     /^(?:customer\s+bought|buyer\s+purchased)/i,
     /(?:record|add|log)\s+(?:sale|sales):\s*/i,  // Explicit sale prefix
     /(?:sold|just\s+sold)\s+\d+.+for/i,  // "sold 5 items for..."
-    /(?:made|did)\s+a\s+sale/i,  // "made a sale"
-    /(?:i\s+)?sold\s+\d+\s+.+\s+at/i,  // "I sold 5 items at..."
+    /(?:made|did|just\s+made)\s+a\s+sale/i,  // "made a sale", "just made a sale"
+    /(?:i\s+)?sold\s+\d+\s+.+\s+(?:at|for)/i,  // "I sold 5 items at..."
     /(?:i\s+)?sold\s+.+\s+for\s+₦?\d+/i,  // "I sold rice for ₦5000"
+    /(?:i\s+)?(?:have\s+)?sold\s+/i,  // "I have sold", "I've sold"
+    /(?:i\s+)?(?:just\s+)?sold\s+(?:out|off)\s+(?:of\s+)?/i,  // "I just sold out of..."
+    /(?:we\s+)?sold\s+\d+/i,  // "We sold 5"
+    /(?:sold|sell)\s+(?:a\s+)?(?:few|some|some\s+more)\s+/i,  // "sold a few"
+    /(?:sold|sell)\s+(?:all|most|half)\s+/i,  // "sold all"
+    /(?:recording|log(?:ging)?|adding)\s+(?:a\s+)?sale/i,  // "recording a sale"
+    /(?:quick|quickly)\s+(?:record|log|add)\s+(?:a\s+)?sale/i,  // "quickly record a sale"
   ];
 
   // Enhanced product patterns with more flexible matching
@@ -516,6 +523,42 @@ function parseSaleData(message: string): Record<string, any> {
         quantity: parseInt(simpleMatch[1]),
         price: simpleMatch[3] ? parseInt(simpleMatch[3].replace(/,/g, '')) : undefined,
       });
+    }
+  }
+
+  // Fallback: "sold X product" or "sold product at Y" without price
+  if (items.length === 0) {
+    const loosePattern = /(?:i\s+)?(?:just\s+)?sold\s+(\d+)\s+(.+?)(?:\s+(?:at|for|@|₦|naira)\s+|$)/i;
+    const looseMatch = message.match(loosePattern);
+    if (looseMatch) {
+      let productName = looseMatch[2].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: parseInt(looseMatch[1]) || 1,
+          price: undefined,
+        });
+      }
+    }
+  }
+
+  // Fallback: "sold product" without quantity (assume qty=1)
+  if (items.length === 0) {
+    const singleItemPattern = /(?:i\s+)?(?:just\s+)?sold\s+(?:some\s+)?(.+?)(?:\s+(?:at|for|@)\s+₦?(\d+(?:,\d+)*))/i;
+    const singleMatch = message.match(singleItemPattern);
+    if (singleMatch) {
+      let productName = singleMatch[1].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: 1,
+          price: singleMatch[2] ? parseInt(singleMatch[2].replace(/,/g, '')) : undefined,
+        });
+      }
     }
   }
 

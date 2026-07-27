@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/app/store/[storeSlug]/context/CartContext';
 import type { ThemeProductPageProps } from '../types';
 
@@ -12,16 +13,18 @@ function fmt(n: number, currency: string) {
 
 export function LinkProductPage({ product, storeSlug, currency }: ThemeProductPageProps) {
   const { addItem } = useCart();
+  const router = useRouter();
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
+  const [buying, setBuying] = useState(false);
   const isOutOfStock = product.productType === 'physical' && product.stock === 0;
   const discount = product.compareAtPrice && product.compareAtPrice > product.price
     ? Math.round((1 - product.price / product.compareAtPrice) * 100) : null;
   const maxQty = product.productType === 'physical' ? product.stock : 99;
 
-  const handleAdd = () => {
+  const handleBuy = () => {
     if (isOutOfStock) return;
+    setBuying(true);
     for (let i = 0; i < qty; i++) {
       addItem({
         productId: product.id, displayName: product.displayName,
@@ -30,8 +33,7 @@ export function LinkProductPage({ product, storeSlug, currency }: ThemeProductPa
         productType: product.productType,
       });
     }
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    router.push(`/store/${storeSlug}/checkout`);
   };
 
   return (
@@ -177,15 +179,16 @@ export function LinkProductPage({ product, storeSlug, currency }: ThemeProductPa
                 }}>+</button>
             </div>
 
-            <button onClick={handleAdd}
+            <button onClick={handleBuy}
+              disabled={buying}
               style={{
                 flex: 1, height: 46,
-                background: added ? '#10B981' : 'var(--sf-primary)',
+                background: buying ? '#10B981' : 'var(--sf-primary)',
                 color: '#fff', border: 'none', borderRadius: 'var(--sf-radius-sm)',
-                fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+                fontSize: '0.85rem', fontWeight: 700, cursor: buying ? 'default' : 'pointer',
                 transition: 'all 0.25s',
               }}>
-              {added ? '✓ Added!' : 'Add to Cart'}
+              {buying ? 'Redirecting...' : `Buy Now — ${fmt(product.price * qty, currency)}`}
             </button>
           </div>
         )}

@@ -47,6 +47,7 @@ interface MOMessage {
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+    mode?: 'pending' | 'recorded';
   };
   productCard?: {
     type: 'product';
@@ -552,6 +553,20 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           role: 'bot',
           content: `✅ ${result.message || 'Action completed successfully.'}`,
           timestamp: new Date(),
+          ...(pendingAction.action === 'record_sale' && {
+            saleCard: {
+              items: [{
+                name: pendingAction.data.productName || pendingAction.data.items?.[0]?.productName || 'Sale',
+                quantity: pendingAction.data.quantity || pendingAction.data.items?.[0]?.quantity || 1,
+                price: result.data?.product?.sellingPrice || pendingAction.data.price || pendingAction.data.items?.[0]?.price || 0,
+                costPrice: result.data?.product?.costPrice || pendingAction.data.costPrice || pendingAction.data.items?.[0]?.costPrice,
+              }],
+              totalRevenue: result.data?.totalRevenue || pendingAction.data.totalRevenue || 0,
+              totalProfit: result.data?.profit || pendingAction.data.profit,
+              timestamp: new Date(),
+              mode: 'recorded',
+            },
+          }),
         };
         setMessages(prev => [...prev, successMsg]);
       } else {

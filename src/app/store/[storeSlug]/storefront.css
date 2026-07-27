@@ -633,3 +633,302 @@ img { max-width: 100%; height: auto; display: block; }
 [data-theme="creator"] .sf-section-title {
   font-size: 1.15rem; font-weight: 700; color: #F8FAFC;
 }
+
+/* ═══════════════════════════════════════════
+   PULSE THEME — Social-first creator store
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+[data-theme="pulse"] {
+  --sf-font:         'Outfit', system-ui, sans-serif;
+  --sf-font-display: 'Outfit', system-ui, sans-serif;
+  --sf-surface-2:    #FFF2E6;
+  --sf-shadow:       0 6px 24px rgba(255,107,53,0.12);
+  --sf-shadow-sm:    0 2px 10px rgba(255,107,53,0.06);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  24px;
+}
+
+[data-theme="pulse"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+[data-theme="pulse"] .sf-nav {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sf-border);
+}
+[data-theme="pulse"] .sf-nav-logo { font-weight: 800; color: #3D2B1F; }
+[data-theme="pulse"] .sf-nav-cart {
+  background: linear-gradient(135deg, #FF6B35, #F7C948); color: #fff; border-radius: 100px;
+}
+
+[data-theme="pulse"] .sf-hero {
+  background: linear-gradient(135deg, #FF6B35 0%, #F7C948 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 56px 40px; text-align: center; align-items: center;
+}
+[data-theme="pulse"] .sf-hero h1 {
+  font-size: clamp(2rem, 5.5vw, 3.6rem); font-weight: 800; color: #fff; letter-spacing: -0.02em;
+}
+[data-theme="pulse"] .sf-hero p { font-size: 1.05rem; color: rgba(255,255,255,0.9); }
+
+[data-theme="pulse"] .sf-card {
+  background: #fff; border: 1px solid #FFE8D6;
+  border-radius: 16px; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+[data-theme="pulse"] .sf-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(255,107,53,0.12); }
+[data-theme="pulse"] .sf-card-img { height: 240px; background: #FFF2E6; }
+[data-theme="pulse"] .sf-card-body { padding: 14px 16px 4px; }
+[data-theme="pulse"] .sf-card-name { font-size: 0.95rem; font-weight: 700; color: #3D2B1F; }
+[data-theme="pulse"] .sf-card-price { font-size: 1rem; font-weight: 700; color: #FF6B35; }
+[data-theme="pulse"] .sf-card-btn {
+  width: calc(100% - 32px); margin: 10px 16px 16px;
+  padding: 11px; border-radius: 100px; font-weight: 700; font-size: 0.85rem;
+  background: linear-gradient(135deg, #FF6B35, #F7C948); color: #fff;
+}
+[data-theme="pulse"] .sf-card-btn:hover { opacity: 0.88; }
+[data-theme="pulse"] .sf-section-title { font-size: 1.15rem; font-weight: 700; color: #3D2B1F; }
+
+/* ═══════════════════════════════════════════
+   VAULT THEME — Digital product showcase
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+[data-theme="vault"] {
+  --sf-font:         'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --sf-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --sf-surface-2:    #112240;
+  --sf-shadow:       0 6px 28px rgba(0,0,0,0.4);
+  --sf-shadow-sm:    0 2px 12px rgba(0,0,0,0.25);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  18px;
+}
+
+[data-theme="vault"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+[data-theme="vault"] .sf-nav {
+  background: rgba(11,29,58,0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sf-border);
+}
+[data-theme="vault"] .sf-nav-logo { font-weight: 700; color: #F1F5F9; letter-spacing: -0.02em; }
+[data-theme="vault"] .sf-nav-cart {
+  background: #3B82F6; color: #fff; border-radius: 8px;
+}
+[data-theme="vault"] .sf-nav-cart:hover { background: #2563EB; }
+
+[data-theme="vault"] .sf-hero {
+  background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, #0B1D3A 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 56px 40px; border: 1px solid var(--sf-border);
+}
+[data-theme="vault"] .sf-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; color: #F1F5F9; letter-spacing: -0.02em;
+}
+[data-theme="vault"] .sf-hero p { font-size: 1.05rem; color: #94A3B8; }
+
+[data-theme="vault"] .sf-card {
+  background: #112240; border: 1px solid #1E3A5F;
+  border-radius: 12px; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+[data-theme="vault"] .sf-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(59,130,246,0.15); border-color: #3B82F6; }
+[data-theme="vault"] .sf-card-img { height: 240px; background: #0B1D3A; }
+[data-theme="vault"] .sf-card-body { padding: 14px 16px 4px; }
+[data-theme="vault"] .sf-card-category { color: #3B82F6; }
+[data-theme="vault"] .sf-card-name { font-size: 0.95rem; font-weight: 600; color: #F1F5F9; }
+[data-theme="vault"] .sf-card-price { font-size: 1rem; font-weight: 700; color: #60A5FA; }
+[data-theme="vault"] .sf-card-btn {
+  width: calc(100% - 32px); margin: 10px 16px 16px;
+  padding: 11px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;
+  background: #3B82F6; color: #fff;
+}
+[data-theme="vault"] .sf-card-btn:hover { background: #2563EB; }
+[data-theme="vault"] .sf-section-title { font-size: 1.15rem; font-weight: 700; color: #F1F5F9; }
+[data-theme="vault"] .sf-footer { background: #060E1F; }
+
+/* ═══════════════════════════════════════════
+   ATLAS THEME — Professional services
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+[data-theme="atlas"] {
+  --sf-font:         'Manrope', 'Inter', system-ui, sans-serif;
+  --sf-font-display: 'Manrope', 'Inter', system-ui, sans-serif;
+  --sf-surface-2:    #F1F5F9;
+  --sf-shadow:       0 4px 20px rgba(0,0,0,0.06);
+  --sf-shadow-sm:    0 1px 8px rgba(0,0,0,0.04);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  16px;
+}
+
+[data-theme="atlas"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+[data-theme="atlas"] .sf-nav {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sf-border);
+}
+[data-theme="atlas"] .sf-nav-logo { font-weight: 800; color: #1E293B; }
+[data-theme="atlas"] .sf-nav-cart {
+  background: #0D9488; color: #fff; border-radius: 8px;
+}
+
+[data-theme="atlas"] .sf-hero {
+  background: linear-gradient(135deg, rgba(13,148,136,0.08) 0%, rgba(15,118,110,0.04) 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 56px 40px; border: 1px solid var(--sf-border);
+}
+[data-theme="atlas"] .sf-hero h1 {
+  font-size: clamp(1.8rem, 4.5vw, 2.8rem); font-weight: 800; color: #1E293B; letter-spacing: -0.02em;
+}
+[data-theme="atlas"] .sf-hero p { font-size: 1.05rem; color: #64748B; }
+
+[data-theme="atlas"] .sf-card {
+  background: #fff; border: 1px solid #E2E8F0;
+  border-radius: 12px; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+[data-theme="atlas"] .sf-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(13,148,136,0.1); border-color: #0D9488; }
+[data-theme="atlas"] .sf-card-img { height: 240px; background: #F1F5F9; }
+[data-theme="atlas"] .sf-card-body { padding: 14px 16px 4px; }
+[data-theme="atlas"] .sf-card-name { font-size: 0.95rem; font-weight: 700; color: #1E293B; }
+[data-theme="atlas"] .sf-card-price { font-size: 1rem; font-weight: 700; color: #0D9488; }
+[data-theme="atlas"] .sf-card-btn {
+  width: calc(100% - 32px); margin: 10px 16px 16px;
+  padding: 11px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;
+  background: #0D9488; color: #fff;
+}
+[data-theme="atlas"] .sf-card-btn:hover { background: #0F766E; }
+[data-theme="atlas"] .sf-section-title { font-size: 1.15rem; font-weight: 700; color: #1E293B; }
+
+/* ═══════════════════════════════════════════
+   SPARK THEME — Coach & expert authority
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap');
+
+[data-theme="spark"] {
+  --sf-font:         'Raleway', 'Inter', system-ui, sans-serif;
+  --sf-font-display: 'Raleway', 'Inter', system-ui, sans-serif;
+  --sf-surface-2:    #FFF2E0;
+  --sf-shadow:       0 4px 20px rgba(45,27,105,0.08);
+  --sf-shadow-sm:    0 1px 8px rgba(45,27,105,0.04);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  20px;
+}
+
+[data-theme="spark"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+[data-theme="spark"] .sf-nav {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--sf-border);
+}
+[data-theme="spark"] .sf-nav-logo { font-weight: 800; color: #2D1B69; }
+[data-theme="spark"] .sf-nav-cart {
+  background: #D97706; color: #fff; border-radius: 100px;
+}
+
+[data-theme="spark"] .sf-hero {
+  background: linear-gradient(135deg, rgba(45,27,105,0.12) 0%, rgba(217,119,6,0.08) 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 56px 40px; border: 1px solid var(--sf-border);
+}
+[data-theme="spark"] .sf-hero h1 {
+  font-size: clamp(1.8rem, 4.5vw, 2.8rem); font-weight: 800; color: #2D1B69; letter-spacing: -0.01em;
+}
+[data-theme="spark"] .sf-hero p { font-size: 1.05rem; color: #5B4A8A; }
+
+[data-theme="spark"] .sf-card {
+  background: #fff; border: 1px solid #F3E8D8;
+  border-radius: 14px; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+[data-theme="spark"] .sf-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(45,27,105,0.1); border-color: #7C3AED; }
+[data-theme="spark"] .sf-card-img { height: 240px; background: #FFF8EE; }
+[data-theme="spark"] .sf-card-body { padding: 14px 16px 4px; }
+[data-theme="spark"] .sf-card-name { font-size: 0.95rem; font-weight: 700; color: #2D1B69; }
+[data-theme="spark"] .sf-card-price { font-size: 1rem; font-weight: 700; color: #D97706; }
+[data-theme="spark"] .sf-card-btn {
+  width: calc(100% - 32px); margin: 10px 16px 16px;
+  padding: 11px; border-radius: 100px; font-weight: 700; font-size: 0.85rem;
+  background: linear-gradient(135deg, #7C3AED, #D97706); color: #fff;
+}
+[data-theme="spark"] .sf-card-btn:hover { opacity: 0.88; }
+[data-theme="spark"] .sf-section-title { font-size: 1.15rem; font-weight: 700; color: #2D1B69; }
+
+/* ═══════════════════════════════════════════
+   BAZAAR THEME — Small business ecommerce
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+[data-theme="bazaar"] {
+  --sf-font:         'Poppins', system-ui, sans-serif;
+  --sf-font-display: 'Poppins', system-ui, sans-serif;
+  --sf-surface-2:    #D1FAE5;
+  --sf-shadow:       0 4px 20px rgba(5,150,105,0.08);
+  --sf-shadow-sm:    0 1px 8px rgba(5,150,105,0.04);
+  --sf-nav-h:        64px;
+  --sf-hero-radius:  16px;
+}
+
+[data-theme="bazaar"] body {
+  font-family: var(--sf-font);
+  background: var(--sf-bg);
+  color: var(--sf-text-1);
+}
+
+[data-theme="bazaar"] .sf-nav {
+  background: #059669;
+  border-bottom: 1px solid #047857;
+}
+[data-theme="bazaar"] .sf-nav-logo { font-weight: 700; color: #fff; }
+[data-theme="bazaar"] .sf-nav-cart {
+  background: #fff; color: #059669; border-radius: 8px;
+}
+[data-theme="bazaar"] .sf-nav-cart:hover { background: #ECFDF5; }
+[data-theme="bazaar"] .sf-nav-desktop-only span { color: rgba(255,255,255,0.85); }
+
+[data-theme="bazaar"] .sf-hero {
+  background: linear-gradient(135deg, #059669 0%, #F97316 100%);
+  border-radius: var(--sf-hero-radius);
+  padding: 56px 40px; align-items: center; text-align: center;
+}
+[data-theme="bazaar"] .sf-hero h1 {
+  font-size: clamp(1.8rem, 4.5vw, 2.8rem); font-weight: 800; color: #fff; letter-spacing: -0.01em;
+}
+[data-theme="bazaar"] .sf-hero p { font-size: 1.05rem; color: rgba(255,255,255,0.9); }
+
+[data-theme="bazaar"] .sf-card {
+  background: #fff; border: 1px solid #D1FAE5;
+  border-radius: 12px; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+[data-theme="bazaar"] .sf-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(5,150,105,0.1); border-color: #059669; }
+[data-theme="bazaar"] .sf-card-img { height: 240px; background: #ECFDF5; }
+[data-theme="bazaar"] .sf-card-body { padding: 14px 16px 4px; }
+[data-theme="bazaar"] .sf-card-name { font-size: 0.95rem; font-weight: 700; color: #064E3B; }
+[data-theme="bazaar"] .sf-card-price { font-size: 1rem; font-weight: 700; color: #059669; }
+[data-theme="bazaar"] .sf-card-btn {
+  width: calc(100% - 32px); margin: 10px 16px 16px;
+  padding: 11px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;
+  background: #059669; color: #fff;
+}
+[data-theme="bazaar"] .sf-card-btn:hover { background: #047857; }
+[data-theme="bazaar"] .sf-section-title { font-size: 1.15rem; font-weight: 700; color: #064E3B; }

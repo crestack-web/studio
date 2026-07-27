@@ -132,6 +132,22 @@ export function ReferralsPage() {
     );
   }
 
+  function shareViaWhatsApp() {
+    const text = encodeURIComponent(`Check out Busmo - a business management platform that helps you manage inventory, sales, and more. Sign up using my link: ${referralLink}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  }
+
+  function shareViaEmail() {
+    const subject = encodeURIComponent('Check out Busmo');
+    const body = encodeURIComponent(`Hi,\n\nI wanted to share Busmo with you - it's a business management platform that helps you manage inventory, sales, and more.\n\nSign up using my referral link: ${referralLink}\n\nThanks!`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  function shareViaSMS() {
+    const body = encodeURIComponent(`Check out Busmo - a business management platform. Sign up using my link: ${referralLink}`);
+    window.location.href = `sms:?body=${body}`;
+  }
+
   async function handleWithdraw() {
     const amount = parseFloat(withdrawAmount);
     
@@ -408,7 +424,7 @@ export function ReferralsPage() {
 }
 
 const SHARE_BUTTONS = [
-  { label: 'WhatsApp', icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
-  { label: 'Email',    icon: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7-10-7' },
-  { label: 'SMS',      icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .09h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z' },
+  { label: 'WhatsApp', icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', handler: 'whatsapp' },
+  { label: 'Email',    icon: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7-10-7', handler: 'email' },
+  { label: 'SMS',      icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .09h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z', handler: 'sms' },
 ];

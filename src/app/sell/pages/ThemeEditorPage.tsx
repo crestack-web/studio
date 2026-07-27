@@ -304,7 +304,7 @@ function ThemeCard({ themeId, isActive, storeName, tagline, primary, secondary, 
   primary: string; secondary: string; logoUrl?: string | null; onSelect: () => void;
 }) {
   const t = THEMES.find(x => x.id === themeId)!;
-  const isDark = themeId === 'luxe' || themeId === 'creator' || themeId === 'link';
+  const isDark = themeId === 'luxe' || themeId === 'creator' || themeId === 'link' || themeId === 'vault';
   return (
     <div className={[styles.mCard, isActive ? styles.mCardActive : ''].join(' ')} onClick={onSelect}
       style={{ background: t.previewBg }}>
@@ -518,23 +518,25 @@ export function ThemeEditorPage() {
   const hideStoreNameWithLogo = headerSection ? (headerSection.settings as HeaderSectionSettings).hideStoreNameWithLogo : false;
 
   const handlePreview = useCallback(() => {
-    if (isMobile) {
-      const previewData = {
-        theme,
-        storeName,
-        tagline,
-        primaryColor: primary,
-        secondaryColor: secondary,
-        logoUrl,
-        sections,
-        storeSlug: storeConfig?.storeSlug,
-        products,
-        collections,
-      };
-      sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
-      window.open('/sell/mobile-preview', '_blank');
-    }
-  }, [isMobile, theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections]);
+    const previewData = {
+      theme,
+      storeName,
+      tagline,
+      primaryColor: primary,
+      secondaryColor: secondary,
+      logoUrl,
+      sections,
+      storeSlug: storeConfig?.storeSlug,
+      products,
+      collections,
+      fontFamily: fontFamily || null,
+      buttonStyle,
+      bodyTextColor: bodyTextColor || null,
+      hideStoreNameWithLogo,
+    };
+    sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
+    window.open('/sell/mobile-preview', '_blank');
+  }, [theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections, fontFamily, buttonStyle, bodyTextColor, hideStoreNameWithLogo]);
 
   // Device frame dimensions & dynamic scaling
   const previewOuterRef = useRef<HTMLDivElement>(null);
@@ -613,6 +615,13 @@ export function ThemeEditorPage() {
           )}
         </div>
         <div className={styles.topbarRight}>
+          {view === 'editor' && isMobile && (
+            <button className={styles.mobilePreviewIcon} onClick={handlePreview} title="Preview on mobile">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+              </svg>
+            </button>
+          )}
           {view === 'editor' && (
             <button className={styles.previewBtn} onClick={handlePreview}>
               Preview
@@ -816,15 +825,23 @@ export function ThemeEditorPage() {
           </div>
 
           {/* RIGHT: settings */}
-          <div className={styles.rightPanel}>
+          <div className={[styles.rightPanel, isMobile && activeId ? styles.mobileOpen : ''].join(' ')}>
             {activeSection ? (
               <>
                 <div className={styles.rHeader}>
+                  {isMobile && (
+                    <button className={styles.mobileBackBtn} onClick={() => setActiveId(null)} aria-label="Back to sections">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                      Sections
+                    </button>
+                  )}
                   <span className={styles.rIcon}>{SectionIcons[activeSection.type]}</span>
                   <span className={styles.rTitle}>{SECTION_META[activeSection.type].label}</span>
-                  <button className={styles.iconBtn} style={{ marginLeft: 'auto' }} onClick={() => setActiveId(null)} aria-label="Close settings panel">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
+                  {!isMobile && (
+                    <button className={styles.iconBtn} style={{ marginLeft: 'auto' }} onClick={() => setActiveId(null)} aria-label="Close settings panel">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  )}
                 </div>
                 <div className={styles.rBody}>
                   {activeSection.type === 'hero'         && <HeroSettings         s={activeSection.settings as HeroSectionSettings}         upd={p => updateSettings(activeSection.id, p as Record<string,unknown>)} />}

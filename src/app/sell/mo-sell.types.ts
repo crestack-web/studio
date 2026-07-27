@@ -13,7 +13,9 @@ export interface DomainPurchaseRecord {
   registrationStatus: 'pending' | 'active' | 'failed';
 }
 
-export type StorefrontTheme = 'luxe' | 'glow' | 'market' | 'creator' | 'link';
+export type StorefrontTheme =
+  | 'luxe' | 'glow' | 'market' | 'creator' | 'link'
+  | 'pulse' | 'vault' | 'atlas' | 'spark' | 'bazaar';
 
 // ─── Theme Section Editor ─────────────────────────────────────────────────────
 

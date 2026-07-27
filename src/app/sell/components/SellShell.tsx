@@ -4,6 +4,7 @@ import React from 'react';
 import { useSell } from '../context/SellContext';
 import { SellSidebar } from './SellSidebar';
 import { SellTopbar } from './SellTopbar';
+import { SellBottomNav } from './SellBottomNav';
 import styles from './SellShell.module.css';
 
 import { StoreSetupWizard }       from './StoreSetupWizard';
@@ -39,7 +40,7 @@ function renderPage(page: string): React.ReactNode {
   }
 }
 
-const FULL_BLEED_PAGES = new Set(['theme-editor']);
+const FULL_BLEED_PAGES = new Set(['theme-editor', 'ask-mo']);
 
 export function SellShell() {
   const { activePage, toast, storeConfig, storeConfigLoading, navigateTo } = useSell();
@@ -79,6 +80,9 @@ export function SellShell() {
           </div>
         </div>
       </div>
+
+      {/* Mobile bottom nav */}
+      <SellBottomNav />
 
       {/* Toast */}
       {toast.visible && (

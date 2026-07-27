@@ -30,6 +30,7 @@ interface MOMessage {
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+    mode?: 'pending' | 'recorded';
   };
   productCard?: {
     type: 'product';
@@ -193,6 +194,7 @@ export function MobileAskMOPage() {
               totalRevenue: result.data.totalRevenue,
               totalProfit: result.data.profit,
               timestamp: new Date(),
+              mode: 'recorded',
             },
           };
 
@@ -1036,53 +1038,33 @@ export function MobileAskMOPage() {
                     totalRevenue={m.saleCard.totalRevenue}
                     totalProfit={m.saleCard.totalProfit}
                     timestamp={m.saleCard.timestamp}
+                    mode={m.saleCard.mode || 'pending'}
+                    onConfirm={
+                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                        ? executePendingAction
+                        : undefined
+                    }
+                    onCancel={
+                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                        ? cancelPendingAction
+                        : undefined
+                    }
+                    isExecuting={isExecutingAction}
                   />
-                  {pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button
-                        onClick={executePendingAction}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          background: 'var(--green)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ✓ Confirm
-                      </button>
-                      <button
-                        onClick={cancelPendingAction}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          background: 'var(--bg-2)',
-                          color: 'var(--text-1)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
-              {/* Product Added Confirmation */}
+              {/* Product Confirmation */}
               {m.role === 'bot' && m.productCard && (
                 <div style={{
                   marginTop: '12px',
-                  background: 'var(--primary-light, rgba(99,102,241,0.1))',
-                  border: '1px solid var(--primary, #6366F1)',
+                  background: pendingAction?.action === 'add_product' ? 'rgba(245,158,11,0.1)' : 'var(--primary-light, rgba(99,102,241,0.1))',
+                  border: `1px solid ${pendingAction?.action === 'add_product' ? 'var(--amber, #F59E0B)' : 'var(--primary, #6366F1)'}`,
                   borderRadius: '8px',
                   padding: '16px',
                 }}>
-                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary, #6366F1)', fontSize: '0.95rem' }}>✅ Product Added</h4>
+                  <h4 style={{ margin: '0 0 8px 0', color: pendingAction?.action === 'add_product' ? 'var(--amber, #F59E0B)' : 'var(--primary, #6366F1)', fontSize: '0.95rem' }}>
+                    {pendingAction?.action === 'add_product' ? '📦 Confirm Add Product' : '✅ Product Added'}
+                  </h4>
                   <p style={{ margin: '4px 0', fontWeight: 600 }}>{m.productCard.name}</p>
                   <p style={{ margin: '4px 0', fontSize: '0.85rem', color: 'var(--text-2, #666)' }}>
                     Stock: {m.productCard.stock} units<br/>
@@ -1092,26 +1074,28 @@ export function MobileAskMOPage() {
                   </p>
                   {pendingAction && pendingAction.action === 'add_product' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         ✓ Confirm
                       </button>
-                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2)', color: 'var(--text-1)', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2, #f1f5f9)', color: 'var(--text-1, #334155)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
                     </div>
                   )}
                 </div>
               )}
-              {/* Expense Recorded Confirmation */}
+              {/* Expense Confirmation */}
               {m.role === 'bot' && m.expenseCard && (
                 <div style={{
                   marginTop: '12px',
-                  background: 'rgba(245,158,11,0.1)',
-                  border: '1px solid var(--amber, #F59E0B)',
+                  background: pendingAction?.action === 'add_expense' ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.1)',
+                  border: `1px solid ${pendingAction?.action === 'add_expense' ? 'var(--amber, #F59E0B)' : 'var(--amber, #F59E0B)'}`,
                   borderRadius: '8px',
                   padding: '16px',
                 }}>
-                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--amber, #F59E0B)', fontSize: '0.95rem' }}>✅ Expense Recorded</h4>
+                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--amber, #F59E0B)', fontSize: '0.95rem' }}>
+                    {pendingAction?.action === 'add_expense' ? '💰 Confirm Expense' : '✅ Expense Recorded'}
+                  </h4>
                   <p style={{ margin: '4px 0', fontWeight: 600 }}>{m.expenseCard.category}</p>
                   <p style={{ margin: '4px 0', fontSize: '0.85rem', color: 'var(--text-2, #666)' }}>
                     Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>
@@ -1119,10 +1103,10 @@ export function MobileAskMOPage() {
                   </p>
                   {pendingAction && pendingAction.action === 'add_expense' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                      <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         ✓ Confirm
                       </button>
-                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2)', color: 'var(--text-1)', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                      <button onClick={cancelPendingAction} style={{ flex: 1, padding: '10px', background: 'var(--bg-2, #f1f5f9)', color: 'var(--text-1, #334155)', border: '1px solid var(--border, #e2e8f0)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
                     </div>

@@ -88,7 +88,19 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Initialise Paystack transaction
-    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+    // Use seller's own key if configured, otherwise fall back to Busmo's
+    let paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+    try {
+      const db2 = getAdminDb();
+      const cfgSnap = await db2.collection('businesses').doc(businessId).collection('store').doc('config').get();
+      if (cfgSnap.exists) {
+        const cfg = cfgSnap.data();
+        if (cfg?.useOwnPaystack && cfg?.paystackSecretKey) {
+          paystackSecretKey = cfg.paystackSecretKey;
+        }
+      }
+    } catch { /* fall back to Busmo key */ }
+
     if (!paystackSecretKey) {
       return NextResponse.json({ error: 'Payment service not configured' }, { status: 500 });
     }

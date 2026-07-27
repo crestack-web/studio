@@ -22,6 +22,7 @@ interface MOMessage {
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
+    mode?: 'pending' | 'recorded';
   };
   productCard?: {
     type: 'product';

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/app/store/[storeSlug]/context/CartContext';
 import type { ThemeProductCardProps } from '../types';
 
@@ -12,12 +13,13 @@ function fmt(n: number, currency: string) {
 
 export function LinkProductCard({ product, storeSlug, currency }: ThemeProductCardProps) {
   const { addItem } = useCart();
+  const router = useRouter();
   const [hovered, setHovered] = useState(false);
   const isOutOfStock = product.productType === 'physical' && product.stock === 0;
   const discount = product.compareAtPrice && product.compareAtPrice > product.price
     ? Math.round((1 - product.price / product.compareAtPrice) * 100) : null;
 
-  const handleAdd = (e: React.MouseEvent) => {
+  const handleBuy = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isOutOfStock) return;
@@ -27,6 +29,7 @@ export function LinkProductCard({ product, storeSlug, currency }: ThemeProductCa
       maxStock: product.productType === 'physical' ? product.stock : 999,
       productType: product.productType,
     });
+    router.push(`/store/${storeSlug}/checkout`);
   };
 
   return (
@@ -123,7 +126,7 @@ export function LinkProductCard({ product, storeSlug, currency }: ThemeProductCa
         {/* CTA */}
         <div style={{ padding: '0 16px 16px' }}>
           <button
-            onClick={handleAdd}
+            onClick={handleBuy}
             disabled={isOutOfStock}
             className="sf-card-btn"
             style={{
@@ -136,7 +139,7 @@ export function LinkProductCard({ product, storeSlug, currency }: ThemeProductCa
               transition: 'all 0.2s',
             }}
           >
-            {isOutOfStock ? 'Sold Out' : 'View Details'}
+            {isOutOfStock ? 'Sold Out' : 'Buy Now'}
           </button>
         </div>
       </div>

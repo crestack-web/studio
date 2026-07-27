@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSell } from '../context/SellContext';
 import { doc, updateDoc, getDoc, setDoc, deleteDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
+import { EbookPreviewModal } from '@/app/store/components/EbookPreviewModal';
 import styles from './SellAskMoPage.module.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ export function SellAskMoPage() {
   const loadedRef = useRef(false);
   const messagesRef = useRef<ChatMessage[]>([]);
   const historyRef = useRef<{ role: 'user' | 'model'; parts: { text: string }[] }[]>([]);
+  const [previewEbook, setPreviewEbook] = useState<{ url: string; title: string } | null>(null);
 
   // Keep refs in sync
   messagesRef.current = messages;
@@ -523,14 +525,27 @@ export function SellAskMoPage() {
                             </div>
                           )}
 
-                          {/* PDF Preview Embed */}
-                          {msg.newProduct.digitalFileUrl && (
-                            <div style={{ marginTop: 12, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sell-border, #e5e7eb)' }}>
-                              <iframe
-                                src={`${msg.newProduct.digitalFileUrl}#toolbar=0&navpanes=0`}
-                                style={{ width: '100%', height: 320, border: 'none' }}
-                                title={`${msg.newProduct.displayName} preview`}
-                              />
+                          {/* PDF Preview */}
+                          {msg.newProduct?.digitalFileUrl && (
+                            <div style={{ marginTop: 12 }}>
+                              <button
+                                onClick={() => setPreviewEbook({ url: String(msg.newProduct!.digitalFileUrl), title: String(msg.newProduct!.displayName || 'Ebook Preview') })}
+                                style={{
+                                  width: '100%', padding: '10px 16px',
+                                  background: 'transparent', border: '1.5px solid var(--sell-accent, #6366f1)',
+                                  borderRadius: 8, color: 'var(--sell-accent, #6366f1)',
+                                  fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  justifyContent: 'center', transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'var(--sell-accent, #6366f1)'; e.currentTarget.style.color = '#fff'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--sell-accent, #6366f1)'; }}
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                Preview ebook
+                              </button>
                             </div>
                           )}
 
@@ -657,6 +672,15 @@ export function SellAskMoPage() {
           </div>
         </>
       )}
+
+      {/* Ebook preview modal */}
+      <EbookPreviewModal
+        open={!!previewEbook}
+        onClose={() => setPreviewEbook(null)}
+        fileUrl={previewEbook?.url ?? ''}
+        title={previewEbook?.title ?? ''}
+        accentColor="var(--sell-accent, #6366f1)"
+      />
     </div>
   );
 }

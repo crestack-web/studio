@@ -83,6 +83,36 @@ function getThemeCssVars(theme: StorefrontTheme, primary: string, secondary: str
         '--sf-radius': '14px', '--sf-radius-sm': '10px', '--sf-radius-lg': '22px',
         '--sf-nav-h': '0px', '--sf-font': '"Plus Jakarta Sans",system-ui,sans-serif',
       };
+      case 'pulse': return {
+        '--sf-bg': '#FFFAF5', '--sf-surface': '#FFFFFF', '--sf-border': '#FFE8D6',
+        '--sf-text-1': '#3D2B1F', '--sf-text-2': '#8B6F5E', '--sf-text-3': '#C4A68A',
+        '--sf-radius': '16px', '--sf-radius-sm': '10px', '--sf-radius-lg': '24px',
+        '--sf-nav-h': '64px', '--sf-font': '"Outfit",system-ui,sans-serif',
+      };
+      case 'vault': return {
+        '--sf-bg': '#0B1D3A', '--sf-surface': '#112240', '--sf-border': '#1E3A5F',
+        '--sf-text-1': '#F1F5F9', '--sf-text-2': '#94A3B8', '--sf-text-3': '#475569',
+        '--sf-radius': '12px', '--sf-radius-sm': '8px', '--sf-radius-lg': '18px',
+        '--sf-nav-h': '64px', '--sf-font': '"Space Grotesk","Inter",system-ui,sans-serif',
+      };
+      case 'atlas': return {
+        '--sf-bg': '#F8FAFC', '--sf-surface': '#FFFFFF', '--sf-border': '#E2E8F0',
+        '--sf-text-1': '#1E293B', '--sf-text-2': '#64748B', '--sf-text-3': '#94A3B8',
+        '--sf-radius': '12px', '--sf-radius-sm': '8px', '--sf-radius-lg': '16px',
+        '--sf-nav-h': '64px', '--sf-font': '"Manrope","Inter",system-ui,sans-serif',
+      };
+      case 'spark': return {
+        '--sf-bg': '#FFF8EE', '--sf-surface': '#FFFFFF', '--sf-border': '#F3E8D8',
+        '--sf-text-1': '#2D1B69', '--sf-text-2': '#5B4A8A', '--sf-text-3': '#8B7AB0',
+        '--sf-radius': '14px', '--sf-radius-sm': '10px', '--sf-radius-lg': '20px',
+        '--sf-nav-h': '64px', '--sf-font': '"Raleway","Inter",system-ui,sans-serif',
+      };
+      case 'bazaar': return {
+        '--sf-bg': '#ECFDF5', '--sf-surface': '#FFFFFF', '--sf-border': '#D1FAE5',
+        '--sf-text-1': '#064E3B', '--sf-text-2': '#047857', '--sf-text-3': '#6EE7B7',
+        '--sf-radius': '12px', '--sf-radius-sm': '8px', '--sf-radius-lg': '16px',
+        '--sf-nav-h': '64px', '--sf-font': '"Poppins","Inter",system-ui,sans-serif',
+      };
     }
   })();
   return { ...base, ...themeVars } as React.CSSProperties;
@@ -145,6 +175,56 @@ const MOCK: Record<StorefrontTheme, {
     collections: [{ name: 'Coaching', emoji: '🎯' }, { name: 'Templates', emoji: '📄' }, { name: 'Courses', emoji: '🎓' }],
     testimonials: [{ name: 'Kemi L.', text: 'Changed my business completely. Best investment I have made.' }],
   },
+  pulse: {
+    products: [
+      { name: 'Creator Course', price: '₦35,000', tag: 'Popular' },
+      { name: 'Presets Pack', price: '₦8,500' },
+      { name: 'Merch Drop', price: '₦12,000', tag: 'New' },
+      { name: 'E-Book Guide', price: '₦5,000' },
+    ],
+    collections: [{ name: 'Courses', emoji: '🎓' }, { name: 'Digital', emoji: '📥' }, { name: 'Merch', emoji: '👕' }],
+    testimonials: [{ name: 'Adaobi N.', text: 'This creator platform changed my life. So easy to sell to my audience!' }],
+  },
+  vault: {
+    products: [
+      { name: 'Notion Template', price: '₦12,000', tag: 'Bestseller' },
+      { name: 'UI Kit Pro', price: '₦25,000', tag: 'New' },
+      { name: 'E-Book Bundle', price: '₦8,500' },
+      { name: 'Course Access', price: '₦45,000', tag: 'Premium' },
+    ],
+    collections: [{ name: 'Templates', emoji: '📐' }, { name: 'E-Books', emoji: '📚' }, { name: 'Courses', emoji: '🎓' }],
+    testimonials: [{ name: 'Femi A.', text: 'Instant delivery and incredible quality. Best digital products I have purchased.' }],
+  },
+  atlas: {
+    products: [
+      { name: 'Brand Design', price: '₦150,000', tag: 'Popular' },
+      { name: 'Web Development', price: '₦250,000' },
+      { name: 'Photo Session', price: '₦45,000', tag: 'New' },
+      { name: 'Strategy Call', price: '₦25,000' },
+    ],
+    collections: [{ name: 'Design', emoji: '🎨' }, { name: 'Development', emoji: '💻' }, { name: 'Photography', emoji: '📸' }],
+    testimonials: [{ name: 'Oluwaseun M.', text: 'Professional, timely, and exceeded expectations. Highly recommend their services.' }],
+  },
+  spark: {
+    products: [
+      { name: '12-Week Program', price: '₦180,000', tag: 'Bestseller' },
+      { name: 'Group Coaching', price: '₦45,000' },
+      { name: 'Mentorship Call', price: '₦15,000', tag: 'New' },
+      { name: 'Fitness Plan', price: '₦8,000' },
+    ],
+    collections: [{ name: 'Programs', emoji: '🎯' }, { name: 'Coaching', emoji: '🏆' }, { name: 'Resources', emoji: '📖' }],
+    testimonials: [{ name: 'Chidinma E.', text: 'Transformed my business and mindset. The coaching is world-class.' }],
+  },
+  bazaar: {
+    products: [
+      { name: 'Ankara Dress', price: '₦28,000', tag: 'Bestseller' },
+      { name: 'Handmade Bag', price: '₦15,000' },
+      { name: 'Body Butter Set', price: '₦6,500', tag: 'New' },
+      { name: 'Artisan Soap', price: '₦3,200' },
+    ],
+    collections: [{ name: 'Fashion', emoji: '👗' }, { name: 'Beauty', emoji: '💄' }, { name: 'Handmade', emoji: '🎨' }],
+    testimonials: [{ name: 'Blessing I.', text: 'Love the quality! Fast delivery and the WhatsApp ordering is so convenient.' }],
+  },
 };
 
 // ─── Section components ────────────────────────────────────────────────────────
@@ -155,9 +235,10 @@ function SfNav({ theme, storeName, logoUrl, primary, storeSlug, hideStoreNameWit
 }) {
   const isLuxe = theme === 'luxe';
   const isMarket = theme === 'market';
+  const isBazaar = theme === 'bazaar';
   return (
     <nav style={{
-      background: isMarket ? 'var(--sf-primary)' : 'var(--sf-surface)',
+      background: isMarket ? 'var(--sf-primary)' : isBazaar ? 'var(--sf-primary)' : 'var(--sf-surface)',
       borderBottom: '1px solid var(--sf-border)',
       display: 'flex', alignItems: 'center',
       padding: '0 28px', gap: 24, height: 'var(--sf-nav-h)',
@@ -168,7 +249,7 @@ function SfNav({ theme, storeName, logoUrl, primary, storeSlug, hideStoreNameWit
           ? <img src={logoUrl} alt={storeName} style={{ height: 32, width: 'auto', maxWidth: 120, objectFit: 'contain', borderRadius: 'var(--sf-radius-sm)' }} />
           : <span style={{
               width: 36, height: 36, borderRadius: 8,
-              background: isMarket ? '#fff' : primary, color: isMarket ? primary : '#fff',
+              background: isMarket || isBazaar ? '#fff' : primary, color: isMarket || isBazaar ? primary : '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 800, fontSize: '1rem', flexShrink: 0,
             }}>{storeName.charAt(0).toUpperCase()}</span>
@@ -177,19 +258,19 @@ function SfNav({ theme, storeName, logoUrl, primary, storeSlug, hideStoreNameWit
           fontFamily: isLuxe ? '"Playfair Display",Georgia,serif' : 'var(--sf-font)',
           fontStyle: isLuxe ? 'italic' : 'normal', fontWeight: isLuxe ? 400 : 800,
           fontSize: isLuxe ? '1.1rem' : '1rem', letterSpacing: isLuxe ? '0.12em' : '-0.01em',
-          color: isMarket ? '#fff' : 'var(--sf-text-1)',
+          color: isMarket || isBazaar ? '#fff' : 'var(--sf-text-1)',
         }}>{storeName}</span>}
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
         {['Shop', 'Collections', 'About', 'Contact'].map(l => (
-          <span key={l} style={{ fontSize: '0.8rem', fontWeight: 500, color: isMarket ? 'rgba(255,255,255,0.85)' : 'var(--sf-text-2)', cursor: 'pointer' }}>{l}</span>
+          <span key={l} style={{ fontSize: '0.8rem', fontWeight: 500, color: isMarket || isBazaar ? 'rgba(255,255,255,0.85)' : 'var(--sf-text-2)', cursor: 'pointer' }}>{l}</span>
         ))}
       </div>
       <div style={{
         padding: '8px 16px', borderRadius: 'var(--sf-radius-sm)',
-        background: isLuxe ? 'transparent' : isMarket ? '#fff' : 'var(--sf-primary)',
+        background: isLuxe ? 'transparent' : isMarket || isBazaar ? '#fff' : 'var(--sf-primary)',
         border: isLuxe ? '1px solid #C9A84C' : 'none',
-        color: isLuxe ? '#C9A84C' : isMarket ? primary : '#fff',
+        color: isLuxe ? '#C9A84C' : isMarket || isBazaar ? primary : '#fff',
         fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 6,
         position: 'relative',
@@ -221,8 +302,15 @@ function SfHero({ theme, storeName, tagline, settings, primary, secondary, butto
     theme === 'luxe'   ? '#111111' :
     theme === 'glow'   ? `linear-gradient(135deg,${primary}1a 0%,${secondary}0d 100%)` :
     theme === 'market' ? `linear-gradient(135deg,${primary} 0%,${secondary} 100%)` :
+    theme === 'pulse'  ? `linear-gradient(135deg,${primary} 0%,${secondary} 100%)` :
+    theme === 'vault'  ? `linear-gradient(135deg,${primary}28 0%,#0B1D3A 100%)` :
+    theme === 'atlas'  ? `linear-gradient(135deg,${primary}12 0%,${secondary}08 100%)` :
+    theme === 'spark'  ? `linear-gradient(135deg,${secondary}20 0%,${primary}18 100%)` :
+    theme === 'bazaar' ? `linear-gradient(135deg,${primary} 0%,${secondary} 100%)` :
                          `linear-gradient(135deg,${primary}28 0%,${secondary}18 100%)`;
   const isLuxe = theme === 'luxe'; const isMarket = theme === 'market'; const isCreator = theme === 'creator';
+  const isPulse = theme === 'pulse'; const isVault = theme === 'vault'; const isAtlas = theme === 'atlas';
+  const isSpark = theme === 'spark'; const isBazaar = theme === 'bazaar';
   const alignMap = { left: 'flex-start' as const, center: 'center' as const, right: 'flex-end' as const };
   const align = alignMap[textAlign] ?? 'flex-start';
 
@@ -238,29 +326,35 @@ function SfHero({ theme, storeName, tagline, settings, primary, secondary, butto
       {isMarket  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)', margin: 0 }}>🛍️ Fresh arrivals daily</p>}
       {isCreator && <p style={{ fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primary, fontWeight: 700, margin: 0 }}>Build once. Sell forever.</p>}
       {theme === 'glow' && <p style={{ fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: primary, fontWeight: 700, margin: 0, opacity: 0.7 }}>Beauty · Wellness</p>}
+      {isPulse  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)', margin: 0 }}>✨ Your favorite creator</p>}
+      {isVault  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#60A5FA', margin: 0 }}>⚡ Instant Digital Delivery</p>}
+      {isAtlas  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: primary, margin: 0 }}>⭐ Trusted by 200+ clients</p>}
+      {isSpark  && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#D97706', margin: 0 }}>🏆 Transform Your Life</p>}
+      {isBazaar && <p style={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)', margin: 0 }}>📦 Shop Local · Deliver Fast</p>}
 
       <h1 style={{
         fontFamily: isLuxe ? '"Playfair Display",Georgia,serif' : isCreator ? '"Sora","Inter",sans-serif' : 'var(--sf-font)',
-        fontSize: isCreator ? 'clamp(2.4rem,6vw,4.2rem)' : isLuxe ? 'clamp(2.2rem,5.5vw,3.5rem)' : 'clamp(2rem,5vw,3.2rem)',
+        fontSize: isCreator || isPulse ? 'clamp(2.4rem,6vw,4.2rem)' : isLuxe ? 'clamp(2.2rem,5.5vw,3.5rem)' : 'clamp(2rem,5vw,3.2rem)',
         fontWeight: isLuxe ? 400 : 800, fontStyle: isLuxe ? 'italic' : 'normal',
-        letterSpacing: isLuxe ? '0.04em' : isCreator ? '-0.03em' : '-0.02em',
-        color: isLuxe ? '#F5F0E8' : isMarket ? '#fff' : isCreator ? '#F8FAFC' : 'var(--sf-text-1)',
+        letterSpacing: isLuxe ? '0.04em' : isCreator || isPulse ? '-0.03em' : '-0.02em',
+        color: isLuxe ? '#F5F0E8' : isMarket || isPulse || isBazaar ? '#fff' : isCreator ? '#F8FAFC' : isVault ? '#F1F5F9' : isSpark ? '#2D1B69' : 'var(--sf-text-1)',
         lineHeight: 1.1, margin: 0,
       }}>{heading}</h1>
 
       {sub && <p style={{ fontSize: '1.05rem', lineHeight: 1.65, maxWidth: 520, margin: 0,
-        color: isLuxe ? '#A89878' : isMarket ? 'rgba(255,255,255,0.88)' : isCreator ? '#94A3B8' : 'var(--sf-text-2)' }}>{sub}</p>}
+        color: isLuxe ? '#A89878' : isMarket || isPulse || isBazaar ? 'rgba(255,255,255,0.88)' : isCreator ? '#94A3B8' : isVault ? '#94A3B8' : isSpark ? '#5B4A8A' : 'var(--sf-text-2)' }}>{sub}</p>}
 
       <a href="#" style={{
         display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8,
         padding: isLuxe ? '13px 38px' : '13px 32px',
-        background: isLuxe ? 'transparent' : isMarket ? '#fff' : primary,
-        color: isLuxe ? '#C9A84C' : isMarket ? primary : '#fff',
+        background: isLuxe ? 'transparent' : isMarket || isBazaar ? '#fff' : isVault ? '#3B82F6' : isSpark ? '#D97706' : primary,
+        color: isLuxe ? '#C9A84C' : isMarket || isBazaar ? primary : isSpark ? '#FFF' : '#fff',
         border: isLuxe ? '1px solid #C9A84C' : 'none',
         borderRadius: radius,
         fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', cursor: 'pointer',
         letterSpacing: isLuxe ? '0.14em' : 0, textTransform: isLuxe ? 'uppercase' : 'none',
         width: 'fit-content',
+        boxShadow: isVault ? '0 4px 20px rgba(59,130,246,0.4)' : 'none',
       }}>{cta}{!isLuxe && ' →'}</a>
     </section>
   );
@@ -270,9 +364,10 @@ function SfFeatured({ theme, settings, primary, products, storeSlug }: {
   theme: StorefrontTheme; settings: FeaturedSectionSettings; primary: string; products: StorefrontProduct[]; storeSlug?: string;
 }) {
   const mock = MOCK[theme];
-  const heading = settings.heading || (theme === 'luxe' ? 'New Arrivals' : theme === 'glow' ? 'Bestsellers' : theme === 'creator' ? 'Digital Products' : 'Top Deals');
+  const heading = settings.heading || (theme === 'luxe' ? 'New Arrivals' : theme === 'glow' ? 'Bestsellers' : theme === 'creator' ? 'Digital Products' : theme === 'vault' ? 'Digital Products' : theme === 'pulse' ? 'Featured Products' : theme === 'atlas' ? 'Our Services' : theme === 'spark' ? 'Programs' : theme === 'bazaar' ? 'Best Sellers' : 'Top Deals');
   const cols = settings.columns ?? 4;
   const isLuxe = theme === 'luxe';
+  const isDark = theme === 'luxe' || theme === 'creator' || theme === 'vault';
   const hasReal = products.length > 0;
   const maxItems = settings.maxItems ?? 4;
 
@@ -294,7 +389,7 @@ function SfFeatured({ theme, settings, primary, products, storeSlug }: {
           ? products.slice(0, maxItems).map((p, i) => (
             <div key={i} style={{ background: 'var(--sf-surface)', border: '1px solid var(--sf-border)', borderRadius: 'var(--sf-radius)', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.18s' }} onClick={() => handleProductClick(p.productId)}>
               <div style={{ aspectRatio: isLuxe ? '3/4' : '1/1', background: p.images?.[0] ? `url(${p.images[0]}) center/cover` : `${primary}${['20','16','12','0e'][i] || '10'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                {p.compareAtPrice && p.compareAtPrice > p.price && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' ? '#FEE2E2' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' ? '#991B1B' : '#fff' }}>Sale</span>}
+                {p.compareAtPrice && p.compareAtPrice > p.price && <span style={{ position: 'absolute', top: 8, left: 8, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--sf-radius-sm)', background: theme === 'glow' ? '#FEF3C7' : theme === 'market' || theme === 'bazaar' ? '#FEE2E2' : theme === 'vault' ? '#3B82F6' : primary, color: theme === 'glow' ? '#92400E' : theme === 'market' || theme === 'bazaar' ? '#991B1B' : '#fff' }}>Sale</span>}
                 {!p.images?.[0] && <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={primary} strokeWidth="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
               </div>
               <div style={{ padding: '10px 12px' }}>
@@ -450,9 +545,9 @@ function SfFooter({ settings, storeName, logoUrl, theme }: {
 }) {
   const socials = settings.socials ?? {};
   const hasSocials = Object.values(socials).some(Boolean);
-  const isDark = theme === 'luxe' || theme === 'creator';
+  const isDark = theme === 'luxe' || theme === 'creator' || theme === 'vault';
   return (
-    <footer style={{ background: isDark ? (theme === 'luxe' ? '#000' : '#060C1A') : 'var(--sf-surface)', borderTop: '1px solid var(--sf-border)', padding: '40px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+    <footer style={{ background: isDark ? (theme === 'luxe' ? '#000' : theme === 'vault' ? '#060E1F' : '#060C1A') : 'var(--sf-surface)', borderTop: '1px solid var(--sf-border)', padding: '40px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
       {settings.showLogo !== false && logoUrl && (
         <img src={logoUrl} alt={storeName} style={{ height: 36, width: 'auto', maxWidth: 140, objectFit: 'contain', borderRadius: 'var(--sf-radius-sm)' }} />
       )}
@@ -622,6 +717,11 @@ export function StorefrontCanvas({
     market:  ['#EA580C', '#C2410C'],
     creator: ['#6366F1', '#4F46E5'],
     link:    ['#A78BFA', '#7C3AED'],
+    pulse:   ['#FF6B35', '#F7C948'],
+    vault:   ['#3B82F6', '#1D4ED8'],
+    atlas:   ['#0D9488', '#0F766E'],
+    spark:   ['#D97706', '#2D1B69'],
+    bazaar:  ['#059669', '#F97316'],
   };
   const [defPrimary, defSecondary] = defaultColors[theme];
   const primary   = primaryColor   ?? defPrimary;

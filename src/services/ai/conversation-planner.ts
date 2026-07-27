@@ -901,22 +901,24 @@ RESPONSE FORMAT INSTRUCTIONS:
     switch (decisions.responseDepth) {
       case 'quick':
         promptParts.push(`
-RESPONSE DEPTH: QUICK ANSWER
-- Answer directly and concisely
-- Use 1-3 short paragraphs or bullet points
-- Do not teach unless explicitly asked
-- Prioritize the most important information
-- No fluff or unnecessary explanations
+RESPONSE DEPTH: QUICK ANSWER (CRITICAL)
+- Answer in 1-3 sentences MAXIMUM
+- Do NOT analyze, do NOT explain, do NOT recommend unless asked
+- Do NOT add business insights or observations
+- Just give the direct answer to the question
+- Example: "What's my profit today?" → "Your profit today is ₦12,500."
+- Example: "How many bags of rice?" → "You have 15 bags of rice in stock."
+- Example: "Record sale: 5 bags of rice" → "Got it. Recording 5 bags of rice."
+- NEVER exceed 50 words for a quick response
 `);
         break;
       case 'guided':
         promptParts.push(`
 RESPONSE DEPTH: GUIDED ANSWER
-- Answer the question clearly
-- Provide 1-2 relevant insights
-- Offer one clear recommendation
-- Keep the response focused
-- Use progressive disclosure - start with the most valuable answer
+- Answer the question clearly in 2-4 sentences
+- Add ONE relevant insight or recommendation max
+- Keep it focused — don't over-explain
+- Example: "How is my business doing?" → "Your revenue is up 12% this month at ₦185K, but expenses grew faster. Watch your food costs — they're eating into margin."
 `);
         break;
       case 'deep':

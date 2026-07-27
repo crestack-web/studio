@@ -181,6 +181,7 @@ export function SellSidebar() {
               alt="Mo-sell"
               className={styles.logoImg}
             />
+            <span className={styles.appName}>MO-SELL</span>
           </div>
         </div>
 

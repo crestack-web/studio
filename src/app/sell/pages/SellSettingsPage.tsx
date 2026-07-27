@@ -28,10 +28,14 @@ export function SellSettingsPage() {
   const [contactEmail, setEmail]            = useState('');
   const [contactPhone, setPhone]            = useState('');
   const [paystackPublicKey, setPaystackKey] = useState('');
-  const [managedPayments, setManagedPayments]       = useState(false);
   const [payoutBankName, setPayoutBankName]         = useState('');
+  const [payoutBankCode, setPayoutBankCode]          = useState('');
   const [payoutAccountNumber, setPayoutAccountNum]  = useState('');
   const [payoutAccountName, setPayoutAccountName]   = useState('');
+  const [useOwnPaystack, setUseOwnPaystack]         = useState(false);
+  const [paystackSecretKey, setPaystackSecretKey]   = useState('');
+  const [banks, setBanks] = useState<{ code: string; name: string }[]>([]);
+  const [verifyingAccount, setVerifyingAccount] = useState(false);
   const [customDomain, setCustomDomain]     = useState('');
   const [logoUrl, setLogoUrl]               = useState<string | null>(null);
   const [imageFile, setImageFile]           = useState<File | null>(null);
@@ -53,15 +57,53 @@ export function SellSettingsPage() {
     setEmail(storeConfig.contactEmail ?? '');
     setPhone(storeConfig.contactPhone ?? '');
     setPaystackKey((storeConfig as any).paystackPublicKey ?? '');
-    setManagedPayments((storeConfig as any).managedPayments ?? false);
     setPayoutBankName((storeConfig as any).payoutBankName ?? '');
+    setPayoutBankCode((storeConfig as any).payoutBankCode ?? '');
     setPayoutAccountNum((storeConfig as any).payoutAccountNumber ?? '');
     setPayoutAccountName((storeConfig as any).payoutAccountName ?? '');
+    setUseOwnPaystack((storeConfig as any).useOwnPaystack ?? false);
+    setPaystackSecretKey((storeConfig as any).paystackSecretKey ?? '');
     setCustomDomain(storeConfig.customDomain ?? '');
     setLogoUrl(storeConfig.logoUrl ?? null);
     setImagePreview(storeConfig.logoUrl ?? null);
     setTheme((storeConfig as any).theme ?? 'luxe');
   }, [storeConfig]);
+
+  // Load bank list
+  useEffect(() => {
+    fetch('/api/sell/verify-bank')
+      .then(r => r.json())
+      .then((d: { banks?: { code: string; name: string }[] }) => { if (d.banks) setBanks(d.banks); })
+      .catch(() => {});
+  }, []);
+
+  const handleVerifyAccount = useCallback(async () => {
+    if (!payoutAccountNumber || payoutAccountNumber.length !== 10 || !payoutBankCode) {
+      showToast('Enter a valid 10-digit account number and select a bank', 'error');
+      return;
+    }
+    setVerifyingAccount(true);
+    try {
+      const res = await fetch('/api/sell/verify-bank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountNumber: payoutAccountNumber, bankCode: payoutBankCode }),
+      });
+      const data = await res.json() as { accountName?: string; error?: string };
+      if (!res.ok || !data.accountName) {
+        showToast(data.error ?? 'Could not verify account', 'error');
+        return;
+      }
+      setPayoutAccountName(data.accountName);
+      const bank = banks.find(b => b.code === payoutBankCode);
+      if (bank) setPayoutBankName(bank.name);
+      showToast('Account verified!', 'success');
+    } catch {
+      showToast('Verification failed. Try again.', 'error');
+    } finally {
+      setVerifyingAccount(false);
+    }
+  }, [payoutAccountNumber, payoutBankCode, banks, showToast]);
 
   const mark = () => setDirty(true);
 
@@ -101,10 +143,13 @@ export function SellSettingsPage() {
           primaryColor, secondaryColor,
           currency, contactEmail, contactPhone,
           paystackPublicKey,
-          managedPayments,
-          payoutBankName:      managedPayments ? payoutBankName.trim()      : null,
-          payoutAccountNumber: managedPayments ? payoutAccountNumber.trim() : null,
-          payoutAccountName:   managedPayments ? payoutAccountName.trim()   : null,
+          managedPayments: true,
+          payoutBankName: payoutBankName.trim(),
+          payoutBankCode: payoutBankCode.trim(),
+          payoutAccountNumber: payoutAccountNumber.trim(),
+          payoutAccountName: payoutAccountName.trim(),
+          useOwnPaystack,
+          paystackSecretKey: useOwnPaystack ? paystackSecretKey.trim() : null,
           logoUrl: finalLogoUrl,
           theme,
           customDomain: customDomain.trim() || null,
@@ -142,7 +187,7 @@ export function SellSettingsPage() {
       console.error(err);
       showToast('Failed to save settings', 'error');
     } finally { setSaving(false); }
-  }, [user, storeName, storeSlug, primaryColor, secondaryColor, currency, contactEmail, contactPhone, paystackPublicKey, customDomain, logoUrl, imageFile, storeConfig, refreshStoreConfig, showToast]);
+  }, [user, storeName, storeSlug, primaryColor, secondaryColor, currency, contactEmail, contactPhone, paystackPublicKey, customDomain, logoUrl, imageFile, storeConfig, refreshStoreConfig, showToast, payoutBankName, payoutBankCode, payoutAccountNumber, payoutAccountName, useOwnPaystack, paystackSecretKey]);
 
   const handleVerifyDomain = useCallback(async () => {
     if (!customDomain.trim() || !user?.businessId) return;
@@ -333,14 +378,162 @@ export function SellSettingsPage() {
         </div>
       </div>
 
-      {/* Paystack */}
+      {/* ── Payments ─────────────────────────────────────────────── */}
       <div className={styles.card}>
-        <div className={styles.cardHeader}><div><p className={styles.cardTitle}>Payments (Paystack)</p><p className={styles.cardSub}>Required to accept online payments</p></div></div>
+        <div className={styles.cardHeader}>
+          <div>
+            <p className={styles.cardTitle}>Payments</p>
+            <p className={styles.cardSub}>How you receive money from sales</p>
+          </div>
+        </div>
         <div className={styles.cardBody}>
+          {/* Info banner */}
+          <div style={{
+            display: 'flex', gap: 12, padding: '12px 14px',
+            background: 'var(--sell-primary-lt)', borderRadius: 10,
+            border: '1px solid var(--sell-primary)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sell-primary)" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <div>
+              <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sell-primary)', marginBottom: 3 }}>Busmo collects payments for you</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--sell-text-2)', lineHeight: 1.5 }}>
+                All payments are processed through Busmo&apos;s secure Paystack account. A <strong>5% commission</strong> is deducted per sale. Your net earnings appear in the Earnings dashboard and you can request a payout anytime.
+              </p>
+            </div>
+          </div>
+
+          {/* Bank details for payouts */}
+          <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--sell-text-2)', marginTop: 14, marginBottom: 8 }}>Your payout bank account</p>
+
+          {/* Bank selector */}
           <div className={styles.formGroup}>
-            <label className={styles.formLabel}>Paystack public key</label>
-            <input className={styles.formInput} value={paystackPublicKey} onChange={e => { setPaystackKey(e.target.value); mark(); }} placeholder="pk_live_…" />
-            <p className={styles.formHint}>Find this in your Paystack dashboard under Settings → API Keys. The secret key is stored server-side in environment variables.</p>
+            <label className={styles.formLabel}>Bank</label>
+            <select
+              className={styles.formSelect}
+              value={payoutBankCode}
+              onChange={e => {
+                const code = e.target.value;
+                setPayoutBankCode(code);
+                const bank = banks.find(b => b.code === code);
+                if (bank) setPayoutBankName(bank.name);
+                mark();
+              }}
+            >
+              <option value="">Select your bank</option>
+              {banks.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+            </select>
+          </div>
+
+          {/* Account number + verify */}
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Account number</label>
+              <input
+                className={styles.formInput}
+                value={payoutAccountNumber}
+                onChange={e => { setPayoutAccountNum(e.target.value.replace(/\D/g, '')); setPayoutAccountName(''); mark(); }}
+                placeholder="0123456789"
+                maxLength={10}
+              />
+            </div>
+            <div className={styles.formGroup} style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnGhost}`}
+                style={{ height: 38, fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                onClick={handleVerifyAccount}
+                disabled={verifyingAccount || payoutAccountNumber.length !== 10 || !payoutBankCode}
+              >
+                {verifyingAccount ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: 'spin 0.7s linear infinite' }}>
+                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                  </svg>
+                ) : 'Verify'}
+              </button>
+            </div>
+          </div>
+
+          {/* Account name (verified) */}
+          <div className={styles.formGroup}>
+            <label className={styles.formLabel}>Account name</label>
+            <input
+              className={styles.formInput}
+              value={payoutAccountName}
+              onChange={e => { setPayoutAccountName(e.target.value); mark(); }}
+              placeholder={payoutAccountNumber.length === 10 && payoutBankCode ? 'Click Verify above' : 'Select bank and enter account number first'}
+              readOnly={verifyingAccount}
+              style={payoutAccountName ? { background: 'var(--sell-surface-2, #f0fdf4)', borderColor: '#16a34a' } : {}}
+            />
+            {payoutAccountName && (
+              <p style={{ fontSize: '0.7rem', color: '#16a34a', marginTop: 3, fontWeight: 600 }}>✓ Account verified</p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.btnGhost}`}
+            style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}
+            onClick={() => navigateTo('earnings')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+            View Earnings &amp; Payouts
+          </button>
+
+          {/* ── Advanced: Own Paystack Key ── */}
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--sell-border)', paddingTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useOwnPaystack ? 10 : 0 }}>
+              <div>
+                <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--sell-text-2)' }}>Use your own Paystack account</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--sell-text-3)', marginTop: 2 }}>Advanced — connect your Paystack to collect payments directly</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setUseOwnPaystack(v => !v); mark(); }}
+                style={{
+                  width: 46, height: 26, borderRadius: 100, border: 'none', cursor: 'pointer', padding: 3,
+                  background: useOwnPaystack ? 'var(--sell-primary)' : 'var(--sell-border)',
+                  transition: 'background 0.2s', flexShrink: 0, position: 'relative',
+                }}
+                aria-pressed={useOwnPaystack}
+              >
+                <span style={{
+                  display: 'block', width: 20, height: 20, borderRadius: '50%',
+                  background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  transform: useOwnPaystack ? 'translateX(20px)' : 'translateX(0)',
+                  transition: 'transform 0.2s',
+                }} />
+              </button>
+            </div>
+
+            {useOwnPaystack && (
+              <>
+                <div style={{
+                  display: 'flex', gap: 10, padding: '10px 12px',
+                  background: 'rgba(245,158,11,0.08)', borderRadius: 8,
+                  border: '1px solid rgba(245,158,11,0.2)', marginBottom: 12,
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--sell-amber)" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--sell-text-2)', lineHeight: 1.5 }}>
+                    When enabled, payments go directly to your Paystack account. Busmo&apos;s 5% commission will be invoiced separately. You&apos;ll need to configure your own webhook URL in your Paystack dashboard.
+                  </p>
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Paystack Secret Key</label>
+                  <input className={styles.formInput} type="password" value={paystackSecretKey} onChange={e => { setPaystackSecretKey(e.target.value); mark(); }} placeholder="sk_live_…" />
+                  <p className={styles.formHint}>Found in your Paystack dashboard under Settings → API Keys. This is stored securely and only used for your transactions.</p>
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Paystack Public Key</label>
+                  <input className={styles.formInput} value={paystackPublicKey} onChange={e => { setPaystackKey(e.target.value); mark(); }} placeholder="pk_live_…" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -419,84 +612,6 @@ export function SellSettingsPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* ── Managed Payments (Busmo collects on your behalf) ─────────────── */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <div>
-            <p className={styles.cardTitle}>Managed Payments</p>
-            <p className={styles.cardSub}>Let Busmo collect payments on your behalf. We charge a 5% commission per sale and pay out your earnings on request.</p>
-          </div>
-          {/* Toggle */}
-          <button
-            type="button"
-            onClick={() => { setManagedPayments(v => !v); mark(); }}
-            style={{
-              width: 46, height: 26, borderRadius: 100, border: 'none', cursor: 'pointer', padding: 3,
-              background: managedPayments ? 'var(--sell-primary)' : 'var(--sell-border)',
-              transition: 'background 0.2s', flexShrink: 0, position: 'relative',
-            }}
-            aria-pressed={managedPayments}
-          >
-            <span style={{
-              display: 'block', width: 20, height: 20, borderRadius: '50%',
-              background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-              transform: managedPayments ? 'translateX(20px)' : 'translateX(0)',
-              transition: 'transform 0.2s',
-            }} />
-          </button>
-        </div>
-
-        {managedPayments && (
-          <div className={styles.cardBody}>
-            {/* Info banner */}
-            <div style={{
-              display: 'flex', gap: 12, padding: '12px 14px',
-              background: 'var(--sell-primary-lt)', borderRadius: 10,
-              border: '1px solid var(--sell-primary)',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sell-primary)" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <div>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--sell-primary)', marginBottom: 3 }}>Busmo handles everything</p>
-                <p style={{ fontSize: '0.78rem', color: 'var(--sell-text-2)', lineHeight: 1.5 }}>
-                  Payments are collected via Busmo&apos;s Paystack account. A <strong>5% commission</strong> is deducted from each sale. Your net earnings appear in the Earnings dashboard and you can request a payout at any time.
-                </p>
-              </div>
-            </div>
-
-            {/* Bank details for payouts */}
-            <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--sell-text-2)', marginTop: 4 }}>Your payout bank account</p>
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Bank name</label>
-                <input className={styles.formInput} value={payoutBankName} onChange={e => { setPayoutBankName(e.target.value); mark(); }} placeholder="e.g. GTBank, Access Bank" />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Account number</label>
-                <input className={styles.formInput} value={payoutAccountNumber} onChange={e => { setPayoutAccountNum(e.target.value.replace(/\D/g, '')); mark(); }} placeholder="0123456789" maxLength={10} />
-              </div>
-            </div>
-            <div className={styles.formGroup} style={{ maxWidth: 360 }}>
-              <label className={styles.formLabel}>Account name</label>
-              <input className={styles.formInput} value={payoutAccountName} onChange={e => { setPayoutAccountName(e.target.value); mark(); }} placeholder="As it appears on your bank account" />
-            </div>
-
-            <button
-              type="button"
-              className={`${styles.btn} ${styles.btnGhost}`}
-              style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}
-              onClick={() => navigateTo('earnings')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-              </svg>
-              View Earnings &amp; Payouts
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Save bar */}

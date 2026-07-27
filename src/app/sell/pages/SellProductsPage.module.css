@@ -684,6 +684,97 @@
 .moBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .moBtn svg { width: 13px; height: 13px; }
 
+/* ── MO popover ── */
+.moPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 300px;
+  background: var(--sell-surface);
+  border: 1px solid var(--sell-border);
+  border-radius: var(--sell-radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  z-index: 100;
+  padding: 12px;
+  animation: moPopoverIn 0.18s ease both;
+}
+
+@keyframes moPopoverIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.moPopoverTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sell-text-2);
+  margin: 0 0 8px;
+}
+
+.moPopoverChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.moChip {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--sell-border);
+  background: var(--sell-surface-2, #f9fafb);
+  color: var(--sell-text-2, #374151);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--sell-font-body);
+  transition: all var(--sell-transition);
+  white-space: nowrap;
+}
+
+.moChip:hover {
+  border-color: var(--sell-accent);
+  color: var(--sell-accent);
+  background: var(--sell-accent-lt, #eef2ff);
+}
+
+.moPopoverInputRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.moPopoverInput {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: var(--sell-radius-sm);
+  border: 1px solid var(--sell-border);
+  background: var(--sell-surface);
+  color: var(--sell-text-1);
+  font-size: 0.75rem;
+  font-family: var(--sell-font-body);
+  outline: none;
+  transition: border-color var(--sell-transition);
+}
+
+.moPopoverInput:focus { border-color: var(--sell-accent); }
+.moPopoverInput::placeholder { color: var(--sell-text-3, #9ca3af); }
+
+.moPopoverGo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--sell-radius-sm);
+  border: none;
+  background: var(--sell-accent);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--sell-transition);
+}
+
+.moPopoverGo:disabled { opacity: 0.4; cursor: not-allowed; }
+.moPopoverGo:hover:not(:disabled) { opacity: 0.85; }
+
 /* ── Toggle switch ── */
 .toggleRow {
   display: flex;

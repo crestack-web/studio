@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/app/store/[storeSlug]/context/CartContext';
+import { EbookPreviewModal } from '@/app/store/components/EbookPreviewModal';
 import type { ThemeProductPageProps } from '../types';
 
 function fmt(n: number, currency: string) {
@@ -29,6 +30,7 @@ export function CreatorProductPage({ product, storeSlug, currency }: ThemeProduc
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const isOutOfStock = product.productType === 'physical' && product.stock === 0;
   const isLowStock = product.productType === 'physical' && product.stock > 0 && product.stock <= 5;
   const discount = product.compareAtPrice && product.compareAtPrice > product.price
@@ -217,12 +219,33 @@ export function CreatorProductPage({ product, storeSlug, currency }: ThemeProduc
 
           {/* Digital delivery */}
           {product.productType === 'digital' && (
-            <div style={{
-              padding: '12px 16px', background: '#F5F3FF',
-              border: '1px solid #EDE9FE', borderRadius: 10,
-              fontSize: '0.85rem', color: '#7C3AED', fontWeight: 700,
-            }}>
-              📥 Instant digital delivery after purchase
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{
+                padding: '12px 16px', background: '#F5F3FF',
+                border: '1px solid #EDE9FE', borderRadius: 10,
+                fontSize: '0.85rem', color: '#7C3AED', fontWeight: 700,
+              }}>
+                📥 Instant digital delivery after purchase
+              </div>
+              {product.digitalFileUrl && (
+                <button
+                  onClick={() => setShowPreview(true)}
+                  style={{
+                    padding: '10px 16px', background: 'transparent',
+                    border: '1.5px solid #7C3AED', borderRadius: 10,
+                    color: '#7C3AED', fontWeight: 700, fontSize: '0.82rem',
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#7C3AED'; e.currentTarget.style.color = '#FFFFFF'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7C3AED'; }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Preview this ebook
+                </button>
+              )}
             </div>
           )}
 
@@ -342,6 +365,17 @@ export function CreatorProductPage({ product, storeSlug, currency }: ThemeProduc
           More from {product.category}
         </p>
       </div>
+
+      {/* Ebook preview modal */}
+      {product.productType === 'digital' && product.digitalFileUrl && (
+        <EbookPreviewModal
+          open={showPreview}
+          onClose={() => setShowPreview(false)}
+          fileUrl={product.digitalFileUrl}
+          title={product.displayName}
+          accentColor="#7C3AED"
+        />
+      )}
     </div>
   );
 }

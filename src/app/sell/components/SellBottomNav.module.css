@@ -1,0 +1,112 @@
+/* ─────────────────────────────────────────────
+   MO Sell — Mobile Bottom Navigation
+   Fixed bottom bar, 5 tabs, safe-area aware.
+   Hidden on desktop (≥769px).
+───────────────────────────────────────────── */
+
+.bottomNav {
+  display: none; /* hidden on desktop */
+}
+
+@media (max-width: 768px) {
+  .bottomNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    background: var(--sell-surface, #fff);
+    border-top: 1px solid var(--sell-border, #e5e7eb);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .navItem {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 6px 0 4px;
+    color: var(--sell-text-3, #9ca3af);
+    font-family: var(--sell-font-body, system-ui);
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+    position: relative;
+  }
+
+  .navItem:active {
+    transform: scale(0.92);
+  }
+
+  .navItemActive {
+    color: var(--sell-primary, #0ea5e9);
+  }
+
+  .navIcon {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navIcon svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.8;
+  }
+
+  .navItemActive .navIcon svg {
+    stroke-width: 2.2;
+  }
+
+  .navLabel {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(239, 68, 68, 0.4);
+  }
+
+  /* Active indicator dot */
+  .navItemActive::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--sell-primary, #0ea5e9);
+  }
+}

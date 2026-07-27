@@ -5,6 +5,7 @@ import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, serverTimestamp
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { initializeFirebase } from '@/firebase';
 import { useSell } from '../context/SellContext';
+import { EbookPreviewModal } from '@/app/store/components/EbookPreviewModal';
 import styles from './SellProductsPage.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -260,14 +261,18 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
 
   const [saving, setSaving] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [showMoPopover, setShowMoPopover] = useState(false);
+  const [moPrompt, setMoPrompt] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState(form.imageUrl);
   const [showImport, setShowImport] = useState(false);
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
   const [digitalFile, setDigitalFile] = useState<File | null>(null);
   const [uploadingDigital, setUploadingDigital] = useState(false);
+  const [showEbookPreview, setShowEbookPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const digitalFileInputRef = useRef<HTMLInputElement>(null);
+  const moPopoverRef = useRef<HTMLDivElement>(null);
 
   const set = useCallback(<K extends keyof FormData>(k: K, v: FormData[K]) => {
     setForm(prev => ({ ...prev, [k]: v }));
@@ -326,24 +331,82 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
     setShowImport(false);
   };
 
-  const handleGenerateDesc = useCallback(async () => {
-    if (!form.displayName) return;
+  // Close MO popover on outside click
+  useEffect(() => {
+    if (!showMoPopover) return;
+    const handleClick = (e: MouseEvent) => {
+      if (moPopoverRef.current && !moPopoverRef.current.contains(e.target as Node)) {
+        setShowMoPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMoPopover]);
+
+  const handleMoAssist = useCallback(async (instruction: string) => {
+    if (!instruction.trim()) return;
     setGeneratingDesc(true);
+    setShowMoPopover(false);
     try {
+      const contextParts: string[] = [];
+      if (form.displayName) contextParts.push(`Current product name: "${form.displayName}"`);
+      if (form.category) contextParts.push(`Current category: "${form.category}"`);
+      if (form.price) contextParts.push(`Current price: ₦${form.price}`);
+      if (form.productType) contextParts.push(`Product type: ${form.productType}`);
+      if (form.digitalSubtype) contextParts.push(`Digital subtype: ${form.digitalSubtype}`);
+
       const res = await fetch('/api/sell/wizard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Write a short, compelling product description (2–3 sentences) for: "${form.displayName}" in the "${form.category || 'general'}" category. No bullet points. Speak directly to a customer.`,
+          message: `Generate product details. ${instruction}\n\nReturn ONLY a JSON object (no markdown, no code fences, no other text) with these fields:\n{"displayName":"...","description":"2-3 sentence compelling product description","price":number,"category":"one of: Fashion & Clothing, Beauty & Personal Care, Food & Groceries, Electronics, Home & Kitchen, Health & Wellness, Sports & Fitness, Art & Crafts, Services, Other, digital","tags":["tag1","tag2","tag3"]}${form.productType === 'digital' && form.digitalSubtype === 'ebook' ? '\nAlso include "author":"..." and "pageCount":number if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'course' ? '\nAlso include "courseDuration":"...","lessonCount":number,"difficultyLevel":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'template' ? '\nAlso include "fileFormat":"...","compatibleSoftware":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'ticket' ? '\nAlso include "eventDate":"...","venue":"..." if relevant.' : ''}\n\nContext: ${contextParts.length > 0 ? contextParts.join('. ') : 'New product, no details yet.'}`,
           businessId,
           conversationHistory: [],
         }),
       });
-      const data = await res.json() as { answer: string };
-      if (data.answer) set('description', data.answer.trim());
-    } catch { /* non-fatal */ }
-    finally { setGeneratingDesc(false); }
-  }, [form.displayName, form.category, businessId, set]);
+      const data = await res.json() as { answer?: string };
+      if (!data.answer) return;
+
+      // Extract JSON from the answer - try plain JSON first, then code-fenced
+      let parsed: Record<string, unknown> | null = null;
+      const fencedMatch = data.answer.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fencedMatch) {
+        try { parsed = JSON.parse(fencedMatch[1].trim()); } catch { /* ignore */ }
+      }
+      if (!parsed) {
+        const jsonMatch = data.answer.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try { parsed = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
+        }
+      }
+      if (!parsed) {
+        showToast('MO could not parse the response. Try again.', 'error');
+        return;
+      }
+
+      if (parsed.displayName) set('displayName', String(parsed.displayName));
+      if (parsed.description) set('description', String(parsed.description));
+      if (parsed.price) set('price', String(parsed.price));
+      if (parsed.category) set('category', String(parsed.category));
+      if (parsed.tags && Array.isArray(parsed.tags)) set('tags', parsed.tags.join(', '));
+      // Digital subtype specific fields
+      if (parsed.author) set('author', String(parsed.author));
+      if (parsed.pageCount) set('pageCount', String(parsed.pageCount));
+      if (parsed.courseDuration) set('courseDuration', String(parsed.courseDuration));
+      if (parsed.lessonCount) set('lessonCount', String(parsed.lessonCount));
+      if (parsed.difficultyLevel) set('difficultyLevel', String(parsed.difficultyLevel));
+      if (parsed.fileFormat) set('fileFormat', String(parsed.fileFormat));
+      if (parsed.compatibleSoftware) set('compatibleSoftware', String(parsed.compatibleSoftware));
+      if (parsed.eventDate) set('eventDate', String(parsed.eventDate));
+      if (parsed.venue) set('venue', String(parsed.venue));
+      showToast('MO filled in the product details', 'success');
+    } catch {
+      showToast('MO could not generate details. Try again.', 'error');
+    } finally {
+      setGeneratingDesc(false);
+      setMoPrompt('');
+    }
+  }, [form.displayName, form.category, form.price, form.productType, form.digitalSubtype, businessId, set, showToast]);
 
   const handleSave = useCallback(async () => {
     if (!form.displayName.trim()) {
@@ -553,21 +616,54 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <label className={styles.formLabel}>Description</label>
-                <button
-                  className={styles.moBtn}
-                  onClick={handleGenerateDesc}
-                  disabled={generatingDesc || !form.displayName}
-                  title={!form.displayName ? 'Enter a product name first' : 'Ask MO to write description'}
-                >
-                  {generatingDesc ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.7s linear infinite' }}>
-                      <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+                <div style={{ position: 'relative' }} ref={moPopoverRef}>
+                  <button
+                    className={styles.moBtn}
+                    onClick={() => { if (!generatingDesc) setShowMoPopover(prev => !prev); }}
+                    disabled={generatingDesc}
+                    title="Ask MO to create product details"
+                  >
+                    {generatingDesc ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.7s linear infinite' }}>
+                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2l2.09 6.26L20.18 10l-6.09 1.74L12 18l-2.09-6.26L3.82 10l6.09-1.74z" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {generatingDesc ? 'Writing…' : 'Create with MO'}
+                  </button>
+                  {showMoPopover && !generatingDesc && (
+                    <div className={styles.moPopover}>
+                      <p className={styles.moPopoverTitle}>What should MO help with?</p>
+                      <div className={styles.moPopoverChips}>
+                        <button className={styles.moChip} onClick={() => handleMoAssist('Fill in all product details — name, description, price, category, and tags based on what this product is about.')}>Fill in everything</button>
+                        <button className={styles.moChip} onClick={() => handleMoAssist('Write a short, compelling product description (2-3 sentences). Speak directly to the customer. No bullet points.')}>Write description</button>
+                        <button className={styles.moChip} onClick={() => handleMoAssist('Suggest a competitive price for this product. Return the price as a number.')}>Suggest price</button>
+                        <button className={styles.moChip} onClick={() => handleMoAssist('Suggest the best category and 3-5 relevant tags for this product.')}>Category & tags</button>
+                      </div>
+                      <div className={styles.moPopoverInputRow}>
+                        <input
+                          className={styles.moPopoverInput}
+                          placeholder="Or type your own instruction..."
+                          value={moPrompt}
+                          onChange={e => setMoPrompt(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && moPrompt.trim()) handleMoAssist(moPrompt); }}
+                        />
+                        <button
+                          className={styles.moPopoverGo}
+                          onClick={() => { if (moPrompt.trim()) handleMoAssist(moPrompt); }}
+                          disabled={!moPrompt.trim()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   )}
-                  {generatingDesc ? 'Writing…' : 'Write with MO'}
-                </button>
+                </div>
               </div>
               <textarea
                 className={styles.formTextarea}
@@ -668,6 +764,11 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
                     <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => { setDigitalFile(null); set('digitalFileUrl', ''); set('digitalFileName', ''); }}>
                       Remove
                     </button>
+                    {form.digitalFileUrl && (
+                      <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => setShowEbookPreview(true)}>
+                        Preview
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -911,6 +1012,18 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Ebook preview modal */}
+      {form.digitalFileUrl && (
+        <EbookPreviewModal
+          open={showEbookPreview}
+          onClose={() => setShowEbookPreview(false)}
+          fileUrl={form.digitalFileUrl}
+          title={form.displayName || 'Ebook Preview'}
+          author={form.author || undefined}
+          pageCount={form.pageCount ? Number(form.pageCount) : undefined}
+        />
+      )}
     </>
   );
 }

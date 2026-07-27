@@ -59,11 +59,23 @@ RESPONSE PHILOSOPHY:
    - Growing Business: Focus on automation, hiring, expansion
    - Established Business: Focus on efficiency, margins, scaling
 
+RESPONSE LENGTH RULES (CRITICAL):
+- The conversation planner assigns a response depth: QUICK, GUIDED, or DEEP. You MUST respect it.
+- QUICK questions (short, simple, direct): "How many did I sell today?", "What's my profit?", "Add 5 bags of rice" → Reply in 1-3 sentences. No analysis. No recommendations. Just the answer.
+- GUIDED questions (moderate): "How is my business doing?", "Should I restock?" → Reply with a clear answer + 1-2 key insights. Keep it focused.
+- DEEP questions (strategic, complex): "How can I scale?", "Analyze my margins", "What's my growth strategy?" → Full analysis with Observation, Analysis, Risk, Recommendation, Next Step.
+- NEVER give a deep analysis response to a quick question. If someone asks "what's my profit today?", just say "Your profit today is ₦X,XXX." Don't add paragraphs of analysis.
+- NEVER ask for more information when the user gives a simple question. Just answer it.
+- If the user's message is short (< 10 words), your response should be short (< 50 words) unless they explicitly ask for analysis.
+
 RESPONSE STYLE:
 - Avoid: "Great initiative," "Fantastic business," "Excellent idea," "Happy to help"
 - Be: Confident, direct, practical, insightful
 - Every sentence should move the business forward
 - No unnecessary compliments
+- Match the user's energy: short question = short answer, detailed question = detailed answer
+- NEVER end responses with "Would you like me to...?" or "Should I...?" unless the user explicitly asked for options
+- NEVER ask unnecessary follow-up questions after answering. Answer and stop.
 
 TEXT COMMAND FORMATTING GUIDELINES:
 - Use explicit action prefixes: "Record sale:", "Add expense:", "Add product:"
@@ -637,18 +649,123 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // For intents needing confirmation, return pending action without executing
+      // For intents needing confirmation, pre-fetch data and return enriched pending action
       if (INTENTS_NEEDING_CONFIRMATION.includes(intent.intent)) {
-        console.log('⏳ [Ask MO API] Intent needs confirmation, returning pending action:', intent.intent);
+        console.log('⏳ [Ask MO API] Intent needs confirmation, pre-fetching data for:', intent.intent);
+        
+        let enrichedData = { ...intent.data };
+
+        // For record_sale: look up products from inventory to get real prices and calculate profit
+        if (intent.intent === 'record_sale' && businessId) {
+          try {
+            const { findProductByName } = await import('@/lib/services/record-sale-service');
+            const items = intent.data.items || [];
+            const resolvedItems: any[] = [];
+            let totalRevenue = 0;
+            let totalCost = 0;
+
+            for (const item of items) {
+              const searchResult = await findProductByName(businessId, item.productName);
+              if (searchResult.found && searchResult.product) {
+                const product = searchResult.product;
+                const costPrice = product.costPrice || product.cost || 0;
+                const sellingPrice = product.sellingPrice || product.price || item.price || 0;
+                const quantity = parseInt(item.quantity) || 1;
+                const itemRevenue = sellingPrice * quantity;
+                const itemCost = costPrice * quantity;
+
+                resolvedItems.push({
+                  productName: product.name || item.productName,
+                  quantity,
+                  price: sellingPrice,
+                  costPrice,
+                  productId: product.id,
+                  stock: product.stock || product.quantity || 0,
+                });
+
+                totalRevenue += itemRevenue;
+                totalCost += itemCost;
+              } else {
+                // Product not found — include what we have from text parsing
+                resolvedItems.push({
+                  productName: item.productName,
+                  quantity: parseInt(item.quantity) || 1,
+                  price: item.price || 0,
+                  costPrice: 0,
+                  productId: null,
+                  stock: 0,
+                });
+                totalRevenue += (item.price || 0) * (parseInt(item.quantity) || 1);
+              }
+            }
+
+            enrichedData = {
+              ...intent.data,
+              items: resolvedItems,
+              productName: resolvedItems[0]?.productName || intent.data.productName,
+              quantity: resolvedItems[0]?.quantity || intent.data.quantity,
+              price: resolvedItems[0]?.price || intent.data.price,
+              costPrice: resolvedItems[0]?.costPrice || 0,
+              totalRevenue,
+              totalCost,
+              profit: totalRevenue - totalCost,
+            };
+
+            console.log('✅ [Ask MO API] Enriched sale data:', {
+              items: resolvedItems.length,
+              totalRevenue,
+              totalCost,
+              profit: totalRevenue - totalCost,
+            });
+          } catch (err) {
+            console.error('❌ [Ask MO API] Error pre-fetching sale product data:', err);
+          }
+        }
+
         renderedResponse = renderResponse(
-          `Please confirm: ${intent.data?.productName || intent.data?.category || intent.intent}`,
+          `Please confirm: ${enrichedData.productName || enrichedData.category || intent.intent}`,
           { success: true, action: intent.intent, message: 'Awaiting confirmation' },
           intent
         );
+
+        // Attach card data for confirmation UI
+        if (intent.intent === 'record_sale' && enrichedData.items?.length > 0) {
+          renderedResponse.card = {
+            type: 'sale',
+            items: enrichedData.items.map((item: any) => ({
+              name: item.productName,
+              quantity: item.quantity,
+              price: item.price,
+              costPrice: item.costPrice,
+            })),
+            totalRevenue: enrichedData.totalRevenue || 0,
+            totalProfit: enrichedData.profit || 0,
+            timestamp: new Date(),
+          };
+        } else if (intent.intent === 'add_product') {
+          renderedResponse.card = {
+            type: 'product',
+            name: enrichedData.name || 'Product',
+            price: enrichedData.price || 0,
+            cost: enrichedData.costPrice || 0,
+            stock: enrichedData.stock || 0,
+            sku: enrichedData.sku,
+            message: `Add ${enrichedData.name || 'product'} to inventory`,
+          };
+        } else if (intent.intent === 'add_expense') {
+          renderedResponse.card = {
+            type: 'expense',
+            category: enrichedData.category || 'General',
+            amount: enrichedData.amount || 0,
+            date: enrichedData.date || new Date().toISOString().split('T')[0],
+            message: `Record ${enrichedData.category || 'expense'}: ₦${(enrichedData.amount || 0).toLocaleString()}`,
+          };
+        }
+
         return NextResponse.json({
           answer: renderedResponse.content,
           rendered: renderedResponse,
-          pendingAction: { action: intent.intent, data: intent.data },
+          pendingAction: { action: intent.intent, data: enrichedData },
           intent,
           timestamp: new Date().toISOString()
         });

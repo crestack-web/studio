@@ -71,6 +71,61 @@ export const THEMES: ThemeMeta[] = [
     badge: { label: 'Stan Store style', color: '#1D4ED8', bg: '#DBEAFE' },
     dataAttr: 'link',
   },
+  {
+    id: 'pulse',
+    name: 'Pulse',
+    description: 'Social-first creator storefront. Profile, socials, digital products, and courses in one vibrant page.',
+    previewBg: '#FFF7ED',
+    previewAccent: '#FF6B35',
+    previewFont: 'Outfit',
+    bestFor: ['Influencers', 'Content Creators', 'Coaches'],
+    badge: { label: 'Creator Favorite', color: '#9A3412', bg: '#FFEDD5' },
+    dataAttr: 'pulse',
+  },
+  {
+    id: 'vault',
+    name: 'Vault',
+    description: 'Premium digital product showcase. Ebooks, templates, courses with preview and instant checkout.',
+    previewBg: '#0B1D3A',
+    previewAccent: '#3B82F6',
+    previewFont: 'Space Grotesk',
+    bestFor: ['Digital Products', 'Ebooks', 'Courses'],
+    badge: { label: 'Digital First', color: '#1E40AF', bg: '#DBEAFE' },
+    dataAttr: 'vault',
+  },
+  {
+    id: 'atlas',
+    name: 'Atlas',
+    description: 'Professional service showcase. Portfolio, packages, booking, and testimonials for high-end service providers.',
+    previewBg: '#F8FAFC',
+    previewAccent: '#0D9488',
+    previewFont: 'Manrope',
+    bestFor: ['Consultants', 'Designers', 'Freelancers'],
+    badge: { label: 'Pro Services', color: '#134E4A', bg: '#CCFBF1' },
+    dataAttr: 'atlas',
+  },
+  {
+    id: 'spark',
+    name: 'Spark',
+    description: 'Coach & expert authority page. Personal brand, programs, transformations, and lead capture.',
+    previewBg: '#FFF8EE',
+    previewAccent: '#D97706',
+    previewFont: 'Raleway',
+    bestFor: ['Coaches', 'Trainers', 'Mentors'],
+    badge: { label: 'Coach Pick', color: '#78350F', bg: '#FEF3C7' },
+    dataAttr: 'spark',
+  },
+  {
+    id: 'bazaar',
+    name: 'Bazaar',
+    description: 'Ecommerce-focused small business store. Product catalog, categories, reviews, and WhatsApp ordering.',
+    previewBg: '#ECFDF5',
+    previewAccent: '#059669',
+    previewFont: 'Poppins',
+    bestFor: ['Fashion', 'Food', 'Beauty', 'Handmade'],
+    badge: { label: 'Small Biz', color: '#065F46', bg: '#D1FAE5' },
+    dataAttr: 'bazaar',
+  },
 ];
 
 export function getTheme(id?: string): ThemeMeta {
@@ -81,9 +136,12 @@ export function suggestTheme(category: string): StorefrontTheme {
   const c = category.toLowerCase();
   if (['fashion', 'jewellery', 'luxury', 'clothing', 'accessories'].some(k => c.includes(k))) return 'luxe';
   if (['beauty', 'cosmetics', 'skincare', 'glow', 'makeup', 'wellness', 'spa', 'candle'].some(k => c.includes(k))) return 'glow';
-  if (['digital', 'creator', 'course', 'service', 'software', 'ebook'].some(k => c.includes(k))) return 'creator';
-  if (['link', 'coach', 'consult', 'freelance', 'booking', 'bio'].some(k => c.includes(k))) return 'link';
-  if (['food', 'grocery', 'market', 'home', 'lifestyle', 'general'].some(k => c.includes(k))) return 'market';
+  if (['digital', 'ebook', 'template', 'course', 'notion', 'preset', 'design'].some(k => c.includes(k))) return 'vault';
+  if (['influencer', 'content', 'creator', 'youtube', 'tiktok', 'personal', 'brand', 'bio', 'link'].some(k => c.includes(k))) return 'pulse';
+  if (['coach', 'mentor', 'trainer', 'educator', 'fitness', 'transformation'].some(k => c.includes(k))) return 'spark';
+  if (['consult', 'freelance', 'designer', 'developer', 'photographer', 'service', 'agency', 'booking'].some(k => c.includes(k))) return 'atlas';
+  if (['food', 'grocery', 'market', 'home', 'lifestyle', 'general', 'handmade', 'artisan'].some(k => c.includes(k))) return 'bazaar';
+  if (['creator', 'course', 'software'].some(k => c.includes(k))) return 'creator';
   return 'luxe';
 }
 
@@ -124,6 +182,41 @@ const themeLoader: Record<string, () => Promise<ThemeComponents>> = {
     Hero: m.LinkHero,
     ProductPage: m.LinkProductPage,
     cssClass: 'theme-link',
+  })),
+  pulse: () => import('./pulse').then(m => ({
+    ProductCard: m.PulseProductCard,
+    CollectionCard: m.PulseCollectionCard,
+    Hero: m.PulseHero,
+    ProductPage: m.PulseProductPage,
+    cssClass: 'theme-pulse',
+  })),
+  vault: () => import('./vault').then(m => ({
+    ProductCard: m.VaultProductCard,
+    CollectionCard: m.VaultCollectionCard,
+    Hero: m.VaultHero,
+    ProductPage: m.VaultProductPage,
+    cssClass: 'theme-vault',
+  })),
+  atlas: () => import('./atlas').then(m => ({
+    ProductCard: m.AtlasProductCard,
+    CollectionCard: m.AtlasCollectionCard,
+    Hero: m.AtlasHero,
+    ProductPage: m.AtlasProductPage,
+    cssClass: 'theme-atlas',
+  })),
+  spark: () => import('./spark').then(m => ({
+    ProductCard: m.SparkProductCard,
+    CollectionCard: m.SparkCollectionCard,
+    Hero: m.SparkHero,
+    ProductPage: m.SparkProductPage,
+    cssClass: 'theme-spark',
+  })),
+  bazaar: () => import('./bazaar').then(m => ({
+    ProductCard: m.BazaarProductCard,
+    CollectionCard: m.BazaarCollectionCard,
+    Hero: m.BazaarHero,
+    ProductPage: m.BazaarProductPage,
+    cssClass: 'theme-bazaar',
   })),
 };
 

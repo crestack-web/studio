@@ -24,7 +24,12 @@ function btnRadius(style?: 'pill' | 'square' | 'rounded', theme?: string): numbe
   // default per theme
   if (theme === 'glow') return 100;
   if (theme === 'market') return 100;
+  if (theme === 'pulse') return 100;
+  if (theme === 'bazaar') return 8;
+  if (theme === 'spark') return 100;
   if (theme === 'creator') return 6;
+  if (theme === 'vault') return 8;
+  if (theme === 'atlas') return 8;
   return 0;
 }
 
@@ -238,6 +243,142 @@ export function ThemedHero({
           background: primaryColor, color: '#fff',
           fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
           transition: 'opacity 0.18s', width: 'fit-content',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Pulse — social-first creator store ──────────────────────────────────
+  if (theme === 'pulse') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+        ...bgStyle, alignItems: 'center', textAlign: 'center',
+      }}>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={storeName}
+            style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '4px solid rgba(255,255,255,0.3)', marginBottom: 14 }} />
+        )}
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>
+          ✨ Your favorite creator
+        </p>
+        <h1 style={{ color: '#fff', fontFamily: '"Outfit",sans-serif', fontSize: 'clamp(2rem, 5.5vw, 3.6rem)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: 'rgba(255,255,255,0.9)', maxWidth: 480, fontSize: '1.05rem', marginTop: 10, lineHeight: 1.6 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24,
+          padding: '13px 32px', background: '#fff', color: primaryColor,
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', width: 'fit-content',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Vault — digital product showcase ────────────────────────────────────
+  if (theme === 'vault') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor}20 0%, #0B1D3A 100%)`,
+        ...bgStyle, alignItems: align, textAlign: textAl, border: '1px solid #1E3A5F',
+      }}>
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#60A5FA', marginBottom: 8 }}>
+          ⚡ Instant Digital Delivery
+        </p>
+        <h1 style={{ color: '#F1F5F9', fontFamily: '"Space Grotesk",sans-serif', fontSize: 'clamp(1.8rem, 4.5vw, 3rem)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#94A3B8', maxWidth: 480, fontSize: '1.05rem', marginTop: 10, lineHeight: 1.6 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24,
+          padding: '13px 32px', background: '#3B82F6', color: '#fff',
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', boxShadow: '0 4px 20px rgba(59,130,246,0.4)',
+          width: 'fit-content',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Atlas — professional services ───────────────────────────────────────
+  if (theme === 'atlas') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor}10 0%, ${secondaryColor}08 100%)`,
+        ...bgStyle, alignItems: align, textAlign: textAl, border: '1px solid #E2E8F0',
+      }}>
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: primaryColor, marginBottom: 8 }}>
+          ⭐ Trusted by 200+ clients
+        </p>
+        <h1 style={{ color: '#1E293B', fontFamily: '"Manrope",sans-serif', fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#64748B', maxWidth: 480, fontSize: '1.05rem', marginTop: 10, lineHeight: 1.6 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24,
+          padding: '13px 32px', background: '#0D9488', color: '#fff',
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', width: 'fit-content',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Spark — coach & expert ──────────────────────────────────────────────
+  if (theme === 'spark') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${secondaryColor}18 0%, ${primaryColor}12 100%)`,
+        ...bgStyle, alignItems: align, textAlign: textAl, border: '1px solid #F3E8D8',
+      }}>
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#D97706', marginBottom: 8 }}>
+          🏆 Transform Your Life
+        </p>
+        <h1 style={{ color: '#2D1B69', fontFamily: '"Raleway",sans-serif', fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: '#5B4A8A', maxWidth: 480, fontSize: '1.05rem', marginTop: 10, lineHeight: 1.6 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24,
+          padding: '13px 32px', background: '#D97706', color: '#fff',
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', width: 'fit-content',
+        }}>
+          {ctaLabel} →
+        </a>
+      </section>
+    );
+  }
+
+  // ── Bazaar — small business ecommerce ───────────────────────────────────
+  if (theme === 'bazaar') {
+    return (
+      <section className="sf-hero" style={{
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+        ...bgStyle, alignItems: 'center', textAlign: 'center',
+      }}>
+        <p style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>
+          📦 Shop Local · Deliver Fast
+        </p>
+        <h1 style={{ color: '#fff', fontFamily: '"Poppins",sans-serif', fontSize: 'clamp(1.8rem, 4.5vw, 2.8rem)', fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+          {storeName}
+        </h1>
+        {tagline && <p style={{ color: 'rgba(255,255,255,0.9)', maxWidth: 480, fontSize: '1.05rem', marginTop: 10, lineHeight: 1.6 }}>{tagline}</p>}
+        <a href={ctaUrl} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 24,
+          padding: '13px 32px', background: '#fff', color: primaryColor,
+          borderRadius: radius, fontWeight: 700, fontSize: '0.9rem',
+          textDecoration: 'none', transition: 'opacity 0.18s', width: 'fit-content',
         }}>
           {ctaLabel} →
         </a>
