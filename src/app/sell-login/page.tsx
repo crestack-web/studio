@@ -89,7 +89,31 @@ export default function SellLoginPage() {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6;
 
   function goToDashboard() {
-    window.location.href = '/sell/dashboard';
+    // Generate auth token and redirect to mo-sell.store
+    const launchMoSell = async () => {
+      try {
+        const { auth } = initializeFirebase();
+        const uid = auth.currentUser?.uid;
+        if (!uid) {
+          window.location.href = 'https://mo-sell.store/login';
+          return;
+        }
+        const res = await fetch('/api/sell/auth-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid }),
+        });
+        const data = await res.json();
+        if (data.token) {
+          window.location.href = `https://mo-sell.store/auth/callback?token=${encodeURIComponent(data.token)}&uid=${uid}`;
+        } else {
+          window.location.href = 'https://mo-sell.store/dashboard';
+        }
+      } catch {
+        window.location.href = 'https://mo-sell.store/dashboard';
+      }
+    };
+    launchMoSell();
   }
 
   async function handleEmailLogin() {

@@ -95,10 +95,36 @@ export function AppShell() {
   // Use the page tracking hook to track user activity
   usePageTracking();
 
-  // MO Sell is a standalone dashboard — navigate to /sell/dashboard route
+  // MO Sell is a standalone dashboard — generate auth token and redirect
   useEffect(() => {
     if (activePage === 'mo-sell') {
-      window.location.href = '/sell/dashboard';
+      const launchMoSell = async () => {
+        try {
+          const { initializeFirebase } = await import('@/firebase');
+          const { getAuth } = await import('firebase/auth');
+          const firebase = initializeFirebase();
+          const auth = getAuth(firebase.firebaseApp);
+          const uid = auth.currentUser?.uid;
+          if (!uid) {
+            window.location.href = 'https://mo-sell.store/login';
+            return;
+          }
+          const res = await fetch('/api/sell/auth-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid }),
+          });
+          const data = await res.json();
+          if (data.token) {
+            window.location.href = `https://mo-sell.store/auth/callback?token=${encodeURIComponent(data.token)}&uid=${uid}`;
+          } else {
+            window.location.href = 'https://mo-sell.store/login';
+          }
+        } catch {
+          window.location.href = 'https://mo-sell.store/login';
+        }
+      };
+      launchMoSell();
     }
   }, [activePage]);
 
