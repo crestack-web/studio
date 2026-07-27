@@ -43,30 +43,12 @@ function renderPage(page: string): React.ReactNode {
 const FULL_BLEED_PAGES = new Set(['theme-editor', 'ask-mo']);
 
 export function SellShell() {
-  const { activePage, toast, storeConfig, storeConfigLoading, navigateTo } = useSell();
-  const [wizardDismissed, setWizardDismissed] = React.useState(false);
-
-  const showWizard =
-    (!storeConfigLoading && !storeConfig && !wizardDismissed) ||
-    activePage === 'setup-wizard';
-
-  function handleWizardClose() {
-    if (storeConfig) {
-      navigateTo('overview');
-    } else {
-      setWizardDismissed(true);
-      navigateTo('overview');
-    }
-  }
+  const { activePage, toast, storeConfig, navigateTo } = useSell();
 
   const isFullBleed = FULL_BLEED_PAGES.has(activePage);
 
   return (
     <div className={styles.shell}>
-      {showWizard && (
-        <StoreSetupWizard onClose={handleWizardClose} />
-      )}
-
       <SellSidebar />
 
       <div className={styles.main}>
@@ -74,9 +56,9 @@ export function SellShell() {
 
         <div className={isFullBleed ? styles.pageAreaFullBleed : styles.pageArea}>
           <div className={isFullBleed ? styles.pageFullBleed : styles.page}>
-            {activePage === 'setup-wizard'
-              ? null
-              : renderPage(activePage)}
+          {activePage === 'setup-wizard'
+            ? <StoreSetupWizard onClose={() => navigateTo('overview')} />
+            : renderPage(activePage)}
           </div>
         </div>
       </div>

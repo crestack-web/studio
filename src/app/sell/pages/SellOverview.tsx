@@ -166,23 +166,38 @@ export function SellOverview() {
           <div className={styles.setupCardHeader}>
             <div>
               <p className={styles.setupCardTitle}>
-                {storeConfig ? 'Finish setting up your store' : 'Get your store live'}
+                {storeConfig ? 'Finish setting up your store' : 'Set up your store with MO'}
               </p>
-              <p className={styles.setupCardSub}>{setupProgress} of 4 steps complete</p>
+              <p className={styles.setupCardSub}>
+                {storeConfig ? `${setupProgress} of 4 steps complete` : 'Chat with MO to configure your store — name, theme, products, and more.'}
+              </p>
             </div>
-            <div className={styles.setupProgress}>
-              <div className={styles.setupProgressBar}>
-                <div className={styles.setupProgressFill} style={{ width: `${(setupProgress / 4) * 100}%` }} />
+            {storeConfig && (
+              <div className={styles.setupProgress}>
+                <div className={styles.setupProgressBar}>
+                  <div className={styles.setupProgressFill} style={{ width: `${(setupProgress / 4) * 100}%` }} />
+                </div>
+                <span className={styles.setupProgressLabel}>{Math.round((setupProgress / 4) * 100)}%</span>
               </div>
-              <span className={styles.setupProgressLabel}>{Math.round((setupProgress / 4) * 100)}%</span>
+            )}
+          </div>
+          {storeConfig ? (
+            <div className={styles.setupSteps}>
+              <SetupStep number={1} label="Create your store" done={hasStore}    onClick={() => navigateTo('setup-wizard')} />
+              <SetupStep number={2} label="Add your products"  done={hasProducts} onClick={() => navigateTo('products')} />
+              <SetupStep number={3} label="Connect a domain"   done={hasCustomDomain} onClick={() => navigateTo('settings')} />
+              <SetupStep number={4} label="Go live"            done={isLive}      onClick={() => navigateTo('settings')} />
             </div>
-          </div>
-          <div className={styles.setupSteps}>
-            <SetupStep number={1} label="Create your store" done={hasStore}    onClick={() => navigateTo('setup-wizard')} />
-            <SetupStep number={2} label="Add your products"  done={hasProducts} onClick={() => navigateTo('products')} />
-            <SetupStep number={3} label="Connect a domain"   done={hasCustomDomain} onClick={() => navigateTo('settings')} />
-            <SetupStep number={4} label="Go live"            done={isLive}      onClick={() => navigateTo('settings')} />
-          </div>
+          ) : (
+            <div style={{ display:'flex', gap:10, marginTop:8 }}>
+              <button
+                className={[styles.quickAction, styles.quickPrimary].join(' ')}
+                onClick={() => navigateTo('setup-wizard')}
+              >
+                Chat with MO →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

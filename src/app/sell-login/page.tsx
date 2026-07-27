@@ -275,7 +275,7 @@ export default function SellLoginPage() {
                 onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = C.text2)}>
                 ← About MO Sell
               </a>
-              <a href="/welcome/signup" style={{ color: C.primary, textDecoration: 'none', fontWeight: 600 }}
+              <a href="/sell-signup" style={{ color: C.primary, textDecoration: 'none', fontWeight: 600 }}
                 onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline')}
                 onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none')}>
                 Create account →
